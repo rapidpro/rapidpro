@@ -3,3 +3,10 @@
 
 -block summary
   -trans "Start a flow when a conversation is started by a contact."
+
+-block fields
+  {{ block.super }}
+  %h5.embedded-data-new_conversation.hidden
+    -trans "Flow Parameters"
+  #embedded-data-new_conversation.hidden
+    #embed-container-new_conversation

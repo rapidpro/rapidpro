@@ -7,10 +7,11 @@ import requests
 from collections import defaultdict, Counter
 from enum import Enum
 from mimetypes import guess_extension
+from uuid import uuid4
 
 from django.conf import settings
-from django.db.models.functions import Concat
 from django.template.defaultfilters import slugify
+from django_redis import get_redis_connection
 from parse_rest.datatypes import Date
 from rest_framework import generics, status, views
 from rest_framework.pagination import CursorPagination
@@ -18,6 +19,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
+from rest_framework.utils.urls import replace_query_param
 from smartmin.views import SmartFormView, SmartTemplateView
 
 from django import forms
@@ -46,6 +48,7 @@ from temba.contacts.tasks import release_group_task
 from temba.contacts.search import SearchException, parse_query
 from temba.contacts.search.elastic import query_contact_ids_from_elasticsearch
 from temba.flows.models import Flow, FlowRun, FlowStart
+from temba.flows.merging.helpers import get_flow_step_type
 from temba.flows.search.parser import FlowRunSearch
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -4435,6 +4438,31 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         )
 
 
+def cache_elastic_ids(func):
+    """
+    Decorator for 'get_contact_ids_by_query' method to cache search result from elasticsearch,
+    in the contact report endpoint, to reduce redundant calls to the elasticsearch.
+    """
+
+    def wrapper(view: BaseAPIView, *args, **kwargs):
+        r = get_redis_connection()
+        cache_uuid = view.request.query_params.get("cache_uuid")
+        if cache_uuid:
+            key = f"elastic-cache-{cache_uuid}"
+            cached_result = r.get(key)
+            if cached_result:
+                r.expire(key, 300)
+                return json.loads(cached_result.decode())
+        cache_uuid = str(uuid4())
+        key = f"elastic-cache-{cache_uuid}"
+        result = func(view, *args, **kwargs)
+        r.set(key, json.dumps(result), ex=300)
+        setattr(view, "new_cache_uuid", cache_uuid)
+        return result
+
+    return wrapper
+
+
 class ReportEndpointMixin:
     def __init__(self):
         self.applied_filters = {}
@@ -4442,7 +4470,7 @@ class ReportEndpointMixin:
 
     def get_paginated_queryset(self, queryset):
         pagination_class: CursorPagination = getattr(self, "pagination_class", CreatedOnCursorPagination)()
-        pagination_class.page_size_query_param = "page_size"
+        pagination_class.page_size_query_param = getattr(self, "page_size_query_param", "page_size")
         pagination_class.page_size = getattr(self, "chunk_size", 2000)
         pagination_class.max_page_size = 2000
         pagination_class.paginate_queryset(queryset, self.request, self)
@@ -4483,25 +4511,56 @@ class ReportEndpointMixin:
     def get_query_parameter(self, name, default=None):
         return self.request.data.get(name, self.request.query_params.get(name, default))
 
-    def get_search_query_filter(self, org, prefix=""):
-        search_query, qs_filter = self.get_query_parameter("search_query", ""), Q()
+    @cache_elastic_ids
+    def get_contact_ids_by_query(self, org, with_exclude=False):
+        search_query = self.get_query_parameter("search_query", "")
         if not search_query:
-            return qs_filter
+            return ([], []) if with_exclude else []
 
         parsed_search_query = parse_query(org, search_query)
         self.applied_filters["search_query"] = parsed_search_query.query
 
         elastic_query_conf = parsed_search_query.elastic_query
         main_conditions = elastic_query_conf.get("bool", {}).get("must", [])
+        cond_index = 3
         try:
             main_conditions.pop(1)  # remove condition `is_active`
             main_conditions.pop(1)  # remove condition `groups` (filter by active group)
+            cond_index = 1
         except IndexError:
             pass
 
-        contact_ids = query_contact_ids_from_elasticsearch(org, elastic_query_conf)
-        qs_filter = Q(**{f"{prefix}id__in": contact_ids}) if contact_ids else Q(**{f"{prefix}id": 0})
-        return qs_filter
+        # add group filter if it is possible to decrease the amount of ids to search by
+        group_uuid_names = self.request__get_separated_names_and_uuids("group")
+        if group_uuid_names["names"]:
+            group_name_filter = Q()
+            for group_name in group_uuid_names["names"]:
+                group_name_filter |= Q(name__iexact=group_name)
+            group_uuid_names["uuids"].extend(
+                ContactGroup.user_groups.filter(org=org).filter(group_name_filter).values_list("uuid", flat=True)
+            )
+        if group_uuid_names["uuids"]:
+            main_conditions.insert(1, {"term": {"groups": group_uuid_names["uuids"][0]}})
+            cond_index += 1
+
+        if with_exclude:
+            try:
+                exclude_query_conf = {"bool": {}}
+                exclude_query_conf["bool"]["must"] = main_conditions[:cond_index]
+                exclude_query_conf["bool"]["must_not"] = main_conditions[cond_index:]
+
+                return (
+                    query_contact_ids_from_elasticsearch(org, elastic_query_conf),
+                    query_contact_ids_from_elasticsearch(org, exclude_query_conf),
+                )
+            except KeyError:
+                return query_contact_ids_from_elasticsearch(org, elastic_query_conf), []
+        return query_contact_ids_from_elasticsearch(org, elastic_query_conf)
+
+    def update_next_page_with_cache_uuid(self, url):
+        if getattr(self, "new_cache_uuid", None) and url:
+            url = replace_query_param(url, "cache_uuid", getattr(self, "new_cache_uuid"))
+        return url
 
     def get_name_uuid_filters(self, field_name, key, prefix="", exclude=False):
         qs_filter, __ = Q(), ("__" if key else "")
@@ -4537,7 +4596,6 @@ class ReportEndpointMixin:
         org = self.request.user.get_org()
 
         if not limited_filters:
-            arg_filters.append(self.get_search_query_filter(org, prefix=filter_prefix))
             arg_filters.append(self.get_name_uuid_filters("flow", "runs__flow", prefix=filter_prefix))
             arg_filters.append(self.get_datetime_filters("created", "created_on", org, filter_prefix))
             arg_filters.append(self.get_datetime_filters("modified", "modified_on", org, filter_prefix))
@@ -4552,6 +4610,17 @@ class ReportEndpointMixin:
             return arg_filters
 
         contacts = Contact.objects.filter(org_id=org.id).filter(*arg_filters).distinct()
+
+        # perform search by query in ElasticSearch and join the result to the filter in DB
+        if not limited_filters:
+            queried_contact_ids, exclude_contact_ids = self.get_contact_ids_by_query(org, with_exclude=True)
+            if exclude_contact_ids and len(exclude_contact_ids) < len(queried_contact_ids):
+                contacts = contacts.exclude(id__in=exclude_contact_ids)
+            elif queried_contact_ids:
+                contacts = contacts.filter(id__in=queried_contact_ids)
+            elif self.get_query_parameter("search_query"):
+                contacts = Contact.objects.none()
+
         return contacts
 
 
@@ -4625,8 +4694,9 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         try:
-            contacts = self.get_contacts_qs().only("modified_on")
+            contacts = self.get_contacts_qs().only("modified_on").using("read_only_db")
             current_page, next_page = self.get_paginated_queryset(contacts)
+            next_page = self.update_next_page_with_cache_uuid(next_page)
             count = len(current_page)
             response_data = {"next": next_page, **self.applied_filters, "results": [{"total_unique_contacts": count}]}
             return Response(response_data)
@@ -4777,14 +4847,16 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         org = self.request.user.get_org()
         counts = defaultdict(lambda: Counter())
         try:
-            contacts = self.get_contacts_qs()
+            contacts = self.get_contacts_qs().using("read_only_db")
         except SearchException as e:
             return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": e.args[0] if e.args else "Request failed!"}, status=status.HTTP_400_BAD_REQUEST)
 
         requested_variables = self.request.GET.get("variables", self.request.data.get("variables"))
-        existing_variables = dict(ContactField.user_fields.filter(org=org).values_list("key", "uuid"))
+        existing_variables = dict(
+            ContactField.user_fields.using("read_only_db").filter(org=org).values_list("key", "uuid")
+        )
         variable_filters = {}
         top_ordering = {}
         if not (requested_variables and type(requested_variables) is dict):
@@ -4803,6 +4875,11 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
             if variable not in existing_variables:
                 return Response(
                     {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            elif not isinstance(conf, dict):
+                return Response(
+                    {"errors": {"variables": _("'{}' must be an object.").format(variable)}},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             variable_uuid = str(existing_variables[variable])
@@ -4824,6 +4901,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         for variable, top_x in top_ordering.items():
             counts[variable] = dict(counts[variable].most_common(top_x))
 
+        next_page = self.update_next_page_with_cache_uuid(next_page)
         response_data = {"next": next_page, **self.applied_filters, "results": [counts]}
         return Response(response_data)
 
@@ -4924,45 +5002,88 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
 
     permission = "orgs.org_api"
+    page_size_query_param = "page_size"
     pagination_class = CreatedOnCursorPagination
 
-    def get_flow_messages(self, org, flow, qs):
-        runs = FlowRun.objects.filter(
-            self.get_datetime_filters("", "exited_on", org),
-            org=org,
-            flow__uuid=flow,
-            status__in=[
-                FlowRun.STATUS_COMPLETED,
-                FlowRun.STATUS_INTERRUPTED,
-                FlowRun.STATUS_FAILED,
-                FlowRun.STATUS_EXPIRED,
-            ]
+    def filter_and_paginate_qs_by_flow(self, org, flow, qs):
+        # filter and paginate flow runs
+        runs = (
+            FlowRun.objects.filter(self.get_datetime_filters("", "exited_on", org), flow_id=flow.id)
+            .exclude(status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING])
+            .only("events", "modified_on")
+            .using("read_only_db")
         )
-        messages_uuids = []
-        for run in runs:
-            messages_uuids += [
-                evt["msg"].get("uuid")
-                for evt in run.get_msg_events()
-                if evt["msg"].get("uuid") not in [None, "None", ""]
-            ]
-        return qs.filter(uuid__in=messages_uuids)
+        self.configure_paginator_for_flow_runs(flow)
+        runs, next_page = self.get_paginated_queryset(runs)
+
+        # get messages uuids from filtered runs
+        messages_uuids = set(
+            evt["msg"].get("uuid")
+            for run in runs
+            for evt in run.get_msg_events()
+            if evt["msg"].get("uuid") not in [None, "None", ""]
+        )
+
+        # filter messages by uuids
+        qs = qs.filter(uuid__in=messages_uuids) if messages_uuids else Msg.objects.none()
+        qs = qs.only("created_on", "direction", "status").using("read_only_db")
+        qs = qs[:len(messages_uuids)]
+        return qs, next_page
+
+    def configure_paginator_for_flow_runs(self, flow: Flow):
+        nodes_that_send_or_receive_msgs = [
+            "send_msg",
+            "send_broadcast",
+            "wait_for_response",
+            "play_message",
+            "play_audio",
+            "wait_for_audio",
+            "wait_for_video",
+            "wait_for_digits",
+            "wait_for_image",
+            "wait_for_location",
+            "wait_for_menu",
+            "say_msg",
+        ]
+        nodes = flow.get_definition().get("nodes", [])
+        msgs_count = len([node for node in nodes if get_flow_step_type(node) in nodes_that_send_or_receive_msgs]) or 1
+        page_size = max(self.get_page_size() // msgs_count, 1)
+        setattr(self, "chunk_size", page_size)
+        setattr(self, "pagination_class", ModifiedOnCursorPagination)
+        setattr(self, "page_size_query_param", "__removed_page_size")
+
+    def get_page_size(self):
+        page_size = self.request.query_params.get("page_size") or 2000
+        try:
+            return int(page_size)
+        except ValueError:
+            return 2000
 
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         org = self.request.user.get_org()
-        queryset = Msg.objects.filter(org=org)
+        queryset = Msg.objects.filter(org__id=org.id).using("read_only_db").order_by("-created_on", "-id")
         self.applied_filters, arg_filters = {}, []
 
-        flow = self.get_query_parameter("flow")
-        queryset = self.get_flow_messages(org, flow, queryset) if flow else queryset
         arg_filters.append(self.get_name_uuid_filters("exclude", "contact__all_groups", exclude=True))
         arg_filters.append(self.get_name_uuid_filters("channel", "channel"))
         arg_filters.append(self.get_datetime_filters("", "created_on", org))
         arg_filters = [_filter for _filter in arg_filters if _filter]
+        queryset = queryset.filter(*arg_filters)
 
-        queryset = queryset.filter(*arg_filters).only("created_on").annotate(ds=Concat("direction", "status"))
-        current_page, next_page = self.get_paginated_queryset(queryset)
-        counter = Counter([rec.ds for rec in current_page])
+        try:
+            flow__uuid = self.get_query_parameter("flow")
+            if flow__uuid:
+                flow = Flow.objects.using("read_only_db").get(org__id=org.id, uuid=flow__uuid)
+                current_page, next_page = self.filter_and_paginate_qs_by_flow(org, flow, queryset)
+            else:
+                current_page, next_page = self.get_paginated_queryset(queryset)
+        except Flow.DoesNotExist:
+            return Response(
+                {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        counter = Counter([f"{rec.direction}{rec.status}" for rec in current_page])
         results = dict(total_inbound_messages=0, total_outbound_messages=0, total_outbound_message_failures=0)
         for msg_type, count in counter.items():
             results["total_inbound_messages" if msg_type[0] == "I" else "total_outbound_messages"] += count
@@ -5012,9 +5133,12 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 class FlowReportFiltersMixin(ReportEndpointMixin):
     chunk_size = 2000
 
-    def get_runs(self, org, flow) -> QuerySet:
+    def get_runs(self, with_flow=False) -> QuerySet:
+        org = self.request.user.get_org()
+        flow = Flow.objects.using("read_only_db").get(org__id=org.id, uuid=self.get_query_parameter("flow"))
+
         self.applied_filters = {"flow": flow.uuid}
-        queryset = FlowRun.objects.filter(flow_id=flow.id)
+        queryset = FlowRun.objects.filter(flow_id=flow.id).using("read_only_db")
 
         if {"channel", "exclude", "group"}.intersection(
             [*self.request.query_params.keys(), *self.request.data.keys()]
@@ -5034,7 +5158,7 @@ class FlowReportFiltersMixin(ReportEndpointMixin):
                 queryset = _filter(filter_value)
                 self.applied_filters[name] = filter_value
 
-        return queryset
+        return (flow, queryset) if with_flow else queryset
 
 
 class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
@@ -5098,27 +5222,24 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
 
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
-        org = self.request.user.get_org()
         try:
-            flow = Flow.objects.get(org=org, uuid=self.request.data.get("flow", self.request.query_params.get("flow")))
+            runs = self.get_runs().only("contact_id", "exit_type", "modified_on")
+            contacts, counter, (current_page, next_page) = set(), Counter(), self.get_paginated_queryset(runs)
+            for run in current_page:
+                contacts.add(run.contact_id)
+                counter[run.exit_type] += 1
+
+            results = {
+                "total_contacts": len(contacts),
+                "total_completes": counter[FlowRun.EXIT_TYPE_COMPLETED],
+                "total_expired": counter[FlowRun.EXIT_TYPE_EXPIRED],
+                "total_interrupts": counter[FlowRun.STATUS_INTERRUPTED],
+            }
+            return Response({**self.applied_filters, "next": next_page, "results": [results]})
         except Flow.DoesNotExist:
             return Response(
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
-
-        runs = self.get_runs(org, flow).only("contact_id", "exit_type", "modified_on")
-        contacts, counter, (current_page, next_page) = set(), Counter(), self.get_paginated_queryset(runs)
-        for run in current_page:
-            contacts.add(run.contact_id)
-            counter[run.exit_type] += 1
-
-        results = {
-            "total_contacts": len(contacts),
-            "total_completes": counter[FlowRun.EXIT_TYPE_COMPLETED],
-            "total_expired": counter[FlowRun.EXIT_TYPE_EXPIRED],
-            "total_interrupts": counter[FlowRun.STATUS_INTERRUPTED],
-        }
-        return Response({**self.applied_filters, "next": next_page, "results": [results]})
 
     @staticmethod
     def csv_convertor(result, response):
@@ -5186,6 +5307,11 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
     * **variables** - configuration which define the fields to be included in the report
 
+    Variables filter configuration object:
+
+    * **format** - choice from two options to count by ("category" or "value", default is "category")
+    * **top** - return only top X most common responses
+
     This report can't be performed in one request so the report is being split into chunks,
     you should follow the `next` link until it's `null` and merge data using your script.
     * **next** - URL to get next chunk of the report.
@@ -5196,7 +5322,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
         {
             "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
             "variables": {
-                "result_1": {
+                "variable_name": {
                     "format": "value",
                     "top": 3
                 }
@@ -5235,49 +5361,66 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
 
     @csv_response_wrapper
     def post(self, request, *args, **kwargs):
-        org = self.request.user.get_org()
         try:
-            flow = Flow.objects.get(org=org, uuid=self.request.data.get("flow"))
+            flow, runs = self.get_runs(with_flow=True)
+            runs = runs.only("results", "modified_on")
+            counts, (current_page, next_page) = defaultdict(lambda: Counter()), self.get_paginated_queryset(runs)
+
+            requested_variables = self.request.data.get("variables")
+            existing_variables = {result.get("key", ""): result for result in flow.metadata.get("results", [])}
+            variable_filters = {}
+            top_ordering = {}
+            if not (requested_variables and type(requested_variables) is dict):
+                return Response({"errors": {"variables": _("Filter 'variables' invalid or not provided.")}})
+
+            for variable, conf in requested_variables.items():
+                if variable not in existing_variables:
+                    return Response(
+                        {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if not isinstance(conf, dict):
+                    return Response(
+                        {
+                            "errors": {
+                                "variables": {
+                                    variable: _(
+                                        "Wrong filter configuration provided. "
+                                        "There must be object with two optional parameters, format and top."
+                                    )
+                                }
+                            }
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                _format = conf.get("format", "").lower()
+                if _format not in ["category", "value"]:
+                    _format = "category"
+                variable_filters[variable] = {"format": _format}
+                if _format == "value":
+                    variable_filters[variable]["top"] = conf.get("top")
+                if _format == "category":
+                    counts[variable] = Counter(
+                        {category: 0 for category in existing_variables[variable]["categories"]}
+                    )
+                if isinstance(conf.get("top"), int):
+                    top_ordering[variable] = conf.get("top")
+
+            self.applied_filters["variables"] = variable_filters
+
+            for flow_run in current_page:
+                for result_name, result in flow_run.results.items():
+                    if result_name in variable_filters:
+                        counts[result_name][result[variable_filters[result_name]["format"]]] += 1
+
+            for variable, top_x in top_ordering.items():
+                counts[variable] = dict(counts[variable].most_common(top_x))
+
+            return Response({**self.applied_filters, "next": next_page, "results": [counts]})
         except Flow.DoesNotExist:
             return Response(
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
-
-        runs = self.get_runs(org, flow).only("results", "modified_on")
-        counts, (current_page, next_page) = defaultdict(lambda: Counter()), self.get_paginated_queryset(runs)
-
-        requested_variables = self.request.data.get("variables")
-        existing_variables = {result.get("key", ""): result for result in flow.metadata.get("results", [])}
-        variable_filters = {}
-        top_ordering = {}
-        if not (requested_variables and type(requested_variables) is dict):
-            return Response({"errors": {"variables": _("Filter 'variables' invalid or not provided.")}})
-
-        for variable, conf in requested_variables.items():
-            if variable not in existing_variables:
-                return Response(
-                    {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}}
-                )
-            _format = conf.get("format", "").lower()
-            if _format not in ["category", "value"]:
-                _format = "category"
-            variable_filters[variable] = {"format": _format}
-            if _format == "value" and type(conf.get("top")) is int:
-                variable_filters[variable]["top"] = conf.get("top")
-                top_ordering[variable] = conf.get("top")
-            if _format == "category":
-                counts[variable] = Counter({category: 0 for category in existing_variables[variable]["categories"]})
-        self.applied_filters["variables"] = variable_filters
-
-        for flow_run in current_page:
-            for result_name, result in flow_run.results.items():
-                if result_name in variable_filters:
-                    counts[result_name][result[variable_filters[result_name]["format"]]] += 1
-
-        for variable, top_x in top_ordering.items():
-            counts[variable] = dict(counts[variable].most_common(top_x))
-
-        return Response({**self.applied_filters, "next": next_page, "results": [counts]})
 
     @staticmethod
     def csv_convertor(result, response):
@@ -5383,7 +5526,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
         self.applied_filters = {}
         org = self.request.user.get_org()
         link_filter = self.get_name_uuid_filters("link", key="")
-        link = Link.objects.filter(link_filter, org=org).first()
+        link = Link.objects.using("read_only_db").filter(link_filter, org__id=org.id).first()
         if link is None:
             errors = {
                 status.HTTP_400_BAD_REQUEST: _("Parameter 'link_name' is not provider."),
@@ -5398,7 +5541,8 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
         time_filters = self.get_datetime_filters("", "modified_on", org)
 
         unique_clicks = (
-            LinkContacts.objects.filter(link_id=link.id)
+            LinkContacts.objects.using("read_only_db")
+            .filter(link_id=link.id)
             .filter(time_filters)
             .exclude(group_filters)
             .distinct()
