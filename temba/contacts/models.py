@@ -602,6 +602,10 @@ class ContactField(SmartModel):
     def get_location_field(cls, org, value_type):
         return cls.user_fields.active_for_org(org=org).filter(value_type=value_type).first()
 
+    @property
+    def name(self):
+        return self.label
+
     @classmethod
     def import_fields(cls, org, user, field_defs):
         """
@@ -1796,6 +1800,10 @@ class ContactGroup(TembaModel):
     def __str__(self):
         return self.name
 
+    class Meta:
+        verbose_name = _("Group")
+        verbose_name_plural = _("Groups")
+
 
 class ContactGroupCount(SquashableModel):
     """
@@ -1886,15 +1894,16 @@ class ExportContactsTask(BaseExportTask):
 
     def get_export_fields_and_schemes(self):
         fields = [
-            dict(label="Contact UUID", key=Contact.UUID, id=0, field=None, urn_scheme=None),
-            dict(label="Name", key=ContactField.KEY_NAME, id=0, field=None, urn_scheme=None),
-            dict(label="Language", key=ContactField.KEY_LANGUAGE, id=0, field=None, urn_scheme=None),
-            dict(label="Created On", key=ContactField.KEY_CREATED_ON, id=0, field=None, urn_scheme=None),
+            dict(label="Contact UUID", key=Contact.UUID, field=None, urn_scheme=None),
+            dict(label="Name", key=ContactField.KEY_NAME, field=None, urn_scheme=None),
+            dict(label="Language", key=ContactField.KEY_LANGUAGE, field=None, urn_scheme=None),
+            dict(label="Created On", key=ContactField.KEY_CREATED_ON, field=None, urn_scheme=None),
+            dict(label="Last Seen On", key=ContactField.KEY_LAST_SEEN_ON, field=None, urn_scheme=None),
         ]
 
         # anon orgs also get an ID column that is just the PK
         if self.org.is_anon:
-            fields = [dict(label="ID", key=ContactField.KEY_ID, id=0, field=None, urn_scheme=None)] + fields
+            fields = [dict(label="ID", key=ContactField.KEY_ID, field=None, urn_scheme=None)] + fields
 
         scheme_counts = dict()
         if not self.org.is_anon:
@@ -1918,7 +1927,6 @@ class ExportContactsTask(BaseExportTask):
                         dict(
                             label=f"URN:{scheme.capitalize()}",
                             key=None,
-                            id=0,
                             field=None,
                             urn_scheme=scheme,
                             position=i,
@@ -1934,7 +1942,6 @@ class ExportContactsTask(BaseExportTask):
                     field=contact_field,
                     label="Field:%s" % contact_field.label,
                     key=contact_field.key,
-                    id=contact_field.id,
                     urn_scheme=None,
                 )
             )
@@ -1980,43 +1987,11 @@ class ExportContactsTask(BaseExportTask):
                 contact = contact_by_id[contact_id]
 
                 values = []
+                for field in fields:
+                    value = self.get_field_value(field, contact)
+                    values.append(self.prepare_value(value))
+
                 group_values = []
-                for col in range(len(fields)):
-                    field = fields[col]
-
-                    if field["key"] == ContactField.KEY_NAME:
-                        field_value = contact.name
-                    elif field["key"] == Contact.UUID:
-                        field_value = contact.uuid
-                    elif field["key"] == ContactField.KEY_LANGUAGE:
-                        field_value = contact.language
-                    elif field["key"] == ContactField.KEY_CREATED_ON:
-                        field_value = contact.created_on
-                    elif field["key"] == ContactField.KEY_ID:
-                        field_value = str(contact.id)
-                    elif field["urn_scheme"] is not None:
-                        contact_urns = contact.get_urns()
-                        scheme_urns = []
-                        for urn in contact_urns:
-                            if urn.scheme == field["urn_scheme"]:
-                                scheme_urns.append(urn)
-                        position = field["position"]
-                        if len(scheme_urns) > position:
-                            urn_obj = scheme_urns[position]
-                            field_value = urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ""
-                        else:
-                            field_value = ""
-                    else:
-                        field_value = contact.get_field_display(field["field"])
-
-                    if field_value is None:
-                        field_value = ""
-
-                    if field_value:
-                        field_value = self.prepare_value(field_value)
-
-                    values.append(field_value)
-
                 if include_group_memberships:
                     contact_groups_ids = [g.id for g in contact.all_groups.all()]
                     for col in range(len(group_fields)):
@@ -2048,6 +2023,34 @@ class ExportContactsTask(BaseExportTask):
                     self.save(update_fields=["modified_on"])
 
         return exporter.save_file()
+
+    def get_field_value(self, field: dict, contact: Contact):
+        if field["key"] == ContactField.KEY_NAME:
+            return contact.name
+        elif field["key"] == Contact.UUID:
+            return contact.uuid
+        elif field["key"] == ContactField.KEY_LANGUAGE:
+            return contact.language
+        elif field["key"] == ContactField.KEY_CREATED_ON:
+            return contact.created_on
+        elif field["key"] == ContactField.KEY_LAST_SEEN_ON:
+            return contact.last_seen_on
+        elif field["key"] == ContactField.KEY_ID:
+            return str(contact.id)
+        elif field["urn_scheme"] is not None:
+            contact_urns = contact.get_urns()
+            scheme_urns = []
+            for urn in contact_urns:
+                if urn.scheme == field["urn_scheme"]:
+                    scheme_urns.append(urn)
+            position = field["position"]
+            if len(scheme_urns) > position:
+                urn_obj = scheme_urns[position]
+                return urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ""
+            else:
+                return ""
+        else:
+            return contact.get_field_display(field["field"])
 
 
 def get_import_upload_path(instance: Any, filename: str):
