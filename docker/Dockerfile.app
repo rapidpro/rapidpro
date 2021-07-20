@@ -41,4 +41,4 @@ EXPOSE 8000
 
 ENTRYPOINT ["/entrypoint.sh"]
 
-CMD ["supervisor"]
+CMD ["app"]

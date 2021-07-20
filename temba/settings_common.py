@@ -155,8 +155,8 @@ TESTFILES_DIR = os.path.join(PROJECT_DIR, "../testfiles")
 STATICFILES_DIRS = (
     os.path.join(PROJECT_DIR, "../static"),
     os.path.join(PROJECT_DIR, "../media"),
-    os.path.join(PROJECT_DIR, "../node_modules/@greatnonprofits-nfp/flow-editor/build"),
     os.path.join(PROJECT_DIR, "../node_modules"),
+    os.path.join(PROJECT_DIR, "../node_modules/@greatnonprofits-nfp/flow-editor/build"),
     os.path.join(PROJECT_DIR, "../node_modules/react/umd"),
     os.path.join(PROJECT_DIR, "../node_modules/react-dom/umd"),
 )
@@ -882,10 +882,12 @@ GROUP_PERMISSIONS = {
         "orgs.org_export",
         "orgs.org_home",
         "orgs.org_profile",
+        "orgs.org_token",
         "orgs.org_two_factor",
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.org_token",
+        "orgs.org_api",
         "channels.channel_list",
         "channels.channel_read",
         "channels.channelevent_calls",
@@ -984,10 +986,16 @@ _default_database_config = {
     "OPTIONS": {},
 }
 
+_readonly_database_config = _default_database_config.copy()
 _direct_database_config = _default_database_config.copy()
 _default_database_config["DISABLE_SERVER_SIDE_CURSORS"] = True
+_readonly_database_config["DISABLE_SERVER_SIDE_CURSORS"] = True
 
-DATABASES = {"default": _default_database_config, "direct": _direct_database_config}
+DATABASES = {
+    "default": _default_database_config,
+    "direct": _direct_database_config,
+    "read_only_db": _readonly_database_config,
+}
 
 # If we are testing, set both our connections as the same, Django seems to get
 # confused on Python 3.6 with transactional tests otherwise

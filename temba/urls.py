@@ -87,7 +87,10 @@ def handler404(request, exception):
     Templates: `404.html`
     """
     user = request.user
-    brand = user.get_org().get_branding() if not user.is_anonymous else getattr(settings, "BRANDING")
+    try:
+        brand = user.get_org().get_branding() if not user.is_anonymous else getattr(settings, "BRANDING")
+    except AttributeError:
+        brand = getattr(settings, "BRANDING")
     context = dict(request=request, brand=brand)
 
     return render(request, "404.html", context=context, status=404)  # pragma: needs cover
