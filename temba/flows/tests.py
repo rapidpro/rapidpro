@@ -2562,11 +2562,19 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             object_unchanged=flow,
         )
 
-        # create flow start with an empty query
+        # try to create a query based flow start with an empty query
         self.assertUpdateSubmit(
             broadcast_url,
             {"mode": "query", "query": "", "exclude_in_other": False, "exclude_reruns": False},
             form_errors={"__all__": "Contact query is required."},
+            object_unchanged=flow,
+        )
+
+        # try to create selection based flow start with an empty selection
+        self.assertUpdateSubmit(
+            broadcast_url,
+            {"mode": "select", "omnibox": [], "exclude_in_other": False, "exclude_reruns": False},
+            form_errors={"omnibox": "This field is required."},
             object_unchanged=flow,
         )
 

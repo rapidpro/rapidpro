@@ -1838,10 +1838,7 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Exclude contacts currently in a flow"),
                 required=False,
                 initial=False,
-                help_text=_(
-                    "If unselected, contacts who are currently in a flow "
-                    "will be interrupted before being started in this flow."
-                ),
+                help_text=_("Any contacts currently in a flow will not be interrupted and started in this flow."),
                 widget=CheckboxWidget(),
             )
 
@@ -1850,7 +1847,7 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 initial=False,
                 help_text=_(
-                    "Any contacts who have gone through this flow in the last " "90 days will not be started again."
+                    "Any contacts who have gone through this flow in the last 90 days will not be started again."
                 ),
                 widget=CheckboxWidget(),
             )
