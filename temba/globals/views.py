@@ -144,4 +144,4 @@ class GlobalCRUDL(SmartCRUDL):
             return super().get_queryset(**kwargs).filter(usage_count=0)
 
     class Usages(DependencyUsagesModal):
-        pass
+        permission = "globals.global_read"

@@ -1798,6 +1798,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             return r"^%s/%s/(?P<value_type>[^/]+)/$" % (path, action)
 
     class Usages(DependencyUsagesModal):
+        permission = "contacts.contactfield_read"
         queryset = ContactField.user_fields
 
 
