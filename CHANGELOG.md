@@ -1,3 +1,8 @@
+v6.5.4
+----------
+ * Rework flow start modal to show options as exclusions which are unchecked by default
+ * Change sent messages view to be ordered by -sent_on
+
 v6.5.3
 ----------
  * Add Last Seen On as column to contact exports
