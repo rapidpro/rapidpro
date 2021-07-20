@@ -1801,19 +1801,27 @@ class FlowCRUDL(SmartCRUDL):
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        class BroadcastForm(forms.ModelForm):
-            def __init__(self, *args, **kwargs):
-                self.user = kwargs.pop("user")
-                self.flow = kwargs.pop("flow")
-                super().__init__(*args, **kwargs)
+        class Form(forms.ModelForm):
+            MODE_SELECT = "select"
+            MODE_QUERY = "query"
+            MODE_CHOICES = (
+                (MODE_SELECT, _("Enter contacts and groups to start below")),
+                (MODE_QUERY, _("Search for contacts to start")),
+            )
+
+            mode = forms.ChoiceField(
+                widget=SelectWidget(
+                    attrs={"placeholder": _("Select contacts or groups to start in the flow"), "widget_only": True}
+                ),
+                choices=MODE_CHOICES,
+                initial=MODE_SELECT,
+            )
 
             omnibox = JSONField(
-                label=_("Contacts & Groups"),
                 required=False,
-                help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
                 widget=OmniboxChoice(
                     attrs={
-                        "placeholder": _("Recipients, enter contacts or groups"),
+                        "placeholder": _("Select contact and groups"),
                         "groups": True,
                         "contacts": True,
                         "widget_only": True,
@@ -1821,69 +1829,61 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             )
 
-            restart_participants = forms.BooleanField(
-                label=_("Restart Participants"),
-                required=False,
-                initial=False,
-                help_text=_("Restart any contacts already participating in this flow"),
-                widget=CheckboxWidget(),
-            )
-
-            include_active = forms.BooleanField(
-                label=_("Include Active Contacts"),
-                required=False,
-                initial=False,
-                help_text=_("Include contacts currently active in a flow"),
-                widget=CheckboxWidget(),
-            )
-
-            recipients_mode = forms.ChoiceField(
-                widget=SelectWidget(
-                    attrs={"placeholder": _("Select contacts or groups to start in the flow"), "widget_only": True}
-                ),
-                choices=(
-                    ("select", _("Enter contacts and groups to start below")),
-                    ("query", _("Search for contacts to start")),
-                ),
-                initial="select",
-            )
-
-            contact_query = forms.CharField(
+            query = forms.CharField(
                 required=False,
                 widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")}),
             )
 
-            def clean_contact_query(self):
-                contact_query = self.cleaned_data["contact_query"]
-                recipients_mode = self.data["recipients_mode"]
+            exclude_in_other = forms.BooleanField(
+                label=_("Exclude contacts currently in a flow"),
+                required=False,
+                initial=False,
+                help_text=_(
+                    "If unselected, contacts who are currently in a flow "
+                    "will be interrupted before being started in this flow."
+                ),
+                widget=CheckboxWidget(),
+            )
 
-                if recipients_mode == "query":
-                    if not contact_query.strip():
-                        raise ValidationError(_("Contact query is required"))
-
-                    try:
-                        parsed = parse_query(self.flow.org, contact_query)
-                        contact_query = parsed.query
-                    except SearchException as e:
-                        raise ValidationError(str(e))
-
-                return contact_query
+            exclude_reruns = forms.BooleanField(
+                label=_("Exclude contacts previously in this flow"),
+                required=False,
+                initial=False,
+                help_text=_(
+                    "Any contacts who have gone through this flow in the last " "90 days will not be started again."
+                ),
+                widget=CheckboxWidget(),
+            )
 
             def clean_omnibox(self):
-                starting = self.cleaned_data["omnibox"]
-                recipients_mode = self.data["recipients_mode"]
+                omnibox = self.cleaned_data.get("omnibox")
+                return omnibox_deserialize(self.instance.org, omnibox) if omnibox else {}
 
-                if recipients_mode == "select" and not starting:  # pragma: needs cover
-                    raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
-
-                return omnibox_deserialize(self.user.get_org(), starting)
+            def clean_query(self):
+                query = self.cleaned_data.get("query")
+                if query:
+                    try:
+                        parsed = parse_query(self.instance.org, query)
+                        query = parsed.query
+                    except SearchException as e:
+                        raise ValidationError(str(e))
+                return query
 
             def clean(self):
+                cleaned_data = super().clean()
+                mode = cleaned_data["mode"]
+                omnibox = cleaned_data.get("omnibox")
+                query = cleaned_data.get("query")
 
-                cleaned = super().clean()
+                if mode == self.MODE_SELECT and not omnibox:
+                    self.add_error("omnibox", _("This field is required."))
+                elif mode == self.MODE_QUERY and not query:
+                    # TODO https://github.com/nyaruka/temba-components/issues/103
+                    # self.add_error("query", _("This field is required."))
+                    raise ValidationError(_("Contact query is required."))
 
                 # check whether there are any flow starts that are incomplete
-                if self.flow.is_starting():
+                if self.instance.is_starting():
                     raise ValidationError(
                         _(
                             "This flow is already being started, please wait until that process is complete before "
@@ -1891,28 +1891,27 @@ class FlowCRUDL(SmartCRUDL):
                         )
                     )
 
-                if self.flow.org.is_suspended:
+                if self.instance.org.is_suspended:
                     raise ValidationError(
                         _(
                             "Sorry, your workspace is currently suspended. "
                             "To enable starting flows, please contact support."
                         )
                     )
-                if self.flow.org.is_flagged:
+                if self.instance.org.is_flagged:
                     raise ValidationError(
                         _(
                             "Sorry, your workspace is currently flagged. To enable starting flows, please contact support."
                         )
                     )
 
-                return cleaned
+                return cleaned_data
 
             class Meta:
                 model = Flow
-                fields = ("omnibox", "restart_participants", "include_active")
+                fields = ("mode", "omnibox", "query", "exclude_in_other", "exclude_reruns")
 
-        form_class = BroadcastForm
-        fields = ("omnibox", "restart_participants", "include_active", "recipients_mode", "contact_query")
+        form_class = Form
         success_message = ""
         submit_button_name = _("Start Flow")
         success_url = "uuid@flows.flow_editor"
@@ -1973,47 +1972,39 @@ class FlowCRUDL(SmartCRUDL):
             context["complete_count"] = run_stats["completed"]
             return context
 
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
-            kwargs["flow"] = self.object
-            return kwargs
-
         def save(self, *args, **kwargs):
-            form = self.form
-            flow = self.object
-            include_active = form.cleaned_data["include_active"] or flow.flow_type == Flow.TYPE_BACKGROUND
+            mode = self.form.cleaned_data["mode"]
 
-            recipients_mode = form.cleaned_data["recipients_mode"]
-
-            # save off our broadcast info
+            # gather up the recipients for this flow start
             groups = []
             contacts = []
-            contact_query = None
+            query = None
+            restart_participants = not self.form.cleaned_data["exclude_reruns"]
+            include_active = not self.form.cleaned_data["exclude_in_other"]
 
-            if recipients_mode == "query":
-                contact_query = form.cleaned_data["contact_query"]
+            if mode == self.form.MODE_QUERY:
+                query = self.form.cleaned_data["query"]
             else:
-                omnibox = form.cleaned_data["omnibox"]
+                omnibox = self.form.cleaned_data["omnibox"]
                 groups = list(omnibox["groups"])
                 contacts = list(omnibox["contacts"])
 
             analytics.track(
                 self.request.user,
                 "temba.flow_broadcast",
-                dict(contacts=len(contacts), groups=len(groups), query=contact_query),
+                dict(contacts=len(contacts), groups=len(groups), query=query),
             )
 
-            # activate all our contacts
-            flow.async_start(
+            # queue the flow start to be started by mailroom
+            self.object.async_start(
                 self.request.user,
                 groups,
                 contacts,
-                contact_query,
-                restart_participants=form.cleaned_data["restart_participants"],
+                query,
+                restart_participants=restart_participants,
                 include_active=include_active,
             )
-            return flow
+            return self.object
 
     class Assets(OrgPermsMixin, SmartTemplateView):
         """
