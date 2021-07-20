@@ -1571,9 +1571,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_sent(self):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
         contact2 = self.create_contact("Frank Blow", phone="+250788000002")
-        msg1 = self.create_outgoing_msg(contact1, "Hi", status="W")
-        msg2 = self.create_outgoing_msg(contact1, "Hi", status="S")
-        msg3 = self.create_outgoing_msg(contact2, "Hi", status="D", sent_on=timezone.now() - timedelta(hours=1))
+        msg1 = self.create_outgoing_msg(contact1, "Hi 1", status="W", sent_on=timezone.now() - timedelta(hours=1))
+        msg2 = self.create_outgoing_msg(contact1, "Hi 2", status="S", sent_on=timezone.now() - timedelta(hours=3))
+        msg3 = self.create_outgoing_msg(contact2, "Hi 3", status="D", sent_on=timezone.now() - timedelta(hours=2))
         ChannelLog.objects.create(channel=self.channel, msg=msg1, description="Success")
         ChannelLog.objects.create(channel=self.channel, msg=msg2, description="Success")
 
@@ -1584,11 +1584,11 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         with self.assertNumQueries(38):
             self.client.get(sent_url)
 
-        # messages sorted by created_on
-        self.assertListFetch(sent_url, allow_viewers=True, allow_editors=True, context_objects=[msg3, msg2, msg1])
+        # messages sorted by sent_on
+        self.assertListFetch(sent_url, allow_viewers=True, allow_editors=True, context_objects=[msg1, msg3, msg2])
 
         response = self.client.get(sent_url + "?search=joe")
-        self.assertEqual([msg2, msg1], list(response.context_data["object_list"]))
+        self.assertEqual([msg1, msg2], list(response.context_data["object_list"]))
 
     @patch("temba.mailroom.client.MailroomClient.msg_resend")
     def test_failed(self, mock_msg_resend):

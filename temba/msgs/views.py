@@ -116,6 +116,7 @@ class InboxView(OrgPermsMixin, BulkActionMixin, SmartListView):
     fields = ("from", "message", "received")
     search_fields = ("text__icontains", "contact__name__icontains", "contact__urns__path__icontains")
     paginate_by = 100
+    default_order = ("-created_on", "-id")
     allow_export = False
     show_channel_logs = False
     bulk_actions = ()
@@ -136,14 +137,21 @@ class InboxView(OrgPermsMixin, BulkActionMixin, SmartListView):
             self.queryset = SystemLabel.get_queryset(org, self.system_label)
 
     def get_queryset(self, **kwargs):
-        queryset = super().get_queryset(**kwargs)
+        qs = super().get_queryset(**kwargs)
 
-        # if we are searching, limit to last 90
+        # if we are searching, limit to last 90, and enforce distinct since we'll be joining on multiple tables
         if "search" in self.request.GET:
             last_90 = timezone.now() - timedelta(days=90)
-            queryset = queryset.filter(created_on__gte=last_90)
 
-        return queryset.order_by("-created_on", "-id").distinct("created_on", "id")
+            # we need to find get the field names we're ordering on without direction
+            distinct_on = (f.lstrip("-") for f in self.derive_ordering())
+
+            qs = qs.filter(created_on__gte=last_90).distinct(*distinct_on)
+
+        if self.show_channel_logs:
+            qs = qs.prefetch_related("channel_logs")
+
+        return qs
 
     def get_bulk_action_labels(self):
         return self.get_user().get_org().msgs_labels.all()
@@ -658,8 +666,7 @@ class MsgCRUDL(SmartCRUDL):
             return context
 
         def get_queryset(self, **kwargs):
-            qs = super().get_queryset(**kwargs)
-            return qs.prefetch_related("channel_logs").select_related("contact")
+            return super().get_queryset(**kwargs).select_related("contact")
 
     class Sent(InboxView):
         title = _("Sent Messages")
@@ -668,10 +675,10 @@ class MsgCRUDL(SmartCRUDL):
         bulk_actions = ()
         allow_export = True
         show_channel_logs = True
+        default_order = ("-sent_on", "-id")
 
         def get_queryset(self, **kwargs):
-            qs = super().get_queryset(**kwargs)
-            return qs.prefetch_related("channel_logs").select_related("contact")
+            return super().get_queryset(**kwargs).select_related("contact")
 
     class Failed(InboxView):
         title = _("Failed Outgoing Messages")
@@ -685,8 +692,7 @@ class MsgCRUDL(SmartCRUDL):
             return () if self.request.org.is_suspended else ("resend",)
 
         def get_queryset(self, **kwargs):
-            qs = super().get_queryset(**kwargs)
-            return qs.prefetch_related("channel_logs").select_related("contact")
+            return super().get_queryset(**kwargs).select_related("contact")
 
     class Filter(InboxView):
         template_name = "msgs/msg_filter.haml"
