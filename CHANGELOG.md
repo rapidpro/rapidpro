@@ -1,3 +1,8 @@
+v6.5.3
+----------
+ * Add Last Seen On as column to contact exports
+ * Resuable template for dependency lists
+
 v6.5.2
 ----------
  * Internal ticketer for all orgs
