@@ -41,6 +41,11 @@ OBJECT_URLS = {
 
 
 @register.filter
+def object_class_name(obj):
+    return obj.__class__.__name__
+
+
+@register.filter
 def oxford(forloop, punctuation=""):
     """
     Filter that looks at the current step in a forloop and adds commas or and
