@@ -93,7 +93,7 @@
                       %td.w-12
                         .flex.text-center
                           -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
-                            .uses{onclick:"event.stopPropagation(); showFieldUsagesModal({{ obj.id }});"}
+                            .uses(onclick='event.stopPropagation(); showFieldUsagesModal("{{ obj.uuid }}");')
                               .lbl.linked
                                 {% blocktrans trimmed count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
                                   {{counter}} Use
@@ -187,9 +187,9 @@
     modax.open = true;
   }
 
-  function showFieldUsagesModal(id) {
+  function showFieldUsagesModal(uuid) {
     var modax = document.querySelector('#usages-modal');
-    modax.endpoint = "/contactfield/usages/" + id;
+    modax.endpoint = `/contactfield/usages/${uuid}/`;
     modax.open = true;
   }
 

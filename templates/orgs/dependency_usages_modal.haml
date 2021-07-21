@@ -1,0 +1,7 @@
+-extends "includes/modal.html"
+-load smartmin i18n
+
+-block modal
+  -block pjax
+    -for dep_type in dependents
+      -include "includes/dependents.haml" with dependents=dep_type

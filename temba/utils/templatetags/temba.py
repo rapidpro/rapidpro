@@ -34,7 +34,7 @@ TIME_SINCE_CHUNKS = (
 
 OBJECT_URLS = {
     Flow: lambda o: reverse("flows.flow_editor", args=[o.uuid]),
-    Campaign: lambda o: reverse("campaigns.campaign_read", args=[o.uuid]),
+    Campaign: lambda o: reverse("campaigns.campaign_read", args=[o.id]),
     CampaignEvent: lambda o: reverse("campaigns.campaign_read", args=[o.id]),
     ContactGroup: lambda o: reverse("contacts.contact_filter", args=[o.uuid]),
 }

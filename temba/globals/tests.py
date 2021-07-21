@@ -180,13 +180,13 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("653732", self.other_org_global.value)
 
     def test_usages(self):
-        detail_url = reverse("globals.global_usages", args=[self.global1.id])
+        detail_url = reverse("globals.global_usages", args=[self.global1.uuid])
 
         response = self.assertReadFetch(
             detail_url, allow_viewers=False, allow_editors=False, context_object=self.global1
         )
 
-        self.assertEqual([self.flow], list(response.context["dep_flows"]))
+        self.assertEqual([[self.flow]], [list(qs) for qs in response.context["dependents"]])
 
     def test_delete(self):
         delete_url = reverse("globals.global_delete", args=[self.global2.uuid])
