@@ -1552,7 +1552,7 @@ class ContactFieldForm(forms.ModelForm):
 
         conflict = ContactField.user_fields.active_for_org(org=self.org).filter(label__iexact=label.lower())
         if self.instance:
-            conflict.exclude(id=self.instance.id)
+            conflict = conflict.exclude(id=self.instance.id)
 
         if conflict.exists():
             raise forms.ValidationError(_("Must be unique."))

@@ -4612,6 +4612,11 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             form_fields={"label": "Age", "value_type": "N", "show_in_table": True},
         )
 
+        # try submit without change
+        self.assertUpdateSubmit(
+            update_url, {"label": "Age", "value_type": "N", "show_in_table": True}, success_status=200
+        )
+
         # try to submit with empty name
         self.assertUpdateSubmit(
             update_url,
