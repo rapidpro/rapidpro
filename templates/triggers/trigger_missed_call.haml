@@ -3,3 +3,10 @@
 
 -block summary
   -trans "Start a flow after a missed call."
+
+-block fields
+  {{ block.super }}
+  %h5.embedded-data-missed_call.hidden
+    -trans "Flow Parameters"
+  #embedded-data-missed_call.hidden
+    #embed-container-missed_call

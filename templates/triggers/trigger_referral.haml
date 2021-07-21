@@ -3,3 +3,10 @@
 
 -block summary
   -trans "Start a flow when Facebook refers a contact."
+
+-block fields
+  {{ block.super }}
+  %h5.embedded-data-referral.hidden
+    -trans "Flow Parameters"
+  #embedded-data-referral.hidden
+    #embed-container-referral

@@ -2217,9 +2217,8 @@ class ExportFlowResultsTask(BaseExportTask):
         if extra_queries.get("contact", {}).get("query"):
             from temba.contacts.search.elastic import query_contact_ids
 
-            group = self.org.all_groups.filter(group_type="A").first()
             contact_query = extra_queries["contact"]["query"]
-            contact_ids = query_contact_ids(self.org, contact_query, group=group)
+            contact_ids = query_contact_ids(self.org, contact_query, active_only=False)
             runs = runs.filter(contact_id__in=contact_ids)
 
         run_ids = array(str("l"), runs.values_list("id", flat=True))

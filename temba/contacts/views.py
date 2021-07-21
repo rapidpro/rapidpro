@@ -1184,7 +1184,9 @@ class ContactCRUDL(SmartCRUDL):
             return get_object_or_404(ContactGroup.user_groups, uuid=self.kwargs["group"]).org
 
         def derive_group(self):
-            return ContactGroup.user_groups.get(uuid=self.kwargs["group"], org=self.request.user.get_org())
+            return get_object_or_404(
+                ContactGroup.user_groups, uuid=self.kwargs["group"], org=self.request.user.get_org()
+            )
 
     class Create(NonAtomicMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
