@@ -71,7 +71,7 @@ class NoteForm(forms.ModelForm):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "folder", "note", "assign")
+    actions = ("list", "folder", "note", "assign", "menu")
 
     class List(OrgPermsMixin, SmartListView):
         """
@@ -83,10 +83,28 @@ class TicketCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             context["folders"] = TicketFolder.all().values()
             context["has_tickets"] = Ticket.objects.filter(org=org).exists()
+            pathBits = self.request.path.split("/")
+            if len(pathBits) > 2:
+                context["folder"] = pathBits[2]
+            if len(pathBits) > 3:
+                context["status"] = pathBits[3]
+
             return context
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
+
+    class Menu(OrgPermsMixin, SmartListView):
+        def render_to_response(self, context, **response_kwargs):
+            menu = [
+                {
+                    "id": folder.slug,
+                    "name": folder.name,
+                    "icon": folder.icon,
+                }
+                for folder in TicketFolder.all().values()
+            ]
+            return JsonResponse({"results": menu})
 
     class Folder(OrgPermsMixin, SmartListView):
         permission = "tickets.ticket_list"
@@ -97,7 +115,10 @@ class TicketCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             user = self.request.user
-            return TicketFolder.from_slug(self.kwargs["folder"]).get_queryset(user.get_org(), user)
+            status = Ticket.STATUS_OPEN if self.request.GET.get("status", "open") == "open" else Ticket.STATUS_CLOSED
+            return (
+                TicketFolder.from_slug(self.kwargs["folder"]).get_queryset(user.get_org(), user).filter(status=status)
+            )
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

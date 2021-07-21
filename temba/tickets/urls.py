@@ -1,6 +1,6 @@
 from django.conf.urls import include, url
 
-from .models import Ticketer
+from .models import Ticketer, TicketFolder
 from .views import TicketCRUDL, TicketerCRUDL
 
 # build up all the type specific urls
@@ -17,4 +17,10 @@ urlpatterns = [
     url(r"^", include(TicketCRUDL().as_urlpatterns())),
     url(r"^", include(TicketerCRUDL().as_urlpatterns())),
     url(r"^tickets/types/", include(service_urls)),
+    url(rf"^ticket/(?P<folder>{'|'.join(TicketFolder.all().keys())})/$", TicketCRUDL.List.as_view()),
+    url(rf"^ticket/(?P<folder>{'|'.join(TicketFolder.all().keys())})/(open|closed)/$", TicketCRUDL.List.as_view()),
+    url(
+        rf"^ticket/(?P<folder>{'|'.join(TicketFolder.all().keys())})/(open|closed)/(?P<uuid>[a-z0-9\-]+)/$",
+        TicketCRUDL.List.as_view(),
+    ),
 ]
