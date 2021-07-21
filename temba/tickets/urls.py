@@ -18,9 +18,12 @@ urlpatterns = [
     url(r"^", include(TicketerCRUDL().as_urlpatterns())),
     url(r"^tickets/types/", include(service_urls)),
     url(rf"^ticket/(?P<folder>{'|'.join(TicketFolder.all().keys())})/$", TicketCRUDL.List.as_view()),
-    url(rf"^ticket/(?P<folder>{'|'.join(TicketFolder.all().keys())})/(open|closed)/$", TicketCRUDL.List.as_view()),
     url(
-        rf"^ticket/(?P<folder>{'|'.join(TicketFolder.all().keys())})/(open|closed)/(?P<uuid>[a-z0-9\-]+)/$",
+        rf"^ticket/(?P<folder>{'|'.join(TicketFolder.all().keys())})/(?P<status>open|closed)/$",
+        TicketCRUDL.List.as_view(),
+    ),
+    url(
+        rf"^ticket/(?P<folder>{'|'.join(TicketFolder.all().keys())})/(?P<status>open|closed)/(?P<uuid>[a-z0-9\-]+)/$",
         TicketCRUDL.List.as_view(),
     ),
 ]

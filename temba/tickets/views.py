@@ -81,14 +81,9 @@ class TicketCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.request.user.get_org()
-            context["folders"] = TicketFolder.all().values()
             context["has_tickets"] = Ticket.objects.filter(org=org).exists()
-            pathBits = self.request.path.split("/")
-            if len(pathBits) > 2:
-                context["folder"] = pathBits[2]
-            if len(pathBits) > 3:
-                context["status"] = pathBits[3]
-
+            context["folder"] = self.kwargs.get("folder", "mine")
+            context["status"] = self.kwargs.get("status", "open")
             return context
 
         def get_queryset(self, **kwargs):
