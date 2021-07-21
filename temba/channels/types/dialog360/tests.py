@@ -16,7 +16,9 @@ from .type import Dialog360Type
 
 
 class Dialog360TypeTest(TembaTest):
-    def test_claim(self):
+    @patch("temba.channels.types.dialog360.Dialog360Type.check_health")
+    def test_claim(self, mock_health):
+        mock_health.return_value = {"meta": {"api_status": "stable", "version": "2.35.4"}}
         Channel.objects.all().delete()
 
         url = reverse("channels.types.dialog360.claim")
@@ -123,14 +125,15 @@ class Dialog360TypeTest(TembaTest):
         mock_get.assert_called_with(
             "https://example.com/whatsapp/v1/configs/templates",
             headers={
-                "D360-Api-Key": channel.config[Channel.CONFIG_AUTH_TOKEN],
+                "D360-API-KEY": channel.config[Channel.CONFIG_AUTH_TOKEN],
                 "Content-Type": "application/json",
             },
         )
 
+    @patch("temba.channels.types.dialog360.Dialog360Type.check_health")
     @patch("temba.utils.whatsapp.tasks.update_local_templates")
     @patch("temba.channels.types.dialog360.Dialog360Type.get_api_templates")
-    def test_refresh_templates_task(self, mock_get_api_templates, update_local_templates_mock):
+    def test_refresh_templates_task(self, mock_get_api_templates, update_local_templates_mock, mock_health):
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
 
@@ -149,6 +152,8 @@ class Dialog360TypeTest(TembaTest):
         mock_get_api_templates.side_effect = [([], False), Exception("foo"), ([{"name": "hello"}], True)]
 
         update_local_templates_mock.return_value = None
+
+        mock_health.return_value = {"meta": {"api_status": "stable", "version": "2.35.4"}}
 
         # should skip if locked
         r = get_redis_connection()
@@ -222,3 +227,27 @@ class Dialog360TypeTest(TembaTest):
 
         response = self.client.get(reverse("channels.types.dialog360.sync_logs", args=[channel.uuid]))
         self.assertEqual(404, response.status_code)
+
+    def test_check_health(self):
+        channel = self.create_channel(
+            "D3",
+            "360Dialog channel",
+            address="1234",
+            country="BR",
+            config={
+                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
+                Channel.CONFIG_AUTH_TOKEN: "123456789",
+            },
+        )
+        with patch("requests.get") as mock_get:
+            mock_get.side_effect = [
+                MockResponse(200, '{"meta": {"api_status": "stable", "version": "2.35.4"}}'),
+                MockResponse(401, '{"meta": {"api_status": "stable", "version": "2.35.4"}}'),
+            ]
+            channel.get_type().check_health(channel)
+            mock_get.assert_called_with(
+                "https://example.com/whatsapp/v1/health",
+                headers={"D360-API-KEY": "123456789", "Content-Type": "application/json"},
+            )
+            with self.assertRaises(Exception):
+                channel.get_type().check_health(channel)
