@@ -2134,7 +2134,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(40, len(parts[3]))
 
 
-class BroadcastCRUDLTest(TembaTest):
+class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
@@ -2195,23 +2195,27 @@ class BroadcastCRUDLTest(TembaTest):
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
     def test_schedule_list(self):
-        url = reverse("msgs.broadcast_schedule_list")
+        list_url = reverse("msgs.broadcast_schedule_list")
 
-        # can't view if you're not logged in
-        response = self.client.get(url)
-        self.assertLoginRedirect(response)
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[])
 
-        self.login(self.editor)
+        bc1 = self.create_broadcast(
+            self.admin,
+            "good morning",
+            contacts=[self.joe],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+        )
+        bc2 = self.create_broadcast(
+            self.admin,
+            "good evening",
+            contacts=[self.frank],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+        )
+        self.create_broadcast(self.admin, "not scheduled", groups=[self.joe_and_frank])
 
-        # send some messages - one immediately, one scheduled
-        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
-        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="See you later"))
-        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[bc2, bc1])
 
-        scheduled = Broadcast.objects.exclude(schedule=None).first()
-
-        response = self.client.get(url)
-        self.assertEqual(set(response.context["object_list"]), {scheduled})
+        self.assertListFetch(list_url + "?search=MORN", allow_viewers=True, allow_editors=True, context_objects=[bc1])
 
     def test_schedule_read(self):
         self.login(self.editor)
