@@ -1,3 +1,7 @@
+v6.4.8
+----------
+ * Fix updating contact field
+   
 v6.4.7
 ----------
  * Update flow editor to include lone-ticketer submit fix
