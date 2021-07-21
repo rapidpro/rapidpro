@@ -532,14 +532,14 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Retry call if unable to connect"),
                 help_text=_("Retries call three times for the chosen interval"),
                 initial=60,
-                choices=IVRCall.IVR_RETRY_CHOICES,
+                choices=IVRCall.RETRY_CHOICES,
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
             expires_after_minutes = forms.ChoiceField(
                 label=_("Expire inactive contacts"),
                 help_text=_("When inactive contacts should be removed from the flow"),
                 initial=5,
-                choices=IVRCall.IVR_EXPIRES_CHOICES,
+                choices=IVRCall.EXPIRES_CHOICES,
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
             keyword_triggers = forms.CharField(
