@@ -199,7 +199,8 @@
                       %td
                         .flex.w-full.items-end.justify-end.pr-4
                           .time.whitespace-nowrap
-                            {% short_datetime object.created_on %}
+                            -block message_time
+                              {% short_datetime object.created_on %}
 
                           -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
                             .inline-block.text-gray-400.linked.ml-3
