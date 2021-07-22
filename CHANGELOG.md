@@ -1,3 +1,11 @@
+v6.5.6
+----------
+ * Set sent_on if not already set when handling a mt_dlvd relayer cmd
+ * Display sent_on time rather than created_on time in Sent view
+ * Only sample 10% of requests to sentry
+ * Fix searching for scheduled broadcasts
+ * Update Dialog360 API usage
+
 v6.5.5
 ----------
  * Fix export page to use new filter to get non-localized class name for ids
