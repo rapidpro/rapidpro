@@ -7,7 +7,7 @@ from django.conf.urls import url
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.template import Engine
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -399,8 +399,14 @@ class TicketCount(SquashableModel):
 
     @classmethod
     def get_by_assignees(cls, org, assignees: list, status: str) -> dict:
-        # TODO optimize by using annotate to fetch in one
-        return {a: cls.sum(cls.objects.filter(org=org, assignee=a, status=status)) for a in assignees}
+        """
+        Gets counts for a set of assignees (None means no assignee)
+        """
+        counts = cls.objects.filter(org=org, status=status)
+        counts = counts.values_list("assignee").annotate(count_sum=Sum("count"))
+        counts_by_assignee = {c[0]: c[1] for c in counts}
+
+        return {a: counts_by_assignee.get(a.id if a else None, 0) for a in assignees}
 
     @classmethod
     def get_all(cls, org, status: str) -> int:

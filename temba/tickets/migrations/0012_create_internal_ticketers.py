@@ -8,7 +8,7 @@ from django.db import migrations
 INTERNAL_TYPE = "internal"
 
 
-def create_internal_ticketers(apps, schema_editor):
+def create_internal_ticketers(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
 
     num_created = 0
@@ -36,7 +36,7 @@ def create_internal_ticketers(apps, schema_editor):
         print(f"Created {num_created} new internal ticketers and updated {num_updated}")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
