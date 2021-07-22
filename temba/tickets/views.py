@@ -78,12 +78,21 @@ class TicketCRUDL(SmartCRUDL):
         A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
         """
 
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            folders = "|".join(TicketFolder.all().keys())
+            return rf"^ticket/((?P<folder>{folders})/((?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+)/)?)?)?$"
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.request.user.get_org()
             context["has_tickets"] = Ticket.objects.filter(org=org).exists()
-            context["folder"] = self.kwargs.get("folder", "mine")
-            context["status"] = self.kwargs.get("status", "open")
+
+            folder = self.kwargs.get("folder")
+            status = self.kwargs.get("status")
+            context["folder"] = folder if folder else "mine"
+            context["status"] = status if status else "open"
+
             return context
 
         def get_queryset(self, **kwargs):
@@ -106,7 +115,8 @@ class TicketCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return rf"^{path}/{action}/(?P<folder>{'|'.join(TicketFolder.all().keys())})/(?P<status>open|closed)/$"
+            folders = "|".join(TicketFolder.all().keys())
+            return rf"^{path}/{action}/(?P<folder>{folders})/(?P<status>open|closed)/$"
 
         def get_queryset(self, **kwargs):
             user = self.request.user
