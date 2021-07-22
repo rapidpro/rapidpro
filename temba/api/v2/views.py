@@ -5325,12 +5325,9 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
         POST /api/v2/flow_variable_report.json
         {
             "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
-            "variables": {
-                "variable_name": {
-                    "format": "value",
-                    "top": 3
-                }
-            }
+            "variables": ["result_1"],
+            "format": "value",
+            "top": 3
         }
 
     Response:
@@ -5338,12 +5335,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
         {
             "next": "http://example.com/api/v2/flow_variable_report.json?cursor=cD0yMDIxLTExLTEyKz",
             "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
-            "variables": {
-                "result_1": {
-                    "format": "value",
-                    "top": 3
-                }
-            },
+            "variables": {"result_1": {"format": "value"}},
             "results": [
                 {
                     "result_1": {
