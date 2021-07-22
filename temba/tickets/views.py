@@ -106,11 +106,11 @@ class TicketCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return rf"^{path}/{action}/(?P<folder>{'|'.join(TicketFolder.all().keys())})/$"
+            return rf"^{path}/{action}/(?P<folder>{'|'.join(TicketFolder.all().keys())})/(?P<status>open|closed)/$"
 
         def get_queryset(self, **kwargs):
             user = self.request.user
-            status = Ticket.STATUS_OPEN if self.request.GET.get("status", "open") == "open" else Ticket.STATUS_CLOSED
+            status = Ticket.STATUS_OPEN if self.kwargs["status"] == "open" else Ticket.STATUS_CLOSED
             return (
                 TicketFolder.from_slug(self.kwargs["folder"]).get_queryset(user.get_org(), user).filter(status=status)
             )
@@ -179,7 +179,7 @@ class TicketCRUDL(SmartCRUDL):
 
             # build up our next link if we have more
             if context["page_obj"].has_next():
-                folder_url = reverse("tickets.ticket_folder", kwargs={"folder": self.kwargs["folder"]})
+                folder_url = reverse("tickets.ticket_folder", kwargs={"folder": self.kwargs["folder"], "status": self.kwargs["status"]})
                 next_page = context["page_obj"].number + 1
                 results["next"] = f"{folder_url}?page={next_page}"
 

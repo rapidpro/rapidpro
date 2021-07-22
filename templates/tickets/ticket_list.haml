@@ -92,7 +92,7 @@
         chat.contact = null;
       }
 
-      contacts.setEndpoint(`/ticket/folder/${folder}/?status=${status}`);
+      contacts.setEndpoint(`/ticket/folder/${folder}/${status}/`);
     }
 
     function handleMenuChanged(event) {
@@ -179,7 +179,7 @@
           %temba-option(name="Closed" value="closed" icon="check")
 
         .flex.flex-grow(style="max-height:100%;margin-bottom:-30px;padding-bottom:30px")
-          %temba-contacts(agent="{{request.user.pk}}" endpoint="{% url 'tickets.ticket_folder' folder=folder %}?status={{status}}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+          %temba-contacts(agent="{{request.user.pk}}" endpoint="{% url 'tickets.ticket_folder' folder status %}/{{status}}/" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
 
       .flex-grow.flex-col.h-full.py-4.pb-4.pr-4
         .empty
