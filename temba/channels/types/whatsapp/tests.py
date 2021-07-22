@@ -400,7 +400,7 @@ class WhatsAppTypeTest(TembaTest):
         mock_get_api_templates.assert_called_with(channel)
         self.assertEqual(1, mock_get_api_templates.call_count)
         self.assertEqual(0, update_local_templates_mock.call_count)
-        self.assertEqual(1, mock_health.call_count)
+        self.assertFalse(mock_health.called)
 
         # any exception
         refresh_whatsapp_templates()
@@ -408,7 +408,7 @@ class WhatsAppTypeTest(TembaTest):
         mock_get_api_templates.assert_called_with(channel)
         self.assertEqual(2, mock_get_api_templates.call_count)
         self.assertEqual(0, update_local_templates_mock.call_count)
-        self.assertEqual(2, mock_health.call_count)
+        self.assertFalse(mock_health.called)
 
         # now it should refresh
         refresh_whatsapp_templates()
@@ -416,7 +416,7 @@ class WhatsAppTypeTest(TembaTest):
         mock_get_api_templates.assert_called_with(channel)
         self.assertEqual(3, mock_get_api_templates.call_count)
         update_local_templates_mock.assert_called_once_with(channel, [{"name": "hello"}])
-        self.assertEqual(3, mock_health.call_count)
+        self.assertFalse(mock_health.called)
 
         channel.config.update(version="v1.0.0")
         channel.save()
@@ -428,7 +428,7 @@ class WhatsAppTypeTest(TembaTest):
 
         mock_get_api_templates.assert_called_with(channel)
         self.assertEqual(4, mock_get_api_templates.call_count)
-        self.assertEqual(4, mock_health.call_count)
+        self.assertTrue(mock_health.called)
 
         channel.refresh_from_db()
 

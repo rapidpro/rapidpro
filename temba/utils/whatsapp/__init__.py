@@ -12,4 +12,4 @@ def update_api_version(channel):
         channel.config.update(version=version)
         channel.save()
     except Exception as e:
-        logger.info(f"Error retrieving WhatsApp API version: {str(e)}", exc_info=True)
+        logger.error(f"Error retrieving WhatsApp API version: {str(e)}", exc_info=True)

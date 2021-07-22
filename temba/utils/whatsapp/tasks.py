@@ -170,9 +170,10 @@ def refresh_whatsapp_templates():
         # for every whatsapp channel
         for channel in Channel.objects.filter(is_active=True, channel_type__in=["WA", "D3"]):
 
-            # fetches API version and saves on channel.config
-            update_api_version(channel)
-
+            # update the version only when have it set in the config
+            if channel.config.get("version"):
+                # fetches API version and saves on channel.config
+                update_api_version(channel)
             # fetch all our templates
             try:
 
