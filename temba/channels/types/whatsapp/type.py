@@ -129,7 +129,7 @@ class WhatsAppType(ChannelType):
         try:
             response = requests.get(channel.config[Channel.CONFIG_BASE_URL] + "/v1/health", headers=headers)
         except Exception as ex:
-            raise Exception("Could not stablish a connection with the WPP server: %s", ex)
+            raise Exception("Could not establish a connection with the WhatsApp server: %s", ex)
 
         if response.status_code >= 400:
             raise Exception("Error checking API health: %s", response.content)

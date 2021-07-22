@@ -378,7 +378,12 @@ class WhatsAppTypeTest(TembaTest):
         channel = self.create_channel("WA", "Channel", "1234", config={"fb_namespace": "foo_namespace"})
 
         self.login(self.admin)
-        mock_get_api_templates.side_effect = [([], False), Exception("foo"), ([{"name": "hello"}], True)]
+        mock_get_api_templates.side_effect = [
+            ([], False),
+            Exception("foo"),
+            ([{"name": "hello"}], True),
+            ([{"name": "hello"}], True),
+        ]
         mock_health.return_value = {"meta": {"api_status": "stable", "version": "v2.35.2"}}
         update_local_templates_mock.return_value = None
 
@@ -395,6 +400,7 @@ class WhatsAppTypeTest(TembaTest):
         mock_get_api_templates.assert_called_with(channel)
         self.assertEqual(1, mock_get_api_templates.call_count)
         self.assertEqual(0, update_local_templates_mock.call_count)
+        self.assertFalse(mock_health.called)
 
         # any exception
         refresh_whatsapp_templates()
@@ -402,6 +408,7 @@ class WhatsAppTypeTest(TembaTest):
         mock_get_api_templates.assert_called_with(channel)
         self.assertEqual(2, mock_get_api_templates.call_count)
         self.assertEqual(0, update_local_templates_mock.call_count)
+        self.assertFalse(mock_health.called)
 
         # now it should refresh
         refresh_whatsapp_templates()
@@ -409,6 +416,23 @@ class WhatsAppTypeTest(TembaTest):
         mock_get_api_templates.assert_called_with(channel)
         self.assertEqual(3, mock_get_api_templates.call_count)
         update_local_templates_mock.assert_called_once_with(channel, [{"name": "hello"}])
+        self.assertFalse(mock_health.called)
+
+        channel.config.update(version="v1.0.0")
+        channel.save()
+
+        channel.refresh_from_db()
+
+        # now it should refresh
+        refresh_whatsapp_templates()
+
+        mock_get_api_templates.assert_called_with(channel)
+        self.assertEqual(4, mock_get_api_templates.call_count)
+        self.assertTrue(mock_health.called)
+
+        channel.refresh_from_db()
+
+        self.assertEqual("v2.35.2", channel.config.get("version"))
 
     def test_message_templates_and_logs_views(self):
         channel = self.create_channel("WA", "Channel", "1234", config={"fb_namespace": "foo_namespace"})
