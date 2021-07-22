@@ -90,6 +90,7 @@ class TicketTest(TembaTest):
             self.assertEqual(sum(open.values()), TicketCount.get_all(org, Ticket.STATUS_OPEN))
             self.assertEqual(sum(closed.values()), TicketCount.get_all(org, Ticket.STATUS_CLOSED))
 
+        # t1:O/None t2:O/None t3:O/None t4:O/None t5:O/None t6:O/None
         assert_counts(
             self.org,
             open={None: 5, self.agent: 0, self.editor: 0, self.admin: 0},
@@ -101,6 +102,7 @@ class TicketTest(TembaTest):
         Ticket.bulk_assign(self.org, self.admin, [t3], assignee=self.editor)
         Ticket.bulk_assign(self.org2, self.admin2, [t6], assignee=self.admin2)
 
+        # t1:O/Agent t2:O/Agent t3:O/Editor t4:O/None t5:O/None t6:O/Admin2
         assert_counts(
             self.org,
             open={None: 2, self.agent: 2, self.editor: 1, self.admin: 0},
@@ -111,6 +113,7 @@ class TicketTest(TembaTest):
         Ticket.bulk_close(self.org, self.admin, [t1, t4])
         Ticket.bulk_close(self.org2, self.admin2, [t6])
 
+        # t1:C/Agent t2:O/Agent t3:O/Editor t4:C/None t5:O/None t6:C/Admin2
         assert_counts(
             self.org,
             open={None: 1, self.agent: 1, self.editor: 1, self.admin: 0},
@@ -120,6 +123,7 @@ class TicketTest(TembaTest):
 
         Ticket.bulk_assign(self.org, self.admin, [t1, t5], assignee=self.admin)
 
+        # t1:C/Admin t2:O/Agent t3:O/Editor t4:C/None t5:O/Admin t6:C/Admin2
         assert_counts(
             self.org,
             open={None: 0, self.agent: 1, self.editor: 1, self.admin: 1},
@@ -128,19 +132,33 @@ class TicketTest(TembaTest):
 
         Ticket.bulk_reopen(self.org, self.admin, [t4])
 
+        # t1:C/Admin t2:O/Agent t3:O/Editor t4:O/None t5:O/Admin t6:C/Admin2
         assert_counts(
             self.org,
             open={None: 1, self.agent: 1, self.editor: 1, self.admin: 1},
             closed={None: 0, self.agent: 0, self.editor: 0, self.admin: 1},
         )
 
-        squash_ticketcounts()
+        squash_ticketcounts()  # shouldn't change counts
 
         assert_counts(
             self.org,
             open={None: 1, self.agent: 1, self.editor: 1, self.admin: 1},
             closed={None: 0, self.agent: 0, self.editor: 0, self.admin: 1},
         )
+
+        TicketEvent.objects.all().delete()
+        t1.delete()
+        t2.delete()
+        t6.delete()
+
+        # t3:O/Editor t4:O/None t5:O/Admin
+        assert_counts(
+            self.org,
+            open={None: 1, self.agent: 0, self.editor: 1, self.admin: 1},
+            closed={None: 0, self.agent: 0, self.editor: 0, self.admin: 0},
+        )
+        assert_counts(self.org2, open={None: 0, self.admin2: 0}, closed={None: 0, self.admin2: 0})
 
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):

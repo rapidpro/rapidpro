@@ -31,7 +31,7 @@ BEGIN
       PERFORM temba_insert_ticketcount(NEW.org_id, NEW.assignee_id, NEW.status, 1);
     END IF;
   ELSIF TG_OP = 'DELETE' THEN -- existing ticket deleted
-    PERFORM temba_insert_ticketcount(NEW.org_id, NEW.assignee_id, NEW.status, -1);
+    PERFORM temba_insert_ticketcount(OLD.org_id, OLD.assignee_id, OLD.status, -1);
   END IF;
   RETURN NULL;
 END;
