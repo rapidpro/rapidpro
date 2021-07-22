@@ -179,7 +179,9 @@ class TicketCRUDL(SmartCRUDL):
 
             # build up our next link if we have more
             if context["page_obj"].has_next():
-                folder_url = reverse("tickets.ticket_folder", kwargs={"folder": self.kwargs["folder"], "status": self.kwargs["status"]})
+                folder_url = reverse(
+                    "tickets.ticket_folder", kwargs={"folder": self.kwargs["folder"], "status": self.kwargs["status"]}
+                )
                 next_page = context["page_obj"].number + 1
                 results["next"] = f"{folder_url}?page={next_page}"
 
