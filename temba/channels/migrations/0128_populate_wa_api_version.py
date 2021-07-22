@@ -10,7 +10,7 @@ def noop(apps, schema_editor):  # pragma: no cover
     pass
 
 
-def update_api_version(channel_type_class, channel):
+def update_api_version(channel_type_class, channel):  # pragma: no cover
     try:
         api_status = channel_type_class().check_health(channel)
         version = api_status["meta"]["version"]
