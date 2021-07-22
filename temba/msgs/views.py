@@ -26,7 +26,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.formax import FormaxMixin
-from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, on_transaction_commit
 from temba.utils.fields import (
     CheckboxWidget,
@@ -738,6 +738,15 @@ class MsgCRUDL(SmartCRUDL):
                     dict(title=_("Send All"), style="btn-primary", href="#", js_class="filter-send-all-send-button")
                 )
 
+            links.append(
+                dict(
+                    id="label-usages",
+                    title=_("Usages"),
+                    modax=_("Usages"),
+                    href=reverse("msgs.label_usages", args=[label.uuid]),
+                )
+            )
+
             if label.is_folder():
                 if self.has_org_perm("msgs.label_delete_folder"):
                     links.append(
@@ -838,7 +847,7 @@ class FolderForm(BaseLabelForm):
 
 class LabelCRUDL(SmartCRUDL):
     model = Label
-    actions = ("create", "create_folder", "update", "delete", "delete_folder", "list")
+    actions = ("create", "create_folder", "update", "usages", "delete", "delete_folder", "list")
 
     class List(OrgPermsMixin, SmartListView):
         paginate_by = None
@@ -911,6 +920,9 @@ class LabelCRUDL(SmartCRUDL):
 
         def derive_fields(self):
             return ("name",) if self.get_object().is_folder() else ("name", "folder")
+
+    class Usages(DependencyUsagesModal):
+        permission = "msgs.label_read"
 
     class Delete(DependencyDeleteModal):
         cancel_url = "@msgs.msg_inbox"

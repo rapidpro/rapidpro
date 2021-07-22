@@ -3,5 +3,8 @@
 
 -block modal
   -block pjax
-    -for dep_type in dependents
-      -include "includes/dependents.haml" with dependents=dep_type
+    -if dependents
+      -for dep_type in dependents
+        -include "includes/dependents.haml" with dependents=dep_type
+    -else
+      -trans "None"
