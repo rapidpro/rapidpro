@@ -838,6 +838,12 @@ class Msg(models.Model):
                 condition=Q(direction="O", visibility="V", status__in=("W", "S", "D")),
             ),
         ]
+        constraints = [
+            models.CheckConstraint(
+                name="no_sent_status_without_sent_on",
+                check=(~Q(status__in=("W", "S", "D"), sent_on__isnull=True)),
+            ),
+        ]
 
 
 class BroadcastMsgCount(SquashableModel):
