@@ -5312,12 +5312,9 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **started_before** - Date, excludes all runs from the report that were started later a certain date
     * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
-    * **variables** - configuration which define the fields to be included in the report
-
-    Variables filter configuration object:
-
-    * **format** - choice from two options to count by ("category" or "value", default is "category")
-    * **top** - return only top X most common responses
+    * **variables** - List of the fields to be included in the report
+    * **format** - Choice from two options to count by ("category" or "value", default is "category")
+    * **top** - To return only top X most common responses
 
     This report can't be performed in one request so the report is being split into chunks,
     you should follow the `next` link until it's `null` and merge data using your script.
@@ -5365,7 +5362,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
 
     class FlowVariableQuerySerializer(serializers.Serializer):
         flow = serializers.UUIDField()
-        variables = serializers.ListField(child=serializers.CharField(), required=False)
+        variables = serializers.ListField(child=serializers.CharField(), default=list)
         format = serializers.ChoiceField(choices=["value", "category"], default="category")
         top = serializers.IntegerField(default=0)
 
@@ -5388,7 +5385,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
             "variables",
             [
                 var
-                for nested in params.getlist("variables")
+                for nested in [*params.getlist("variables"), *params.getlist("variables[]")]
                 for var in (nested if isinstance(nested, list) else [nested])
             ],
         )
@@ -5489,9 +5486,9 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 dict(
                     name="exited_before", required=False, help="Count only runs that were exited before a certain date"
                 ),
-                dict(name="variables", required=True, help="Variables to include in report"),
-                dict(name="format", required=True, help="Format of variables to count by"),
-                dict(name="top", required=True, help="Top x most common results for each variable"),
+                dict(name="variables", required=False, help="Variables to include in report"),
+                dict(name="format", required=False, help="Format of variables to count by"),
+                dict(name="top", required=False, help="Top x most common results for each variable"),
             ],
             params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
