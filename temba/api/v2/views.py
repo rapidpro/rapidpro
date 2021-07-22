@@ -14,11 +14,13 @@ from django.template.defaultfilters import slugify
 from django_redis import get_redis_connection
 from parse_rest.datatypes import Date
 from rest_framework import generics, status, views
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
+from rest_framework import serializers
 from rest_framework.utils.urls import replace_query_param
 from smartmin.views import SmartFormView, SmartTemplateView
 
@@ -4482,6 +4484,11 @@ class ReportEndpointMixin:
         url = self.request.build_absolute_uri()
         return replace_query_param(url, parameter, page_number)
 
+    def request__mixed_query_params(self):
+        params = self.request.query_params.copy()
+        params.update(self.request.data)
+        return params
+
     def request__get_separated_names_and_uuids(self, field_name):
         separated_values = defaultdict(list)
         for value in self.request.data.get(field_name, self.request.GET.get(field_name, "")).split(","):
@@ -5027,7 +5034,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         # filter messages by uuids
         qs = qs.filter(uuid__in=messages_uuids) if messages_uuids else Msg.objects.none()
         qs = qs.only("created_on", "direction", "status").using("read_only_db")
-        qs = qs[:len(messages_uuids)]
+        qs = qs[: len(messages_uuids)]
         return qs, next_page
 
     def configure_paginator_for_flow_runs(self, flow: Flow):
@@ -5356,71 +5363,94 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
         POST /api/v2/flow_variable_report.json?export_csv=true
     """
 
+    class FlowVariableQuerySerializer(serializers.Serializer):
+        flow = serializers.UUIDField()
+        variables = serializers.ListField(child=serializers.CharField(), required=False)
+        format = serializers.ChoiceField(choices=["value", "category"], default="category")
+        top = serializers.IntegerField(default=0)
+
+        def validate_flow(self, flow_uuid):
+            org = self.context["request"].user.get_org()
+            try:
+                Flow.objects.get(org=org, uuid=flow_uuid)
+                return flow_uuid
+            except Flow.DoesNotExist as e:
+                raise serializers.ValidationError(e)
+
     permission = "orgs.org_api"
     pagination_class = ModifiedOnCursorPagination
+    serializer_class = FlowVariableQuerySerializer
+
+    def request__mixed_query_params(self):
+        params = super().request__mixed_query_params()
+        # flatten variables parameter
+        params.setlist(
+            "variables",
+            [
+                var
+                for nested in params.getlist("variables")
+                for var in (nested if isinstance(nested, list) else [nested])
+            ],
+        )
+        return params
+
+    def _validate_variables_filter(self, **validated_data):
+        variable_filters = {}
+        variables = validated_data.get("variables")
+        existing_variables = {result.get("key", ""): result for result in validated_data.get("results") or []}
+        counts, top_ordering = validated_data.get("counts", {}), validated_data.get("top_ordering", {})
+        _top, _format = validated_data.get("top"), validated_data.get("format", "category")
+        if isinstance(variables, list):
+            variables = variables if variables else existing_variables.keys()
+            invalid_variables = set(variables) - set(existing_variables.keys())
+            if invalid_variables:
+                raise ValidationError(_("Variable with name {}, does not exists.").format(invalid_variables))
+            if _format == "category":
+                counts.update(
+                    {
+                        var: Counter({category: 0 for category in results["categories"]})
+                        for var, results in existing_variables.items()
+                    }
+                )
+            variable_filters.update({var: {"format": _format} for var in variables})
+            top_ordering.update({var: _top for var in variables} if _top else {})
+        else:
+            raise ValidationError(_("Filter 'variables' invalid or not provided."))
+        self.applied_filters["variables"] = variable_filters
+        return variable_filters
+
+    @staticmethod
+    def _count_variables(runs, filters, counts, top_ordering):
+        for flow_run in runs:
+            for result_name, result in flow_run.results.items():
+                if result_name in filters:
+                    counts[result_name][result[filters[result_name]["format"]]] += 1
+
+        for variable, top_x in top_ordering.items():
+            counts[variable] = dict(counts[variable].most_common(top_x))
 
     @csv_response_wrapper
-    def post(self, request, *args, **kwargs):
-        try:
+    def get(self, request, *args, **kwargs):
+        data = self.request__mixed_query_params()
+        serializer = self.serializer_class(data=data, context=self.get_serializer_context())
+        if serializer.is_valid():
             flow, runs = self.get_runs(with_flow=True)
             runs = runs.only("results", "modified_on")
             counts, (current_page, next_page) = defaultdict(lambda: Counter()), self.get_paginated_queryset(runs)
-
-            requested_variables = self.request.data.get("variables")
-            existing_variables = {result.get("key", ""): result for result in flow.metadata.get("results", [])}
-            variable_filters = {}
             top_ordering = {}
-            if not (requested_variables and type(requested_variables) is dict):
-                return Response({"errors": {"variables": _("Filter 'variables' invalid or not provided.")}})
-
-            for variable, conf in requested_variables.items():
-                if variable not in existing_variables:
-                    return Response(
-                        {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                if not isinstance(conf, dict):
-                    return Response(
-                        {
-                            "errors": {
-                                "variables": {
-                                    variable: _(
-                                        "Wrong filter configuration provided. "
-                                        "There must be object with two optional parameters, format and top."
-                                    )
-                                }
-                            }
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                _format = conf.get("format", "").lower()
-                if _format not in ["category", "value"]:
-                    _format = "category"
-                variable_filters[variable] = {"format": _format}
-                if _format == "value":
-                    variable_filters[variable]["top"] = conf.get("top")
-                if _format == "category":
-                    counts[variable] = Counter(
-                        {category: 0 for category in existing_variables[variable]["categories"]}
-                    )
-                if isinstance(conf.get("top"), int):
-                    top_ordering[variable] = conf.get("top")
-
-            self.applied_filters["variables"] = variable_filters
-
-            for flow_run in current_page:
-                for result_name, result in flow_run.results.items():
-                    if result_name in variable_filters:
-                        counts[result_name][result[variable_filters[result_name]["format"]]] += 1
-
-            for variable, top_x in top_ordering.items():
-                counts[variable] = dict(counts[variable].most_common(top_x))
-
-            return Response({**self.applied_filters, "next": next_page, "results": [counts]})
-        except Flow.DoesNotExist:
-            return Response(
-                {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
-            )
+            try:
+                variable_filters = self._validate_variables_filter(
+                    counts=counts,
+                    top_ordering=top_ordering,
+                    results=flow.metadata.get("results"),
+                    **serializer.validated_data,
+                )
+                self._count_variables(current_page, variable_filters, counts, top_ordering)
+                return Response({**self.applied_filters, "next": next_page, "results": [counts]})
+            except ValidationError as e:
+                return Response({"errors": e.detail}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
     def csv_convertor(result, response):
@@ -5437,7 +5467,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     @classmethod
     def get_read_explorer(cls):
         return dict(
-            method="POST",
+            method="GET",
             title="Flow Variables Report",
             url=reverse("api.v2.flow_variable_report"),
             slug="flow-variable-report",
@@ -5459,14 +5489,18 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 dict(
                     name="exited_before", required=False, help="Count only runs that were exited before a certain date"
                 ),
-                dict(name="variables", required=True, help="Configuration for fields to generate report"),
+                dict(name="variables", required=True, help="Variables to include in report"),
+                dict(name="format", required=True, help="Format of variables to count by"),
+                dict(name="top", required=True, help="Top x most common results for each variable"),
             ],
             params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
                 body=json.dumps(
                     {
                         "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
-                        "variables": {"result_1": {"format": "value", "top": 3}},
+                        "variables": ["result_1"],
+                        "format": "value",
+                        "top": 3,
                     }
                 ),
                 query="export_csv=false",
