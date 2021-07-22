@@ -318,12 +318,10 @@ class BroadcastCRUDL(SmartCRUDL):
         fields = ("contacts", "msgs", "sent", "status")
         search_fields = ("text__icontains", "contacts__urns__path__icontains")
         template_name = "msgs/broadcast_schedule_list.haml"
-        default_order = ("schedule__status", "schedule__next_fire", "-created_on")
         system_label = SystemLabel.TYPE_SCHEDULED
 
         def get_queryset(self, **kwargs):
-            qs = super().get_queryset(**kwargs)
-            return qs.select_related("org", "schedule").order_by("-created_on")
+            return super().get_queryset(**kwargs).select_related("org", "schedule")
 
     class Send(OrgPermsMixin, ModalMixin, SmartFormView):
         title = _("Send Message")

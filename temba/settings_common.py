@@ -17,7 +17,7 @@ SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
 
 
 def traces_sampler(sampling_context):  # pragma: no cover
-    return 0 if ("shell" in sys.argv) else 1.0
+    return 0 if ("shell" in sys.argv) else 0.1
 
 
 if SENTRY_DSN:  # pragma: no cover
@@ -389,12 +389,12 @@ PERMISSIONS = {
         "update_fields",
         "update_fields_input",
     ),
-    "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type", "usages"),
+    "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type"),
     "contacts.contactgroup": ("api",),
     "contacts.contactimport": ("preview",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
-    "globals.global": ("api", "unused", "usages"),
+    "globals.global": ("api", "unused"),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
     "orgs.org": (
         "accounts",
@@ -804,8 +804,9 @@ GROUP_PERMISSIONS = {
         "contacts.contact_read",
         "contacts.contact_stopped",
         "contacts.contactfield_api",
-        "contacts.contactfield_usages",
+        "contacts.contactfield_read",
         "contacts.contactgroup_api",
+        "contacts.contactgroup_read",
         "contacts.contactimport_read",
         "globals.global_api",
         "locations.adminboundary_boundaries",

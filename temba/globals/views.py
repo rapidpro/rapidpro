@@ -1,12 +1,12 @@
 from gettext import gettext as _
 
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartReadView, SmartUpdateView
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartUpdateView
 
 from django import forms
 from django.urls import reverse
 
 from temba.orgs.models import Org
-from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 
 from .models import Global
@@ -143,8 +143,5 @@ class GlobalCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).filter(usage_count=0)
 
-    class Usages(OrgObjPermsMixin, SmartReadView):
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["dep_flows"] = self.object.dependent_flows.filter(is_active=True)
-            return context
+    class Usages(DependencyUsagesModal):
+        permission = "globals.global_read"

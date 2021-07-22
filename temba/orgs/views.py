@@ -298,6 +298,20 @@ class IntegrationFormaxView(IntegrationViewMixin, ComponentFormMixin, SmartFormV
         return response
 
 
+class DependencyUsagesModal(OrgObjPermsMixin, SmartReadView):
+    """
+    Base view for usage modals of flow dependencies
+    """
+
+    slug_url_kwarg = "uuid"
+    template_name = "orgs/dependency_usages_modal.haml"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["dependents"] = [qs for qs in self.object.get_dependents().values() if qs.exists()]
+        return context
+
+
 class DependencyDeleteModal(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
     """
     Base view for delete modals of flow dependencies

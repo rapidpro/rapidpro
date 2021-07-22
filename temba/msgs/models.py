@@ -642,7 +642,6 @@ class Msg(models.Model):
         """
 
         date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
-
         keyword = cmd["cmd"]
         handled = False
 
@@ -661,12 +660,10 @@ class Msg(models.Model):
 
         elif keyword == "mt_dlvd":
             self.status = DELIVERED
+            self.sent_on = self.sent_on or date
             handled = True
 
-        self.save(
-            update_fields=["status", "sent_on"]
-        )  # first save message status before updating the broadcast status
-
+        self.save(update_fields=("status", "sent_on"))
         return handled
 
     def handle(self):

@@ -86,7 +86,7 @@ class ScheduledTriggerType(TriggerType):
             label=_("Contacts To Include"),
             required=False,
             help_text=_("Additional specific contacts that will be started in the flow."),
-            widget=OmniboxChoice(attrs={"placeholder": _("Optional: Select contacts"), "contacts": True}),
+            widget=OmniboxChoice(attrs={"placeholder": _("Optional: Search for contacts"), "contacts": True}),
         )
 
         def __init__(self, user, *args, **kwargs):

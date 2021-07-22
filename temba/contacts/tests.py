@@ -1008,7 +1008,7 @@ class ElasticSearchLagTest(TembaTest):
             self.assertFalse(check_elasticsearch_lag())
 
 
-class ContactGroupCRUDLTest(TembaTest):
+class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
@@ -1182,6 +1182,21 @@ class ContactGroupCRUDLTest(TembaTest):
         # check group is unchanged
         self.other_org_group.refresh_from_db()
         self.assertEqual("Customers", self.other_org_group.name)
+
+    def test_usages(self):
+        flow = self.get_flow("dependencies", name="Dependencies")
+        group = ContactGroup.user_groups.get(name="Cat Facts")
+
+        campaign1 = Campaign.create(self.org, self.admin, "Planting Reminders", group)
+        campaign2 = Campaign.create(self.org, self.admin, "Deleted", group)
+        campaign2.is_active = False
+        campaign2.save(update_fields=("is_active",))
+
+        usages_url = reverse("contacts.contactgroup_usages", args=[group.uuid])
+
+        response = self.assertReadFetch(usages_url, allow_viewers=True, allow_editors=True, context_object=group)
+
+        self.assertEqual([[flow], [campaign1]], [list(qs) for qs in response.context["dependents"]])
 
     def test_delete(self):
         url = reverse("contacts.contactgroup_delete", args=[self.joe_and_frank.pk])
@@ -4612,6 +4627,11 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             form_fields={"label": "Age", "value_type": "N", "show_in_table": True},
         )
 
+        # try submit without change
+        self.assertUpdateSubmit(
+            update_url, {"label": "Age", "value_type": "N", "show_in_table": True}, success_status=200
+        )
+
         # try to submit with empty name
         self.assertUpdateSubmit(
             update_url,
@@ -4714,13 +4734,11 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         inactive_campaignevent.is_active = False
         inactive_campaignevent.save(update_fields=("is_active",))
 
-        usages_url = reverse("contacts.contactfield_usages", args=[field.id])
+        usages_url = reverse("contacts.contactfield_usages", args=[field.uuid])
 
         response = self.assertReadFetch(usages_url, allow_viewers=True, allow_editors=True, context_object=field)
 
-        self.assertEqual([flow], list(response.context["dep_flows"]))
-        self.assertEqual([event1], list(response.context["dep_campaignevents"]))
-        self.assertEqual([group], list(response.context["dep_groups"]))
+        self.assertEqual([[flow], [group], [event1]], [list(qs) for qs in response.context["dependents"]])
 
 
 class URNTest(TembaTest):

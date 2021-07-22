@@ -89,7 +89,7 @@
                     .flex.text-center
                       -with usage_count=obj.usage_count
                         -if usage_count
-                          .uses(onclick='event.stopPropagation(); showGlobalUsagesModal({{ obj.id }});')
+                          .uses(onclick='event.stopPropagation(); showGlobalUsagesModal("{{ obj.uuid }}");')
                             .lbl.linked
                               {% blocktrans trimmed count counter=usage_count %}
                                 {{counter}} Use
@@ -123,9 +123,9 @@
       modax.open = true;
     }
 
-    function showGlobalUsagesModal(id) {
+    function showGlobalUsagesModal(uuid) {
       var modax = document.querySelector('#usages-global');
-      modax.endpoint = `/global/usages/${id}/`
+      modax.endpoint = `/global/usages/${uuid}/`
       modax.open = true;
     }
 

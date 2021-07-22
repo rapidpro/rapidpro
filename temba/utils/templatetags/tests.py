@@ -1,7 +1,9 @@
 from temba.campaigns.models import Campaign, CampaignEvent
+from temba.flows.models import Flow
 from temba.tests import TembaTest
+from temba.triggers.models import Trigger
 
-from .temba import object_url, verbose_name_plural
+from .temba import object_class_name, object_url, verbose_name_plural
 
 
 class TembaTagLibraryTest(TembaTest):
@@ -20,3 +22,9 @@ class TembaTagLibraryTest(TembaTest):
 
         self.assertEqual(f"/flow/editor/{flow.uuid}/", object_url(flow))
         self.assertEqual(f"/contact/filter/{group.uuid}/", object_url(group))
+
+    def test_object_class_plural(self):
+        self.assertEqual("Flow", object_class_name(Flow()))
+        self.assertEqual("Campaign", object_class_name(Campaign()))
+        self.assertEqual("CampaignEvent", object_class_name(CampaignEvent()))
+        self.assertEqual("Trigger", object_class_name(Trigger()))

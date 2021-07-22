@@ -15,6 +15,7 @@ from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.utils import chunk_list
 
+from . import update_api_version
 from .constants import LANGUAGE_MAPPING, STATUS_MAPPING
 
 logger = logging.getLogger(__name__)
@@ -168,6 +169,8 @@ def refresh_whatsapp_templates():
     with r.lock("refresh_whatsapp_templates", 1800):
         # for every whatsapp channel
         for channel in Channel.objects.filter(is_active=True, channel_type__in=["WA", "D3"]):
+            # fetches API version and saves on channel.config
+            update_api_version(channel)
             # fetch all our templates
             try:
 

@@ -42,11 +42,11 @@
               -for exportable in bucket
                 -ifchanged exportable|verbose_name_plural|capfirst
                   %h4.flex
-                    %input.toggle-all(type="checkbox" id="{{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural}}" style="margin-top: 8px !important;")
+                    %input.toggle-all(type="checkbox" id="{{forloop.parentloop.counter0}}-{{ exportable|object_class_name|lower }}s" style="margin-top: 8px !important;")
                     .pl-2.leading-loose.font-normal
                       {{ exportable|verbose_name_plural|capfirst }}
-                .exportable-item.inline-flex.pl-8.mb-2(class="w-2/5 {{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural }}")
-                  %input(name="{{exportable|verbose_name_plural}}" value="{{exportable.pk}}" id="{{exportable|verbose_name_plural}}-{{exportable.pk}}" type="checkbox")
+                .exportable-item.inline-flex.pl-8.mb-2(class="w-2/5 {{forloop.parentloop.counter0}}-{{ exportable|object_class_name|lower }}s")
+                  %input(name="{{exportable|object_class_name|lower }}s" value="{{exportable.pk}}" id="{{exportable|object_class_name|lower }}s-{{exportable.pk}}" type="checkbox")
                   .pl-2
                     {{ exportable.name }}
 
@@ -68,11 +68,11 @@
               -for exportable in singles
                 -ifchanged exportable|verbose_name_plural|capfirst
                   %h4.flex
-                    %input.toggle-all(type="checkbox" name="selector" id="{{ exportable|verbose_name_plural}}" style="margin-top: 8px !important;")
+                    %input.toggle-all(type="checkbox" name="selector" id="{{ exportable|object_class_name|lower }}s" style="margin-top: 8px !important;")
                     .pl-2.leading-loose.font-normal
                       {{ exportable|verbose_name_plural|capfirst }}
-                .exportable-item.inline-flex.pl-8.mb-2(class="w-2/5 {{ exportable|verbose_name_plural }}")
-                  %input{name:'{{exportable|verbose_name_plural}}', value:'{{exportable.pk}}', id:'{{exportable|verbose_name_plural}}_{{exportable.pk}}', type:'checkbox'}
+                .exportable-item.inline-flex.pl-8.mb-2(class="w-2/5 {{ exportable|object_class_name|lower }}s")
+                  %input{name:'{{exportable|object_class_name|lower }}s', value:'{{exportable.pk}}', id:'{{exportable|object_class_name|lower }}s_{{exportable.pk}}', type:'checkbox'}
                   .pl-2
                     {{ exportable.name }}
 
