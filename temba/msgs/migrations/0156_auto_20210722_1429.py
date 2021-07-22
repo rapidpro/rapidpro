@@ -4,7 +4,7 @@ from django.db import migrations, models
 from django.db.models import F
 
 
-def update_null_sent_on(apps, schema_editor):
+def update_null_sent_on(apps, schema_editor):  # pragma: no cover
     Msg = apps.get_model("msgs", "Msg")
     Msg.objects.filter(status__in=("W", "S", "D"), sent_on=None).update(sent_on=F("created_on"))
 

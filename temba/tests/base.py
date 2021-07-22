@@ -21,7 +21,19 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup, Cont
 from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
+from temba.msgs.models import (
+    DELIVERED,
+    HANDLED,
+    INBOX,
+    INCOMING,
+    OUTGOING,
+    PENDING,
+    SENT,
+    WIRED,
+    Broadcast,
+    Label,
+    Msg,
+)
 from temba.orgs.models import Org, OrgRole
 from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
@@ -288,7 +300,7 @@ class TembaTestMixin:
         surveyor=False,
         next_attempt=None,
     ):
-        if status == SENT and not sent_on:
+        if status in (WIRED, SENT, DELIVERED) and not sent_on:
             sent_on = timezone.now()
 
         metadata = {}
@@ -458,6 +470,7 @@ class TembaTestMixin:
             contact_urn=contact.get_urn(),
             text="Hello",
             status="S",
+            sent_on=timezone.now(),
             created_on=timezone.now(),
         )
         ChannelLog.objects.create(
