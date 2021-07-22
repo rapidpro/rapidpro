@@ -8,7 +8,8 @@ from django.utils import timezone
 from temba.orgs.models import Org
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 
-from .models import Ticket, Ticketer, TicketEvent
+from .models import Ticket, TicketCount, Ticketer, TicketEvent
+from .tasks import squash_ticketcounts
 from .types import reload_ticketer_types
 from .types.internal import InternalType
 from .types.mailgun import MailgunType
@@ -67,6 +68,81 @@ class TicketTest(TembaTest):
     def test_allowed_assignees(self):
         self.assertEqual({self.admin, self.editor, self.agent}, set(Ticket.get_allowed_assignees(self.org)))
         self.assertEqual({self.admin2}, set(Ticket.get_allowed_assignees(self.org2)))
+
+    @mock_mailroom
+    def test_counts(self, mr_mocks):
+        ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "bob@acme.com", {})
+        contact = self.create_contact("Bob", urns=["twitter:bobby"])
+        org2_ticketer = Ticketer.create(self.org2, self.admin2, MailgunType.slug, "jim@acme.com", {})
+        org2_contact = self.create_contact("Bob", urns=["twitter:bobby"], org=self.org2)
+
+        t1 = self.create_ticket(ticketer, contact, "Test 1")
+        t2 = self.create_ticket(ticketer, contact, "Test 2")
+        t3 = self.create_ticket(ticketer, contact, "Test 3")
+        t4 = self.create_ticket(ticketer, contact, "Test 4")
+        t5 = self.create_ticket(ticketer, contact, "Test 5")
+        t6 = self.create_ticket(org2_ticketer, org2_contact, "Test 6")
+
+        def assert_counts(org, *, open: dict, closed: dict):
+            assignees = [None] + list(Ticket.get_allowed_assignees(org))
+
+            self.assertEqual(open, TicketCount.get_by_assignees(org, assignees, Ticket.STATUS_OPEN))
+            self.assertEqual(closed, TicketCount.get_by_assignees(org, assignees, Ticket.STATUS_CLOSED))
+
+            self.assertEqual(sum(open.values()), TicketCount.get_all(org, Ticket.STATUS_OPEN))
+            self.assertEqual(sum(closed.values()), TicketCount.get_all(org, Ticket.STATUS_CLOSED))
+
+        assert_counts(
+            self.org,
+            open={None: 5, self.agent: 0, self.editor: 0, self.admin: 0},
+            closed={None: 0, self.agent: 0, self.editor: 0, self.admin: 0},
+        )
+        assert_counts(self.org2, open={None: 1, self.admin2: 0}, closed={None: 0, self.admin2: 0})
+
+        Ticket.bulk_assign(self.org, self.admin, [t1, t2], assignee=self.agent)
+        Ticket.bulk_assign(self.org, self.admin, [t3], assignee=self.editor)
+        Ticket.bulk_assign(self.org2, self.admin2, [t6], assignee=self.admin2)
+
+        assert_counts(
+            self.org,
+            open={None: 2, self.agent: 2, self.editor: 1, self.admin: 0},
+            closed={None: 0, self.agent: 0, self.editor: 0, self.admin: 0},
+        )
+        assert_counts(self.org2, open={None: 0, self.admin2: 1}, closed={None: 0, self.admin2: 0})
+
+        Ticket.bulk_close(self.org, self.admin, [t1, t4])
+        Ticket.bulk_close(self.org2, self.admin2, [t6])
+
+        assert_counts(
+            self.org,
+            open={None: 1, self.agent: 1, self.editor: 1, self.admin: 0},
+            closed={None: 1, self.agent: 1, self.editor: 0, self.admin: 0},
+        )
+        assert_counts(self.org2, open={None: 0, self.admin2: 0}, closed={None: 0, self.admin2: 1})
+
+        Ticket.bulk_assign(self.org, self.admin, [t1, t5], assignee=self.admin)
+
+        assert_counts(
+            self.org,
+            open={None: 0, self.agent: 1, self.editor: 1, self.admin: 1},
+            closed={None: 1, self.agent: 0, self.editor: 0, self.admin: 1},
+        )
+
+        Ticket.bulk_reopen(self.org, self.admin, [t4])
+
+        assert_counts(
+            self.org,
+            open={None: 1, self.agent: 1, self.editor: 1, self.admin: 1},
+            closed={None: 0, self.agent: 0, self.editor: 0, self.admin: 1},
+        )
+
+        squash_ticketcounts()
+
+        assert_counts(
+            self.org,
+            open={None: 1, self.agent: 1, self.editor: 1, self.admin: 1},
+            closed={None: 0, self.agent: 0, self.editor: 0, self.admin: 1},
+        )
 
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):

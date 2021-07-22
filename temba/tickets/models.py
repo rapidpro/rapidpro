@@ -15,6 +15,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba import mailroom
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org
+from temba.utils.models import SquashableModel
 from temba.utils.uuid import uuid4
 
 
@@ -353,3 +354,63 @@ class ClosedFolder(TicketFolder):
 
 
 FOLDERS = {f.slug: f() for f in TicketFolder.__subclasses__()}
+
+
+class TicketCount(SquashableModel):
+    """
+    Counts of tickets by assignment and status
+    """
+
+    SQUASH_OVER = ("org_id", "assignee_id", "status")
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_counts")
+    assignee = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="ticket_counts")
+    status = models.CharField(max_length=1, choices=Ticket.STATUS_CHOICES)
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set) -> tuple:
+        if distinct_set.assignee_id:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "org_id" = %%s AND "assignee_id" = %%s AND "status" = %%s RETURNING "count"
+            )
+            INSERT INTO %(table)s("org_id", "assignee_id", "status", "count", "is_squashed")
+            VALUES (%%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {
+                "table": cls._meta.db_table
+            }
+
+            params = (distinct_set.org_id, distinct_set.assignee_id, distinct_set.status) * 2
+        else:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "org_id" = %%s AND "assignee_id" IS NULL AND "status" = %%s RETURNING "count"
+            )
+            INSERT INTO %(table)s("org_id", "assignee_id", "status", "count", "is_squashed")
+            VALUES (%%s, NULL, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {
+                "table": cls._meta.db_table
+            }
+
+            params = (distinct_set.org_id, distinct_set.status) * 2
+
+        return sql, params
+
+    @classmethod
+    def get_by_assignees(cls, org, assignees: list, status: str) -> dict:
+        # TODO optimize by using annotate to fetch in one
+        return {a: cls.sum(cls.objects.filter(org=org, assignee=a, status=status)) for a in assignees}
+
+    @classmethod
+    def get_all(cls, org, status: str) -> int:
+        """
+        Gets count for org and status regardless of assignee
+        """
+        return cls.sum(cls.objects.filter(org=org, status=status))
+
+    class Meta:
+        indexes = [
+            models.Index(fields=("org", "status")),
+            models.Index(fields=("org", "assignee", "status")),
+        ]
