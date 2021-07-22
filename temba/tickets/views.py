@@ -1,4 +1,11 @@
-from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
+from smartmin.views import (
+    SmartCRUDL,
+    SmartFormView,
+    SmartListView,
+    SmartReadView,
+    SmartTemplateView,
+    SmartUpdateView,
+)
 
 from django import forms
 from django.contrib.auth.models import User
@@ -89,7 +96,7 @@ class TicketCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
 
-    class Menu(OrgPermsMixin, SmartListView):
+    class Menu(OrgPermsMixin, SmartTemplateView):
         def render_to_response(self, context, **response_kwargs):
             menu = [
                 {

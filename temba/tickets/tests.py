@@ -85,6 +85,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # just a placeholder view for frontend components
         self.assertListFetch(list_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[])
 
+    def test_menu(self):
+        menu_url = reverse("tickets.ticket_menu")
+
+        response = self.assertListFetch(menu_url, allow_viewers=False, allow_editors=True, allow_agents=True)
+
+        menu = response.json()["results"]
+        self.assertEqual(len(menu), 3)
+
     @mock_mailroom
     def test_folder(self, mr_mocks):
         self.login(self.admin)
