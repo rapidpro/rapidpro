@@ -1,11 +1,4 @@
-from smartmin.views import (
-    SmartCRUDL,
-    SmartFormView,
-    SmartListView,
-    SmartReadView,
-    SmartTemplateView,
-    SmartUpdateView,
-)
+from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.contrib.auth.models import User
