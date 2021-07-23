@@ -632,9 +632,7 @@ class ContactField(SmartModel, DependencyMixin):
     def get_dependents(self):
         dependents = super().get_dependents()
         dependents["group"] = self.dependent_groups.filter(is_active=True)
-        dependents["campaign_event"] = self.campaign_events.filter(is_active=True).select_related(
-            "campaign", "relative_to"
-        )
+        dependents["campaign_event"] = self.campaign_events.filter(is_active=True)
         return dependents
 
     def release(self, user):
