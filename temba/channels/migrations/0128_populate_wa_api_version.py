@@ -2,34 +2,19 @@
 
 from django.db import migrations
 
-from temba.channels.types.dialog360 import Dialog360Type
-from temba.channels.types.whatsapp import WhatsAppType
-
 
 def noop(apps, schema_editor):  # pragma: no cover
     pass
-
-
-def update_api_version(channel_type_class, channel):
-    try:
-        api_status = channel_type_class().check_health(channel)
-        version = api_status["meta"]["version"]
-        if not version.startswith("v"):
-            version = "v" + version
-        channel.config.update(version=version)
-        channel.save()
-    except Exception:
-        pass
 
 
 def populate_wa_api_version(apps, schema_editor):  # pragma: no cover
     Channel = apps.get_model("channels", "Channel")
 
     for channel in Channel.objects.filter(is_active=True, channel_type="WA"):
-        update_api_version(WhatsAppType, channel)
-
-    for channel in Channel.objects.filter(is_active=True, channel_type="D3"):
-        update_api_version(Dialog360Type, channel)
+        base_url = channel.config.get("base_url")
+        if base_url.startswith("https://whatsapp.turn.io") or base_url.startswith("https://whatsapp.praekelt.org"):
+            continue
+        channel.config.update(version="v2.33.4")
 
 
 class Migration(migrations.Migration):
