@@ -20,7 +20,6 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
-from rest_framework import serializers
 from rest_framework.utils.urls import replace_query_param
 from smartmin.views import SmartFormView, SmartTemplateView
 
@@ -85,6 +84,7 @@ from .serializers import (
     FlowRunReadSerializer,
     FlowStartReadSerializer,
     FlowStartWriteSerializer,
+    FlowVariableQuerySerializer,
     GlobalReadSerializer,
     GlobalWriteSerializer,
     LabelReadSerializer,
@@ -5322,7 +5322,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
 
     Example:
 
-        POST /api/v2/flow_variable_report.json
+        GET /api/v2/flow_variable_report.json
         {
             "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
             "variables": ["result_1"],
@@ -5349,22 +5349,8 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
 
     To generate report in CSV format pass query parameter 'export_csv':
 
-        POST /api/v2/flow_variable_report.json?export_csv=true
+        GET /api/v2/flow_variable_report.json?export_csv=true
     """
-
-    class FlowVariableQuerySerializer(serializers.Serializer):
-        flow = serializers.UUIDField()
-        variables = serializers.ListField(child=serializers.CharField(), default=list)
-        format = serializers.ChoiceField(choices=["value", "category"], default="category")
-        top = serializers.IntegerField(default=0)
-
-        def validate_flow(self, flow_uuid):
-            org = self.context["request"].user.get_org()
-            try:
-                Flow.objects.get(org=org, uuid=flow_uuid)
-                return flow_uuid
-            except Flow.DoesNotExist as e:
-                raise serializers.ValidationError(e)
 
     permission = "orgs.org_api"
     pagination_class = ModifiedOnCursorPagination
