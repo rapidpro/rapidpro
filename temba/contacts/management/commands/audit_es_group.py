@@ -1,11 +1,12 @@
-import os
+import json
 
+import iso8601
 import requests
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
-from temba.contacts.models import ContactGroup
+from temba.contacts.models import Contact, ContactGroup
 
 
 class Command(BaseCommand):  # pragma: no cover
@@ -14,38 +15,67 @@ class Command(BaseCommand):  # pragma: no cover
     def add_arguments(self, parser):
         parser.add_argument("group_uuid")
 
-    def handle(self, *args, **options):
-        group = ContactGroup.all_groups.get(uuid=options["group_uuid"])
+    def handle(self, group_uuid, *args, **kwargs):
+        verbosity = kwargs["verbosity"]
 
+        # get the contacts in ES and in the DB organized into dicts by UUID
+        es_contacts = self.get_es_group_contacts(group_uuid)
+        db_contacts = self.get_db_group_contacts(group_uuid)
+
+        print("DB count: %d ES Count: %d" % (len(db_contacts), len(es_contacts)))
+
+        for uuid, db_contact in db_contacts.items():
+            if uuid not in es_contacts:
+                es_contact = self.get_es_contact(uuid)
+                db_mod_on = db_contact.modified_on.isoformat()
+                es_mod_on = iso8601.parse_date(es_contact["modified_on"]).isoformat()
+                print(
+                    f"Extra DB uuid={uuid} db_modified_on={db_mod_on} es_modified_on={es_mod_on} name={db_contact.name}"
+                )
+                if verbosity >= 2:
+                    print(" > " + json.dumps(es_contact))
+
+        for uuid, es_contact in es_contacts.items():
+            if uuid not in db_contacts:
+                db_contact = Contact.objects.get(uuid=uuid)
+                db_mod_on = db_contact.modified_on.isoformat()
+                es_mod_on = iso8601.parse_date(es_contact["modified_on"]).isoformat()
+                print(
+                    f"Extra ES uuid={uuid} db_modified_on={db_mod_on} es_modified_on={es_mod_on} name={es_contact['name']}"
+                )
+
+    def get_db_group_contacts(self, uuid) -> dict:
+        group = ContactGroup.all_groups.get(uuid=uuid)
+        return {str(c.uuid): c for c in group.contacts.filter(is_active=True)}
+
+    def get_es_group_contacts(self, uuid) -> dict:
         search = {
-            "_source": ["modified_on", "created_on", "uuid", "name"],
+            "_source": ["uuid", "name", "modified_on"],
             "from": 0,
             "size": 10000,
-            "query": {"bool": {"filter": [{"term": {"groups": options["group_uuid"]}}]}},
+            "query": {"bool": {"filter": [{"term": {"groups": uuid}}]}},
+            "sort": [{"modified_on_mu": {"order": "desc"}}],
+        }
+        return {hit["_source"]["uuid"]: hit["_source"] for hit in self.es_search(search)}
+
+    def get_es_contact(self, uuid):
+        search = {
+            "_source": ["uuid", "name", "groups", "modified_on", "modified_on_mu"],
+            "from": 0,
+            "size": 1,
+            "query": {"bool": {"filter": [{"term": {"uuid": uuid}}]}},
             "sort": [{"modified_on_mu": {"order": "desc"}}],
         }
 
-        es_response = requests.get(settings.ELASTICSEARCH_URL + "/contacts/_search", json=search).json()
-        if "hits" not in es_response:
-            print(es_response)
-            os.exit(1)
+        hits = self.es_search(search)
+        if not len(hits) == 1:
+            raise CommandError(f"ES search for contact with UUID returned {len(hits)} results")
 
-        es_contacts = es_response["hits"]["hits"]
-        db_contacts = group.contacts.filter(is_active=True)
+        return hits[0]["_source"]
 
-        es_map = {}
-        for hit in es_contacts:
-            es_map[hit["_source"]["uuid"]] = hit
+    def es_search(self, search: dict) -> list:
+        response = requests.get(settings.ELASTICSEARCH_URL + "/contacts/_search", json=search).json()
+        if "hits" not in response or "hits" not in response["hits"]:
+            raise CommandError(json.dumps(response))
 
-        print("DB count: %d ES Count: %d" % (db_contacts.count(), len(es_contacts)))
-
-        for contact in db_contacts:
-            db_uuid = str(contact.uuid)
-            if db_uuid not in es_map:
-                print("Extra DB hit:", db_uuid, contact.created_on, contact.modified_on, contact.name)
-            else:
-                del es_map[db_uuid]
-
-        for hit in es_map.values():
-            c = hit["_source"]
-            print("Extra ES hit:", c["uuid"], c["created_on"], c["modified_on"], c["name"])
+        return response["hits"]["hits"]
