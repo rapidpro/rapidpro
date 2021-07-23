@@ -60,7 +60,6 @@ class Command(BaseCommand):  # pragma: no cover
 
     def get_es_contact(self, uuid):
         search = {
-            "_source": ["uuid", "name", "groups", "modified_on", "modified_on_mu"],
             "from": 0,
             "size": 1,
             "query": {"bool": {"filter": [{"term": {"uuid": uuid}}]}},
