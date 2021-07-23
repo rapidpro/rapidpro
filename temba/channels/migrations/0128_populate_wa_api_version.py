@@ -14,7 +14,8 @@ def populate_wa_api_version(apps, schema_editor):  # pragma: no cover
         base_url = channel.config.get("base_url")
         if base_url.startswith("https://whatsapp.turn.io") or base_url.startswith("https://whatsapp.praekelt.org"):
             continue
-        channel.config.update(version="v2.33.4")
+        if not channel.config.get("version"):
+            channel.config.update(version="v2.33.4")
 
 
 class Migration(migrations.Migration):
