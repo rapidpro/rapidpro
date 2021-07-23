@@ -4,7 +4,7 @@
 -block fields
   -if blockers
     -for blocker in blockers
-      .mb-8
+      .mb-2
         {{ blocker|safe }}
 
     -trans "You can still test your flow using the simulator by clicking the phone icon on the right."
@@ -28,9 +28,8 @@
       -render_field 'exclude_reruns'
 
 -block form-buttons
-  -if not blockers
-    .form-actions
-      %input.btn.btn-primary(type="submit" value="{{ submit_button_name }}")
+  -if not blockers 
+    %input.btn.btn-primary(type="submit" value="{{ submit_button_name }}")
 
 
 -block modal-script
@@ -50,16 +49,18 @@
     var omniboxField = modalBody.querySelector('.omnibox');
     var modeSelect = modalBody.querySelector("temba-select[name='mode']");
 
-    modeSelect.addEventListener("change", function(evt) {
-      var selected = evt.target.values[0];
-      if (selected.value === "query") {
-        removeClass(queryField, "hidden");
-        addClass(omniboxField, "hidden");
-      } else {
-        addClass(queryField, "hidden");
-        removeClass(omniboxField, "hidden");
-      }
-    });
+    {% if not blockers %}
+      modeSelect.addEventListener("change", function(evt) {
+        var selected = evt.target.values[0];
+        if (selected.value === "query") {
+          removeClass(queryField, "hidden");
+          addClass(omniboxField, "hidden");
+        } else {
+          addClass(queryField, "hidden");
+          removeClass(omniboxField, "hidden");
+        }
+      });
+    {% endif %}
 
 
 
