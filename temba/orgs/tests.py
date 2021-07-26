@@ -4451,6 +4451,41 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(parent.field_dependencies.all()), {age, gender})
         self.assertEqual(set(parent.group_dependencies.all()), {farmers})
 
+    @patch("temba.mailroom.client.MailroomClient.flow_inspect")
+    def test_import_flow_issues(self, mock_flow_inspect):
+        mock_flow_inspect.side_effect = [
+            {
+                # first call is during import to find dependencies to map or create
+                "dependencies": [{"key": "age", "name": "", "type": "field", "missing": False}],
+                "issues": [],
+                "results": [],
+                "waiting_exits": [],
+                "parent_refs": [],
+            },
+            {
+                # second call is in save_revision and passes org to validate dependencies, but during import those
+                # dependencies which didn't exist already are created in a transaction and mailroom can't see them
+                "dependencies": [{"key": "age", "name": "", "type": "field", "missing": True}],
+                "issues": [{"type": "missing_dependency"}],
+                "results": [],
+                "waiting_exits": [],
+                "parent_refs": [],
+            },
+            {
+                # final call is after new flows and dependencies have been committed so mailroom can see them
+                "dependencies": [{"key": "age", "name": "", "type": "field", "missing": False}],
+                "issues": [],
+                "results": [],
+                "waiting_exits": [],
+                "parent_refs": [],
+            },
+        ]
+        self.import_file("color")
+
+        flow = Flow.objects.get()
+
+        self.assertFalse(flow.has_issues)
+
     def test_import_missing_flow_dependency(self):
         # in production this would blow up validating the flow but we can't do that during tests
         self.import_file("parent_without_its_child")
