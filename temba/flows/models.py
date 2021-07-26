@@ -660,6 +660,8 @@ class Flow(TembaModel):
         Causes us to schedule a flow to start in a background thread.
         """
 
+        assert not self.org.is_flagged and not self.org.is_suspended, "flagged and suspended orgs can't start flows"
+
         flow_start = FlowStart.objects.create(
             org=self.org,
             flow=self,

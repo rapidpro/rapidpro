@@ -1170,14 +1170,6 @@ class OrgTest(TembaTest):
                 send_url, {"text": "send me ur bank account login im ur friend.", "omnibox": omnibox}, follow=True
             )
 
-        def start_flow():
-            omni_mark = json.dumps({"id": mark.uuid, "name": mark.name, "type": "contact"})
-            return self.client.post(
-                reverse("flows.flow_broadcast", args=[flow.id]),
-                {"mode": "select", "omnibox": omni_mark, "exclude_in_other": True},
-                follow=True,
-            )
-
         def send_broadcast_via_api():
             url = reverse("api.v2.broadcasts")
             data = dict(contacts=[mark.uuid], text="You are a distant cousin to a wealthy person.")
@@ -1206,12 +1198,10 @@ class OrgTest(TembaTest):
         )
 
         # we also can't start flows
-        response = start_flow()
-        self.assertFormError(
+        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
+        self.assertContains(
             response,
-            "form",
-            "__all__",
-            "Sorry, your workspace is currently flagged. To enable starting flows, please contact support.",
+            "Sorry, your workspace is currently flagged. To re-enable starting flows, please contact support.",
         )
 
         response = send_broadcast_via_api()
@@ -1242,12 +1232,10 @@ class OrgTest(TembaTest):
         )
 
         # we also can't start flows
-        response = start_flow()
-        self.assertFormError(
+        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
+        self.assertContains(
             response,
-            "form",
-            "__all__",
-            "Sorry, your workspace is currently suspended. To enable starting flows, please contact support.",
+            "Sorry, your workspace is currently suspended. To re-enable starting flows, please contact support.",
         )
 
         response = send_broadcast_via_api()
@@ -1276,7 +1264,10 @@ class OrgTest(TembaTest):
         self.org.is_suspended = False
         self.org.save(update_fields=("is_suspended",))
 
-        start_flow()
+        self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {"mode": "select", "omnibox": json.dumps({"id": mark.uuid, "name": mark.name, "type": "contact"})},
+        )
 
         mock_async_start.assert_called_once()
 
@@ -4450,6 +4441,41 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(parent.flow_dependencies.all()), {child})
         self.assertEqual(set(parent.field_dependencies.all()), {age, gender})
         self.assertEqual(set(parent.group_dependencies.all()), {farmers})
+
+    @patch("temba.mailroom.client.MailroomClient.flow_inspect")
+    def test_import_flow_issues(self, mock_flow_inspect):
+        mock_flow_inspect.side_effect = [
+            {
+                # first call is during import to find dependencies to map or create
+                "dependencies": [{"key": "age", "name": "", "type": "field", "missing": False}],
+                "issues": [],
+                "results": [],
+                "waiting_exits": [],
+                "parent_refs": [],
+            },
+            {
+                # second call is in save_revision and passes org to validate dependencies, but during import those
+                # dependencies which didn't exist already are created in a transaction and mailroom can't see them
+                "dependencies": [{"key": "age", "name": "", "type": "field", "missing": True}],
+                "issues": [{"type": "missing_dependency"}],
+                "results": [],
+                "waiting_exits": [],
+                "parent_refs": [],
+            },
+            {
+                # final call is after new flows and dependencies have been committed so mailroom can see them
+                "dependencies": [{"key": "age", "name": "", "type": "field", "missing": False}],
+                "issues": [],
+                "results": [],
+                "waiting_exits": [],
+                "parent_refs": [],
+            },
+        ]
+        self.import_file("color")
+
+        flow = Flow.objects.get()
+
+        self.assertFalse(flow.has_issues)
 
     def test_import_missing_flow_dependency(self):
         # in production this would blow up validating the flow but we can't do that during tests
