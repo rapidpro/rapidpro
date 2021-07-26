@@ -4,7 +4,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 
 from .models import Ticket, TicketCount, Ticketer, TicketEvent
 from .tasks import squash_ticketcounts
@@ -493,3 +493,44 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
         self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
+
+
+class PopulateTicketCountsTest(MigrationTest):
+    app = "tickets"
+    migrate_from = "0013_ticket_counts"
+    migrate_to = "0014_populate_ticket_counts"
+
+    def setUpBeforeMigration(self, apps):
+        ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "bob@acme.com", {})
+        contact = self.create_contact("Bob", urns=["twitter:bobby"])
+        org2_ticketer = Ticketer.create(self.org2, self.admin2, MailgunType.slug, "jim@acme.com", {})
+        org2_contact = self.create_contact("Bob", urns=["twitter:bobby"], org=self.org2)
+
+        self.create_ticket(ticketer, contact, "Test", assignee=None)
+        self.create_ticket(ticketer, contact, "Test", assignee=self.agent)
+        self.create_ticket(ticketer, contact, "Test", assignee=self.agent)
+        self.create_ticket(ticketer, contact, "Test", assignee=self.editor)
+        self.create_ticket(ticketer, contact, "Test", assignee=None, closed_on=timezone.now())
+        self.create_ticket(ticketer, contact, "Test", assignee=self.agent, closed_on=timezone.now())
+        self.create_ticket(ticketer, contact, "Test", assignee=self.editor, closed_on=timezone.now())
+
+        self.create_ticket(org2_ticketer, org2_contact, "Test", assignee=None)
+        self.create_ticket(org2_ticketer, org2_contact, "Test", assignee=self.admin2, closed_on=timezone.now())
+
+    def test_migration(self):
+        def assert_count(org, assignee, status: str, expected: int):
+            self.assertEqual(expected, TicketCount.sum(org.ticket_counts.filter(assignee=assignee, status=status)))
+
+        assert_count(self.org, None, "O", 1)
+        assert_count(self.org, self.agent, "O", 2)
+        assert_count(self.org, self.editor, "O", 1)
+        assert_count(self.org, self.admin, "O", 0)
+        assert_count(self.org, None, "C", 1)
+        assert_count(self.org, self.agent, "C", 1)
+        assert_count(self.org, self.editor, "C", 1)
+        assert_count(self.org, self.admin, "C", 0)
+
+        assert_count(self.org2, None, "O", 1)
+        assert_count(self.org2, self.admin2, "O", 0)
+        assert_count(self.org2, None, "C", 0)
+        assert_count(self.org2, self.admin2, "C", 1)
