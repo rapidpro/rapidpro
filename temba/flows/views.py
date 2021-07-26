@@ -44,7 +44,6 @@ from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
 from temba.utils.fields import (
@@ -1879,29 +1878,6 @@ class FlowCRUDL(SmartCRUDL):
                     # self.add_error("query", _("This field is required."))
                     raise ValidationError(_("Contact query is required."))
 
-                # check whether there are any flow starts that are incomplete
-                if self.instance.is_starting():
-                    raise ValidationError(
-                        _(
-                            "This flow is already being started, please wait until that process is complete before "
-                            "starting more contacts."
-                        )
-                    )
-
-                if self.instance.org.is_suspended:
-                    raise ValidationError(
-                        _(
-                            "Sorry, your workspace is currently suspended. "
-                            "To enable starting flows, please contact support."
-                        )
-                    )
-                if self.instance.org.is_flagged:
-                    raise ValidationError(
-                        _(
-                            "Sorry, your workspace is currently flagged. To enable starting flows, please contact support."
-                        )
-                    )
-
                 return cleaned_data
 
             class Meta:
@@ -1912,6 +1888,38 @@ class FlowCRUDL(SmartCRUDL):
         success_message = ""
         submit_button_name = _("Start Flow")
         success_url = "uuid@flows.flow_editor"
+
+        blockers = {
+            "suspended": _(
+                "Sorry, your workspace is currently suspended. To re-enable starting flows, please contact support."
+            ),
+            "flagged": _(
+                "Sorry, your workspace is currently flagged. To re-enable starting flows, please contact support."
+            ),
+            "already_starting": _(
+                "This flow is already being started - please wait until that process completes before starting "
+                "more contacts."
+            ),
+            "no_send_channel": _(
+                'To get started you need to <a href="%(link)s">add a channel</a> to your workspace which will allow '
+                "you to send messages to your contacts."
+            ),
+            "no_call_channel": _(
+                'To get started you need to <a href="%(link)s">add a voice channel</a> to your workspace which will '
+                "allow you to make and receive calls."
+            ),
+        }
+
+        warnings = {
+            "facebook_topic": _(
+                "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who "
+                "have not sent an incoming message in the last 24 hours may not receive it."
+            ),
+            "no_templates": _(
+                "This flow does not use message templates. You may still start this flow but WhatsApp contacts who "
+                "have not sent an incoming message in the last 24 hours may not receive it."
+            ),
+        }
 
         def has_facebook_topic(self, flow):
             if not flow.is_legacy():
@@ -1924,35 +1932,47 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
-            org = flow.org
 
+            context["blockers"] = self.get_blockers(flow)
+            context["warnings"] = self.get_warnings(flow)
+            return context
+
+        def get_blockers(self, flow) -> list:
+            blockers = []
+
+            if flow.org.is_suspended:
+                blockers.append(self.blockers["suspended"])
+            elif flow.org.is_flagged:
+                blockers.append(self.blockers["flagged"])
+            elif flow.is_starting():
+                blockers.append(self.blockers["already_starting"])
+
+            if flow.flow_type == Flow.TYPE_MESSAGE and not flow.org.get_send_channel():
+                blockers.append(self.blockers["no_send_channel"] % {"link": reverse("channels.channel_claim")})
+            elif flow.flow_type == Flow.TYPE_VOICE and not flow.org.get_call_channel():
+                blockers.append(self.blockers["no_call_channel"] % {"link": reverse("channels.channel_claim")})
+
+            return blockers
+
+        def get_warnings(self, flow) -> list:
             warnings = []
 
             # facebook channels need to warn if no topic is set
-            facebook_channel = org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
-            if facebook_channel:
-                if not self.has_facebook_topic(flow):
-                    warnings.append(
-                        _(
-                            "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
-                        )
-                    )
+            facebook_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
+            if facebook_channel and not self.has_facebook_topic(flow):
+                warnings.append(self.warnings["facebook_topic"])
 
             # if we have a whatsapp channel
-            whatsapp_channel = org.get_channel(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
+            whatsapp_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
             if whatsapp_channel:
                 # check to see we are using templates
                 templates = flow.get_dependencies_metadata("template")
                 if not templates:
-                    warnings.append(
-                        _(
-                            "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
-                        )
-                    )
+                    warnings.append(self.warnings["no_templates"])
 
                 # check that this template is synced and ready to go
                 for ref in templates:
-                    template = Template.objects.filter(org=org, uuid=ref["uuid"]).first()
+                    template = flow.org.templates.filter(uuid=ref["uuid"]).first()
                     if not template:
                         warnings.append(
                             _(f"The message template {ref['name']} does not exist on your account and cannot be sent.")
@@ -1961,13 +1981,7 @@ class FlowCRUDL(SmartCRUDL):
                         warnings.append(
                             _(f"Your message template {template.name} is not approved and cannot be sent.")
                         )
-
-            run_stats = self.object.get_run_stats()
-
-            context["warnings"] = warnings
-            context["run_count"] = run_stats["total"]
-            context["complete_count"] = run_stats["completed"]
-            return context
+            return warnings
 
         def save(self, *args, **kwargs):
             mode = self.form.cleaned_data["mode"]

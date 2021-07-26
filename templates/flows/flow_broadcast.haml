@@ -2,27 +2,12 @@
 -load smartmin i18n
 
 -block fields
+  -if blockers
+    -for blocker in blockers
+      .mb-2
+        {{ blocker|safe }}
 
-  -if object.flow_type == 'M' and not send_channel
-    %p
-    -blocktrans with name=brand.name
-      To get started you need to add a channel to your workspace. A channel is a phone number or social network
-      account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
-      Android phone and your own cell phone plan, or we can connect you with a service provider in your country
-      directly.
-    %hr
-    %p
-      -trans "You can always test your flow using the simulator, click"
-        %span.glyph.icon-mobile(style="padding-top:2px;")
-      -trans "on the right to open it."
-
-  -elif object.flow_type == 'V' and not call_channel
-    %p
-      -blocktrans trimmed with name=brand.name
-        To get started you need to add a voice-enabled channel to your workspace. A voice-enabled channel is a
-        phone number which {{ name }} can use to make and receive phone calls on your behalf. For example, Twilio
-        is a service which provides voice-enabled numbers which you can add as channels in your {{ name }} workspace.
-
+    -trans "You can still test your flow using the simulator by clicking the phone icon on the right."
   -else
     -for warning in warnings
       %temba-alert.mb-4(level="warning")
@@ -43,9 +28,8 @@
       -render_field 'exclude_reruns'
 
 -block form-buttons
-  -if send_channel
-    .form-actions
-      %input.btn.btn-primary(type="submit" value="{{ submit_button_name }}")
+  -if not blockers 
+    %input.btn.btn-primary(type="submit" value="{{ submit_button_name }}")
 
 
 -block modal-script
@@ -65,16 +49,18 @@
     var omniboxField = modalBody.querySelector('.omnibox');
     var modeSelect = modalBody.querySelector("temba-select[name='mode']");
 
-    modeSelect.addEventListener("change", function(evt) {
-      var selected = evt.target.values[0];
-      if (selected.value === "query") {
-        removeClass(queryField, "hidden");
-        addClass(omniboxField, "hidden");
-      } else {
-        addClass(queryField, "hidden");
-        removeClass(omniboxField, "hidden");
-      }
-    });
+    {% if not blockers %}
+      modeSelect.addEventListener("change", function(evt) {
+        var selected = evt.target.values[0];
+        if (selected.value === "query") {
+          removeClass(queryField, "hidden");
+          addClass(omniboxField, "hidden");
+        } else {
+          addClass(queryField, "hidden");
+          removeClass(omniboxField, "hidden");
+        }
+      });
+    {% endif %}
 
 
 

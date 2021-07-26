@@ -2522,6 +2522,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_broadcast(self, mr_mocks):
         contact = self.create_contact("Bob", phone="+593979099111")
         flow = self.create_flow()
+        ivr_flow = self.create_flow(flow_type=Flow.TYPE_VOICE)
 
         broadcast_url = reverse("flows.flow_broadcast", args=[flow.id])
 
@@ -2614,21 +2615,29 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(3, len(mr_mocks.queued_batch_tasks))
 
         # trying to start again should fail because there is already a pending start for this flow
-        self.assertUpdateSubmit(
-            broadcast_url,
-            {"mode": "select", "omnibox": selection},
-            form_errors={
-                "__all__": "This flow is already being started, please wait until that "
-                "process is complete before starting more contacts."
-            },
-            object_unchanged=flow,
+        response = self.requestView(broadcast_url, self.admin)
+        self.assertContains(response, "This flow is already being started - please wait")
+        self.assertNotContains(response, "Start Flow")
+
+        # clear that start and try to start the IVR flow
+        FlowStart.objects.all().delete()
+        ivr_bcast_url = reverse("flows.flow_broadcast", args=[ivr_flow.id])
+
+        # shouldn't be able to since we don't have a call channel
+        response = self.requestView(ivr_bcast_url, self.admin)
+        self.assertContains(
+            response, 'To get started you need to <a href="/channels/channel/claim/">add a voice channel</a>'
         )
+        self.assertNotContains(response, "Start Flow")
 
-        # shouldn't have a new flow start as validation failed
-        self.assertFalse(FlowStart.objects.filter(flow=flow).exclude(id__lte=start.id))
+        # if we release our send channel we also can't start a regular messaging flow
+        self.channel.release(self.admin)
 
-        # nothing queued
-        self.assertEqual(3, len(mr_mocks.queued_batch_tasks))
+        response = self.requestView(broadcast_url, self.admin)
+        self.assertContains(
+            response, 'To get started you need to <a href="/channels/channel/claim/">add a channel</a>'
+        )
+        self.assertNotContains(response, "Start Flow")
 
     @mock_mailroom
     def test_broadcast_background_flow(self, mr_mocks):
