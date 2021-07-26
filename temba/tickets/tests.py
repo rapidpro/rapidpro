@@ -177,6 +177,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # just a placeholder view for frontend components
         self.assertListFetch(list_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[])
 
+    def test_menu(self):
+        menu_url = reverse("tickets.ticket_menu")
+
+        response = self.assertListFetch(menu_url, allow_viewers=False, allow_editors=True, allow_agents=True)
+
+        menu = response.json()["results"]
+        self.assertEqual(len(menu), 3)
+
     @mock_mailroom
     def test_folder(self, mr_mocks):
         self.login(self.admin)
@@ -187,10 +195,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_contact("Mary No tickets", phone="126", last_seen_on=timezone.now())
         self.create_contact("Mr Other Org", phone="126", last_seen_on=timezone.now(), org=self.org2)
 
-        open_url = reverse("tickets.ticket_folder", kwargs={"folder": "open"})
-        closed_url = reverse("tickets.ticket_folder", kwargs={"folder": "closed"})
-        mine_url = reverse("tickets.ticket_folder", kwargs={"folder": "mine"})
-        unassigned_url = reverse("tickets.ticket_folder", kwargs={"folder": "unassigned"})
+        open_url = reverse("tickets.ticket_folder", kwargs={"folder": "all", "status": "open"})
+        closed_url = reverse("tickets.ticket_folder", kwargs={"folder": "all", "status": "closed"})
+        mine_url = reverse("tickets.ticket_folder", kwargs={"folder": "mine", "status": "open"})
+        unassigned_url = reverse("tickets.ticket_folder", kwargs={"folder": "unassigned", "status": "open"})
 
         def assert_tickets(resp, tickets: list):
             actual_tickets = [t["ticket"]["uuid"] for t in resp.json()["results"]]

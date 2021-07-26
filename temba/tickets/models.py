@@ -311,7 +311,7 @@ class MineFolder(TicketFolder):
     icon = "coffee"
 
     def get_queryset(self, org, user):
-        return super().get_queryset(org, user).filter(status=Ticket.STATUS_OPEN, assignee=user)
+        return super().get_queryset(org, user).filter(assignee=user)
 
 
 class UnassignedFolder(TicketFolder):
@@ -324,33 +324,20 @@ class UnassignedFolder(TicketFolder):
     icon = "mail"
 
     def get_queryset(self, org, user):
-        return super().get_queryset(org, user).filter(status=Ticket.STATUS_OPEN, assignee=None)
+        return super().get_queryset(org, user).filter(assignee=None)
 
 
-class OpenFolder(TicketFolder):
+class AllFolder(TicketFolder):
     """
-    All open tickets
+    All tickets
     """
 
-    slug = "open"
-    name = _("Open")
-    icon = "inbox"
+    slug = "all"
+    name = _("All")
+    icon = "archive"
 
     def get_queryset(self, org, user):
-        return super().get_queryset(org, user).filter(status=Ticket.STATUS_OPEN)
-
-
-class ClosedFolder(TicketFolder):
-    """
-    All closed tickets
-    """
-
-    slug = "closed"
-    name = _("Closed")
-    icon = "check"
-
-    def get_queryset(self, org, user):
-        return super().get_queryset(org, user).filter(status=Ticket.STATUS_CLOSED)
+        return super().get_queryset(org, user)
 
 
 FOLDERS = {f.slug: f() for f in TicketFolder.__subclasses__()}

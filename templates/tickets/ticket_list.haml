@@ -38,7 +38,7 @@
       display: inline;
     }
 
-    temba-select[name='ticket-folder'] {
+    temba-select[name='ticket-status'] {
       margin-bottom: 0.5em;
       margin-top: -1.3em;
     }
@@ -73,6 +73,41 @@
 -block extra-script
   {{block.super}}
   :javascript
+
+    // current state
+    var folder = '{{folder}}';
+    var status = '{{status}}';
+    var ticketUUID;
+
+    function updateTicketList() {
+
+      var url = `/ticket/${folder}/${status}/${ticketUUID || ''}`;
+      window.history.pushState({},"", url);
+
+      var contacts = document.querySelector("temba-contacts");
+      var chat = document.querySelector("temba-contact-chat");
+
+      // if we have auto selecting, don't clear the chat
+      if (!contacts.nextSelection) {
+        chat.contact = null;
+      }
+
+      contacts.setEndpoint(`/ticket/folder/${folder}/${status}/`);
+    }
+
+    function handleMenuChanged(event) {
+      var selection = event.target.getSelection();
+      if (folder !== selection.id) {
+        folder = selection.id;
+        updateTicketList();
+      }
+    }
+
+    function handleStatusChanged(e) {
+      status = event.target.values[0].value
+      updateTicketList();
+    }
+
     function handleContactChanged(event) {
       var contact = event.target.getSelection();
       var chat = document.querySelector("temba-contact-chat");
@@ -91,9 +126,8 @@
       // tell our chat to refresh since we know things are new in our list
       var chat = document.querySelector("temba-contact-chat");
       var empty = document.querySelector(".empty");
-      var folder = document.querySelector('temba-select[name="ticket-folder"]');
 
-      if (tickets.items.length > 0 || folder.value.value == "closed") {
+      if (tickets.items.length > 0 || folder == "closed") {
         chat.style.opacity = '1';
         chat.refresh();
         empty.style.opacity = '0';
@@ -105,37 +139,22 @@
 
     var focusNext = null;
 
-    function handleFolderChanged(event) {
-      var contacts = document.querySelector("temba-contacts");
-      var chat = document.querySelector("temba-contact-chat");
-
-      // if we have auto selecting, don't clear the chat
-      if (!contacts.nextSelection) {
-        chat.contact = null;
-      }
-
-      var folder = event.target.values[0].value;
-      contacts.setEndpoint(`/ticket/folder/${folder}/`);
-    }
-
     function handleTicketUpdated(event) {
       var ticket = event.detail.ticket;
-      var folder = document.querySelector('temba-select[name="ticket-folder"]');
+      var menu = document.querySelector('temba-menu');
+      var statusSelect = document.querySelector('temba-select[name="ticket-status"]');
       var contacts = document.querySelector("temba-contacts");
 
+      // current agent took a ticket
       if (ticket.took) {
-        var selection = folder.value.value;
-        // go to our tickets if we aren't on a useable folder
-        if (selection != "open" && selection != "mine") {
-          focusNext = ticket.uuid;
-          folder.setSelection("mine");
-        } else {
-          contacts.refresh();
-        }
-
-      } else if (ticket.status == "open") {
+        menu.setSelection("mine");
+        statusSelect.setValue("open");
+        updateTicketList();
+      } 
+      // ticket was reopened
+      else if (ticket.status == "open") {
         focusNext = ticket.uuid;
-        folder.setSelection("open");
+        statusSelect.setSelection("open");
       } else {
         contacts.refresh();
       }
@@ -151,13 +170,16 @@
 -block page-container
   .flex-col
     .flex.widget-container(style="height:100vh;margin-top:-121px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;")
-      .ticket-list.flex.flex-col.m-4.mr-2.pt-4
-        %temba-select(name="ticket-folder" onchange="handleFolderChanged(event)")
-          -for folder in folders
-            %temba-option(name='{{ folder.name }}' value="{{ folder.slug }}" icon="{{ folder.icon }}")
+      .folders.mt-4.ml-4.mb-4
+        %temba-menu(endpoint="{% url 'tickets.ticket_menu' %}" onchange="handleMenuChanged(event)" value="{{folder}}" collapsible)
+
+      .ticket-list.flex.flex-col.m-4.mr-2.pt-4.ml-0
+        %temba-select(name="ticket-status" onchange="handleStatusChanged(event)" value="{{status}}")
+          %temba-option(name="Open" value="open" icon="inbox")
+          %temba-option(name="Closed" value="closed" icon="check")
 
         .flex.flex-grow(style="max-height:100%;margin-bottom:-30px;padding-bottom:30px")
-          %temba-contacts(agent="{{request.user.pk}}" endpoint="{% url 'tickets.ticket_folder' folder='mine' %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+          %temba-contacts(agent="{{request.user.pk}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
 
       .flex-grow.flex-col.h-full.py-4.pb-4.pr-4
         .empty
