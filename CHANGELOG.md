@@ -1,3 +1,7 @@
+v6.5.8
+----------
+ * Fix celery task name
+
 v6.5.7
 ----------
  * Fix flow start modal when starting flows is blocked
