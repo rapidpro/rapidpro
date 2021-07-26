@@ -1,3 +1,13 @@
+v6.5.7
+----------
+ * Fix flow start modal when starting flows is blocked
+ * Add more information to audit_es_group command
+ * Re-save Flow.has_issues on final flow inspection at end of import process
+ * Add squashable model for ticket counts
+ * Add usages modal for labels as well
+ * Update the WA API version for channel that had it set when added
+ * Break out ticket folders from status, add url state
+
 v6.5.6
 ----------
  * Set sent_on if not already set when handling a mt_dlvd relayer cmd
