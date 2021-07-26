@@ -1890,19 +1890,23 @@ class FlowCRUDL(SmartCRUDL):
         success_url = "uuid@flows.flow_editor"
 
         blockers = {
-            "org_suspended": _(
+            "suspended": _(
                 "Sorry, your workspace is currently suspended. To re-enable starting flows, please contact support."
             ),
-            "org_flagged": _(
+            "flagged": _(
                 "Sorry, your workspace is currently flagged. To re-enable starting flows, please contact support."
             ),
             "already_starting": _(
-                "This flow is already being started, please wait until that process is complete before "
-                "starting more contacts."
+                "This flow is already being started - please wait until that process completes before starting "
+                "more contacts."
             ),
-            "no_send_channel": _('To get started you need to <a href="%(link)s">add a channel</a> to your workspace.'),
+            "no_send_channel": _(
+                'To get started you need to <a href="%(link)s">add a channel</a> to your workspace which will allow '
+                "you to send messages to your contacts."
+            ),
             "no_call_channel": _(
-                'To get started you need to <a href="%(link)s">add a voice channel</a> to your workspace.'
+                'To get started you need to <a href="%(link)s">add a voice channel</a> to your workspace which will '
+                "allow you to make and receive calls."
             ),
         }
 
@@ -1937,9 +1941,9 @@ class FlowCRUDL(SmartCRUDL):
             blockers = []
 
             if flow.org.is_suspended:
-                blockers.append(self.blockers["org_suspended"])
+                blockers.append(self.blockers["suspended"])
             elif flow.org.is_flagged:
-                blockers.append(self.blockers["org_flagged"])
+                blockers.append(self.blockers["flagged"])
             elif flow.is_starting():
                 blockers.append(self.blockers["already_starting"])
 
