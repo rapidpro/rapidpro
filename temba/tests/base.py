@@ -572,7 +572,16 @@ class TembaTestMixin:
         )
 
     def create_ticket(
-        self, ticketer, contact, subject, body="", opened_on=None, opened_by=None, closed_on=None, closed_by=None
+        self,
+        ticketer,
+        contact,
+        subject,
+        body="",
+        assignee=None,
+        opened_on=None,
+        opened_by=None,
+        closed_on=None,
+        closed_by=None,
     ):
         if not opened_on:
             opened_on = timezone.now()
@@ -584,12 +593,21 @@ class TembaTestMixin:
             subject=subject,
             body=body,
             status=Ticket.STATUS_CLOSED if closed_on else Ticket.STATUS_OPEN,
+            assignee=assignee,
             opened_on=opened_on,
             closed_on=closed_on,
         )
         TicketEvent.objects.create(
             org=ticket.org, contact=contact, ticket=ticket, event_type=TicketEvent.TYPE_OPENED, created_by=opened_by
         )
+        if assignee:
+            TicketEvent.objects.create(
+                org=ticket.org,
+                contact=contact,
+                ticket=ticket,
+                event_type=TicketEvent.TYPE_ASSIGNED,
+                created_by=opened_by,
+            )
         if closed_on:
             TicketEvent.objects.create(
                 org=ticket.org,
