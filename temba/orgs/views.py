@@ -342,10 +342,10 @@ class DependencyDeleteModal(DependencyModalMixin, ModalMixin, SmartDeleteView):
         context = super().get_context_data(**kwargs)
 
         dependents = self.get_dependents(self.object)
+        flows_only = dependents.pop("flow", {})
 
-        # can_delete = set(dependents.keys()).issubset(self.object.dependent_types_soft)
-
-        context["dep_flows"] = dependents.get("flow", [])
+        context["non_flow_deps"] = dependents
+        context["flow_deps"] = flows_only
         return context
 
     def post(self, request, *args, **kwargs):
