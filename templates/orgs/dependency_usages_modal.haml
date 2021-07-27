@@ -1,10 +1,10 @@
 -extends "includes/modal.html"
--load smartmin i18n
+-load i18n
 
 -block modal
   -block pjax
     -if dependents
-      -for dep_type in dependents
-        -include "includes/dependents.haml" with dependents=dep_type
+      -for type_qs in dependents.values
+        -include "includes/dependents.haml" with dependents=type_qs
     -else
       -trans "None"

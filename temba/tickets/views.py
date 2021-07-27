@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.db.models.aggregates import Max
 from django.http import JsonResponse
 from django.urls import reverse
+from django.utils.functional import cached_property
 from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
@@ -13,7 +14,7 @@ from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin
 from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.views import ComponentFormMixin
 
-from .models import Ticket, Ticketer, TicketFolder
+from .models import Ticket, TicketCount, Ticketer, TicketFolder
 
 
 class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
@@ -100,14 +101,24 @@ class TicketCRUDL(SmartCRUDL):
 
     class Menu(OrgPermsMixin, SmartTemplateView):
         def render_to_response(self, context, **response_kwargs):
-            menu = [
-                {
-                    "id": folder.slug,
-                    "name": folder.name,
-                    "icon": folder.icon,
-                }
-                for folder in TicketFolder.all().values()
-            ]
+            user = self.request.user
+            count_by_assignee = TicketCount.get_by_assignees(user.get_org(), [None, user], Ticket.STATUS_OPEN)
+            counts = {
+                "mine": count_by_assignee[user],
+                "unassigned": count_by_assignee[None],
+                "all": TicketCount.get_all(user.get_org(), Ticket.STATUS_OPEN),
+            }
+
+            menu = []
+            for folder in TicketFolder.all().values():
+                menu.append(
+                    {
+                        "id": folder.slug,
+                        "name": folder.name,
+                        "icon": folder.icon,
+                        "count": counts[folder.slug],
+                    }
+                )
             return JsonResponse({"results": menu})
 
     class Folder(OrgPermsMixin, SmartListView):
@@ -118,12 +129,14 @@ class TicketCRUDL(SmartCRUDL):
             folders = "|".join(TicketFolder.all().keys())
             return rf"^{path}/{action}/(?P<folder>{folders})/(?P<status>open|closed)/$"
 
+        @cached_property
+        def folder(self):
+            return TicketFolder.from_slug(self.kwargs["folder"])
+
         def get_queryset(self, **kwargs):
             user = self.request.user
             status = Ticket.STATUS_OPEN if self.kwargs["status"] == "open" else Ticket.STATUS_CLOSED
-            return (
-                TicketFolder.from_slug(self.kwargs["folder"]).get_queryset(user.get_org(), user).filter(status=status)
-            )
+            return self.folder.get_queryset(user.get_org(), user).filter(status=status)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -190,7 +203,7 @@ class TicketCRUDL(SmartCRUDL):
             # build up our next link if we have more
             if context["page_obj"].has_next():
                 folder_url = reverse(
-                    "tickets.ticket_folder", kwargs={"folder": self.kwargs["folder"], "status": self.kwargs["status"]}
+                    "tickets.ticket_folder", kwargs={"folder": self.folder.slug, "status": self.kwargs["status"]}
                 )
                 next_page = context["page_obj"].number + 1
                 results["next"] = f"{folder_url}?page={next_page}"
