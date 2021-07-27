@@ -75,6 +75,7 @@ from .serializers import (
     ResthookSubscriberReadSerializer,
     ResthookSubscriberWriteSerializer,
     TemplateReadSerializer,
+    TicketBulkActionSerializer,
     TicketerReadSerializer,
     TicketReadSerializer,
     TicketWriteSerializer,
@@ -218,6 +219,7 @@ class RootView(views.APIView):
                 "templates": reverse("api.v2.templates", request=request),
                 "ticketers": reverse("api.v2.ticketers", request=request),
                 # "tickets": reverse("api.v2.tickets", request=request),
+                # "ticket_actions": reverse("api.v2.ticket_actions", request=request),
                 "workspace": reverse("api.v2.workspace", request=request),
             }
         )
@@ -274,6 +276,8 @@ class ExplorerView(SmartTemplateView):
             TemplatesEndpoint.get_read_explorer(),
             TicketersEndpoint.get_read_explorer(),
             # TicketsEndpoint.get_read_explorer(),
+            # TicketsEndpoint.get_write_explorer(),
+            # TicketActionsEndpoint.get_read_explorer(),
             WorkspaceEndpoint.get_read_explorer(),
         ]
         return context
@@ -3552,6 +3556,56 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     #                 "required": False,
     #                 "help": "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
     #             },
+    #         ],
+    #     }
+
+
+class TicketActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
+    """
+    ## Bulk Ticket Updating
+
+    A **POST** can be used to perform an action on a set of tickets in bulk.
+
+    * **tickets** - the ticket UUIDs (array of up to 100 strings)
+    * **action** - the action to perform, a string one of:
+
+        * _assign_ - Assign the tickets to the given user
+        * _note_ - Add the given note to the tickets
+        * _close_ - Close the tickets
+        * _reopen_ - Re-open the tickets
+
+    * **assignee** - the id of a user (integer, optional)
+    * **note** - the note to add to the tickets (string, optional)
+
+    Example:
+
+        POST /api/v2/ticket_actions.json
+        {
+            "tickets": ["55b6606d-9e89-45d1-a3e2-dc11f19f78df", "bef96b71-865d-480a-a660-33db466a210a"],
+            "action": "assign",
+            "assignee": 1234
+        }
+
+    You will receive an empty response with status code 204 if successful.
+    """
+
+    permission = "tickets.ticket_api"
+    serializer_class = TicketBulkActionSerializer
+
+    # @classmethod
+    # def get_write_explorer(cls):
+    #     actions = cls.serializer_class.ACTION_CHOICES
+    #
+    #     return {
+    #         "method": "POST",
+    #         "title": "Update Multiple Tickets",
+    #         "url": reverse("api.v2.ticket_actions"),
+    #         "slug": "ticket-actions",
+    #         "fields": [
+    #             {"name": "tickets", "required": True, "help": "The UUIDs of the tickets to update"},
+    #             {"name": "action", "required": True, "help": "One of the following strings: " + ", ".join(actions)},
+    #             {"name": "assignee", "required": False, "help": "The ID of a user"},
+    #             {"name": "note", "required": False, "help": "The note text"},
     #         ],
     #     }
 

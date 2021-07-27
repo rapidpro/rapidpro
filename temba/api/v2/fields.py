@@ -1,5 +1,6 @@
 from rest_framework import relations, serializers
 
+from django.contrib.auth.models import User
 from django.db.models import Q
 
 from temba.campaigns.models import Campaign, CampaignEvent
@@ -243,8 +244,8 @@ class ContactGroupField(TembaModelField):
     lookup_fields = ("uuid", "name")
     ignore_case_for_fields = ("name",)
 
-    def __init__(self, **kwargs):
-        self.allow_dynamic = kwargs.pop("allow_dynamic", True)
+    def __init__(self, allow_dynamic=True, **kwargs):
+        self.allow_dynamic = allow_dynamic
         super().__init__(**kwargs)
 
     def to_internal_value(self, data):
@@ -284,3 +285,24 @@ class TicketerField(TembaModelField):
 
 class TicketField(TembaModelField):
     model = Ticket
+
+
+class UserField(TembaModelField):
+    model = User
+    lookup_fields = ("id",)
+
+    def __init__(self, assignable_only=False, **kwargs):
+        self.assignable_only = assignable_only
+        super().__init__(**kwargs)
+
+    def to_representation(self, obj):
+        return {"id": obj.id, "email": obj.email}
+
+    def get_queryset(self):
+        org = self.context["org"]
+        if self.assignable_only:
+            qs = org.get_users_with_perm(Ticket.ASSIGNEE_PERMISSION)
+        else:
+            qs = org.get_users()
+
+        return qs.filter(is_active=True)
