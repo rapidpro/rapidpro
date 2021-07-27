@@ -339,9 +339,6 @@ class UserContactFieldsManager(models.Manager):
     def count_active_for_org(self, org):
         return self.get_queryset().active_for_org(org=org).count()
 
-    def collect_usage(self):
-        return self.get_queryset().collect_usage()
-
     def active_for_org(self, org):
         return self.get_queryset().active_for_org(org=org)
 
@@ -471,23 +468,6 @@ class ContactField(SmartModel, DependencyMixin):
     def is_valid_label(cls, label):
         label = label.strip()
         return regex.match(r"^[A-Za-z0-9\- ]+$", label, regex.V0) and len(label) <= cls.MAX_LABEL_LEN
-
-    @classmethod
-    def hide_field(cls, org, user, key):
-        existing = ContactField.user_fields.collect_usage().active_for_org(org=org).filter(key=key).first()
-
-        if existing:
-
-            if any([existing.flow_count, existing.campaign_count, existing.contactgroup_count]):
-                formatted_field_use = (
-                    f"F: {existing.flow_count} C: {existing.campaign_count} G: {existing.contactgroup_count}"
-                )
-                raise ValueError(f"Cannot delete field '{key}', it's used by: {formatted_field_use}")
-
-            existing.is_active = False
-            existing.show_in_table = False
-            existing.modified_by = user
-            existing.save(update_fields=("is_active", "show_in_table", "modified_by", "modified_on"))
 
     @classmethod
     def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None, priority=None):
@@ -632,9 +612,7 @@ class ContactField(SmartModel, DependencyMixin):
     def get_dependents(self):
         dependents = super().get_dependents()
         dependents["group"] = self.dependent_groups.filter(is_active=True)
-        dependents["campaign_event"] = self.campaign_events.filter(is_active=True).select_related(
-            "campaign", "relative_to"
-        )
+        dependents["campaign_event"] = self.campaign_events.filter(is_active=True)
         return dependents
 
     def release(self, user):

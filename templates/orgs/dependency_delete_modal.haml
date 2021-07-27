@@ -1,19 +1,30 @@
 -extends 'includes/modax.html'
 -load i18n
 
--block modal
-  -if dep_flows
+-block fields
+  -if non_flow_deps
+    %span.font-normal
+      {{ object.name }}
+    -trans "can't be deleted as it is still used by the following:"
+    .dependents.mt-4
+      -for type_qs in non_flow_deps.values
+        -include "includes/dependents.haml" with dependents=type_qs
+
+  -elif flow_deps
     %span.font-normal
       {{ object.name }}
     -trans "is used by the following flows which may not work as expected if you delete it:"
-    -include "includes/dependents.haml" with dependents=dep_flows hide_type_name=True
+    -include "includes/dependents.haml" with dependents=flow_deps hide_type_name=True
+
   -else
     -trans "You are about to delete"
     %span.font-normal
       {{ object.name }}.
 
-  .mt-3
-    -trans "There is no way to undo this. Are you sure?"
-  .hidden
-    %form(method="POST")
-      %input(type="submit" value="{{ submit_button_name }}")
+  -if not non_flow_deps
+    .mt-3
+      -trans "There is no way to undo this. Are you sure?"
+
+-block form-buttons
+  -if not non_flow_deps
+    %input.btn.btn-primary(type="submit" value="{{ submit_button_name }}")

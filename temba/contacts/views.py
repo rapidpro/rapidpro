@@ -40,7 +40,7 @@ from temba.flows.models import Flow, FlowStart
 from temba.mailroom.events import Event
 from temba.msgs.views import SendMessageForm
 from temba.orgs.models import Org
-from temba.orgs.views import DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
@@ -1707,47 +1707,10 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        queryset = ContactField.user_fields
+    class Delete(DependencyDeleteModal):
+        cancel_url = "@contacts.contactfield_list"
         success_url = "@contacts.contactfield_list"
         success_message = ""
-        submit_button_name = _("Delete")
-        http_method_names = ["get", "post"]
-        fields = ("id",)
-
-        def _has_uses(self):
-            return any([self.object.flow_count, self.object.campaign_count, self.object.contactgroup_count])
-
-        def get_queryset(self):
-            qs = super().get_queryset()
-
-            qs = qs.collect_usage()
-
-            return qs
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            context["has_uses"] = self._has_uses()
-
-            return context
-
-        def post(self, request, *args, **kwargs):
-
-            pk = self.kwargs.get(self.pk_url_kwarg)
-
-            # does this ContactField actually exist
-            self.object = ContactField.user_fields.filter(is_active=True, id=pk).collect_usage().get()
-
-            # did it maybe change underneath us ???
-            if self._has_uses():
-                raise ValueError(f"Cannot remove a ContactField {pk}:{self.object.label} which is in use")
-
-            else:
-                self.object.hide_field(org=self.request.user.get_org(), user=self.request.user, key=self.object.key)
-                response = self.render_to_response(self.get_context_data())
-                response["Temba-Success"] = self.get_success_url()
-                return response
 
     class UpdatePriority(OrgPermsMixin, SmartView, View):
         def post(self, request, *args, **kwargs):
