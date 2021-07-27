@@ -58,7 +58,7 @@
 
           -block pre-table
             %temba-modax(id='update-field' header='{{_("Update Field")|escapejs}}')
-            %temba-modax(id='delete-field' header='{{_("Delete Field")|escapejs}}')
+            %temba-modax(id='delete-modal' header='{{_("Delete Field")|escapejs}}')
             %temba-modax(id='usages-modal' header='{{_("Usages")|escapejs}}')
           
           - block table
@@ -106,7 +106,7 @@
                       
                       %td.w-10
                         -if org_perms.contacts.contactfield_delete
-                          .pl-2.pt-1.delete-link.linked.text-gray-400{style:"visibility:hidden", onclick:"showDeleteContactFieldModal({{obj.id}})"}
+                          .pl-2.pt-1.delete-link.linked.text-gray-400(style="visibility:hidden" onclick='showFieldDeleteModal("{{ obj.uuid }}")')
                             %span.icon-close
 
                             
@@ -181,9 +181,9 @@
     modax.open = true;
   }
 
-  function showDeleteContactFieldModal(id) {
-    var modax = document.querySelector('#delete-field');
-    modax.endpoint = `/contactfield/delete/${id}/`;
+  function showFieldDeleteModal(uuid) {
+    var modax = document.querySelector('#delete-modal');
+    modax.endpoint = `/contactfield/delete/${uuid}/`;
     modax.open = true;
   }
 

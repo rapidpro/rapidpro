@@ -298,7 +298,22 @@ class IntegrationFormaxView(IntegrationViewMixin, ComponentFormMixin, SmartFormV
         return response
 
 
-class DependencyUsagesModal(OrgObjPermsMixin, SmartReadView):
+class DependencyModalMixin(OrgObjPermsMixin):
+    dependent_order = {"campaign_event": "relative_to__label"}
+    dependent_select_related = {"campaign_event": ("campaign", "relative_to")}
+
+    def get_dependents(self, obj) -> dict:
+        dependents = {}
+        for type_key, type_qs in obj.get_dependents().items():
+            # only include dependency types which we have at least one dependent of
+            if type_qs.exists():
+                dependents[type_key] = type_qs.order_by(self.dependent_order.get(type_key, "name")).select_related(
+                    *self.dependent_select_related.get(type_key, ())
+                )
+        return dependents
+
+
+class DependencyUsagesModal(DependencyModalMixin, SmartReadView):
     """
     Base view for usage modals of flow dependencies
     """
@@ -308,11 +323,11 @@ class DependencyUsagesModal(OrgObjPermsMixin, SmartReadView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["dependents"] = [qs for qs in self.object.get_dependents().values() if qs.exists()]
+        context["dependents"] = self.get_dependents(self.object)
         return context
 
 
-class DependencyDeleteModal(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+class DependencyDeleteModal(DependencyModalMixin, ModalMixin, SmartDeleteView):
     """
     Base view for delete modals of flow dependencies
     """
@@ -326,8 +341,11 @@ class DependencyDeleteModal(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # lookup dependent flows for this object
-        context["dep_flows"] = self.get_object().dependent_flows.only("uuid", "name").order_by("name")
+        dependents = self.get_dependents(self.object)
+        flows_only = dependents.pop("flow", {})
+
+        context["non_flow_deps"] = dependents
+        context["flow_deps"] = flows_only
         return context
 
     def post(self, request, *args, **kwargs):

@@ -186,7 +186,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
             detail_url, allow_viewers=False, allow_editors=False, context_object=self.global1
         )
 
-        self.assertEqual([[self.flow]], [list(qs) for qs in response.context["dependents"]])
+        self.assertEqual({"flow": [self.flow]}, {t: list(qs) for t, qs in response.context["dependents"].items()})
 
     def test_delete(self):
         delete_url = reverse("globals.global_delete", args=[self.global2.uuid])

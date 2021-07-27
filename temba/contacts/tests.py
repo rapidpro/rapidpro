@@ -1196,7 +1196,10 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.assertReadFetch(usages_url, allow_viewers=True, allow_editors=True, context_object=group)
 
-        self.assertEqual([[flow], [campaign1]], [list(qs) for qs in response.context["dependents"]])
+        self.assertEqual(
+            {"flow": [flow], "campaign": [campaign1]},
+            {t: list(qs) for t, qs in response.context["dependents"].items()},
+        )
 
     def test_delete(self):
         url = reverse("contacts.contactgroup_delete", args=[self.joe_and_frank.pk])
@@ -4347,33 +4350,6 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.context["sort_direction"], "desc")
         self.assertIn("search", response.context)
 
-    def test_delete_with_flow_dependency(self):
-        self.login(self.admin)
-        self.get_flow("dependencies")
-
-        dependant_field = ContactField.user_fields.filter(is_active=True, org=self.org, key="favorite_cat").get()
-        delete_contactfield_url = reverse("contacts.contactfield_delete", args=[dependant_field.id])
-
-        response = self.client.get(delete_contactfield_url)
-
-        # there is a flow that is using this field
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context_data["has_uses"])
-
-        with self.assertRaises(ValueError):
-            # try to delete the contactfield, though there is a dependency
-            self.client.post(delete_contactfield_url)
-
-        # delete method is not allowed on the Delete ContactField view
-        response = self.client.delete(delete_contactfield_url)
-        self.assertEqual(response.status_code, 405)
-
-    def test_hide_field_with_flow_dependency(self):
-        self.get_flow("dependencies")
-
-        with self.assertRaises(ValueError):
-            ContactField.hide_field(self.org, self.admin, key="favorite_cat")
-
     def test_list(self):
         manage_fields_url = reverse("contacts.contactfield_list")
 
@@ -4395,37 +4371,6 @@ class ContactFieldTest(TembaTest):
 
         response = self.client.get(manage_fields_url)
         self.assertEqual(len(response.context["object_list"]), 2)
-
-    def test_view_delete(self):
-        cf_to_delete = ContactField.user_fields.get(key="first")
-        self.assertTrue(cf_to_delete.is_active)
-
-        self.login(self.admin)
-
-        delete_url = reverse("contacts.contactfield_delete", args=(cf_to_delete.id,))
-
-        response = self.client.get(delete_url)
-        self.assertEqual(response.status_code, 200)
-
-        # we got a form with expected form fields
-        self.assertFalse(response.context_data["has_uses"])
-
-        # delete the field
-        response = self.client.post(delete_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.context_data["has_uses"])
-
-        cf_to_delete.refresh_from_db()
-
-        self.assertFalse(cf_to_delete.is_active)
-
-        # can't delete field from other org
-        response = self.client.post(reverse("contacts.contactfield_delete", args=[self.other_org_field.id]))
-        self.assertLoginRedirect(response)
-
-        # field should be unchanged
-        self.other_org_field.refresh_from_db()
-        self.assertTrue(self.other_org_field.is_active)
 
     def test_view_featured(self):
         featured1 = ContactField.user_fields.get(key="first")
@@ -4598,13 +4543,13 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # it's also ok to create a field with the same name as a deleted field
-        ContactField.hide_field(self.org, self.admin, "age")
+        ContactField.user_fields.get(key="age").release(self.admin)
 
         self.assertCreateSubmit(
             create_url,
             {"label": "Age", "value_type": "N", "show_in_table": True},
             new_obj_query=ContactField.user_fields.filter(
-                org=self.org, label="Age", value_type="N", show_in_table=True
+                org=self.org, label="Age", value_type="N", show_in_table=True, is_active=True
             ),
             success_status=200,
         )
@@ -4738,7 +4683,47 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.assertReadFetch(usages_url, allow_viewers=True, allow_editors=True, context_object=field)
 
-        self.assertEqual([[flow], [group], [event1]], [list(qs) for qs in response.context["dependents"]])
+        self.assertEqual(
+            {"flow": [flow], "group": [group], "campaign_event": [event1]},
+            {t: list(qs) for t, qs in response.context["dependents"].items()},
+        )
+
+    def test_delete(self):
+        delete_age_url = reverse("contacts.contactfield_delete", args=[self.age.uuid])
+        delete_gender_url = reverse("contacts.contactfield_delete", args=[self.gender.uuid])
+        delete_state_url = reverse("contacts.contactfield_delete", args=[self.state.uuid])
+
+        # a field with no dependents can be deleted
+        response = self.assertDeleteFetch(delete_age_url, allow_editors=True)
+        self.assertContains(response, "You are about to delete")
+        self.assertContains(response, "There is no way to undo this. Are you sure?")
+
+        self.assertDeleteSubmit(delete_age_url, object_deactivated=self.age, success_status=200)
+
+        # a field with only flow dependents can also be deleted but we warn about the flows
+        flow = self.create_flow("Amazing Flow")
+        flow.field_dependencies.add(self.gender)
+        self.assertFalse(flow.has_issues)
+
+        response = self.assertDeleteFetch(delete_gender_url, allow_editors=True)
+        self.assertContains(response, "is used by the following flows which may not work as expected if you delete it")
+        self.assertContains(response, "Amazing Flow")
+        self.assertContains(response, "There is no way to undo this. Are you sure?")
+
+        self.assertDeleteSubmit(delete_gender_url, object_deactivated=self.gender, success_status=200)
+
+        flow.refresh_from_db()
+        self.assertTrue(flow.has_issues)
+        self.assertNotIn(self.age, flow.field_dependencies.all())
+
+        # a field with non-flow flow dependents can't be deleted
+        flow.field_dependencies.add(self.state)
+        self.state.dependent_groups.add(self.create_group("Amazing Group", contacts=[]))
+
+        response = self.assertDeleteFetch(delete_state_url, allow_editors=True)
+        self.assertContains(response, "can't be deleted as it is still used by the following")
+        self.assertContains(response, "Amazing Group")
+        self.assertNotContains(response, "Delete")
 
 
 class URNTest(TembaTest):
