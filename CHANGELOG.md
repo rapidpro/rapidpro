@@ -1,3 +1,10 @@
+v6.5.10
+----------
+ * Remove textit-whatsapp channel type
+ * Show ticket counts on ticketing UI
+ * Update to latest components with fixes for scrollbar and modax reuse
+ * Use new generic dependency delete modal for contact fields
+
 v6.5.9
 ----------
  * Add management command for listing scheduled event fires
