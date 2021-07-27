@@ -537,6 +537,7 @@ PERMISSIONS = {
         "referral",
         "register",
         "schedule",
+        "schedule_in_batch",
     ),
 }
 
