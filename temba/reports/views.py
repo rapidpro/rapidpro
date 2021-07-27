@@ -3,20 +3,27 @@ import traceback
 
 from django.shortcuts import reverse
 from django.http import HttpResponseRedirect, JsonResponse
-from smartmin.views import SmartCRUDL, SmartCreateView
+from smartmin.views import SmartCRUDL, SmartCreateView, SmartTemplateView
 from temba.orgs.views import OrgPermsMixin
 from .models import Report
 
 
 class ReportCRUDL(SmartCRUDL):
-    actions = ("create",)
+    actions = ("create", "analytics")
     model = Report
+
+    class Analytics(OrgPermsMixin, SmartTemplateView):
+        title = "Analytics"
+        permission = "reports.report_read"
+
+        def get_context_data(self, **kwargs):
+            return {}
 
     class Create(OrgPermsMixin, SmartCreateView):
         success_message = ""
 
         def get(self, request, *args, **kwargs):
-            return HttpResponseRedirect(reverse("flows.ruleset_analytics"))
+            return HttpResponseRedirect(reverse("reports.report_read"))
 
         def post(self, request, *args, **kwargs):
             json_string = request.body
