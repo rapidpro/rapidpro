@@ -1,3 +1,10 @@
+v6.5.9
+----------
+ * Add management command for listing scheduled event fires
+ * Add index for ticket count squashing task
+ * Add data migration to populate ticket counts
+ * Add constraint to Msg to disallow sent messages without sent_on and migration to fix existing messages like that
+
 v6.5.8
 ----------
  * Fix celery task name

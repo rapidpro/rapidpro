@@ -406,4 +406,8 @@ class TicketCount(SquashableModel):
         indexes = [
             models.Index(fields=("org", "status")),
             models.Index(fields=("org", "assignee", "status")),
+            # for squashing task
+            models.Index(
+                name="ticket_count_unsquashed", fields=("org", "assignee", "status"), condition=Q(is_squashed=False)
+            ),
         ]

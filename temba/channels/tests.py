@@ -1827,7 +1827,8 @@ class ChannelClaimTest(TembaTest):
 
         # fix our message
         msg1.status = "D"
-        msg1.save()
+        msg1.sent_on = timezone.now()
+        msg1.save(update_fields=("status", "sent_on"))
 
         # run again, our alert should end
         check_channels_task()

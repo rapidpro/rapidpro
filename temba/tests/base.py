@@ -21,7 +21,19 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup, Cont
 from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
+from temba.msgs.models import (
+    DELIVERED,
+    HANDLED,
+    INBOX,
+    INCOMING,
+    OUTGOING,
+    PENDING,
+    SENT,
+    WIRED,
+    Broadcast,
+    Label,
+    Msg,
+)
 from temba.orgs.models import Org, OrgRole
 from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
@@ -288,7 +300,7 @@ class TembaTestMixin:
         surveyor=False,
         next_attempt=None,
     ):
-        if status == SENT and not sent_on:
+        if status in (WIRED, SENT, DELIVERED) and not sent_on:
             sent_on = timezone.now()
 
         metadata = {}
@@ -458,6 +470,7 @@ class TembaTestMixin:
             contact_urn=contact.get_urn(),
             text="Hello",
             status="S",
+            sent_on=timezone.now(),
             created_on=timezone.now(),
         )
         ChannelLog.objects.create(
@@ -559,7 +572,16 @@ class TembaTestMixin:
         )
 
     def create_ticket(
-        self, ticketer, contact, subject, body="", opened_on=None, opened_by=None, closed_on=None, closed_by=None
+        self,
+        ticketer,
+        contact,
+        subject,
+        body="",
+        assignee=None,
+        opened_on=None,
+        opened_by=None,
+        closed_on=None,
+        closed_by=None,
     ):
         if not opened_on:
             opened_on = timezone.now()
@@ -571,12 +593,21 @@ class TembaTestMixin:
             subject=subject,
             body=body,
             status=Ticket.STATUS_CLOSED if closed_on else Ticket.STATUS_OPEN,
+            assignee=assignee,
             opened_on=opened_on,
             closed_on=closed_on,
         )
         TicketEvent.objects.create(
             org=ticket.org, contact=contact, ticket=ticket, event_type=TicketEvent.TYPE_OPENED, created_by=opened_by
         )
+        if assignee:
+            TicketEvent.objects.create(
+                org=ticket.org,
+                contact=contact,
+                ticket=ticket,
+                event_type=TicketEvent.TYPE_ASSIGNED,
+                created_by=opened_by,
+            )
         if closed_on:
             TicketEvent.objects.create(
                 org=ticket.org,
