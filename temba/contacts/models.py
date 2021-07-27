@@ -433,6 +433,8 @@ class ContactField(SmartModel, DependencyMixin):
     user_fields = UserContactFieldsManager()
     system_fields = SystemContactFieldsManager()
 
+    dependent_types_soft = {"flow", "campaign_event"}
+
     @classmethod
     def create_system_fields(cls, org):
         assert not org.contactfields(manager="system_fields").exists(), "org already has system fields"
@@ -617,6 +619,9 @@ class ContactField(SmartModel, DependencyMixin):
 
     def release(self, user):
         super().release(user)
+
+        for event in self.campaign_events.all():
+            event.release(user)
 
         self.is_active = False
         self.modified_by = user
