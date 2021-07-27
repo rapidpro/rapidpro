@@ -173,8 +173,9 @@ class APITest(TembaTest):
         self.assertContains(response, "Server Error. Site administrators have been notified.", status_code=500)
 
     def test_serializer_fields(self):
-        def assert_field(f, *, submissions: dict):
+        def assert_field(f, *, submissions: dict, representations: dict):
             f._context = {"org": self.org}
+
             for submitted, expected in submissions.items():
                 if isinstance(expected, type) and issubclass(expected, Exception):
                     with self.assertRaises(expected, msg=f"expected exception for '{submitted}'"):
@@ -183,6 +184,9 @@ class APITest(TembaTest):
                     self.assertEqual(
                         f.to_internal_value(submitted), expected, f"to_internal_value mismatch for '{submitted}'"
                     )
+
+            for value, expected in representations.items():
+                self.assertEqual(f.to_representation(value), expected, f"to_representation mismatch for '{value}'")
 
         group = self.create_group("Customers")
         field_obj = ContactField.get_or_create(
@@ -266,6 +270,8 @@ class APITest(TembaTest):
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "tel:800-123-4567")  # no country code
         self.assertRaises(serializers.ValidationError, field.to_internal_value, 18_001_234_567)  # non-string
 
+        # self.user.email = "user@nyaruka.com"
+        # self.user.save(update_fields=("email",))
         self.editor.is_active = False
         self.editor.save(update_fields=("is_active",))
 
@@ -277,6 +283,10 @@ class APITest(TembaTest):
                 self.editor.id: serializers.ValidationError,  # deleted
                 self.admin2.id: serializers.ValidationError,  # not in org
             },
+            representations={
+                self.user: {"id": self.user.id, "email": "User@nyaruka.com"},
+                self.agent: {"id": self.agent.id, "email": "Agent@nyaruka.com"},
+            },
         )
         assert_field(
             fields.UserField(source="test", assignable_only=True),
@@ -285,6 +295,7 @@ class APITest(TembaTest):
                 self.admin.id: self.admin,
                 self.agent.id: self.agent,
             },
+            representations={self.agent: {"id": self.agent.id, "email": "Agent@nyaruka.com"}},
         )
 
         field = fields.TranslatableField(source="test", max_length=10)
