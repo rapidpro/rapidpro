@@ -1,3 +1,7 @@
+v6.5.13
+----------
+ * Tweak previous data migration to work with migrate_manual
+
 v6.5.12
 ----------
  * Migration to zeroize contact.ticket_count and make it non-null
