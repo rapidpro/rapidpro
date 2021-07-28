@@ -85,7 +85,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.global2 = Global.get_or_create(self.org, self.admin, "access_token", "Access Token", "23464373")
         self.other_org_global = Global.get_or_create(self.org2, self.admin, "access_token", "Access Token", "653732")
 
-        self.flow = self.get_flow("color")
+        self.flow = self.create_flow("Color Flow")
         self.flow.global_dependencies.add(self.global1)
 
     def test_list_views(self):
@@ -204,7 +204,8 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(self.flow.has_issues)
 
         response = self.assertDeleteFetch(delete_url)
-        self.assertContains(response, "is used by the following flows")
+        self.assertContains(response, "is used by the following items but can still be deleted:")
+        self.assertContains(response, "Color Flow")
 
         response = self.assertDeleteSubmit(delete_url, object_deleted=self.global1, success_status=200)
         self.assertEqual("/global/", response["Temba-Success"])

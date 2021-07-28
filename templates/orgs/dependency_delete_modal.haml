@@ -16,7 +16,7 @@
     -trans "is used by the following items but can still be deleted:"
     .dependents.mt-4
       -for type_key, type_qs in soft_dependents.items
-        -include "includes/dependents.haml" with dependents=type_qs warning=warnings|get:type_key
+        -include "includes/dependents.haml" with dependents=type_qs warning=type_warnings|get:type_key
 
   -else
     -trans "You are about to delete"

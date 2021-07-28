@@ -433,7 +433,7 @@ class ContactField(SmartModel, DependencyMixin):
     user_fields = UserContactFieldsManager()
     system_fields = SystemContactFieldsManager()
 
-    dependent_types_soft = {"flow", "campaign_event"}
+    soft_dependent_types = {"flow", "campaign_event"}
 
     @classmethod
     def create_system_fields(cls, org):

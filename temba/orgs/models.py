@@ -70,7 +70,7 @@ class DependencyMixin:
     Utility mixin for models which can be flow dependencies
     """
 
-    dependent_types_soft = {"flow"}
+    soft_dependent_types = {"flow"}
 
     def get_dependents(self):
         return {"flow": self.dependent_flows.filter(is_active=True)}
@@ -81,7 +81,7 @@ class DependencyMixin:
         """
 
         for dep_type, deps in self.get_dependents().items():
-            if dep_type not in self.dependent_types_soft and deps.exists():
+            if dep_type not in self.soft_dependent_types and deps.exists():
                 raise AssertionError(f"can't delete {self} that still has {dep_type} dependents")
 
         self.dependent_flows.update(has_issues=True)

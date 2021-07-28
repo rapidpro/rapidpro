@@ -493,12 +493,13 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
         ticketer.save()
 
         # add a dependency and try again
-        flow = self.create_flow()
+        flow = self.create_flow("Color Flow")
         flow.ticketer_dependencies.add(ticketer)
         self.assertFalse(flow.has_issues)
 
         response = self.assertDeleteFetch(delete_url)
-        self.assertContains(response, "is used by the following flows which may not work as expected")
+        self.assertContains(response, "is used by the following items but can still be deleted:")
+        self.assertContains(response, "Color Flow")
 
         self.assertDeleteSubmit(delete_url, object_deactivated=ticketer, success_status=200)
 
