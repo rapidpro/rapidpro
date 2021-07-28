@@ -8,7 +8,7 @@ STATUS_OPEN = "O"
 STATUS_CLOSED = "C"
 
 
-def populate_ticket_counts(apps, schema_editor):
+def populate_ticket_counts(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
 
     for org in Org.objects.exclude(tickets=None):
@@ -33,7 +33,7 @@ def populate_ticket_counts(apps, schema_editor):
         print(f"Updated ticket counts for org '{org.name}' (open={total_open}, closed={total_closed})")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
