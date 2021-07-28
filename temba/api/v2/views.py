@@ -3574,7 +3574,7 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         * _close_ - Close the tickets
         * _reopen_ - Re-open the tickets
 
-    * **assignee** - the id of a user (integer, optional)
+    * **assignee** - the email of a user (string, optional)
     * **note** - the note to add to the tickets (string, optional)
 
     Example:
@@ -3583,7 +3583,7 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         {
             "tickets": ["55b6606d-9e89-45d1-a3e2-dc11f19f78df", "bef96b71-865d-480a-a660-33db466a210a"],
             "action": "assign",
-            "assignee": 1234
+            "assignee": "jim@nyaruka.com"
         }
 
     You will receive an empty response with status code 204 if successful.
@@ -3604,7 +3604,7 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
     #         "fields": [
     #             {"name": "tickets", "required": True, "help": "The UUIDs of the tickets to update"},
     #             {"name": "action", "required": True, "help": "One of the following strings: " + ", ".join(actions)},
-    #             {"name": "assignee", "required": False, "help": "The ID of a user"},
+    #             {"name": "assignee", "required": False, "help": "The email address of a user"},
     #             {"name": "note", "required": False, "help": "The note text"},
     #         ],
     #     }
