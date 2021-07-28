@@ -85,15 +85,13 @@
 
   -if request.user.is_superuser or perms.apks.apk_list
     %a{href:"{% url 'apks.apk_list' %}", class:"{% active request 'apk' %}"}
-      .circle
-        .icon-channel-android
+      .circle.unnnic-android-1-2.unnnic-icon-ant{class:"{% active request 'apk' %}"}
       .title
         -trans "android"
 
   -if request.user.is_superuser or perms.orgs.org_dashboard
     %a{href:"{% url 'dashboard.dashboard_home' %}", class:"{% active request 'dashboard(?!/flows)' %}"}
-      .circle
-        .icon-bars-3.icon-1
+      .circle.unnnic-gauge-dashboard-2.unnnic-icon-ant{class:"{% active request 'dashboard(?!/flows)' %}"}
       .title
         -trans "dashboard"
 
