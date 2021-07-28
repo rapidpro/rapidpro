@@ -1,0 +1,54 @@
+<!DOCTYPE HTML>
+-load compress i18n
+
+<html>
+  %head
+    %title
+      {{ brand.name }} Problem - Uh oh!
+    
+    :css
+      body { 
+        margin: 0 
+      }
+
+    -compress css
+      {% lessblock %}
+        :plain
+          @import "style.less";
+
+          // any brand styling tweaks
+          @import (optional, reference) "../brands/style.less";
+          @import (optional) "../brands/{{brand.slug}}/less/style.less";
+
+      {% endlessblock %}
+
+      // any additional brand styling such as fonts, etc
+      -for style in brand.styles
+        -if 'less' in style
+          %link{type:'text/less', rel:'stylesheet', href:'/sitestatic/{{style}}', media:'all'}
+        -else
+          %link{type:'text/css', rel:'stylesheet', href:"/sitestatic/{{style}}", media:'all'}
+
+%body
+  %div.unnnic-maintenance
+      %img{class:"unnnic-maintenance__image", src:"/sitestatic/brands/push/Maintenance.svg"}
+
+      %div.unnnic-maintenance__content-container
+        %div.unnnic-maintenance__content-container__content
+          %div.unnnic-maintenance__content-container__content__title
+            -trans "Something went wrong..."
+          %div.unnnic-maintenance__content-container__content__description
+            -blocktrans
+              The <b>Weni Flows</b> module is going through some instabilities and updates, soon it will return to normal.
+
+          %button.unnnic-maintenance__content-container__content__refresh-button{onclick:"refresh()"}
+            .icon.unnnic-button-refresh-arrow-1.unnnic-icon-md.unnnic-maintenance__content-container__content__refresh-button__icon
+            -trans "Refresh Page"
+
+  :javascript
+
+    function refresh() {
+      location.reload()
+    }
+  
+</html>

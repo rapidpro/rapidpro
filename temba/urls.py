@@ -88,5 +88,14 @@ def handler500(request):
     from django.template import loader
     from django.http import HttpResponseServerError
 
+    from .settings import BRANDING, DEFAULT_BRAND
+    from .context_processors_weni import use_weni_layout
+
+    weni_layout = use_weni_layout(request)
+
     t = loader.get_template("500.html")
-    return HttpResponseServerError(t.render({"request": request}))  # pragma: needs cover
+    return HttpResponseServerError(t.render({
+        "request": request,
+        "brand": BRANDING[DEFAULT_BRAND],
+        "use_weni_layout": weni_layout['use_weni_layout']
+    }))
