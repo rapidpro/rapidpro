@@ -4,6 +4,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from temba.contacts.models import Contact
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 
 from .models import Ticket, TicketCount, Ticketer, TicketEvent
@@ -70,18 +71,19 @@ class TicketTest(TembaTest):
     @mock_mailroom
     def test_counts(self, mr_mocks):
         ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "bob@acme.com", {})
-        contact = self.create_contact("Bob", urns=["twitter:bobby"])
+        contact1 = self.create_contact("Bob", urns=["twitter:bobby"])
+        contact2 = self.create_contact("Jim", urns=["twitter:jimmy"])
         org2_ticketer = Ticketer.create(self.org2, self.admin2, MailgunType.slug, "jim@acme.com", {})
         org2_contact = self.create_contact("Bob", urns=["twitter:bobby"], org=self.org2)
 
-        t1 = self.create_ticket(ticketer, contact, "Test 1")
-        t2 = self.create_ticket(ticketer, contact, "Test 2")
-        t3 = self.create_ticket(ticketer, contact, "Test 3")
-        t4 = self.create_ticket(ticketer, contact, "Test 4")
-        t5 = self.create_ticket(ticketer, contact, "Test 5")
+        t1 = self.create_ticket(ticketer, contact1, "Test 1")
+        t2 = self.create_ticket(ticketer, contact2, "Test 2")
+        t3 = self.create_ticket(ticketer, contact1, "Test 3")
+        t4 = self.create_ticket(ticketer, contact2, "Test 4")
+        t5 = self.create_ticket(ticketer, contact1, "Test 5")
         t6 = self.create_ticket(org2_ticketer, org2_contact, "Test 6")
 
-        def assert_counts(org, *, open: dict, closed: dict):
+        def assert_counts(org, *, open: dict, closed: dict, contacts: dict):
             assignees = [None] + list(Ticket.get_allowed_assignees(org))
 
             self.assertEqual(open, TicketCount.get_by_assignees(org, assignees, Ticket.STATUS_OPEN))
@@ -90,13 +92,18 @@ class TicketTest(TembaTest):
             self.assertEqual(sum(open.values()), TicketCount.get_all(org, Ticket.STATUS_OPEN))
             self.assertEqual(sum(closed.values()), TicketCount.get_all(org, Ticket.STATUS_CLOSED))
 
+            self.assertEqual(contacts, {c: Contact.objects.get(id=c.id).ticket_count for c in contacts})
+
         # t1:O/None t2:O/None t3:O/None t4:O/None t5:O/None t6:O/None
         assert_counts(
             self.org,
             open={None: 5, self.agent: 0, self.editor: 0, self.admin: 0},
             closed={None: 0, self.agent: 0, self.editor: 0, self.admin: 0},
+            contacts={contact1: 3, contact2: 2},
         )
-        assert_counts(self.org2, open={None: 1, self.admin2: 0}, closed={None: 0, self.admin2: 0})
+        assert_counts(
+            self.org2, open={None: 1, self.admin2: 0}, closed={None: 0, self.admin2: 0}, contacts={org2_contact: 1}
+        )
 
         Ticket.bulk_assign(self.org, self.admin, [t1, t2], assignee=self.agent)
         Ticket.bulk_assign(self.org, self.admin, [t3], assignee=self.editor)
@@ -107,8 +114,11 @@ class TicketTest(TembaTest):
             self.org,
             open={None: 2, self.agent: 2, self.editor: 1, self.admin: 0},
             closed={None: 0, self.agent: 0, self.editor: 0, self.admin: 0},
+            contacts={contact1: 3, contact2: 2},
         )
-        assert_counts(self.org2, open={None: 0, self.admin2: 1}, closed={None: 0, self.admin2: 0})
+        assert_counts(
+            self.org2, open={None: 0, self.admin2: 1}, closed={None: 0, self.admin2: 0}, contacts={org2_contact: 1}
+        )
 
         Ticket.bulk_close(self.org, self.admin, [t1, t4])
         Ticket.bulk_close(self.org2, self.admin2, [t6])
@@ -118,8 +128,11 @@ class TicketTest(TembaTest):
             self.org,
             open={None: 1, self.agent: 1, self.editor: 1, self.admin: 0},
             closed={None: 1, self.agent: 1, self.editor: 0, self.admin: 0},
+            contacts={contact1: 2, contact2: 1},
         )
-        assert_counts(self.org2, open={None: 0, self.admin2: 0}, closed={None: 0, self.admin2: 1})
+        assert_counts(
+            self.org2, open={None: 0, self.admin2: 0}, closed={None: 0, self.admin2: 1}, contacts={org2_contact: 0}
+        )
 
         Ticket.bulk_assign(self.org, self.admin, [t1, t5], assignee=self.admin)
 
@@ -128,6 +141,7 @@ class TicketTest(TembaTest):
             self.org,
             open={None: 0, self.agent: 1, self.editor: 1, self.admin: 1},
             closed={None: 1, self.agent: 0, self.editor: 0, self.admin: 1},
+            contacts={contact1: 2, contact2: 1},
         )
 
         Ticket.bulk_reopen(self.org, self.admin, [t4])
@@ -137,6 +151,7 @@ class TicketTest(TembaTest):
             self.org,
             open={None: 1, self.agent: 1, self.editor: 1, self.admin: 1},
             closed={None: 0, self.agent: 0, self.editor: 0, self.admin: 1},
+            contacts={contact1: 2, contact2: 2},
         )
 
         squash_ticketcounts()  # shouldn't change counts
@@ -145,6 +160,7 @@ class TicketTest(TembaTest):
             self.org,
             open={None: 1, self.agent: 1, self.editor: 1, self.admin: 1},
             closed={None: 0, self.agent: 0, self.editor: 0, self.admin: 1},
+            contacts={contact1: 2, contact2: 2},
         )
 
         TicketEvent.objects.all().delete()
@@ -157,8 +173,11 @@ class TicketTest(TembaTest):
             self.org,
             open={None: 1, self.agent: 0, self.editor: 1, self.admin: 1},
             closed={None: 0, self.agent: 0, self.editor: 0, self.admin: 0},
+            contacts={contact1: 2, contact2: 1},
         )
-        assert_counts(self.org2, open={None: 0, self.admin2: 0}, closed={None: 0, self.admin2: 0})
+        assert_counts(
+            self.org2, open={None: 0, self.admin2: 0}, closed={None: 0, self.admin2: 0}, contacts={org2_contact: 0}
+        )
 
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
