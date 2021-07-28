@@ -16,11 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-<<<<<<< HEAD
-"POT-Creation-Date: 2021-06-01 00:53+0000\n"
-=======
 "POT-Creation-Date: 2021-07-13 16:47+0000\n"
->>>>>>> v6.5.10
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -1770,23 +1766,6 @@ msgstr "O App ID do WeChat"
 msgid "The WeChat App secret"
 msgstr "O segredo do APP WeChat"
 
-<<<<<<< HEAD
-msgid "With Weni Web Chat, you can integrate your Rapidpro organization as a chat on your website."
-msgstr ""
-
-#, fuzzy
-#| msgid "Choose a name for your label"
-msgid "This field will serve as name for your channel"
-msgstr "Escolha um nome para o seu rótulo"
-
-msgid "URL where socket communication will take place"
-msgstr ""
-
-msgid "Message Templates"
-msgstr "Templates de Mensagens."
-
-=======
->>>>>>> v6.5.10
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr "Se você tem uma conta empresa no WahstApp, você pode conectá-la para se comunicar com seus contatos."
 
@@ -2127,11 +2106,6 @@ msgstr "Indentificado do Rocket.Chat"
 
 msgid "Discord Identifier"
 msgstr ""
-
-#, fuzzy
-#| msgid "WeChat identifier"
-msgid "WeniWebChat Identifier"
-msgstr "Identificador do WeniWebChat"
 
 msgid "Text"
 msgstr "Texto"
@@ -3623,13 +3597,8 @@ msgstr "Adicionar serviço de Ticket"
 msgid "Help"
 msgstr "Ajuda"
 
-<<<<<<< HEAD
-msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
-msgstr "Sua chave de API do DT One e o secret parecem inválidos. Por favor cheque-os novamente e tente novamente."
-=======
 msgid "Sign Out"
 msgstr "Sair"
->>>>>>> v6.5.10
 
 msgid "Account Token"
 msgstr "Token de conta"
@@ -4088,25 +4057,6 @@ msgstr ""
 
 msgid "Kosovo"
 msgstr "Kosovo"
-
-msgid "Enter the code from your authentication application"
-msgstr ""
-
-#, fuzzy
-#| msgid "Invalid backup token. Please try again."
-msgid "Invalid MFA token. Please try again."
-msgstr "Token de backup inválido. Por favor tente novamente."
-
-msgid "Submit"
-msgstr ""
-
-#, fuzzy
-#| msgid "Use Backup Token"
-msgid "Backup Token"
-msgstr "Utilizar Token de Backup"
-
-msgid "Enter one of the tokens generated when activating the two-factor login"
-msgstr ""
 
 msgid "Processing"
 msgstr "Processando"
@@ -5257,15 +5207,6 @@ msgstr "Para completar a configuração você deve inserir algumas informações
 msgid "<div class='code mt-4'> Manage > API Usage > Callback API > Server Settings </div> <div class='mt-2'> Enter the Webhook URL below for the <div class='code inline py-1'>URL</div> field and the Verify Token in the <div class='code inline py-1'>Secret Key</div> field. </div> <div class='code mt-6'> Manage > API Usage > Callback API > Event Types </div> <div class='mt-2'> Check the option %(option)s </div>"
 msgstr "<div class='code mt-4'> Gerenciar > Uso de API > API de Callback > Configurações do Servidor </div> <div class='mt-2'> Insira a URL de Webhook abaixo para o campo <div class='code inline py-1'>URL</div> e o Token de Verificação no campo <div class='code inline py-1'>Chave Secreta</div></div> <div class='code mt-6'> Gerenciar > Uso de API > API de Callback > Tipos de Evento </div> <div class='mt-2'> Marque a opção %(option)s </div>"
 
-msgid "With <b>Weni Web Chat,</b> you can integrate your Rapidpro organization as a chat on your website."
-msgstr "Com o <b>Weni Web Chat,</b> você pode integrar sua organização no Rapidpro como um chat no seu website."
-
-msgid "After input a <div class='code'>Name</div> for the chat that will connect to your website, you will need to configure the <div class='code'>Base URL</div> that Rapidpro requires for sending and receiving messages. Then you will need to configure how the chat will be shown on your website."
-msgstr "Depois de inserir um <div class='code'>Nome</div> para o chat que vai se conectar ao seu website, você precisa configurar a <div class='code'>URL Base</div> para que o Rapidpro possa enviar e receber mensagens. você também precisa configurar como o chat será exibido no seu website."
-
-msgid "For this configuration, access <a href='https://docs.ilhasoft.mobi/l/en/channels-category/untitled-article-en'> this documentation. </a>"
-msgstr "Para mais detalhes, acesse <a href='https://docs.ilhasoft.mobi/l/pt/canais/how-to-create-a-script-to-connect-pushinho-and-rapidpro'> a documentação oficial. </a>"
-
 msgid "Your WhatsApp channel is now connected, you should be able to send and receive messages as normal."
 msgstr "Seu canal de WhatsApp está agora conectado, você poderá ser capaz de enviar e receber mensagens normalmente."
 
@@ -6144,9 +6085,6 @@ msgstr[1] "%(count)s resultados"
 msgid "Results %(start)s - %(end)s of %(total)s"
 msgstr "Resultados %(start)s - %(end)s de %(total)s"
 
-msgid "Hide"
-msgstr "Esconder"
-
 #, python-format
 msgid "Aliases for %(name)s"
 msgstr "Apelidos para %(name)s"
@@ -6781,7 +6719,7 @@ msgid "Open the one-time password application with which you setup two-factor au
 msgstr "Abra a aplicação de senha única no qual você irá configurar a sua autenticação de 2-fatores na sua conta, e entre o código abaixo para verificar a sua identidade."
 
 msgid "Use Backup Token"
-msgstr "Utilizar Token de Backup"
+msgstr "Utilziar Token de Backup"
 
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr "Sua área de trabalho pode ter logins com várias funções. Você pode usar a página Gerenciar Logins para ver todas os logins existentes ou adicionar novos logins para sua área de trabalho."
@@ -6831,20 +6769,8 @@ msgstr ""
 msgid "Are you sure you want to delete everything belonging to this workspace? This cannot be undone. Any logins which belong only to this workspace will also be deleted."
 msgstr ""
 
-<<<<<<< HEAD
-msgid "Disconnect DT One"
-msgstr "Desconectar DT One"
-
-msgid "This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?"
-msgstr "Isso desconectará sua conta do DT One. As ações de pagamento não serão mais processadas. Tem certeza de que deseja prosseguir?"
-
-#, fuzzy, python-format
-#| msgid "Your workspace is <b>%(org)s</b>"
-msgid "Your project is <b>%(org)s</b>"
-=======
 #, python-format
 msgid "Your workspace is <b>%(org)s</b>"
->>>>>>> v6.5.10
 msgstr "Sua área de trabalho é <b>%(org)s</b>"
 
 #, python-format
@@ -6868,9 +6794,6 @@ msgstr[1] ""
 "\n"
 "            Você possui <b>%(org_count)s</b> áreas de trabalho filhas.\n"
 "          "
-
-msgid "Click here to edit"
-msgstr "Click aqui para editar"
 
 msgid "Manage Workspaces"
 msgstr "Gerenciar Áreas de trabalho"
@@ -7138,17 +7061,6 @@ msgstr "Obrigado por apoiar %(brand)s."
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Créditos complementares, obrigado por testar %(brand)s."
 
-<<<<<<< HEAD
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "    Your email address is <b>%(email)s</b>.\n"
-#| "  "
-msgid ""
-"\n"
-"      Your email address is <b>%(email)s</b>.\n"
-"    "
-=======
 msgid "Confirm your current password to save these changes"
 msgstr ""
 
@@ -7169,7 +7081,6 @@ msgid ""
 "    send you an email with details on how to reset your password.\n"
 "\n"
 "  "
->>>>>>> v6.5.10
 msgstr ""
 "\n"
 "    Insira o endereço de email que você utilizou no cadastro. Nós iremos\n"
@@ -7859,29 +7770,6 @@ msgstr "Nenhum disparador correspondente"
 msgid "Update Trigger"
 msgstr "Atualizar disparador"
 
-<<<<<<< HEAD
-msgid "Start a flow after a missed call."
-msgstr "Comece um fluxo após uma chamada perdida."
-
-msgid "Start a flow when a conversation is started by a contact."
-msgstr "Comece um fluxo quando uma conversa é iniciada por um contato."
-
-msgid "Start a flow when Facebook refers a contact."
-msgstr "Comece um fluxo quando o Facebook enviar um contato."
-
-msgid "Create a message keyword that allows people to join a group."
-msgstr "Crie uma palavra-chave que permita que as pessoas se juntem a um grupo."
-
-msgid "Start a flow in the future or on a schedule."
-msgstr "Iniciar um fluxo futuramente ou segundo agendamento."
-
-#, fuzzy
-#| msgid "Use Backup Token"
-msgid "Backup Tokens"
-msgstr "Utilizar Token de Backup"
-
-=======
->>>>>>> v6.5.10
 msgid "Enter a query"
 msgstr "Adicione uma dúvida"
 
@@ -7889,46 +7777,14 @@ msgstr "Adicione uma dúvida"
 msgid "Found ${count} for ${query}"
 msgstr "Encontrado ${count} para ${query}"
 
-<<<<<<< HEAD
-#~ msgid "Sign Out"
-#~ msgstr "Sair"
-
-#~ msgid "Disconnect Nexmo"
-#~ msgstr "Desconectar Nexmo"
-
-#~ msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
-#~ msgstr "Para se conectar a sua conta Nexmo você deverá nos fornecer a sua chave da API e segredo Nexmo."
-
-#~ msgid "Nexmo Settings Page"
-#~ msgstr "Nexmo Settings Page"
-
-#~ msgid "in the API Settings section."
-#~ msgstr "Na seção Configurações da API (API Settings)."
-
-#, fuzzy
-#~| msgid "Disconnect Nexmo"
-#~ msgid "Disconnected from Nexmo"
-#~ msgstr "Desconectar Nexmo"
-
-#, fuzzy
-#~| msgid "Disconnect Twilio"
-#~ msgid "Disconnected from Twilio"
-#~ msgstr "Desconectar Twilio "
-=======
 msgid "Templates Events"
 msgstr ""
->>>>>>> v6.5.10
 
 msgid "No syncs yet. Check back later."
 msgstr "Nenhum sincronismo até o momento. Verifique mais tarde."
 
-<<<<<<< HEAD
-#~ msgid "%(lang1)s and %(lang2)s"
-#~ msgstr "%(lang1)s e %(lang2)s"
-=======
 msgid "Templates"
 msgstr "Templates"
->>>>>>> v6.5.10
 
 msgid "Templates are synced from your account every 15 minutes."
 msgstr ""

@@ -12,11 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-<<<<<<< HEAD
-"POT-Creation-Date: 2021-06-01 00:53+0000\n"
-=======
 "POT-Creation-Date: 2021-07-13 16:47+0000\n"
->>>>>>> v6.5.10
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2021\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2504,31 +2500,12 @@ msgstr "L'ID de l'application WeChat"
 msgid "The WeChat App secret"
 msgstr "Le secret de l'application WeChat"
 
-<<<<<<< HEAD
-msgid "With Weni Web Chat, you can integrate your Rapidpro organization as a chat on your website."
-msgstr ""
-
-#, fuzzy
-#| msgid "Choose a name for your label"
-msgid "This field will serve as name for your channel"
-msgstr "Choisissez un nom pour votre étiquette"
-
-msgid "URL where socket communication will take place"
-msgstr ""
-
-msgid "Message Templates"
-msgstr "Modèles de message"
-
-msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
-msgstr "Si vous avez un compte d'entreprise WhatsApp, vous pouvez le connecter pour communiquer avec vos contacts."
-=======
 msgid ""
 "If you have an enterprise WhatsApp account, you can connect it to "
 "communicate with your contacts"
 msgstr ""
 "Si vous avez un compte d'entreprise WhatsApp, vous pouvez le connecter pour "
 "communiquer avec vos contacts."
->>>>>>> v6.5.10
 
 #, python-format
 msgid "Unable to register callbacks: %s"
@@ -2943,11 +2920,6 @@ msgstr "Identifiant RocketChat"
 
 msgid "Discord Identifier"
 msgstr "Identifiant du discord"
-
-#, fuzzy
-#| msgid "WeChat identifier"
-msgid "WeniWebChat Identifier"
-msgstr "Identifiant WeChat"
 
 msgid "Text"
 msgstr "Texte"
@@ -4646,13 +4618,8 @@ msgstr "Ajouter un service de billetterie"
 msgid "Help"
 msgstr "Aide"
 
-<<<<<<< HEAD
-msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
-msgstr "Votre clé API et votre secret DT One semblent invalides. Veuillez les vérifier à nouveau et réessayer."
-=======
 msgid "Sign Out"
 msgstr "Déconnexion"
->>>>>>> v6.5.10
 
 msgid "Account Token"
 msgstr "Jeton de compte"
@@ -5166,25 +5133,6 @@ msgstr "Île d'Ascension"
 
 msgid "Kosovo"
 msgstr "Kosovo"
-
-msgid "Enter the code from your authentication application"
-msgstr ""
-
-#, fuzzy
-#| msgid "Invalid phone number, try again."
-msgid "Invalid MFA token. Please try again."
-msgstr "Numéro de téléphone incorrect, essayez à nouveau."
-
-msgid "Submit"
-msgstr ""
-
-#, fuzzy
-#| msgid "Account Token"
-msgid "Backup Token"
-msgstr "Jeton de compte"
-
-msgid "Enter one of the tokens generated when activating the two-factor login"
-msgstr ""
 
 msgid "Processing"
 msgstr "En traitement"
@@ -7084,34 +7032,6 @@ msgstr ""
 "votre compte VK."
 
 #, python-format
-<<<<<<< HEAD
-msgid "<div class='code mt-4'> Manage > API Usage > Callback API > Server Settings </div> <div class='mt-2'> Enter the Webhook URL below for the <div class='code inline py-1'>URL</div> field and the Verify Token in the <div class='code inline py-1'>Secret Key</div> field. </div> <div class='code mt-6'> Manage > API Usage > Callback API > Event Types </div> <div class='mt-2'> Check the option %(option)s </div>"
-msgstr "<div class='code mt-4'> Gérer> Utilisation de l'API> API de rappel> Paramètres du serveur </div> <div class='mt-2'> Entrez l'URL du Webhook ci-dessous pour le champ <div class='code inline py-1'>URL</div> et le jeton de vérification dans le champ <div class='code inline py-1'>Secret Key</div> . </div> <div class='code mt-6'> Gérer> Utilisation de l'API> API de rappel> Types d'événements </div> <div class='mt-2'> Cochez l'option %(option)s </div>"
-
-msgid "With <b>Weni Web Chat,</b> you can integrate your Rapidpro organization as a chat on your website."
-msgstr ""
-
-msgid "After input a <div class='code'>Name</div> for the chat that will connect to your website, you will need to configure the <div class='code'>Base URL</div> that Rapidpro requires for sending and receiving messages. Then you will need to configure how the chat will be shown on your website."
-msgstr ""
-
-msgid "For this configuration, access <a href='https://docs.ilhasoft.mobi/l/en/channels-category/untitled-article-en'> this documentation. </a>"
-msgstr ""
-
-msgid "Your WhatsApp channel is now connected, you should be able to send and receive messages as normal."
-msgstr "Votre chaîne WhatsApp est maintenant connectée, vous devriez pouvoir envoyer et recevoir des messages comme d'habitude."
-
-msgid "In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh the contacts on the WhatsApp application. This may take a few minutes."
-msgstr "Dans le cas d'une nouvelle installation de WhatsApp ou du remplacement d'un canal WhatsApp existant, vous devrez peut-être actualiser les contacts sur l'application WhatsApp. Cela peut prendre quelques minutes."
-
-msgid "WhatsApp Templates Events"
-msgstr "Événements des modèles WhatsApp"
-
-msgid "No syncs yet. Check back later."
-msgstr "Pas encore de synchronisation. Revenez plus tard."
-
-msgid "Templates"
-msgstr "Modèles"
-=======
 msgid ""
 "<div class='code mt-4'> Manage > API Usage > Callback API > Server Settings "
 "</div> <div class='mt-2'> Enter the Webhook URL below for the <div "
@@ -7127,7 +7047,6 @@ msgstr ""
 " </div> <div class='code mt-6'> Gérer> Utilisation de l'API> API de rappel> "
 "Types d'événements </div> <div class='mt-2'> Cochez l'option %(option)s "
 "</div>"
->>>>>>> v6.5.10
 
 msgid ""
 "Your WhatsApp channel is now connected, you should be able to send and "
@@ -8256,9 +8175,6 @@ msgstr[1] "%(count)s resultats"
 msgid "Results %(start)s - %(end)s of %(total)s"
 msgstr "Resultats %(start)s - %(end)s sur %(total)s"
 
-msgid "Hide"
-msgstr ""
-
 #, python-format
 msgid "Aliases for %(name)s"
 msgstr "Alias pour %(name)s"
@@ -9099,9 +9015,8 @@ msgstr ""
 "travail ? Cette opération ne peut être annulée. Tous les logins qui "
 "appartiennent uniquement à cet espace de travail seront également supprimés."
 
-#, fuzzy, python-format
-#| msgid "Your workspace is <b>%(org)s</b>"
-msgid "Your project is <b>%(org)s</b>"
+#, python-format
+msgid "Your workspace is <b>%(org)s</b>"
 msgstr "Votre espace de travail est <b>%(org)s</b>"
 
 #, python-format
@@ -9125,9 +9040,6 @@ msgstr[1] ""
 "\n"
 "            Vous avez <b>%(org_count)s</b> espaces de travail enfants.\n"
 "          "
-
-msgid "Click here to edit"
-msgstr ""
 
 msgid "Manage Workspaces"
 msgstr "Gérer les espaces de travail"
@@ -9504,17 +9416,6 @@ msgstr "Merci de soutenir %(brand)s."
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Crédits complémentaires, merci d'essayer %(brand)s."
 
-<<<<<<< HEAD
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "    Your email address is <b>%(email)s</b>.\n"
-#| "  "
-msgid ""
-"\n"
-"      Your email address is <b>%(email)s</b>.\n"
-"    "
-=======
 msgid "Confirm your current password to save these changes"
 msgstr ""
 "Confirmez votre mot de passe actuel pour enregistrer ces modifications"
@@ -9525,7 +9426,6 @@ msgid ""
 "    Your email address is <b>%(email)s</b>.\n"
 "\n"
 "  "
->>>>>>> v6.5.10
 msgstr ""
 "\n"
 "    Votre adresse e-mail est <b>%(email)s</b>.\n"
@@ -10349,29 +10249,6 @@ msgstr "Aucun déclencheurs correspondants."
 msgid "Update Trigger"
 msgstr "Mise à jour de déclencheur"
 
-<<<<<<< HEAD
-msgid "Start a flow after a missed call."
-msgstr "Lancer un flux après un appel manqué."
-
-msgid "Start a flow when a conversation is started by a contact."
-msgstr "Démarrer un flux lorsqu'une conversation est lancée par un contact."
-
-msgid "Start a flow when Facebook refers a contact."
-msgstr "Lancer un flux lorsque Facebook fait référence à un contact."
-
-msgid "Create a message keyword that allows people to join a group."
-msgstr "Créez un mot-clé de message permettant aux personnes de rejoindre un groupe."
-
-msgid "Start a flow in the future or on a schedule."
-msgstr "Démarrer ultérieurement un flux ou de manière programmée."
-
-#, fuzzy
-#| msgid "Account Token"
-msgid "Backup Tokens"
-msgstr "Jeton de compte"
-
-=======
->>>>>>> v6.5.10
 msgid "Enter a query"
 msgstr "Entrez une requête"
 
@@ -10379,46 +10256,14 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
-<<<<<<< HEAD
-#~ msgid "Sign Out"
-#~ msgstr "Déconnexion"
-
-#~ msgid "Disconnect Nexmo"
-#~ msgstr "Déconnectez Nexmo"
-
-#~ msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
-#~ msgstr "Pour connecter votre compte Nexmo vous devrez nous fournir votre clé API Nexmo et secret."
-
-#~ msgid "Nexmo Settings Page"
-#~ msgstr "Page des paramètres de Nexmo"
-
-#~ msgid "in the API Settings section."
-#~ msgstr "dans la section des paramètres de l'API."
-
-#, fuzzy
-#~| msgid "Disconnect Nexmo"
-#~ msgid "Disconnected from Nexmo"
-#~ msgstr "Déconnectez Nexmo"
-
-#, fuzzy
-#~| msgid "Disconnect Twilio"
-#~ msgid "Disconnected from Twilio"
-#~ msgstr "Déconnecter Twilio"
-=======
 msgid "Templates Events"
 msgstr "Modèles d'événements"
->>>>>>> v6.5.10
 
 msgid "No syncs yet. Check back later."
 msgstr "Pas encore de synchronisation. Revenez plus tard."
 
-<<<<<<< HEAD
-#~ msgid "%(lang1)s and %(lang2)s"
-#~ msgstr "%(lang1)s et %(lang2)s"
-=======
 msgid "Templates"
 msgstr "Modèles"
->>>>>>> v6.5.10
 
 msgid "Templates are synced from your account every 15 minutes."
 msgstr ""

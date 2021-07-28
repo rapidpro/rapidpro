@@ -8,11 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-<<<<<<< HEAD
-"POT-Creation-Date: 2021-06-01 00:53+0000\n"
-=======
 "POT-Creation-Date: 2021-07-13 16:47+0000\n"
->>>>>>> v6.5.10
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1759,21 +1755,6 @@ msgstr ""
 msgid "The WeChat App secret"
 msgstr ""
 
-<<<<<<< HEAD
-msgid "With Weni Web Chat, you can integrate your Rapidpro organization as a chat on your website."
-msgstr ""
-
-msgid "This field will serve as name for your channel"
-msgstr ""
-
-msgid "URL where socket communication will take place"
-msgstr ""
-
-msgid "Message Templates"
-msgstr ""
-
-=======
->>>>>>> v6.5.10
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr ""
 
@@ -2113,9 +2094,6 @@ msgid "RocketChat identifier"
 msgstr ""
 
 msgid "Discord Identifier"
-msgstr ""
-
-msgid "WeniWebChat Identifier"
 msgstr ""
 
 msgid "Text"
@@ -3608,11 +3586,7 @@ msgstr ""
 msgid "Help"
 msgstr ""
 
-<<<<<<< HEAD
-msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
-=======
 msgid "Sign Out"
->>>>>>> v6.5.10
 msgstr ""
 
 msgid "Account Token"
@@ -4071,21 +4045,6 @@ msgid "Ascension Island"
 msgstr ""
 
 msgid "Kosovo"
-msgstr ""
-
-msgid "Enter the code from your authentication application"
-msgstr ""
-
-msgid "Invalid MFA token. Please try again."
-msgstr ""
-
-msgid "Submit"
-msgstr ""
-
-msgid "Backup Token"
-msgstr ""
-
-msgid "Enter one of the tokens generated when activating the two-factor login"
 msgstr ""
 
 msgid "Processing"
@@ -5190,15 +5149,6 @@ msgstr ""
 msgid "<div class='code mt-4'> Manage > API Usage > Callback API > Server Settings </div> <div class='mt-2'> Enter the Webhook URL below for the <div class='code inline py-1'>URL</div> field and the Verify Token in the <div class='code inline py-1'>Secret Key</div> field. </div> <div class='code mt-6'> Manage > API Usage > Callback API > Event Types </div> <div class='mt-2'> Check the option %(option)s </div>"
 msgstr ""
 
-msgid "With <b>Weni Web Chat,</b> you can integrate your Rapidpro organization as a chat on your website."
-msgstr ""
-
-msgid "After input a <div class='code'>Name</div> for the chat that will connect to your website, you will need to configure the <div class='code'>Base URL</div> that Rapidpro requires for sending and receiving messages. Then you will need to configure how the chat will be shown on your website."
-msgstr ""
-
-msgid "For this configuration, access <a href='https://docs.ilhasoft.mobi/l/en/channels-category/untitled-article-en'> this documentation. </a>"
-msgstr ""
-
 msgid "Your WhatsApp channel is now connected, you should be able to send and receive messages as normal."
 msgstr ""
 
@@ -6034,9 +5984,6 @@ msgstr[1] ""
 msgid "Results %(start)s - %(end)s of %(total)s"
 msgstr ""
 
-msgid "Hide"
-msgstr ""
-
 #, python-format
 msgid "Aliases for %(name)s"
 msgstr ""
@@ -6581,7 +6528,7 @@ msgid "Are you sure you want to delete everything belonging to this workspace? T
 msgstr ""
 
 #, python-format
-msgid "Your project is <b>%(org)s</b>"
+msgid "Your workspace is <b>%(org)s</b>"
 msgstr ""
 
 #, python-format
@@ -6599,9 +6546,6 @@ msgid_plural ""
 "          "
 msgstr[0] ""
 msgstr[1] ""
-
-msgid "Click here to edit"
-msgstr ""
 
 msgid "Manage Workspaces"
 msgstr ""
@@ -6875,10 +6819,6 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-<<<<<<< HEAD
-"      Your email address is <b>%(email)s</b>.\n"
-"    "
-=======
 "    Your email address is <b>%(email)s</b>.\n"
 "\n"
 "  "
@@ -6893,7 +6833,6 @@ msgid ""
 "    send you an email with details on how to reset your password.\n"
 "\n"
 "  "
->>>>>>> v6.5.10
 msgstr ""
 
 msgid "To disable two-factor authentication for your login, enter your current password."
@@ -7470,14 +7409,7 @@ msgstr ""
 msgid "Templates"
 msgstr ""
 
-<<<<<<< HEAD
-msgid "Backup Tokens"
-msgstr ""
-
-msgid "Enter a query"
-=======
 msgid "Templates are synced from your account every 15 minutes."
->>>>>>> v6.5.10
 msgstr ""
 
 msgid "No synced templates at this time."
