@@ -666,6 +666,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
 
+    ticket_count = models.IntegerField(null=True, default=0)
+
     # user that last modified this contact
     modified_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
