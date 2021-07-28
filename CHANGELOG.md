@@ -1,3 +1,7 @@
+v6.5.12
+----------
+ * Migration to zeroize contact.ticket_count and make it non-null
+
 v6.5.11
 ----------
  * Allow deletion of fields used by campaign events
