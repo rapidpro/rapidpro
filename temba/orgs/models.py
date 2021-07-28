@@ -1997,7 +1997,7 @@ def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool
 
 
 def _user_name(user: User) -> str:
-    return " ".join([n for n in (user.first_name, user.last_name) if n])
+    return user.get_full_name()
 
 
 def _user_as_engine_ref(user: User) -> dict:

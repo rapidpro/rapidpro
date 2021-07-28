@@ -270,32 +270,32 @@ class APITest(TembaTest):
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "tel:800-123-4567")  # no country code
         self.assertRaises(serializers.ValidationError, field.to_internal_value, 18_001_234_567)  # non-string
 
-        # self.user.email = "user@nyaruka.com"
-        # self.user.save(update_fields=("email",))
+        self.editor.first_name = "Ed"
+        self.editor.last_name = "Flows"
         self.editor.is_active = False
-        self.editor.save(update_fields=("is_active",))
+        self.editor.save(update_fields=("first_name", "last_name", "is_active"))
 
         assert_field(
             fields.UserField(source="test"),
             submissions={
-                self.user.id: self.user,
-                self.admin.id: self.admin,
-                self.editor.id: serializers.ValidationError,  # deleted
-                self.admin2.id: serializers.ValidationError,  # not in org
+                "USER@NYARUKA.COM": self.user,
+                "administrator@nyaruka.com": self.admin,
+                self.editor.email: serializers.ValidationError,  # deleted
+                self.admin2.email: serializers.ValidationError,  # not in org
             },
             representations={
-                self.user: {"id": self.user.id, "email": "User@nyaruka.com"},
-                self.agent: {"id": self.agent.id, "email": "Agent@nyaruka.com"},
+                self.user: {"email": "User@nyaruka.com", "name": ""},
+                self.editor: {"email": "Editor@nyaruka.com", "name": "Ed Flows"},
             },
         )
         assert_field(
             fields.UserField(source="test", assignable_only=True),
             submissions={
-                self.user.id: serializers.ValidationError,  # not assignable
-                self.admin.id: self.admin,
-                self.agent.id: self.agent,
+                self.user.email: serializers.ValidationError,  # not assignable
+                self.admin.email: self.admin,
+                self.agent.email: self.agent,
             },
-            representations={self.agent: {"id": self.agent.id, "email": "Agent@nyaruka.com"}},
+            representations={self.agent: {"email": "Agent@nyaruka.com", "name": ""}},
         )
 
         field = fields.TranslatableField(source="test", max_length=10)
@@ -4582,7 +4582,7 @@ class APITest(TembaTest):
         response = self.postJSON(
             url,
             None,
-            {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "assign", "assignee": self.agent.id},
+            {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "assign", "assignee": "agent@nyaruka.com"},
         )
         self.assertEqual(response.status_code, 204)
 

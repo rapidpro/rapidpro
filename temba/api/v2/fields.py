@@ -289,14 +289,15 @@ class TicketField(TembaModelField):
 
 class UserField(TembaModelField):
     model = User
-    lookup_fields = ("id",)
+    lookup_fields = ("email",)
+    ignore_case_for_fields = ("email",)
 
     def __init__(self, assignable_only=False, **kwargs):
         self.assignable_only = assignable_only
         super().__init__(**kwargs)
 
     def to_representation(self, obj):
-        return {"id": obj.id, "email": obj.email}
+        return {"email": obj.email, "name": obj.name}
 
     def get_queryset(self):
         org = self.context["org"]
