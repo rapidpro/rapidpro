@@ -1,4 +1,4 @@
--load public
+-load public i18n
 
 :css
   .gear-flag {
@@ -7,6 +7,22 @@
     font-size: 80%;
     color: #ccc;
     float: right;
+  }
+
+  .alert-copy {
+    position: fixed;
+    bottom: 0;
+    right: -200px;
+    z-index: 3000;
+    --color-info: #009E96;
+    --color-text-dark: #ffffff;
+
+    transition: .5s;
+  }
+
+  .alert-copy.slide {
+    transition: .5s;
+    right: -5px;
   }
 
 -with gear_links=view.get_gear_links
@@ -73,11 +89,19 @@
                           {{link.title}}
                           %span{class:'gear-flag'}
                             {{link.flag}}
+                      -elif link.copyUuid
+                        .hover-linked.font-normal.copyUuid
+                          {{link.title}}
+                          %span{class:'gear-flag'}
+                            {{link.flag}}
                       -else
                         .hover-linked.font-normal{onclick:"goto(event);", href:'{{link.href}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
                           {{link.title}}
                           %span{class:'gear-flag'}
                             {{link.flag}}
+
+          %temba-alert.alert-copy.mb-4(level="info")
+            -trans "UUID Copied!"
 
 
       :javascript
@@ -87,6 +111,25 @@
             modax.setAttribute("open", "true");
           }
         }
+
+        function copyToClipboard(text) {
+          var dummyElement = document.createElement("textarea");
+          document.body.appendChild(dummyElement);
+          dummyElement.value = text;
+          dummyElement.select();
+          document.execCommand("copy");
+          document.body.removeChild(dummyElement);
+        }
+
+        $(".copyUuid").on('click', function(e){
+          const flowUuid = window.location.pathname.replace('/flow/editor/', '').replace('/', '')
+          copyToClipboard(flowUuid)
+          $('.alert-copy').addClass('slide')
+
+          setTimeout(() => {
+            $('.alert-copy').removeClass('slide')
+          }, 5000)
+        })
 
         $("#gear-container .gear-delete").on('click', function(e){
            $("#delete-form").attr('href', $(this).attr('href'));
