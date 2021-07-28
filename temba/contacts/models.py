@@ -1814,6 +1814,11 @@ class ContactGroup(TembaModel):
             if any(list(map(process_node, flow_revision.definition.get("nodes", [])))):
                 flow_revision.save()
 
+    def analytics_json(self):
+        member_count = self.get_member_count()
+        if member_count > 0:
+            return dict(name=self.name, id=self.pk, count=member_count)
+
     def __str__(self):
         return self.name
 
