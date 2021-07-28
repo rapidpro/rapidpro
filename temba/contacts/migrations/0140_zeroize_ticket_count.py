@@ -11,8 +11,7 @@ def zeroize_ticket_count(apps, schema_editor):  # pragma: no cover
     max_id = -1
     while True:
         batch_ids = list(
-            Contact.objects
-            .filter(id__gt=max_id, ticket_count=None)
+            Contact.objects.filter(id__gt=max_id, ticket_count=None)
             .values_list("id", flat=True)
             .order_by("id")[:BATCH_SIZE]
         )
