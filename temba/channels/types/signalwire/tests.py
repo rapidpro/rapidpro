@@ -54,7 +54,7 @@ class SignalWireTest(TembaTest):
             self.assertContains(response, "Unable to find phone")
 
         # success this time
-        with patch("requests.get") as mock_get:
+        with patch("requests.get") as mock_get, patch("requests.post") as mock_post:
             mock_get.return_value = MockResponse(
                 200, '{"incoming_phone_numbers": [{"sid": "abc123", "phone_number": "+12065551212"}]}'
             )
@@ -114,5 +114,4 @@ class SignalWireTest(TembaTest):
                 )
 
         # deactivate our channel
-        with self.settings(IS_PROD=True):
-            channel.release()
+        channel.release(self.admin)

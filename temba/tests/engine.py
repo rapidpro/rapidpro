@@ -309,6 +309,7 @@ class MockSessionWriter:
             created_on=event["created_on"],
             msg_type="F",
             status="S",
+            sent_on=event["created_on"],
         )
 
     def _handle_webhook_called(self, event):

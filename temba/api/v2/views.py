@@ -24,7 +24,6 @@ from temba.api.v2.views_base import (
     DeleteAPIMixin,
     ListAPIMixin,
     ModifiedOnCursorPagination,
-    OpenedOnCursorPagination,
     WriteAPIMixin,
 )
 from temba.archives.models import Archive
@@ -78,6 +77,7 @@ from .serializers import (
     TemplateReadSerializer,
     TicketerReadSerializer,
     TicketReadSerializer,
+    TicketWriteSerializer,
     WebHookEventReadSerializer,
     WorkspaceReadSerializer,
 )
@@ -578,8 +578,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     def filter_queryset(self, queryset):
         org = self.request.user.get_org()
-
-        queryset = queryset.filter(is_active=True)
 
         # filter by id (optional)
         broadcast_id = self.get_int_param("id")
@@ -1439,9 +1437,6 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         else:
             return generics.get_object_or_404(queryset)
 
-    def perform_destroy(self, instance):
-        instance.release(self.request.user)
-
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -2196,7 +2191,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         instance = self.get_object()
 
         # if there are still dependencies, give up
-        triggers = instance.trigger_set.filter(is_archived=False)
+        triggers = instance.triggers.filter(is_archived=False)
         if triggers:
             deps = ", ".join([str(t.id) for t in triggers])
             raise InvalidQueryError(
@@ -2370,9 +2365,6 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         for label in object_list:
             label.count = label_counts[label]
 
-    def perform_destroy(self, instance):
-        instance.release(self.request.user)
-
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -2450,9 +2442,9 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **direction** - the direction of the message (one of "incoming" or "outgoing").
      * **type** - the type of the message (one of "inbox", "flow", "ivr").
      * **status** - the status of the message (one of "initializing", "queued", "wired", "sent", "delivered", "handled", "errored", "failed", "resent").
-     * **media** - the media if set for a message (ie, the recording played for IVR messages, audio-xwav:http://domain.com/recording.wav)
      * **visibility** - the visibility of the message (one of "visible", "archived" or "deleted")
      * **text** - the text of the message received (string). Note this is the logical view and the message may have been received as multiple physical messages.
+     * **attachments** - the attachments on the message (array of objects).
      * **labels** - any labels set on this message (array of objects), filterable as `label` with label name or UUID.
      * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`).
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
@@ -2488,7 +2480,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "status": "wired",
                 "visibility": "visible",
                 "text": "How are you?",
-                "media": "wav:http://domain.com/recording.wav",
+                "attachments": [{"content_type": "audio/wav" "url": "http://domain.com/recording.wav"}],
                 "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                 "created_on": "2016-01-06T15:33:00.813162Z",
                 "sent_on": "2016-01-06T15:35:03.675716Z",
@@ -2506,7 +2498,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
 
         def get_ordering(self, request, queryset, view=None):
             if request.query_params.get("folder", "").lower() == "incoming":
-                return ModifiedOnCursorPagination.ordering
+                return "-modified_on", "-id"
             else:
                 return CreatedOnCursorPagination.ordering
 
@@ -2834,9 +2826,6 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
             queryset = queryset.filter(resthook__slug=resthook)
 
         return queryset.select_related("resthook")
-
-    def perform_destroy(self, instance):
-        instance.release(self.request.user)
 
     @classmethod
     def get_read_explorer(cls):
@@ -3475,7 +3464,7 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class TicketsEndpoint(ListAPIMixin, BaseAPIView):
+class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list the tickets opened on your account.
 
@@ -3516,7 +3505,8 @@ class TicketsEndpoint(ListAPIMixin, BaseAPIView):
     permission = "tickets.ticket_api"
     model = Ticket
     serializer_class = TicketReadSerializer
-    pagination_class = OpenedOnCursorPagination
+    write_serializer_class = TicketWriteSerializer
+    pagination_class = ModifiedOnCursorPagination
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -3532,6 +3522,15 @@ class TicketsEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(contact=contact)
             else:
                 queryset = queryset.filter(id=-1)
+
+        ticket_uuid = params.get("ticket")
+        if ticket_uuid:
+            queryset = queryset.filter(uuid=ticket_uuid)
+
+        # filter by ticketer type if provided, unpublished support for agents
+        ticketer_type = params.get("ticketer_type")
+        if ticketer_type:
+            queryset = queryset.filter(ticketer__ticketer_type=ticketer_type)
 
         queryset = queryset.prefetch_related(
             Prefetch("ticketer", queryset=Ticketer.objects.only("uuid", "name")),

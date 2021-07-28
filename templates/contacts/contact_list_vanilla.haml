@@ -16,9 +16,9 @@
       %a.linked{'href':'{{folder.url}}'}
         .leading-normal{'class':'{% if request.path == folder.url %}text-primary font-normal{% endif %}'}
           .flex.items-center.flex-wrap
-            .name.whitespace-no-wrap.flex-grow
+            .name.whitespace-nowrap.flex-grow
               {{folder.label}}
-            .text-right.whitespace-no-wrap.px-2.text-sm
+            .text-right.whitespace-nowrap.px-2.text-sm
               {{ folder.count | intcomma }}
 
 
@@ -30,9 +30,9 @@
         %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
           .leading-normal{'class':'{% if current_group.id == group.pk %}text-primary font-normal{% endif %}'}
             .flex.items-center.flex-wrap
-              .name.whitespace-no-wrap.flex-grow
+              .name.whitespace-nowrap.flex-grow
                 {{group.label}}
-              .text-right.whitespace-no-wrap.px-2.text-sm
+              .text-right.whitespace-nowrap.px-2.text-sm
                 {{ group.count | intcomma }}
 
 
@@ -45,9 +45,9 @@
         %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
           .leading-normal{'class':'{% if current_group.id == group.pk %}text-primary font-normal{% endif %}'}
             .flex.items-center.flex-wrap
-              .name.whitespace-no-wrap.flex-grow
+              .name.whitespace-nowrap.flex-grow
                 {{group.label}}
-              .text-right.whitespace-no-wrap.px-2.text-sm
+              .text-right.whitespace-nowrap.px-2.text-sm
                 -if group.count == 0
                   .text-gray-400
                     0
@@ -81,9 +81,9 @@
             Contact
           -for field in contact_fields
             -if field.show_in_table
-              %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider.whitespace-no-wrap.text-center
+              %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider.whitespace-nowrap.text-center
                 {{ field.label }}
-          %th.py-3.px-6.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider.whitespace-no-wrap.text-right.pr-6
+          %th.py-3.px-6.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider.whitespace-nowrap.text-right.pr-6
             - if object_list
               -trans "Created On"
         %tbody.bg-white
@@ -98,10 +98,10 @@
 
               -for field in contact_fields
                 -if field.show_in_table
-                  %td.field.text-center.border-b.border-gray-200.px-6.whitespace-no-wrap
+                  %td.field.text-center.border-b.border-gray-200.px-6.whitespace-nowrap
                     {{ object|contact_field:field.key }}
 
-              %td.value-received.field_received.border-b.border-gray-200.text-right.px-6.whitespace-no-wrap
+              %td.value-received.field_received.border-b.border-gray-200.text-right.px-6.whitespace-nowrap
                 {% format_datetime object.created_on %}
 
               // This is needed for action buttons

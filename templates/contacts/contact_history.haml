@@ -30,7 +30,7 @@
           &nbsp;triggered
 
         %a(href='{%url "campaigns.campaignevent_read" event.campaign_event.id %}')
-          {{ eventfire.campaign_event.offset_display }} {{ eventfire.campaign_event.relative_to.name }}
+          {{ event.campaign_event.offset_display }} {{ event.campaign_event.relative_to.name }}
 
       -elif event.type == 'channel_event'
         -if event.channel_event_type == 'mt_miss'
@@ -153,12 +153,25 @@
       -elif event.type == 'run_result_changed'
         -blocktrans trimmed with name=event.name category=event.category value=event.value
           Run result <b>{{ name }}</b> updated to <b>{{ value }}</b> with category <b>{{ category }}</b>
+      -elif event.type == 'ticket_note_added'
+        {{ event.note }}
+      -elif event.type == 'ticket_assigned'
 
+        -if event.assignee.id == event.created_by.id
+          -blocktrans trimmed with assigner=event.created_by|history_user assignee=event.assignee|history_user subject=event.ticket.subject
+            <b>{{assigner}}</b> took <b>{{subject}}</b>
+        -else
+          -blocktrans trimmed with assigner=event.created_by|history_user assignee=event.assignee|history_user subject=event.ticket.subject
+            <b>{{assigner}}</b> assigned <b>{{subject}}</b> to <b>{{ assignee }}</b>
       -elif event.type == 'ticket_opened'
-        -url 'tickets.ticket_filter' event.ticket.ticketer.uuid as ticketer_url
-        -blocktrans trimmed with subject=event.ticket.subject ticketer=event.ticket.ticketer.name
-          Opened ticket on <a href="{{ ticketer_url }}">{{ ticketer }}</a> with subject <b>{{ subject }}</b>
-
+        -blocktrans trimmed with subject=event.ticket.subject
+          Opened ticket <b>{{ subject }}</b>
+      -elif event.type == 'ticket_reopened'
+        -blocktrans trimmed with subject=event.ticket.subject
+          Reopened ticket <b>{{ subject }}</b>
+      -elif event.type == 'ticket_closed'
+        -blocktrans trimmed with subject=event.ticket.subject
+          Closed ticket <b>{{ subject }}</b>
       -elif event.type == 'webhook_called'
         -if event.status == "success"
           -trans "Successfully called"
@@ -174,10 +187,9 @@
           {% format_datetime event.created_on|parse_isodate %}
 
     %td.text-center{style:"padding-left:0px"}
-      .log-icon.ml-2.text-dark-alpha-200
-        -if event.logs_url
-          .hover-linked(onclick="goto(event)" href="{{ event.logs_url }}")
-            .icon-docs-2.pointer-events-none
+      -if event.logs_url
+        .text-gray-400.hover-linked(onclick="goto(event)" href="{{ event.logs_url }}")
+          .icon-docs-2.pointer-events-none
 
 -if has_older and not recent_only
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{ next_after }}&before={{ next_before }}",

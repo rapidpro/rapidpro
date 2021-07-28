@@ -66,6 +66,12 @@ class SelectWidget(forms.Select):
     template_name = "utils/forms/select.haml"
     is_annotated = True
 
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        if hasattr(self.choices, "icons"):
+            option["icon"] = self.choices.icons.get(value)
+        return option
+
     def format_value(self, value):
         def format_single(v):
             if isinstance(v, (dict)):
@@ -131,6 +137,31 @@ class OmniboxChoice(forms.Widget):
         return selected
 
 
+class TembaChoiceIterator(forms.models.ModelChoiceIterator):
+    def __init__(self, field):
+        super().__init__(field)
+        self.icons = dict()
+
+    def choice(self, obj):
+        value = self.field.prepare_value(obj)
+        option = (value, self.field.label_from_instance(obj))
+
+        if hasattr(obj, "get_icon"):
+            self.icons[value] = obj.get_icon()
+
+        return option
+
+
+class TembaChoiceField(forms.ModelChoiceField):
+    iterator = TembaChoiceIterator
+    widget = SelectWidget()
+
+
+class TembaMultipleChoiceField(forms.ModelMultipleChoiceField):
+    iterator = TembaChoiceIterator
+    widget = SelectMultipleWidget()
+
+
 class ArbitraryChoiceField(forms.ChoiceField):  # pragma: needs cover
     def valid_value(self, value):
         return True
@@ -146,10 +177,9 @@ class ArbitraryJsonChoiceField(forms.ChoiceField):  # pragma: needs cover
         return {"jsonValue": True}
 
     def clean(self, value):
-        if value is None:
-            value = ""
+        super().validate(value)
 
-        if isinstance(value, (str)):
+        if isinstance(value, str):
             return json.loads(value)
 
         if isinstance(value, (tuple, list)):
@@ -161,12 +191,12 @@ class ArbitraryJsonChoiceField(forms.ChoiceField):  # pragma: needs cover
         if value is None:
             return value
 
-        if isinstance(value, (str)):
+        if isinstance(value, str):
             return json.loads(value)
 
         if isinstance(value, (tuple, list)):
             if len(value) > 0:
-                if isinstance(value[0], (dict)):
+                if isinstance(value[0], dict):
                     return value
                 else:
                     return [json.loads(_) for _ in value]

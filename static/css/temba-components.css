@@ -52,7 +52,6 @@ html {
   --color-text-light: rgba(255, 255, 255, 1);
   --color-text-dark: rgba(0, 0, 0, 0.5);
   --color-text-dark-secondary: rgba(0, 0, 0, 0.25);
-  --color-text-help: rgba(0, 0, 0, 0.35);
 
   /* solid overlays with text */
   --color-overlay-dark: rgba(0, 0, 0, 0.2);
@@ -90,17 +89,38 @@ html {
   --font-size: 14px;
   --button-font-size: 1.125rem;
 
+  --icon-color: var(--text-color);
+  --icon-color-hover: var(--icon-color);
+  
+  --transition-speed: 200ms;
+  --event-padding: 0.5em 1em;
+  --temba-select-selected-padding: 9px;
+  --temba-select-selected-line-height: 16px;
+  --temba-select-selected-font-size: 13px;
+
+  --help-text-margin-top: 0px;
+  --help-text-margin-left: 0.3em;
+  --help-text-size: 0.85em;
+  --color-text-help: rgb(120,120,120);
+  --label-size: 14px;
+  
   --header-bg: var(--color-primary-dark);
-
+  --header-text: var(--color-text-light);
+  
   --temba-textinput-padding: 9px;
-  --temba-textinput-font-size: var(--font-size);
+  --temba-textinput-font-size: 13px;
 
+  --options-block-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --options-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  
   font-size: var(--font-size);
   font-weight: 300;
   font-family: var(--font-family);
 
   --button-y: 6px;  
   --button-x: 14px;
+
+  --control-margin-bottom: 15px;
 }
 
 temba-select:focus {

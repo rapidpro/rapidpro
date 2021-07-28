@@ -3,15 +3,15 @@ from smartmin.models import SmartModel
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.utils.translation import ugettext_lazy as _
 
-from temba.orgs.models import Org
+from temba.orgs.models import DependencyMixin, Org
 from temba.utils.text import unsnakify
 from temba.utils.uuid import uuid4
 
 
-class Global(SmartModel):
+class Global(SmartModel, DependencyMixin):
     """
     A global is a constant value that can be used in templates in flows and messages.
     """
@@ -63,17 +63,11 @@ class Global(SmartModel):
 
     @classmethod
     def annotate_usage(cls, queryset):
-        return queryset.annotate(
-            usage_count=Count("dependent_flows", distinct=True, filter=Q(dependent_flows__is_active=True))
-        )
+        return queryset.annotate(usage_count=Count("dependent_flows", distinct=True))
 
-    def get_usage_count(self):
-        if hasattr(self, "usage_count"):
-            return self.usage_count
+    def release(self, user):
+        super().release(user)
 
-        return self.dependent_flows.filter(is_active=True).count()
-
-    def release(self):
         self.delete()
 
     def __str__(self):

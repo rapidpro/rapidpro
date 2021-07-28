@@ -19,7 +19,8 @@
 
   .mt-2
     -if object.campaign.group.is_active
-      -include "includes/recipients_group.haml" with group=object.campaign.group
+      .inline-block
+        -include "includes/recipients_group.haml" with group=object.campaign.group
 
 -block content
   .event-details.p-4.bg-gray-100.rounded-lg.mb-6

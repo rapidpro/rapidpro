@@ -3,93 +3,18 @@ import requests
 from django.conf.urls import url
 from django.forms import ValidationError
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
-from temba.channels.types.whatsapp.views import ClaimView, RefreshView, SyncLogsView, TemplatesView
+from temba.channels.types.whatsapp.views import ClaimView
 from temba.contacts.models import URN
+from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
+from temba.utils.whatsapp import update_api_version
+from temba.utils.whatsapp.views import RefreshView, SyncLogsView, TemplatesView
 
 from ...models import ChannelType
-
-# Mapping from WhatsApp status to RapidPro status
-STATUS_MAPPING = dict(
-    PENDING=TemplateTranslation.STATUS_PENDING,
-    APPROVED=TemplateTranslation.STATUS_APPROVED,
-    REJECTED=TemplateTranslation.STATUS_REJECTED,
-)
-
-# This maps from WA iso-639-2 codes to our internal 639-3 codes
-LANGUAGE_MAPPING = dict(
-    af=("afr", None),  # Afrikaans
-    sq=("sqi", None),  # Albanian
-    ar=("ara", None),  # Arabic
-    az=("aze", None),  # Azerbaijani
-    bn=("ben", None),  # Bengali
-    bg=("bul", None),  # Bulgarian
-    ca=("cat", None),  # Catalan
-    zh_CN=("zho", "CN"),  # Chinese (CHN)
-    zh_HK=("zho", "HK"),  # Chinese (HKG)
-    zh_TW=("zho", "TW"),  # Chinese (TAI)
-    hr=("hrv", None),  # Croatian
-    cs=("ces", None),  # Czech
-    da=("dah", None),  # Danish
-    nl=("nld", None),  # Dutch
-    en=("eng", None),  # English
-    en_GB=("eng", "GB"),  # English (UK)
-    en_US=("eng", "US"),  # English (US)
-    et=("est", None),  # Estonian
-    fil=("fil", None),  # Filipino
-    fi=("fin", None),  # Finnish
-    fr=("fra", None),  # French
-    de=("deu", None),  # German
-    el=("ell", None),  # Greek
-    gu=("gul", None),  # Gujarati
-    ha=("hau", None),  # Hausa
-    he=("enb", None),  # Hebrew
-    hi=("hin", None),  # Hindi
-    hu=("hun", None),  # Hungarian
-    id=("ind", None),  # Indonesian
-    ga=("gle", None),  # Irish
-    it=("ita", None),  # Italian
-    ja=("jpn", None),  # Japanese
-    kn=("kan", None),  # Kannada
-    kk=("kaz", None),  # Kazakh
-    ko=("kor", None),  # Korean
-    lo=("lao", None),  # Lao
-    lv=("lav", None),  # Latvian
-    lt=("lit", None),  # Lithuanian
-    ml=("mal", None),  # Malayalam
-    mk=("mkd", None),  # Macedonian
-    ms=("msa", None),  # Malay
-    mr=("mar", None),  # Marathi
-    nb=("nob", None),  # Norwegian
-    fa=("fas", None),  # Persian
-    pl=("pol", None),  # Polish
-    pt_BR=("por", "BR"),  # Portuguese (BR)
-    pt_PT=("por", "PT"),  # Portuguese (POR)
-    pa=("pan", None),  # Punjabi
-    ro=("ron", None),  # Romanian
-    ru=("rus", None),  # Russian
-    sr=("srp", None),  # Serbian
-    sk=("slk", None),  # Slovak
-    sl=("slv", None),  # Slovenian
-    es=("spa", None),  # Spanish
-    es_AR=("spa", "AR"),  # Spanish (ARG)
-    es_ES=("spa", "ES"),  # Spanish (SPA)
-    es_MX=("spa", "MX"),  # Spanish (MEX)
-    sw=("swa", None),  # Swahili
-    sv=("swe", None),  # Swedish
-    ta=("tam", None),  # Tamil
-    te=("tel", None),  # Telugu
-    th=("tha", None),  # Thai
-    tr=("tur", None),  # Turkish
-    uk=("ukr", None),  # Ukrainian
-    ur=("urd", None),  # Urdu
-    uz=("uzb", None),  # Uzbek
-    vi=("vie", None),  # Vietnamese]
-    zu=("zul", None),  # Zulu
-)
 
 CONFIG_FB_BUSINESS_ID = "fb_business_id"
 CONFIG_FB_ACCESS_TOKEN = "fb_access_token"
@@ -134,9 +59,12 @@ class WhatsAppType(ChannelType):
         # deactivate all translations associated with us
         TemplateTranslation.trim(channel, [])
 
+    def get_api_headers(self, channel):
+        return {"Authorization": "Bearer %s" % channel.config[Channel.CONFIG_AUTH_TOKEN]}
+
     def activate(self, channel):
         domain = channel.org.get_brand_domain()
-        headers = {"Authorization": "Bearer %s" % channel.config[Channel.CONFIG_AUTH_TOKEN]}
+        headers = self.get_api_headers(channel)
 
         # first set our callbacks
         payload = {"webhooks": {"url": "https://" + domain + reverse("courier.wa", args=[channel.uuid, "receive"])}}
@@ -159,3 +87,51 @@ class WhatsAppType(ChannelType):
 
         if resp.status_code != 200:
             raise ValidationError(_("Unable to configure channel: %s", resp.content))
+
+        update_api_version(channel)
+
+    def get_api_templates(self, channel):
+        if (
+            CONFIG_FB_BUSINESS_ID not in channel.config or CONFIG_FB_ACCESS_TOKEN not in channel.config
+        ):  # pragma: no cover
+            return [], False
+
+        start = timezone.now()
+        try:
+            # Retrieve the template domain, fallback to the default for channels
+            # that have been setup earlier for backwards compatibility
+            facebook_template_domain = channel.config.get(CONFIG_FB_TEMPLATE_LIST_DOMAIN, "graph.facebook.com")
+            facebook_business_id = channel.config.get(CONFIG_FB_BUSINESS_ID)
+            url = TEMPLATE_LIST_URL % (facebook_template_domain, facebook_business_id)
+            template_data = []
+            while url:
+                response = requests.get(
+                    url, params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255)
+                )
+                elapsed = (timezone.now() - start).total_seconds() * 1000
+                HTTPLog.create_from_response(
+                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, response, channel=channel, request_time=elapsed
+                )
+
+                if response.status_code != 200:  # pragma: no cover
+                    return [], False
+
+                template_data.extend(response.json()["data"])
+                url = response.json().get("paging", {}).get("next", None)
+            return template_data, True
+        except requests.RequestException as e:
+            HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
+            return [], False
+
+    def check_health(self, channel):
+        headers = self.get_api_headers(channel)
+
+        try:
+            response = requests.get(channel.config[Channel.CONFIG_BASE_URL] + "/v1/health", headers=headers)
+        except Exception as ex:
+            raise Exception("Could not establish a connection with the WhatsApp server: %s", ex)
+
+        if response.status_code >= 400:
+            raise Exception("Error checking API health: %s", response.content)
+
+        return response.json()

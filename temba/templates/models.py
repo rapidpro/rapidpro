@@ -69,7 +69,7 @@ class TemplateTranslation(models.Model):
     template = models.ForeignKey(Template, on_delete=models.PROTECT, related_name="translations")
 
     # the channel that synced this template
-    channel = models.ForeignKey(Channel, on_delete=models.PROTECT)
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="template_translations")
 
     # the content of this template
     content = models.TextField(null=False)
@@ -85,6 +85,9 @@ class TemplateTranslation(models.Model):
 
     # the country code for this template
     country = CountryField(null=True, blank=True)
+
+    # the namespace for this template
+    namespace = models.CharField(max_length=36, default="")
 
     # the external id for this channel template
     external_id = models.CharField(null=True, max_length=64)
@@ -103,7 +106,7 @@ class TemplateTranslation(models.Model):
         TemplateTranslation.objects.filter(channel=channel).exclude(id__in=ids).update(is_active=False)
 
     @classmethod
-    def get_or_create(cls, channel, name, language, country, content, variable_count, status, external_id):
+    def get_or_create(cls, channel, name, language, country, content, variable_count, status, external_id, namespace):
         existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
 
         if not existing:
@@ -125,6 +128,7 @@ class TemplateTranslation(models.Model):
                 language=language,
                 country=country,
                 external_id=external_id,
+                namespace=namespace,
             )
 
         else:
@@ -140,8 +144,17 @@ class TemplateTranslation(models.Model):
                 existing.is_active = True
                 existing.language = language
                 existing.country = country
+                existing.namespace = namespace
                 existing.save(
-                    update_fields=["status", "language", "content", "country", "is_active", "variable_count"]
+                    update_fields=[
+                        "status",
+                        "language",
+                        "content",
+                        "country",
+                        "is_active",
+                        "variable_count",
+                        "namespace",
+                    ]
                 )
 
                 existing.template.modified_on = timezone.now()

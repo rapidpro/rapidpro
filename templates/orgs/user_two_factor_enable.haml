@@ -2,6 +2,7 @@
 -load smartmin i18n
 
 -block content
+  %script(src="{{ STATIC_URL }}js/qrious.js")
   .flex.justify-center
     .w-128
       .mb-4.page-title
@@ -17,7 +18,6 @@
       below.
 
   .mb-6.text-center
-    %script(src="{{ STATIC_URL }}js/qrious.js")
     %canvas#qr
 
 -block form-buttons
@@ -33,8 +33,10 @@
       var secretUrl = "{{ secret_url }}";
       if (secretUrl) {
         var element = document.getElementById('qr');
-        element.style.display = "initial";
-        new QRious({element: element, value: secretUrl, background: "#eee", size: 150});
+        if (element) {
+          element.style.display = "initial";
+          new QRious({element: element, value: secretUrl, background: "#eee", size: 150});
+        }
       }
     })();
 

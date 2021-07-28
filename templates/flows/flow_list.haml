@@ -1,6 +1,5 @@
 -extends "smartmin/list.html"
--load smartmin sms temba compress
--load i18n humanize
+-load smartmin sms temba compress i18n humanize
 
 -block page-title
   -trans "Flows"
@@ -11,7 +10,7 @@
 
   -if org_perms.flows.flow_update
     %temba-modax#export-results{ header:'{% trans "Download Results" %}' }
-    %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'flows.flowlabel_create' %}", onloaded: "handleCreateLabelModalLoaded", onsubmitted: "handleCreateLabelModalSubmitted"}
+    %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'flows.flowlabel_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
 
   #pjax
     -block pjax
@@ -177,7 +176,7 @@
                         %th
                       %th
                       %th
-                      %th.whitespace-no-wrap
+                      %th.whitespace-nowrap
                         Runs / Completion
 
                 %tbody
@@ -190,7 +189,7 @@
 
                       %td.w-full
                         .flex.flex-wrap.flex-end
-                          .flex.inline.whitespace-no-wrap
+                          .flex.inline.whitespace-nowrap
                             -if object.flow_type == 'V'
                               .icon-phone.mr-2.leading-snug
                             -elif object.flow_type == 'S'
@@ -207,18 +206,20 @@
                       %td
                         -if not object.is_archived
                           .whitespace-no-break.flex.items-center.justify-end
+                            -if object.has_issues
+                              .icon-warning.mr-2(title='{{ _("Has issues")|escapejs }}')
 
                             -if object.run_stats.total
-                              .linked.mr-2.whitespace-no-wrap{onclick:"goto(event)", href:'{% url "flows.flow_results" object.uuid %}'}
-                                {{object.run_stats.total|intcomma}}
+                              .linked.mr-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
+                                {{ object.run_stats.total|intcomma }}
 
                               \/
-                              .text-center.linked.mx-2.whitespace-no-wrap{onclick:"goto(event)", href:'{% url "flows.flow_results" object.uuid %}'}
-                                {{object.run_stats.completion}}%
+                              .text-center.linked.mx-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
+                                {{ object.run_stats.completion }}%
 
                   -empty
                     %tr.empty_list
-                      %td{ colspan:'99' }
+                      %td(colspan='99')
                         -trans "No matching flows."
 
             -block paginator
