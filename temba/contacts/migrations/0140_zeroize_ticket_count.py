@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 
-BATCH_SIZE = 10000
+BATCH_SIZE = 5000
 
 
 def zeroize_ticket_count(apps, schema_editor):  # pragma: no cover
@@ -11,7 +11,10 @@ def zeroize_ticket_count(apps, schema_editor):  # pragma: no cover
     max_id = -1
     while True:
         batch_ids = list(
-            Contact.objects.filter(id__gt=max_id).values_list("id", flat=True).order_by("id")[:BATCH_SIZE]
+            Contact.objects
+            .filter(id__gt=max_id, ticket_count=None)
+            .values_list("id", flat=True)
+            .order_by("id")[:BATCH_SIZE]
         )
         if not batch_ids:
             break
@@ -25,6 +28,12 @@ def zeroize_ticket_count(apps, schema_editor):  # pragma: no cover
 
 def reverse(apps, schema_editor):  # pragma: no cover
     pass
+
+
+def apply_manual():  # pragma: no cover
+    from django.apps import apps
+
+    zeroize_ticket_count(apps, None)
 
 
 class Migration(migrations.Migration):
