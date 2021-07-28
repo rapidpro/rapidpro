@@ -2549,12 +2549,13 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         label.save()
 
         # add a dependency and try again
-        flow = self.create_flow()
+        flow = self.create_flow("Color Flow")
         flow.label_dependencies.add(label)
         self.assertFalse(flow.has_issues)
 
         response = self.assertDeleteFetch(delete_url, allow_editors=True)
-        self.assertContains(response, "is used by the following flows which may not work as expected")
+        self.assertContains(response, "is used by the following items but can still be deleted:")
+        self.assertContains(response, "Color Flow")
 
         self.assertDeleteSubmit(delete_url, object_deactivated=label, success_status=200)
 

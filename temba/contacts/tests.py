@@ -4689,39 +4689,56 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_delete(self):
-        delete_age_url = reverse("contacts.contactfield_delete", args=[self.age.uuid])
+        # create new field 'Joined On' which is used by a campaign event (soft) and a flow (soft)
+        group = self.create_group("Amazing Group", contacts=[])
+        joined_on = self.create_field("joined_on", "Joined On", value_type=ContactField.TYPE_DATETIME)
+        campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), group)
+        flow = self.create_flow("Amazing Flow")
+        flow.field_dependencies.add(joined_on)
+        campaign_event = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, joined_on, offset=1, unit="W", flow=flow, delivery_hour=13
+        )
+
+        # make 'Age' appear to be used by a flow (soft) and a group (hard)
+        flow.field_dependencies.add(self.age)
+        group.query_fields.add(self.age)
+
         delete_gender_url = reverse("contacts.contactfield_delete", args=[self.gender.uuid])
-        delete_state_url = reverse("contacts.contactfield_delete", args=[self.state.uuid])
+        delete_joined_url = reverse("contacts.contactfield_delete", args=[joined_on.uuid])
+        delete_age_url = reverse("contacts.contactfield_delete", args=[self.age.uuid])
 
         # a field with no dependents can be deleted
-        response = self.assertDeleteFetch(delete_age_url, allow_editors=True)
-        self.assertContains(response, "You are about to delete")
-        self.assertContains(response, "There is no way to undo this. Are you sure?")
-
-        self.assertDeleteSubmit(delete_age_url, object_deactivated=self.age, success_status=200)
-
-        # a field with only flow dependents can also be deleted but we warn about the flows
-        flow = self.create_flow("Amazing Flow")
-        flow.field_dependencies.add(self.gender)
-        self.assertFalse(flow.has_issues)
-
         response = self.assertDeleteFetch(delete_gender_url, allow_editors=True)
-        self.assertContains(response, "is used by the following flows which may not work as expected if you delete it")
-        self.assertContains(response, "Amazing Flow")
+        self.assertEqual({}, response.context["soft_dependents"])
+        self.assertEqual({}, response.context["hard_dependents"])
+        self.assertContains(response, "You are about to delete")
         self.assertContains(response, "There is no way to undo this. Are you sure?")
 
         self.assertDeleteSubmit(delete_gender_url, object_deactivated=self.gender, success_status=200)
 
+        # a field with only soft dependents can also be deleted but we give warnings
+        response = self.assertDeleteFetch(delete_joined_url, allow_editors=True)
+        self.assertEqual({"flow", "campaign_event"}, set(response.context["soft_dependents"].keys()))
+        self.assertEqual({}, response.context["hard_dependents"])
+        self.assertContains(response, "is used by the following items but can still be deleted:")
+        self.assertContains(response, "Amazing Flow")
+        self.assertContains(response, "There is no way to undo this. Are you sure?")
+
+        self.assertDeleteSubmit(delete_joined_url, object_deactivated=joined_on, success_status=200)
+
+        # check that flow is now marked as having issues
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
-        self.assertNotIn(self.age, flow.field_dependencies.all())
+        self.assertNotIn(joined_on, flow.field_dependencies.all())
 
-        # a field with non-flow flow dependents can't be deleted
-        flow.field_dependencies.add(self.state)
-        self.state.dependent_groups.add(self.create_group("Amazing Group", contacts=[]))
+        # and that the campaign event is gone
+        campaign_event.refresh_from_db()
+        self.assertFalse(campaign_event.is_active)
 
-        response = self.assertDeleteFetch(delete_state_url, allow_editors=True)
-        self.assertContains(response, "can't be deleted as it is still used by the following")
+        response = self.assertDeleteFetch(delete_age_url, allow_editors=True)
+        self.assertEqual({"flow"}, set(response.context["soft_dependents"].keys()))
+        self.assertEqual({"group"}, set(response.context["hard_dependents"].keys()))
+        self.assertContains(response, "can't be deleted as it is still used by the following items:")
         self.assertContains(response, "Amazing Group")
         self.assertNotContains(response, "Delete")
 
