@@ -1,3 +1,10 @@
+v6.5.11
+----------
+ * Allow deletion of fields used by campaign events
+ * Add last_activity_on to ticket folder endpoints
+ * Add API endpoint for ticket bulk actions
+ * Add nullable Contact.ticket_count field
+
 v6.5.10
 ----------
  * Remove textit-whatsapp channel type
