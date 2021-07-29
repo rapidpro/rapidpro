@@ -16,6 +16,8 @@ ARG BRANDING_ENABLED
 ARG RAPIDPRO_APPS_GIT_URL
 ARG RAPIDPRO_APPS_GIT_BRANCH
 ARG FLOWEDITOR_VERSION
+ARG FLOWEDITOR_REPO
+ARG FLOWEDITOR_BRANCH
 
 
 ENV PYTHONUNBUFFERED 1
@@ -73,7 +75,7 @@ RUN su $PROJECT_USER -c "npm install --global \
 
 RUN su $PROJECT_USER -c "npm install"
 
-RUN su $PROJECT_USER -c "git clone --branch feature/more-options-in-wait-for-response https://github.com/Ilhasoft/floweditor.git"
+RUN su $PROJECT_USER -c "git clone --branch ${FLOWEDITOR_BRANCH} ${FLOWEDITOR_REPO}"
 
 RUN su $PROJECT_USER -c "cd floweditor && yarn install && yarn run build && npm pack && cd .. && npm install ./floweditor/${FLOWEDITOR_TGZ}"
 
