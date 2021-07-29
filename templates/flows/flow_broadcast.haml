@@ -13,19 +13,19 @@
       %temba-alert.mb-4(level="warning")
         %div= warning
 
-    .field.recipients-mode
-      -render_field 'mode'
+  .field.recipients-mode
+    -render_field 'mode'
 
-    .field.omnibox(class='{% if not form.mode.value == "select" %}hidden{%endif%}')
-      -render_field 'omnibox'
+  .field.omnibox(class='{% if not form.mode.value == "select" %}hidden{%endif%}')
+    -render_field 'omnibox'
 
-    .field.query(class='{% if form.mode.value == "select" %}hidden{%endif%}')
-      -render_field 'query'
+  .field.query(class='{% if form.mode.value == "select" %}hidden{%endif%}')
+    -render_field 'query'
 
-    .start-options.mt-6.ml-2
-      -if object.flow_type != 'B'
-        -render_field 'exclude_in_other'
-      -render_field 'exclude_reruns'
+  .start-options.mt-6.ml-2
+    -if object.flow_type != 'B'
+      -render_field 'exclude_in_other'
+    -render_field 'exclude_reruns'
 
 -block form-buttons
   -if not blockers 

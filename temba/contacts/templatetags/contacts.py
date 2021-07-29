@@ -178,10 +178,12 @@ def history_icon(event: dict) -> str:
 
 @register.filter
 def history_user(user: dict) -> str:
-    name = " ".join([user.get("first_name"), user.get("last_name")]).strip()
-    if not name:
-        name = user.get("email")
-    return name
+    if user:
+        name = " ".join([user.get("first_name"), user.get("last_name")]).strip()
+        if not name:
+            name = user.get("email")
+        return name
+    return None
 
 
 @register.filter

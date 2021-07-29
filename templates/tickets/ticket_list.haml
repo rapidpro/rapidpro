@@ -77,7 +77,9 @@
     // current state
     var folder = '{{folder}}';
     var status = '{{status}}';
-    var ticketUUID;
+    var ticketUUID = '{{uuid}}';
+    var initialTicket = '{{uuid}}';
+    var focusNext;
 
     function updateTicketList() {
 
@@ -88,23 +90,52 @@
       var chat = document.querySelector("temba-contact-chat");
 
       // if we have auto selecting, don't clear the chat
-      if (!contacts.nextSelection) {
-        chat.contact = null;
-      }
+      var contactsEndpoint = `/ticket/folder/${folder}/${status}/${initialTicket || ''}`;
+      if (contactsEndpoint != contacts.endpoint) {
+        if (!contacts.nextSelection) {
+          chat.contact = null;
+        }
 
-      contacts.setEndpoint(`/ticket/folder/${folder}/${status}/`);
+        contacts.setEndpoint(contactsEndpoint, focusNext);
+
+        // clear our ticket filter note if we have one
+        var tickets = document.querySelector("temba-contacts");
+        tickets.innerHTML = '';
+
+        focusNext = null;
+        ticketUUID = null;
+        initialTicket = null;
+      }
     }
 
     function handleMenuChanged(event) {
+      ticketUUID = null;
+      focusNext = null;
+
       var selection = event.target.getSelection();
       if (folder !== selection.id) {
+
+        // whenever our menu changes, reset filter
+        var statusSelect = document.querySelector('temba-select[name="ticket-status"]');
+        statusSelect.setValue("open");
+        status = "open";
         folder = selection.id;
         updateTicketList();
       }
     }
 
     function handleStatusChanged(e) {
+
+      ticketUUID = null;
+      focusNext = null;
+      
       status = event.target.values[0].value
+      updateTicketList();
+    }
+
+    function clearFilter() {
+      ticketUUID = null;
+      initialTicket = null;
       updateTicketList();
     }
 
@@ -112,6 +143,18 @@
       var contact = event.target.getSelection();
       var chat = document.querySelector("temba-contact-chat");
       chat.contact = contact;
+
+      var filterNote = document.querySelector(".filter-note");
+      if (filterNote) {
+        filterNote.classList.remove("hidden");
+      }
+
+      if (contact) {
+        ticketUUID = contact.ticket.uuid;
+      } else {
+        ticketUUID = null;
+      }
+      updateTicketList();
     }
     
     function handleContactHistoryUpdated(event) {
@@ -127,7 +170,7 @@
       var chat = document.querySelector("temba-contact-chat");
       var empty = document.querySelector(".empty");
 
-      if (tickets.items.length > 0 || folder == "closed") {
+      if (tickets.items.length > 0 || status == "closed") {
         chat.style.opacity = '1';
         chat.refresh();
         empty.style.opacity = '0';
@@ -137,8 +180,7 @@
       }
     }
 
-    var focusNext = null;
-
+    
     function handleTicketUpdated(event) {
       var ticket = event.detail.ticket;
       var menu = document.querySelector('temba-menu');
@@ -146,7 +188,7 @@
       var contacts = document.querySelector("temba-contacts");
 
       // current agent took a ticket
-      if (ticket.took) {
+      if (ticket.assigned == 'self') {
         menu.setSelection("mine");
         statusSelect.setValue("open");
         updateTicketList();
@@ -158,6 +200,8 @@
       } else {
         contacts.refresh();
       }
+
+      menu.refresh();
     }
 
 -block temba-store
@@ -179,7 +223,13 @@
           %temba-option(name="Closed" value="closed" icon="check")
 
         .flex.flex-grow(style="max-height:100%;margin-bottom:-30px;padding-bottom:30px")
-          %temba-contacts(agent="{{request.user.pk}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+          -if uuid
+            %temba-contacts(agent="{{request.user.pk}}" endpoint="{% url 'tickets.ticket_folder' folder status uuid %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+              .filter-note.m-2.hidden(style="text-align:center")
+                %a(href="javascript:clearFilter()")
+                  See more tickets
+          -else
+            %temba-contacts(nextselection="{{nextUUID}}" agent="{{request.user.pk}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
 
       .flex-grow.flex-col.h-full.py-4.pb-4.pr-4
         .empty

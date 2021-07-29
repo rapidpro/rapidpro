@@ -162,13 +162,14 @@
       -for ticket in open_tickets
         %tr.item
           %td.icon
-            %span.glyph.icon-ticket
-          %td.details
-            {{ ticket.subject }}
-          %td.details
-            {{ ticket.body }}
+            .pl-2
+              %span.glyph.icon-ticket
+          %td.details.w-full
+            %a(href="{% url 'tickets.ticket_list' %}all/open/{{ticket.uuid}}/")
+              {{ ticket.subject }}
           %td.created_on
-            {% short_datetime ticket.opened_on %}
+            .pr-6
+              {% short_datetime ticket.opened_on %}
 
   -if upcoming_events
     -if upcoming_events|length > 3
