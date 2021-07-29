@@ -1,3 +1,9 @@
+v6.5.14
+----------
+ * Update to latest cryptography 3.x
+ * Add deep linking for tickets
+ * Update db trigger on ticket table to maintain contact.ticket_count
+
 v6.5.13
 ----------
  * Tweak previous data migration to work with migrate_manual
