@@ -227,7 +227,7 @@
             %temba-contacts(agent="{{request.user.pk}}" endpoint="{% url 'tickets.ticket_folder' folder status uuid %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
               .filter-note.m-2.hidden(style="text-align:center")
                 %a(href="javascript:clearFilter()")
-                  See more tickets
+                  -trans "See more tickets"
           -else
             %temba-contacts(nextselection="{{nextUUID}}" agent="{{request.user.pk}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
 
