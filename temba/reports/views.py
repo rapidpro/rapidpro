@@ -7,7 +7,7 @@ from smartmin.views import SmartCRUDL, SmartCreateView, SmartTemplateView, Smart
 from temba.orgs.views import OrgPermsMixin
 from .models import Report
 from ..contacts.models import ContactField, ContactGroup
-from ..flows.models import Flow, FlowRunCount
+from ..flows.models import Flow, FlowRunCount, FlowRevision
 
 
 class ReportCRUDL(SmartCRUDL):
@@ -90,21 +90,61 @@ class ReportCRUDL(SmartCRUDL):
                 current_report=current_report,
             )
 
-    class Results(OrgPermsMixin, SmartReadView):
+    class Results(OrgPermsMixin, SmartTemplateView):
         permission = "reports.report_read"
 
         def get_context_data(self, **kwargs):
-            filters = json.loads(self.request.GET.get('filters', '[]'))
-            segment = json.loads(self.request.GET.get('segment', 'null'))
+            # we must have the flow uuid to find the correct ruleset through the last revision
+            flow_uuid = self.request.GET.get("flow_uuid", None)
+            if not flow_uuid:
+                return
 
-            ruleset = self.get_object()
+            # we must have the ruleset uuid to search it on the last flow revision
+            ruleset_uuid = self.request.GET.get("ruleset_uuid", None)
+            if not ruleset_uuid:
+                return
+
+            # we must have the last revision and find the ruleset uuid in the definition
+            last_flow_revision = (
+                FlowRevision.objects.filter(flow__uuid=flow_uuid).only("definition").order_by("-id").first()
+            )
+            if not last_flow_revision:
+                return
+
+            node = dict()
+
+            definition = last_flow_revision.definition
+            for item in definition.get("nodes", []):
+                if "router" not in item.keys():
+                    continue
+
+                if item.get("uuid") == ruleset_uuid:
+                    ruleset_type = (
+                        item.get("actions", [])[0]["type"]
+                        if len(item.get("actions", [])) > 0
+                        else None or item.get("router", {}).get("type")
+                    )
+                    ruleset_label = (
+                        item.get("actions", [])[0]["result_name"]
+                        if len(item.get("actions", [])) > 0
+                        else None or item.get("router", {}).get("result_name")
+                    )
+                    node["uuid"] = ruleset_uuid
+                    node["label"] = ruleset_label
+                    node["type"] = ruleset_type
+                    node["categories"] = item.get("router", {}).get("categories")
+                    break
+
+            filters = json.loads(self.request.GET.get("filters", "[]"))
+            segment = json.loads(self.request.GET.get("segment", "null"))
+
             # todo: refactor accordingly to new architecture
             # results = Value.get_value_summary(ruleset=ruleset, filters=filters, segment=segment)
             results = {}
-            return dict(id=ruleset.pk, label=ruleset.label, results=results)
+            return dict(uuid=node.get("uuid"), label=node.get("label"), results=results)
 
         def render_to_response(self, context, **response_kwargs):
-            response = HttpResponse(json.dumps(context), content_type='application/json')
+            response = HttpResponse(json.dumps(context), content_type="application/json")
             return response
 
     class Choropleth(OrgPermsMixin, SmartReadView):
