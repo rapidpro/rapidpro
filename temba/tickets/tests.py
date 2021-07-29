@@ -192,9 +192,34 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_list(self):
         list_url = reverse("tickets.ticket_list")
+        ticket = self.create_ticket(self.internal, self.contact, "Test 1", assignee=self.admin)
 
         # just a placeholder view for frontend components
         self.assertListFetch(list_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[])
+
+        # can hit this page with a uuid
+        # TODO: work out reverse for deep link
+        # deep_link = reverse(
+        #    "tickets.ticket_list", kwargs={"folder": "all", "status": "open", "uuid": str(ticket.uuid)}
+        # )
+
+        deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
+        response = self.assertListFetch(
+            deep_link, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[]
+        )
+
+        # our ticket exists on the first page, so it'll get flagged to be focused
+        self.assertEqual(str(ticket.uuid), response.context["nextUUID"])
+
+        # deep link into a page that doesn't have our ticket
+        deep_link = f"{list_url}all/closed/{str(ticket.uuid)}/"
+        self.login(self.admin)
+        response = self.client.get(deep_link)
+
+        # now our ticket is listed as the uuid and we were redirected to all/open
+        self.assertEqual("all", response.context["folder"])
+        self.assertEqual("open", response.context["status"])
+        self.assertEqual(str(ticket.uuid), response.context["uuid"])
 
     def test_menu(self):
         menu_url = reverse("tickets.ticket_menu")
@@ -345,6 +370,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # fetching closed folder returns all closed tickets
         response = self.client.get(closed_url)
         assert_tickets(response, [c3_t2, c3_t1, c2_t2])
+
+        # deep linking to a single ticket returns just that ticket
+        response = self.client.get(f"{open_url}{str(c1_t1.uuid)}")
+        assert_tickets(response, [c1_t1])
 
         # make sure when paging we get a next url
         with patch("temba.tickets.views.TicketCRUDL.Folder.paginate_by", 1):
