@@ -13,7 +13,7 @@ from ...views import ClaimViewMixin
 class ClaimView(ClaimViewMixin, SmartFormView):
     class MGClaimForm(ClaimViewMixin.Form):
         shortcode = forms.CharField(max_length=15, min_length=1, help_text=_("The Messangi short code"))
-        carrier_id = forms.IntegerField(label=_("Carrier Id"), help_text=_("The carrier id for the Shortcode"))
+        carrier_id = forms.IntegerField(label=_("Carrier Id"), help_text=_("The carrier id for the short code"))
         public_key = forms.CharField(
             max_length=30, min_length=1, label=_("Public Key"), help_text=_("The public key provided by Messangi")
         )

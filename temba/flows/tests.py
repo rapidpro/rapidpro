@@ -367,32 +367,28 @@ class FlowTest(TembaTest):
             self.assertEqual(features, json.loads(response.context["feature_filters"]))
 
         # empty feature set
-        assert_features([])
+        assert_features(["ticketer"])
 
         # add a resthook
         Resthook.objects.create(org=flow.org, created_by=self.admin, modified_by=self.admin)
-        assert_features(["resthook"])
+        assert_features(["ticketer", "resthook"])
 
         # add an NLP classifier
         Classifier.objects.create(org=flow.org, config="", created_by=self.admin, modified_by=self.admin)
-        assert_features(["classifier", "resthook"])
+        assert_features(["classifier", "ticketer", "resthook"])
 
         # add a DT One integration
         DTOneType().connect(flow.org, self.admin, "login", "token")
-        assert_features(["airtime", "classifier", "resthook"])
+        assert_features(["airtime", "classifier", "ticketer", "resthook"])
 
         # change our channel to use a whatsapp scheme
         self.channel.schemes = [URN.WHATSAPP_SCHEME]
         self.channel.save()
-        assert_features(["whatsapp", "airtime", "classifier", "resthook"])
+        assert_features(["whatsapp", "airtime", "classifier", "ticketer", "resthook"])
 
         # change our channel to use a facebook scheme
         self.channel.schemes = [URN.FACEBOOK_SCHEME]
         self.channel.save()
-        assert_features(["facebook", "airtime", "classifier", "resthook"])
-
-        # add a ticketer
-        Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
         assert_features(["facebook", "airtime", "classifier", "ticketer", "resthook"])
 
     def test_save_revision(self):
@@ -2526,6 +2522,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_broadcast(self, mr_mocks):
         contact = self.create_contact("Bob", phone="+593979099111")
         flow = self.create_flow()
+        ivr_flow = self.create_flow(flow_type=Flow.TYPE_VOICE)
 
         broadcast_url = reverse("flows.flow_broadcast", args=[flow.id])
 
@@ -2533,7 +2530,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             broadcast_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["omnibox", "restart_participants", "include_active", "recipients_mode", "contact_query"],
+            form_fields=["mode", "omnibox", "query", "exclude_in_other", "exclude_reruns"],
         )
 
         # create flow start with a query
@@ -2541,12 +2538,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateSubmit(
             broadcast_url,
-            {
-                "contact_query": "frank",
-                "recipients_mode": "query",
-                "restart_participants": "on",
-                "include_active": "on",
-            },
+            {"mode": "query", "query": "frank", "exclude_in_other": False, "exclude_reruns": False},
         )
 
         start = FlowStart.objects.get()
@@ -2566,30 +2558,33 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateSubmit(
             broadcast_url,
-            {
-                "contact_query": 'name = "frank',
-                "recipients_mode": "query",
-                "restart_participants": "on",
-                "include_active": "on",
-            },
-            form_errors={"contact_query": "query contains an error"},
+            {"mode": "query", "query": 'name = "frank', "exclude_in_other": False, "exclude_reruns": False},
+            form_errors={"query": "query contains an error"},
             object_unchanged=flow,
         )
 
-        # create flow start with an empty query
+        # try to create a query based flow start with an empty query
         self.assertUpdateSubmit(
             broadcast_url,
-            {"contact_query": "", "recipients_mode": "query", "restart_participants": "on", "include_active": "on"},
-            form_errors={"contact_query": "Contact query is required"},
+            {"mode": "query", "query": "", "exclude_in_other": False, "exclude_reruns": False},
+            form_errors={"__all__": "Contact query is required."},
             object_unchanged=flow,
         )
 
-        # create flow start with restart_participants and include_active both enabled
+        # try to create selection based flow start with an empty selection
+        self.assertUpdateSubmit(
+            broadcast_url,
+            {"mode": "select", "omnibox": [], "exclude_in_other": False, "exclude_reruns": False},
+            form_errors={"omnibox": "This field is required."},
+            object_unchanged=flow,
+        )
+
+        # create selection based flow start with exclude_in_other and exclude_reruns both left unchecked
         selection = json.dumps({"id": contact.uuid, "name": contact.name, "type": "contact"})
 
         self.assertUpdateSubmit(
             broadcast_url,
-            {"omnibox": selection, "recipients_mode": "select", "restart_participants": "on", "include_active": "on"},
+            {"mode": "select", "omnibox": selection, "exclude_in_other": False, "exclude_reruns": False},
         )
 
         start = FlowStart.objects.get()
@@ -2605,8 +2600,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         FlowStart.objects.all().delete()
 
-        # create flow start with restart_participants and include_active both enabled
-        self.assertUpdateSubmit(broadcast_url, {"omnibox": selection, "recipients_mode": "select"})
+        # create selection based flow start with exclude_in_other and exclude_reruns both checked
+        self.assertUpdateSubmit(
+            broadcast_url, {"mode": "select", "omnibox": selection, "exclude_in_other": True, "exclude_reruns": True}
+        )
 
         start = FlowStart.objects.get()
         self.assertEqual({contact}, set(start.contacts.all()))
@@ -2618,21 +2615,29 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(3, len(mr_mocks.queued_batch_tasks))
 
         # trying to start again should fail because there is already a pending start for this flow
-        self.assertUpdateSubmit(
-            broadcast_url,
-            {"omnibox": selection, "recipients_mode": "select"},
-            form_errors={
-                "__all__": "This flow is already being started, please wait until that "
-                "process is complete before starting more contacts."
-            },
-            object_unchanged=flow,
+        response = self.requestView(broadcast_url, self.admin)
+        self.assertContains(response, "This flow is already being started - please wait")
+        self.assertNotContains(response, "Start Flow")
+
+        # clear that start and try to start the IVR flow
+        FlowStart.objects.all().delete()
+        ivr_bcast_url = reverse("flows.flow_broadcast", args=[ivr_flow.id])
+
+        # shouldn't be able to since we don't have a call channel
+        response = self.requestView(ivr_bcast_url, self.admin)
+        self.assertContains(
+            response, 'To get started you need to <a href="/channels/channel/claim/">add a voice channel</a>'
         )
+        self.assertNotContains(response, "Start Flow")
 
-        # shouldn't have a new flow start as validation failed
-        self.assertFalse(FlowStart.objects.filter(flow=flow).exclude(id__lte=start.id))
+        # if we release our send channel we also can't start a regular messaging flow
+        self.channel.release(self.admin)
 
-        # nothing queued
-        self.assertEqual(3, len(mr_mocks.queued_batch_tasks))
+        response = self.requestView(broadcast_url, self.admin)
+        self.assertContains(
+            response, 'To get started you need to <a href="/channels/channel/claim/">add a channel</a>'
+        )
+        self.assertNotContains(response, "Start Flow")
 
     @mock_mailroom
     def test_broadcast_background_flow(self, mr_mocks):
@@ -2644,18 +2649,16 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             broadcast_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["omnibox", "restart_participants", "include_active", "recipients_mode", "contact_query"],
+            form_fields=["mode", "omnibox", "query", "exclude_in_other", "exclude_reruns"],
         )
 
-        # include active is hidden
-        self.assertNotContains(response, "Include Active")
+        # option to exclude contact in other flows is hidden
+        self.assertNotContains(response, "Exclude contacts currently in a flow")
 
         # create flow start with a query
         mr_mocks.parse_query("frank", cleaned='name ~ "frank"', fields=[])
 
-        self.assertUpdateSubmit(
-            broadcast_url, {"contact_query": "frank", "recipients_mode": "query", "restart_participants": "on"}
-        )
+        self.assertUpdateSubmit(broadcast_url, {"mode": "query", "query": "frank", "exclude_reruns": False})
 
         start = FlowStart.objects.get()
         self.assertEqual(flow, start.flow)

@@ -1312,19 +1312,21 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         trigger5 = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow1)
         Trigger.create(self.org2, self.admin, Trigger.TYPE_KEYWORD, self.create_flow(org=self.org2), keyword="other")
 
-        keywords_url = reverse("triggers.trigger_type", kwargs={"folder": "keywords"})
-        socials_url = reverse("triggers.trigger_type", kwargs={"folder": "social"})
-        catchall_url = reverse("triggers.trigger_type", kwargs={"folder": "catchall"})
+        keyword_url = reverse("triggers.trigger_type", kwargs={"type": "keyword"})
+        referral_url = reverse("triggers.trigger_type", kwargs={"type": "referral"})
+        catchall_url = reverse("triggers.trigger_type", kwargs={"type": "catch_all"})
 
         response = self.assertListFetch(
-            keywords_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1]
+            keyword_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1]
         )
         self.assertEqual(("archive",), response.context["actions"])
 
         # can search by keyword
         self.assertListFetch(
-            keywords_url + "?search=TES", allow_viewers=True, allow_editors=True, context_objects=[trigger1]
+            keyword_url + "?search=TES", allow_viewers=True, allow_editors=True, context_objects=[trigger1]
         )
 
-        self.assertListFetch(socials_url, allow_viewers=True, allow_editors=True, context_objects=[trigger3, trigger4])
+        self.assertListFetch(
+            referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger3, trigger4]
+        )
         self.assertListFetch(catchall_url, allow_viewers=True, allow_editors=True, context_objects=[trigger5])

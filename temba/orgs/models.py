@@ -70,10 +70,19 @@ class DependencyMixin:
     Utility mixin for models which can be flow dependencies
     """
 
+    soft_dependent_types = {"flow"}
+
+    def get_dependents(self):
+        return {"flow": self.dependent_flows.filter(is_active=True)}
+
     def release(self, user):
         """
         Mark this dependency's flows as having issues, and then remove the dependencies
         """
+
+        for dep_type, deps in self.get_dependents().items():
+            if dep_type not in self.soft_dependent_types and deps.exists():
+                raise AssertionError(f"can't delete {self} that still has {dep_type} dependents")
 
         self.dependent_flows.update(has_issues=True)
         self.dependent_flows.clear()
@@ -458,13 +467,6 @@ class Org(SmartModel):
         counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ACTIVE, ContactGroup.TYPE_BLOCKED))
         return (counts[ContactGroup.TYPE_ACTIVE] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
-    @cached_property
-    def has_ticketer(self) -> bool:
-        """
-        Gets whether this org has an active ticketer configured
-        """
-        return self.ticketers.filter(is_active=True).exists()
-
     def get_integrations(self, category: IntegrationType.Category) -> list:
         """
         Returns the connected integrations on this org of the given category
@@ -568,7 +570,9 @@ class Org(SmartModel):
 
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
-            mailroom.get_client().flow_inspect(self.id, flow.get_definition())
+            flow_info = mailroom.get_client().flow_inspect(self.id, flow.get_definition())
+            flow.has_issues = len(flow_info[Flow.INSPECT_ISSUES]) > 0
+            flow.save(update_fields=("has_issues",))
 
     def validate_import(self, import_def):
         from temba.triggers.models import Trigger
@@ -978,11 +982,6 @@ class Org(SmartModel):
         user._org_group = role.group if role else None
 
         return user._org_group
-
-    def has_internal_ticketing(self):
-        from temba.tickets.types.internal import InternalType
-
-        return self.ticketers.filter(ticketer_type=InternalType.slug).exists()
 
     def has_twilio_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="T")
@@ -1562,6 +1561,7 @@ class Org(SmartModel):
         """
         from temba.middleware import BrandingMiddleware
         from temba.contacts.models import ContactField, ContactGroup
+        from temba.tickets.models import Ticketer
 
         with transaction.atomic():
             if not branding:
@@ -1569,6 +1569,7 @@ class Org(SmartModel):
 
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
+            Ticketer.create_internal_ticketer(self, branding)
 
             self.init_topups(topup_size)
             self.update_capabilities()
@@ -1996,7 +1997,7 @@ def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool
 
 
 def _user_name(user: User) -> str:
-    return " ".join([n for n in (user.first_name, user.last_name) if n])
+    return user.get_full_name()
 
 
 def _user_as_engine_ref(user: User) -> dict:
@@ -2348,12 +2349,10 @@ class TopUpCredits(SquashableModel):
     Used to track number of credits used on a topup, mostly maintained by triggers on Msg insertion.
     """
 
-    SQUASH_OVER = ("topup_id",)
+    squash_over = ("topup_id",)
 
-    topup = models.ForeignKey(
-        TopUp, on_delete=models.PROTECT, help_text=_("The topup these credits are being used against")
-    )
-    used = models.IntegerField(help_text=_("How many credits were used, can be negative"))
+    topup = models.ForeignKey(TopUp, on_delete=models.PROTECT)
+    used = models.IntegerField()  # how many credits were used, can be negative
 
     def release(self):
         self.delete()

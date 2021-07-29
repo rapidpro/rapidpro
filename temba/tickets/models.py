@@ -7,7 +7,7 @@ from django.conf.urls import url
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.template import Engine
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -15,6 +15,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba import mailroom
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org
+from temba.utils.models import SquashableModel
 from temba.utils.uuid import uuid4
 
 
@@ -154,6 +155,8 @@ class Ticket(models.Model):
     # permission that users need to have a ticket assigned to them
     ASSIGNEE_PERMISSION = "tickets.ticket_assignee"
 
+    MAX_NOTE_LEN = 4096
+
     # our UUID
     uuid = models.UUIDField(unique=True, default=uuid4)
 
@@ -268,7 +271,7 @@ class TicketEvent(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.PROTECT, related_name="events")
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="ticket_events")
     event_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
-    note = models.TextField(null=True)
+    note = models.TextField(null=True, max_length=Ticket.MAX_NOTE_LEN)
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="ticket_assignee_events")
 
     created_by = models.ForeignKey(
@@ -310,7 +313,7 @@ class MineFolder(TicketFolder):
     icon = "coffee"
 
     def get_queryset(self, org, user):
-        return super().get_queryset(org, user).filter(status=Ticket.STATUS_OPEN, assignee=user)
+        return super().get_queryset(org, user).filter(assignee=user)
 
 
 class UnassignedFolder(TicketFolder):
@@ -323,33 +326,90 @@ class UnassignedFolder(TicketFolder):
     icon = "mail"
 
     def get_queryset(self, org, user):
-        return super().get_queryset(org, user).filter(status=Ticket.STATUS_OPEN, assignee=None)
+        return super().get_queryset(org, user).filter(assignee=None)
 
 
-class OpenFolder(TicketFolder):
+class AllFolder(TicketFolder):
     """
-    All open tickets
+    All tickets
     """
 
-    slug = "open"
-    name = _("Open")
-    icon = "inbox"
+    slug = "all"
+    name = _("All")
+    icon = "archive"
 
     def get_queryset(self, org, user):
-        return super().get_queryset(org, user).filter(status=Ticket.STATUS_OPEN)
-
-
-class ClosedFolder(TicketFolder):
-    """
-    All closed tickets
-    """
-
-    slug = "closed"
-    name = _("Closed")
-    icon = "check"
-
-    def get_queryset(self, org, user):
-        return super().get_queryset(org, user).filter(status=Ticket.STATUS_CLOSED)
+        return super().get_queryset(org, user)
 
 
 FOLDERS = {f.slug: f() for f in TicketFolder.__subclasses__()}
+
+
+class TicketCount(SquashableModel):
+    """
+    Counts of tickets by assignment and status
+    """
+
+    SQUASH_OVER = ("org_id", "assignee_id", "status")
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_counts")
+    assignee = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="ticket_counts")
+    status = models.CharField(max_length=1, choices=Ticket.STATUS_CHOICES)
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set) -> tuple:
+        if distinct_set.assignee_id:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "org_id" = %%s AND "assignee_id" = %%s AND "status" = %%s RETURNING "count"
+            )
+            INSERT INTO %(table)s("org_id", "assignee_id", "status", "count", "is_squashed")
+            VALUES (%%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {
+                "table": cls._meta.db_table
+            }
+
+            params = (distinct_set.org_id, distinct_set.assignee_id, distinct_set.status) * 2
+        else:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "org_id" = %%s AND "assignee_id" IS NULL AND "status" = %%s RETURNING "count"
+            )
+            INSERT INTO %(table)s("org_id", "assignee_id", "status", "count", "is_squashed")
+            VALUES (%%s, NULL, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {
+                "table": cls._meta.db_table
+            }
+
+            params = (distinct_set.org_id, distinct_set.status) * 2
+
+        return sql, params
+
+    @classmethod
+    def get_by_assignees(cls, org, assignees: list, status: str) -> dict:
+        """
+        Gets counts for a set of assignees (None means no assignee)
+        """
+        counts = cls.objects.filter(org=org, status=status)
+        counts = counts.values_list("assignee").annotate(count_sum=Sum("count"))
+        counts_by_assignee = {c[0]: c[1] for c in counts}
+
+        return {a: counts_by_assignee.get(a.id if a else None, 0) for a in assignees}
+
+    @classmethod
+    def get_all(cls, org, status: str) -> int:
+        """
+        Gets count for org and status regardless of assignee
+        """
+        return cls.sum(cls.objects.filter(org=org, status=status))
+
+    class Meta:
+        indexes = [
+            models.Index(fields=("org", "status")),
+            models.Index(fields=("org", "assignee", "status")),
+            # for squashing task
+            models.Index(
+                name="ticket_count_unsquashed", fields=("org", "assignee", "status"), condition=Q(is_squashed=False)
+            ),
+        ]

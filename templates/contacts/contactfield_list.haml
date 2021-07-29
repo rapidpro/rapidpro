@@ -57,9 +57,9 @@
                 Featured fields are shown prominently on contact pages. Drag to reorder the fields that you would most like to see at glance.
 
           -block pre-table
-            %temba-modax{ id:'update-field', header:'{% trans "Update Field" %}'}
-            %temba-modax{ id:'delete-field', header:'{% trans "Delete Field" %}'}
-            %temba-modax{ id:'uses-modal', header:'{% trans "Field Details" %}'}
+            %temba-modax(id='update-field' header='{{_("Update Field")|escapejs}}')
+            %temba-modax(id='delete-modal' header='{{_("Delete Field")|escapejs}}')
+            %temba-modax(id='usages-modal' header='{{_("Usages")|escapejs}}')
           
           - block table
             %table.list.lined{ class:'{% get_list_class object_list %}', cellspacing:'0'}
@@ -93,7 +93,7 @@
                       %td.w-12
                         .flex.text-center
                           -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
-                            .uses{onclick:"event.stopPropagation(); showDetailContactFieldModal({{ obj.id }}, \"{{ obj.label }}\");"}
+                            .uses(onclick='event.stopPropagation(); showFieldUsagesModal("{{ obj.uuid }}");')
                               .lbl.linked
                                 {% blocktrans trimmed count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
                                   {{counter}} Use
@@ -106,7 +106,7 @@
                       
                       %td.w-10
                         -if org_perms.contacts.contactfield_delete
-                          .pl-2.pt-1.delete-link.linked.text-gray-400{style:"visibility:hidden", onclick:"showDeleteContactFieldModal({{obj.id}})"}
+                          .pl-2.pt-1.delete-link.linked.text-gray-400(style="visibility:hidden" onclick='showFieldDeleteModal("{{ obj.uuid }}")')
                             %span.icon-close
 
                             
@@ -181,15 +181,15 @@
     modax.open = true;
   }
 
-  function showDeleteContactFieldModal(id) {
-    var modax = document.querySelector('#delete-field');
-    modax.endpoint = `/contactfield/delete/${id}/`;
+  function showFieldDeleteModal(uuid) {
+    var modax = document.querySelector('#delete-modal');
+    modax.endpoint = `/contactfield/delete/${uuid}/`;
     modax.open = true;
   }
 
-  function showDetailContactFieldModal(id, label) {
-    var modax = document.querySelector('#uses-modal');
-    modax.endpoint = "/contactfield/detail/" + id;
+  function showFieldUsagesModal(uuid) {
+    var modax = document.querySelector('#usages-modal');
+    modax.endpoint = `/contactfield/usages/${uuid}/`;
     modax.open = true;
   }
 

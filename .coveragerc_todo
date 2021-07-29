@@ -23,13 +23,7 @@ omit =
     */tests*
     *__init__*
     *settings*
-    temba/api/management/commands/webhook_stats.py
-    temba/channels/management/commands/reactivate_fb_channels.py
-    temba/contacts/management/commands/audit_es_group.py
-    temba/flows/management/commands/run_audit.py
-    temba/msgs/management/commands/msg_console.py
-    temba/orgs/management/commands/*
-    temba/utils/management/commands/*
+    temba/*/management/commands/*
 
 [html]
 directory = coverage_html_report

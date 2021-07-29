@@ -1,3 +1,84 @@
+v6.5.13
+----------
+ * Tweak previous data migration to work with migrate_manual
+
+v6.5.12
+----------
+ * Migration to zeroize contact.ticket_count and make it non-null
+
+v6.5.11
+----------
+ * Allow deletion of fields used by campaign events
+ * Add last_activity_on to ticket folder endpoints
+ * Add API endpoint for ticket bulk actions
+ * Add nullable Contact.ticket_count field
+
+v6.5.10
+----------
+ * Remove textit-whatsapp channel type
+ * Show ticket counts on ticketing UI
+ * Update to latest components with fixes for scrollbar and modax reuse
+ * Use new generic dependency delete modal for contact fields
+
+v6.5.9
+----------
+ * Add management command for listing scheduled event fires
+ * Add index for ticket count squashing task
+ * Add data migration to populate ticket counts
+ * Add constraint to Msg to disallow sent messages without sent_on and migration to fix existing messages like that
+
+v6.5.8
+----------
+ * Fix celery task name
+
+v6.5.7
+----------
+ * Fix flow start modal when starting flows is blocked
+ * Add more information to audit_es_group command
+ * Re-save Flow.has_issues on final flow inspection at end of import process
+ * Add squashable model for ticket counts
+ * Add usages modal for labels as well
+ * Update the WA API version for channel that had it set when added
+ * Break out ticket folders from status, add url state
+
+v6.5.6
+----------
+ * Set sent_on if not already set when handling a mt_dlvd relayer cmd
+ * Display sent_on time rather than created_on time in Sent view
+ * Only sample 10% of requests to sentry
+ * Fix searching for scheduled broadcasts
+ * Update Dialog360 API usage
+
+v6.5.5
+----------
+ * Fix export page to use new filter to get non-localized class name for ids
+ * Fix contact field update
+ * Add searchable to trigger groups
+ * Add option to not retry IVR calls
+ * Add usages modal for groups
+ * Tweak wording on flow start modal
+
+v6.5.4
+----------
+ * Rework flow start modal to show options as exclusions which are unchecked by default
+ * Change sent messages view to be ordered by -sent_on
+
+v6.5.3
+----------
+ * Add Last Seen On as column to contact exports
+ * Resuable template for dependency lists
+
+v6.5.2
+----------
+ * Internal ticketer for all orgs
+
+v6.5.1
+----------
+ * Cleanup Msg CRUDL tests
+ * Cleanup squashable models
+ * Apply translations in fr
+ * Replace trigger folders with type specific filtered list pages so that they can be sortable within types
+
 v6.4.7
 ----------
  * Update flow editor to include lone-ticketer submit fix

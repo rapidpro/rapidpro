@@ -298,7 +298,36 @@ class IntegrationFormaxView(IntegrationViewMixin, ComponentFormMixin, SmartFormV
         return response
 
 
-class DependencyDeleteModal(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+class DependencyModalMixin(OrgObjPermsMixin):
+    dependent_order = {"campaign_event": "relative_to__label"}
+    dependent_select_related = {"campaign_event": ("campaign", "relative_to")}
+
+    def get_dependents(self, obj) -> dict:
+        dependents = {}
+        for type_key, type_qs in obj.get_dependents().items():
+            # only include dependency types which we have at least one dependent of
+            if type_qs.exists():
+                dependents[type_key] = type_qs.order_by(self.dependent_order.get(type_key, "name")).select_related(
+                    *self.dependent_select_related.get(type_key, ())
+                )
+        return dependents
+
+
+class DependencyUsagesModal(DependencyModalMixin, SmartReadView):
+    """
+    Base view for usage modals of flow dependencies
+    """
+
+    slug_url_kwarg = "uuid"
+    template_name = "orgs/dependency_usages_modal.haml"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["dependents"] = self.get_dependents(self.object)
+        return context
+
+
+class DependencyDeleteModal(DependencyModalMixin, ModalMixin, SmartDeleteView):
     """
     Base view for delete modals of flow dependencies
     """
@@ -309,16 +338,24 @@ class DependencyDeleteModal(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
     submit_button_name = _("Delete")
     template_name = "orgs/dependency_delete_modal.haml"
 
+    type_warnings = {"flow": _("these may not work as expected"), "campaign_event": _("these will be removed")}
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # lookup dependent flows for this object
-        dependent_flows = self.get_object().dependent_flows.only("uuid", "name")
-        used_by_flows = list(dependent_flows.order_by("name")[:5])  # display first 5
+        # get dependents and sort by soft vs hard
+        all_dependents = self.get_dependents(self.object)
+        soft_dependents = {}
+        hard_dependents = {}
+        for type_key, type_qs in all_dependents.items():
+            if type_key in self.object.soft_dependent_types:
+                soft_dependents[type_key] = type_qs
+            else:
+                hard_dependents[type_key] = type_qs
 
-        context["used_by_flows"] = used_by_flows
-        context["used_by_more"] = dependent_flows.count() - len(used_by_flows)
-
+        context["soft_dependents"] = soft_dependents
+        context["hard_dependents"] = hard_dependents
+        context["type_warnings"] = self.type_warnings
         return context
 
     def post(self, request, *args, **kwargs):
@@ -1808,9 +1845,7 @@ class OrgCRUDL(SmartCRUDL):
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                # orgs see agent role choice if they have an internal ticketing enabled
-                has_internal = org.has_internal_ticketing()
-                role_choices = [(r.code, r.display) for r in OrgRole if r != OrgRole.AGENT or has_internal]
+                role_choices = [(r.code, r.display) for r in OrgRole]
 
                 self.fields["invite_role"].choices = role_choices
 

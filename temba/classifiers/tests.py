@@ -102,7 +102,7 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         # on another org
         self.other_org = Classifier.create(self.org2, self.admin, LuisType.slug, "Org2 Booker", {}, sync=False)
 
-        self.flow = self.get_flow("color")
+        self.flow = self.create_flow("Color Flow")
         self.flow.classifier_dependencies.add(self.c1)
 
     def test_views(self):
@@ -182,7 +182,8 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(self.flow.has_issues)
 
         response = self.assertDeleteFetch(delete_url)
-        self.assertContains(response, "is used by the following flows")
+        self.assertContains(response, "is used by the following items but can still be deleted:")
+        self.assertContains(response, "Color Flow")
 
         response = self.assertDeleteSubmit(delete_url, object_deactivated=self.c1, success_status=200)
         self.assertEqual("/org/home/", response["Temba-Success"])

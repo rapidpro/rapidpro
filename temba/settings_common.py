@@ -17,7 +17,7 @@ SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
 
 
 def traces_sampler(sampling_context):  # pragma: no cover
-    return 0 if ("shell" in sys.argv) else 1.0
+    return 0 if ("shell" in sys.argv) else 0.1
 
 
 if SENTRY_DSN:  # pragma: no cover
@@ -389,12 +389,12 @@ PERMISSIONS = {
         "update_fields",
         "update_fields_input",
     ),
-    "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type", "detail"),
+    "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type"),
     "contacts.contactgroup": ("api",),
     "contacts.contactimport": ("preview",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
-    "globals.global": ("api", "unused", "detail"),
+    "globals.global": ("api", "unused"),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
     "orgs.org": (
         "accounts",
@@ -499,7 +499,7 @@ PERMISSIONS = {
     "policies.policy": ("admin", "history", "give_consent"),
     "request_logs.httplog": ("classifier", "ticketer"),
     "templates.template": ("api",),
-    "tickets.ticket": ("api", "assign", "assignee", "note"),
+    "tickets.ticket": ("api", "assign", "assignee", "menu", "note"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "triggers.trigger": ("archived", "type"),
 }
@@ -804,7 +804,9 @@ GROUP_PERMISSIONS = {
         "contacts.contact_read",
         "contacts.contact_stopped",
         "contacts.contactfield_api",
+        "contacts.contactfield_read",
         "contacts.contactgroup_api",
+        "contacts.contactgroup_read",
         "contacts.contactimport_read",
         "globals.global_api",
         "locations.adminboundary_boundaries",
@@ -841,6 +843,7 @@ GROUP_PERMISSIONS = {
         "msgs.broadcast_schedule_list",
         "msgs.broadcast_schedule_read",
         "msgs.label_api",
+        "msgs.label_read",
         "msgs.msg_archived",
         "msgs.msg_export",
         "msgs.msg_failed",
@@ -868,6 +871,7 @@ GROUP_PERMISSIONS = {
         "tickets.ticket_assign",
         "tickets.ticket_assignee",
         "tickets.ticket_list",
+        "tickets.ticket_menu",
         "tickets.ticket_note",
         "orgs.org_home",
         "orgs.org_profile",
@@ -946,6 +950,7 @@ CELERYBEAT_SCHEDULE = {
     "squash-flowcounts": {"task": "squash_flowcounts", "schedule": timedelta(seconds=60)},
     "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
     "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
+    "squash-ticketcounts": {"task": "squash_ticketcounts", "schedule": timedelta(seconds=60)},
     "suspend-topup-orgs": {"task": "suspend_topup_orgs_task", "schedule": timedelta(hours=1)},
     "sync-classifier-intents": {"task": "sync_classifier_intents", "schedule": timedelta(seconds=300)},
     "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
@@ -1085,7 +1090,6 @@ TICKETER_TYPES = [
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
-    "temba.channels.types.textit_whatsapp.TextItWhatsAppType",
     "temba.channels.types.dialog360.Dialog360Type",
     "temba.channels.types.zenvia_whatsapp.ZenviaWhatsAppType",
     "temba.channels.types.twilio.TwilioType",

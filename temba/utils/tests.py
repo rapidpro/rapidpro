@@ -989,17 +989,17 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         )
         assertOrgCounts(ContactField.user_fields.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
-        assertOrgCounts(Contact.objects.all(), [13, 13, 4])
+        assertOrgCounts(Contact.objects.all(), [10, 11, 9])
 
         org_1_active_contacts = ContactGroup.system_groups.get(org=org1, name="Active")
 
-        self.assertEqual(org_1_active_contacts.contacts.count(), 12)
+        self.assertEqual(org_1_active_contacts.contacts.count(), 9)
         self.assertEqual(
-            list(ContactGroupCount.objects.filter(group=org_1_active_contacts).values_list("count")), [(12,)]
+            list(ContactGroupCount.objects.filter(group=org_1_active_contacts).values_list("count")), [(9,)]
         )
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by("id").first().uuid, "32ef2180-1ff7-4f3c-9448-8bd176602ccc")
+        self.assertEqual("7a7ab82c-9fff-49f3-a390-a2957fd60834", ContactGroup.user_groups.order_by("id").first().uuid)
 
         # check if contact fields are serialized
         self.assertIsNotNone(Contact.objects.first().fields)

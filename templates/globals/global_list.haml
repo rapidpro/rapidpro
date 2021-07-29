@@ -73,7 +73,7 @@
           -block pre-table
             %temba-modax(id='update-global' header='{{_("Update Global")|escapejs}}')
             %temba-modax(id='delete-global' header='{{_("Delete Global")|escapejs}}')
-            %temba-modax(id='uses-global' header='{{_("Global Details")|escapejs}}')
+            %temba-modax(id='usages-global' header='{{_("Usages")|escapejs}}')
 
           %table.list.object-list.lined{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
             %tbody
@@ -89,7 +89,7 @@
                     .flex.text-center
                       -with usage_count=obj.usage_count
                         -if usage_count
-                          .uses(onclick='event.stopPropagation(); showDetailGlobalModal({{ obj.id }}, "{{ obj.name }}");')
+                          .uses(onclick='event.stopPropagation(); showGlobalUsagesModal("{{ obj.uuid }}");')
                             .lbl.linked
                               {% blocktrans trimmed count counter=usage_count %}
                                 {{counter}} Use
@@ -123,9 +123,9 @@
       modax.open = true;
     }
 
-    function showDetailGlobalModal(id, label) {
-      var modax = document.querySelector('#uses-global');
-      modax.endpoint = `/global/detail/${id}/`
+    function showGlobalUsagesModal(uuid) {
+      var modax = document.querySelector('#usages-global');
+      modax.endpoint = `/global/usages/${uuid}/`
       modax.open = true;
     }
 

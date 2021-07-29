@@ -1381,7 +1381,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(36):
+        with self.assertNumQueries(35):
             self.client.get(inbox_url)
 
         response = self.assertListFetch(
@@ -1477,7 +1477,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(36):
+        with self.assertNumQueries(35):
             self.client.get(archived_url)
 
         response = self.assertListFetch(
@@ -1519,7 +1519,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(38):
             self.client.get(outbox_url)
 
         # messages sorted by created_on
@@ -1571,9 +1571,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_sent(self):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
         contact2 = self.create_contact("Frank Blow", phone="+250788000002")
-        msg1 = self.create_outgoing_msg(contact1, "Hi", status="W")
-        msg2 = self.create_outgoing_msg(contact1, "Hi", status="S")
-        msg3 = self.create_outgoing_msg(contact2, "Hi", status="D", sent_on=timezone.now() - timedelta(hours=1))
+        msg1 = self.create_outgoing_msg(contact1, "Hi 1", status="W", sent_on=timezone.now() - timedelta(hours=1))
+        msg2 = self.create_outgoing_msg(contact1, "Hi 2", status="S", sent_on=timezone.now() - timedelta(hours=3))
+        msg3 = self.create_outgoing_msg(contact2, "Hi 3", status="D", sent_on=timezone.now() - timedelta(hours=2))
         ChannelLog.objects.create(channel=self.channel, msg=msg1, description="Success")
         ChannelLog.objects.create(channel=self.channel, msg=msg2, description="Success")
 
@@ -1581,14 +1581,14 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(38):
             self.client.get(sent_url)
 
-        # messages sorted by created_on
-        self.assertListFetch(sent_url, allow_viewers=True, allow_editors=True, context_objects=[msg3, msg2, msg1])
+        # messages sorted by sent_on
+        self.assertListFetch(sent_url, allow_viewers=True, allow_editors=True, context_objects=[msg1, msg3, msg2])
 
         response = self.client.get(sent_url + "?search=joe")
-        self.assertEqual([msg2, msg1], list(response.context_data["object_list"]))
+        self.assertEqual([msg1, msg2], list(response.context_data["object_list"]))
 
     @patch("temba.mailroom.client.MailroomClient.msg_resend")
     def test_failed(self, mock_msg_resend):
@@ -1608,7 +1608,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(38):
             self.client.get(failed_url)
 
         response = self.assertListFetch(
@@ -2134,7 +2134,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(40, len(parts[3]))
 
 
-class BroadcastCRUDLTest(TembaTest):
+class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
@@ -2195,23 +2195,27 @@ class BroadcastCRUDLTest(TembaTest):
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
     def test_schedule_list(self):
-        url = reverse("msgs.broadcast_schedule_list")
+        list_url = reverse("msgs.broadcast_schedule_list")
 
-        # can't view if you're not logged in
-        response = self.client.get(url)
-        self.assertLoginRedirect(response)
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[])
 
-        self.login(self.editor)
+        bc1 = self.create_broadcast(
+            self.admin,
+            "good morning",
+            contacts=[self.joe],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+        )
+        bc2 = self.create_broadcast(
+            self.admin,
+            "good evening",
+            contacts=[self.frank],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+        )
+        self.create_broadcast(self.admin, "not scheduled", groups=[self.joe_and_frank])
 
-        # send some messages - one immediately, one scheduled
-        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
-        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="See you later"))
-        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[bc2, bc1])
 
-        scheduled = Broadcast.objects.exclude(schedule=None).first()
-
-        response = self.client.get(url)
-        self.assertEqual(set(response.context["object_list"]), {scheduled})
+        self.assertListFetch(list_url + "?search=MORN", allow_viewers=True, allow_editors=True, context_objects=[bc1])
 
     def test_schedule_read(self):
         self.login(self.editor)
@@ -2545,12 +2549,13 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         label.save()
 
         # add a dependency and try again
-        flow = self.create_flow()
+        flow = self.create_flow("Color Flow")
         flow.label_dependencies.add(label)
         self.assertFalse(flow.has_issues)
 
         response = self.assertDeleteFetch(delete_url, allow_editors=True)
-        self.assertContains(response, "is used by the following flows which may not work as expected")
+        self.assertContains(response, "is used by the following items but can still be deleted:")
+        self.assertContains(response, "Color Flow")
 
         self.assertDeleteSubmit(delete_url, object_deactivated=label, success_status=200)
 

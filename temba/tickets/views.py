@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.db.models.aggregates import Max
 from django.http import JsonResponse
 from django.urls import reverse
+from django.utils.functional import cached_property
 from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
@@ -13,7 +14,7 @@ from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin
 from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.views import ComponentFormMixin
 
-from .models import Ticket, Ticketer, TicketFolder
+from .models import Ticket, TicketCount, Ticketer, TicketFolder
 
 
 class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
@@ -71,33 +72,71 @@ class NoteForm(forms.ModelForm):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "folder", "note", "assign")
+    actions = ("list", "folder", "note", "assign", "menu")
 
     class List(OrgPermsMixin, SmartListView):
         """
         A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
         """
 
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            folders = "|".join(TicketFolder.all().keys())
+            return rf"^ticket/((?P<folder>{folders})/((?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+)/)?)?)?$"
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.request.user.get_org()
-            context["folders"] = TicketFolder.all().values()
             context["has_tickets"] = Ticket.objects.filter(org=org).exists()
+
+            folder = self.kwargs.get("folder")
+            status = self.kwargs.get("status")
+            context["folder"] = folder if folder else "mine"
+            context["status"] = status if status else "open"
+
             return context
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
+
+    class Menu(OrgPermsMixin, SmartTemplateView):
+        def render_to_response(self, context, **response_kwargs):
+            user = self.request.user
+            count_by_assignee = TicketCount.get_by_assignees(user.get_org(), [None, user], Ticket.STATUS_OPEN)
+            counts = {
+                "mine": count_by_assignee[user],
+                "unassigned": count_by_assignee[None],
+                "all": TicketCount.get_all(user.get_org(), Ticket.STATUS_OPEN),
+            }
+
+            menu = []
+            for folder in TicketFolder.all().values():
+                menu.append(
+                    {
+                        "id": folder.slug,
+                        "name": folder.name,
+                        "icon": folder.icon,
+                        "count": counts[folder.slug],
+                    }
+                )
+            return JsonResponse({"results": menu})
 
     class Folder(OrgPermsMixin, SmartListView):
         permission = "tickets.ticket_list"
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return rf"^{path}/{action}/(?P<folder>{'|'.join(TicketFolder.all().keys())})/$"
+            folders = "|".join(TicketFolder.all().keys())
+            return rf"^{path}/{action}/(?P<folder>{folders})/(?P<status>open|closed)/$"
+
+        @cached_property
+        def folder(self):
+            return TicketFolder.from_slug(self.kwargs["folder"])
 
         def get_queryset(self, **kwargs):
             user = self.request.user
-            return TicketFolder.from_slug(self.kwargs["folder"]).get_queryset(user.get_org(), user)
+            status = Ticket.STATUS_OPEN if self.kwargs["status"] == "open" else Ticket.STATUS_CLOSED
+            return self.folder.get_queryset(user.get_org(), user).filter(status=status)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -155,6 +194,7 @@ class TicketCRUDL(SmartCRUDL):
                         "uuid": str(t.uuid),
                         "assignee": user_as_json(t.assignee) if t.assignee else None,
                         "subject": t.subject,
+                        "last_activity_on": t.last_activity_on,
                         "closed_on": t.closed_on,
                     },
                 }
@@ -163,7 +203,9 @@ class TicketCRUDL(SmartCRUDL):
 
             # build up our next link if we have more
             if context["page_obj"].has_next():
-                folder_url = reverse("tickets.ticket_folder", kwargs={"folder": self.kwargs["folder"]})
+                folder_url = reverse(
+                    "tickets.ticket_folder", kwargs={"folder": self.folder.slug, "status": self.kwargs["status"]}
+                )
                 next_page = context["page_obj"].number + 1
                 results["next"] = f"{folder_url}?page={next_page}"
 

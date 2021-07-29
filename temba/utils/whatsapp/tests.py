@@ -1,6 +1,16 @@
+from unittest.mock import patch
+
+from temba.channels.models import Channel
+from temba.channels.types.whatsapp.type import (
+    CONFIG_FB_ACCESS_TOKEN,
+    CONFIG_FB_BUSINESS_ID,
+    CONFIG_FB_NAMESPACE,
+    CONFIG_FB_TEMPLATE_LIST_DOMAIN,
+)
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import TembaTest
 
+from . import update_api_version
 from .tasks import _calculate_variable_count, update_local_templates
 
 
@@ -273,3 +283,52 @@ class WhatsAppUtilsTest(TembaTest):
 
         tt = TemplateTranslation.objects.filter(channel=channel, external_id="en/hello").first()
         self.assertEqual("xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx", tt.namespace)
+
+    @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
+    def test_update_api_version_whatsapp(self, mock_health):
+        mock_health.return_value = {"meta": {"api_status": "stable", "version": "v2.35.2"}}
+
+        Channel.objects.all().delete()
+        channel = self.create_channel(
+            "WA",
+            "WhatsApp: 1234",
+            "1234",
+            config={
+                Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
+                Channel.CONFIG_USERNAME: "temba",
+                Channel.CONFIG_PASSWORD: "tembapasswd",
+                Channel.CONFIG_AUTH_TOKEN: "authtoken123",
+                CONFIG_FB_BUSINESS_ID: "1234",
+                CONFIG_FB_ACCESS_TOKEN: "token123",
+                CONFIG_FB_NAMESPACE: "my-custom-app",
+                CONFIG_FB_TEMPLATE_LIST_DOMAIN: "graph.facebook.com",
+            },
+        )
+
+        update_api_version(channel)
+        mock_health.assert_called_with(channel)
+
+        channel.refresh_from_db()
+        self.assertDictContainsSubset({"version": "v2.35.2"}, channel.config)
+
+    @patch("temba.channels.types.dialog360.Dialog360Type.check_health")
+    def test_update_api_version_dialog360(self, mock_health):
+        mock_health.return_value = {"meta": {"api_status": "stable", "version": "2.35.4"}}
+
+        Channel.objects.all().delete()
+        channel = self.create_channel(
+            "D3",
+            "360Dialog channel",
+            address="1234",
+            country="BR",
+            config={
+                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
+                Channel.CONFIG_AUTH_TOKEN: "123456789",
+            },
+        )
+
+        update_api_version(channel)
+        mock_health.assert_called_with(channel)
+
+        channel.refresh_from_db()
+        self.assertDictContainsSubset({"version": "v2.35.4"}, channel.config)

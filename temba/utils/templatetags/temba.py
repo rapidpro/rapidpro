@@ -16,7 +16,8 @@ from django.utils.translation import ugettext, ugettext_lazy as _, ungettext_laz
 
 from temba.utils.dates import datetime_to_str
 
-from ...campaigns.models import Campaign
+from ...campaigns.models import Campaign, CampaignEvent
+from ...contacts.models import ContactGroup
 from ...flows.models import Flow
 from ...triggers.models import Trigger
 
@@ -29,6 +30,19 @@ TIME_SINCE_CHUNKS = (
     (60, ungettext_lazy("%d minute", "%d minutes")),
     (1, ungettext_lazy("%d second", "%d seconds")),
 )
+
+
+OBJECT_URLS = {
+    Flow: lambda o: reverse("flows.flow_editor", args=[o.uuid]),
+    Campaign: lambda o: reverse("campaigns.campaign_read", args=[o.id]),
+    CampaignEvent: lambda o: reverse("campaigns.campaign_read", args=[o.id]),
+    ContactGroup: lambda o: reverse("contacts.contact_filter", args=[o.uuid]),
+}
+
+
+@register.filter
+def object_class_name(obj):
+    return obj.__class__.__name__
 
 
 @register.filter
@@ -62,6 +76,13 @@ def icon(o):
         return "icon-flow"
 
     return ""
+
+
+@register.filter
+def object_url(o):
+    assert type(o) in OBJECT_URLS
+
+    return OBJECT_URLS[type(o)](o)
 
 
 @register.filter

@@ -2,50 +2,34 @@
 -load smartmin i18n
 
 -block fields
+  -if blockers
+    -for blocker in blockers
+      .mb-2
+        {{ blocker|safe }}
 
-  -if object.flow_type == 'M' and not send_channel
-    %p
-    -blocktrans with name=brand.name
-      To get started you need to add a channel to your workspace. A channel is a phone number or social network
-      account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
-      Android phone and your own cell phone plan, or we can connect you with a service provider in your country
-      directly.
-    %hr
-    %p
-      -trans "You can always test your flow using the simulator, click"
-        %span.glyph.icon-mobile(style="padding-top:2px;")
-      -trans "on the right to open it."
-
-  -elif object.flow_type == 'V' and not call_channel
-    %p
-      -blocktrans trimmed with name=brand.name
-        To get started you need to add a voice-enabled channel to your workspace. A voice-enabled channel is a
-        phone number which {{ name }} can use to make and receive phone calls on your behalf. For example, Twilio
-        is a service which provides voice-enabled numbers which you can add as channels in your {{ name }} workspace.
-
+    -trans "You can still test your flow using the simulator by clicking the phone icon on the right."
   -else
     -for warning in warnings
       %temba-alert.mb-4(level="warning")
         %div= warning
 
     .field.recipients-mode
-      -render_field 'recipients_mode'
+      -render_field 'mode'
 
-    .field.omnibox(class='{% if not form.recipients_mode.value == "select" %}hidden{%endif%}')
+    .field.omnibox(class='{% if not form.mode.value == "select" %}hidden{%endif%}')
       -render_field 'omnibox'
 
-    .field.query(class='{% if form.recipients_mode.value == "select" %}hidden{%endif%}')
-      -render_field 'contact_query'
+    .field.query(class='{% if form.mode.value == "select" %}hidden{%endif%}')
+      -render_field 'query'
 
     .start-options.mt-6.ml-2
-      -render_field 'restart_participants'
       -if object.flow_type != 'B'
-        -render_field 'include_active'
+        -render_field 'exclude_in_other'
+      -render_field 'exclude_reruns'
 
 -block form-buttons
-  -if send_channel
-    .form-actions
-      %input.btn.btn-primary(type="submit" value="{{ submit_button_name }}")
+  -if not blockers 
+    %input.btn.btn-primary(type="submit" value="{{ submit_button_name }}")
 
 
 -block modal-script
@@ -60,24 +44,23 @@
       ele.classList.remove(className);
     }
 
-    var modalBody = document.querySelector("#start-flow").shadowRoot
-
+    var modalBody = document.querySelector("#start-flow").shadowRoot;
     var queryField = modalBody.querySelector('.query');
-    var recipientsField = modalBody.querySelector('.omnibox');
-    var modeSelect = modalBody.querySelector("temba-select[name='recipients_mode']");
+    var omniboxField = modalBody.querySelector('.omnibox');
+    var modeSelect = modalBody.querySelector("temba-select[name='mode']");
 
-    if (modeSelect) {
+    {% if not blockers %}
       modeSelect.addEventListener("change", function(evt) {
         var selected = evt.target.values[0];
         if (selected.value === "query") {
           removeClass(queryField, "hidden");
-          addClass(recipientsField, "hidden");
+          addClass(omniboxField, "hidden");
         } else {
           addClass(queryField, "hidden");
-          removeClass(recipientsField, "hidden");
+          removeClass(omniboxField, "hidden");
         }
       });
-    }
+    {% endif %}
 
 
 

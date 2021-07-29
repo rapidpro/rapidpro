@@ -1520,12 +1520,13 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.ex_channel.save()
 
         # add a dependency and try again
-        flow = self.create_flow()
+        flow = self.create_flow("Color Flow")
         flow.channel_dependencies.add(self.ex_channel)
         self.assertFalse(flow.has_issues)
 
         response = self.assertDeleteFetch(delete_url, allow_editors=True)
-        self.assertContains(response, "is used by the following flows which may not work as expected")
+        self.assertContains(response, "is used by the following items but can still be deleted:")
+        self.assertContains(response, "Color Flow")
 
         self.assertDeleteSubmit(delete_url, object_deactivated=self.ex_channel, success_status=200)
 
@@ -1827,7 +1828,8 @@ class ChannelClaimTest(TembaTest):
 
         # fix our message
         msg1.status = "D"
-        msg1.save()
+        msg1.sent_on = timezone.now()
+        msg1.save(update_fields=("status", "sent_on"))
 
         # run again, our alert should end
         check_channels_task()

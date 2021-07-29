@@ -1,28 +1,32 @@
 -extends 'includes/modax.html'
--load i18n
+-load i18n smartmin
 
--block modal
-  -if used_by_flows
+-block fields
+  -if hard_dependents
     %span.font-normal
       {{ object.name }}
-    -trans "is used by the following flows which may not work as expected if you delete it:"
-    %ul.mt-2.ml-4
-      -for flow in used_by_flows
-        %li
-          %a(href="{% url 'flows.flow_editor' flow.uuid %}")
-            {{ flow.name }}
-      -if used_by_more > 0
-        %li
-          %i
-            -blocktrans trimmed with count=used_by_more
-              and {{ count }} more
+    -trans "can't be deleted as it is still used by the following items:"
+    .dependents.mt-4
+      -for type_qs in hard_dependents.values
+        -include "includes/dependents.haml" with dependents=type_qs
+
+  -elif soft_dependents
+    %span.font-normal
+      {{ object.name }}
+    -trans "is used by the following items but can still be deleted:"
+    .dependents.mt-4
+      -for type_key, type_qs in soft_dependents.items
+        -include "includes/dependents.haml" with dependents=type_qs warning=type_warnings|get:type_key
+
   -else
     -trans "You are about to delete"
     %span.font-normal
       {{ object.name }}.
 
-  .mt-3
-    -trans "There is no way to undo this. Are you sure?"
-  .hidden
-    %form(method="POST")
-      %input(type="submit" value="{{ submit_button_name }}")
+  -if not hard_dependents
+    .mt-4
+      -trans "There is no way to undo this. Are you sure?"
+
+-block form-buttons
+  -if not hard_dependents
+    %input.btn.btn-primary(type="submit" value="{{ submit_button_name }}")

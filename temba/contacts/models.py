@@ -29,7 +29,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
-from temba.orgs.models import Org, OrgLock
+from temba.orgs.models import DependencyMixin, Org, OrgLock
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
@@ -318,7 +318,9 @@ class UserContactFieldsQuerySet(models.QuerySet):
             .annotate(
                 campaign_count=Count("campaign_events", distinct=True, filter=Q(campaign_events__is_active=True))
             )
-            .annotate(contactgroup_count=Count("contactgroup", distinct=True, filter=Q(contactgroup__is_active=True)))
+            .annotate(
+                contactgroup_count=Count("dependent_groups", distinct=True, filter=Q(dependent_groups__is_active=True))
+            )
         )
 
     def active_for_org(self, org):
@@ -337,9 +339,6 @@ class UserContactFieldsManager(models.Manager):
     def count_active_for_org(self, org):
         return self.get_queryset().active_for_org(org=org).count()
 
-    def collect_usage(self):
-        return self.get_queryset().collect_usage()
-
     def active_for_org(self, org):
         return self.get_queryset().active_for_org(org=org)
 
@@ -354,9 +353,9 @@ class SystemContactFieldsManager(models.Manager):
         return super().create(**kwargs)
 
 
-class ContactField(SmartModel):
+class ContactField(SmartModel, DependencyMixin):
     """
-    Represents a type of field that can be put on Contacts.
+    A custom user field for contacts.
     """
 
     MAX_KEY_LEN = 36
@@ -434,8 +433,12 @@ class ContactField(SmartModel):
     user_fields = UserContactFieldsManager()
     system_fields = SystemContactFieldsManager()
 
+    soft_dependent_types = {"flow", "campaign_event"}
+
     @classmethod
     def create_system_fields(cls, org):
+        assert not org.contactfields(manager="system_fields").exists(), "org already has system fields"
+
         for key, spec in ContactField.SYSTEM_FIELDS.items():
             org.contactfields.create(
                 field_type=ContactField.FIELD_TYPE_SYSTEM,
@@ -467,23 +470,6 @@ class ContactField(SmartModel):
     def is_valid_label(cls, label):
         label = label.strip()
         return regex.match(r"^[A-Za-z0-9\- ]+$", label, regex.V0) and len(label) <= cls.MAX_LABEL_LEN
-
-    @classmethod
-    def hide_field(cls, org, user, key):
-        existing = ContactField.user_fields.collect_usage().active_for_org(org=org).filter(key=key).first()
-
-        if existing:
-
-            if any([existing.flow_count, existing.campaign_count, existing.contactgroup_count]):
-                formatted_field_use = (
-                    f"F: {existing.flow_count} C: {existing.campaign_count} G: {existing.contactgroup_count}"
-                )
-                raise ValueError(f"Cannot delete field '{key}', it's used by: {formatted_field_use}")
-
-            existing.is_active = False
-            existing.show_in_table = False
-            existing.modified_by = user
-            existing.save(update_fields=("is_active", "show_in_table", "modified_by", "modified_on"))
 
     @classmethod
     def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None, priority=None):
@@ -600,6 +586,10 @@ class ContactField(SmartModel):
     def get_location_field(cls, org, value_type):
         return cls.user_fields.active_for_org(org=org).filter(value_type=value_type).first()
 
+    @property
+    def name(self):
+        return self.label
+
     @classmethod
     def import_fields(cls, org, user, field_defs):
         """
@@ -621,7 +611,18 @@ class ContactField(SmartModel):
             ContactField.EXPORT_TYPE: ContactField.ENGINE_TYPES[self.value_type],
         }
 
+    def get_dependents(self):
+        dependents = super().get_dependents()
+        dependents["group"] = self.dependent_groups.filter(is_active=True)
+        dependents["campaign_event"] = self.campaign_events.filter(is_active=True)
+        return dependents
+
     def release(self, user):
+        super().release(user)
+
+        for event in self.campaign_events.all():
+            event.release(user)
+
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=("is_active", "modified_on", "modified_by"))
@@ -664,6 +665,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     fields = TembaJSONField(null=True)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+
+    ticket_count = models.IntegerField(default=0)
 
     # user that last modified this contact
     modified_by = models.ForeignKey(
@@ -1447,7 +1450,7 @@ class UserContactGroupManager(models.Manager):
         return super().get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED, is_active=True)
 
 
-class ContactGroup(TembaModel):
+class ContactGroup(TembaModel, DependencyMixin):
     """
     A static or dynamic group of contacts
     """
@@ -1499,7 +1502,7 @@ class ContactGroup(TembaModel):
 
     # fields used by smart groups
     query = models.TextField(null=True)
-    query_fields = models.ManyToManyField(ContactField)
+    query_fields = models.ManyToManyField(ContactField, related_name="dependent_groups")
 
     # define some custom managers to do the filtering of user / system groups for us
     all_groups = models.Manager()
@@ -1511,6 +1514,9 @@ class ContactGroup(TembaModel):
         """
         Creates our system groups for the given organization so that we can keep track of counts etc..
         """
+
+        assert not org.all_groups(manager="system_groups").exists(), "org already has system groups"
+
         org.all_groups.create(
             name="Active",
             group_type=ContactGroup.TYPE_ACTIVE,
@@ -1700,6 +1706,11 @@ class ContactGroup(TembaModel):
         """
         return ContactGroupCount.get_totals([self])[self]
 
+    def get_dependents(self):
+        dependents = super().get_dependents()
+        dependents["campaign"] = self.campaigns.filter(is_active=True)
+        return dependents
+
     def release(self):
         """
         Releases (i.e. deletes) this group, removing all contacts and marking as inactive
@@ -1791,6 +1802,10 @@ class ContactGroup(TembaModel):
     def __str__(self):
         return self.name
 
+    class Meta:
+        verbose_name = _("Group")
+        verbose_name_plural = _("Groups")
+
 
 class ContactGroupCount(SquashableModel):
     """
@@ -1798,7 +1813,7 @@ class ContactGroupCount(SquashableModel):
     by a recurring task.
     """
 
-    SQUASH_OVER = ("group_id",)
+    squash_over = ("group_id",)
 
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
@@ -1881,15 +1896,16 @@ class ExportContactsTask(BaseExportTask):
 
     def get_export_fields_and_schemes(self):
         fields = [
-            dict(label="Contact UUID", key=Contact.UUID, id=0, field=None, urn_scheme=None),
-            dict(label="Name", key=ContactField.KEY_NAME, id=0, field=None, urn_scheme=None),
-            dict(label="Language", key=ContactField.KEY_LANGUAGE, id=0, field=None, urn_scheme=None),
-            dict(label="Created On", key=ContactField.KEY_CREATED_ON, id=0, field=None, urn_scheme=None),
+            dict(label="Contact UUID", key=Contact.UUID, field=None, urn_scheme=None),
+            dict(label="Name", key=ContactField.KEY_NAME, field=None, urn_scheme=None),
+            dict(label="Language", key=ContactField.KEY_LANGUAGE, field=None, urn_scheme=None),
+            dict(label="Created On", key=ContactField.KEY_CREATED_ON, field=None, urn_scheme=None),
+            dict(label="Last Seen On", key=ContactField.KEY_LAST_SEEN_ON, field=None, urn_scheme=None),
         ]
 
         # anon orgs also get an ID column that is just the PK
         if self.org.is_anon:
-            fields = [dict(label="ID", key=ContactField.KEY_ID, id=0, field=None, urn_scheme=None)] + fields
+            fields = [dict(label="ID", key=ContactField.KEY_ID, field=None, urn_scheme=None)] + fields
 
         scheme_counts = dict()
         if not self.org.is_anon:
@@ -1913,7 +1929,6 @@ class ExportContactsTask(BaseExportTask):
                         dict(
                             label=f"URN:{scheme.capitalize()}",
                             key=None,
-                            id=0,
                             field=None,
                             urn_scheme=scheme,
                             position=i,
@@ -1929,7 +1944,6 @@ class ExportContactsTask(BaseExportTask):
                     field=contact_field,
                     label="Field:%s" % contact_field.label,
                     key=contact_field.key,
-                    id=contact_field.id,
                     urn_scheme=None,
                 )
             )
@@ -1975,43 +1989,11 @@ class ExportContactsTask(BaseExportTask):
                 contact = contact_by_id[contact_id]
 
                 values = []
+                for field in fields:
+                    value = self.get_field_value(field, contact)
+                    values.append(self.prepare_value(value))
+
                 group_values = []
-                for col in range(len(fields)):
-                    field = fields[col]
-
-                    if field["key"] == ContactField.KEY_NAME:
-                        field_value = contact.name
-                    elif field["key"] == Contact.UUID:
-                        field_value = contact.uuid
-                    elif field["key"] == ContactField.KEY_LANGUAGE:
-                        field_value = contact.language
-                    elif field["key"] == ContactField.KEY_CREATED_ON:
-                        field_value = contact.created_on
-                    elif field["key"] == ContactField.KEY_ID:
-                        field_value = str(contact.id)
-                    elif field["urn_scheme"] is not None:
-                        contact_urns = contact.get_urns()
-                        scheme_urns = []
-                        for urn in contact_urns:
-                            if urn.scheme == field["urn_scheme"]:
-                                scheme_urns.append(urn)
-                        position = field["position"]
-                        if len(scheme_urns) > position:
-                            urn_obj = scheme_urns[position]
-                            field_value = urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ""
-                        else:
-                            field_value = ""
-                    else:
-                        field_value = contact.get_field_display(field["field"])
-
-                    if field_value is None:
-                        field_value = ""
-
-                    if field_value:
-                        field_value = self.prepare_value(field_value)
-
-                    values.append(field_value)
-
                 if include_group_memberships:
                     contact_groups_ids = [g.id for g in contact.all_groups.all()]
                     for col in range(len(group_fields)):
@@ -2043,6 +2025,34 @@ class ExportContactsTask(BaseExportTask):
                     self.save(update_fields=["modified_on"])
 
         return exporter.save_file()
+
+    def get_field_value(self, field: dict, contact: Contact):
+        if field["key"] == ContactField.KEY_NAME:
+            return contact.name
+        elif field["key"] == Contact.UUID:
+            return contact.uuid
+        elif field["key"] == ContactField.KEY_LANGUAGE:
+            return contact.language
+        elif field["key"] == ContactField.KEY_CREATED_ON:
+            return contact.created_on
+        elif field["key"] == ContactField.KEY_LAST_SEEN_ON:
+            return contact.last_seen_on
+        elif field["key"] == ContactField.KEY_ID:
+            return str(contact.id)
+        elif field["urn_scheme"] is not None:
+            contact_urns = contact.get_urns()
+            scheme_urns = []
+            for urn in contact_urns:
+                if urn.scheme == field["urn_scheme"]:
+                    scheme_urns.append(urn)
+            position = field["position"]
+            if len(scheme_urns) > position:
+                urn_obj = scheme_urns[position]
+                return urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ""
+            else:
+                return ""
+        else:
+            return contact.get_field_display(field["field"])
 
 
 def get_import_upload_path(instance: Any, filename: str):

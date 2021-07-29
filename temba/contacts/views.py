@@ -40,7 +40,7 @@ from temba.flows.models import Flow, FlowStart
 from temba.mailroom.events import Event
 from temba.msgs.views import SendMessageForm
 from temba.orgs.models import Org
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
@@ -1115,7 +1115,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
-            pk = self.derive_group().pk
+            group = self.derive_group()
 
             if self.has_org_perm("contacts.contactfield_list"):
                 links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
@@ -1126,7 +1126,7 @@ class ContactCRUDL(SmartCRUDL):
                         id="edit-group",
                         title=_("Edit Group"),
                         modax=_("Edit Group"),
-                        href=reverse("contacts.contactgroup_update", args=[pk]),
+                        href=reverse("contacts.contactgroup_update", args=[group.id]),
                     )
                 )
 
@@ -1140,13 +1140,22 @@ class ContactCRUDL(SmartCRUDL):
                     )
                 )
 
+            links.append(
+                dict(
+                    id="group-usages",
+                    title=_("Usages"),
+                    modax=_("Usages"),
+                    href=reverse("contacts.contactgroup_usages", args=[group.uuid]),
+                )
+            )
+
             if self.has_org_perm("contacts.contactgroup_delete"):
                 links.append(
                     dict(
                         id="delete-group",
                         title=_("Delete Group"),
                         modax=_("Delete Group"),
-                        href=reverse("contacts.contactgroup_delete", args=[pk]),
+                        href=reverse("contacts.contactgroup_delete", args=[group.id]),
                     )
                 )
             return links
@@ -1424,7 +1433,7 @@ class ContactCRUDL(SmartCRUDL):
 
 class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
-    actions = ("create", "update", "delete")
+    actions = ("create", "update", "usages", "delete")
 
     class Create(ComponentFormMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
@@ -1486,6 +1495,9 @@ class ContactGroupCRUDL(SmartCRUDL):
             if obj.query and obj.query != self.prev_query:
                 obj.update_query(obj.query)
             return obj
+
+    class Usages(DependencyUsagesModal):
+        permission = "contacts.contactgroup_read"
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         cancel_url = "uuid@contacts.contact_filter"
@@ -1552,7 +1564,7 @@ class ContactFieldForm(forms.ModelForm):
 
         conflict = ContactField.user_fields.active_for_org(org=self.org).filter(label__iexact=label.lower())
         if self.instance:
-            conflict.exclude(id=self.instance.id)
+            conflict = conflict.exclude(id=self.instance.id)
 
         if conflict.exists():
             raise forms.ValidationError(_("Must be unique."))
@@ -1634,7 +1646,7 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
 
 class ContactFieldCRUDL(SmartCRUDL):
     model = ContactField
-    actions = ("list", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "detail")
+    actions = ("list", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "usages")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         class Form(ContactFieldForm):
@@ -1695,47 +1707,10 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        queryset = ContactField.user_fields
+    class Delete(DependencyDeleteModal):
+        cancel_url = "@contacts.contactfield_list"
         success_url = "@contacts.contactfield_list"
         success_message = ""
-        submit_button_name = _("Delete")
-        http_method_names = ["get", "post"]
-        fields = ("id",)
-
-        def _has_uses(self):
-            return any([self.object.flow_count, self.object.campaign_count, self.object.contactgroup_count])
-
-        def get_queryset(self):
-            qs = super().get_queryset()
-
-            qs = qs.collect_usage()
-
-            return qs
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            context["has_uses"] = self._has_uses()
-
-            return context
-
-        def post(self, request, *args, **kwargs):
-
-            pk = self.kwargs.get(self.pk_url_kwarg)
-
-            # does this ContactField actually exist
-            self.object = ContactField.user_fields.filter(is_active=True, id=pk).collect_usage().get()
-
-            # did it maybe change underneath us ???
-            if self._has_uses():
-                raise ValueError(f"Cannot remove a ContactField {pk}:{self.object.label} which is in use")
-
-            else:
-                self.object.hide_field(org=self.request.user.get_org(), user=self.request.user, key=self.object.key)
-                response = self.render_to_response(self.get_context_data())
-                response["Temba-Success"] = self.get_success_url()
-                return response
 
     class UpdatePriority(OrgPermsMixin, SmartView, View):
         def post(self, request, *args, **kwargs):
@@ -1797,21 +1772,9 @@ class ContactFieldCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<value_type>[^/]+)/$" % (path, action)
 
-    class Detail(OrgObjPermsMixin, SmartReadView):
+    class Usages(DependencyUsagesModal):
+        permission = "contacts.contactfield_read"
         queryset = ContactField.user_fields
-        template_name = "contacts/contactfield_detail.haml"
-        title = _("Contact field uses")
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            context["dep_flows"] = list(self.object.dependent_flows.filter(is_active=True).all())
-            context["dep_campaignevents"] = list(
-                self.object.campaign_events.filter(is_active=True).select_related("campaign").all()
-            )
-            context["dep_groups"] = list(self.object.contactgroup_set.filter(is_active=True).all())
-
-            return context
 
 
 class ContactImportCRUDL(SmartCRUDL):

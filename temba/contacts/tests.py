@@ -1008,7 +1008,7 @@ class ElasticSearchLagTest(TembaTest):
             self.assertFalse(check_elasticsearch_lag())
 
 
-class ContactGroupCRUDLTest(TembaTest):
+class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
@@ -1182,6 +1182,24 @@ class ContactGroupCRUDLTest(TembaTest):
         # check group is unchanged
         self.other_org_group.refresh_from_db()
         self.assertEqual("Customers", self.other_org_group.name)
+
+    def test_usages(self):
+        flow = self.get_flow("dependencies", name="Dependencies")
+        group = ContactGroup.user_groups.get(name="Cat Facts")
+
+        campaign1 = Campaign.create(self.org, self.admin, "Planting Reminders", group)
+        campaign2 = Campaign.create(self.org, self.admin, "Deleted", group)
+        campaign2.is_active = False
+        campaign2.save(update_fields=("is_active",))
+
+        usages_url = reverse("contacts.contactgroup_usages", args=[group.uuid])
+
+        response = self.assertReadFetch(usages_url, allow_viewers=True, allow_editors=True, context_object=group)
+
+        self.assertEqual(
+            {"flow": [flow], "campaign": [campaign1]},
+            {t: list(qs) for t, qs in response.context["dependents"].items()},
+        )
 
     def test_delete(self):
         url = reverse("contacts.contactgroup_delete", args=[self.joe_and_frank.pk])
@@ -3687,7 +3705,10 @@ class ContactFieldTest(TembaTest):
 
         # start one of our contacts down it
         contact = self.create_contact(
-            "Be\02n Haggerty", phone="+12067799294", fields={"First": "On\02e", "Third": "20/12/2015 08:30"}
+            "Be\02n Haggerty",
+            phone="+12067799294",
+            fields={"First": "On\02e", "Third": "20/12/2015 08:30"},
+            last_seen_on=datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
         )
 
         flow = self.get_flow("color_v13")
@@ -3760,6 +3781,7 @@ class ContactFieldTest(TembaTest):
                         "Name",
                         "Language",
                         "Created On",
+                        "Last Seen On",
                         "URN:Mailto",
                         "URN:Tel",
                         "URN:Telegram",
@@ -3773,6 +3795,7 @@ class ContactFieldTest(TembaTest):
                         "Adam Sumner",
                         "eng",
                         contact2.created_on,
+                        "",
                         "adam@sumner.com",
                         "+12067799191",
                         "1234",
@@ -3786,6 +3809,7 @@ class ContactFieldTest(TembaTest):
                         "Ben Haggerty",
                         "",
                         contact.created_on,
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
                         "",
                         "+12067799294",
                         "",
@@ -3813,6 +3837,7 @@ class ContactFieldTest(TembaTest):
                         "Name",
                         "Language",
                         "Created On",
+                        "Last Seen On",
                         "URN:Mailto",
                         "URN:Tel",
                         "URN:Telegram",
@@ -3827,6 +3852,7 @@ class ContactFieldTest(TembaTest):
                         "Adam Sumner",
                         "eng",
                         contact2.created_on,
+                        "",
                         "adam@sumner.com",
                         "+12067799191",
                         "1234",
@@ -3841,6 +3867,7 @@ class ContactFieldTest(TembaTest):
                         "Ben Haggerty",
                         "",
                         contact.created_on,
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
                         "",
                         "+12067799294",
                         "",
@@ -3871,6 +3898,7 @@ class ContactFieldTest(TembaTest):
                         "Name",
                         "Language",
                         "Created On",
+                        "Last Seen On",
                         "URN:Mailto",
                         "URN:Tel",
                         "URN:Tel",
@@ -3885,6 +3913,7 @@ class ContactFieldTest(TembaTest):
                         "Adam Sumner",
                         "eng",
                         contact2.created_on,
+                        "",
                         "adam@sumner.com",
                         "+12067799191",
                         "",
@@ -3900,6 +3929,7 @@ class ContactFieldTest(TembaTest):
                         "Ben Haggerty",
                         "",
                         contact.created_on,
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
                         "",
                         "+12067799294",
                         "+12062233445",
@@ -3916,6 +3946,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         contact3.created_on,
                         "",
+                        "",
                         "+12078776655",
                         "",
                         "",
@@ -3930,6 +3961,7 @@ class ContactFieldTest(TembaTest):
                         "Stephen",
                         "",
                         contact4.created_on,
+                        "",
                         "",
                         "+12078778899",
                         "",
@@ -3955,6 +3987,7 @@ class ContactFieldTest(TembaTest):
                         "Name",
                         "Language",
                         "Created On",
+                        "Last Seen On",
                         "URN:Mailto",
                         "URN:Tel",
                         "URN:Tel",
@@ -3969,6 +4002,7 @@ class ContactFieldTest(TembaTest):
                         "Adam Sumner",
                         "eng",
                         contact2.created_on,
+                        "",
                         "adam@sumner.com",
                         "+12067799191",
                         "",
@@ -3983,6 +4017,7 @@ class ContactFieldTest(TembaTest):
                         "Ben Haggerty",
                         "",
                         contact.created_on,
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
                         "",
                         "+12067799294",
                         "+12062233445",
@@ -4020,6 +4055,7 @@ class ContactFieldTest(TembaTest):
                                     "Name",
                                     "Language",
                                     "Created On",
+                                    "Last Seen On",
                                     "URN:Mailto",
                                     "URN:Tel",
                                     "URN:Tel",
@@ -4034,6 +4070,7 @@ class ContactFieldTest(TembaTest):
                                     "Adam Sumner",
                                     "eng",
                                     contact2.created_on,
+                                    "",
                                     "adam@sumner.com",
                                     "+12067799191",
                                     "",
@@ -4048,6 +4085,7 @@ class ContactFieldTest(TembaTest):
                                     "Luol Deng",
                                     "",
                                     contact3.created_on,
+                                    "",
                                     "",
                                     "+12078776655",
                                     "",
@@ -4079,6 +4117,7 @@ class ContactFieldTest(TembaTest):
                             "Name",
                             "Language",
                             "Created On",
+                            "Last Seen On",
                             "URN:Mailto",
                             "URN:Tel",
                             "URN:Tel",
@@ -4093,6 +4132,7 @@ class ContactFieldTest(TembaTest):
                             "Ben Haggerty",
                             "",
                             contact.created_on,
+                            datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
                             "",
                             "+12067799294",
                             "+12062233445",
@@ -4119,23 +4159,25 @@ class ContactFieldTest(TembaTest):
                         "Name",
                         "Language",
                         "Created On",
+                        "Last Seen On",
                         "Field:Third",
                         "Field:Second",
                         "Field:First",
                     ],
-                    [str(contact2.id), contact2.uuid, "Adam Sumner", "eng", contact2.created_on, "", "", ""],
+                    [str(contact2.id), contact2.uuid, "Adam Sumner", "eng", contact2.created_on, "", "", "", ""],
                     [
                         str(contact.id),
                         contact.uuid,
                         "Ben Haggerty",
                         "",
                         contact.created_on,
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
                         "20-12-2015 08:30",
                         "",
                         "One",
                     ],
-                    [str(contact3.id), contact3.uuid, "Luol Deng", "", contact3.created_on, "", "", ""],
-                    [str(contact4.id), contact4.uuid, "Stephen", "", contact4.created_on, "", "", ""],
+                    [str(contact3.id), contact3.uuid, "Luol Deng", "", contact3.created_on, "", "", "", ""],
+                    [str(contact4.id), contact4.uuid, "Stephen", "", contact4.created_on, "", "", "", ""],
                 ],
                 tz=self.org.timezone,
             )
@@ -4308,33 +4350,6 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.context["sort_direction"], "desc")
         self.assertIn("search", response.context)
 
-    def test_delete_with_flow_dependency(self):
-        self.login(self.admin)
-        self.get_flow("dependencies")
-
-        dependant_field = ContactField.user_fields.filter(is_active=True, org=self.org, key="favorite_cat").get()
-        delete_contactfield_url = reverse("contacts.contactfield_delete", args=[dependant_field.id])
-
-        response = self.client.get(delete_contactfield_url)
-
-        # there is a flow that is using this field
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context_data["has_uses"])
-
-        with self.assertRaises(ValueError):
-            # try to delete the contactfield, though there is a dependency
-            self.client.post(delete_contactfield_url)
-
-        # delete method is not allowed on the Delete ContactField view
-        response = self.client.delete(delete_contactfield_url)
-        self.assertEqual(response.status_code, 405)
-
-    def test_hide_field_with_flow_dependency(self):
-        self.get_flow("dependencies")
-
-        with self.assertRaises(ValueError):
-            ContactField.hide_field(self.org, self.admin, key="favorite_cat")
-
     def test_list(self):
         manage_fields_url = reverse("contacts.contactfield_list")
 
@@ -4356,37 +4371,6 @@ class ContactFieldTest(TembaTest):
 
         response = self.client.get(manage_fields_url)
         self.assertEqual(len(response.context["object_list"]), 2)
-
-    def test_view_delete(self):
-        cf_to_delete = ContactField.user_fields.get(key="first")
-        self.assertTrue(cf_to_delete.is_active)
-
-        self.login(self.admin)
-
-        delete_url = reverse("contacts.contactfield_delete", args=(cf_to_delete.id,))
-
-        response = self.client.get(delete_url)
-        self.assertEqual(response.status_code, 200)
-
-        # we got a form with expected form fields
-        self.assertFalse(response.context_data["has_uses"])
-
-        # delete the field
-        response = self.client.post(delete_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.context_data["has_uses"])
-
-        cf_to_delete.refresh_from_db()
-
-        self.assertFalse(cf_to_delete.is_active)
-
-        # can't delete field from other org
-        response = self.client.post(reverse("contacts.contactfield_delete", args=[self.other_org_field.id]))
-        self.assertLoginRedirect(response)
-
-        # field should be unchanged
-        self.other_org_field.refresh_from_db()
-        self.assertTrue(self.other_org_field.is_active)
 
     def test_view_featured(self):
         featured1 = ContactField.user_fields.get(key="first")
@@ -4434,53 +4418,6 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(len(response.context_data["object_list"]), 3)
 
         self.assertEqual(response.context_data["selected_value_type"], "T")
-
-    def test_view_detail(self):
-
-        self.login(self.admin)
-        flow = self.get_flow("dependencies")
-        dependant_field = ContactField.user_fields.filter(is_active=True, org=self.org, key="favorite_cat").get()
-        dependant_field.value_type = ContactField.TYPE_DATETIME
-        dependant_field.save(update_fields=("value_type",))
-
-        farmers = self.create_group("Farmers", [self.joe])
-        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", farmers)
-
-        # create flow events
-        CampaignEvent.create_flow_event(
-            self.org,
-            self.admin,
-            campaign,
-            relative_to=dependant_field,
-            offset=0,
-            unit="D",
-            flow=flow,
-            delivery_hour=17,
-        )
-        inactive_campaignevent = CampaignEvent.create_flow_event(
-            self.org,
-            self.admin,
-            campaign,
-            relative_to=dependant_field,
-            offset=0,
-            unit="D",
-            flow=flow,
-            delivery_hour=20,
-        )
-        inactive_campaignevent.is_active = False
-        inactive_campaignevent.save(update_fields=("is_active",))
-
-        detail_contactfield_url = reverse("contacts.contactfield_detail", args=[dependant_field.id])
-
-        response = self.client.get(detail_contactfield_url)
-        self.assertEqual(response.status_code, 200)
-
-        self.assertEqual(response.context_data["object"].label, "Favorite Cat")
-
-        self.assertEqual(len(response.context_data["dep_flows"]), 1)
-        # there should be only one active campaign event
-        self.assertEqual(len(response.context_data["dep_campaignevents"]), 1)
-        self.assertEqual(len(response.context_data["dep_groups"]), 0)
 
     def test_view_updatepriority_valid(self):
         org_fields = ContactField.user_fields.filter(org=self.org, is_active=True)
@@ -4606,13 +4543,13 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # it's also ok to create a field with the same name as a deleted field
-        ContactField.hide_field(self.org, self.admin, "age")
+        ContactField.user_fields.get(key="age").release(self.admin)
 
         self.assertCreateSubmit(
             create_url,
             {"label": "Age", "value_type": "N", "show_in_table": True},
             new_obj_query=ContactField.user_fields.filter(
-                org=self.org, label="Age", value_type="N", show_in_table=True
+                org=self.org, label="Age", value_type="N", show_in_table=True, is_active=True
             ),
             success_status=200,
         )
@@ -4633,6 +4570,11 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             allow_viewers=False,
             allow_editors=True,
             form_fields={"label": "Age", "value_type": "N", "show_in_table": True},
+        )
+
+        # try submit without change
+        self.assertUpdateSubmit(
+            update_url, {"label": "Age", "value_type": "N", "show_in_table": True}, success_status=200
         )
 
         # try to submit with empty name
@@ -4700,6 +4642,105 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
                 response = self.requestView(list_url, self.admin)
 
                 self.assertContains(response, "You have reached the limit")
+
+    @mock_mailroom
+    def test_usages(self, mr_mocks):
+        flow = self.get_flow("dependencies", name="Dependencies")
+        field = ContactField.user_fields.filter(is_active=True, org=self.org, key="favorite_cat").get()
+        field.value_type = ContactField.TYPE_DATETIME
+        field.save(update_fields=("value_type",))
+
+        mr_mocks.parse_query('favorite_cat != ""', fields=[field])
+
+        group = self.create_group("Farmers", query='favorite_cat != ""')
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", group)
+
+        # create flow events
+        event1 = CampaignEvent.create_flow_event(
+            self.org,
+            self.admin,
+            campaign,
+            relative_to=field,
+            offset=0,
+            unit="D",
+            flow=flow,
+            delivery_hour=17,
+        )
+        inactive_campaignevent = CampaignEvent.create_flow_event(
+            self.org,
+            self.admin,
+            campaign,
+            relative_to=field,
+            offset=0,
+            unit="D",
+            flow=flow,
+            delivery_hour=20,
+        )
+        inactive_campaignevent.is_active = False
+        inactive_campaignevent.save(update_fields=("is_active",))
+
+        usages_url = reverse("contacts.contactfield_usages", args=[field.uuid])
+
+        response = self.assertReadFetch(usages_url, allow_viewers=True, allow_editors=True, context_object=field)
+
+        self.assertEqual(
+            {"flow": [flow], "group": [group], "campaign_event": [event1]},
+            {t: list(qs) for t, qs in response.context["dependents"].items()},
+        )
+
+    def test_delete(self):
+        # create new field 'Joined On' which is used by a campaign event (soft) and a flow (soft)
+        group = self.create_group("Amazing Group", contacts=[])
+        joined_on = self.create_field("joined_on", "Joined On", value_type=ContactField.TYPE_DATETIME)
+        campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), group)
+        flow = self.create_flow("Amazing Flow")
+        flow.field_dependencies.add(joined_on)
+        campaign_event = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, joined_on, offset=1, unit="W", flow=flow, delivery_hour=13
+        )
+
+        # make 'Age' appear to be used by a flow (soft) and a group (hard)
+        flow.field_dependencies.add(self.age)
+        group.query_fields.add(self.age)
+
+        delete_gender_url = reverse("contacts.contactfield_delete", args=[self.gender.uuid])
+        delete_joined_url = reverse("contacts.contactfield_delete", args=[joined_on.uuid])
+        delete_age_url = reverse("contacts.contactfield_delete", args=[self.age.uuid])
+
+        # a field with no dependents can be deleted
+        response = self.assertDeleteFetch(delete_gender_url, allow_editors=True)
+        self.assertEqual({}, response.context["soft_dependents"])
+        self.assertEqual({}, response.context["hard_dependents"])
+        self.assertContains(response, "You are about to delete")
+        self.assertContains(response, "There is no way to undo this. Are you sure?")
+
+        self.assertDeleteSubmit(delete_gender_url, object_deactivated=self.gender, success_status=200)
+
+        # a field with only soft dependents can also be deleted but we give warnings
+        response = self.assertDeleteFetch(delete_joined_url, allow_editors=True)
+        self.assertEqual({"flow", "campaign_event"}, set(response.context["soft_dependents"].keys()))
+        self.assertEqual({}, response.context["hard_dependents"])
+        self.assertContains(response, "is used by the following items but can still be deleted:")
+        self.assertContains(response, "Amazing Flow")
+        self.assertContains(response, "There is no way to undo this. Are you sure?")
+
+        self.assertDeleteSubmit(delete_joined_url, object_deactivated=joined_on, success_status=200)
+
+        # check that flow is now marked as having issues
+        flow.refresh_from_db()
+        self.assertTrue(flow.has_issues)
+        self.assertNotIn(joined_on, flow.field_dependencies.all())
+
+        # and that the campaign event is gone
+        campaign_event.refresh_from_db()
+        self.assertFalse(campaign_event.is_active)
+
+        response = self.assertDeleteFetch(delete_age_url, allow_editors=True)
+        self.assertEqual({"flow"}, set(response.context["soft_dependents"].keys()))
+        self.assertEqual({"group"}, set(response.context["hard_dependents"].keys()))
+        self.assertContains(response, "can't be deleted as it is still used by the following items:")
+        self.assertContains(response, "Amazing Group")
+        self.assertNotContains(response, "Delete")
 
 
 class URNTest(TembaTest):

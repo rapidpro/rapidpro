@@ -265,6 +265,10 @@ class Campaign(TembaModel):
     def __str__(self):
         return f'Campaign[uuid={self.uuid}, name="{self.name}"]'
 
+    class Meta:
+        verbose_name = _("Campaign")
+        verbose_name_plural = _("Campaigns")
+
 
 class CampaignEvent(TembaModel):
     """
@@ -404,6 +408,10 @@ class CampaignEvent(TembaModel):
             hours.append((i, "at %s:00 %s" % (hour, period)))
         return hours
 
+    @property
+    def name(self):
+        return f"{self.campaign.name} ({self.offset_display} {self.relative_to.name})"
+
     def get_message(self, contact=None):
         if not self.message:
             return None
@@ -542,6 +550,10 @@ class CampaignEvent(TembaModel):
 
     def __str__(self):
         return f'Event[relative_to={self.relative_to.key}, offset={self.offset}, flow="{self.flow.name}"]'
+
+    class Meta:
+        verbose_name = _("Campaign Event")
+        verbose_name_plural = _("Campaign Events")
 
 
 class EventFire(Model):

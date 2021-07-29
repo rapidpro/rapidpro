@@ -23,7 +23,9 @@ from .type import (
 
 
 class WhatsAppTypeTest(TembaTest):
-    def test_claim(self):
+    @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
+    def test_claim(self, mock_health):
+        mock_health.return_value = {"meta": {"api_status": "stable", "version": "v2.35.2"}}
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
 
@@ -228,7 +230,9 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
             self.assertEqual("abc098", channel2.config[Channel.CONFIG_AUTH_TOKEN])
 
-    def test_claim_self_hosted_templates(self):
+    @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
+    def test_claim_self_hosted_templates(self, mock_health):
+        mock_health.return_value = {"meta": {"api_status": "stable", "version": "v2.35.2"}}
         Channel.objects.all().delete()
 
         url = reverse("channels.types.whatsapp.claim")
@@ -363,9 +367,10 @@ class WhatsAppTypeTest(TembaTest):
             ]
         )
 
+    @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
     @patch("temba.utils.whatsapp.tasks.update_local_templates")
     @patch("temba.channels.types.whatsapp.WhatsAppType.get_api_templates")
-    def test_refresh_templates_task(self, mock_get_api_templates, update_local_templates_mock):
+    def test_refresh_templates_task(self, mock_get_api_templates, update_local_templates_mock, mock_health):
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
 
@@ -373,8 +378,13 @@ class WhatsAppTypeTest(TembaTest):
         channel = self.create_channel("WA", "Channel", "1234", config={"fb_namespace": "foo_namespace"})
 
         self.login(self.admin)
-        mock_get_api_templates.side_effect = [([], False), Exception("foo"), ([{"name": "hello"}], True)]
-
+        mock_get_api_templates.side_effect = [
+            ([], False),
+            Exception("foo"),
+            ([{"name": "hello"}], True),
+            ([{"name": "hello"}], True),
+        ]
+        mock_health.return_value = {"meta": {"api_status": "stable", "version": "v2.35.2"}}
         update_local_templates_mock.return_value = None
 
         # should skip if locked
@@ -390,6 +400,7 @@ class WhatsAppTypeTest(TembaTest):
         mock_get_api_templates.assert_called_with(channel)
         self.assertEqual(1, mock_get_api_templates.call_count)
         self.assertEqual(0, update_local_templates_mock.call_count)
+        self.assertFalse(mock_health.called)
 
         # any exception
         refresh_whatsapp_templates()
@@ -397,6 +408,7 @@ class WhatsAppTypeTest(TembaTest):
         mock_get_api_templates.assert_called_with(channel)
         self.assertEqual(2, mock_get_api_templates.call_count)
         self.assertEqual(0, update_local_templates_mock.call_count)
+        self.assertFalse(mock_health.called)
 
         # now it should refresh
         refresh_whatsapp_templates()
@@ -404,6 +416,23 @@ class WhatsAppTypeTest(TembaTest):
         mock_get_api_templates.assert_called_with(channel)
         self.assertEqual(3, mock_get_api_templates.call_count)
         update_local_templates_mock.assert_called_once_with(channel, [{"name": "hello"}])
+        self.assertFalse(mock_health.called)
+
+        channel.config.update(version="v1.0.0")
+        channel.save()
+
+        channel.refresh_from_db()
+
+        # now it should refresh
+        refresh_whatsapp_templates()
+
+        mock_get_api_templates.assert_called_with(channel)
+        self.assertEqual(4, mock_get_api_templates.call_count)
+        self.assertTrue(mock_health.called)
+
+        channel.refresh_from_db()
+
+        self.assertEqual("v2.35.2", channel.config.get("version"))
 
     def test_message_templates_and_logs_views(self):
         channel = self.create_channel("WA", "Channel", "1234", config={"fb_namespace": "foo_namespace"})
@@ -439,3 +468,37 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual(404, response.status_code)
         response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
         self.assertEqual(404, response.status_code)
+
+    def test_check_health(self):
+        channel = self.create_channel(
+            "WA",
+            "WhatsApp: 1234",
+            "1234",
+            config={
+                Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
+                Channel.CONFIG_USERNAME: "temba",
+                Channel.CONFIG_PASSWORD: "tembapasswd",
+                Channel.CONFIG_AUTH_TOKEN: "authtoken123",
+                CONFIG_FB_BUSINESS_ID: "1234",
+                CONFIG_FB_ACCESS_TOKEN: "token123",
+                CONFIG_FB_NAMESPACE: "my-custom-app",
+                CONFIG_FB_TEMPLATE_LIST_DOMAIN: "graph.facebook.com",
+            },
+        )
+
+        with patch("requests.get") as mock_get:
+            mock_get.side_effect = [
+                RequestException("Network is unreachable", response=MockResponse(100, "")),
+                MockResponse(200, '{"meta": {"api_status": "stable", "version": "v2.35.2"}}'),
+                MockResponse(401, ""),
+            ]
+
+            with self.assertRaises(Exception):
+                channel.get_type().check_health(channel)
+
+            channel.get_type().check_health(channel)
+            mock_get.assert_called_with(
+                "https://nyaruka.com/whatsapp/v1/health", headers={"Authorization": "Bearer authtoken123"}
+            )
+            with self.assertRaises(Exception):
+                channel.get_type().check_health(channel)

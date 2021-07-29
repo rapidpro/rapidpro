@@ -173,6 +173,21 @@ class APITest(TembaTest):
         self.assertContains(response, "Server Error. Site administrators have been notified.", status_code=500)
 
     def test_serializer_fields(self):
+        def assert_field(f, *, submissions: dict, representations: dict):
+            f._context = {"org": self.org}
+
+            for submitted, expected in submissions.items():
+                if isinstance(expected, type) and issubclass(expected, Exception):
+                    with self.assertRaises(expected, msg=f"expected exception for '{submitted}'"):
+                        f.to_internal_value(submitted)
+                else:
+                    self.assertEqual(
+                        f.to_internal_value(submitted), expected, f"to_internal_value mismatch for '{submitted}'"
+                    )
+
+            for value, expected in representations.items():
+                self.assertEqual(f.to_representation(value), expected, f"to_representation mismatch for '{value}'")
+
         group = self.create_group("Customers")
         field_obj = ContactField.get_or_create(
             self.org, self.admin, "registered", "Registered On", value_type=ContactField.TYPE_DATETIME
@@ -254,6 +269,34 @@ class APITest(TembaTest):
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "12345")  # un-parseable
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "tel:800-123-4567")  # no country code
         self.assertRaises(serializers.ValidationError, field.to_internal_value, 18_001_234_567)  # non-string
+
+        self.editor.first_name = "Ed"
+        self.editor.last_name = "Flows"
+        self.editor.is_active = False
+        self.editor.save(update_fields=("first_name", "last_name", "is_active"))
+
+        assert_field(
+            fields.UserField(source="test"),
+            submissions={
+                "USER@NYARUKA.COM": self.user,
+                "administrator@nyaruka.com": self.admin,
+                self.editor.email: serializers.ValidationError,  # deleted
+                self.admin2.email: serializers.ValidationError,  # not in org
+            },
+            representations={
+                self.user: {"email": "User@nyaruka.com", "name": ""},
+                self.editor: {"email": "Editor@nyaruka.com", "name": "Ed Flows"},
+            },
+        )
+        assert_field(
+            fields.UserField(source="test", assignable_only=True),
+            submissions={
+                self.user.email: serializers.ValidationError,  # not assignable
+                self.admin.email: self.admin,
+                self.agent.email: self.agent,
+            },
+            representations={self.agent: {"email": "Agent@nyaruka.com", "name": ""}},
+        )
 
         field = fields.TranslatableField(source="test", max_length=10)
         field._context = {"org": self.org}
@@ -4331,16 +4374,18 @@ class APITest(TembaTest):
         url = reverse("api.v2.ticketers")
         self.assertEndpointAccess(url)
 
-        # create some ticketers
-        c1 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun (bob@acme.com)", {})
-        c2 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun (jim@acme.com)", {})
+        t1 = self.org.ticketers.get()  # the internal ticketer
 
-        c3 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun (deleted)", {})
-        c3.is_active = False
-        c3.save()
+        # create some additional ticketers
+        t2 = Ticketer.create(self.org, self.admin, MailgunType.slug, "bob@acme.com", {})
+        t3 = Ticketer.create(self.org, self.admin, MailgunType.slug, "jim@acme.com", {})
+
+        t4 = Ticketer.create(self.org, self.admin, MailgunType.slug, "deleted", {})
+        t4.is_active = False
+        t4.save()
 
         # on another org
-        Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
+        Ticketer.create(self.org2, self.admin, ZendeskType.slug, "zendesk", {})
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
@@ -4353,16 +4398,22 @@ class APITest(TembaTest):
             resp_json["results"],
             [
                 {
-                    "uuid": str(c2.uuid),
-                    "name": "Mailgun (jim@acme.com)",
+                    "uuid": str(t3.uuid),
+                    "name": "jim@acme.com",
                     "type": "mailgun",
-                    "created_on": format_datetime(c2.created_on),
+                    "created_on": format_datetime(t3.created_on),
                 },
                 {
-                    "uuid": str(c1.uuid),
-                    "name": "Mailgun (bob@acme.com)",
+                    "uuid": str(t2.uuid),
+                    "name": "bob@acme.com",
                     "type": "mailgun",
-                    "created_on": format_datetime(c1.created_on),
+                    "created_on": format_datetime(t2.created_on),
+                },
+                {
+                    "uuid": str(t1.uuid),
+                    "name": "RapidPro Tickets",
+                    "type": "internal",
+                    "created_on": format_datetime(t1.created_on),
                 },
             ],
         )
@@ -4374,11 +4425,11 @@ class APITest(TembaTest):
         self.assertEqual(0, len(resp_json["results"]))
 
         # filter by uuid present
-        response = self.fetchJSON(url, "uuid=" + str(c1.uuid))
+        response = self.fetchJSON(url, "uuid=" + str(t2.uuid))
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(1, len(resp_json["results"]))
-        self.assertEqual("Mailgun (bob@acme.com)", resp_json["results"][0]["name"])
+        self.assertEqual("bob@acme.com", resp_json["results"][0]["name"])
 
     @patch("temba.mailroom.client.MailroomClient.ticket_close")
     @patch("temba.mailroom.client.MailroomClient.ticket_reopen")
@@ -4480,3 +4531,84 @@ class APITest(TembaTest):
 
         # check that triggered a call to mailroom
         mock_ticket_reopen.assert_called_once_with(self.org.id, self.admin.id, [ticket2.id])
+
+    @mock_mailroom
+    def test_ticket_actions(self, mr_mocks):
+        url = reverse("api.v2.ticket_actions")
+
+        self.assertEndpointAccess(url, fetch_returns=405)
+
+        # create some tickets
+        mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
+        ticket1 = self.create_ticket(
+            mailgun, self.joe, "Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
+        )
+        ticket2 = self.create_ticket(mailgun, self.joe, "Need help again", body="Now")
+        self.create_ticket(mailgun, self.frank, "It's bob", body="Pleeeease help")
+
+        # on another org
+        zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
+        ticket4 = self.create_ticket(
+            zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Need help"
+        )
+
+        # try actioning more tickets than this endpoint is allowed to operate on at one time
+        response = self.postJSON(url, None, {"tickets": [str(x) for x in range(101)], "action": "close"})
+        self.assertResponseError(response, "tickets", "This field can only contain up to 100 items.")
+
+        # try actioning a ticket which is not in this org
+        response = self.postJSON(
+            url,
+            None,
+            {"tickets": [str(ticket1.uuid), str(ticket4.uuid)], "action": "close"},
+        )
+        self.assertResponseError(response, "tickets", f"No such object: {ticket4.uuid}")
+
+        # try to close tickets without specifying any tickets
+        response = self.postJSON(url, None, {"action": "close"})
+        self.assertResponseError(response, "tickets", "This field is required.")
+
+        # try to assign ticket without specifying assignee
+        response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid)], "action": "assign"})
+        self.assertResponseError(
+            response, "non_field_errors", 'For action "assign" you must also specify the assignee'
+        )
+
+        # try to add a note without specifying note
+        response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid)], "action": "note"})
+        self.assertResponseError(response, "non_field_errors", 'For action "note" you must also specify the note')
+
+        # assign valid tickets to a user
+        response = self.postJSON(
+            url,
+            None,
+            {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "assign", "assignee": "agent@nyaruka.com"},
+        )
+        self.assertEqual(response.status_code, 204)
+
+        ticket1.refresh_from_db()
+        ticket2.refresh_from_db()
+        self.assertEqual(self.agent, ticket1.assignee)
+        self.assertEqual(self.agent, ticket2.assignee)
+
+        # add a note to tickets
+        response = self.postJSON(
+            url, None, {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "note", "note": "Looks important"}
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual("Looks important", ticket1.events.last().note)
+        self.assertEqual("Looks important", ticket2.events.last().note)
+
+        # close tickets
+        response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "close"})
+        ticket1.refresh_from_db()
+        ticket2.refresh_from_db()
+        self.assertEqual("C", ticket1.status)
+        self.assertEqual("C", ticket2.status)
+
+        # and finally reopen them
+        response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "reopen"})
+        ticket1.refresh_from_db()
+        ticket2.refresh_from_db()
+        self.assertEqual("O", ticket1.status)
+        self.assertEqual("O", ticket2.status)
