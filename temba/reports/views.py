@@ -94,6 +94,8 @@ class ReportCRUDL(SmartCRUDL):
         permission = "reports.report_read"
 
         def get_context_data(self, **kwargs):
+            org = self.get_user().get_org()
+
             # we must have the flow uuid to find the correct ruleset through the last revision
             flow_uuid = self.request.GET.get("flow_uuid", None)
             if not flow_uuid:
@@ -111,7 +113,7 @@ class ReportCRUDL(SmartCRUDL):
             if not last_flow_revision:
                 return
 
-            node = dict()
+            ruleset = dict()
 
             definition = last_flow_revision.definition
             for item in definition.get("nodes", []):
@@ -119,29 +121,23 @@ class ReportCRUDL(SmartCRUDL):
                     continue
 
                 if item.get("uuid") == ruleset_uuid:
-                    ruleset_type = (
-                        item.get("actions", [])[0]["type"]
-                        if len(item.get("actions", [])) > 0
-                        else None or item.get("router", {}).get("type")
-                    )
+                    ruleset_type = item.get("router", {}).get("type")
                     ruleset_label = (
                         item.get("actions", [])[0]["result_name"]
                         if len(item.get("actions", [])) > 0
                         else None or item.get("router", {}).get("result_name")
                     )
-                    node["uuid"] = ruleset_uuid
-                    node["label"] = ruleset_label
-                    node["type"] = ruleset_type
-                    node["categories"] = item.get("router", {}).get("categories")
+                    ruleset["uuid"] = ruleset_uuid
+                    ruleset["label"] = ruleset_label
+                    ruleset["type"] = ruleset_type
+                    ruleset["categories"] = item.get("router", {}).get("categories")
                     break
 
             filters = json.loads(self.request.GET.get("filters", "[]"))
             segment = json.loads(self.request.GET.get("segment", "null"))
 
-            # todo: refactor accordingly to new architecture
-            # results = Value.get_value_summary(ruleset=ruleset, filters=filters, segment=segment)
-            results = {}
-            return dict(uuid=node.get("uuid"), label=node.get("label"), results=results)
+            results = Report.get_value_summary(org=org, ruleset=ruleset, filters=filters, segment=segment)
+            return dict(uuid=ruleset.get("uuid"), label=ruleset.get("label"), results=results)
 
         def render_to_response(self, context, **response_kwargs):
             response = HttpResponse(json.dumps(context), content_type="application/json")
