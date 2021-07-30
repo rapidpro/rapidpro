@@ -33,7 +33,7 @@ from temba.msgs.models import Attachment, Label, Msg
 from temba.orgs.models import Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer
-from temba.utils import analytics, chunk_list, json, on_transaction_commit
+from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import (
     JSONAsTextField,
@@ -1053,6 +1053,18 @@ class FlowSession(models.Model):
 
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
+
+    def output_json(self):
+        """
+        Returns the output JSON for this session, loading it either from our DB field or S3 if stored there.
+        """
+        # if our output is stored on S3, fetch it from there
+        if self.output_url:
+            return json.loads(s3.get_body(self.output_url))
+
+        # otherwise, read it from our DB field
+        else:
+            return self.output
 
     def release(self):
         self.delete()

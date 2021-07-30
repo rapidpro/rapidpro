@@ -5214,7 +5214,7 @@ class ExportFlowResultsTest(TembaTest):
         )
         mock_s3.put_jsonl("test-bucket", "archive2.jsonl.gz", [contact2_run.as_archive_json()])
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = self._export(flow)
 
         tz = self.org.timezone

@@ -826,7 +826,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
     def release_org(self, org, child_org=None, delete=False, expected_files=3):
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
+        with patch("temba.utils.s3.client", return_value=self.mock_s3):
             # save off the ids of our current users
             org_user_ids = list(org.get_users().values_list("id", flat=True))
 
@@ -950,7 +950,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         # push the released on date back in time
         Org.objects.filter(id=self.child_org.id).update(released_on=timezone.now() - timedelta(days=10))
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
+        with patch("temba.utils.s3.client", return_value=self.mock_s3):
             delete_orgs_task()
 
         self.child_org.refresh_from_db()
