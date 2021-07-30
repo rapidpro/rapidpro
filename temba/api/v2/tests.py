@@ -174,7 +174,7 @@ class APITest(TembaTest):
 
     def test_serializer_fields(self):
         def assert_field(f, *, submissions: dict, representations: dict):
-            f._context = {"org": self.org}
+            f._context = {"org": self.org}  # noqa
 
             for submitted, expected in submissions.items():
                 if isinstance(expected, type) and issubclass(expected, Exception):
@@ -218,57 +218,73 @@ class APITest(TembaTest):
 
         self.assertRaises(serializers.ValidationError, field.to_internal_value, event.uuid)
 
-        field = fields.ChannelField(source="test")
-        field._context = {"org": self.org}
+        deleted_channel = self.create_channel("A", "My Android", "123456")
+        deleted_channel.is_active = False
+        deleted_channel.save(update_fields=("is_active",))
 
-        self.assertEqual(field.to_internal_value(self.channel.uuid), self.channel)
-        self.channel.is_active = False
-        self.channel.save()
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, self.channel.uuid)
+        assert_field(
+            fields.ChannelField(source="test"),
+            submissions={self.channel.uuid: self.channel, deleted_channel.uuid: serializers.ValidationError},
+            representations={self.channel: {"uuid": str(self.channel.uuid), "name": "Test Channel"}},
+        )
 
-        field = fields.ContactField(source="test")
-        field._context = {"org": self.org}
+        assert_field(
+            fields.ContactField(source="test"),
+            submissions={
+                self.joe.uuid: self.joe,  # by UUID
+                self.joe.get_urn().urn: self.joe,  # by URN
+                0: serializers.ValidationError,
+                (self.joe.uuid, self.frank.uuid): serializers.ValidationError,
+            },
+            representations={self.joe: {"uuid": str(self.joe.uuid), "name": "Joe Blow"}},
+        )
 
-        self.assertEqual(field.to_internal_value(self.joe.uuid), self.joe)
-        self.assertEqual(field.to_internal_value(self.joe.get_urn().urn), self.joe)
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, [0])
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, [self.joe.uuid, self.frank.uuid])
+        assert_field(
+            fields.ContactField(source="test", many=True),
+            submissions={
+                (self.joe.uuid, self.frank.uuid): [self.joe, self.frank],
+                self.joe.uuid: serializers.ValidationError,
+            },
+            representations={
+                (self.joe, self.frank): [
+                    {"uuid": str(self.joe.uuid), "name": "Joe Blow"},
+                    {"uuid": str(self.frank.uuid), "name": "Frank"},
+                ]
+            },
+        )
 
-        field = fields.ContactField(source="test", many=True)
-        field._context = {"org": self.org}
-
-        self.assertEqual(field.to_internal_value([self.joe.uuid, self.frank.uuid]), [self.joe, self.frank])
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, self.joe.uuid)
-
-        field = fields.ContactGroupField(source="test")
-        field._context = {"org": self.org}
-
-        self.assertEqual(field.to_internal_value(group.uuid), group)
-
-        field = fields.ContactFieldField(source="test")
-        field._context = {"org": self.org}
-
-        self.assertEqual(field.to_internal_value("registered"), field_obj)
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, "xyx")
+        assert_field(
+            fields.ContactGroupField(source="test"),
+            submissions={group.uuid: group},
+            representations={group: {"uuid": str(group.uuid), "name": "Customers"}},
+        )
 
         field_created_on = self.org.contactfields.get(key="created_on")
-        self.assertEqual(field.to_internal_value("created_on"), field_created_on)
 
-        field = fields.FlowField(source="test")
-        field._context = {"org": self.org}
+        assert_field(
+            fields.ContactFieldField(source="test"),
+            submissions={"registered": field_obj, "created_on": field_created_on, "xyz": serializers.ValidationError},
+            representations={field_obj: {"key": "registered", "label": "Registered On"}},
+        )
 
-        self.assertEqual(field.to_internal_value(flow.uuid), flow)
+        assert_field(
+            fields.FlowField(source="test"),
+            submissions={flow.uuid: flow},
+            representations={flow: {"uuid": str(flow.uuid), "name": flow.name}},
+        )
 
-        field = fields.URNField(source="test")
-        field._context = {"org": self.org}
-
-        self.assertEqual(field.to_internal_value("tel:+1-800-123-4567"), "tel:+18001234567")
-        # use org country to parse the local number
-        self.assertEqual(field.to_internal_value("tel:0788 123 123"), "tel:+250788123123")
-        self.assertEqual(field.to_internal_value("tel:(078) 812-3123"), "tel:+250788123123")
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, "12345")  # un-parseable
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, "tel:800-123-4567")  # no country code
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, 18_001_234_567)  # non-string
+        assert_field(
+            fields.URNField(source="test"),
+            submissions={
+                "tel:+1-800-123-4567": "tel:+18001234567",
+                "tel:0788 123 123": "tel:+250788123123",  # using org country
+                "tel:(078) 812-3123": "tel:+250788123123",
+                "12345": serializers.ValidationError,  # un-parseable
+                "tel:800-123-4567": serializers.ValidationError,  # no country code
+                18_001_234_567: serializers.ValidationError,  # non-string
+            },
+            representations={"tel:+18001234567": "tel:+18001234567"},
+        )
 
         self.editor.first_name = "Ed"
         self.editor.last_name = "Flows"
