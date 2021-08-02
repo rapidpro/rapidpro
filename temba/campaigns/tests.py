@@ -394,10 +394,8 @@ class CampaignTest(TembaTest):
             reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
         )
 
-        self.assertTrue(response.context["form"].errors)
-        self.assertTrue(
-            "Translation for &#39;Default&#39; exceeds the %d character limit." % Msg.MAX_TEXT_LEN
-            in str(response.context["form"].errors["__all__"])
+        self.assertFormError(
+            response, "form", "__all__", f"Translation for 'Default' exceeds the {Msg.MAX_TEXT_LEN} character limit."
         )
 
         post_data = dict(

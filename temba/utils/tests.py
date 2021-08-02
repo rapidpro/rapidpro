@@ -1115,11 +1115,7 @@ class TestJSONAsTextField(TestCase):
         model.field = {"foo": "bar\u0000"}
         model.save()
 
-        with connection.cursor() as cur:
-            cur.execute("select field::jsonb from utils_jsonmodeltestdefault")
-            data = cur.fetchall()
-
-        self.assertEqual(data[0][0], {"foo": "bar"})
+        self.assertEqual({"foo": "bar"}, JsonModelTestDefault.objects.first().field)
 
     def test_write_None_value(self):
         model = JsonModelTestDefault()
@@ -1184,23 +1180,13 @@ class TestJSONField(TembaTest):
             cur.execute(
                 "UPDATE contacts_contact SET fields = %s where id = %s",
                 (
-                    TembaJsonAdapter({"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": Decimal("123.45")}}),
+                    TembaJsonAdapter({"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": Decimal("123.4567890")}}),
                     contact.id,
                 ),
             )
 
-            cur.execute("SELECT cast(fields as text) from contacts_contact where id = %s", (contact.id,))
-
-            raw_fields = cur.fetchone()[0]
-
-            self.assertEqual(raw_fields, '{"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": 123.45}}')
-
-            cur.execute("SELECT fields from contacts_contact where id = %s", (contact.id,))
-
-            dict_fields = cur.fetchone()[0]
-            number_field = dict_fields.get("1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722", {}).get("number")
-
-            self.assertEqual(number_field, Decimal("123.45"))
+        contact.refresh_from_db()
+        self.assertEqual(contact.fields, {"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": Decimal("123.4567890")}})
 
 
 class LanguagesTest(TembaTest):

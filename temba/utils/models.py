@@ -265,6 +265,7 @@ class JSONField(DjangoJSONField):
 
     def __init__(self, *args, **kwargs):
         kwargs["encoder"] = json.TembaEncoder
+        kwargs["decoder"] = json.TembaDecoder
         super().__init__(*args, **kwargs)
 
 
