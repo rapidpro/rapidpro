@@ -1,20 +1,20 @@
-import time
-
 from django.db import models
+from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 
 from django_redis import get_redis_connection
 
 from smartmin.models import SmartModel
 
+from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import json
 from temba.utils.models import JSONField
 from temba.orgs.models import Org
 
 
 VALUE_SUMMARY_CACHE_KEY = "value_summary"
-CONTACT_KEY = "vsd::vsc%d"
-GROUP_KEY = "vsd::vsg%d"
+CONTACT_KEY = "vsd::vsc%s"
+GROUP_KEY = "vsd::vsg%s"
 RULESET_KEY = "vsd::vsr%s"
 
 # cache for up to 30 days (we will invalidate manually when dependencies change)
@@ -62,6 +62,30 @@ class Report(SmartModel):
         )
 
     @classmethod
+    def build_uuid_to_category_map(cls, categories):
+        # categories --> [{'count': 0, 'label': 'Yes'}]
+        # uuid_to_category --> {'ed851f55-fe90-411f-9658-c1558798d14f': 'Yes'}
+        if not categories:
+            return list, dict
+
+        categories_result = []
+        uuid_to_category_result = {}
+
+        for item in categories:
+            category_item = dict(count=0, label=item.get("name"))
+            categories_result.append(category_item)
+
+            uuid_to_category_result[item.get("uuid")] = item.get("name")
+
+        return categories_result, uuid_to_category_result
+
+    @classmethod
+    def _filtered_values_to_categories(cls, contacts, contact_field, formatter=None, return_contacts=False):
+        set_contacts = set()
+
+        return [], set()
+
+    @classmethod
     def get_filtered_value_summary(
         cls, org, ruleset=None, contact_field=None, filters=None, return_contacts=False, filter_contacts=None
     ):
@@ -79,17 +103,12 @@ class Report(SmartModel):
         """
         from temba.contacts.models import Contact
 
-        start = time.time()
-
         # caller may identify either a ruleset or contact field to summarize
         if (not ruleset and not contact_field) or (ruleset and contact_field):  # pragma: needs cover
             raise ValueError("Must define either a RuleSet or ContactField to summarize values for")
 
         if ruleset:
-            # TODO implement build_uuid_to_category_map method
-            # categories --> [{'count': 0, 'label': 'Yes'}]
-            # uuid_to_category --> {'ed851f55-fe90-411f-9658-c1558798d14f': 'Yes'}
-            (categories, uuid_to_category) = ruleset.build_uuid_to_category_map()
+            (categories, uuid_to_category) = cls.build_uuid_to_category_map(categories=ruleset.get("categories"))
 
         # this is for the case when we are filtering across our own categories, we build up the category uuids we will
         # pay attention then filter before we grab the actual values
@@ -108,6 +127,58 @@ class Report(SmartModel):
                 if not contact_filter:
                     continue
 
+                # we are filtering by another rule
+                if "ruleset" in contact_filter:
+                    # Tried to simulate this statement on 1.0 and couldn't find ruleset in contact_filter,
+                    # so let's skip it for now
+                    pass
+
+                # we are filtering by one or more groups
+                elif "groups" in contact_filter:
+                    # filter our contacts by that group
+                    for group_id in contact_filter.get("groups", []):
+                        contacts = contacts.filter(all_groups__uuid=group_id)
+
+                # we are filtering by one or more admin boundaries
+                elif "boundary" in contact_filter:
+                    # We will skip boundary filter since we don't work with OSM integration for our orgs
+                    pass
+
+                # we are filtering by a contact field
+                elif "contact_field" in contact_filter:
+                    contact_query = Q()
+
+                    # we can't use __in as we want case insensitive matching
+                    for value in contact_filter.get("values", []):
+                        search_filter = f'"{contact_filter["contact_field"]}":"{value}"'
+                        contact_query |= Q(fields__contains=search_filter)
+
+                    contacts = contacts.filter(contact_query)
+
+                else:  # pragma: needs cover
+                    raise ValueError("Invalid filter definition, must include 'group' or 'contact_field'")
+
+            contacts = set([c["id"] for c in contacts.values("id")])
+
+        else:
+            # no filter, default either to all contacts or our filter contacts
+            if filter_contacts:
+                contacts = filter_contacts
+            else:
+                contacts = set([c["id"] for c in org_contacts.values("id")])
+
+        # we are summarizing a flow ruleset
+        if ruleset:
+            # TODO we need to implement this to search on the new model
+            #  where we will save the collected results from the flow runs once a day
+            pass
+
+        # we are summarizing based on contact field
+        else:
+            # Tried to simulate this statement on 1.0 and couldn't find contact field on filters,
+            # so let's skip it for now
+            pass
+
         return 0, 0, []
 
     @classmethod
@@ -124,8 +195,6 @@ class Report(SmartModel):
             { location: "State", parent: null }             // segment for each admin boundary within the parent
             { contact_field: "Country", values: ["US", "EN", "RW"] } // segment by a contact field for these values
         """
-        from temba.contacts.models import ContactGroup, ContactField
-
         results = []
 
         if (not ruleset and not contact_field) or (ruleset and contact_field):  # pragma: needs cover
@@ -149,8 +218,8 @@ class Report(SmartModel):
             dependencies.add(RULESET_KEY % ruleset.get("uuid"))
 
         if contact_field:
-            fingerprint_dict["contact_field"] = contact_field.id
-            dependencies.add(CONTACT_KEY % contact_field.id)
+            fingerprint_dict["contact_field"] = contact_field.uuid
+            dependencies.add(CONTACT_KEY % contact_field.uuid)
 
         for contact_filter in filters:
             if "ruleset" in contact_filter:
@@ -159,8 +228,8 @@ class Report(SmartModel):
                 for group_id in contact_filter["groups"]:
                     dependencies.add(GROUP_KEY % group_id)
             if "location" in contact_filter:  # pragma: needs cover
-                field = ContactField.get_by_label(org, contact_filter["location"])
-                dependencies.add(CONTACT_KEY % field.id)
+                # we will not implement this filter since we don't use it on our clients
+                pass
 
         if segment:
             if "ruleset" in segment:
@@ -169,8 +238,8 @@ class Report(SmartModel):
                 for group_id in segment["groups"]:
                     dependencies.add(GROUP_KEY % group_id)
             if "location" in segment:
-                field = ContactField.get_by_label(org, segment["location"])
-                dependencies.add(CONTACT_KEY % field.id)
+                # we will not implement this filter since we don't use it on our clients
+                pass
 
         # our final redis key will contain each dependency as well as a HASH representing the fingerprint of the
         # kwargs passed to this method, generate that hash
@@ -215,7 +284,7 @@ class Report(SmartModel):
             elif "groups" in segment:  # pragma: needs cover
                 for group_id in segment["groups"]:
                     # load our group
-                    group = ContactGroup.user_groups.get(org=org, pk=group_id)
+                    group = ContactGroup.user_groups.get(org=org, uuid=group_id)
 
                     category_filter = list(filters)
                     category_filter.append(dict(groups=[group_id]))
@@ -240,7 +309,7 @@ class Report(SmartModel):
 
                 for value in segment["values"]:
                     value_filter = list(filters)
-                    value_filter.append(dict(contact_field=field.pk, values=[value]))
+                    value_filter.append(dict(contact_field=field.uuid, values=[value]))
 
                     # calculate our results for this segment
                     kwargs["filters"] = value_filter
@@ -254,11 +323,13 @@ class Report(SmartModel):
         else:
             (set_count, unset_count, categories) = cls.get_filtered_value_summary(**kwargs)
 
-            # TODO Check we have and we have an OPEN ENDED ruleset
+            # TODO Check whether we have rules/categories
             # if ruleset and len(ruleset.get_rules()) == 1 and isinstance(ruleset.get_rules()[0].test, TrueTest):
 
             results.append(
-                dict(label=_("All"), open_ended=open_ended, set=set_count, unset=unset_count, categories=categories)
+                dict(
+                    label=str(_("All")), open_ended=open_ended, set=set_count, unset=unset_count, categories=categories
+                )
             )
 
         # for each of our dependencies, add our key as something that depends on it
