@@ -1,12 +1,12 @@
+import io
 from unittest.mock import patch
 
 from temba.tests import TembaTest
 from temba.tests.s3 import MockEventStream, MockS3Client
+from temba.utils.s3 import EventStreamReader, get_body, split_url
 
-from .s3 import EventStreamReader, get_body, split_url
 
-
-class EventStreamReaderTest(TembaTest):
+class S3Test(TembaTest):
     def test_buffer(self):
         # empty payload
         stream = MockEventStream(records=[], max_payload_size=256)
@@ -28,18 +28,15 @@ class EventStreamReaderTest(TembaTest):
         buffer = EventStreamReader(stream)
         self.assertEqual([{"id": 1, "text": "Hi"}, {"id": 2, "text": "Hi"}, {"id": 3, "text": "Hi"}], list(buffer))
 
-
-class S3Test(TembaTest):
-    def setUp(self):
-        super().setUp()
-        self.mock_s3 = MockS3Client()
-
     def test_split(self):
         bucket, url = split_url("https://foo.s3.aws.amazon.com/test/12345")
-        self.assertEqual("foo.s3.aws.amazon.com", bucket)
+        self.assertEqual("foo", bucket)
         self.assertEqual("test/12345", url)
 
     def test_get_body(self):
-        with patch("temba.utils.s3.client", return_value=self.mock_s3):
+        mock_s3 = MockS3Client()
+        mock_s3.objects[("foo", "test/12345")] = io.StringIO("12345_content")
+
+        with patch("temba.utils.s3.s3.client", return_value=mock_s3):
             body = get_body("https://foo.s3.aws.amazon.com/test/12345")
-            self.assertEqual(0, len(body))
+            self.assertEqual(body, "12345_content")

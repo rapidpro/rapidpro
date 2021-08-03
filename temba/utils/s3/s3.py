@@ -18,7 +18,7 @@ public_file_storage.default_acl = "public-read"
 _s3_client = None
 
 
-def client():
+def client():  # pragma: no cover
     """
     Returns our shared S3 client
     """

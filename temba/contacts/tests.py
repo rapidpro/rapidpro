@@ -44,6 +44,7 @@ from temba.tests import (
     mock_mailroom,
 )
 from temba.tests.engine import MockSessionWriter
+from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -1252,6 +1253,8 @@ class ContactTest(TembaTest):
         # create contact in other org
         self.other_org_contact = self.create_contact(name="Fred", phone="+250768111222", org=self.org2)
 
+        self.mock_s3 = MockS3Client()
+
     def create_campaign(self):
         # create a campaign with a future event and add joe
         self.farmers = self.create_group("Farmers", [self.joe])
@@ -2082,10 +2085,20 @@ class ContactTest(TembaTest):
             assignee=self.admin,
         )
 
+        # set an output URL on our session so we fetch from there
+        from temba.flows.models import FlowSession
+
+        s = FlowSession.objects.get(contact=self.joe)
+        FlowSession.objects.filter(id=s.id).update(
+            output_url="https://temba-sessions.s3.aws.amazon.com/c/session.json"
+        )
+        self.mock_s3.objects[("temba-sessions", "c/session.json")] = io.StringIO(json.dumps(s.output))
+
         # fetch our contact history
         self.login(self.admin)
-        with self.assertNumQueries(52):
-            response = self.client.get(url + "?limit=100")
+        with patch("temba.utils.s3.s3.client", return_value=self.mock_s3):
+            with self.assertNumQueries(52):
+                response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
         history = response.context["events"]
@@ -2132,6 +2145,9 @@ class ContactTest(TembaTest):
         self.assertContains(response, reverse("channels.channellog_connection", args=[call.id]))
         self.assertContains(response, "Transferred <b>100.00</b> <b>RWF</b> of airtime")
         self.assertContains(response, reverse("airtime.airtimetransfer_read", args=[transfer.id]))
+
+        # revert back to reading only from DB
+        FlowSession.objects.filter(id=s.id).update(output_url=None)
 
         # can filter by ticket to only see ticket events from that ticket
         response = self.client.get(url + f"?ticket={ticket.uuid}&limit=100")
