@@ -11,7 +11,7 @@ from ..flows.models import Flow, FlowRunCount, FlowRevision
 
 
 class ReportCRUDL(SmartCRUDL):
-    actions = ("create", "analytics", "results", "choropleth")
+    actions = ("create", "analytics", "results")
     model = Report
 
     class Create(OrgPermsMixin, SmartCreateView):
@@ -78,13 +78,8 @@ class ReportCRUDL(SmartCRUDL):
                 if request_report:
                     current_report = json.dumps(request_report.as_json())
 
-            state_fields = org.contactfields.filter(value_type=ContactField.TYPE_STATE)
-            district_fields = org.contactfields.filter(value_type=ContactField.TYPE_DISTRICT)
-            org_supports_map = org.country and state_fields.first() and district_fields.first()
-
             return dict(
                 flows=flow_json,
-                org_supports_map=org_supports_map,
                 groups=groups_json,
                 reports=reports_json,
                 current_report=current_report,
@@ -142,10 +137,3 @@ class ReportCRUDL(SmartCRUDL):
         def render_to_response(self, context, **response_kwargs):
             response = HttpResponse(json.dumps(context), content_type="application/json")
             return response
-
-    class Choropleth(OrgPermsMixin, SmartReadView):
-        permission = "reports.report_read"
-
-        def get_context_data(self, **kwargs):
-            # todo: implement accordingly to the new architecture
-            return dict(breaks={}, totals={}, scores={}, categories={})
