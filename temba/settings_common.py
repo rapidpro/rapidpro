@@ -922,6 +922,8 @@ _default_database_config["DISABLE_SERVER_SIDE_CURSORS"] = True
 
 DATABASES = {"default": _default_database_config, "direct": _direct_database_config}
 
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
 # If we are testing, set both our connections as the same, Django seems to get
 # confused on Python 3.6 with transactional tests otherwise
 if TESTING:
