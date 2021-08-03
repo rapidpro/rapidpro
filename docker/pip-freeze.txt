@@ -6,59 +6,59 @@
 #
 amqp==2.6.1 ; python_version >= "3.6" and python_full_version < "3.0.0" and python_version < "4.0" or python_version >= "3.6" and python_version < "4.0" and python_full_version >= "3.5.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   kombu
 analytics-python==1.2.9
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 billiard==3.6.4.0 ; python_version >= "3.6" and python_full_version < "3.0.0" and python_version < "4.0" or python_version >= "3.6" and python_version < "4.0" and python_full_version >= "3.5.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   celery
 boto3==1.17.53 ; (python_version >= "2.7" and python_full_version < "3.0.0") or python_full_version >= "3.6.0"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 botocore==1.20.53 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.6.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   boto3
     #   s3transfer
 celery==4.4.6 ; (python_version >= "2.7" and python_full_version < "3.0.0") or python_full_version >= "3.5.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   flower
     #   smartmin
 certifi==2020.12.5 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version < "4"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   elastic-apm
     #   elasticsearch
     #   python-intercom
     #   python-telegram-bot
     #   requests
     #   sentry-sdk
-cffi==1.14.5 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0"
+cffi==1.14.5 ; python_version >= "3.6"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   cryptography
 chardet==4.0.0 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   requests
 colorama==0.4.4 ; (python_version >= "2.7" and python_full_version < "3.0.0") or python_full_version >= "3.5.0"
-    # via -r ../pip-freeze.txt
-cryptography==2.9.2 ; (python_version >= "2.7" and python_full_version < "3.0.0") or python_full_version >= "3.5.0"
+    # via -r ../pip-requires.txt
+cryptography==3.4.7 ; python_version >= "3.6"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   pyjwt
     #   python-telegram-bot
 deprecated==1.2.12 ; python_full_version >= "3.4.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   vonage
 dj-database-url==0.5.0
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 django==2.2.20 ; python_version >= "3.5"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   django-appconf
     #   django-csp
     #   django-hamlpy
@@ -69,164 +69,164 @@ django==2.2.20 ; python_version >= "3.5"
     #   smartmin
 django-appconf==1.0.4
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   django-compressor
 django-compressor==2.4.1
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 django-countries==7.1
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 django-csp==3.7
     # via -r pip-requires.txt
 django-environ==0.4.5
     # via -r pip-requires.txt
 django-hamlpy==1.4.3 ; python_version >= "3.6" and python_version < "4.0"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 django-mptt==0.8.7
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 django-redis==4.12.1 ; python_version >= "3.5"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 django-storages==1.11.1 ; python_version >= "3.5"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 django-templates-macros==0.2
     # via -r pip-requires.txt
 django-timezone-field==4.1.2 ; python_version >= "3.5"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 djangorestframework==3.12.4 ; python_version >= "3.5"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 elastic-apm==5.1.0
     # via -r pip-requires.txt
 elasticsearch==7.12.0 ; (python_version >= "2.7" and python_full_version < "3.0.0") or (python_full_version >= "3.4.0" and python_version < "4")
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   elasticsearch-dsl
 elasticsearch-dsl==7.3.0 ; (python_version >= "2.7" and python_full_version < "3.0.0") or python_full_version >= "3.4.0"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 et-xmlfile==1.0.1 ; python_version >= "3.6"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   openpyxl
 flower==0.9.5
     # via -r pip-requires.txt
 future==0.18.2 ; python_version >= "3.6" and python_full_version < "3.0.0" and python_version < "4.0" or python_version >= "3.6" and python_version < "4.0" and python_full_version >= "3.5.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   celery
     #   python-telegram-bot
 geojson==2.5.0
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 gunicorn==20.1.0 ; python_version >= "3.5"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 humanize==3.2.0
     # via flower
 idna==2.10 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   requests
 importlib-metadata==4.0.0 ; python_version < "3.8" and python_version >= "3.6" and (python_version >= "3.6" and python_full_version < "3.0.0" and python_version < "3.8" or python_version >= "3.6" and python_version < "3.8" and python_full_version >= "3.5.0")
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   kombu
     #   markdown
 inflection==0.5.1 ; python_version >= "3.5"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   python-intercom
 iptools==0.7.0
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 iso-639==0.4.5
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 iso8601==0.1.14
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 jmespath==0.10.0 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.6.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   boto3
     #   botocore
 kombu==4.6.11 ; python_version >= "3.6" and python_full_version < "3.0.0" and python_version < "4.0" or python_version >= "3.6" and python_version < "4.0" and python_full_version >= "3.5.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   celery
 librato-bg==1.0.6
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 librato-metrics==0.8.5
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   librato-bg
 lml==0.1.0 ; python_version >= "3.6"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   pyexcel
     #   pyexcel-io
 markdown==3.3.4 ; python_version >= "3.6"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 oauthlib==3.1.0 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.4.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   requests-oauthlib
 openpyxl==3.0.7 ; python_version >= "3.6"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   pyexcel-xlsx
 packaging==20.9 ; (python_version >= "2.7" and python_full_version < "3.0.0") or python_full_version >= "3.4.0"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 phonenumbers==8.12.21
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 polib==1.1.1
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 prometheus-client==0.8.0
     # via flower
 psycopg2-binary==2.8.6 ; (python_version >= "2.7" and python_full_version < "3.0.0") or python_full_version >= "3.4.0"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 pycountry==18.12.8
-    # via -r ../pip-freeze.txt
-pycparser==2.20 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0"
+    # via -r ../pip-requires.txt
+pycparser==2.20 ; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.4.0" and python_version >= "3.6"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   cffi
 pyexcel==0.6.6 ; python_version >= "3.6"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 pyexcel-io==0.6.4 ; python_version >= "3.6"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   pyexcel
     #   pyexcel-xls
     #   pyexcel-xlsx
 pyexcel-xls==0.6.2 ; python_version >= "3.6"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 pyexcel-xlsx==0.6.0 ; python_version >= "3.6"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 pyfcm==1.5.1
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 pyjwt[crypto]==1.7.1 ; python_full_version >= "3.4.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   twilio
     #   vonage
 pyotp==2.4.1
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 pyparsing==2.4.7 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.4.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   packaging
 pysocks==1.7.1 ; python_version >= "3.0" and python_full_version < "3.0.0" or python_full_version >= "3.4.0" and python_version >= "3.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   twilio
 python-dateutil==2.2
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   analytics-python
     #   botocore
     #   elasticsearch-dsl
 python-intercom==3.1.0
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 python-magic==0.4.22 ; (python_version >= "2.7" and python_full_version < "3.0.0") or python_full_version >= "3.5.0"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 python-telegram-bot==11.1.0
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 pytz==2021.1 ; python_version >= "3.6" and python_version < "4.0" and (python_version >= "3.6" and python_full_version < "3.0.0" and python_version < "4.0" or python_version >= "3.6" and python_version < "4.0" and python_full_version >= "3.5.0") and python_full_version >= "3.4.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   celery
     #   django
     #   django-timezone-field
@@ -237,20 +237,20 @@ pytz==2021.1 ; python_version >= "3.6" and python_version < "4.0" and (python_ve
     #   vonage
 rcssmin==1.0.6
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   django-compressor
 redis==3.5.3 ; (python_version >= "2.7" and python_full_version < "3.0.0") or python_full_version >= "3.5.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   django-redis
     #   smartmin
 regex==2020.11.13 ; python_version >= "3.6" and python_version < "4.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   django-hamlpy
 requests==2.25.1 ; python_full_version >= "3.5.0" and python_version >= "3.0" and (python_version >= "3.0" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.0") and (python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0")
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   analytics-python
     #   pyfcm
     #   python-intercom
@@ -262,25 +262,24 @@ requests==2.25.1 ; python_full_version >= "3.5.0" and python_version >= "3.0" an
     #   vonage
 requests-oauthlib==1.3.0 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.4.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   twython
 requests-toolbelt==0.9.1
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 rjsmin==1.1.0
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   django-compressor
 s3transfer==0.3.7 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.6.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   boto3
 sentry-sdk==1.0.0
-    # via -r ../pip-freeze.txt
-six==1.15.0 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0"
+    # via -r ../pip-requires.txt
+six==1.15.0 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.4.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   analytics-python
-    #   cryptography
     #   django-compressor
     #   elasticsearch-dsl
     #   librato-bg
@@ -289,31 +288,31 @@ six==1.15.0 ; python_version >= "2.7" and python_full_version < "3.0.0" or pytho
     #   python-intercom
     #   twilio
 smartmin==2.3.9 ; python_version >= "3.6" and python_version < "4.0"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 sqlparse==0.4.1 ; python_version >= "3.6" and python_version < "4.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   django
     #   smartmin
 stripe==2.56.0 ; (python_version >= "2.7" and python_full_version < "3.0.0") or python_full_version >= "3.4.0"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 texttable==1.6.3 ; python_version >= "3.6"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   pyexcel
 tornado==6.1
     # via flower
 twilio==6.24.0
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 twython==3.5.0
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 typing-extensions==3.7.4.3 ; python_version < "3.8" and python_version >= "3.6"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   importlib-metadata
 urllib3==1.26.4 ; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.6.0" and python_version < "4"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   botocore
     #   elastic-apm
     #   elasticsearch
@@ -321,30 +320,30 @@ urllib3==1.26.4 ; python_version >= "2.7" and python_full_version < "3.0.0" or p
     #   sentry-sdk
 vine==1.3.0 ; python_version >= "3.6" and python_full_version < "3.0.0" and python_version < "4.0" or python_version >= "3.6" and python_version < "4.0" and python_full_version >= "3.5.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   amqp
     #   celery
 vonage==2.5.2 ; python_full_version >= "3.4.0"
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 wrapt==1.12.1 ; python_full_version >= "3.4.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   deprecated
 xlrd==1.2.0 ; python_version >= "3.6" and python_full_version < "3.0.0" and python_version < "4.0" or python_version >= "3.6" and python_version < "4.0" and python_full_version >= "3.4.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   pyexcel-xls
     #   smartmin
 xlsxlite==0.2.0
-    # via -r ../pip-freeze.txt
+    # via -r ../pip-requires.txt
 xlwt==1.3.0 ; python_version >= "3.6" and python_version < "4.0"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   pyexcel-xls
     #   smartmin
 zipp==3.4.1 ; python_version < "3.8" and python_version >= "3.6"
     # via
-    #   -r ../pip-freeze.txt
+    #   -r ../pip-requires.txt
     #   importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
