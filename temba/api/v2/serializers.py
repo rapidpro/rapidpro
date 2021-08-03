@@ -1470,6 +1470,48 @@ class TicketWriteSerializer(WriteSerializer):
         return self.instance
 
 
+class TicketBulkActionSerializer(WriteSerializer):
+    ACTION_ASSIGN = "assign"
+    ACTION_NOTE = "note"
+    ACTION_CLOSE = "close"
+    ACTION_REOPEN = "reopen"
+    ACTION_CHOICES = (ACTION_ASSIGN, ACTION_NOTE, ACTION_CLOSE, ACTION_REOPEN)
+
+    tickets = fields.TicketField(many=True)
+    action = serializers.ChoiceField(required=True, choices=ACTION_CHOICES)
+    assignee = fields.UserField(required=False, assignable_only=True)
+    note = serializers.CharField(required=False, max_length=Ticket.MAX_NOTE_LEN)
+
+    def validate(self, data):
+        action = data["action"]
+        assignee = data.get("assignee")
+        note = data.get("note")
+
+        if action == self.ACTION_ASSIGN and not assignee:
+            raise serializers.ValidationError('For action "%s" you must also specify the assignee' % action)
+        elif action == self.ACTION_NOTE and not note:
+            raise serializers.ValidationError('For action "%s" you must also specify the note' % action)
+
+        return data
+
+    def save(self):
+        org = self.context["org"]
+        user = self.context["user"]
+        tickets = self.validated_data["tickets"]
+        action = self.validated_data["action"]
+        assignee = self.validated_data.get("assignee")
+        note = self.validated_data.get("note")
+
+        if action == self.ACTION_ASSIGN:
+            Ticket.bulk_assign(org, user, tickets, assignee=assignee, note=note)
+        elif action == self.ACTION_NOTE:
+            Ticket.bulk_note(org, user, tickets, note=note)
+        elif action == self.ACTION_CLOSE:
+            Ticket.bulk_close(org, user, tickets)
+        elif action == self.ACTION_REOPEN:
+            Ticket.bulk_reopen(org, user, tickets)
+
+
 class WorkspaceReadSerializer(ReadSerializer):
     DATE_STYLES = {
         Org.DATE_FORMAT_DAY_FIRST: "day_first",

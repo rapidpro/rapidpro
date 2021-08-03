@@ -212,7 +212,7 @@ class MailroomClientTest(TembaTest):
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/parse_query",
             headers={"User-Agent": "Temba"},
-            json={"query": "frank", "org_id": self.org.id, "group_uuid": ""},
+            json={"query": "frank", "org_id": self.org.id, "parse_only": False, "group_uuid": ""},
         )
 
         mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')

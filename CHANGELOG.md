@@ -1,3 +1,29 @@
+v6.5.15
+----------
+ * Add warning to flow start modal that options have changed
+ * Fix importing of dynamic groups when field doesn't exist
+
+v6.5.14
+----------
+ * Update to latest cryptography 3.x
+ * Add deep linking for tickets
+ * Update db trigger on ticket table to maintain contact.ticket_count
+
+v6.5.13
+----------
+ * Tweak previous data migration to work with migrate_manual
+
+v6.5.12
+----------
+ * Migration to zeroize contact.ticket_count and make it non-null
+
+v6.5.11
+----------
+ * Allow deletion of fields used by campaign events
+ * Add last_activity_on to ticket folder endpoints
+ * Add API endpoint for ticket bulk actions
+ * Add nullable Contact.ticket_count field
+
 v6.5.10
 ----------
  * Remove textit-whatsapp channel type

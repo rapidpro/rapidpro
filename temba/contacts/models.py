@@ -435,6 +435,8 @@ class ContactField(SmartModel, DependencyMixin):
     user_fields = UserContactFieldsManager()
     system_fields = SystemContactFieldsManager()
 
+    soft_dependent_types = {"flow", "campaign_event"}
+
     @classmethod
     def create_system_fields(cls, org):
         assert not org.contactfields(manager="system_fields").exists(), "org already has system fields"
@@ -620,6 +622,9 @@ class ContactField(SmartModel, DependencyMixin):
     def release(self, user):
         super().release(user)
 
+        for event in self.campaign_events.all():
+            event.release(user)
+
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=("is_active", "modified_on", "modified_by"))
@@ -662,6 +667,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     fields = TembaJSONField(null=True)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+
+    ticket_count = models.IntegerField(default=0)
 
     # user that last modified this contact
     modified_by = models.ForeignKey(
@@ -1774,7 +1781,7 @@ class ContactGroup(TembaModel, DependencyMixin):
 
             parsed_query = None
             if group_query:
-                parsed_query = parse_query(org, group_query)
+                parsed_query = parse_query(org, group_query, parse_only=True)
                 for field_ref in parsed_query.metadata.fields:
                     ContactField.get_or_create(org, user, key=field_ref["key"])
 

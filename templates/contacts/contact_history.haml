@@ -160,6 +160,9 @@
         -if event.assignee.id == event.created_by.id
           -blocktrans trimmed with assigner=event.created_by|history_user assignee=event.assignee|history_user subject=event.ticket.subject
             <b>{{assigner}}</b> took <b>{{subject}}</b>
+        -elif not event.assignee
+          -blocktrans trimmed with assigner=event.created_by|history_user subject=event.ticket.subject
+            <b>{{assigner}}</b> unassigned <b>{{subject}}</b>
         -else
           -blocktrans trimmed with assigner=event.created_by|history_user assignee=event.assignee|history_user subject=event.ticket.subject
             <b>{{assigner}}</b> assigned <b>{{subject}}</b> to <b>{{ assignee }}</b>

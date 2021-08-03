@@ -155,6 +155,8 @@ class Ticket(models.Model):
     # permission that users need to have a ticket assigned to them
     ASSIGNEE_PERMISSION = "tickets.ticket_assignee"
 
+    MAX_NOTE_LEN = 4096
+
     # our UUID
     uuid = models.UUIDField(unique=True, default=uuid4)
 
@@ -269,7 +271,7 @@ class TicketEvent(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.PROTECT, related_name="events")
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="ticket_events")
     event_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
-    note = models.TextField(null=True)
+    note = models.TextField(null=True, max_length=Ticket.MAX_NOTE_LEN)
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="ticket_assignee_events")
 
     created_by = models.ForeignKey(
