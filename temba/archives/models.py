@@ -102,7 +102,7 @@ class Archive(models.Model):
 
     def get_download_link(self):
         if self.url:
-            s3 = self.s3_client()
+            s3_client = s3.client()
             s3_params = {
                 **self.s3_location(),
                 # force browser to download and not uncompress our gzipped files
@@ -111,7 +111,7 @@ class Archive(models.Model):
                 "ResponseContentEncoding": "none",
             }
 
-            return s3.generate_presigned_url("get_object", Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
+            return s3_client.generate_presigned_url("get_object", Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
         else:
             return ""
 
