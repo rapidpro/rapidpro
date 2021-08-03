@@ -1054,6 +1054,7 @@ class FlowSession(models.Model):
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
 
+    @property
     def output_json(self):
         """
         Returns the output JSON for this session, loading it either from our DB field or S3 if stored there.
