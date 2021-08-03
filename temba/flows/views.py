@@ -255,7 +255,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
-            revision_id = self.kwargs["revision_id"]
+            revision_id = self.kwargs.get("revision_id")
 
             # the editor requests the spec version it supports which allows us to add support for new versions
             # on the goflow/mailroom side before updating the editor to use that new version
@@ -1955,7 +1955,7 @@ class FlowCRUDL(SmartCRUDL):
             return blockers
 
         def get_warnings(self, flow) -> list:
-            warnings = []
+            warnings = [_("Please read the options below carefully as they have changed recently.")]
 
             # facebook channels need to warn if no topic is set
             facebook_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)

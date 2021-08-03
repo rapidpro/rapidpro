@@ -1829,17 +1829,19 @@ class OrgTest(TembaTest):
         admin_create_login_url = reverse("orgs.org_create_login", args=[admin_invitation.secret])
         self.client.logout()
 
-        post_data = dict(
-            first_name="Matija_first_name_longer_than_30_chars",
-            last_name="Vujica_last_name_longer_than_150_chars____lorem-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet",
-            password="just-a-password",
+        response = self.client.post(
+            admin_create_login_url,
+            {
+                "first_name": f"Ni{'c' * 150}",
+                "last_name": f"Po{'t' * 150}ier",
+                "password": "just-a-password",
+            },
         )
-        response = self.client.post(admin_create_login_url, post_data)
         self.assertFormError(
-            response, "form", "first_name", "Ensure this value has at most 30 characters (it has 38)."
+            response, "form", "first_name", "Ensure this value has at most 150 characters (it has 152)."
         )
         self.assertFormError(
-            response, "form", "last_name", "Ensure this value has at most 150 characters (it has 173)."
+            response, "form", "last_name", "Ensure this value has at most 150 characters (it has 155)."
         )
 
     def test_surveyor_invite(self):
@@ -3421,24 +3423,26 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(grant_url, post_data)
         self.assertFormError(response, "form", "email", "Enter a valid email address.")
 
-        post_data = dict(
-            email="john@carmack-this-is-a-verrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrry-loooooooooooooooooooooooooong-domain-name-not-sure-if-this-is-even-possible-to-register.com",
-            first_name="John_first_name_longer_than_30_chars",
-            last_name="Carmack_last_name_longer_than_150_chars____lorem-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet",
-            name="Oculus_company_name_longer_than_128_chars____lorem-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet",
-            timezone="Africa/Kigali",
-            credits="100000",
-            password="dukenukem",
+        response = self.client.post(
+            grant_url,
+            {
+                "email": f"john@{'x' * 150}.com",
+                "first_name": f"John@{'n' * 150}.com",
+                "last_name": f"Carmack@{'k' * 150}.com",
+                "name": f"Oculus{'s' * 130}",
+                "timezone": "Africa/Kigali",
+                "credits": "100000",
+                "password": "dukenukem",
+            },
         )
-        response = self.client.post(grant_url, post_data)
         self.assertFormError(
-            response, "form", "first_name", "Ensure this value has at most 30 characters (it has 36)."
+            response, "form", "first_name", "Ensure this value has at most 150 characters (it has 159)."
         )
         self.assertFormError(
-            response, "form", "last_name", "Ensure this value has at most 150 characters (it has 174)."
+            response, "form", "last_name", "Ensure this value has at most 150 characters (it has 162)."
         )
-        self.assertFormError(response, "form", "name", "Ensure this value has at most 128 characters (it has 134).")
-        self.assertFormError(response, "form", "email", "Ensure this value has at most 150 characters (it has 160).")
+        self.assertFormError(response, "form", "name", "Ensure this value has at most 128 characters (it has 136).")
+        self.assertFormError(response, "form", "email", "Ensure this value has at most 150 characters (it has 159).")
         self.assertFormError(response, "form", "email", "Enter a valid email address.")
 
     def test_org_grant_form_clean(self):

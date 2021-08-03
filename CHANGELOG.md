@@ -1,3 +1,13 @@
+v6.5.16
+----------
+ * Update to Django 3.2
+ * Migration to populate contact.ticket_count
+
+v6.5.15
+----------
+ * Add warning to flow start modal that options have changed
+ * Fix importing of dynamic groups when field doesn't exist
+
 v6.5.14
 ----------
  * Update to latest cryptography 3.x
