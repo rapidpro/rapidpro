@@ -158,7 +158,7 @@ class TestClient(MailroomClient):
         }
 
     @_client_method
-    def parse_query(self, org_id, query, group_uuid=""):
+    def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = ""):
         # if there's a mock for this query we use that
         mock = self.mocks._parse_query.get(query)
         if mock:
