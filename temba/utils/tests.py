@@ -32,7 +32,6 @@ from temba.flows.models import FlowRun
 from temba.orgs.models import Org
 from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json, uuid
-from temba.utils.json import TembaJsonAdapter
 
 from . import (
     chunk_list,
@@ -1176,14 +1175,8 @@ class TestJSONField(TembaTest):
     def test_jsonfield_decimal_encoding(self):
         contact = self.create_contact("Xavier", phone="+5939790990001")
 
-        with connection.cursor() as cur:
-            cur.execute(
-                "UPDATE contacts_contact SET fields = %s where id = %s",
-                (
-                    TembaJsonAdapter({"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": Decimal("123.4567890")}}),
-                    contact.id,
-                ),
-            )
+        contact.fields = {"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": Decimal("123.4567890")}}
+        contact.save(update_fields=("fields",))
 
         contact.refresh_from_db()
         self.assertEqual(contact.fields, {"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": Decimal("123.4567890")}})
