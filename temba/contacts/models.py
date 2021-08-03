@@ -1779,7 +1779,7 @@ class ContactGroup(TembaModel, DependencyMixin):
 
             parsed_query = None
             if group_query:
-                parsed_query = parse_query(org, group_query)
+                parsed_query = parse_query(org, group_query, parse_only=True)
                 for field_ref in parsed_query.metadata.fields:
                     ContactField.get_or_create(org, user, key=field_ref["key"])
 

@@ -56,14 +56,14 @@ class ParsedQuery(NamedTuple):
     metadata: Metadata = Metadata()
 
 
-def parse_query(org, query: str, *, group=None) -> ParsedQuery:
+def parse_query(org, query: str, *, parse_only: bool = False, group=None) -> ParsedQuery:
     """
     Parses the passed in query in the context of the org
     """
     try:
         group_uuid = group.uuid if group else None
 
-        response = mailroom.get_client().parse_query(org.id, query, group_uuid=str(group_uuid))
+        response = mailroom.get_client().parse_query(org.id, query, parse_only=parse_only, group_uuid=str(group_uuid))
         return ParsedQuery(response["query"], response["elastic_query"], Metadata(**response.get("metadata", {})))
 
     except mailroom.MailroomException as e:

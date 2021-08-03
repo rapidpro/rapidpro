@@ -155,8 +155,8 @@ class RangeDetails(OrgPermsMixin, SmartTemplateView):
 
             context["orgs"] = list(
                 daily_counts.values("channel__org", "channel__org__name")
-                .order_by("-count_sum")
-                .annotate(count_sum=Sum("count"))[:12]
+                .annotate(count_sum=Sum("count"))
+                .order_by("-count_sum")[:12]
             )
 
             channel_types = (
@@ -170,7 +170,7 @@ class RangeDetails(OrgPermsMixin, SmartTemplateView):
                 channel_types = channel_types.filter(channel__org__in=orgs)
 
             channel_types = list(
-                channel_types.values("channel__channel_type").order_by("-count_sum").annotate(count_sum=Sum("count"))
+                channel_types.values("channel__channel_type").annotate(count_sum=Sum("count")).order_by("-count_sum")
             )
 
             # populate the channel names

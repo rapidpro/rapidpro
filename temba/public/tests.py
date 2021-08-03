@@ -167,6 +167,7 @@ class PublicTest(TembaTest):
                 "lastmod": None,
                 "changefreq": "daily",
                 "location": "http://example.com/",
+                "alternates": [],
             },
         )
 

@@ -73,7 +73,7 @@ class WhatsAppType(ChannelType):
         )
 
         if resp.status_code != 200:
-            raise ValidationError(_("Unable to register callbacks: %s", resp.content))
+            raise ValidationError(_("Unable to register callbacks: %s") % resp.content)
 
         # update our quotas so we can send at 15/s
         payload = {
@@ -86,7 +86,7 @@ class WhatsAppType(ChannelType):
         )
 
         if resp.status_code != 200:
-            raise ValidationError(_("Unable to configure channel: %s", resp.content))
+            raise ValidationError(_("Unable to configure channel: %s") % resp.content)
 
         update_api_version(channel)
 
@@ -129,9 +129,9 @@ class WhatsAppType(ChannelType):
         try:
             response = requests.get(channel.config[Channel.CONFIG_BASE_URL] + "/v1/health", headers=headers)
         except Exception as ex:
-            raise Exception("Could not establish a connection with the WhatsApp server: %s", ex)
+            raise Exception(f"Could not establish a connection with the WhatsApp server: {ex}")
 
         if response.status_code >= 400:
-            raise Exception("Error checking API health: %s", response.content)
+            raise Exception(f"Error checking API health: {response.content}")
 
         return response.json()

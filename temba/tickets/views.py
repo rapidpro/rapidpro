@@ -91,9 +91,29 @@ class TicketCRUDL(SmartCRUDL):
 
             folder = self.kwargs.get("folder")
             status = self.kwargs.get("status")
+            uuid = self.kwargs.get("uuid")
+
+            # if we have a uuid make sure it is in our first page of tickets
+            if uuid:
+                status_filter = Ticket.STATUS_OPEN if self.kwargs["status"] == "open" else Ticket.STATUS_CLOSED
+                user = self.request.user
+                tickets = list(
+                    TicketFolder.from_slug(folder).get_queryset(user.get_org(), user).filter(status=status_filter)[:25]
+                )
+
+                # if it's not, switch our folder to everything with that ticket's state
+                found = list(filter(lambda ticket: str(ticket.uuid) == uuid, tickets))
+                if not found:
+                    ticket = Ticket.objects.filter(org=org, uuid=uuid).first()
+                    if ticket:
+                        folder = "all"
+                        status = "open" if ticket.status == Ticket.STATUS_OPEN else "closed"
+                        context["uuid"] = uuid
+                else:
+                    context["nextUUID"] = uuid
+
             context["folder"] = folder if folder else "mine"
             context["status"] = status if status else "open"
-
             return context
 
         def get_queryset(self, **kwargs):
@@ -127,7 +147,7 @@ class TicketCRUDL(SmartCRUDL):
         @classmethod
         def derive_url_pattern(cls, path, action):
             folders = "|".join(TicketFolder.all().keys())
-            return rf"^{path}/{action}/(?P<folder>{folders})/(?P<status>open|closed)/$"
+            return rf"^{path}/{action}/(?P<folder>{folders})/(?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+))?$"
 
         @cached_property
         def folder(self):
@@ -136,7 +156,13 @@ class TicketCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             user = self.request.user
             status = Ticket.STATUS_OPEN if self.kwargs["status"] == "open" else Ticket.STATUS_CLOSED
-            return self.folder.get_queryset(user.get_org(), user).filter(status=status)
+            qs = self.folder.get_queryset(user.get_org(), user).filter(status=status)
+
+            uuid = self.kwargs.get("uuid", None)
+            if uuid:
+                qs = qs.filter(uuid=uuid)
+
+            return qs
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -155,7 +181,6 @@ class TicketCRUDL(SmartCRUDL):
             )
 
             context["last_msgs"] = {m.contact: m for m in last_msgs}
-
             return context
 
         def render_to_response(self, context, **response_kwargs):
