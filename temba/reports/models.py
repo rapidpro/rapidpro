@@ -63,8 +63,6 @@ class Report(SmartModel):
 
     @classmethod
     def build_uuid_to_category_map(cls, categories):
-        # categories --> [{'count': 0, 'label': 'Yes'}]
-        # uuid_to_category --> {'ed851f55-fe90-411f-9658-c1558798d14f': 'Yes'}
         if not categories:
             return list, dict
 
@@ -78,12 +76,6 @@ class Report(SmartModel):
             uuid_to_category_result[item.get("uuid")] = item.get("name")
 
         return categories_result, uuid_to_category_result
-
-    @classmethod
-    def _filtered_values_to_categories(cls, contacts, contact_field, formatter=None, return_contacts=False):
-        set_contacts = set()
-
-        return [], set()
 
     @classmethod
     def get_filtered_value_summary(
