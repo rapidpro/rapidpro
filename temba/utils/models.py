@@ -6,11 +6,11 @@ from collections import OrderedDict
 
 from smartmin.models import SmartModel
 
-from django.contrib.postgres.fields import HStoreField, JSONField as DjangoJSONField
+from django.contrib.postgres.fields import HStoreField
 from django.core import checks
 from django.core.exceptions import ValidationError
 from django.db import connection, models
-from django.db.models import Sum
+from django.db.models import JSONField as DjangoJSONField, Sum
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
