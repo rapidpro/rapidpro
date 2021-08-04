@@ -1,12 +1,14 @@
 import json
 import traceback
 
+import requests
 from django.shortcuts import reverse
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
-from smartmin.views import SmartCRUDL, SmartCreateView, SmartTemplateView, SmartReadView
+from smartmin.views import SmartCRUDL, SmartCreateView, SmartTemplateView
 from temba.orgs.views import OrgPermsMixin
 from .models import Report
-from ..contacts.models import ContactField, ContactGroup
+from .. import settings
+from ..contacts.models import ContactGroup
 from ..flows.models import Flow, FlowRunCount, FlowRevision
 
 
@@ -45,6 +47,46 @@ class ReportCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             org = self.request.user.get_org()
 
+            # get our list of assets to include
+            scripts = []
+            styles = []
+
+            dev_mode = getattr(settings, "EDITOR_DEV_MODE", True)
+            prefix = "http://localhost:3000" if dev_mode else settings.STATIC_URL
+
+            # get our list of assets to include
+            scripts = []
+            styles = []
+
+            if dev_mode:  # pragma: no cover
+                response = requests.get("http://localhost:3000/asset-manifest.json")
+                data = response.json()
+            else:
+                with open("node_modules/@greatnonprofits-nfp/temba-analytics/build/asset-manifest.json") as json_file:
+                    data = json.load(json_file)
+
+            def get_static_filename(filename):
+                if dev_mode:
+                    return f"{prefix}{filename}"
+                return f"{settings.STATIC_URL}@greatnonprofits-nfp/temba-analytics/build{filename}"
+
+
+            for key, filename in data.get("files").items():
+                # tack on our prefix for dev mode
+                filename = get_static_filename(filename)
+
+                # ignore precache manifest
+                if key.startswith("precache-manifest") or key.startswith("service-worker"):
+                    continue
+
+                # css files
+                if key.endswith(".css") and filename.endswith(".css"):
+                    styles.append(filename)
+
+                # javascript
+                if key.endswith(".js") and filename.endswith(".js"):
+                    scripts.append(filename)
+
             def flow_cast(flow):
                 return {
                     "id": flow.id,
@@ -60,7 +102,8 @@ class ReportCRUDL(SmartCRUDL):
                         }
                         for rule in flow.metadata.get("results", [])
                     ],
-                    "stats": {"created_on": str(flow.created_on), "runs": FlowRunCount.get_totals(flow)},
+                    # "stats": {"created_on": str(flow.created_on), "runs": FlowRunCount.get_totals(flow)},
+                    "stats": {"created_on": str(flow.created_on), "runs": 0},
                 }
 
             flow_json = list(map(flow_cast, Flow.objects.filter(org_id=org.id, is_active=True)))
@@ -79,10 +122,14 @@ class ReportCRUDL(SmartCRUDL):
                     current_report = json.dumps(request_report.as_json())
 
             return dict(
-                flows=flow_json,
-                groups=groups_json,
-                reports=reports_json,
-                current_report=current_report,
+                analytics_context=json.dumps(dict(
+                    flows=flow_json,
+                    groups=groups_json,
+                    reports=reports_json,
+                    current_report=current_report,
+                )),
+                scripts=scripts,
+                styles=styles,
             )
 
     class Results(OrgPermsMixin, SmartTemplateView):

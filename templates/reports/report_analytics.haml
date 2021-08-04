@@ -1,4 +1,22 @@
--extends "frame.haml"
+- extends "frame.html"
+-load static
 
--block content
-  Here should be an analytics app made on react.
+- block extra-style
+  = block.super
+  %link(rel='stylesheet' type='text/css' href='{% static "@fortawesome/fontawesome-free/css/all.css" %}')
+  - for css in styles
+    %link(rel='stylesheet' type='text/css' href='{{css}}')
+
+- block extra-script
+  = block.super
+  - for script in scripts
+    %script{type:'text/javascript', src:'{{script}}'}
+
+  :javascript
+    var context = JSON.parse('{{analytics_context|escapejs}}');
+    showAnalytics(document.querySelector("#analytics-container"), context);
+
+
+- block page-container
+  #grid.h-full
+    #analytics-container
