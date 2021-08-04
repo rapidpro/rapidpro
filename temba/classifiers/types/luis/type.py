@@ -18,9 +18,9 @@ class LuisType(ClassifierType):
     icon = "icon-luis"
 
     CONFIG_APP_ID = "app_id"
-    CONFIG_VERSION = "version"
-    CONFIG_ENDPOINT_URL = "endpoint_url"
     CONFIG_PRIMARY_KEY = "primary_key"
+    CONFIG_ENDPOINT_URL = "endpoint_url"
+    CONFIG_SLOT = "slot"
 
     AUTH_HEADER = "Ocp-Apim-Subscription-Key"
 

@@ -10,11 +10,13 @@ from temba.utils.fields import ExternalURLField
 
 class ConnectView(BaseConnectView):
     class Form(forms.Form):
+        SLOT_CHOICES = (("staging", _("Staging")), ("production", _("Production")))
+
         name = forms.CharField(help_text=_("The name of your LUIS app"))
-        app_id = forms.CharField(label=_("App ID"), help_text=_("The ID for your LUIS app"))
-        version = forms.CharField(help_text=_("The name of the version of your LUIS app to use"))
-        primary_key = forms.CharField(help_text=_("The primary key for your LUIS app"))
-        endpoint_url = ExternalURLField(help_text=_("The endpoint URL for your LUIS app"))
+        app_id = forms.CharField(label=_("App ID"), help_text=_("The ID of your LUIS app"))
+        subscription_key = forms.CharField(help_text=_("The subscription key"))
+        endpoint_url = ExternalURLField(help_text=_("The endpoint URL"))
+        slot = forms.ChoiceField(help_text=_("The publishing slot"), choices=SLOT_CHOICES)
 
         def clean(self):
             from .type import LuisType
@@ -46,9 +48,9 @@ class ConnectView(BaseConnectView):
 
         config = {
             LuisType.CONFIG_APP_ID: form.cleaned_data["app_id"],
-            LuisType.CONFIG_VERSION: form.cleaned_data["version"],
             LuisType.CONFIG_PRIMARY_KEY: form.cleaned_data["primary_key"],
             LuisType.CONFIG_ENDPOINT_URL: form.cleaned_data["endpoint_url"],
+            LuisType.CONFIG_SLOT: form.cleaned_data["slot"],
         }
 
         self.object = Classifier.create(self.org, self.request.user, LuisType.slug, form.cleaned_data["name"], config)
