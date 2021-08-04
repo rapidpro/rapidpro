@@ -19,7 +19,7 @@ class ArchiveTest(TembaTest):
             Archive.TYPE_MSG, "D", timezone.now().date(), [{"id": 1}, {"id": 2}, {"id": 3}], s3=mock_s3
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             records_iter = archive.iter_records()
 
             self.assertEqual(next(records_iter), {"id": 1})
@@ -33,7 +33,7 @@ class ArchiveTest(TembaTest):
             Archive.TYPE_MSG, "D", timezone.now().date(), [{"id": 1}, {"id": 2}, {"id": 3}], s3=mock_s3
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             records_iter = archive.iter_records(expression="s.direction = 'in'")
 
             self.assertEqual(next(records_iter), {"id": 1})
@@ -41,7 +41,7 @@ class ArchiveTest(TembaTest):
             self.assertEqual(next(records_iter), {"id": 3})
             self.assertRaises(StopIteration, next, records_iter)
 
-    @patch("temba.archives.models.Archive.s3_client")
+    @patch("temba.utils.s3.client")
     def test_iter_all_records(self, mock_s3_client):
         mock_s3 = MockS3Client()
         mock_s3_client.return_value = mock_s3

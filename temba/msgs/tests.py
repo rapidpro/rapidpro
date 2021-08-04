@@ -436,7 +436,7 @@ class MsgTest(TembaTest):
 
         # export all visible messages (i.e. not msg3) using export_all param
         with self.assertNumQueries(29):
-            with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+            with patch("temba.utils.s3.client", return_value=mock_s3):
                 workbook = request_export("?l=I", {"export_all": 1})
 
         self.assertExcelSheet(
@@ -538,7 +538,7 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = request_export(
                 "?l=I",
                 {
@@ -581,7 +581,7 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = request_export("?l=I", {"export_all": 1, "groups": [self.just_joe.id]})
 
         self.assertExcelSheet(
@@ -670,7 +670,7 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = request_export("?l=S", {"export_all": 0})
 
         self.assertExcelSheet(
@@ -706,7 +706,7 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = request_export("?l=X", {"export_all": 0})
 
         self.assertExcelSheet(
@@ -742,7 +742,7 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = request_export("?l=W", {"export_all": 0})
 
         self.assertExcelSheet(
@@ -778,7 +778,7 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = request_export(f"?l={label.uuid}", {"export_all": 0})
 
         self.assertExcelSheet(

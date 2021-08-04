@@ -863,7 +863,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         )
         events = []
         for session in sessions:
-            for run in session.output.get("runs", []):
+            for run in session.output_json.get("runs", []):
                 for event in run.get("events", []):
                     event["session_uuid"] = str(session.uuid)
                     event_time = iso8601.parse_date(event["created_on"])
