@@ -5,7 +5,6 @@ from smartmin.models import SmartModel
 from django.conf import settings
 from django.conf.urls import url
 from django.contrib.auth.models import User
-from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import Q, Sum
 from django.template import Engine
@@ -82,7 +81,7 @@ class Ticketer(SmartModel, DependencyMixin):
     name = models.CharField(max_length=64)
 
     # the configuration options
-    config = JSONField()
+    config = models.JSONField()
 
     @classmethod
     def create(cls, org, user, ticketer_type: str, name: str, config: dict):
@@ -179,7 +178,7 @@ class Ticket(models.Model):
     external_id = models.CharField(null=True, max_length=255)
 
     # any configuration attributes for this ticket
-    config = JSONField(null=True)
+    config = models.JSONField(null=True)
 
     # the status of this ticket, one of open, closed, expired
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)

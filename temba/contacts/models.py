@@ -14,7 +14,7 @@ import regex
 from smartmin.models import SmartModel
 
 from django.conf import settings
-from django.contrib.postgres.fields import ArrayField, JSONField
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, models, transaction
@@ -32,7 +32,7 @@ from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Org, OrgLock
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
+from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
@@ -662,7 +662,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     )
 
     # custom field values for this contact, keyed by field UUID
-    fields = TembaJSONField(null=True)
+    fields = JSONField(null=True)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
 
@@ -2078,7 +2078,7 @@ class ContactImport(SmartModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contact_imports")
     file = models.FileField(upload_to=get_import_upload_path)
     original_filename = models.TextField()
-    mappings = JSONField()
+    mappings = models.JSONField()
     num_records = models.IntegerField()
     group_name = models.CharField(null=True, max_length=ContactGroup.MAX_NAME_LEN)
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, null=True, related_name="imports")
@@ -2516,7 +2516,7 @@ class ContactImportBatch(models.Model):
 
     contact_import = models.ForeignKey(ContactImport, on_delete=models.PROTECT, related_name="batches")
     status = models.CharField(max_length=1, default=ContactImport.STATUS_PENDING, choices=STATUS_CHOICES)
-    specs = JSONField()
+    specs = models.JSONField()
 
     # the range of records from the entire import contained in this batch
     record_start = models.IntegerField()
@@ -2526,7 +2526,7 @@ class ContactImportBatch(models.Model):
     num_created = models.IntegerField(default=0)
     num_updated = models.IntegerField(default=0)
     num_errored = models.IntegerField(default=0)
-    errors = JSONField(default=list)
+    errors = models.JSONField(default=list)
     finished_on = models.DateTimeField(null=True)
 
     def import_async(self):
