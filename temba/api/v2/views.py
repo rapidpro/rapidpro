@@ -11,6 +11,7 @@ from smartmin.views import SmartFormView, SmartTemplateView
 
 from django import forms
 from django.contrib.auth import authenticate, login
+from django.contrib.auth.models import User
 from django.db.models import Prefetch, Q
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
@@ -21,6 +22,7 @@ from temba.api.v2.views_base import (
     BaseAPIView,
     BulkWriteAPIMixin,
     CreatedOnCursorPagination,
+    DateJoinedCursorPagination,
     DeleteAPIMixin,
     ListAPIMixin,
     ModifiedOnCursorPagination,
@@ -36,6 +38,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
+from temba.orgs.models import OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer
 from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
@@ -79,6 +82,7 @@ from .serializers import (
     TicketerReadSerializer,
     TicketReadSerializer,
     TicketWriteSerializer,
+    UserReadSerializer,
     WebHookEventReadSerializer,
     WorkspaceReadSerializer,
 )
@@ -89,7 +93,8 @@ class RootView(views.APIView):
     We provide a RESTful JSON API for you to interact with your data from outside applications. The following endpoints
     are available:
 
-     * [/api/v2/archives](/api/v2/archives) - to list archives
+     * [/api/v2/accounts](/api/v2/accounts) - to list user accounts
+     * [/api/v2/archives](/api/v2/archives) - to list archives of messages and runs
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
      * [/api/v2/campaigns](/api/v2/campaigns) - to list, create, or update campaigns
@@ -194,6 +199,8 @@ class RootView(views.APIView):
     def get(self, request, *args, **kwargs):
         return Response(
             {
+                "accounts": reverse("api.v2.accounts", request=request),
+                "archives": reverse("api.v2.archives", request=request),
                 "boundaries": reverse("api.v2.boundaries", request=request),
                 "broadcasts": reverse("api.v2.broadcasts", request=request),
                 "campaigns": reverse("api.v2.campaigns", request=request),
@@ -235,6 +242,7 @@ class ExplorerView(SmartTemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["endpoints"] = [
+            AccountsEndpoint.get_read_explorer(),
             ArchivesEndpoint.get_read_explorer(),
             BoundariesEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_read_explorer(),
@@ -331,6 +339,82 @@ class AuthenticateView(SmartFormView):
 # ============================================================
 # Endpoints (A-Z)
 # ============================================================
+
+
+class AccountsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the user accounts in your workspace.
+
+    ## Listing Accounts
+
+    A **GET** returns the user accounts in your workspace, ordered by newest created first.
+
+     * **email** - the email address of the account (string).
+     * **first_name** - the first name of the account (string).
+     * **last_name** - the last name of the account (string).
+     * **role** - the role of the account (string), filterable as `role` which can be repeated.
+     * **created_on** - when this account was created (datetime).
+
+    Example:
+
+        GET /api/v2/accounts.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "email": "bob@flow.com",
+                "first_name": "Bob",
+                "last_name": "McFlow",
+                "role": "agent",
+                "created_on": "2013-03-02T17:28:12.123456Z"
+            },
+            ...
+    """
+
+    permission = "orgs.org_api"
+    model = User
+    serializer_class = UserReadSerializer
+    pagination_class = DateJoinedCursorPagination
+
+    def get_queryset(self):
+        org = self.request.user.get_org()
+
+        # limit to roles if specified
+        roles = self.request.query_params.getlist("role")
+        if roles:
+            role_by_name = {name: role for role, name in UserReadSerializer.ROLES.items()}
+            roles = [role_by_name.get(r) for r in roles if r in role_by_name]
+        else:
+            roles = []
+
+        return org.get_users(roles=roles).filter(is_active=True)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+
+        # build a map of users to roles so that serializing multiple users only uses on query per role
+        org = self.request.user.get_org()
+        user_roles = {}
+        for role in OrgRole:
+            for user in role.get_users(org):
+                user_roles[user] = role
+
+        context["user_roles"] = user_roles
+        return context
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Accounts",
+            "url": reverse("api.v2.accounts"),
+            "slug": "account-list",
+            "params": [],
+        }
 
 
 class ArchivesEndpoint(ListAPIMixin, BaseAPIView):

@@ -643,6 +643,43 @@ class APITest(TembaTest):
 
         self.assertFalse(Contact.objects.filter(urns__path="+12067791212"))
 
+    def test_accounts(self):
+        endpoint_url = reverse("api.v2.accounts")
+
+        self.surveyor.first_name = "Stu"
+        self.surveyor.last_name = "McSurveys"
+        self.surveyor.save()
+
+        self.assertEndpointAccess(endpoint_url)
+
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+            response = self.fetchJSON(endpoint_url)
+
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(len(resp_json["results"]), 5)
+        self.assertEqual(
+            resp_json["results"][0],
+            {
+                "email": "Surveyor@nyaruka.com",
+                "first_name": "Stu",
+                "last_name": "McSurveys",
+                "role": "surveyor",
+                "created_on": format_datetime(self.surveyor.date_joined),
+            },
+        )
+
+        # filter by roles
+        response = self.fetchJSON(endpoint_url, "role=agent&role=editor")
+        resp_json = response.json()
+        self.assertEqual(["Agent@nyaruka.com", "Editor@nyaruka.com"], [u["email"] for u in resp_json["results"]])
+
+        # non-existent roles ignored
+        response = self.fetchJSON(endpoint_url, "role=caretaker&role=editor")
+        resp_json = response.json()
+        self.assertEqual(["Editor@nyaruka.com"], [u["email"] for u in resp_json["results"]])
+
     def test_boundaries(self):
         self.setUpLocations()
 

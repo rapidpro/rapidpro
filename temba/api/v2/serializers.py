@@ -9,6 +9,7 @@ import regex
 from rest_framework import serializers
 
 from django.conf import settings
+from django.contrib.auth.models import User
 
 from temba import mailroom
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
@@ -22,7 +23,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
-from temba.orgs.models import Org
+from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer
 from temba.utils import extract_constants, json, on_transaction_commit
@@ -1510,6 +1511,27 @@ class TicketBulkActionSerializer(WriteSerializer):
             Ticket.bulk_close(org, user, tickets)
         elif action == self.ACTION_REOPEN:
             Ticket.bulk_reopen(org, user, tickets)
+
+
+class UserReadSerializer(ReadSerializer):
+    ROLES = {
+        OrgRole.ADMINISTRATOR: "administrator",
+        OrgRole.EDITOR: "editor",
+        OrgRole.VIEWER: "viewer",
+        OrgRole.AGENT: "agent",
+        OrgRole.SURVEYOR: "surveyor",
+    }
+
+    role = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC, source="date_joined")
+
+    def get_role(self, obj):
+        role = self.context["user_roles"][obj]
+        return self.ROLES[role]
+
+    class Meta:
+        model = User
+        fields = ("email", "first_name", "last_name", "role", "created_on")
 
 
 class WorkspaceReadSerializer(ReadSerializer):
