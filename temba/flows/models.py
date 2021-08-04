@@ -1513,6 +1513,38 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         return f"FlowRun[uuid={self.uuid}, flow={self.flow.uuid}]"
 
 
+class FlowStepReplica(models.Model):
+    """
+    A minimal replica of FlowStep: a contact's visit to a node in a flow
+    https://github.com/greatnonprofits-nfp/rapidpro/blob/release/0.22/temba/flows/models.py#L3398
+
+    This will be filled by a background process once a day collecting from FlowRun model
+    """
+
+    run = models.ForeignKey(FlowRun, related_name="steps", on_delete=models.PROTECT)
+
+    contact = models.ForeignKey(Contact, related_name="flow_steps", on_delete=models.PROTECT)
+
+    step_uuid = models.CharField(
+        max_length=36, db_index=True, help_text=_("The UUID of the ActionSet or RuleSet for this step")
+    )
+
+    rule_uuid = models.CharField(
+        max_length=36, null=True, help_text=_("For uuid of the rule that matched on this ruleset, null on ActionSets")
+    )
+
+    arrived_on = models.DateTimeField(help_text=_("When the contact arrived at this step in the flow"))
+
+    def release(self):
+        self.delete()
+
+    def __str__(self):
+        return f"{self.contact} - {self.step_uuid}"
+
+    class Meta:
+        unique_together = ["run", "contact"]
+
+
 class FlowRevision(SmartModel):
     """
     JSON definitions for previous flow revisions

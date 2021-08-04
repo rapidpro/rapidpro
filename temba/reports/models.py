@@ -161,7 +161,7 @@ class Report(SmartModel):
 
         # we are summarizing a flow ruleset
         if ruleset:
-            # TODO we need to implement this to search on the new model
+            # TODO we need to implement this statement to search on the new model
             #  where we will save the collected results from the flow runs once a day
             pass
 
@@ -315,7 +315,7 @@ class Report(SmartModel):
         else:
             (set_count, unset_count, categories) = cls.get_filtered_value_summary(**kwargs)
 
-            # TODO Check whether we have rules/categories
+            # Check we have and we have an OPEN ENDED ruleset
             # if ruleset and len(ruleset.get_rules()) == 1 and isinstance(ruleset.get_rules()[0].test, TrueTest):
 
             results.append(
