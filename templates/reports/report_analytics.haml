@@ -14,6 +14,7 @@
 
   :javascript
     var context = JSON.parse('{{analytics_context|escapejs}}');
+    context.endpoints = {createUpdateReport: "{% url 'reports.report_create' %}"};
     showAnalytics(document.querySelector("#analytics-container"), context);
 
 

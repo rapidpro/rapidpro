@@ -97,16 +97,17 @@ class ReportCRUDL(SmartCRUDL):
                             "text": rule["name"],
                             "flow": flow.id,
                             "stats": {
+                                # todo: add here contacts calculation for each category and rule.
+                                "categories": [{"label": label, "contacts": 0} for label in rule["categories"]],
                                 "created_on": str(flow.created_on),
                             },
                         }
                         for rule in flow.metadata.get("results", [])
                     ],
-                    # "stats": {"created_on": str(flow.created_on), "runs": FlowRunCount.get_totals(flow)},
-                    "stats": {"created_on": str(flow.created_on), "runs": 0},
+                    "stats": {"created_on": str(flow.created_on), "runs": sum(FlowRunCount.get_totals(flow).values())},
                 }
 
-            flow_json = list(map(flow_cast, Flow.objects.filter(org_id=org.id, is_active=True)))
+            flow_json = list(map(flow_cast, Flow.objects.filter(org_id=org.id, is_active=True, is_archived=False)))
 
             groups = ContactGroup.user_groups.filter(org=org).order_by("name")
             groups_json = list(filter(lambda x: x is not None, [group.analytics_json() for group in groups]))

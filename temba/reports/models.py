@@ -41,7 +41,7 @@ class Report(SmartModel):
 
     @classmethod
     def create_report(cls, org, user, json_dict):
-        title = json_dict.get(Report.TITLE)
+        title = json_dict.get(Report.TITLE) or json_dict.get("text")
         description = json_dict.get(Report.DESCRIPTION)
         config = json_dict.get(Report.CONFIG)
         id = json_dict.get(Report.ID)
