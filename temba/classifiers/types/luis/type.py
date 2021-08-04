@@ -5,6 +5,7 @@ from django.utils import timezone
 from temba.request_logs.models import HTTPLog
 
 from ...models import ClassifierType, Intent
+from .client import AuthoringClient
 from .views import ConnectView
 
 
@@ -18,11 +19,11 @@ class LuisType(ClassifierType):
     icon = "icon-luis"
 
     CONFIG_APP_ID = "app_id"
-    CONFIG_PRIMARY_KEY = "primary_key"
-    CONFIG_ENDPOINT_URL = "endpoint_url"
+    CONFIG_AUTHORING_ENDPOINT = "authoring_endpoint"
+    CONFIG_AUTHORING_KEY = "authoring_key"
+    CONFIG_PREDICTION_ENDPOINT = "prediction_endpoint"
+    CONFIG_PREDICTION_KEY = "prediction_key"
     CONFIG_SLOT = "slot"
-
-    AUTH_HEADER = "Ocp-Apim-Subscription-Key"
 
     connect_view = ConnectView
     connect_blurb = """
@@ -39,29 +40,27 @@ class LuisType(ClassifierType):
         Gets the current intents defined by this app, in LUIS that's an attribute of the app version
         """
         app_id = classifier.config[self.CONFIG_APP_ID]
-        version = classifier.config[self.CONFIG_VERSION]
-        endpoint_url = classifier.config[self.CONFIG_ENDPOINT_URL]
-        primary_key = classifier.config[self.CONFIG_PRIMARY_KEY]
+        authoring_endpoint = classifier.config[self.CONFIG_AUTHORING_ENDPOINT]
+        authoring_key = classifier.config[self.CONFIG_AUTHORING_KEY]
+        slot = classifier.config[self.CONFIG_SLOT]
 
+        client = AuthoringClient(authoring_endpoint, authoring_key)
+        intents = []
         start = timezone.now()
-        url = endpoint_url + "/apps/" + app_id + "/versions/" + version + "/intents"
+
         try:
-            response = requests.get(url, headers={self.AUTH_HEADER: primary_key})
-            elapsed = (timezone.now() - start).total_seconds() * 1000
+            app_info = client.get_app(app_id)
+            if slot.upper() in app_info["endpoints"]:
+                version = app_info["endpoints"][slot.upper()]["versionId"]
+                intents = client.get_version_intents(app_id, version)
 
-            response.raise_for_status()
-
-            HTTPLog.create_from_response(
-                HTTPLog.INTENTS_SYNCED, url, response, classifier=classifier, request_time=elapsed
-            )
-
-            response_json = response.json()
         except requests.RequestException as e:
-            HTTPLog.create_from_exception(HTTPLog.INTENTS_SYNCED, url, e, start, classifier=classifier)
+            HTTPLog.create_from_exception(HTTPLog.INTENTS_SYNCED, e.response.url, e, start, classifier=classifier)
             return []
 
-        intents = []
-        for intent in response_json:
-            intents.append(Intent(name=intent["name"], external_id=intent["id"]))
+        for log in client.logs:
+            HTTPLog.create_from_response(
+                HTTPLog.INTENTS_SYNCED, log["url"], log["response"], classifier=classifier, request_time=log["elapsed"]
+            )
 
-        return intents
+        return [Intent(name=i["name"], external_id=i["id"]) for i in intents]
