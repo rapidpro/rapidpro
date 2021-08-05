@@ -1,3 +1,12 @@
+v6.5.17
+----------
+ * Tweak error message on flow start modal now field component is fixed
+ * Fix issue for ticket window growing with url length
+ * Update LUIS classifiers to work with latest API requirements
+ * Tweak migration to populate contact.ticket_count so that it can be run manually
+ * Switch from django.contrib.postgres.fields.JSONField to django.db.models.JSONField
+ * Introduce s3 utility functions, use for reading s3 sessions in contact history
+
 v6.5.16
 ----------
  * Update to Django 3.2
