@@ -1,3 +1,7 @@
+v6.5.18
+----------
+ * Apply webhook ticket fix to successful webhook calls too
+
 v6.5.17
 ----------
  * Tweak error message on flow start modal now field component is fixed
