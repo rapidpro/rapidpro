@@ -93,7 +93,6 @@ class RootView(views.APIView):
     We provide a RESTful JSON API for you to interact with your data from outside applications. The following endpoints
     are available:
 
-     * [/api/v2/accounts](/api/v2/accounts) - to list user accounts
      * [/api/v2/archives](/api/v2/archives) - to list archives of messages and runs
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
@@ -119,6 +118,7 @@ class RootView(views.APIView):
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
      * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
      * [/api/v2/ticketers](/api/v2/ticketers) - to list ticketing services
+     * [/api/v2/users](/api/v2/users) - to list user logins
      * [/api/v2/workspace](/api/v2/workspace) - to view your workspace
 
     To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
@@ -199,7 +199,6 @@ class RootView(views.APIView):
     def get(self, request, *args, **kwargs):
         return Response(
             {
-                "accounts": reverse("api.v2.accounts", request=request),
                 "archives": reverse("api.v2.archives", request=request),
                 "boundaries": reverse("api.v2.boundaries", request=request),
                 "broadcasts": reverse("api.v2.broadcasts", request=request),
@@ -227,6 +226,7 @@ class RootView(views.APIView):
                 "ticketers": reverse("api.v2.ticketers", request=request),
                 # "tickets": reverse("api.v2.tickets", request=request),
                 # "ticket_actions": reverse("api.v2.ticket_actions", request=request),
+                "users": reverse("api.v2.users", request=request),
                 "workspace": reverse("api.v2.workspace", request=request),
             }
         )
@@ -242,7 +242,6 @@ class ExplorerView(SmartTemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["endpoints"] = [
-            AccountsEndpoint.get_read_explorer(),
             ArchivesEndpoint.get_read_explorer(),
             BoundariesEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_read_explorer(),
@@ -286,6 +285,7 @@ class ExplorerView(SmartTemplateView):
             # TicketsEndpoint.get_read_explorer(),
             # TicketsEndpoint.get_write_explorer(),
             # TicketActionsEndpoint.get_read_explorer(),
+            UsersEndpoint.get_read_explorer(),
             WorkspaceEndpoint.get_read_explorer(),
         ]
         return context
@@ -339,82 +339,6 @@ class AuthenticateView(SmartFormView):
 # ============================================================
 # Endpoints (A-Z)
 # ============================================================
-
-
-class AccountsEndpoint(ListAPIMixin, BaseAPIView):
-    """
-    This endpoint allows you to list the user accounts in your workspace.
-
-    ## Listing Accounts
-
-    A **GET** returns the user accounts in your workspace, ordered by newest created first.
-
-     * **email** - the email address of the account (string).
-     * **first_name** - the first name of the account (string).
-     * **last_name** - the last name of the account (string).
-     * **role** - the role of the account (string), filterable as `role` which can be repeated.
-     * **created_on** - when this account was created (datetime).
-
-    Example:
-
-        GET /api/v2/accounts.json
-
-    Response:
-
-        {
-            "next": null,
-            "previous": null,
-            "results": [
-            {
-                "email": "bob@flow.com",
-                "first_name": "Bob",
-                "last_name": "McFlow",
-                "role": "agent",
-                "created_on": "2013-03-02T17:28:12.123456Z"
-            },
-            ...
-    """
-
-    permission = "orgs.org_api"
-    model = User
-    serializer_class = UserReadSerializer
-    pagination_class = DateJoinedCursorPagination
-
-    def get_queryset(self):
-        org = self.request.user.get_org()
-
-        # limit to roles if specified
-        roles = self.request.query_params.getlist("role")
-        if roles:
-            role_by_name = {name: role for role, name in UserReadSerializer.ROLES.items()}
-            roles = [role_by_name.get(r) for r in roles if r in role_by_name]
-        else:
-            roles = []
-
-        return org.get_users(roles=roles).filter(is_active=True)
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-
-        # build a map of users to roles so that serializing multiple users only uses on query per role
-        org = self.request.user.get_org()
-        user_roles = {}
-        for role in OrgRole:
-            for user in role.get_users(org):
-                user_roles[user] = role
-
-        context["user_roles"] = user_roles
-        return context
-
-    @classmethod
-    def get_read_explorer(cls):
-        return {
-            "method": "GET",
-            "title": "List Accounts",
-            "url": reverse("api.v2.accounts"),
-            "slug": "account-list",
-            "params": [],
-        }
 
 
 class ArchivesEndpoint(ListAPIMixin, BaseAPIView):
@@ -3692,6 +3616,82 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
     #             {"name": "note", "required": False, "help": "The note text"},
     #         ],
     #     }
+
+
+class UsersEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the user logins in your workspace.
+
+    ## Listing Users
+
+    A **GET** returns the users in your workspace, ordered by newest created first.
+
+     * **email** - the email address of the user (string).
+     * **first_name** - the first name of the user (string).
+     * **last_name** - the last name of the user (string).
+     * **role** - the role of the user (string), filterable as `role` which can be repeated.
+     * **created_on** - when this user was created (datetime).
+
+    Example:
+
+        GET /api/v2/users.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "email": "bob@flow.com",
+                "first_name": "Bob",
+                "last_name": "McFlow",
+                "role": "agent",
+                "created_on": "2013-03-02T17:28:12.123456Z"
+            },
+            ...
+    """
+
+    permission = "orgs.org_api"
+    model = User
+    serializer_class = UserReadSerializer
+    pagination_class = DateJoinedCursorPagination
+
+    def get_queryset(self):
+        org = self.request.user.get_org()
+
+        # limit to roles if specified
+        roles = self.request.query_params.getlist("role")
+        if roles:
+            role_by_name = {name: role for role, name in UserReadSerializer.ROLES.items()}
+            roles = [role_by_name.get(r) for r in roles if r in role_by_name]
+        else:
+            roles = []
+
+        return org.get_users(roles=roles).filter(is_active=True)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+
+        # build a map of users to roles so that serializing multiple users only uses on query per role
+        org = self.request.user.get_org()
+        user_roles = {}
+        for role in OrgRole:
+            for user in role.get_users(org):
+                user_roles[user] = role
+
+        context["user_roles"] = user_roles
+        return context
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Users",
+            "url": reverse("api.v2.users"),
+            "slug": "user-list",
+            "params": [],
+        }
 
 
 class WorkspaceEndpoint(BaseAPIView):

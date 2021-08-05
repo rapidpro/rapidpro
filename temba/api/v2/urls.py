@@ -3,7 +3,6 @@ from rest_framework.urlpatterns import format_suffix_patterns
 from django.conf.urls import url
 
 from .views import (
-    AccountsEndpoint,
     ArchivesEndpoint,
     AuthenticateView,
     BoundariesEndpoint,
@@ -35,6 +34,7 @@ from .views import (
     TicketActionsEndpoint,
     TicketersEndpoint,
     TicketsEndpoint,
+    UsersEndpoint,
     WorkspaceEndpoint,
 )
 
@@ -43,7 +43,6 @@ urlpatterns = [
     url(r"^explorer/$", ExplorerView.as_view(), name="api.v2.explorer"),
     url(r"^authenticate$", AuthenticateView.as_view(), name="api.v2.authenticate"),
     # ========== endpoints A-Z ===========
-    url(r"^accounts$", AccountsEndpoint.as_view(), name="api.v2.accounts"),
     url(r"^archives$", ArchivesEndpoint.as_view(), name="api.v2.archives"),
     url(r"^boundaries$", BoundariesEndpoint.as_view(), name="api.v2.boundaries"),
     url(r"^broadcasts$", BroadcastsEndpoint.as_view(), name="api.v2.broadcasts"),
@@ -73,6 +72,7 @@ urlpatterns = [
     url(r"^ticketers$", TicketersEndpoint.as_view(), name="api.v2.ticketers"),
     url(r"^tickets$", TicketsEndpoint.as_view(), name="api.v2.tickets"),
     url(r"^ticket_actions$", TicketActionsEndpoint.as_view(), name="api.v2.ticket_actions"),
+    url(r"^users$", UsersEndpoint.as_view(), name="api.v2.users"),
     url(r"^workspace$", WorkspaceEndpoint.as_view(), name="api.v2.workspace"),
 ]
 
