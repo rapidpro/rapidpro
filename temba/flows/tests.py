@@ -2567,7 +2567,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(
             broadcast_url,
             {"mode": "query", "query": "", "exclude_in_other": False, "exclude_reruns": False},
-            form_errors={"__all__": "Contact query is required."},
+            form_errors={"query": "This field is required."},
             object_unchanged=flow,
         )
 

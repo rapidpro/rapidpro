@@ -1874,9 +1874,7 @@ class FlowCRUDL(SmartCRUDL):
                 if mode == self.MODE_SELECT and not omnibox:
                     self.add_error("omnibox", _("This field is required."))
                 elif mode == self.MODE_QUERY and not query:
-                    # TODO https://github.com/nyaruka/temba-components/issues/103
-                    # self.add_error("query", _("This field is required."))
-                    raise ValidationError(_("Contact query is required."))
+                    self.add_error("query", _("This field is required."))
 
                 return cleaned_data
 
