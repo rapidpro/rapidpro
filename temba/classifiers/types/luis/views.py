@@ -36,7 +36,7 @@ class ConnectView(BaseConnectView):
                 app_info = client.get_app(cleaned["app_id"])
                 app_endpoints = app_info["endpoints"]
                 if cleaned["slot"].upper() not in app_endpoints:
-                    raise forms.ValidationError(_("App has not yet been published"))
+                    raise forms.ValidationError(_("App has not yet been published to %s slot.") % cleaned["slot"])
             except requests.RequestException as e:
                 raise forms.ValidationError(_("Check authoring credentials: %s") % str(e))
 

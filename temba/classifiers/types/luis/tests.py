@@ -1,6 +1,7 @@
+import json
 from unittest.mock import patch
 
-from requests import RequestException
+from requests.exceptions import RequestException
 
 from django.urls import reverse
 
@@ -8,28 +9,93 @@ from temba.classifiers.models import Classifier
 from temba.request_logs.models import HTTPLog
 from temba.tests import MockResponse, TembaTest
 
+from .client import AuthoringClient, PredictionClient
 from .type import LuisType
 
-INTENT_RESPONSE = """
-[
-  {
-    "id": "b1a3c0ad-e912-4b55-a62e-6fcb77751bc5",
-    "name": "Book Car",
-    "typeId": 0,
-    "readableType": "Intent Classifier"
-  },
-  {
-    "id": "326d5197-2161-4daa-aa32-c42c7000c82c",
-    "name": "Book Hotel",
-    "typeId": 0,
-    "readableType": "Intent Classifier"
-  }
-]
-"""
+GET_APP_RESPONSE = """{
+    "id": "1dc41f72-b9d9-4a38-8999-5acf78e3d17e",
+    "name": "Test",
+    "description": "",
+    "versionsCount": 1,
+    "createdDateTime": "2021-08-04T19:46:10Z",
+    "endpoints": {
+        "PRODUCTION": {
+            "versionId": "0.1",
+            "publishedDateTime": "2021-08-04T20:41:47Z"
+        }
+    },
+    "endpointHitsCount": 0,
+    "activeVersion": "0.1"
+}"""
+GET_VERSION_INTENTS_RESPONSE = """[
+    {"id": "75d2e81c-e441-45ac", "name": "Book Flight", "typeId": 0, "readableType": "Intent Classifier"},
+    {"id": "3c8e22d9-4f1c-4add", "name": "Book Hotel", "typeId": 0, "readableType": "Intent Classifier"}
+]"""
+
+
+class AuthoringClientTest(TembaTest):
+    @patch("requests.get")
+    def test_get_app(self, mock_get):
+        client = AuthoringClient("http://nyaruka-authoring.luis.api", "235252111")
+
+        mock_get.return_value = MockResponse(400, '{"error": "yes"}')
+
+        with self.assertRaises(RequestException):
+            client.get_app("123456")
+
+        self.assertEqual(1, len(client.logs))
+        self.assertEqual("http://nyaruka-authoring.luis.apiluis/api/v2.0/apps/123456", client.logs[0]["url"])
+
+        mock_get.return_value = MockResponse(200, GET_APP_RESPONSE)
+        app_info = client.get_app("123456")
+
+        self.assertEqual(json.loads(GET_APP_RESPONSE), app_info)
+        self.assertEqual(2, len(client.logs))
+
+    @patch("requests.get")
+    def test_get_version_intents(self, mock_get):
+        client = AuthoringClient("http://nyaruka-authoring.luis.api", "235252111")
+
+        mock_get.return_value = MockResponse(400, '{"error": "yes"}')
+
+        with self.assertRaises(RequestException):
+            client.get_version_intents("123456", "0.1")
+
+        self.assertEqual(1, len(client.logs))
+        self.assertEqual(
+            "http://nyaruka-authoring.luis.apiluis/api/v2.0/apps/123456/versions/0.1/intents", client.logs[0]["url"]
+        )
+
+        mock_get.return_value = MockResponse(200, GET_VERSION_INTENTS_RESPONSE)
+        app_info = client.get_version_intents("123456", "0.1")
+
+        self.assertEqual(json.loads(GET_VERSION_INTENTS_RESPONSE), app_info)
+        self.assertEqual(2, len(client.logs))
+
+
+class PredictionClientTest(TembaTest):
+    @patch("requests.get")
+    def test_predict(self, mock_get):
+        client = PredictionClient("http://nyaruka.luis.api", "235252111")
+
+        mock_get.return_value = MockResponse(400, '{"error": "yes"}')
+
+        with self.assertRaises(RequestException):
+            client.predict("123456", "production", "hello")
+
+        mock_get.return_value = MockResponse(200, """{"query": "Hello"}""")
+        mock_get.reset_mock()
+
+        client.predict("123456", "production", "hello")
+
+        mock_get.assert_called_once_with(
+            "http://nyaruka.luis.apiluis/prediction/v3.0/apps/123456/slots/production/predict?query=hello&subscription-key=235252111"
+        )
 
 
 class LuisTypeTest(TembaTest):
-    def test_sync(self):
+    @patch("requests.get")
+    def test_sync(self, mock_get):
         # create classifier but don't sync the intents
         c = Classifier.create(
             self.org,
@@ -37,79 +103,152 @@ class LuisTypeTest(TembaTest):
             LuisType.slug,
             "Booker",
             {
-                LuisType.CONFIG_APP_ID: "12345",
-                LuisType.CONFIG_PRIMARY_KEY: "sesame",
-                LuisType.CONFIG_ENDPOINT_URL: "http://luis.api",
-                LuisType.CONFIG_VERSION: "0.1",
+                LuisType.CONFIG_APP_ID: "1dc41f72-b9d9-4a38-8999-5acf78e3d17e",
+                LuisType.CONFIG_AUTHORING_ENDPOINT: "http://nyaruka-authoring.luis.api",
+                LuisType.CONFIG_AUTHORING_KEY: "sesame",
+                LuisType.CONFIG_PREDICTION_ENDPOINT: "http://nyaruka.luis.api",
+                LuisType.CONFIG_PREDICTION_KEY: "sesame",
+                LuisType.CONFIG_SLOT: "production",
             },
             sync=False,
         )
 
-        with patch("requests.get") as mock_get:
-            mock_get.return_value = MockResponse(400, '{ "error": "true" }')
+        mock_get.side_effect = [MockResponse(400, '{"error": "yes"}')]
 
-            c.get_type().get_active_intents_from_api(c)
-            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 1)
+        c.get_type().get_active_intents_from_api(c)
+        self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 1)
 
-            mock_get.side_effect = RequestException("Network is unreachable", response=MockResponse(100, ""))
-            c.get_type().get_active_intents_from_api(c)
-            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 2)
+        mock_get.side_effect = [MockResponse(100, "")]
 
-        with patch("requests.get") as mock_get:
-            mock_get.return_value = MockResponse(200, INTENT_RESPONSE)
-            intents = c.get_type().get_active_intents_from_api(c)
+        c.get_type().get_active_intents_from_api(c)
+        self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 2)
 
-            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 3)
-            self.assertEqual(2, len(intents))
-            car = intents[0]
-            self.assertEqual("Book Car", car.name)
-            self.assertEqual("b1a3c0ad-e912-4b55-a62e-6fcb77751bc5", car.external_id)
+        mock_get.side_effect = [
+            MockResponse(200, GET_APP_RESPONSE),
+            MockResponse(200, GET_VERSION_INTENTS_RESPONSE),
+        ]
 
-    def test_connect(self):
-        url = reverse("classifiers.classifier_connect")
-        response = self.client.get(url)
-        self.assertRedirect(response, "/users/login/")
+        intents = c.get_type().get_active_intents_from_api(c)
+
+        self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 4)
+        self.assertEqual(2, len(intents))
+        self.assertEqual("Book Flight", intents[0].name)
+        self.assertEqual("75d2e81c-e441-45ac", intents[0].external_id)
+
+    @patch("temba.classifiers.types.luis.views.AuthoringClient.get_app")
+    @patch("temba.classifiers.types.luis.views.AuthoringClient.get_version_intents")
+    @patch("temba.classifiers.types.luis.views.PredictionClient.predict")
+    @patch("socket.gethostbyname")
+    def test_connect(self, mock_get_host, mock_predict, mock_get_version_intents, mock_get_app):
+        mock_get_host.return_value = "192.55.123.1"
+
+        connect_url = reverse("classifiers.classifier_connect")
+        response = self.client.get(connect_url)
+        self.assertLoginRedirect(response)
 
         self.login(self.admin)
-        response = self.client.get(url)
+        response = self.client.get(connect_url)
 
         # should have url for claiming our type
-        url = reverse("classifiers.types.luis.connect")
-        self.assertContains(response, url)
-
-        response = self.client.get(url)
-        post_data = response.context["form"].initial
+        luis_url = reverse("classifiers.types.luis.connect")
+        self.assertContains(response, luis_url)
 
         # will fail as we don't have anything filled out
-        response = self.client.post(url, post_data)
+        response = self.client.post(luis_url, {})
+        self.assertFormError(response, "form", "name", ["This field is required."])
         self.assertFormError(response, "form", "app_id", ["This field is required."])
+        self.assertFormError(response, "form", "authoring_endpoint", ["This field is required."])
+        self.assertFormError(response, "form", "authoring_key", ["This field is required."])
+        self.assertFormError(response, "form", "prediction_endpoint", ["This field is required."])
+        self.assertFormError(response, "form", "prediction_key", ["This field is required."])
+        self.assertFormError(response, "form", "slot", ["This field is required."])
 
-        post_data["name"] = "Booker"
-        post_data["app_id"] = "12345"
-        post_data["version"] = "0.1"
-        post_data["primary_key"] = "sesame"
-        post_data["endpoint_url"] = "http://nyaruka.com/luis"
+        # simulate wrong authoring credentials
+        mock_get_app.side_effect = RequestException(
+            "Not authorized", response=MockResponse(401, '{ "error": "true" }')
+        )
 
-        # can't connect
-        with patch("requests.get") as mock_get:
-            mock_get.return_value = MockResponse(400, '{ "error": "true" }')
-            response = self.client.post(url, post_data)
-            self.assertEqual(200, response.status_code)
-            self.assertFalse(Classifier.objects.all())
+        response = self.client.post(
+            luis_url,
+            {
+                "name": "Booker",
+                "app_id": "12345",
+                "authoring_endpoint": "http://nyaruka-authoring.luis.api",
+                "authoring_key": "325253",
+                "prediction_endpoint": "http://nyaruka.luis.api",
+                "prediction_key": "456373",
+                "slot": "staging",
+            },
+        )
+        self.assertFormError(response, "form", "__all__", "Check authoring credentials: Not authorized")
 
-            self.assertContains(response, "Unable to get intents for your app")
+        # simulate selected slot isn't published
+        mock_get_app.side_effect = None
+        mock_get_app.return_value = json.loads(GET_APP_RESPONSE)
 
-        # all good
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = [MockResponse(200, '{ "error": "false" }'), MockResponse(200, INTENT_RESPONSE)]
-            response = self.client.post(url, post_data)
-            self.assertEqual(302, response.status_code)
+        response = self.client.post(
+            luis_url,
+            {
+                "name": "Booker",
+                "app_id": "12345",
+                "authoring_endpoint": "http://nyaruka-authoring.luis.api",
+                "authoring_key": "325253",
+                "prediction_endpoint": "http://nyaruka.luis.api",
+                "prediction_key": "456373",
+                "slot": "staging",
+            },
+        )
+        self.assertFormError(response, "form", "__all__", "App has not yet been published to staging slot.")
 
-            c = Classifier.objects.get()
-            self.assertEqual("Booker", c.name)
-            self.assertEqual("luis", c.classifier_type)
-            self.assertEqual("sesame", c.config[LuisType.CONFIG_PRIMARY_KEY])
-            self.assertEqual("http://nyaruka.com/luis", c.config[LuisType.CONFIG_ENDPOINT_URL])
-            self.assertEqual("0.1", c.config[LuisType.CONFIG_VERSION])
+        # simulate wrong prediction credentials
+        mock_predict.side_effect = RequestException(
+            "Not authorized", response=MockResponse(401, '{ "error": "true" }')
+        )
 
-            self.assertEqual(2, c.intents.all().count())
+        response = self.client.post(
+            luis_url,
+            {
+                "name": "Booker",
+                "app_id": "12345",
+                "authoring_endpoint": "http://nyaruka-authoring.luis.api",
+                "authoring_key": "325253",
+                "prediction_endpoint": "http://nyaruka.luis.api",
+                "prediction_key": "456373",
+                "slot": "production",
+            },
+        )
+        self.assertFormError(response, "form", "__all__", "Check prediction credentials: Not authorized")
+
+        mock_get_version_intents.return_value = json.loads(GET_VERSION_INTENTS_RESPONSE)
+        mock_predict.side_effect = None
+
+        response = self.client.post(
+            luis_url,
+            {
+                "name": "Booker",
+                "app_id": "12345",
+                "authoring_endpoint": "http://nyaruka-authoring.luis.api",
+                "authoring_key": "325253",
+                "prediction_endpoint": "http://nyaruka.luis.api",
+                "prediction_key": "456373",
+                "slot": "production",
+            },
+        )
+        self.assertEqual(302, response.status_code)
+
+        c = Classifier.objects.get()
+        self.assertEqual("Booker", c.name)
+        self.assertEqual("luis", c.classifier_type)
+        self.assertEqual(
+            {
+                "app_id": "12345",
+                "authoring_endpoint": "http://nyaruka-authoring.luis.api",
+                "authoring_key": "325253",
+                "prediction_endpoint": "http://nyaruka.luis.api",
+                "prediction_key": "456373",
+                "slot": "production",
+            },
+            c.config,
+        )
+
+        self.assertEqual(2, c.intents.all().count())

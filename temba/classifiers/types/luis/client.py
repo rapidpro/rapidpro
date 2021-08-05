@@ -57,9 +57,7 @@ class PredictionClient:
         """
         https://westcentralus.dev.cognitive.microsoft.com/docs/services/luis-endpoint-api-v3-0/operations/5cb0a91e54c9db63d589f433
         """
-        return self._request(
-            f"apps/{app_id}/slots/{slot}/predict", {"verbose": True, "show-all-intents": True, "query": query}
-        )
+        return self._request(f"apps/{app_id}/slots/{slot}/predict", {"query": query})
 
     def _request(self, path: str, params: dict):
         params["subscription-key"] = self.key

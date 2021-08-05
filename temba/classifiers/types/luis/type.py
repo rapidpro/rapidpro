@@ -1,7 +1,5 @@
 import requests
 
-from django.utils import timezone
-
 from temba.request_logs.models import HTTPLog
 
 from ...models import ClassifierType, Intent
@@ -46,17 +44,14 @@ class LuisType(ClassifierType):
 
         client = AuthoringClient(authoring_endpoint, authoring_key)
         intents = []
-        start = timezone.now()
 
         try:
             app_info = client.get_app(app_id)
             if slot.upper() in app_info["endpoints"]:
                 version = app_info["endpoints"][slot.upper()]["versionId"]
                 intents = client.get_version_intents(app_id, version)
-
-        except requests.RequestException as e:
-            HTTPLog.create_from_exception(HTTPLog.INTENTS_SYNCED, e.response.url, e, start, classifier=classifier)
-            return []
+        except requests.RequestException:
+            pass
 
         for log in client.logs:
             HTTPLog.create_from_response(
