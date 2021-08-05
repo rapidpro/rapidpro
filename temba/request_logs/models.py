@@ -109,7 +109,7 @@ class HTTPLog(models.Model):
     ):
         org = (classifier or channel or ticketer).org
 
-        is_error = response.status_code != 200
+        is_error = response.status_code >= 400
         data = dump.dump_response(
             response,
             request_prefix=cls.REQUEST_DELIM.encode("utf-8"),
