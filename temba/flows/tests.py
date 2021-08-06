@@ -5667,6 +5667,22 @@ class FlowSessionCRUDLTest(TembaTest):
 
         response_json = json.loads(response.content)
         self.assertEqual("Temba", response_json["_metadata"]["org"])
+        self.assertEqual(session.uuid, response_json["uuid"])
+
+        # now try with an s3 session
+        FlowSession.objects.filter(id=session.id).update(
+            output_url="https://temba-sessions.s3.aws.amazon.com/c/session.json",
+            output=None,
+        )
+        mock_s3 = MockS3Client()
+        mock_s3.objects[("temba-sessions", "c/session.json")] = io.StringIO(json.dumps(session.output))
+
+        # fetch our contact history
+        with patch("temba.utils.s3.s3.client", return_value=mock_s3):
+            response = self.client.get(url)
+            self.assertEqual(200, response.status_code)
+            self.assertEqual("Temba", response_json["_metadata"]["org"])
+            self.assertEqual(session.uuid, response_json["uuid"])
 
 
 class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
