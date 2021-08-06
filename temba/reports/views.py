@@ -70,7 +70,6 @@ class ReportCRUDL(SmartCRUDL):
                     return f"{prefix}{filename}"
                 return f"{settings.STATIC_URL}@greatnonprofits-nfp/temba-analytics/build{filename}"
 
-
             for key, filename in data.get("files").items():
                 # tack on our prefix for dev mode
                 filename = get_static_filename(filename)
@@ -123,12 +122,14 @@ class ReportCRUDL(SmartCRUDL):
                     current_report = json.dumps(request_report.as_json())
 
             return dict(
-                analytics_context=json.dumps(dict(
-                    flows=flow_json,
-                    groups=groups_json,
-                    reports=reports_json,
-                    current_report=current_report,
-                )),
+                analytics_context=json.dumps(
+                    dict(
+                        flows=flow_json,
+                        groups=groups_json,
+                        reports=reports_json,
+                        current_report=current_report,
+                    )
+                ),
                 scripts=scripts,
                 styles=styles,
             )

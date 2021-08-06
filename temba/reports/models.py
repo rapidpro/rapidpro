@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, connection
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 
@@ -7,6 +7,7 @@ from django_redis import get_redis_connection
 from smartmin.models import SmartModel
 
 from temba.contacts.models import ContactField, ContactGroup
+from temba.flows.models import Flow
 from temba.utils import json
 from temba.utils.models import JSONField
 from temba.orgs.models import Org
@@ -341,3 +342,68 @@ class Report(SmartModel):
 
     class Meta:
         unique_together = (("org", "title"),)
+
+
+class FlowResultsAggregation(models.Model):
+    """
+    A model to store flow results data that is required for analytics reports, in more practical way.
+    {
+        result_key: {
+            category_key: {
+                # ids of all contacts answered with that category
+                contact_ids: [1, 4, 15]
+            },
+            another_category_key {
+                contact_ids: [3, 7]
+            }
+        }
+    }
+    """
+
+    flow = models.OneToOneField("flows.Flow", on_delete=models.PROTECT, related_name="aggregated_results")
+    data = JSONField(default={})
+    last_updated = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def aggregate_flow_results_data(cls, flow: Flow):
+        flow_results = {result["key"]: result["categories"] for result in flow.metadata["results"]}
+        result_keys = sorted(list(flow_results.keys()))
+        is_data_exists = cls.objects.filter(flow_id=flow.id).exists()
+        is_data_already_updated = is_data_exists and not flow.runs.filter(
+            modified_on__lt=flow.aggregated_results.last_updated
+        )
+        if is_data_already_updated or not result_keys:
+            return
+
+        # select runs data and build the aggregated data to save
+        def category_extractor(field):
+            return "results::jsonb #> '{%s, category}' as %s" % (field, field)
+
+        query = (
+            f"SELECT {', '.join(map(category_extractor, result_keys))}, array_agg(contact_id) as contact_id "
+            f"FROM flows_flowrun WHERE flow_id = {flow.id}"
+            f"GROUP BY {', '.join(result_keys)}"
+        )
+
+        final_data = {key: {category: set() for category in categories} for key, categories in flow_results.items()}
+        with connection.cursor() as cursor:
+            cursor.execute(query)
+            result_answers = cursor.fetchall()
+            for idx, result_key in enumerate(result_keys):
+                for record in result_answers:
+                    category_key = record[idx]
+                    if category_key:
+                        final_data[result_key][category_key].update(record[-1])
+
+        # convert sets to lists
+        for result_key, category_keys in flow_results.items():
+            for category_key in category_keys:
+                final_data[result_key][category_key] = list(final_data[result_key][category_key])
+
+        # create or update the aggregated data in DB
+        if is_data_exists:
+            flow_results_agg = flow.aggregated_results
+            flow_results_agg.data = final_data
+            flow_results_agg.save()
+        else:
+            cls.objects.create(flow=flow, data=final_data)
