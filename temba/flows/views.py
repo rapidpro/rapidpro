@@ -50,8 +50,8 @@ from temba.utils.fields import (
     CheckboxWidget,
     ContactSearchWidget,
     InputWidget,
-    JSONField,
     OmniboxChoice,
+    OmniboxField,
     SelectMultipleWidget,
     SelectWidget,
 )
@@ -1816,7 +1816,7 @@ class FlowCRUDL(SmartCRUDL):
                 initial=MODE_SELECT,
             )
 
-            omnibox = JSONField(
+            omnibox = OmniboxField(
                 required=False,
                 widget=OmniboxChoice(
                     attrs={
