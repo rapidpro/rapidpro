@@ -14,15 +14,17 @@ class Command(BaseCommand):
         parser.add_argument(
             "--dry-run", action="store_true", dest="dry_run", help="Whether to run without making actual changes"
         )
+        parser.add_argument("--quiet", action="store_true", dest="quiet")
 
-    def handle(self, start_id: int, dry_run: bool, *args, **options):
+    def handle(self, start_id: int, dry_run: bool, quiet: bool, *args, **options):
         start = FlowStart.objects.filter(id=start_id).first()
         if not start:
             raise CommandError("no such flow start")
 
-        prompt = f"Undo events for start #{start.id} of '{start.flow}' flow in the '{start.org.name}' workspace?"
-        if input(prompt + " [y/N]: ") != "y":
-            return
+        if not quiet:
+            prompt = f"Undo events for start #{start.id} of '{start.flow}' flow in the '{start.org.name}' workspace?"
+            if input(prompt + " [y/N]: ") != "y":
+                return
 
         undoers = {event_type: clazz(self.stdout) for event_type, clazz in UNDO_CLASSES.items()}
 
@@ -87,7 +89,8 @@ class ContactGroupsChanged:
             if dry_run:
                 self.stdout.write(f"   - contact {contact.uuid} re-added to {', '.join([g.name for g in groups])}")
             else:
-                contact.user_groups.add(*groups)
+                for group in groups:
+                    group.contacts.add(contact)
 
             for name in [g["name"] for g in event.get("groups_removed", [])]:
                 self.readds[name] += 1
