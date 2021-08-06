@@ -2010,6 +2010,11 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "Successfully Sent")
         self.assertContains(response, "Error Sending")
 
+        # check error logs only
+        response = self.client.get(list_url + "?errors=1")
+        self.assertNotContains(response, "Successfully Sent")
+        self.assertContains(response, "Error Sending")
+
         # view failed alone
         response = self.client.get(read_url)
         self.assertContains(response, "failed+message")

@@ -1481,13 +1481,19 @@ class ChannelLogCRUDL(SmartCRUDL):
                 events = ChannelLog.objects.filter(channel=channel, connection=None, msg=None).order_by("-created_on")
 
             else:
-                events = (
-                    ChannelLog.objects.filter(channel=channel, connection=None)
-                    .exclude(msg=None)
-                    .order_by("-created_on")
-                    .select_related("msg", "msg__contact", "msg__contact_urn", "channel", "channel__org")
+                logs = ChannelLog.objects.filter(channel=channel, connection=None).exclude(msg=None)
+
+                if self.request.GET.get("errors"):
+                    logs = logs.filter(is_error=True)
+
+                events = logs.order_by("-created_on").select_related(
+                    "msg", "msg__contact", "msg__contact_urn", "channel", "channel__org"
                 )
-                patch_queryset_count(events, channel.get_non_ivr_log_count)
+
+                if self.request.GET.get("errors"):
+                    patch_queryset_count(events, channel.get_error_log_count)
+                else:
+                    patch_queryset_count(events, channel.get_non_ivr_log_count)
 
             return events
 
