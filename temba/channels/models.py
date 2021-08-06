@@ -1325,6 +1325,14 @@ class ChannelLog(models.Model):
     def release(self):
         self.delete()
 
+    class Meta:
+        indexes = [
+            models.Index(
+                name="channels_log_error_created",
+                fields=("channel", "is_error", "-created_on"),
+            )
+        ]
+
 
 class SyncEvent(SmartModel):
     """
