@@ -4,7 +4,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactGroup
-from temba.flows.models import FlowSession, FlowStart
+from temba.flows.models import FlowRun, FlowSession, FlowStart
+from temba.utils import chunk_list
 
 
 class Command(BaseCommand):
@@ -35,20 +36,17 @@ class Command(BaseCommand):
             if input(f"Undo {desc}? [y/N]: ") != "y":
                 return
 
-        # process batches of runs for the flow start
+        self.stdout.write(f"Fetching run ids... ", ending="")
+        run_ids = list(start.runs.values_list("id", flat=True))
+        self.stdout.write(f"found {len(run_ids)}")
+
         num_fixed = 0
-        max_run_id = 0
-        while True:
-            run_batch = list(
-                start.runs.filter(id__gt=max_run_id)
-                .only("id", "contact_id", "session_id")
-                .order_by("id")[: self.batch_size]
-            )
-            if not run_batch:
-                break
+
+        # process runs in batches
+        for run_id_batch in chunk_list(run_ids, self.batch_size):
+            run_batch = list(FlowRun.objects.filter(id__in=run_id_batch).only("id", "contact_id", "session_id"))
 
             self.undo_for_batch(run_batch, undoers, dry_run)
-            max_run_id = run_batch[-1].id
             num_fixed += len(run_batch)
 
             self.stdout.write(f" > Fixed {num_fixed} contacts")

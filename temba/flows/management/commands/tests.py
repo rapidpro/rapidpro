@@ -1,5 +1,7 @@
 from django.core.management import call_command
+from django.utils import timezone
 
+from temba.contacts.models import Contact
 from temba.flows.models import FlowNodeCount, FlowStart
 from temba.tests import TembaTest
 from temba.tests.engine import MockSessionWriter
@@ -201,6 +203,8 @@ class UndoFootgunTest(TembaTest):
             .save()
         )
 
+        t0 = timezone.now()
+
         self.assertEqual({contact1, contact2, contact3}, set(group1.contacts.all()))
         self.assertEqual({contact1, contact2}, set(group2.contacts.all()))
         self.assertEqual({contact3}, set(group3.contacts.all()))
@@ -212,9 +216,15 @@ class UndoFootgunTest(TembaTest):
         self.assertEqual({contact1, contact2}, set(group2.contacts.all()))
         self.assertEqual({contact3}, set(group3.contacts.all()))
 
+        # no contacts will have had modified_on updated
+        self.assertEqual(0, Contact.objects.filter(modified_on__gt=t0).count())
+
         # and then actually make database changes
         call_command("undo_footgun", start=start1.id, quiet=True)
 
         self.assertEqual({contact3}, set(group1.contacts.all()))
         self.assertEqual(set(), set(group2.contacts.all()))
         self.assertEqual({contact1, contact2, contact3}, set(group3.contacts.all()))
+
+        # contacts 1 and 2 will have had modified_on updated
+        self.assertEqual(2, Contact.objects.filter(modified_on__gt=t0).count())
