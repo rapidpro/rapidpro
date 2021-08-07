@@ -1330,6 +1330,7 @@ class ChannelLog(models.Model):
             models.Index(
                 name="channels_log_error_created",
                 fields=("channel", "is_error", "-created_on"),
+                condition=Q(is_error=True),
             )
         ]
 
