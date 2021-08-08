@@ -20,6 +20,7 @@ from .views import DefaultTriggerForm, RegisterTriggerForm
 
 class TriggerTest(TembaTest):
     def test_no_trigger_redirects_to_create_page(self):
+
         self.login(self.admin)
 
         # no trigger existing
@@ -934,3 +935,42 @@ class TriggerTest(TembaTest):
         self.assertEqual(Schedule.objects.count(), 0)
         self.assertEqual(ContactGroup.user_groups.count(), 1)
         self.assertEqual(Flow.objects.count(), 1)
+
+    def test_trigger_schedule_in_batch(self):
+        self.login(self.admin)
+        flow = self.create_flow()
+
+        contact_1 = self.create_contact("John Doe", phone="+250789997754")
+        contact_2 = self.create_contact("Jane Doe", phone="+250222997500")
+        contact_3 = self.create_contact("James Bond", phone="+25029000333")
+
+        group_1 = self.create_group("Group 1", [contact_1, contact_2])
+        group_2 = self.create_group("Group 2", [contact_3])
+
+        now = timezone.now()
+        tomorrow = now + timedelta(days=1)
+        omnibox_selection = omnibox_serialize(flow.org, [group_1, group_2], [], True)
+
+        batch_interval = 10
+
+        self.client.post(
+            reverse("triggers.trigger_schedule_in_batch"),
+            {
+                "flow": flow.id,
+                "omnibox": omnibox_selection,
+                "repeat_period": "O",
+                "start": "later",
+                "batch_interval": batch_interval,
+                "start_datetime": datetime_to_str(tomorrow, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
+        )
+
+        triggers = Trigger.objects.all()
+        first_trigger_time = triggers.first().schedule.next_fire
+        second_trigger_time = triggers.last().schedule.next_fire
+        minute_dif = second_trigger_time - first_trigger_time
+
+        minutes = divmod(minute_dif.total_seconds(), 60)
+        self.assertEqual(triggers.count(), 2)
+        self.assertTrue(second_trigger_time > first_trigger_time)
+        self.assertEqual(int(minutes[0]), batch_interval)
