@@ -163,7 +163,7 @@ class FlowSessionCRUDL(SmartCRUDL):
 
         def get(self, request, *args, **kwargs):
             session = self.get_object()
-            output = session.output
+            output = session.output_json
             output["_metadata"] = dict(
                 session_id=session.id, org=session.org.name, org_id=session.org_id, site=self.request.branding["link"]
             )
