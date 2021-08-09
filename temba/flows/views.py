@@ -50,8 +50,8 @@ from temba.utils.fields import (
     CheckboxWidget,
     ContactSearchWidget,
     InputWidget,
-    JSONField,
     OmniboxChoice,
+    OmniboxField,
     SelectMultipleWidget,
     SelectWidget,
 )
@@ -1816,7 +1816,7 @@ class FlowCRUDL(SmartCRUDL):
                 initial=MODE_SELECT,
             )
 
-            omnibox = JSONField(
+            omnibox = OmniboxField(
                 required=False,
                 widget=OmniboxChoice(
                     attrs={
@@ -1888,12 +1888,6 @@ class FlowCRUDL(SmartCRUDL):
         success_url = "uuid@flows.flow_editor"
 
         blockers = {
-            "suspended": _(
-                "Sorry, your workspace is currently suspended. To re-enable starting flows, please contact support."
-            ),
-            "flagged": _(
-                "Sorry, your workspace is currently flagged. To re-enable starting flows, please contact support."
-            ),
             "already_starting": _(
                 "This flow is already being started - please wait until that process completes before starting "
                 "more contacts."
@@ -1939,9 +1933,9 @@ class FlowCRUDL(SmartCRUDL):
             blockers = []
 
             if flow.org.is_suspended:
-                blockers.append(self.blockers["suspended"])
+                blockers.append(Org.BLOCKER_SUSPENDED)
             elif flow.org.is_flagged:
-                blockers.append(self.blockers["flagged"])
+                blockers.append(Org.BLOCKER_FLAGGED)
             elif flow.is_starting():
                 blockers.append(self.blockers["already_starting"])
 

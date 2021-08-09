@@ -826,11 +826,7 @@ class APITest(TembaTest):
         # try sending as a flagged org
         self.org.flag()
         response = self.postJSON(url, None, {"text": "Hello", "urns": ["twitter:franky"]})
-        self.assertResponseError(
-            response,
-            "non_field_errors",
-            "Sorry, your workspace is currently flagged. To enable sending messages, please contact support.",
-        )
+        self.assertResponseError(response, "non_field_errors", Org.BLOCKER_FLAGGED)
 
     def test_archives(self):
         url = reverse("api.v2.archives")

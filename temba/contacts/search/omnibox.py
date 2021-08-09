@@ -121,11 +121,13 @@ def omnibox_mixed_search(org, query, types):
     return results
 
 
-def omnibox_serialize(org, groups, contacts, json_encode=False):
+def omnibox_serialize(org, groups, contacts, *, urns=(), raw_urns=(), json_encode=False):
     """
     Shortcut for proper way to serialize a queryset of groups and contacts for omnibox component
     """
-    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts), version="2")
+    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts) + list(urns), version="2")
+
+    serialized += [{"type": "urn", "id": u} for u in raw_urns]
 
     if json_encode:
         return [json.dumps(_) for _ in serialized]

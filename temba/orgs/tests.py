@@ -38,7 +38,6 @@ from temba.contacts.models import (
     ContactURN,
     ExportContactsTask,
 )
-from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
@@ -1163,13 +1162,6 @@ class OrgTest(TembaTest):
         mark = self.create_contact("Mark", phone="+12065551212")
         flow = self.create_flow()
 
-        def send_broadcast():
-            send_url = reverse("msgs.broadcast_send")
-            omnibox = omnibox_serialize(self.org, [], [mark], True)
-            return self.client.post(
-                send_url, {"text": "send me ur bank account login im ur friend.", "omnibox": omnibox}, follow=True
-            )
-
         def send_broadcast_via_api():
             url = reverse("api.v2.broadcasts")
             data = dict(contacts=[mark.uuid], text="You are a distant cousin to a wealthy person.")
@@ -1188,69 +1180,41 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_flagged)
 
+        expected_message = "Sorry, your workspace is currently flagged. To re-enable starting flows and sending messages, please contact support."
+
         # while we are flagged, we can't send broadcasts
-        response = send_broadcast()
-        self.assertFormError(
-            response,
-            "form",
-            "__all__",
-            "Sorry, your workspace is currently flagged. To enable sending messages, please contact support.",
-        )
+        response = self.client.get(reverse("msgs.broadcast_send"))
+        self.assertContains(response, expected_message)
 
         # we also can't start flows
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
-        self.assertContains(
-            response,
-            "Sorry, your workspace is currently flagged. To re-enable starting flows, please contact support.",
-        )
+        self.assertContains(response, expected_message)
 
         response = send_broadcast_via_api()
-        self.assertContains(
-            response,
-            "Sorry, your workspace is currently flagged. To enable sending messages, please contact support.",
-            status_code=400,
-        )
+        self.assertContains(response, expected_message, status_code=400)
 
         response = start_flow_via_api()
-        self.assertContains(
-            response,
-            "Sorry, your workspace is currently flagged. To enable sending messages, please contact support.",
-            status_code=400,
-        )
+        self.assertContains(response, expected_message, status_code=400)
 
         # unflag org and suspend it instead
         self.org.unflag()
         self.org.is_suspended = True
         self.org.save(update_fields=("is_suspended",))
 
-        response = send_broadcast()
-        self.assertFormError(
-            response,
-            "form",
-            "__all__",
-            "Sorry, your workspace is currently suspended. To enable sending messages, please contact support.",
-        )
+        expected_message = "Sorry, your workspace is currently suspended. To re-enable starting flows and sending messages, please contact support."
+
+        response = self.client.get(reverse("msgs.broadcast_send"))
+        self.assertContains(response, expected_message)
 
         # we also can't start flows
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
-        self.assertContains(
-            response,
-            "Sorry, your workspace is currently suspended. To re-enable starting flows, please contact support.",
-        )
+        self.assertContains(response, expected_message)
 
         response = send_broadcast_via_api()
-        self.assertContains(
-            response,
-            "Sorry, your workspace is currently suspended. To enable sending messages, please contact support.",
-            status_code=400,
-        )
+        self.assertContains(response, expected_message, status_code=400)
 
         response = start_flow_via_api()
-        self.assertContains(
-            response,
-            "Sorry, your workspace is currently suspended. To enable sending messages, please contact support.",
-            status_code=400,
-        )
+        self.assertContains(response, expected_message, status_code=400)
 
         # check our inbox page
         response = self.client.get(reverse("msgs.msg_inbox"))
