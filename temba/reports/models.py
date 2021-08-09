@@ -349,19 +349,15 @@ class FlowResultsAggregation(models.Model):
     A model to store flow results data that is required for analytics reports, in more practical way.
     {
         result_key: {
-            category_key: {
-                # ids of all contacts answered with that category
-                contact_ids: [1, 4, 15]
-            },
-            another_category_key {
-                contact_ids: [3, 7]
-            }
+            # ids of all contacts answered with that category
+            category_key: [1, 4, 15],
+            another_category_key: [3, 7]
         }
     }
     """
 
     flow = models.OneToOneField("flows.Flow", on_delete=models.PROTECT, related_name="aggregated_results")
-    data = JSONField(default={})
+    data = JSONField(default=dict)
     last_updated = models.DateTimeField(auto_now=True)
 
     @classmethod
@@ -370,7 +366,7 @@ class FlowResultsAggregation(models.Model):
         result_keys = sorted(list(flow_results.keys()))
         is_data_exists = cls.objects.filter(flow_id=flow.id).exists()
         is_data_already_updated = is_data_exists and not flow.runs.filter(
-            modified_on__lt=flow.aggregated_results.last_updated
+            modified_on__gt=flow.aggregated_results.last_updated
         )
         if is_data_already_updated or not result_keys:
             return

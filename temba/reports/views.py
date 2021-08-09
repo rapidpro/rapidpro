@@ -1,9 +1,13 @@
 import json
 import traceback
+from itertools import groupby
 
 import requests
+from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import reverse
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
+from rest_framework.views import APIView
+from rest_framework.response import Response as APIResponse
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartTemplateView
 from temba.orgs.views import OrgPermsMixin
 from .models import Report
@@ -13,7 +17,7 @@ from ..flows.models import Flow, FlowRunCount, FlowRevision
 
 
 class ReportCRUDL(SmartCRUDL):
-    actions = ("create", "analytics", "results")
+    actions = ("create", "analytics", "charts_data", "results")
     model = Report
 
     class Create(OrgPermsMixin, SmartCreateView):
@@ -96,8 +100,6 @@ class ReportCRUDL(SmartCRUDL):
                             "text": rule["name"],
                             "flow": flow.id,
                             "stats": {
-                                # todo: add here contacts calculation for each category and rule.
-                                "categories": [{"label": label, "contacts": 0} for label in rule["categories"]],
                                 "created_on": str(flow.created_on),
                             },
                         }
@@ -186,3 +188,63 @@ class ReportCRUDL(SmartCRUDL):
         def render_to_response(self, context, **response_kwargs):
             response = HttpResponse(json.dumps(context), content_type="application/json")
             return response
+
+    class ChartsData(OrgPermsMixin, SmartTemplateView, APIView):
+        permission = "reports.report_read"
+
+        def get_filters(self, org):
+            # get filter ids
+            values_filters = self.request.data.get("filters", {}).get("values", [])
+            groups_filters = self.request.data.get("filters", {}).get("groups", [])
+            if not any((values_filters, groups_filters)):
+                return set(), False
+
+            filter_ids = set()
+            for flow_id, fields in groupby(values_filters, lambda x: x["field"]["flow"]):
+                try:
+                    flow = org.flows.get(id=flow_id)
+                    results = flow.aggregated_results.data
+                    for field in fields:
+                        for category in field["categories"]:
+                            filter_ids.update(results.get(field["field"]["rule"], {}).get(category, []))
+                except ObjectDoesNotExist:
+                    continue
+
+            group_ids = [_id for _ids in groups_filters for _id in _ids]
+            if group_ids:
+                group_ids = org.contacts.filter(all_groups__id__in=group_ids).values_list("id", flat=True)
+                filter_ids.update(group_ids)
+            return filter_ids, True
+
+        def post(self, request, *args, **kwargs):
+            user = self.request.user
+            org = user.get_org()
+
+            fields = self.request.data.get("fields", [])
+            filtered_ids, do_filter = self.get_filters(org)
+            charts_data = []
+
+            def get_filtered_results(result_data):
+                return [
+                    {
+                        "label": category,
+                        "count": len(
+                            filtered_ids.intersection(result_data[category])
+                            if do_filter else result_data[category]
+                        )
+                    }
+                    for category in result_data.keys()
+                ]
+
+            for flow_id, fields in groupby(fields, lambda x: x["id"]["flow"]):
+                try:
+                    flow = org.flows.get(id=flow_id)
+                    results = flow.aggregated_results.data
+                    for field in fields:
+                        charts_data.append({
+                            "id": field["id"],
+                            "categories": get_filtered_results(results[field["id"]["rule"]])
+                        })
+                except ObjectDoesNotExist:
+                    continue
+            return APIResponse(charts_data)
