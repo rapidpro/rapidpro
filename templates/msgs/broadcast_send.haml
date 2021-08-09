@@ -1,4 +1,4 @@
--extends 'smartmin/form.html'
+-extends 'includes/modax.html'
 -load smartmin i18n
 
 -block fields
@@ -12,12 +12,11 @@
     .fixed-wrapper(style="position:fixed;width:362px;margin-left:200px;margin-top:-38px")
       %temba-charcount
 
--block extra-fields
-  -if recipient_count
-    -blocktrans trimmed count recipient_count as recipients
-      {{ recipients }} recipient currently at this step in the flow
-      -plural
-        {{ recipients }} recipients currently at this step in the flow
+    -if recipient_count
+      -blocktrans trimmed count recipient_count as recipients
+        <b>{{ recipients }}</b> recipient currently at this point in the flow
+        -plural
+          <b>{{ recipients }}</b> recipients currently at this point in the flow
 
 
 -block form-buttons

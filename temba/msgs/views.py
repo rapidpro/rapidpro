@@ -25,6 +25,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.formax import FormaxMixin
+from temba.orgs.models import Org
 from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, on_transaction_commit
 from temba.utils.fields import (
@@ -320,12 +321,6 @@ class BroadcastCRUDL(SmartCRUDL):
         submit_button_name = _("Send")
 
         blockers = {
-            "suspended": _(
-                "Sorry, your workspace is currently suspended. To re-enable sending messages, please contact support."
-            ),
-            "flagged": _(
-                "Sorry, your workspace is currently flagged. To re-enable sending messages, please contact support."
-            ),
             "no_send_channel": _(
                 'To get started you need to <a href="%(link)s">add a channel</a> to your workspace which will allow '
                 "you to send messages to your contacts."
@@ -376,9 +371,9 @@ class BroadcastCRUDL(SmartCRUDL):
             blockers = []
 
             if org.is_suspended:
-                blockers.append(self.blockers["suspended"])
+                blockers.append(Org.BLOCKER_SUSPENDED)
             elif org.is_flagged:
-                blockers.append(self.blockers["flagged"])
+                blockers.append(Org.BLOCKER_FLAGGED)
             if not org.get_send_channel():
                 blockers.append(self.blockers["no_send_channel"] % {"link": reverse("channels.channel_claim")})
 

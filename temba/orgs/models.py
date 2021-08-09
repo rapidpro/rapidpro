@@ -269,6 +269,15 @@ class Org(SmartModel):
 
     DELETE_DELAY_DAYS = 7  # how many days after releasing that an org is deleted
 
+    BLOCKER_SUSPENDED = _(
+        "Sorry, your workspace is currently suspended. To re-enable starting flows and sending messages, please "
+        "contact support."
+    )
+    BLOCKER_FLAGGED = _(
+        "Sorry, your workspace is currently flagged. To re-enable starting flows and sending messages, please "
+        "contact support."
+    )
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     name = models.CharField(verbose_name=_("Name"), max_length=128)

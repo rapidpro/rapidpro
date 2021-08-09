@@ -112,8 +112,7 @@ class WriteSerializer(serializers.Serializer):
             )
 
         if self.context["org"].is_flagged or self.context["org"].is_suspended:
-            state = "flagged" if self.context["org"].is_flagged else "suspended"
-            msg = f"Sorry, your workspace is currently {state}. To enable sending messages, please contact support."
+            msg = Org.BLOCKER_FLAGGED if self.context["org"].is_flagged else Org.BLOCKER_SUSPENDED
             raise serializers.ValidationError(detail={"non_field_errors": [msg]})
 
         return super().run_validation(data)
