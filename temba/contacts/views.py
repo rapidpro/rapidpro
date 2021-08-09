@@ -38,7 +38,6 @@ from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.flows.models import Flow, FlowStart
 from temba.mailroom.events import Event
-from temba.msgs.views import SendMessageForm
 from temba.orgs.models import Org
 from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
@@ -349,7 +348,6 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
         context["folders"] = folders
         context["has_contacts"] = contacts or org.has_contacts()
         context["search_error"] = self.search_error
-        context["send_form"] = SendMessageForm(self.request.user)
         context["folder_count"] = counts[self.system_group] if self.system_group else None
 
         context["sort_direction"] = self.sort_direction
