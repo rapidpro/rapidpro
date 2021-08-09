@@ -1377,11 +1377,6 @@ a:hover {
   color: rgba(255, 255, 255, .9);
 }
 
-.lbl-group.inverted::before {
-    color: rgba(255, 255, 255, .9);
-    content: "\e03c";
-  }
-
 .lbl-group.inverted.linked:hover {
     cursor: pointer;
     color: rgba(255, 255, 255, .9);
@@ -1389,78 +1384,8 @@ a:hover {
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
   }
 
-.lbl-group-dynamic {
-  background-color: rgba(0, 0, 0, .05);
-  border-radius: 9999px;
-  cursor: default;
-  display: inline-block;
-  font-weight: 400;
-  font-size: 0.75rem;
-  line-height: 1.25;
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
-  --tw-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-  text-align: center;
-  color: rgba(0, 0, 0, .5);
-  text-decoration: none;
-  letter-spacing: 0.025em;
-  white-space: nowrap;
-}
-
-.lbl-group-dynamic.linked:hover {
-    cursor: pointer;
-    color: rgba(0, 0, 0, .5);
-    text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .3);
-  }
-
-.lbl-group-dynamic.linked:active {
-    --tw-shadow: 0 0 #0000;
-    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-  }
-
-.lbl-group-dynamic.inverted {
-  color: rgba(255, 255, 255, .9);
-}
-
-.lbl-group-dynamic.inverted.linked:hover {
-    cursor: pointer;
-    color: rgba(255, 255, 255, .9);
-    text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
-  }
-
-.lbl-group-dynamic {
-  display: flex;
-  align-items: center;
-}
-
-.lbl-group-dynamic temba-icon {
-    --icon-color: rgba(0,0,0,.5);
-    margin-right: 3px;
-  }
-
-.lbl-group-dynamic.inverted {
-  color: rgba(255, 255, 255, .9);
-}
-
-.lbl-group-dynamic.inverted::before {
-    color: rgba(255, 255, 255, .9);
-    content: "\e03c";
-  }
-
-.lbl-group-dynamic.inverted.linked:hover {
-    cursor: pointer;
-    color: rgba(255, 255, 255, .9);
-    text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
-  }
-
-.lbl-group-dynamic::before {
-    content: "\ebeb";
+.lbl-group.inverted temba-icon {
+    --icon-color: rgba(255, 255, 255, .9);
   }
 
 .lbl-secondary {
