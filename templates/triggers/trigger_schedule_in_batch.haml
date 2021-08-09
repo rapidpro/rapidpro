@@ -7,7 +7,7 @@
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
 
   :javascript
-    const messageTemplate = 'Are you sure you want to schedule the flow {flowName}, to {groupCount} groups with an interval of {batchInterval} minutes'
+    const messageTemplate = 'Are you sure you want to schedule the flow "{flowName}", to {groupCount} groups with an interval of {batchInterval} minutes?'
 
     function fetchPJAXContentV2(url, container, options) {
       let type = 'GET';
@@ -145,7 +145,7 @@
     #embed-container-schedule
 
 
-  %temba-dialog#bulk-schedule-confirmation.hide(header='{{ _("Bulk Schedule Confirmation")|escapejs }}' primaryButtonName='{{ _("Yes")|escapejs }}' destructive='true')
+  %temba-dialog#bulk-schedule-confirmation.hide(header='{{ _("Bulk Schedule Confirmation")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
     .p-6
 
 
