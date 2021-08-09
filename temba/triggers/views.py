@@ -812,12 +812,6 @@ class TriggerCRUDL(SmartCRUDL):
         form_class = ScheduleTriggerInBatchForm
         title = _("Create Schedule In Batch")
 
-        def pre_save(self, obj, *args, **kwargs):
-            obj = super().pre_save(obj, *args, **kwargs)
-            obj.org = self.request.user.get_org()
-            obj.extra = self.flow_params
-            return obj
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
