@@ -826,11 +826,7 @@ class APITest(TembaTest):
         # try sending as a flagged org
         self.org.flag()
         response = self.postJSON(url, None, {"text": "Hello", "urns": ["twitter:franky"]})
-        self.assertResponseError(
-            response,
-            "non_field_errors",
-            "Sorry, your workspace is currently flagged. To enable sending messages, please contact support.",
-        )
+        self.assertResponseError(response, "non_field_errors", Org.BLOCKER_FLAGGED)
 
     def test_archives(self):
         url = reverse("api.v2.archives")
@@ -4628,3 +4624,40 @@ class APITest(TembaTest):
         ticket2.refresh_from_db()
         self.assertEqual("O", ticket1.status)
         self.assertEqual("O", ticket2.status)
+
+    def test_users(self):
+        endpoint_url = reverse("api.v2.users")
+
+        self.surveyor.first_name = "Stu"
+        self.surveyor.last_name = "McSurveys"
+        self.surveyor.save()
+
+        self.assertEndpointAccess(endpoint_url)
+
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+            response = self.fetchJSON(endpoint_url)
+
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(len(resp_json["results"]), 5)
+        self.assertEqual(
+            resp_json["results"][0],
+            {
+                "email": "Surveyor@nyaruka.com",
+                "first_name": "Stu",
+                "last_name": "McSurveys",
+                "role": "surveyor",
+                "created_on": format_datetime(self.surveyor.date_joined),
+            },
+        )
+
+        # filter by roles
+        response = self.fetchJSON(endpoint_url, "role=agent&role=editor")
+        resp_json = response.json()
+        self.assertEqual(["Agent@nyaruka.com", "Editor@nyaruka.com"], [u["email"] for u in resp_json["results"]])
+
+        # non-existent roles ignored
+        response = self.fetchJSON(endpoint_url, "role=caretaker&role=editor")
+        resp_json = response.json()
+        self.assertEqual(["Editor@nyaruka.com"], [u["email"] for u in resp_json["results"]])

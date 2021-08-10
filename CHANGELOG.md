@@ -1,3 +1,13 @@
+v6.5.19
+----------
+ * Fix system group labels on contact read page
+ * Use shared error messages for orgs being flagged or suspended
+ * Update to latest smartmin (ignores _format=json on views that don't support it)
+ * Add command to undo events from a flow start
+ * Send modal should validate URNs
+ * Use s3 when appropriate to get session output
+ * Add basic user accounts API endpoint
+
 v6.5.18
 ----------
  * Apply webhook ticket fix to successful webhook calls too

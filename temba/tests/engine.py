@@ -2,7 +2,7 @@ from django.utils import timezone
 
 from temba.api.models import WebHookResult
 from temba.channels.models import Channel
-from temba.contacts.models import URN
+from temba.contacts.models import URN, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.msgs.models import Msg
 from temba.utils.text import slugify_with
@@ -124,11 +124,21 @@ class MockSessionWriter:
         self._log_event("contact_urns_changed", urns=urns)
         return self
 
+    def add_contact_groups(self, groups):
+        self._log_event("contact_groups_changed", groups_added=[{"uuid": str(g.uuid), "name": g.name} for g in groups])
+        return self
+
+    def remove_contact_groups(self, groups):
+        self._log_event(
+            "contact_groups_changed", groups_removed=[{"uuid": str(g.uuid), "name": g.name} for g in groups]
+        )
+        return self
+
     def error(self, text):
         self._log_event("error", text=text)
         return self
 
-    def send_msg(self, text, channel=None, attachments=[]):
+    def send_msg(self, text, channel=None, attachments=()):
         msg = {
             "uuid": str(uuid4()),
             "urn": self.contact.get_urn().urn,
@@ -311,6 +321,13 @@ class MockSessionWriter:
             status="S",
             sent_on=event["created_on"],
         )
+
+    def _handle_contact_groups_changed(self, event):
+        for group in event.get("groups_added", []):
+            ContactGroup.user_groups.get(uuid=group["uuid"]).contacts.add(self.contact)
+
+        for group in event.get("groups_removed", []):
+            ContactGroup.user_groups.get(uuid=group["uuid"]).contacts.remove(self.contact)
 
     def _handle_webhook_called(self, event):
         WebHookResult.objects.create(

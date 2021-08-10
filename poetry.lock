@@ -1150,7 +1150,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "smartmin"
-version = "3.0.0"
+version = "3.0.1"
 description = "Scaffolding system for Django object management."
 category = "main"
 optional = false
@@ -1333,7 +1333,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "87eac4bf3be987790c0f115044c0cf060e7a358c15846dce492cac013953c258"
+content-hash = "3091a2ec7f4fa4b1b6d74686821dd4341c0ca20659daaf343aa53325d5030f24"
 
 [metadata.files]
 amqp = [
@@ -1887,8 +1887,8 @@ six = [
     {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
 ]
 smartmin = [
-    {file = "smartmin-3.0.0-py3-none-any.whl", hash = "sha256:3b8b737e0f830a009b864a65982e1e9d6b8677d2c0dcf5225009b8d3b895c2e5"},
-    {file = "smartmin-3.0.0.tar.gz", hash = "sha256:f027d63acbd6407911164123aed40755af6b86fb489f6cdd5ce618166a03393a"},
+    {file = "smartmin-3.0.1-py3-none-any.whl", hash = "sha256:6592e639a65c53b3501ba6cbe5835510a51ef14c4737c523d172e5ca5494ccf0"},
+    {file = "smartmin-3.0.1.tar.gz", hash = "sha256:5ad0236c21c79c87b92f6dd02a523deea056563a2505632336486763edac8f97"},
 ]
 soupsieve = [
     {file = "soupsieve-2.2.1-py3-none-any.whl", hash = "sha256:c2c1c2d44f158cdbddab7824a9af8c4f83c76b1e23e049479aa432feb6c4c23b"},
