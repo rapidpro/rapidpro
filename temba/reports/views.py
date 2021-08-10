@@ -129,20 +129,12 @@ class ReportCRUDL(SmartCRUDL):
             reports = Report.objects.filter(is_active=True, org=org).order_by("title")
             reports_json = [report.as_json() for report in reports]
 
-            current_report = None
-            edit_report = self.request.GET.get("edit_report", None)
-            if edit_report and int(edit_report):  # pragma: needs cover
-                request_report = Report.objects.filter(pk=edit_report, org=org).first()
-                if request_report:
-                    current_report = json.dumps(request_report.as_json())
-
             return dict(
                 analytics_context=json.dumps(
                     dict(
                         flows=flow_json,
                         groups=groups_json,
                         reports=reports_json,
-                        current_report=current_report,
                         data_status=DataCollectionProcess.get_last_collection_process_status(org),
                     )
                 ),

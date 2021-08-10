@@ -76,13 +76,18 @@ class DataCollectionProcess(models.Model):
         last_dc: DataCollectionProcess = (
             cls.objects.filter(Q(related_org=org) | Q(start_type=cls.TYPE_AUTO)).order_by("-started_on").first()
         )
-        data_status = {
-            "lastUpdate": str(last_dc.started_on),
-            "completed": bool(last_dc.completed_on),
-            "progress": (
-                (last_dc.flows_skipped + last_dc.flows_processed) / last_dc.flows_total if last_dc.flows_total else 1
-            ),
-        }
+        if last_dc:
+            data_status = {
+                "lastUpdated": str(last_dc.started_on),
+                "completed": bool(last_dc.completed_on),
+                "progress": (
+                    (last_dc.flows_skipped + last_dc.flows_processed) / last_dc.flows_total
+                    if last_dc.flows_total
+                    else 1
+                ),
+            }
+        else:
+            data_status = {"lastUpdated": None, "completed": True, "progress": 1}
         return data_status
 
 
