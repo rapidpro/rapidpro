@@ -447,7 +447,7 @@ class TriggerCRUDL(SmartCRUDL):
             add_section("trigger-keyword", "triggers.trigger_keyword", "icon-tree")
             add_section("trigger-register", "triggers.trigger_register", "icon-users-2")
             add_section("trigger-schedule", "triggers.trigger_schedule", "icon-clock")
-            add_section("trigger-schedule-in-batch", "triggers.trigger_schedule_in_batch", "icon-users")
+            add_section("trigger-schedule-in-batch", "triggers.trigger_schedule_in_batch", "icon-wand")
             add_section("trigger-inboundcall", "triggers.trigger_inbound_call", "icon-phone2")
             add_section("trigger-missedcall", "triggers.trigger_missed_call", "icon-phone")
 
