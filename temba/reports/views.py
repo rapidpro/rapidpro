@@ -9,6 +9,7 @@ from django.conf import settings
 from django.db.models import F
 from django.shortcuts import reverse
 from django.http import HttpResponseRedirect, JsonResponse
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response as APIResponse
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartTemplateView
@@ -20,7 +21,7 @@ from ..flows.models import Flow, FlowRunCount
 
 
 class ReportCRUDL(SmartCRUDL):
-    actions = ("create", "analytics", "charts_data", "update_charts_data")
+    actions = ("create", "delete", "analytics", "charts_data", "update_charts_data")
     model = Report
 
     class Create(OrgPermsMixin, SmartCreateView):
@@ -46,6 +47,18 @@ class ReportCRUDL(SmartCRUDL):
                 return JsonResponse(dict(status="error", description="Error creating report: %s" % str(e)), status=400)
 
             return JsonResponse(dict(status="success", description="Report Created", report=report.as_json()))
+
+    class Delete(OrgPermsMixin, SmartTemplateView, APIView):
+        permission = "reports.report_delete"
+
+        def delete(self, request, *args, **kwargs):
+            org = request.user.get_org()
+            report_id = request.data.get("report_id")
+            if all((org, report_id)):
+                report = Report.objects.filter(org=org, id=report_id).first()
+                if report:
+                    report.delete()
+            return APIResponse({}, status=status.HTTP_204_NO_CONTENT)
 
     class Analytics(OrgPermsMixin, SmartTemplateView):
         title = "Analytics"

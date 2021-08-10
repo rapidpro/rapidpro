@@ -21,7 +21,8 @@
     var context = JSON.parse('{{analytics_context|escapejs}}');
     context.endpoints = {
       createUpdateReport: "{% url 'reports.report_create' %}",
-      loadChartsData: "{% url 'reports.report_charts_data' %}"
+      loadChartsData: "{% url 'reports.report_charts_data' %}",
+      deleteReport: "{% url 'reports.report_delete' %}"
     };
     showAnalytics(document.querySelector("#analytics-container"), context);
 
