@@ -1680,84 +1680,55 @@ class ChannelConnection(models.Model):
     Base for IVR sessions which require a connection to specific channel
     """
 
-    PENDING = "P"  # initial state for all sessions
-    QUEUED = "Q"  # the session is queued internally
-    WIRED = "W"  # the API provider has confirmed that it successfully received the API request
+    TYPE_VOICE = "V"
+    TYPE_CHOICES = ((TYPE_VOICE, "Voice"),)
 
-    # valid for IVR sessions
-    RINGING = "R"  # the call in ringing
-    IN_PROGRESS = "I"  # the call has been answered
-    BUSY = "B"  # the call is busy or rejected by the user
-    FAILED = "F"  # the platform failed to initiate the call (bad phone number)
-    NO_ANSWER = "N"  # the call has timed-out or ringed-out
-    CANCELED = "C"  # the call was terminated by platform
-    COMPLETED = "D"  # the call was completed successfully
+    DIRECTION_INCOMING = "I"
+    DIRECTION_OUTGOING = "O"
+    DIRECTION_CHOICES = ((DIRECTION_INCOMING, "Incoming"), (DIRECTION_OUTGOING, "Outgoing"))
 
-    # valid for USSD sessions
-    TRIGGERED = "T"
-    INTERRUPTED = "X"
-    INITIATED = "A"
-    ENDING = "E"
-
-    DONE = (COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED)
-    RETRY_CALL = (BUSY, NO_ANSWER, FAILED)
-
-    INCOMING = "I"
-    OUTGOING = "O"
-
-    IVR = "F"  # deprecated use VOICE
-    VOICE = "V"
-
-    DIRECTION_CHOICES = ((INCOMING, "Incoming"), (OUTGOING, "Outgoing"))
-
-    TYPE_CHOICES = ((VOICE, "Voice"),)
-
+    STATUS_PENDING = "P"  # used for initial creation in database
+    STATUS_WIRED = "W"  # the call has been requested on the IVR provider
+    STATUS_QUEUED = "Q"  # the call was requested but we've been throttled (will be retried)
+    STATUS_IN_PROGRESS = "I"  # the call has been answered
+    STATUS_BUSY = "B"  # the call is busy (will be retried)
+    STATUS_NO_ANSWER = "N"  # the call has timed-out or ringed-out (will be retried)
+    STATUS_CANCELED = "C"  # the call was terminated by platform
+    STATUS_COMPLETED = "D"  # the call was completed successfully
+    STATUS_ERRORED = "E"  # temporary failure (will be retried)
+    STATUS_FAILED = "F"  # permanent failure
     STATUS_CHOICES = (
-        (PENDING, "Pending"),
-        (QUEUED, "Queued"),
-        (WIRED, "Wired"),
-        (RINGING, "Ringing"),
-        (IN_PROGRESS, "In Progress"),
-        (COMPLETED, "Complete"),
-        (BUSY, "Busy"),
-        (FAILED, "Failed"),
-        (NO_ANSWER, "No Answer"),
-        (CANCELED, "Canceled"),
-        (INTERRUPTED, "Interrupted"),
-        (TRIGGERED, "Triggered"),
-        (INITIATED, "Initiated"),
-        (ENDING, "Ending"),
+        (STATUS_PENDING, "Pending"),
+        (STATUS_WIRED, "Wired"),
+        (STATUS_QUEUED, "Queued"),
+        (STATUS_IN_PROGRESS, "In Progress"),
+        (STATUS_BUSY, "Busy"),
+        (STATUS_NO_ANSWER, "No Answer"),
+        (STATUS_CANCELED, "Canceled"),
+        (STATUS_COMPLETED, "Complete"),
+        (STATUS_FAILED, "Failed"),
+        (STATUS_ERRORED, "Errored"),
     )
 
-    created_on = models.DateTimeField(
-        default=timezone.now, editable=False, blank=True, help_text="When this item was originally created"
-    )
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    connection_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
+    direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
-    modified_on = models.DateTimeField(
-        default=timezone.now, editable=False, blank=True, help_text="When this item was last modified"
-    )
-
-    external_id = models.CharField(max_length=255, help_text="The external id for this session, our twilio id usually")
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING)
     channel = models.ForeignKey("Channel", on_delete=models.PROTECT, related_name="connections")
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="connections")
     contact_urn = models.ForeignKey("contacts.ContactURN", on_delete=models.PROTECT, related_name="connections")
-    direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
-    started_on = models.DateTimeField(null=True, blank=True)
-    ended_on = models.DateTimeField(null=True, blank=True)
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
-    connection_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
-    duration = models.IntegerField(default=0, null=True, help_text="The length of this connection in seconds")
+    external_id = models.CharField(max_length=255)  # e.g. Twilio call ID
 
-    retry_count = models.IntegerField(
-        default=0, verbose_name=_("Retry Count"), help_text="The number of times this call has been retried"
-    )
-    error_count = models.IntegerField(
-        default=0, verbose_name=_("Error Count"), help_text="The number of times this call has errored"
-    )
-    next_attempt = models.DateTimeField(
-        verbose_name=_("Next Attempt"), help_text="When we should next attempt to make this call", null=True
-    )
+    created_on = models.DateTimeField(default=timezone.now)
+    modified_on = models.DateTimeField(default=timezone.now)
+    started_on = models.DateTimeField(null=True)
+    ended_on = models.DateTimeField(null=True)
+    duration = models.IntegerField(null=True)  # in seconds
+
+    retry_count = models.IntegerField()
+    error_count = models.IntegerField()
+    next_attempt = models.DateTimeField(null=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1767,7 +1738,7 @@ class ChannelConnection(models.Model):
         all the methods the proxy model implements. """
 
         if type(self) is ChannelConnection:
-            if self.connection_type == self.IVR:
+            if self.connection_type == self.TYPE_VOICE:
                 from temba.ivr.models import IVRCall
 
                 self.__class__ = IVRCall
@@ -1784,7 +1755,7 @@ class ChannelConnection(models.Model):
         """
         duration = self.duration or 0
 
-        if not duration and self.status == self.IN_PROGRESS and self.started_on:
+        if not duration and self.status == self.STATUS_IN_PROGRESS and self.started_on:
             duration = (timezone.now() - self.started_on).seconds
 
         return timedelta(seconds=duration)
@@ -1814,3 +1785,12 @@ class ChannelConnection(models.Model):
             msg.release()
 
         self.delete()
+
+    class Meta:
+        indexes = [
+            models.Index(
+                name="channelconnection_ivr_to_retry",
+                fields=["next_attempt"],
+                condition=Q(connection_type="V", status__in=("Q", "N", "B", "E"), next_attempt__isnull=False),
+            )
+        ]
