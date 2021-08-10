@@ -21,7 +21,7 @@
 
       let headers = { 'X-PJAX': true };
       if (options && 'headers' in options) {
-        headers = Object.keys(options).reduce(function (acc, key) {
+        headers = Object.keys(options).reduce(function(acc, key) {
           acc[key] = options['headers'][key]
           return acc;
         }, Object.assign(headers, {}));
@@ -66,7 +66,7 @@
     }
 
     function buildFormData(form) {
-      return form.serializeArray().reduce(function (acc, item) {
+      return form.serializeArray().reduce(function(acc, item) {
           let value = item.value;
           if (item.name === 'omnibox' && value) {
             value = acc['omnibox'] || [];
@@ -77,15 +77,17 @@
         }, {});
     }
 
-    document.addEventListener("DOMContentLoaded", function(){
-      var repeatPeriod = document.querySelector("#id_schedule_repeat_period");
+    document.addEventListener("DOMContentLoaded", function() {
+      const formContainer = document.querySelector('#id-trigger-schedule-in-batch');
+      const repeatPeriod = formContainer.querySelector("#id_schedule_repeat_period");
+
       if (repeatPeriod) {
-        repeatPeriod.addEventListener("change", function(event){
-          var currentRepeat = event.currentTarget.values[0].value;
+        repeatPeriod.addEventListener("change", function(event) {
+          const currentRepeat = event.currentTarget.values[0].value;
           if (currentRepeat === 'W') {
-            document.querySelector(".weekly-repeat-options").classList.remove("hidden");
+            formContainer.querySelector("div.weekly-repeat-options").classList.remove("hidden");
           } else {
-            document.querySelector(".weekly-repeat-options").classList.add("hidden");
+            formContainer.querySelector("div.weekly-repeat-options").classList.add("hidden");
           }
         });
       }
@@ -95,13 +97,12 @@
       const form = section.find('form');
       const flowOptionList = document.querySelector('#id_schedule_flow').querySelectorAll('[name]');
       const flowById = {};
-      flowOptionList.forEach(function (node) {
+      flowOptionList.forEach(function(node) {
         flowById[node.getAttribute('value').toString()] = node.getAttribute('name');
       });
 
-      form.off("submit").on("submit", function (e) {
+      form.off("submit").on("submit", function(e) {
         e.preventDefault();
-
         const formDataByName = buildFormData(form)
 
         const modalMessage = $('#bulk-schedule-confirmation').find('div.p-6');
@@ -117,7 +118,7 @@
         inBatchConfirmation.open = true;
       });
 
-      inBatchConfirmation.addEventListener("temba-button-clicked", function(event){
+      inBatchConfirmation.addEventListener("temba-button-clicked", function(event) {
         if (!event.detail.button.secondary) submitFormData(form);
         inBatchConfirmation.classList.add("hide");
         inBatchConfirmation.open = false;
