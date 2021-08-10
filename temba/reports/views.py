@@ -3,7 +3,9 @@ import traceback
 from itertools import groupby
 
 import requests
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import F
 from django.shortcuts import reverse
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
 from rest_framework.views import APIView
@@ -193,7 +195,7 @@ class ReportCRUDL(SmartCRUDL):
         permission = "reports.report_read"
 
         def get_filters(self, org):
-            # get filter ids
+            # get contact ids to do filter
             values_filters = self.request.data.get("filters", {}).get("values", [])
             groups_filters = self.request.data.get("filters", {}).get("groups", [])
             if not any((values_filters, groups_filters)):
@@ -216,35 +218,82 @@ class ReportCRUDL(SmartCRUDL):
                 filter_ids.update(group_ids)
             return filter_ids, True
 
+        def get_segment(self, org):
+            # get contact ids to do segment
+            segment = self.request.data.get("segment")
+            segment_ids = {}
+            if not segment:
+                return {}, False
+
+            if segment["isGroupSegment"]:
+                groups = {category["id"]: category["label"] for category in segment["categories"]}
+                groups_contacts = (
+                    org.contacts.annotate(group_id=F("all_groups__id"))
+                    .filter(group_id__in=groups.keys())
+                    .values("group_id")
+                    .annotate(contact_ids=ArrayAgg("id"))
+                )
+                for group_contacts in groups_contacts:
+                    label = groups.get(group_contacts["group_id"])
+                    if label:
+                        segment_ids[label] = set(group_contacts["contact_ids"])
+            else:
+                try:
+                    flow = org.flows.get(id=segment["field"]["flow"])
+                    results = flow.aggregated_results.data
+                    results = results.get(segment["field"]["rule"])
+                    for category in segment["categories"]:
+                        segment_ids[category["label"]] = set(results.get(category["label"], []))
+                except ObjectDoesNotExist:
+                    pass
+            return segment_ids, True
+
         def post(self, request, *args, **kwargs):
             user = self.request.user
             org = user.get_org()
 
             fields = self.request.data.get("fields", [])
             filtered_ids, do_filter = self.get_filters(org)
+            segment_ids, do_segment = self.get_segment(org)
             charts_data = []
 
-            def get_filtered_results(result_data):
-                return [
-                    {
-                        "label": category,
-                        "count": len(
-                            filtered_ids.intersection(result_data[category])
-                            if do_filter else result_data[category]
-                        )
-                    }
-                    for category in result_data.keys()
-                ]
+            def get_filtered_or_segmented_results(result_data, _segment_ids):
+                categories = []
+                for category in result_data.keys():
+                    result_ids = result_data[category]
+                    result_ids = filtered_ids.intersection(result_ids) if do_filter else result_ids
+                    result_ids = _segment_ids.intersection(result_ids) if do_segment else result_ids
+                    categories.append({"label": category, "count": len(result_ids)})
+                return categories
 
             for flow_id, fields in groupby(fields, lambda x: x["id"]["flow"]):
                 try:
                     flow = org.flows.get(id=flow_id)
                     results = flow.aggregated_results.data
-                    for field in fields:
-                        charts_data.append({
-                            "id": field["id"],
-                            "categories": get_filtered_results(results[field["id"]["rule"]])
-                        })
+                    if do_segment:
+                        for field in fields:
+                            segmented_chart_data = {
+                                "id": field["id"],
+                                "categories": [],
+                            }
+                            for _segment, _segment_ids in segment_ids.items():
+                                segmented_chart_data["categories"].append(
+                                    {
+                                        "label": _segment,
+                                        "categories": get_filtered_or_segmented_results(
+                                            results[field["id"]["rule"]], _segment_ids
+                                        ),
+                                    }
+                                )
+                            charts_data.append(segmented_chart_data)
+                    else:
+                        for field in fields:
+                            charts_data.append(
+                                {
+                                    "id": field["id"],
+                                    "categories": get_filtered_or_segmented_results(results[field["id"]["rule"]], []),
+                                }
+                            )
                 except ObjectDoesNotExist:
                     continue
             return APIResponse(charts_data)
