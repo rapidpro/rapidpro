@@ -9,7 +9,7 @@ import temba.utils.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("flows", "0246_flowstepreplica"),
+        ("flows", "0245_merge_20201214_1542"),
         ("reports", "0002_auto_20210729_2212"),
     ]
 
@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
             name="FlowResultsAggregation",
             fields=[
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("data", temba.utils.models.JSONField(default={}, encoder=temba.utils.json.TembaEncoder)),
+                ("data", temba.utils.models.JSONField(default=dict, encoder=temba.utils.json.TembaEncoder)),
                 ("last_updated", models.DateTimeField(auto_now=True)),
                 (
                     "flow",

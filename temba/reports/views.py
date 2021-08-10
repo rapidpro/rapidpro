@@ -7,7 +7,7 @@ from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import F
 from django.shortcuts import reverse
-from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
+from django.http import HttpResponseRedirect, JsonResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response as APIResponse
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartTemplateView
@@ -15,11 +15,11 @@ from temba.orgs.views import OrgPermsMixin
 from .models import Report
 from .. import settings
 from ..contacts.models import ContactGroup
-from ..flows.models import Flow, FlowRunCount, FlowRevision
+from ..flows.models import Flow, FlowRunCount
 
 
 class ReportCRUDL(SmartCRUDL):
-    actions = ("create", "analytics", "charts_data", "results")
+    actions = ("create", "analytics", "charts_data")
     model = Report
 
     class Create(OrgPermsMixin, SmartCreateView):
@@ -52,12 +52,7 @@ class ReportCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             org = self.request.user.get_org()
-
-            # get our list of assets to include
-            scripts = []
-            styles = []
-
-            dev_mode = getattr(settings, "EDITOR_DEV_MODE", True)
+            dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
             prefix = "http://localhost:3000" if dev_mode else settings.STATIC_URL
 
             # get our list of assets to include
@@ -109,8 +104,9 @@ class ReportCRUDL(SmartCRUDL):
                     ],
                     "stats": {"created_on": str(flow.created_on), "runs": sum(FlowRunCount.get_totals(flow).values())},
                 }
-
-            flow_json = list(map(flow_cast, Flow.objects.filter(org_id=org.id, is_active=True, is_archived=False)))
+            flow_json = list(
+                map(flow_cast, Flow.objects.filter(org_id=org.id, is_active=True, is_system=False, is_archived=False))
+            )
 
             groups = ContactGroup.user_groups.filter(org=org).order_by("name")
             groups_json = list(filter(lambda x: x is not None, [group.analytics_json() for group in groups]))
@@ -137,59 +133,6 @@ class ReportCRUDL(SmartCRUDL):
                 scripts=scripts,
                 styles=styles,
             )
-
-    class Results(OrgPermsMixin, SmartTemplateView):
-        permission = "reports.report_read"
-
-        def get_context_data(self, **kwargs):
-            org = self.get_user().get_org()
-
-            # we must have the flow uuid to find the correct ruleset through the last revision
-            flow_uuid = self.request.GET.get("flow_uuid", None)
-            if not flow_uuid:
-                return
-
-            # we must have the ruleset uuid to search it on the last flow revision
-            ruleset_uuid = self.request.GET.get("ruleset_uuid", None)
-            if not ruleset_uuid:
-                return
-
-            # we must have the last revision and find the ruleset uuid in the definition
-            last_flow_revision = (
-                FlowRevision.objects.filter(flow__uuid=flow_uuid).only("definition").order_by("-id").first()
-            )
-            if not last_flow_revision:
-                return
-
-            ruleset = dict()
-
-            definition = last_flow_revision.definition
-            for item in definition.get("nodes", []):
-                if "router" not in item.keys():
-                    continue
-
-                if item.get("uuid") == ruleset_uuid:
-                    ruleset_type = item.get("router", {}).get("type")
-                    ruleset_label = (
-                        item.get("actions", [])[0]["result_name"]
-                        if len(item.get("actions", [])) > 0
-                        else None or item.get("router", {}).get("result_name")
-                    )
-                    ruleset["uuid"] = ruleset_uuid
-                    ruleset["label"] = ruleset_label
-                    ruleset["type"] = ruleset_type
-                    ruleset["categories"] = item.get("router", {}).get("categories")
-                    break
-
-            filters = json.loads(self.request.GET.get("filters", "[]"))
-            segment = json.loads(self.request.GET.get("segment", "null"))
-
-            results = Report.get_value_summary(org=org, ruleset=ruleset, filters=filters, segment=segment)
-            return dict(uuid=ruleset.get("uuid"), label=ruleset.get("label"), results=results)
-
-        def render_to_response(self, context, **response_kwargs):
-            response = HttpResponse(json.dumps(context), content_type="application/json")
-            return response
 
     class ChartsData(OrgPermsMixin, SmartTemplateView, APIView):
         permission = "reports.report_read"
@@ -229,9 +172,9 @@ class ReportCRUDL(SmartCRUDL):
                 groups = {category["id"]: category["label"] for category in segment["categories"]}
                 groups_contacts = (
                     org.contacts.annotate(group_id=F("all_groups__id"))
-                    .filter(group_id__in=groups.keys())
-                    .values("group_id")
-                    .annotate(contact_ids=ArrayAgg("id"))
+                        .filter(group_id__in=groups.keys())
+                        .values("group_id")
+                        .annotate(contact_ids=ArrayAgg("id"))
                 )
                 for group_contacts in groups_contacts:
                     label = groups.get(group_contacts["group_id"])
