@@ -7,7 +7,7 @@ from django.views.generic import View
 
 from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 
-from .models import APIToken, Resthook, WebHookResult
+from .models import APIToken, WebHookResult
 
 
 class RefreshAPITokenView(OrgPermsMixin, SmartView, View):
@@ -40,11 +40,3 @@ class WebHookResultCRUDL(SmartCRUDL):
 
         def get_queryset(self):
             return WebHookResult.objects.filter(org=self.request.user.get_org()).order_by("-created_on")
-
-
-class ResthookList(OrgPermsMixin, SmartListView):
-    model = Resthook
-    permission = "api.resthook_list"
-
-    def derive_queryset(self):
-        return Resthook.objects.filter(is_active=True, org=self.request.user.get_org()).order_by("slug")
