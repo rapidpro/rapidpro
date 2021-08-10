@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import regex
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
@@ -284,6 +286,36 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
         fields = ("flow", "omnibox", "repeat_period", "repeat_days_of_week", "start_datetime")
 
 
+class ScheduleTriggerInBatchForm(ScheduleTriggerForm):
+    BATCH_INTERVAL = (
+        (5, _("5 minutes")),
+        (10, _("10 minutes")),
+        (15, _("15 minutes")),
+        (20, _("20 minutes")),
+        (25, _("25 minutes")),
+        (30, _("30 minutes")),
+    )
+
+    start_datetime = forms.DateTimeField(
+        required=True,
+        label=_("Start Time"),
+        widget=InputWidget(attrs={"datetimepicker": True, "placeholder": "Select a time to start the flow"}),
+    )
+
+    omnibox = JSONField(
+        label=_("Contacts"),
+        required=True,
+        help_text=_("The groups and contacts the flow will be broadcast to"),
+        widget=OmniboxChoice(
+            attrs={"placeholder": _("Recipients, enter groups"), "groups": True}
+        ),
+    )
+
+    batch_interval = forms.ChoiceField(
+        choices=BATCH_INTERVAL, label="Batch Interval", required=True, widget=SelectWidget()
+    )
+
+
 class InboundCallTriggerForm(GroupBasedTriggerForm):
     def __init__(self, user, *args, **kwargs):
         flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type=Flow.TYPE_VOICE)
@@ -388,6 +420,7 @@ class TriggerCRUDL(SmartCRUDL):
         "keyword",
         "register",
         "schedule",
+        "schedule_in_batch",
         "inbound_call",
         "missed_call",
         "catchall",
@@ -414,6 +447,7 @@ class TriggerCRUDL(SmartCRUDL):
             add_section("trigger-keyword", "triggers.trigger_keyword", "icon-tree")
             add_section("trigger-register", "triggers.trigger_register", "icon-users-2")
             add_section("trigger-schedule", "triggers.trigger_schedule", "icon-clock")
+            add_section("trigger-schedule-in-batch", "triggers.trigger_schedule_in_batch", "icon-wand")
             add_section("trigger-inboundcall", "triggers.trigger_inbound_call", "icon-phone2")
             add_section("trigger-missedcall", "triggers.trigger_missed_call", "icon-phone")
 
@@ -764,6 +798,73 @@ class TriggerCRUDL(SmartCRUDL):
                 trigger.contacts.add(contact)
 
             self.post_save(trigger)
+
+            response = self.render_to_response(self.get_context_data(form=form))
+            response["REDIRECT"] = self.get_success_url()
+            return response
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["auto_id"] = "id_schedule_%s"
+            return kwargs
+
+    class ScheduleInBatch(CreateTrigger):
+        form_class = ScheduleTriggerInBatchForm
+        title = _("Create Schedule In Batch")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            params_context = flow_params_context(self.request)
+            context.update(params_context)
+
+            return context
+
+        def form_invalid(self, form):
+            if "_format" in self.request.GET and self.request.GET["_format"] == "json":  # pragma: needs cover
+                return HttpResponse(
+                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
+                )
+            else:
+                return super().form_invalid(form)
+
+        def create_trigger(self, start_time, org, form):
+            schedule = Schedule.create_schedule(
+                org,
+                self.request.user,
+                start_time,
+                form.cleaned_data.get("repeat_period"),
+                repeat_days_of_week=form.cleaned_data.get("repeat_days_of_week"),
+            )
+
+            return Trigger.objects.create(
+                flow=self.form.cleaned_data["flow"],
+                org=self.request.user.get_org(),
+                schedule=schedule,
+                trigger_type=Trigger.TYPE_SCHEDULE,
+                created_by=self.request.user,
+                modified_by=self.request.user,
+                extra=self.flow_params,
+            )
+
+        def form_valid(self, form):
+            analytics.track(self.request.user.username, "temba.trigger_created", dict(type="schedule"))
+            org = self.request.user.get_org()
+            start_time = form.cleaned_data["start_datetime"]
+            recipients = self.form.cleaned_data["omnibox"]
+            batch_interval = self.form.cleaned_data["batch_interval"]
+
+            triggers = []
+            count = 0
+            for group in recipients["groups"]:
+                if count > 0:
+                    start_time = start_time + timedelta(minutes=int(batch_interval))
+                group_trigger = self.create_trigger(start_time, org, form)
+                group_trigger.groups.add(group)
+                triggers.append(group_trigger)
+                count += 1
+
+            self.post_save(triggers)
 
             response = self.render_to_response(self.get_context_data(form=form))
             response["REDIRECT"] = self.get_success_url()

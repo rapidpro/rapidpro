@@ -1,0 +1,154 @@
+-extends 'smartmin/form.html'
+-load i18n smartmin
+
+
+-block extra-script
+  {{ block.super }}
+  <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
+
+  :javascript
+    const messageTemplate = 'Are you sure you want to schedule the flow "{flowName}", to {groupCount} groups with an interval of {batchInterval} minutes?'
+
+    function fetchPJAXContentV2(url, container, options) {
+      let type = 'GET';
+      let data;
+      if (options) {
+        if ('postData' in options) {
+          type = 'POST';
+          data = options['postData'];
+        }
+      }
+
+      let headers = { 'X-PJAX': true };
+      if (options && 'headers' in options) {
+        headers = Object.keys(options).reduce(function(acc, key) {
+          acc[key] = options['headers'][key]
+          return acc;
+        }, Object.assign(headers, {}));
+      }
+
+      document.dispatchEvent(new Event('temba-pjax-begin'));
+      $.ajax({
+        headers: headers,
+        type: type,
+        url: url,
+        data: data,
+        success: function(response, status, jqXHR) {
+          options['onSuccess'](response, status, jqXHR);
+          document.dispatchEvent(new Event('temba-pjax-complete'));
+        }
+      });
+    }
+
+    function submitFormData(form) {
+      const container = "#id-trigger-schedule-in-batch > .formax-container";
+      fetchPJAXContentV2('/trigger/schedule_in_batch/', container, {
+        postData: form.serialize(),
+        headers: {
+          "X-FORMAX": true
+        },
+        onSuccess: function(htmlString, status, jqXHR) {
+          const requiredFields = ['trigger_flow', 'trigger_omnibox', 'schedule-options']
+          const responseForm = $($.parseHTML(htmlString));
+          const hasErrors = responseForm.find("div.error").length > 0;
+          if (hasErrors) {
+            for (let i = 0; i < requiredFields.length; i += 1) {
+              const fieldId = '#' + requiredFields[i];
+              $(form).find(fieldId).html(responseForm.find(fieldId));
+            }
+          }
+
+          if (!hasErrors) {
+            window.document.location.href = jqXHR.getResponseHeader('REDIRECT');
+          }
+        }
+      });
+    }
+
+    function buildFormData(form) {
+      return form.serializeArray().reduce(function(acc, item) {
+          let value = item.value;
+          if (item.name === 'omnibox' && value) {
+            value = acc['omnibox'] || [];
+            value.push(item.value);
+          }
+          acc[item.name] = value;
+          return acc;
+        }, {});
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+      const formContainer = document.querySelector('#id-trigger-schedule-in-batch');
+      const repeatPeriod = formContainer.querySelector("#id_schedule_repeat_period");
+
+      if (repeatPeriod) {
+        repeatPeriod.addEventListener("change", function(event) {
+          const currentRepeat = event.currentTarget.values[0].value;
+          if (currentRepeat === 'W') {
+            formContainer.querySelector("div.weekly-repeat-options").classList.remove("hidden");
+          } else {
+            formContainer.querySelector("div.weekly-repeat-options").classList.add("hidden");
+          }
+        });
+      }
+
+      let inBatchConfirmation = document.querySelector("#bulk-schedule-confirmation");
+      const section =  $('#id-trigger-schedule-in-batch');
+      const form = section.find('form');
+      const flowOptionList = document.querySelector('#id_schedule_flow').querySelectorAll('[name]');
+      const flowById = {};
+      flowOptionList.forEach(function(node) {
+        flowById[node.getAttribute('value').toString()] = node.getAttribute('name');
+      });
+
+      form.off("submit").on("submit", function(e) {
+        e.preventDefault();
+        const formDataByName = buildFormData(form)
+
+        const modalMessage = $('#bulk-schedule-confirmation').find('div.p-6');
+        const flowName = flowById[formDataByName.flow];
+        const selectedGroups = (formDataByName.omnibox || []).length;
+        const message = messageTemplate
+          .replace('{flowName}', flowName || '--')
+          .replace('{groupCount}', String(selectedGroups))
+          .replace('{batchInterval}', formDataByName.batch_interval)
+
+        modalMessage.text(message);
+        inBatchConfirmation.classList.remove("hide");
+        inBatchConfirmation.open = true;
+      });
+
+      inBatchConfirmation.addEventListener("temba-button-clicked", function(event) {
+        if (!event.detail.button.secondary) submitFormData(form);
+        inBatchConfirmation.classList.add("hide");
+        inBatchConfirmation.open = false;
+      });
+    });
+
+
+-block fields
+  #trigger_flow
+    - render_field 'flow'
+  #trigger_omnibox
+    - render_field 'omnibox'
+  #schedule-options
+    -render_field 'start_datetime'
+  #recurrence
+    .repeat-period
+      -render_field 'repeat_period'
+    .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hidden{%endif%}'}
+      -render_field 'repeat_days_of_week'
+  #batch_interval
+    -render_field 'batch_interval'
+  %h5.embedded-data-schedule-in-batch.hidden
+    -trans "Flow Parameters"
+  #embedded-data-schedule-in-batch.hidden
+    #embed-container-schedule-in-batch
+
+
+  %temba-dialog#bulk-schedule-confirmation.hide(header='{{ _("Bulk Schedule Confirmation")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
+    .p-6
+
+
+-block summary
+  -trans "Start a flow in the future or on a schedule in batches."
