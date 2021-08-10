@@ -855,11 +855,14 @@ class TriggerCRUDL(SmartCRUDL):
             batch_interval = self.form.cleaned_data["batch_interval"]
 
             triggers = []
+            count = 0
             for group in recipients["groups"]:
-                start_time = start_time + timedelta(minutes=int(batch_interval))
+                if count > 0:
+                    start_time = start_time + timedelta(minutes=int(batch_interval))
                 group_trigger = self.create_trigger(start_time, org, form)
                 group_trigger.groups.add(group)
                 triggers.append(group_trigger)
+                count += 1
 
             self.post_save(triggers)
 
