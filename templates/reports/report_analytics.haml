@@ -7,6 +7,11 @@
   - for css in styles
     %link(rel='stylesheet' type='text/css' href='{{css}}')
 
+  :css
+    .footer {
+      display: none;
+    }
+
 - block extra-script
   = block.super
   - for script in scripts

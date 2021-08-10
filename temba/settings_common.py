@@ -1042,6 +1042,10 @@ CELERYBEAT_SCHEDULE = {
         "task": "generate_missing_gif_thumbnails",
         "schedule": crontab(hour=3, minute=30),
     },
+    "collect-flow-results-data-for-analytics": {
+        "task": "analytics__auto_collect_flow_results_data",
+        "schedule": crontab(hour=5, minute=30),
+    },
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True

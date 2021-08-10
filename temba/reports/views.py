@@ -5,6 +5,7 @@ from itertools import groupby
 import requests
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import ObjectDoesNotExist
+from django.conf import settings
 from django.db.models import F
 from django.shortcuts import reverse
 from django.http import HttpResponseRedirect, JsonResponse
@@ -12,14 +13,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response as APIResponse
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartTemplateView
 from temba.orgs.views import OrgPermsMixin
-from .models import Report
-from .. import settings
+from .models import Report, DataCollectionProcess
+from .tasks import manually_collect_flow_results_data
 from ..contacts.models import ContactGroup
 from ..flows.models import Flow, FlowRunCount
 
 
 class ReportCRUDL(SmartCRUDL):
-    actions = ("create", "analytics", "charts_data")
+    actions = ("create", "analytics", "charts_data", "update_charts_data")
     model = Report
 
     class Create(OrgPermsMixin, SmartCreateView):
@@ -104,6 +105,7 @@ class ReportCRUDL(SmartCRUDL):
                     ],
                     "stats": {"created_on": str(flow.created_on), "runs": sum(FlowRunCount.get_totals(flow).values())},
                 }
+
             flow_json = list(
                 map(flow_cast, Flow.objects.filter(org_id=org.id, is_active=True, is_system=False, is_archived=False))
             )
@@ -128,6 +130,7 @@ class ReportCRUDL(SmartCRUDL):
                         groups=groups_json,
                         reports=reports_json,
                         current_report=current_report,
+                        data_status=DataCollectionProcess.get_last_collection_process_status(org),
                     )
                 ),
                 scripts=scripts,
@@ -172,9 +175,9 @@ class ReportCRUDL(SmartCRUDL):
                 groups = {category["id"]: category["label"] for category in segment["categories"]}
                 groups_contacts = (
                     org.contacts.annotate(group_id=F("all_groups__id"))
-                        .filter(group_id__in=groups.keys())
-                        .values("group_id")
-                        .annotate(contact_ids=ArrayAgg("id"))
+                    .filter(group_id__in=groups.keys())
+                    .values("group_id")
+                    .annotate(contact_ids=ArrayAgg("id"))
                 )
                 for group_contacts in groups_contacts:
                     label = groups.get(group_contacts["group_id"])
@@ -240,3 +243,16 @@ class ReportCRUDL(SmartCRUDL):
                 except ObjectDoesNotExist:
                     continue
             return APIResponse(charts_data)
+
+    class UpdateChartsData(OrgPermsMixin, SmartTemplateView, APIView):
+        permission = "reports.report_update"
+
+        def post(self, request, *args, **kwargs):
+            user = request.user
+            org = user.get_org()
+            flow = request.data.get("flow", None)
+            last_dc = DataCollectionProcess.get_last_collection_process_status(org)
+            if not last_dc["completed"]:
+                return APIResponse({"created": False, **last_dc})
+            manually_collect_flow_results_data.delay(user.id, org.id, flow)
+            return APIResponse({"created": True, **last_dc})

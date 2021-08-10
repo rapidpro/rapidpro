@@ -1,8 +1,10 @@
 from django.db import models, connection
+from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 
 from smartmin.models import SmartModel
 
+from django.conf import settings
 from temba.flows.models import Flow
 from temba.utils.models import JSONField
 from temba.orgs.models import Org
@@ -55,7 +57,36 @@ class Report(SmartModel):
         unique_together = (("org", "title"),)
 
 
-class FlowResultsAggregation(models.Model):
+class DataCollectionProcess(models.Model):
+    TYPE_AUTO = "A"
+    TYPE_MANUAL = "M"
+    TYPE_CHOICES = ((TYPE_AUTO, "Automatically"), (TYPE_MANUAL, "Manually"))
+
+    start_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_AUTO)
+    related_org = models.ForeignKey("orgs.Org", on_delete=models.SET_NULL, null=True)
+    started_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
+    started_on = models.DateTimeField(auto_now_add=True)
+    completed_on = models.DateTimeField(blank=True, null=True)
+    flows_total = models.PositiveIntegerField(default=0)
+    flows_skipped = models.PositiveIntegerField(default=0)
+    flows_processed = models.PositiveIntegerField(default=0)
+
+    @classmethod
+    def get_last_collection_process_status(cls, org):
+        last_dc: DataCollectionProcess = (
+            cls.objects.filter(Q(related_org=org) | Q(start_type=cls.TYPE_AUTO)).order_by("-started_on").first()
+        )
+        data_status = {
+            "lastUpdate": str(last_dc.started_on),
+            "completed": bool(last_dc.completed_on),
+            "progress": (
+                (last_dc.flows_skipped + last_dc.flows_processed) / last_dc.flows_total if last_dc.flows_total else 1
+            ),
+        }
+        return data_status
+
+
+class CollectedFlowResultsData(models.Model):
     """
     A model to store flow results data that is required for analytics reports, in more practical way.
     {
@@ -72,7 +103,7 @@ class FlowResultsAggregation(models.Model):
     last_updated = models.DateTimeField(auto_now=True)
 
     @classmethod
-    def aggregate_flow_results_data(cls, flow: Flow):
+    def collect_results_data(cls, flow: Flow):
         flow_results = {result["key"]: result["categories"] for result in flow.metadata["results"]}
         result_keys = sorted(list(flow_results.keys()))
         is_data_exists = cls.objects.filter(flow_id=flow.id).exists()
@@ -113,4 +144,5 @@ class FlowResultsAggregation(models.Model):
             flow_results_agg.data = final_data
             flow_results_agg.save()
         else:
-            cls.objects.create(flow=flow, data=final_data)
+            flow_results_agg = cls.objects.create(flow=flow, data=final_data)
+        return flow_results_agg
