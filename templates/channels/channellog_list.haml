@@ -90,9 +90,11 @@
                 -else
                   %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
                     %td.clickable
-                      -if obj.msg.contact
+                      -if obj.msg and obj.msg.contact
                         %a{ href:'{% url "contacts.contact_read" obj.msg.contact.uuid %}' }
                           {{obj.msg.contact_urn.get_display}}
+                      -else
+                        -trans "Channel interaction"
                     %td.clickable
                       %a{ href:'{% url "channels.channellog_read" obj.id %}' }= obj.description
                     %td
