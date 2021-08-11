@@ -446,18 +446,19 @@ class TembaTestMixin:
 
         return flow
 
-    def create_incoming_call(self, flow, contact, status=IVRCall.COMPLETED):
+    def create_incoming_call(self, flow, contact, status=IVRCall.STATUS_COMPLETED):
         """
         Create something that looks like an incoming IVR call handled by mailroom
         """
         call = IVRCall.objects.create(
             org=self.org,
             channel=self.channel,
-            direction=IVRCall.INCOMING,
+            direction=IVRCall.DIRECTION_INCOMING,
             contact=contact,
             contact_urn=contact.get_urn(),
             status=status,
             duration=15,
+            retry_count=0,
         )
         session = FlowSession.objects.create(uuid=uuid4(), org=contact.org, contact=contact, connection=call)
         FlowRun.objects.create(org=self.org, flow=flow, contact=contact, connection=call, session=session)
@@ -477,10 +478,10 @@ class TembaTestMixin:
             channel=self.channel,
             connection=call,
             request='{"say": "Hello"}',
-            response='{"status": "%s"}' % ("error" if status == IVRCall.FAILED else "OK"),
+            response='{"status": "%s"}' % ("error" if status == IVRCall.STATUS_FAILED else "OK"),
             url="https://acme-calls.com/reply",
             method="POST",
-            is_error=status == IVRCall.FAILED,
+            is_error=status == IVRCall.STATUS_FAILED,
             response_status=200,
             description="Looks good",
         )

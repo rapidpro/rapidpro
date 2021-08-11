@@ -1475,7 +1475,7 @@ class ChannelLogCRUDL(SmartCRUDL):
                 events = ChannelConnection.objects.filter(id__in=logs).order_by("-created_on")
 
                 if self.request.GET.get("errors"):
-                    events = events.filter(status=ChannelConnection.FAILED)
+                    events = events.filter(status=ChannelConnection.STATUS_FAILED)
 
             elif self.request.GET.get("others"):
                 events = ChannelLog.objects.filter(channel=channel, connection=None, msg=None).order_by("-created_on")
