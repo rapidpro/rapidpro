@@ -94,8 +94,8 @@ def handler500(request):
     weni_layout = use_weni_layout(request)
 
     t = loader.get_template("500.html")
-    return HttpResponseServerError(t.render({
-        "request": request,
-        "brand": BRANDING[DEFAULT_BRAND],
-        "use_weni_layout": weni_layout['use_weni_layout']
-    }))
+    return HttpResponseServerError(
+        t.render(
+            {"request": request, "brand": BRANDING[DEFAULT_BRAND], "use_weni_layout": weni_layout["use_weni_layout"]}
+        )
+    )

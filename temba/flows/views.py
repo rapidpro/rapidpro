@@ -1076,13 +1076,7 @@ class FlowCRUDL(SmartCRUDL):
                 )
 
             # Weni Addition
-            links.append(
-                dict(
-                    title=_("Copy UUID"),
-                    style="button-secondary",
-                    copyUuid=_("Copy UUID")
-                )
-            )
+            links.append(dict(title=_("Copy UUID"), style="button-secondary", copyUuid=_("Copy UUID")))
 
             if len(links) > 1:
                 links.append(dict(divider=True))

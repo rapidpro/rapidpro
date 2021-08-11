@@ -29,5 +29,5 @@ def weni_announcement(request):
 
 
 def hotjar(request):
-    domain = '.'.join(request.get_host().split(":")[0].split('.')[-2:])
-    return {"hotjar_id": settings.HOTJAR_IDS.get(domain, '')}
+    domain = ".".join(request.get_host().split(":")[0].split(".")[-2:])
+    return {"hotjar_id": settings.HOTJAR_IDS.get(domain, "")}

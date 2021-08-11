@@ -214,12 +214,12 @@ INSTALLED_APPS += (
     "weni.template_message",
     "weni.channel_stats",
     "weni.analytics_api",
-    "weni.grpc_central",
-    "weni.org_grpc",
-    "weni.user_grpc",
-    "weni.flow_grpc",
-    "weni.billing",
-    "weni.statistic_grpc",
+    "weni.grpc.core",
+    "weni.grpc.org",
+    "weni.grpc.user",
+    "weni.grpc.flow",
+    "weni.grpc.billing",
+    "weni.grpc.statistic",
     # OIDC authentication
     "mozilla_django_oidc",
     "weni.auth",
@@ -295,7 +295,7 @@ FLOW_SESSION_TRIM_DAYS = env.int("FLOW_SESSION_TRIM_DAYS", default=7)
 
 # Adds gRPC services
 GRPC_FRAMEWORK = {
-    "ROOT_HANDLERS_HOOK": "weni.grpc_central.urls.grpc_handlers",
+    "ROOT_HANDLERS_HOOK": "weni.grpc.core.urls.grpc_handlers",
 }
 
 # --------------------------------------------------------------------------------------------------
