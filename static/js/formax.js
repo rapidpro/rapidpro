@@ -127,6 +127,12 @@
           } else {
             if (section.data("action") !== 'fixed') {
               hideSection(section);
+
+              // refetch our primary form, but wait until our animation is done
+              window.setTimeout(function(){
+                fetchData(section);
+              }, 1000);
+              
             }
           }
           dependents = section.data("dependents");
