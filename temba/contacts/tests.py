@@ -26,7 +26,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.search import SearchException, SearchResults, search_contacts
 from temba.contacts.views import ContactListView
-from temba.flows.models import Flow, FlowStart
+from temba.flows.models import Flow, FlowSession, FlowStart
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, modifiers
@@ -2058,10 +2058,12 @@ class ContactTest(TembaTest):
         # try adding some failed calls
         call = IVRCall.objects.create(
             contact=self.joe,
-            status=IVRCall.NO_ANSWER,
+            status=IVRCall.STATUS_NO_ANSWER,
             channel=self.channel,
             org=self.org,
             contact_urn=self.joe.urns.all().first(),
+            retry_count=0,
+            error_count=0,
         )
 
         # create a channel log for this call
@@ -2086,8 +2088,6 @@ class ContactTest(TembaTest):
         )
 
         # set an output URL on our session so we fetch from there
-        from temba.flows.models import FlowSession
-
         s = FlowSession.objects.get(contact=self.joe)
         FlowSession.objects.filter(id=s.id).update(
             output_url="https://temba-sessions.s3.aws.amazon.com/c/session.json"
