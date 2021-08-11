@@ -97,8 +97,8 @@
           %temba-textinput.flex-grow{name:'new_path', type:'text', value:'{{form.data.new_path}}'}
 
         -if form.errors.new_path
-          .alert-error.mt-2
-            {{form.errors.new_path}}
+          .mt-2
+            {{ form.errors.new_path }}
     </div>
   {% endif %}
 

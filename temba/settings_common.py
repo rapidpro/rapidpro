@@ -561,7 +561,6 @@ GROUP_PERMISSIONS = {
         "airtime.airtimetransfer_read",
         "api.apitoken_refresh",
         "api.resthook_api",
-        "api.resthook_list",
         "api.resthooksubscriber_api",
         "api.webhookevent_api",
         "api.webhookresult_list",
@@ -688,7 +687,6 @@ GROUP_PERMISSIONS = {
     "Editors": (
         "api.apitoken_refresh",
         "api.resthook_api",
-        "api.resthook_list",
         "api.resthooksubscriber_api",
         "api.webhookevent_api",
         "api.webhookevent_list",
@@ -786,7 +784,6 @@ GROUP_PERMISSIONS = {
         "triggers.trigger.*",
     ),
     "Viewers": (
-        "api.resthook_list",
         "campaigns.campaign_archived",
         "campaigns.campaign_list",
         "campaigns.campaign_read",
