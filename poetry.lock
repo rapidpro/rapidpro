@@ -118,7 +118,7 @@ s3transfer = ">=0.5.0,<0.6.0"
 
 [[package]]
 name = "botocore"
-version = "1.21.15"
+version = "1.21.12"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
@@ -1373,8 +1373,8 @@ boto3 = [
     {file = "boto3-1.18.12.tar.gz", hash = "sha256:596fb9df00a816780db8620d9f62982eb783b3eb63a75947e172101d0785e6aa"},
 ]
 botocore = [
-    {file = "botocore-1.21.15-py3-none-any.whl", hash = "sha256:5f9686f42fcc6df0eb3ca5804113135f06ae92a6010347665ca7670f1397bff1"},
-    {file = "botocore-1.21.15.tar.gz", hash = "sha256:90b50e321278223c794032ae1ded7dfebdc73c54cc3cbbf72648e4cfdf060529"},
+    {file = "botocore-1.21.12-py3-none-any.whl", hash = "sha256:7b205f96bf0e2e1017301339e4fba9fd6dfdf54680196eb43e60e60581d7d5cb"},
+    {file = "botocore-1.21.12.tar.gz", hash = "sha256:8710d03b9de3e3d94ed410f3e83809ca02050b091100d68c22ff7bf986f29fb6"},
 ]
 celery = [
     {file = "celery-4.4.6-py2.py3-none-any.whl", hash = "sha256:ef17d7dffde7fc73ecab3a3b6389d93d3213bac53fa7f28e68e33647ad50b916"},
