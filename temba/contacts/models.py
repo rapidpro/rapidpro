@@ -814,7 +814,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         calls = (
             IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
-            .filter(status__in=[IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED])
+            .exclude(status__in=[IVRCall.STATUS_PENDING, IVRCall.STATUS_WIRED, IVRCall.STATUS_QUEUED])
             .order_by("-created_on")
             .select_related("channel")[:limit]
         )
