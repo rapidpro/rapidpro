@@ -1727,8 +1727,9 @@ class ChannelConnection(models.Model):
     duration = models.IntegerField(null=True)  # in seconds
 
     retry_count = models.IntegerField()
-    error_count = models.IntegerField()
     next_attempt = models.DateTimeField(null=True)
+
+    error_count = models.IntegerField(null=True)  # TODO remove, mailroom uses retry_count
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

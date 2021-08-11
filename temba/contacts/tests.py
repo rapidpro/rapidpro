@@ -2063,7 +2063,6 @@ class ContactTest(TembaTest):
             org=self.org,
             contact_urn=self.joe.urns.all().first(),
             retry_count=0,
-            error_count=0,
         )
 
         # create a channel log for this call

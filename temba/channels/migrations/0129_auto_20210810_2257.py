@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="channelconnection",
             name="error_count",
-            field=models.IntegerField(),
+            field=models.IntegerField(null=True),
         ),
         migrations.AlterField(
             model_name="channelconnection",
