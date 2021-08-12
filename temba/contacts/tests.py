@@ -404,13 +404,18 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(["block", "archive"], list(response.context["actions"]))
         self.assertContains(response, "age &gt; 40")
 
+        # if a user tries to access a non-existent group, that's a 404
+        response = self.requestView(reverse("contacts.contact_filter", args=["21343253"]), self.admin)
+        self.assertEqual(404, response.status_code)
+
         # if a user tries to access a group in another org, send them to the login page
         response = self.requestView(group3_url, self.admin)
         self.assertLoginRedirect(response)
 
-        # if a user tries to access a non-existent group, that's a 404
-        response = self.requestView(reverse("contacts.contact_filter", args=["21343253"]), self.admin)
-        self.assertEqual(404, response.status_code)
+        # if the user has access to that org, we redirect to the org choose page
+        self.org2.administrators.add(self.admin)
+        response = self.requestView(group3_url, self.admin)
+        self.assertRedirect(response, "/org/choose/")
 
     @mock_mailroom
     def test_read(self, mr_mocks):
