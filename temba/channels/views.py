@@ -1453,7 +1453,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             if not self.request.GET.get("errors"):
                 links.append(
                     dict(
-                        title=_("Error logs"),
+                        title=_("Errors"),
                         href=f"{reverse('channels.channellog_list', args=[channel.uuid])}?errors=1",
                     )
                 )
