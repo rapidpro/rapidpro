@@ -1420,8 +1420,22 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual(3, len(response.context["form"].fields["message_start_mode"].choices))
 
+        # try to submit with missing fields
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "event_type": "M",
+                "base": "This is my message",
+                "direction": "A",
+                "offset": 1,
+                "unit": "W",
+                "delivery_hour": 13,
+            },
+            form_errors={"message_start_mode": "This field is required."},
+        )
+
         # can create an event with just a base translation
-        response = self.assertCreateSubmit(
+        self.assertCreateSubmit(
             create_url,
             {
                 "relative_to": planting_date.id,
@@ -1573,7 +1587,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(contact_fields, ["created_on", "last_seen_on", "planting_date", "registered"])
 
         # translation in new language is optional
-        response = self.assertUpdateSubmit(
+        self.assertUpdateSubmit(
             update_url,
             {
                 "relative_to": planting_date.id,
@@ -1586,6 +1600,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
                 "unit": "W",
                 "flow_to_start": "",
                 "delivery_hour": 13,
+                "message_start_mode": "I",
             },
         )
 
@@ -1657,6 +1672,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
                 "unit": "D",
                 "flow_to_start": "",
                 "delivery_hour": 11,
+                "message_start_mode": "I",
             },
         )
         self.assertEqual(302, response.status_code)
@@ -1710,6 +1726,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
                 "unit": "W",
                 "flow_to_start": "",
                 "delivery_hour": 13,
+                "message_start_mode": "I",
             },
         )
 
