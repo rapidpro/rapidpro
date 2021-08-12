@@ -1,32 +1,29 @@
-from django.db import models, connection
+from collections import defaultdict
+
+from django.contrib.postgres.aggregates import ArrayAgg
+from django.contrib.postgres.fields.jsonb import KeyTextTransform
+from django.db import models
 from django.db.models import Q
-from django.utils.translation import ugettext_lazy as _
+from django.db.models.functions import Cast
 
 from smartmin.models import SmartModel
 
 from django.conf import settings
-from temba.flows.models import Flow
+from temba.flows.models import Flow, FlowRun
 from temba.utils.models import JSONField
 from temba.orgs.models import Org
 
 
 class Report(SmartModel):
+    ID = "id"
     TITLE = "title"
     DESCRIPTION = "description"
     CONFIG = "config"
-    ID = "id"
 
-    title = models.CharField(verbose_name=_("Title"), max_length=64, help_text=_("The name title or this report"))
-
-    description = models.TextField(verbose_name=_("Description"), help_text=_("The full description for the report"))
-
+    title = models.CharField(max_length=64)
+    description = models.TextField()
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
-
-    config = JSONField(
-        null=True, verbose_name=_("Configuration"), help_text=_("The JSON encoded configurations for this report")
-    )
-
-    is_published = models.BooleanField(default=False, help_text=_("Whether this report is currently published"))
+    config = JSONField(null=True)
 
     @classmethod
     def create_report(cls, org, user, json_dict):
@@ -46,9 +43,7 @@ class Report(SmartModel):
         )
 
     def as_json(self):
-        return dict(
-            text=self.title, id=self.pk, description=self.description, config=self.config, public=self.is_published
-        )
+        return dict(text=self.title, id=self.pk, description=self.description, config=self.config)
 
     def __str__(self):  # pragma: needs cover
         return "%s - %s" % (self.pk, self.title)
@@ -119,24 +114,26 @@ class CollectedFlowResultsData(models.Model):
             return
 
         # select runs data and build the aggregated data to save
-        def category_extractor(field):
-            return "results::jsonb #> '{%s, category}' as %s" % (field, field)
-
-        query = (
-            f"SELECT {', '.join(map(category_extractor, result_keys))}, array_agg(contact_id) as contact_id "
-            f"FROM flows_flowrun WHERE flow_id = {flow.id}"
-            f"GROUP BY {', '.join(result_keys)}"
+        final_data = defaultdict(lambda: defaultdict(set))
+        map(lambda res, categories: map(lambda ctg: final_data[res][ctg].update([]), categories), flow_results.items())
+        runs_data = (
+            FlowRun.objects.filter(flow_id=flow.id)
+            .annotate(
+                **{
+                    result_key: KeyTextTransform(
+                        "category", KeyTextTransform(result_key, Cast("results", JSONField()))
+                    )
+                    for result_key in result_keys
+                }
+            )
+            .values(*result_keys)
+            .annotate(contact_ids=ArrayAgg("contact_id"))
         )
-
-        final_data = {key: {category: set() for category in categories} for key, categories in flow_results.items()}
-        with connection.cursor() as cursor:
-            cursor.execute(query)
-            result_answers = cursor.fetchall()
-            for idx, result_key in enumerate(result_keys):
-                for record in result_answers:
-                    category_key = record[idx]
-                    if category_key:
-                        final_data[result_key][category_key].update(record[-1])
+        for run_data in runs_data:
+            for result_key in result_keys:
+                category_key = run_data.get(result_key)
+                if category_key is not None:
+                    final_data[result_key][category_key].update(run_data.get("contact_ids", []))
 
         # convert sets to lists
         for result_key, category_keys in flow_results.items():
