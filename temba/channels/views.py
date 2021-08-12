@@ -1430,7 +1430,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             channel = self.derive_channel()
             links = []
 
-            if self.request.GET.get("connections") or self.request.GET.get("others"):
+            if self.request.GET.get("connections") or self.request.GET.get("others") or self.request.GET.get("errors"):
                 links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid])))
 
             if not self.request.GET.get("connections"):
@@ -1447,6 +1447,14 @@ class ChannelLogCRUDL(SmartCRUDL):
                     dict(
                         title=_("Other Interactions"),
                         href=f"{reverse('channels.channellog_list', args=[channel.uuid])}?others=1",
+                    )
+                )
+
+            if not self.request.GET.get("errors"):
+                links.append(
+                    dict(
+                        title=_("Error logs"),
+                        href=f"{reverse('channels.channellog_list', args=[channel.uuid])}?errors=1",
                     )
                 )
 
