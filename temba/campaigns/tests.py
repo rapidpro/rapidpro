@@ -412,8 +412,7 @@ class CampaignTest(TembaTest):
             reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
         )
 
-        self.assertTrue(response.context["form"].errors)
-        self.assertIn("Please select a flow", response.context["form"].errors["flow_to_start"])
+        self.assertFormError(response, "form", "flow_to_start", "This field is required.")
 
         post_data = dict(
             relative_to=self.planting_date.pk,
@@ -1432,6 +1431,17 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
                 "delivery_hour": 13,
             },
             form_errors={"message_start_mode": "This field is required."},
+        )
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "event_type": "F",
+                "direction": "A",
+                "offset": 1,
+                "unit": "W",
+                "delivery_hour": 13,
+            },
+            form_errors={"flow_start_mode": "This field is required.", "flow_to_start": "This field is required."},
         )
 
         # can create an event with just a base translation

@@ -324,16 +324,12 @@ class CampaignEventForm(forms.ModelForm):
             if not data.get("message_start_mode"):
                 self.add_error("message_start_mode", _("This field is required."))
         else:
+            if not data.get("flow_to_start"):
+                self.add_error("flow_to_start", _("This field is required."))
             if not data.get("flow_start_mode"):
                 self.add_error("flow_start_mode", _("This field is required."))
 
         return data
-
-    def clean_flow_to_start(self):
-        if self.data["event_type"] == CampaignEvent.TYPE_FLOW:
-            if "flow_to_start" not in self.data or not self.data["flow_to_start"]:
-                raise ValidationError("Please select a flow")
-            return self.data["flow_to_start"]
 
     def pre_save(self, request, obj):
         org = self.user.get_org()
@@ -371,7 +367,7 @@ class CampaignEventForm(forms.ModelForm):
 
         # otherwise, it's an event that runs an existing flow
         else:
-            obj.flow = Flow.objects.get(org=org, id=self.cleaned_data["flow_to_start"])
+            obj.flow = self.cleaned_data["flow_to_start"]
             obj.start_mode = self.cleaned_data["flow_start_mode"]
 
     def __init__(self, user, *args, **kwargs):
