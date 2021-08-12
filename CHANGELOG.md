@@ -1,3 +1,9 @@
+v6.5.21
+----------
+ * Prevent saving of campaign events without start_mode
+ * Improve handling of group lookups in contact list views
+ * Add button to see channel error logs
+
 v6.5.20
 ----------
  * Make ChannelConnection.error_count nullable so it can be removed
