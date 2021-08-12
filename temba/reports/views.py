@@ -7,12 +7,11 @@ from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 from django.db.models import F
-from django.shortcuts import reverse
-from django.http import HttpResponseRedirect, JsonResponse
+from django.utils.timezone import now as tz_now
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response as APIResponse
-from smartmin.views import SmartCRUDL, SmartCreateView, SmartTemplateView
+from smartmin.views import SmartCRUDL, SmartTemplateView
 from temba.orgs.views import OrgPermsMixin
 from .models import Report, DataCollectionProcess
 from .tasks import manually_collect_flow_results_data
@@ -24,31 +23,20 @@ class ReportCRUDL(SmartCRUDL):
     actions = ("create", "delete", "analytics", "charts_data", "update_charts_data")
     model = Report
 
-    class Create(OrgPermsMixin, SmartCreateView):
-        success_message = ""
-
-        def get(self, request, *args, **kwargs):
-            return HttpResponseRedirect(reverse("reports.report_read"))
+    class Create(OrgPermsMixin, APIView):
+        permission = "reports.report_create"
 
         def post(self, request, *args, **kwargs):
-            json_string = request.body
             user = request.user
             org = user.get_org()
-
             try:
-                json_dict = json.loads(json_string)
-            except Exception as e:
-                return JsonResponse(dict(status="error", description="Error parsing JSON: %s" % str(e)), status=400)
-
-            try:
-                report = Report.create_report(org, user, json_dict)
+                report = Report.create_report(org, user, request.data)
             except Exception as e:  # pragma: needs cover
                 traceback.print_exc(e)
-                return JsonResponse(dict(status="error", description="Error creating report: %s" % str(e)), status=400)
+                return APIResponse({"status": "error", "description": f"Error creating report: {e}"}, status=400)
+            return APIResponse({"status": "success", "description": "Report Created", "report": report.as_json()})
 
-            return JsonResponse(dict(status="success", description="Report Created", report=report.as_json()))
-
-    class Delete(OrgPermsMixin, SmartTemplateView, APIView):
+    class Delete(OrgPermsMixin, APIView):
         permission = "reports.report_delete"
 
         def delete(self, request, *args, **kwargs):
@@ -68,6 +56,7 @@ class ReportCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
             prefix = "http://localhost:3000" if dev_mode else settings.STATIC_URL
+            analytics_folder = "@greatnonprofits-nfp/temba-analytics/build"
 
             # get our list of assets to include
             scripts = []
@@ -77,13 +66,13 @@ class ReportCRUDL(SmartCRUDL):
                 response = requests.get("http://localhost:3000/asset-manifest.json")
                 data = response.json()
             else:
-                with open("node_modules/@greatnonprofits-nfp/temba-analytics/build/asset-manifest.json") as json_file:
+                with open(f"node_modules/{analytics_folder}/asset-manifest.json") as json_file:
                     data = json.load(json_file)
 
             def get_static_filename(filename):
                 if dev_mode:
                     return f"{prefix}{filename}"
-                return f"{settings.STATIC_URL}@greatnonprofits-nfp/temba-analytics/build{filename}"
+                return f"{settings.STATIC_URL}{analytics_folder}{filename}"
 
             for key, filename in data.get("files").items():
                 # tack on our prefix for dev mode
@@ -142,7 +131,7 @@ class ReportCRUDL(SmartCRUDL):
                 styles=styles,
             )
 
-    class ChartsData(OrgPermsMixin, SmartTemplateView, APIView):
+    class ChartsData(OrgPermsMixin, APIView):
         permission = "reports.report_read"
 
         def get_filters(self, org):
@@ -249,15 +238,16 @@ class ReportCRUDL(SmartCRUDL):
                     continue
             return APIResponse(charts_data)
 
-    class UpdateChartsData(OrgPermsMixin, SmartTemplateView, APIView):
+    class UpdateChartsData(OrgPermsMixin, APIView):
         permission = "reports.report_update"
 
         def post(self, request, *args, **kwargs):
             user = request.user
             org = user.get_org()
             flow = request.data.get("flow", None)
+            only_status = request.data.get("onlyStatus", False)
             last_dc = DataCollectionProcess.get_last_collection_process_status(org)
-            if not last_dc["completed"]:
+            if only_status or not last_dc["completed"]:
                 return APIResponse({"created": False, **last_dc})
             manually_collect_flow_results_data.delay(user.id, org.id, flow)
-            return APIResponse({"created": True, **last_dc})
+            return APIResponse({"created": True, "lastUpdated": tz_now(), "completed": False, "progress": 0.01})
