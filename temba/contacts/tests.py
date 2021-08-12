@@ -375,6 +375,42 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(0, len(response.context["object_list"]))
 
     @mock_mailroom
+    def test_filter(self, mr_mocks):
+        joe = self.create_contact("Joe", phone="123")
+        frank = self.create_contact("Frank", phone="124")
+        self.create_contact("Bob", phone="125")
+
+        mr_mocks.contact_search("age > 40", contacts=[frank], total=1, allow_as_group=True)
+
+        group1 = self.create_group("Testers", contacts=[joe, frank])  # static group
+        group2 = self.create_group("Oldies", query="age > 40")  # smart group
+        group2.contacts.add(frank)
+        group3 = self.create_group("Other Org", org=self.org2)
+
+        group1_url = reverse("contacts.contact_filter", args=[group1.uuid])
+        group2_url = reverse("contacts.contact_filter", args=[group2.uuid])
+        group3_url = reverse("contacts.contact_filter", args=[group3.uuid])
+
+        response = self.assertReadFetch(group1_url, allow_viewers=True, allow_editors=True)
+
+        self.assertEqual([frank, joe], list(response.context["object_list"]))
+        self.assertEqual(["block", "label", "unlabel"], list(response.context["actions"]))
+
+        response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
+
+        self.assertEqual([frank], list(response.context["object_list"]))
+        self.assertEqual(["block", "archive"], list(response.context["actions"]))
+        self.assertContains(response, "age &gt; 40")
+
+        # if a user tries to access a group in another org, send them to the login page
+        response = self.requestView(group3_url, self.admin)
+        self.assertLoginRedirect(response)
+
+        # if a user tries to access a non-existent group, that's a 404
+        response = self.requestView(reverse("contacts.contact_filter", args=["21343253"]), self.admin)
+        self.assertEqual(404, response.status_code)
+
+    @mock_mailroom
     def test_read(self, mr_mocks):
         joe = self.create_contact("Joe", phone="123")
         other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
