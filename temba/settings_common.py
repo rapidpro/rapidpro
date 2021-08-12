@@ -1404,3 +1404,7 @@ GOOGLE_FONT_API_KEY = os.environ.get("GOOGLE_FONT_API_KEY", "")
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_METHODS = ["GET"]
+
+# Contacts import via excel
+# if set to True will not raise error on duplicate, instead will use last row
+IGNORE_DUPLICATES_CONTACT_IMPORT = False

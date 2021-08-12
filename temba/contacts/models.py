@@ -2147,7 +2147,7 @@ class ContactImport(SmartModel):
                     )
                 seen_uuids.add(uuid)
             for urn in urns:
-                if urn in seen_urns:
+                if urn in seen_urns and not settings.IGNORE_DUPLICATES_CONTACT_IMPORT:
                     raise ValidationError(
                         _("Import file contains duplicated contact URN '%(urn)s'."), params={"urn": urn}
                     )
