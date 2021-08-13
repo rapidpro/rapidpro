@@ -1703,12 +1703,12 @@ class ChannelConnection(models.Model):
     STATUS_ERRORED = "E"  # temporary failure (will be retried)
     STATUS_FAILED = "F"  # permanent failure
     STATUS_CHOICES = (
-        (STATUS_PENDING, "Pending"),
-        (STATUS_WIRED, "Wired"),
-        (STATUS_IN_PROGRESS, "In Progress"),
-        (STATUS_COMPLETED, "Complete"),
-        (STATUS_ERRORED, "Error"),
-        (STATUS_FAILED, "Failed"),
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_WIRED, _("Wired")),
+        (STATUS_IN_PROGRESS, _("In Progress")),
+        (STATUS_COMPLETED, _("Complete")),
+        (STATUS_ERRORED, _("Errored")),
+        (STATUS_FAILED, _("Failed")),
     )
 
     ERROR_PROVIDER = "P"

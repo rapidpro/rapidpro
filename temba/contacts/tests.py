@@ -2155,7 +2155,7 @@ class ContactTest(TembaTest):
             for path, expected in kwargs.items():
                 self.assertPathValue(item, path, expected, f"item {index}")
 
-        assertHistoryEvent(history, 0, "call_started", status="E", status_display="Error (Busy)")
+        assertHistoryEvent(history, 0, "call_started", status="E", status_display="Errored (Busy)")
         assertHistoryEvent(history, 1, "channel_event", channel_event_type="new_conversation")
         assertHistoryEvent(history, 2, "channel_event", channel_event_type="mo_miss")
         assertHistoryEvent(history, 3, "channel_event", channel_event_type="mt_miss")
