@@ -1698,25 +1698,30 @@ class ChannelConnection(models.Model):
 
     STATUS_PENDING = "P"  # used for initial creation in database
     STATUS_WIRED = "W"  # the call has been requested on the IVR provider
-    STATUS_QUEUED = "Q"  # the call was requested but we've been throttled (will be retried)
     STATUS_IN_PROGRESS = "I"  # the call has been answered
-    STATUS_BUSY = "B"  # the call is busy (will be retried)
-    STATUS_NO_ANSWER = "N"  # the call has timed-out or ringed-out (will be retried)
-    STATUS_CANCELED = "C"  # the call was terminated by platform
     STATUS_COMPLETED = "D"  # the call was completed successfully
     STATUS_ERRORED = "E"  # temporary failure (will be retried)
     STATUS_FAILED = "F"  # permanent failure
     STATUS_CHOICES = (
         (STATUS_PENDING, "Pending"),
         (STATUS_WIRED, "Wired"),
-        (STATUS_QUEUED, "Queued"),
         (STATUS_IN_PROGRESS, "In Progress"),
-        (STATUS_BUSY, "Busy"),
-        (STATUS_NO_ANSWER, "No Answer"),
-        (STATUS_CANCELED, "Canceled"),
         (STATUS_COMPLETED, "Complete"),
-        (STATUS_FAILED, "Failed"),
         (STATUS_ERRORED, "Errored"),
+        (STATUS_FAILED, "Failed"),
+    )
+
+    ERROR_PROVIDER = "P"
+    ERROR_BUSY = "B"
+    ERROR_NOANSWER = "N"
+    ERROR_MACHINE = "M"
+    ERROR_THROTTLED = "T"
+    ERROR_CHOICES = (
+        (ERROR_PROVIDER, _("Provider")),  # an API call to the IVR provider returned an error
+        (ERROR_BUSY, _("Busy")),  # the contact couldn't be called because they're busy
+        (ERROR_NOANSWER, _("No Answer")),  # the contact didn't answer the call
+        (ERROR_MACHINE, _("Answering Machine")),  # the call went to an answering machine
+        (ERROR_THROTTLED, _("Throttled")),  # the request to the provider to start the call has been throttled
     )
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
@@ -1735,10 +1740,11 @@ class ChannelConnection(models.Model):
     ended_on = models.DateTimeField(null=True)
     duration = models.IntegerField(null=True)  # in seconds
 
-    retry_count = models.IntegerField()
+    error_reason = models.CharField(max_length=1, null=True, choices=ERROR_CHOICES)
+    error_count = models.IntegerField(null=True)
     next_attempt = models.DateTimeField(null=True)
 
-    error_count = models.IntegerField(null=True)  # TODO remove, mailroom uses retry_count
+    retry_count = models.IntegerField(null=True)  # TODO deprecate in favor of error_count
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
