@@ -1,13 +1,13 @@
-name: Build staging push
+name: Build Develop Push
 on:
   push:
     tags:
-      - 'staging-v*.*.*'
+      - 'develop-v*.*.*'
 jobs:
   docker:
     runs-on: ubuntu-latest
     environment: 
-      name: staging
+      name: develop
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
