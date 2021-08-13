@@ -1807,6 +1807,6 @@ class ChannelConnection(models.Model):
             models.Index(
                 name="channelconnection_ivr_to_retry",
                 fields=["next_attempt"],
-                condition=Q(connection_type="V", status__in=("Q", "N", "B", "E"), next_attempt__isnull=False),
+                condition=Q(connection_type="V", status__in=("Q", "E"), next_attempt__isnull=False),
             )
         ]
