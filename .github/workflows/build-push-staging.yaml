@@ -27,7 +27,7 @@ jobs:
           username: ${{ secrets.AWS_ACCESS_KEY_ID }}
           password: ${{ secrets.AWS_SECRET_ACCESS_KEY }} 
       - name: Build and push - Rapidpro Image
-        id: docker_build
+        id: docker_build1
         uses: docker/build-push-action@v2
         with:
           context: ./docker/
@@ -40,7 +40,7 @@ jobs:
             RAPIDPRO_APPS_GIT_BRANCH='main'
             PROTOBUFFERS_URL='https://github.com/Ilhasoft/weni-protobuffers.git'
       - name: Build and push - Rapidpro Image
-        id: docker_build
+        id: docker_build2
         uses: docker/build-push-action@v2
         with:
           context: ./docker/
