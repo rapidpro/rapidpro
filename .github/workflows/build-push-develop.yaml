@@ -49,4 +49,4 @@ jobs:
           tags: 242357350604.dkr.ecr.sa-east-1.amazonaws.com/push:${{ steps.vars.outputs.tag }}-varnish
           no-cache: true
           build-args: |
-            BACKEND_ADDRESS='push-stagin:8000'
+            BACKEND_ADDRESS='push-staging:8000'
