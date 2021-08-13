@@ -151,13 +151,15 @@ class Event:
             _url_for_user(org, user, "channels.channellog_connection", args=[obj.id]) if obj.has_logs() else None
         )
 
+        status_display = obj.get_status_display()
+        if obj.status == IVRCall.STATUS_ERRORED and obj.error_reason:
+            status_display = f"{status_display} ({obj.get_error_reason_display()})"
+
         return {
             "type": cls.TYPE_CALL_STARTED,
             "created_on": get_event_time(obj).isoformat(),
             "status": obj.status,
-            "status_display": obj.get_status_display(),
-            "error_reason": obj.error_reason,
-            "error_reason_display": obj.get_error_reason_display(),
+            "status_display": status_display,
             "logs_url": logs_url,
         }
 
