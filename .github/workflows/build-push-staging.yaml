@@ -46,7 +46,7 @@ jobs:
           context: ./docker/
           file: ./Dockerfile.varnish
           push: true
-          tags: 242357350604.dkr.ecr.sa-east-1.amazonaws.com/push-backend:${{ steps.vars.outputs.tag }}
+          tags: 242357350604.dkr.ecr.sa-east-1.amazonaws.com/push:${{ steps.vars.outputs.tag }}-varnish
           no-cache: true
           build-args: |
             BACKEND_ADDRESS='push-stagin:8000'
