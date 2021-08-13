@@ -34,7 +34,6 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: 242357350604.dkr.ecr.sa-east-1.amazonaws.com/push-backend:${{ steps.vars.outputs.tag }}
-          tags: bothubit/bothub-nlp
           no-cache: true
           build-args: |
             RAPIDPRO_APPS_GIT_URL='https://github.com/Ilhasoft/rapidpro-apps.git'
