@@ -13,10 +13,10 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref:  develop
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+      # - name: Set up QEMU
+      #   uses: docker/setup-qemu-action@v1
+      # - name: Set up Docker Buildx
+      #   uses: docker/setup-buildx-action@v1
       - name: Set output
         id: vars
         run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
@@ -49,4 +49,4 @@ jobs:
           tags: 242357350604.dkr.ecr.sa-east-1.amazonaws.com/push:${{ steps.vars.outputs.tag }}-varnish
           no-cache: true
           build-args: |
-            BACKEND_ADDRESS='push-staging:8000'
+            BACKEND_ADDRESS='push-develop:8000'
