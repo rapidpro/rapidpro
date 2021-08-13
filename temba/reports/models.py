@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -120,25 +121,28 @@ class CollectedFlowResultsData(models.Model):
             FlowRun.objects.filter(flow_id=flow.id)
             .annotate(
                 **{
-                    result_key: KeyTextTransform(
+                    f"annotated_{result_key}": KeyTextTransform(
                         "category", KeyTextTransform(result_key, Cast("results", JSONField()))
                     )
                     for result_key in result_keys
                 }
             )
-            .values(*result_keys)
+            .values(*[f"annotated_{result_key}" for result_key in result_keys])
             .annotate(contact_ids=ArrayAgg("contact_id"))
         )
         for run_data in runs_data:
             for result_key in result_keys:
-                category_key = run_data.get(result_key)
+                category_key = run_data.get(f"annotated_{result_key}")
                 if category_key is not None:
                     final_data[result_key][category_key].update(run_data.get("contact_ids", []))
 
         # convert sets to lists
-        for result_key, category_keys in flow_results.items():
-            for category_key in category_keys:
-                final_data[result_key][category_key] = list(final_data[result_key][category_key])
+        class SetEncoder(json.JSONEncoder):
+            def default(self, o):
+                if isinstance(o, set):
+                    return list(o)
+                return super().default(o)
+        final_data = json.loads(json.dumps(final_data, cls=SetEncoder))
 
         # create or update the aggregated data in DB
         if is_data_exists:
