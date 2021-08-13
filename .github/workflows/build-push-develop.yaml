@@ -30,8 +30,8 @@ jobs:
         id: docker_build1
         uses: docker/build-push-action@v2
         with:
-          context: ./docker/
-          file: Dockerfile
+          context: docker
+          file: docker/Dockerfile
           push: true
           tags: 242357350604.dkr.ecr.sa-east-1.amazonaws.com/push-backend:${{ steps.vars.outputs.tag }}
           no-cache: true
@@ -43,8 +43,8 @@ jobs:
         id: docker_build2
         uses: docker/build-push-action@v2
         with:
-          context: ./docker/
-          file: Dockerfile.varnish
+          context: docker
+          file: docker/Dockerfile.varnish
           push: true
           tags: 242357350604.dkr.ecr.sa-east-1.amazonaws.com/push:${{ steps.vars.outputs.tag }}-varnish
           no-cache: true
