@@ -2102,7 +2102,7 @@ class ContactTest(TembaTest):
         call = IVRCall.objects.create(
             contact=self.joe,
             status=IVRCall.STATUS_ERRORED,
-            error_reason=IVRCall.ERROR_NOANSWER,
+            error_reason=IVRCall.ERROR_BUSY,
             channel=self.channel,
             org=self.org,
             contact_urn=self.joe.urns.all().first(),
@@ -2157,7 +2157,7 @@ class ContactTest(TembaTest):
 
         assertHistoryEvent(history, 0, "ticket_assigned", assignee__id=self.admin.id)
         assertHistoryEvent(history, 1, "ticket_note_added", note="I have a bad feeling about this")
-        assertHistoryEvent(history, 2, "call_started", status="E")
+        assertHistoryEvent(history, 2, "call_started", status="E", status_display="Error", error_reason_display="Busy")
         assertHistoryEvent(history, 3, "channel_event", channel_event_type="new_conversation")
         assertHistoryEvent(history, 4, "channel_event", channel_event_type="mo_miss")
         assertHistoryEvent(history, 5, "channel_event", channel_event_type="mt_miss")

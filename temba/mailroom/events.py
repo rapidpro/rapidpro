@@ -156,6 +156,8 @@ class Event:
             "created_on": get_event_time(obj).isoformat(),
             "status": obj.status,
             "status_display": obj.get_status_display(),
+            "error_reason": obj.error_reason,
+            "error_reason_display": obj.get_error_reason_display(),
             "logs_url": logs_url,
         }
 

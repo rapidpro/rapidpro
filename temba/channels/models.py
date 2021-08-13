@@ -1707,7 +1707,7 @@ class ChannelConnection(models.Model):
         (STATUS_WIRED, "Wired"),
         (STATUS_IN_PROGRESS, "In Progress"),
         (STATUS_COMPLETED, "Complete"),
-        (STATUS_ERRORED, "Errored"),
+        (STATUS_ERRORED, "Error"),
         (STATUS_FAILED, "Failed"),
     )
 
