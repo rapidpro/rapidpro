@@ -382,7 +382,7 @@ class ScheduleCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(
             update_url,
             {"start_datetime": datepicker_fmt(today), "repeat_period": "W"},
-            form_errors={"__all__": "Must specify at least one day of the week."},
+            form_errors={"repeat_days_of_week": "Must specify at least one day of the week."},
             object_unchanged=schedule,
         )
 

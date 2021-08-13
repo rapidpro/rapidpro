@@ -1867,14 +1867,16 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean(self):
                 cleaned_data = super().clean()
-                mode = cleaned_data["mode"]
-                omnibox = cleaned_data.get("omnibox")
-                query = cleaned_data.get("query")
 
-                if mode == self.MODE_SELECT and not omnibox:
-                    self.add_error("omnibox", _("This field is required."))
-                elif mode == self.MODE_QUERY and not query:
-                    self.add_error("query", _("This field is required."))
+                if self.is_valid():
+                    mode = cleaned_data["mode"]
+                    omnibox = cleaned_data.get("omnibox")
+                    query = cleaned_data.get("query")
+
+                    if mode == self.MODE_SELECT and not omnibox:
+                        self.add_error("omnibox", _("This field is required."))
+                    elif mode == self.MODE_QUERY and not query:
+                        self.add_error("query", _("This field is required."))
 
                 return cleaned_data
 

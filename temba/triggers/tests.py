@@ -649,6 +649,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={
                 "__all__": "Must provide at least one group or contact to include.",
                 "start_datetime": "This field is required.",
+                "repeat_period": "This field is required.",
                 "flow": "This field is required.",
             },
         )
@@ -657,7 +658,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"start_datetime": "2021-06-24 12:00", "repeat_period": "W", "flow": flow1.id, "groups": [group1.id]},
-            form_errors={"__all__": "Must specify at least one day of the week."},
+            form_errors={"repeat_days_of_week": "Must specify at least one day of the week."},
         )
 
         # try to create a weekly repeating schedule with an invalid day of the week (UI doesn't actually allow this)
@@ -1113,7 +1114,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(
             update_url,
             {"start_datetime": "2021-06-24 12:00", "repeat_period": "W", "flow": flow1.id, "groups": [group1.id]},
-            form_errors={"__all__": "Must specify at least one day of the week."},
+            form_errors={"repeat_days_of_week": "Must specify at least one day of the week."},
             object_unchanged=trigger,
         )
 
