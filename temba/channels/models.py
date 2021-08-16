@@ -1703,12 +1703,12 @@ class ChannelConnection(models.Model):
     STATUS_ERRORED = "E"  # temporary failure (will be retried)
     STATUS_FAILED = "F"  # permanent failure
     STATUS_CHOICES = (
-        (STATUS_PENDING, "Pending"),
-        (STATUS_WIRED, "Wired"),
-        (STATUS_IN_PROGRESS, "In Progress"),
-        (STATUS_COMPLETED, "Complete"),
-        (STATUS_ERRORED, "Errored"),
-        (STATUS_FAILED, "Failed"),
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_WIRED, _("Wired")),
+        (STATUS_IN_PROGRESS, _("In Progress")),
+        (STATUS_COMPLETED, _("Complete")),
+        (STATUS_ERRORED, _("Errored")),
+        (STATUS_FAILED, _("Failed")),
     )
 
     ERROR_PROVIDER = "P"
@@ -1807,6 +1807,6 @@ class ChannelConnection(models.Model):
             models.Index(
                 name="channelconnection_ivr_to_retry",
                 fields=["next_attempt"],
-                condition=Q(connection_type="V", status__in=("Q", "N", "B", "E"), next_attempt__isnull=False),
+                condition=Q(connection_type="V", status__in=("Q", "E"), next_attempt__isnull=False),
             )
         ]

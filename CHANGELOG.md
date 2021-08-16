@@ -1,3 +1,10 @@
+v6.5.22
+----------
+ * Tweak index used for retrying IVR calls to only include statuses Q and E
+ * Dont show ticket events like note added or assignment on contact read page
+ * Include error reason in call_started events in contact history
+ * Remove channel connection statuses that we don't use and add error_reason
+
 v6.5.21
 ----------
  * Prevent saving of campaign events without start_mode
