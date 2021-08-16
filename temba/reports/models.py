@@ -115,8 +115,8 @@ class CollectedFlowResultsData(models.Model):
             return
 
         # select runs data and build the aggregated data to save
-        final_data = defaultdict(lambda: defaultdict(set))
-        map(lambda res, categories: map(lambda ctg: final_data[res][ctg].update([]), categories), flow_results.items())
+        final_data = defaultdict(lambda: defaultdict(list))
+        map(lambda res, categories: map(lambda ctg: final_data[res][ctg].extend([]), categories), flow_results.items())
         runs_data = (
             FlowRun.objects.filter(flow_id=flow.id)
             .annotate(
@@ -134,15 +134,10 @@ class CollectedFlowResultsData(models.Model):
             for result_key in result_keys:
                 category_key = run_data.get(f"annotated_{result_key}")
                 if category_key is not None:
-                    final_data[result_key][category_key].update(run_data.get("contact_ids", []))
+                    final_data[result_key][category_key].extend(run_data.get("contact_ids", []))
 
         # convert sets to lists
-        class SetEncoder(json.JSONEncoder):
-            def default(self, o):
-                if isinstance(o, set):
-                    return list(o)
-                return super().default(o)
-        final_data = json.loads(json.dumps(final_data, cls=SetEncoder))
+        final_data = json.loads(json.dumps(final_data))
 
         # create or update the aggregated data in DB
         if is_data_exists:

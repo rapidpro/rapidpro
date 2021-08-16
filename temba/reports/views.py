@@ -201,8 +201,8 @@ class ReportCRUDL(SmartCRUDL):
                 categories = []
                 for category in result_data.keys():
                     result_ids = result_data[category]
-                    result_ids = filtered_ids.intersection(result_ids) if do_filter else result_ids
-                    result_ids = _segment_ids.intersection(result_ids) if do_segment else result_ids
+                    result_ids = [x for x in result_ids if x in filtered_ids] if do_filter else result_ids
+                    result_ids = [x for x in result_ids if x in _segment_ids] if do_segment else result_ids
                     categories.append({"label": category, "count": len(result_ids)})
                 return categories
 
