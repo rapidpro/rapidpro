@@ -120,7 +120,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # try to submit with name that would become invalid key
-        self.assertCreateSubmit(create_url, {"name": "-"}, form_errors={"name": "Isn't a valid name"})
+        self.assertCreateSubmit(create_url, {"name": "-", "value": "123"}, form_errors={"name": "Isn't a valid name"})
 
         # submit with valid values
         self.assertCreateSubmit(
