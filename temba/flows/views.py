@@ -1354,7 +1354,7 @@ class FlowCRUDL(SmartCRUDL):
             dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
             prefix = "/dev" if dev_mode else settings.STATIC_URL
 
-            # get our list of assets to incude
+            # get our list of assets to include
             scripts = []
             styles = []
 

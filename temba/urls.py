@@ -23,6 +23,7 @@ urlpatterns = [
     url(r"^", include("temba.classifiers.urls")),
     url(r"^", include("temba.contacts.urls")),
     url(r"^", include("temba.dashboard.urls")),
+    url(r"^", include("temba.reports.urls")),
     url(r"^", include("temba.flows.urls")),
     url(r"^", include("temba.globals.urls")),
     url(r"^", include("temba.ivr.urls")),

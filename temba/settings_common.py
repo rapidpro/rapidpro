@@ -286,6 +286,7 @@ INSTALLED_APPS = (
     "temba.channels",
     "temba.msgs",
     "temba.flows",
+    "temba.reports",
     "temba.tickets",
     "temba.triggers",
     "temba.utils",
@@ -699,6 +700,7 @@ GROUP_PERMISSIONS = {
         "channels.channellog_list",
         "channels.channellog_read",
         "channels.channellog_connection",
+        "reports.report.*",
         "flows.flow.*",
         "flows.flowstart.*",
         "flows.flowlabel.*",
@@ -812,6 +814,7 @@ GROUP_PERMISSIONS = {
         "channels.channel_search_numbers",
         "channels.channel_update",
         "channels.channelevent.*",
+        "reports.report.*",
         "flows.flow.*",
         "flows.flowstart_api",
         "flows.flowstart_list",
@@ -1039,6 +1042,10 @@ CELERYBEAT_SCHEDULE = {
     "generate-missing-gif-thumbnails": {
         "task": "generate_missing_gif_thumbnails",
         "schedule": crontab(hour=3, minute=30),
+    },
+    "collect-flow-results-data-for-analytics": {
+        "task": "analytics__auto_collect_flow_results_data",
+        "schedule": crontab(hour=5, minute=30),
     },
 }
 
