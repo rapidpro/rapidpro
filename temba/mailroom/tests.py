@@ -10,6 +10,7 @@ from django.utils import timezone
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun, FlowStart
+from temba.ivr.models import IVRCall
 from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
@@ -916,4 +917,47 @@ class EventTest(TembaTest):
                 "created_by": None,
             },
             Event.from_ticket_event(self.org, self.user, event2),
+        )
+
+    def test_from_ivr_call(self):
+        contact = self.create_contact("Jim", phone="0979111111")
+
+        call1 = IVRCall.objects.create(
+            org=self.org,
+            contact=contact,
+            status=IVRCall.STATUS_IN_PROGRESS,
+            channel=self.channel,
+            contact_urn=contact.urns.all().first(),
+            error_count=0,
+        )
+        call2 = IVRCall.objects.create(
+            org=self.org,
+            contact=contact,
+            status=IVRCall.STATUS_ERRORED,
+            error_reason=IVRCall.ERROR_BUSY,
+            channel=self.channel,
+            contact_urn=contact.urns.all().first(),
+            error_count=0,
+        )
+
+        self.assertEqual(
+            {
+                "type": "call_started",
+                "status": "I",
+                "status_display": "In Progress",
+                "created_on": matchers.ISODate(),
+                "logs_url": None,
+            },
+            Event.from_ivr_call(self.org, self.user, call1),
+        )
+
+        self.assertEqual(
+            {
+                "type": "call_started",
+                "status": "E",
+                "status_display": "Busy",
+                "created_on": matchers.ISODate(),
+                "logs_url": None,
+            },
+            Event.from_ivr_call(self.org, self.user, call2),
         )

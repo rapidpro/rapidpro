@@ -773,6 +773,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.ivr.models import IVRCall
         from temba.mailroom.events import get_event_time
         from temba.msgs.models import Msg
+        from temba.tickets.models import TicketEvent
 
         msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
@@ -821,13 +822,18 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         ticket_events = (
             self.ticket_events.filter(created_on__gte=after, created_on__lt=before)
-            .select_related("ticket__ticketer")
+            .select_related("ticket__ticketer", "assignee", "created_by")
             .order_by("-created_on")
         )
 
-        # can limit to single ticket when viewing a specific ticket rather than the contact read page
         if ticket:
+            # if we have a ticket this is for the ticket UI, so we want *all* events for *only* that ticket
             ticket_events = ticket_events.filter(ticket=ticket)
+        else:
+            # if not then this for the contact read page so only show ticket opened/closed/reopened events
+            ticket_events = ticket_events.filter(
+                event_type__in=[TicketEvent.TYPE_OPENED, TicketEvent.TYPE_CLOSED, TicketEvent.TYPE_REOPENED]
+            )
 
         ticket_events = ticket_events[:limit]
 
