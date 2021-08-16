@@ -43,8 +43,8 @@ jobs:
         id: docker_build2
         uses: docker/build-push-action@v2
         with:
-          context: .
-          file: docker/Dockerfile.varnish
+          context: docker
+          file: Dockerfile.varnish
           push: true
           tags: 242357350604.dkr.ecr.sa-east-1.amazonaws.com/push:${{ steps.vars.outputs.tag }}-varnish
           no-cache: true
