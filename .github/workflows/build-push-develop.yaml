@@ -36,9 +36,9 @@ jobs:
           tags: 242357350604.dkr.ecr.sa-east-1.amazonaws.com/push-backend:${{ steps.vars.outputs.tag }}
           no-cache: true
           build-args: |
-            RAPIDPRO_APPS_GIT_URL='https://github.com/Ilhasoft/rapidpro-apps.git'
-            RAPIDPRO_APPS_GIT_BRANCH='main'
-            PROTOBUFFERS_URL='https://github.com/Ilhasoft/weni-protobuffers.git'
+            RAPIDPRO_APPS_GIT_URL=https://github.com/Ilhasoft/rapidpro-apps.git
+            RAPIDPRO_APPS_GIT_BRANCH=main
+            PROTOBUFFERS_URL=https://github.com/Ilhasoft/weni-protobuffers.git
       - name: Build and push - Rapidpro Image
         id: docker_build2
         uses: docker/build-push-action@v2
@@ -49,4 +49,5 @@ jobs:
           tags: 242357350604.dkr.ecr.sa-east-1.amazonaws.com/push:${{ steps.vars.outputs.tag }}-varnish
           no-cache: true
           build-args: |
-            BACKEND_ADDRESS='push-develop:8000'
+            BACKEND_ADDRESS=push-develop:8000
+
