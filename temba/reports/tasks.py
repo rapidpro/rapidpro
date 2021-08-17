@@ -1,17 +1,27 @@
+import logging
 from celery.task import task
 
 from django.utils.timezone import now as tz_now
+from django.db import OperationalError as DjangoOperationalError
+from psycopg2._psycopg import OperationalError as PostgresOperationalError
 
 from temba.flows.models import Flow
 from .models import DataCollectionProcess, CollectedFlowResultsData
 
 
+logger = logging.getLogger(__name__)
+
+
 def process_collecting(state_obj, filters):
     for flow in Flow.objects.filter(**filters):
-        data = CollectedFlowResultsData.collect_results_data(flow)
-        attr = "flows_skipped" if data is None else "flows_processed"
+        try:
+            data = CollectedFlowResultsData.collect_results_data(flow)
+            attr = "flows_skipped" if data is None else "flows_processed"
+        except (DjangoOperationalError, PostgresOperationalError) as exc:
+            logger.error("Exception in collect analytics data task: %s" % str(exc), exc_info=True)
+            attr = "flows_failed"
         setattr(state_obj, attr, (getattr(state_obj, attr) + 1))
-        state_obj.save(update_fields=["flows_processed", "flows_skipped"])
+        state_obj.save(update_fields=["flows_processed", "flows_skipped", "flows_failed"])
 
 
 @task(track_started=True, name="analytics__auto_collect_flow_results_data")
