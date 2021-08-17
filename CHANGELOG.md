@@ -1,3 +1,10 @@
+v6.5.23
+----------
+ * Drop retry_count, make error_count non-null
+ * Improve channel log templates so that we use consistent date formating, show call error reasons, and show back button for calls
+ * Tweak how we assert form errors and fix where they don't match exactly
+ * Re-add QUEUED status for channel connections
+
 v6.5.22
 ----------
  * Tweak index used for retrying IVR calls to only include statuses Q and E
