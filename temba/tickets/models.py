@@ -142,6 +142,17 @@ class Ticketer(SmartModel, DependencyMixin):
         return f"Ticketer[uuid={self.uuid}, name={self.name}]"
 
 
+class Topic(SmartModel):
+    """
+    The topic of a ticket which controls who can access that ticket.
+    """
+
+    uuid = models.UUIDField(unique=True, default=uuid4)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="topics")
+    name = models.CharField(max_length=255)
+    is_system = models.BooleanField(default=False)
+
+
 class Ticket(models.Model):
     """
     A ticket represents a period of human interaction with a contact.
@@ -156,22 +167,14 @@ class Ticket(models.Model):
 
     MAX_NOTE_LEN = 4096
 
-    # our UUID
     uuid = models.UUIDField(unique=True, default=uuid4)
-
-    # the organization this ticket belongs to
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="tickets")
-
-    # the ticketer that manages this ticket
     ticketer = models.ForeignKey(Ticketer, on_delete=models.PROTECT, related_name="tickets")
-
-    # the contact this ticket is tied to
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="tickets")
 
-    # the subject of the ticket
-    subject = models.TextField()
-
-    # the body of the ticket
+    # ticket content
+    topic = models.ForeignKey(Topic, null=True, on_delete=models.PROTECT, related_name="tickets")
+    subject = models.TextField(null=True)
     body = models.TextField()
 
     # the external id of the ticket
@@ -180,8 +183,9 @@ class Ticket(models.Model):
     # any configuration attributes for this ticket
     config = models.JSONField(null=True)
 
-    # the status of this ticket, one of open, closed, expired
+    # the status of this ticket and who it's currently assigned to
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
+    assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
     # when this ticket was opened, closed, modified
     opened_on = models.DateTimeField(default=timezone.now)
@@ -190,8 +194,6 @@ class Ticket(models.Model):
 
     # when this ticket last had activity which includes messages being sent and received, and is used for ordering
     last_activity_on = models.DateTimeField(default=timezone.now)
-
-    assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
     def assign(self, user: User, *, assignee: User, note: str):
         self.bulk_assign(self.org, user, [self], assignee=assignee, note=note)
