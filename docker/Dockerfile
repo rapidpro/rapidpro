@@ -32,11 +32,9 @@ ENV NPM_CONFIG_PREFIX /opt/npm-globals
 ENV PATH              "${NPM_CONFIG_PREFIX}/bin:${PATH}"
 ENV FLOWEDITOR_TGZ "nyaruka-flow-editor-${FLOWEDITOR_VERSION}.tgz"
 
-RUN apt-get update && apt-get install -y apt-transport-https
-
 RUN apt-get update \
  && apt-get install --no-install-recommends --no-install-suggests -y apt-utils gcc \
- bzip2 git curl nginx libpq-dev gettext libgdal-dev python3-cffi python3-gdal vim ca-certificates
+ bzip2 git curl nginx libpq-dev gettext libgdal-dev python3-cffi python3-gdal ca-certificates ssh-client
 
 RUN curl -sL https://deb.nodesource.com/setup_12.x | bash - \
  && apt-get install --no-install-recommends --no-install-suggests -y nodejs
