@@ -20,8 +20,7 @@
               {{ log.request_time|default:"0"|intcomma }}ms
       %td
         .text-right.whitespace-nowrap
-          {{log.created_on|date:"M j, Y g:i:s a"}}
-
+          {% format_datetime log.created_on seconds=True %}
 
     %tr
       %td(colspan="4" style="padding:0;")
