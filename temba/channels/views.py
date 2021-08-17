@@ -1513,6 +1513,15 @@ class ChannelLogCRUDL(SmartCRUDL):
     class Connection(AnonMixin, SmartReadView):
         model = ChannelConnection
 
+        def get_gear_links(self):
+            return [
+                dict(
+                    title=_("More Calls"),
+                    style="button-light",
+                    href=reverse("channels.channellog_list", args=[self.get_object().channel.uuid]) + "?connections=1",
+                )
+            ]
+
     class Read(OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
 
