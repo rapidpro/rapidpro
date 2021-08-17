@@ -221,7 +221,7 @@ class ReportCRUDL(SmartCRUDL):
                                     {
                                         "label": _segment,
                                         "categories": get_filtered_or_segmented_results(
-                                            results[field["id"]["rule"]], _segment_ids
+                                            results.get(field["id"]["rule"], {}), _segment_ids
                                         ),
                                     }
                                 )
@@ -231,7 +231,9 @@ class ReportCRUDL(SmartCRUDL):
                             charts_data.append(
                                 {
                                     "id": field["id"],
-                                    "categories": get_filtered_or_segmented_results(results[field["id"]["rule"]], []),
+                                    "categories": get_filtered_or_segmented_results(
+                                        results.get(field["id"]["rule"], {}), []
+                                    ),
                                 }
                             )
                 except ObjectDoesNotExist:

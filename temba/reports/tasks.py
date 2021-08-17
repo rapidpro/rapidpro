@@ -1,6 +1,8 @@
 from celery.task import task
 
 from django.utils.timezone import now as tz_now
+from django.db import OperationalError as DjangoOperationalError
+from psycopg2._psycopg import OperationalError as PostgresOperationalError
 
 from temba.flows.models import Flow
 from .models import DataCollectionProcess, CollectedFlowResultsData
@@ -8,10 +10,15 @@ from .models import DataCollectionProcess, CollectedFlowResultsData
 
 def process_collecting(state_obj, filters):
     for flow in Flow.objects.filter(**filters):
-        data = CollectedFlowResultsData.collect_results_data(flow)
-        attr = "flows_skipped" if data is None else "flows_processed"
-        setattr(state_obj, attr, (getattr(state_obj, attr) + 1))
-        state_obj.save(update_fields=["flows_processed", "flows_skipped"])
+        try:
+            data = CollectedFlowResultsData.collect_results_data(flow)
+            attr = "flows_skipped" if data is None else "flows_processed"
+            setattr(state_obj, attr, (getattr(state_obj, attr) + 1))
+            state_obj.save(update_fields=["flows_processed", "flows_skipped"])
+        except (DjangoOperationalError, PostgresOperationalError):
+            attr = "flows_failed"
+            setattr(state_obj, attr, (getattr(state_obj, attr) + 1))
+            state_obj.save(update_fields=["flows_processed", "flows_skipped"])
 
 
 @task(track_started=True, name="analytics__auto_collect_flow_results_data")

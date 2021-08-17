@@ -66,6 +66,10 @@ class DataCollectionProcess(models.Model):
     flows_total = models.PositiveIntegerField(default=0)
     flows_skipped = models.PositiveIntegerField(default=0)
     flows_processed = models.PositiveIntegerField(default=0)
+    flows_failed = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-started_on", "-id"]
 
     @classmethod
     def get_last_collection_process_status(cls, org):
@@ -77,7 +81,7 @@ class DataCollectionProcess(models.Model):
                 "lastUpdated": str(last_dc.started_on),
                 "completed": bool(last_dc.completed_on),
                 "progress": (
-                    (last_dc.flows_skipped + last_dc.flows_processed) / last_dc.flows_total
+                    (last_dc.flows_skipped + last_dc.flows_processed + last_dc.flows_failed) / last_dc.flows_total
                     if last_dc.flows_total
                     else 1
                 ),
@@ -102,6 +106,9 @@ class CollectedFlowResultsData(models.Model):
     flow = models.OneToOneField("flows.Flow", on_delete=models.PROTECT, related_name="aggregated_results")
     data = JSONField(default=dict)
     last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-last_updated", "-id"]
 
     @classmethod
     def collect_results_data(cls, flow: Flow):
