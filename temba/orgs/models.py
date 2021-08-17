@@ -897,16 +897,17 @@ class Org(SmartModel):
         self.modified_by = user
         self.save(update_fields=("flow_languages", "modified_by", "modified_on"))
 
-    def get_datetime_formats(self):
-        format_date = Org.DATE_FORMATS_PYTHON.get(self.date_format)
-        format_datetime = format_date + " %H:%M"
-        return format_date, format_datetime
+    def get_datetime_formats(self, *, seconds=False):
+        date_format = Org.DATE_FORMATS_PYTHON.get(self.date_format)
+        time_format = "%H:%M:%S" if seconds else "%H:%M"
+        datetime_format = f"{date_format} {time_format}"
+        return date_format, datetime_format
 
-    def format_datetime(self, d, show_time=True):
+    def format_datetime(self, d, *, show_time=True, seconds=False):
         """
         Formats a datetime with or without time using this org's date format
         """
-        formats = self.get_datetime_formats()
+        formats = self.get_datetime_formats(seconds=seconds)
         format = formats[1] if show_time else formats[0]
         return datetime_to_str(d, format, self.timezone)
 
