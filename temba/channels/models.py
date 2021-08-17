@@ -1741,10 +1741,8 @@ class ChannelConnection(models.Model):
     duration = models.IntegerField(null=True)  # in seconds
 
     error_reason = models.CharField(max_length=1, null=True, choices=ERROR_CHOICES)
-    error_count = models.IntegerField(null=True)
+    error_count = models.IntegerField(default=0)
     next_attempt = models.DateTimeField(null=True)
-
-    retry_count = models.IntegerField(null=True)  # TODO deprecate in favor of error_count
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1804,6 +1802,7 @@ class ChannelConnection(models.Model):
 
     class Meta:
         indexes = [
+            # used by mailroom to fetch calls that need to be retried
             models.Index(
                 name="channelconnection_ivr_to_retry",
                 fields=["next_attempt"],
