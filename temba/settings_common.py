@@ -936,6 +936,7 @@ GROUP_PERMISSIONS = {
         "links.link_history",
         "links.link_list",
         "links.link_read",
+        "reports.report_read",
         "tickets.ticket_closed",
         "tickets.ticket_filter",
         "tickets.ticket_open",

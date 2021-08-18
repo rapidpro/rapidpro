@@ -124,6 +124,7 @@ class ReportCRUDL(SmartCRUDL):
                         groups=groups_json,
                         reports=reports_json,
                         data_status=DataCollectionProcess.get_last_collection_process_status(org),
+                        readonly=(not self.has_org_perm("reports.report_create")),
                     )
                 ),
                 scripts=scripts,
