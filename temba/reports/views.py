@@ -108,9 +108,8 @@ class ReportCRUDL(SmartCRUDL):
                     "stats": {"created_on": str(flow.created_on), "runs": sum(FlowRunCount.get_totals(flow).values())},
                 }
 
-            flow_json = list(
-                map(flow_cast, Flow.objects.filter(org_id=org.id, is_active=True, is_system=False, is_archived=False))
-            )
+            flows = Flow.objects.filter(org_id=org.id, is_active=True, is_system=False, is_archived=False)
+            flow_json = list(map(flow_cast, filter(lambda x: x.metadata.get("results"), flows)))
 
             groups = ContactGroup.user_groups.filter(org=org).order_by("name")
             groups_json = list(filter(lambda x: x is not None, [group.analytics_json() for group in groups]))
