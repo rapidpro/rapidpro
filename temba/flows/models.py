@@ -1012,37 +1012,27 @@ class FlowSession(models.Model):
     )
 
     uuid = models.UUIDField(unique=True)
+    org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
+    contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True)
 
     # the modality of this session
     session_type = models.CharField(max_length=1, choices=Flow.TYPE_CHOICES, default=Flow.TYPE_MESSAGE)
 
-    # the organization this session belongs to
-    org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
-
-    # the contact that this session is with
-    contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
-
-    # the channel connection used for flow sessions over IVR or USSD"),
+    # the channel connection used for flow sessions over IVR
     connection = models.OneToOneField(
         "channels.ChannelConnection", on_delete=models.PROTECT, null=True, related_name="session"
     )
 
-    # the status of this session
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True)
-
     # whether the contact has responded in this session
     responded = models.BooleanField(default=False)
 
-    # the goflow output of this session
+    # the engine output of this session (either stored in this field or at the URL pointed to by output_url)
     output = JSONAsTextField(null=True, default=dict)
-
-    # the URL for the JSON file that contains our session content (optional)
     output_url = models.URLField(null=True, max_length=2048)
 
-    # when this session was created
+    # when this session was created and ended
     created_on = models.DateTimeField(default=timezone.now)
-
-    # when this session ended
     ended_on = models.DateTimeField(null=True)
 
     # when this session's wait will time out (if at all)
@@ -1128,31 +1118,22 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
 
     uuid = models.UUIDField(unique=True, default=uuid4)
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="runs", db_index=False)
-
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="runs")
-
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="runs")
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
     # session this run belongs to (can be null if session has been trimmed)
     session = models.ForeignKey(FlowSession, on_delete=models.PROTECT, related_name="runs", null=True)
-
-    # current status of this run
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
     # for an IVR session this is the connection to the IVR channel
     connection = models.ForeignKey(
         "channels.ChannelConnection", on_delete=models.PROTECT, related_name="runs", null=True
     )
 
-    # when this run was created
+    # when this run was created, last modified and exited
     created_on = models.DateTimeField(default=timezone.now)
-
-    # when this run was last modified
     modified_on = models.DateTimeField(default=timezone.now)
-
-    # when this run ended
     exited_on = models.DateTimeField(null=True)
 
     # when this run will expire
