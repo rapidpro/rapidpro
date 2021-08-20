@@ -218,6 +218,12 @@ class Link(TembaModel):
                 revisions.append(revision)
         FlowRevision.objects.bulk_update(revisions, ["definition"])
 
+    def get_clicks_count(self):
+        return self.contacts.all().only("id").count()
+
+    def get_unique_clicks_count(self):
+        return self.contacts.distinct("contact").only("id").count()
+
     def __str__(self):
         return self.name
 
