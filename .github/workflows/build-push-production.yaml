@@ -2,17 +2,17 @@ name: Build Develop Push
 on:
   push:
     tags:
-      - 'develop-v*.*.*'
+      - 'v*.*.*'
 jobs:
   docker:
     runs-on: ubuntu-latest
     environment: 
-      name: develop
+      name: production
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
         with:
-          ref:  develop
+          ref:  production
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
@@ -37,7 +37,7 @@ jobs:
           no-cache: true
           build-args: |
             RAPIDPRO_APPS_GIT_URL=https://github.com/Ilhasoft/rapidpro-apps.git
-            RAPIDPRO_APPS_GIT_BRANCH=main
+            RAPIDPRO_APPS_GIT_BRANCH=production
             PROTOBUFFERS_URL=https://github.com/Ilhasoft/weni-protobuffers.git
       - name: Build and push - Varnish Image
         id: docker_build2
