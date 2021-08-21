@@ -50,8 +50,6 @@ class Link(TembaModel):
 
     is_archived = models.BooleanField(default=False, help_text=_("Whether this trackable link is archived"))
 
-    clicks_count = models.PositiveIntegerField(default=0, help_text="Clicks count for this trackable link")
-
     @classmethod
     def create(cls, org, user, name, destination, related_flow=None):
         links_arg = dict(
