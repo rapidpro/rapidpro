@@ -2151,12 +2151,11 @@ class ContactImport(SmartModel):
                 seen_uuids.add(uuid)
             for urn in urns:
                 if urn in seen_urns:
+                    if not settings.ALLOW_DUPLICATE_CONTACT_IMPORT:
+                        raise ValidationError(
+                            _("Import file contains duplicated contact URN '%(urn)s'."), params={"urn": urn}
+                        )
                     num_duplicates += 1
-
-                if urn in seen_urns and not settings.ALLOW_DUPLICATE_CONTACT_IMPORT:
-                    raise ValidationError(
-                        _("Import file contains duplicated contact URN '%(urn)s'."), params={"urn": urn}
-                    )
                 seen_urns.add(urn)
 
             # check if we exceed record limit
@@ -2352,7 +2351,7 @@ class ContactImport(SmartModel):
 
             if batch["finished_on"] and (oldest_finished_on is None or batch["finished_on"] > oldest_finished_on):
                 oldest_finished_on = batch["finished_on"]
-                num_duplicates =  self.num_duplicates
+                num_duplicates = self.num_duplicates
 
         status = self._get_overall_status(statuses)
 
