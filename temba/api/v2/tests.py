@@ -712,7 +712,7 @@ class APITest(TembaTest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Support Tickets", {})
-        ticket = self.create_ticket(ticketer, self.joe, "Help!")
+        ticket = self.create_ticket(ticketer, self.joe, body="Help!")
 
         bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", urns=["twitter:franky"])
         bcast2 = Broadcast.create(self.org, self.admin, "Hello 2", contacts=[self.joe])
@@ -4454,14 +4454,16 @@ class APITest(TembaTest):
         ann = self.create_contact("Ann", urns=["twitter:annie"])
         bob = self.create_contact("Bob", urns=["twitter:bobby"])
         ticket1 = self.create_ticket(
-            mailgun, ann, "Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
+            mailgun, ann, subject="Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
         )
-        ticket2 = self.create_ticket(mailgun, bob, "Need help again", body="Now")
-        ticket3 = self.create_ticket(mailgun, bob, "It's bob", body="Pleeeease help")
+        ticket2 = self.create_ticket(mailgun, bob, subject="Need help again", body="Now")
+        ticket3 = self.create_ticket(mailgun, bob, subject="It's bob", body="Pleeeease help")
 
         # on another org
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
-        self.create_ticket(zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Need help")
+        self.create_ticket(
+            zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), subject="Need help"
+        )
 
         response = self.fetchJSON(url, "ticketer_type=zendesk")
         resp_json = response.json()
@@ -4553,15 +4555,19 @@ class APITest(TembaTest):
         # create some tickets
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
         ticket1 = self.create_ticket(
-            mailgun, self.joe, "Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
+            mailgun,
+            self.joe,
+            subject="Need help",
+            body="Now",
+            closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC),
         )
-        ticket2 = self.create_ticket(mailgun, self.joe, "Need help again", body="Now")
-        self.create_ticket(mailgun, self.frank, "It's bob", body="Pleeeease help")
+        ticket2 = self.create_ticket(mailgun, self.joe, subject="Need help again", body="Now")
+        self.create_ticket(mailgun, self.frank, subject="It's bob", body="Pleeeease help")
 
         # on another org
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
         ticket4 = self.create_ticket(
-            zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Need help"
+            zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), subject="Need help"
         )
 
         # try actioning more tickets than this endpoint is allowed to operate on at one time

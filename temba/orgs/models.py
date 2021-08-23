@@ -727,7 +727,7 @@ class Org(SmartModel):
 
     @cached_property
     def default_ticket_topic(self):
-        return self.topics.get(is_system=True, name="General")
+        return self.topics.get(is_default=True)
 
     def get_resthooks(self):
         """
@@ -1724,8 +1724,8 @@ class Org(SmartModel):
         # delete contact-related data
         self.sessions.all().delete()
         self.ticket_events.all().delete()
-        self.topics.all().delete()
         self.tickets.all().delete()
+        self.topics.all().delete()
         self.airtime_transfers.all().delete()
 
         for result in self.webhook_results.all():

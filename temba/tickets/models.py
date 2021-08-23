@@ -147,16 +147,20 @@ class Topic(SmartModel):
     The topic of a ticket which controls who can access that ticket.
     """
 
+    DEFAULT_NAME = "General"
+
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="topics")
     name = models.CharField(max_length=255)
-    is_system = models.BooleanField(default=False)
+    is_default = models.BooleanField(default=False)
 
     @classmethod
     def create_default_topic(cls, org):
-        assert not org.topics.exists(), "org already has default topic"
+        assert not org.topics.filter(is_default=True).exists(), "org already has default topic"
 
-        org.topics.create(name="General", is_system=True, created_by=org.created_by, modified_by=org.modified_by)
+        org.topics.create(
+            name=cls.DEFAULT_NAME, is_default=True, created_by=org.created_by, modified_by=org.modified_by
+        )
 
 
 class Ticket(models.Model):
@@ -299,7 +303,12 @@ class TicketFolder(metaclass=ABCMeta):
     icon = None
 
     def get_queryset(self, org, user):
-        return Ticket.objects.filter(org=org).order_by("-last_activity_on", "-id").prefetch_related("contact")
+        return (
+            Ticket.objects.filter(org=org)
+            .order_by("-last_activity_on", "-id")
+            .select_related("topic", "assignee")
+            .prefetch_related("contact")
+        )
 
     @classmethod
     def from_slug(cls, slug: str):

@@ -52,7 +52,7 @@ class Migration(migrations.Migration):
                 ),
                 ("uuid", models.UUIDField(default=temba.utils.uuid.uuid4, unique=True)),
                 ("name", models.CharField(max_length=255)),
-                ("is_system", models.BooleanField(default=False)),
+                ("is_default", models.BooleanField(default=False)),
                 (
                     "created_by",
                     models.ForeignKey(

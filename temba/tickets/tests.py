@@ -76,12 +76,12 @@ class TicketTest(TembaTest):
         org2_ticketer = Ticketer.create(self.org2, self.admin2, MailgunType.slug, "jim@acme.com", {})
         org2_contact = self.create_contact("Bob", urns=["twitter:bobby"], org=self.org2)
 
-        t1 = self.create_ticket(ticketer, contact1, "Test 1")
-        t2 = self.create_ticket(ticketer, contact2, "Test 2")
-        t3 = self.create_ticket(ticketer, contact1, "Test 3")
-        t4 = self.create_ticket(ticketer, contact2, "Test 4")
-        t5 = self.create_ticket(ticketer, contact1, "Test 5")
-        t6 = self.create_ticket(org2_ticketer, org2_contact, "Test 6")
+        t1 = self.create_ticket(ticketer, contact1, body="Test 1")
+        t2 = self.create_ticket(ticketer, contact2, body="Test 2")
+        t3 = self.create_ticket(ticketer, contact1, body="Test 3")
+        t4 = self.create_ticket(ticketer, contact2, body="Test 4")
+        t5 = self.create_ticket(ticketer, contact1, body="Test 5")
+        t6 = self.create_ticket(org2_ticketer, org2_contact, body="Test 6")
 
         def assert_counts(org, *, open: dict, closed: dict, contacts: dict):
             assignees = [None] + list(Ticket.get_allowed_assignees(org))
@@ -192,7 +192,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_list(self):
         list_url = reverse("tickets.ticket_list")
-        ticket = self.create_ticket(self.internal, self.contact, "Test 1", assignee=self.admin)
+        ticket = self.create_ticket(self.internal, self.contact, body="Test 1", assignee=self.admin)
 
         # just a placeholder view for frontend components
         self.assertListFetch(list_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[])
@@ -224,10 +224,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
         menu_url = reverse("tickets.ticket_menu")
 
-        self.create_ticket(self.internal, self.contact, "Test 1", assignee=self.admin)
-        self.create_ticket(self.internal, self.contact, "Test 2", assignee=self.admin)
-        self.create_ticket(self.internal, self.contact, "Test 3", assignee=None)
-        self.create_ticket(self.internal, self.contact, "Test 4", closed_on=timezone.now())
+        self.create_ticket(self.internal, self.contact, body="Test 1", assignee=self.admin)
+        self.create_ticket(self.internal, self.contact, body="Test 2", assignee=self.admin)
+        self.create_ticket(self.internal, self.contact, body="Test 3", assignee=None)
+        self.create_ticket(self.internal, self.contact, body="Test 4", closed_on=timezone.now())
 
         response = self.assertListFetch(menu_url, allow_viewers=False, allow_editors=True, allow_agents=True)
 
@@ -266,24 +266,24 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         assert_tickets(response, [])
 
         # contact 1 has two open tickets
-        c1_t1 = self.create_ticket(self.mailgun, contact1, "Question 1")
+        c1_t1 = self.create_ticket(self.mailgun, contact1, body="Question 1")
         # assign it
         c1_t1.assign(self.admin, assignee=self.admin, note="I've got this")
-        c1_t2 = self.create_ticket(self.mailgun, contact1, "Question 2")
+        c1_t2 = self.create_ticket(self.mailgun, contact1, body="Question 2")
 
         self.create_incoming_msg(contact1, "I have an issue")
         self.create_broadcast(self.admin, "We can help", contacts=[contact1]).msgs.first()
 
         # contact 2 has an open ticket and a closed ticket
-        c2_t1 = self.create_ticket(self.mailgun, contact2, "Question 3")
-        c2_t2 = self.create_ticket(self.mailgun, contact2, "Question 4", closed_on=timezone.now())
+        c2_t1 = self.create_ticket(self.mailgun, contact2, body="Question 3")
+        c2_t2 = self.create_ticket(self.mailgun, contact2, body="Question 4", closed_on=timezone.now())
 
         self.create_incoming_msg(contact2, "Anyone there?")
         self.create_incoming_msg(contact2, "Hello?")
 
         # contact 3 has two closed tickets
-        c3_t1 = self.create_ticket(self.mailgun, contact3, "Question 5", closed_on=timezone.now())
-        c3_t2 = self.create_ticket(self.mailgun, contact3, "Question 6", closed_on=timezone.now())
+        c3_t1 = self.create_ticket(self.mailgun, contact3, body="Question 5", closed_on=timezone.now())
+        c3_t2 = self.create_ticket(self.mailgun, contact3, body="Question 6", closed_on=timezone.now())
 
         # fetching open folder returns all open tickets
         response = self.client.get(open_url)
@@ -307,7 +307,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     "ticket": {
                         "uuid": str(contact2.tickets.filter(status="O").first().uuid),
                         "assignee": None,
-                        "subject": "Question 3",
+                        "topic": {"uuid": matchers.UUID4String(), "name": "General"},
+                        "subject": None,
+                        "body": "Question 3",
                         "last_activity_on": matchers.ISODate(),
                         "closed_on": None,
                     },
@@ -326,7 +328,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     "ticket": {
                         "uuid": str(joes_open_tickets[0].uuid),
                         "assignee": None,
-                        "subject": "Question 2",
+                        "topic": {"uuid": matchers.UUID4String(), "name": "General"},
+                        "subject": None,
+                        "body": "Question 2",
                         "last_activity_on": matchers.ISODate(),
                         "closed_on": None,
                     },
@@ -350,7 +354,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                             "last_name": "",
                             "email": "Administrator@nyaruka.com",
                         },
-                        "subject": "Question 1",
+                        "topic": {"uuid": matchers.UUID4String(), "name": "General"},
+                        "subject": None,
+                        "body": "Question 1",
                         "last_activity_on": matchers.ISODate(),
                         "closed_on": None,
                     },
@@ -382,7 +388,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_note(self, mr_mocks):
-        ticket = self.create_ticket(self.mailgun, self.contact, "Ticket 1")
+        ticket = self.create_ticket(self.mailgun, self.contact, body="Ticket 1")
 
         update_url = reverse("tickets.ticket_note", args=[ticket.uuid])
 
@@ -400,7 +406,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_assign(self, mr_mocks):
-        ticket = self.create_ticket(self.mailgun, self.contact, "Some ticket")
+        ticket = self.create_ticket(self.mailgun, self.contact, body="Some ticket")
 
         assign_url = reverse("tickets.ticket_assign", args=[ticket.uuid])
 
@@ -461,7 +467,7 @@ class TicketerTest(TembaTest):
 
         contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
-        ticket = self.create_ticket(ticketer, contact, "Need help", body="Where are my cookies?")
+        ticket = self.create_ticket(ticketer, contact, body="Where are my cookies?")
 
         # release it
         ticketer.release(self.user)
