@@ -50,8 +50,6 @@ class Link(TembaModel):
 
     is_archived = models.BooleanField(default=False, help_text=_("Whether this trackable link is archived"))
 
-    clicks_count = models.PositiveIntegerField(default=0, help_text="Clicks count for this trackable link")
-
     @classmethod
     def create(cls, org, user, name, destination, related_flow=None):
         links_arg = dict(
@@ -217,6 +215,12 @@ class Link(TembaModel):
             if any(list(map(update_node, revision.definition.get("nodes", [])))):
                 revisions.append(revision)
         FlowRevision.objects.bulk_update(revisions, ["definition"])
+
+    def get_clicks_count(self):
+        return self.contacts.all().only("id").count()
+
+    def get_unique_clicks_count(self):
+        return self.contacts.distinct("contact").only("id").count()
 
     def __str__(self):
         return self.name

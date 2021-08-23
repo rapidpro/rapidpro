@@ -5549,14 +5549,17 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
         group_filters = self.get_name_uuid_filters("exclude", "contact__all_groups")
         time_filters = self.get_datetime_filters("", "modified_on", org)
 
-        unique_clicks = (
+        total_clicks_query = (
             LinkContacts.objects.using("read_only_db")
+            .only("id")
             .filter(link_id=link.id)
             .filter(time_filters)
             .exclude(group_filters)
-            .distinct()
-            .count()
         )
+
+        total_clicks = total_clicks_query.count()
+        unique_clicks = total_clicks_query.distinct("contact").count()
+
         unique_contacts = (
             link.related_flow.runs.filter(time_filters)
             .exclude(group_filters)
@@ -5564,6 +5567,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
             if link.related_flow
             else None
         )
+
         response_data = {
             "name": link.name,
             "destination": link.destination,
@@ -5571,13 +5575,14 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
             **self.applied_filters,
             "results": [
                 {
-                    "total_clicks": link.clicks_count,
+                    "total_clicks": total_clicks,
                     "unique_clicks": unique_clicks,
                     "unique_contacts": unique_contacts,
                     "clickthrough_rate": unique_clicks / unique_contacts if unique_contacts else unique_contacts,
                 }
             ],
         }
+
         return Response(response_data)
 
     @staticmethod
