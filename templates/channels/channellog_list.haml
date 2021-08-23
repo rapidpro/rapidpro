@@ -1,5 +1,5 @@
 {% extends "smartmin/list.html" %}
--load i18n contacts smartmin humanize
+-load i18n contacts smartmin humanize temba
 
 -block page-title
   -trans "Channel Events"
@@ -72,8 +72,9 @@
                         %span
                           {{ obj.request_time|default:"0"|intcomma }}ms
 
-                    %td{ style:'text-align: right', nowrap:'true' }
-                      {{obj.created_on|date:"M d, Y, H:m:s"}}
+                    %td(style='text-align: right' nowrap='true')
+                      {% format_datetime obj.created_on seconds=True %}
+
                 -elif request.GET.others
                   %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
                     %td
@@ -84,8 +85,8 @@
                       %span
                         {{ obj.request_time|default:"0"|intcomma }}ms
 
-                    %td{ style:'text-align: right', nowrap:'true' }
-                      {{obj.created_on}}
+                    %td(style='text-align: right' nowrap='true')
+                      {% format_datetime obj.created_on seconds=True %}
 
                 -else
                   %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
@@ -101,8 +102,8 @@
                       %span
                         {{ obj.request_time|default:"0"|intcomma }}ms
 
-                    %td{ style:'text-align: right', nowrap:'true' }
-                      {{obj.created_on}}
+                    %td(style='text-align: right' nowrap='true')
+                      {% format_datetime obj.created_on seconds=True %}
 
           .flex.flex-col.mb-16
             -include "includes/pagination.haml"

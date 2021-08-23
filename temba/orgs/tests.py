@@ -3814,6 +3814,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_org_timezone(self):
         self.assertEqual(self.org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M"), self.org.get_datetime_formats())
+        self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M:%S"), self.org.get_datetime_formats(seconds=True))
 
         contact = self.create_contact("Bob", phone="+250788382382")
         self.create_incoming_msg(contact, "My name is Frank")

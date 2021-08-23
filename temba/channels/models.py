@@ -1697,6 +1697,7 @@ class ChannelConnection(models.Model):
     DIRECTION_CHOICES = ((DIRECTION_INCOMING, "Incoming"), (DIRECTION_OUTGOING, "Outgoing"))
 
     STATUS_PENDING = "P"  # used for initial creation in database
+    STATUS_QUEUED = "Q"  # used when we need to throttle requests for new calls
     STATUS_WIRED = "W"  # the call has been requested on the IVR provider
     STATUS_IN_PROGRESS = "I"  # the call has been answered
     STATUS_COMPLETED = "D"  # the call was completed successfully
@@ -1704,6 +1705,7 @@ class ChannelConnection(models.Model):
     STATUS_FAILED = "F"  # permanent failure
     STATUS_CHOICES = (
         (STATUS_PENDING, _("Pending")),
+        (STATUS_QUEUED, _("Queued")),
         (STATUS_WIRED, _("Wired")),
         (STATUS_IN_PROGRESS, _("In Progress")),
         (STATUS_COMPLETED, _("Complete")),
@@ -1715,13 +1717,11 @@ class ChannelConnection(models.Model):
     ERROR_BUSY = "B"
     ERROR_NOANSWER = "N"
     ERROR_MACHINE = "M"
-    ERROR_THROTTLED = "T"
     ERROR_CHOICES = (
         (ERROR_PROVIDER, _("Provider")),  # an API call to the IVR provider returned an error
         (ERROR_BUSY, _("Busy")),  # the contact couldn't be called because they're busy
         (ERROR_NOANSWER, _("No Answer")),  # the contact didn't answer the call
         (ERROR_MACHINE, _("Answering Machine")),  # the call went to an answering machine
-        (ERROR_THROTTLED, _("Throttled")),  # the request to the provider to start the call has been throttled
     )
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
@@ -1741,10 +1741,8 @@ class ChannelConnection(models.Model):
     duration = models.IntegerField(null=True)  # in seconds
 
     error_reason = models.CharField(max_length=1, null=True, choices=ERROR_CHOICES)
-    error_count = models.IntegerField(null=True)
+    error_count = models.IntegerField(default=0)
     next_attempt = models.DateTimeField(null=True)
-
-    retry_count = models.IntegerField(null=True)  # TODO deprecate in favor of error_count
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1804,6 +1802,7 @@ class ChannelConnection(models.Model):
 
     class Meta:
         indexes = [
+            # used by mailroom to fetch calls that need to be retried
             models.Index(
                 name="channelconnection_ivr_to_retry",
                 fields=["next_attempt"],

@@ -990,7 +990,7 @@ class ContactCRUDL(SmartCRUDL):
                     "fields": contact.fields if contact.fields else {},
                     "primary_urn_formatted": primary_urn,
                 }
-                contact_json["created_on"] = org.format_datetime(contact.created_on, False)
+                contact_json["created_on"] = org.format_datetime(contact.created_on, show_time=False)
 
                 json_contacts.append(contact_json)
             summary["sample"] = json_contacts

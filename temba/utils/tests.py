@@ -32,6 +32,7 @@ from temba.flows.models import FlowRun
 from temba.orgs.models import Org
 from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json, uuid
+from temba.utils.templatetags.temba import format_datetime
 
 from . import (
     chunk_list,
@@ -282,19 +283,18 @@ class TemplateTagTest(TembaTest):
         self.assertEqual("", icon(None))
 
     def test_format_datetime(self):
-        import pytz
-        from temba.utils.templatetags.temba import format_datetime
-
         with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
             self.org.date_format = "D"
             self.org.save()
 
             # date without timezone and no user org in context
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 30, 0)
             self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
+            self.assertEqual("20-07-2012 17:05:30", format_datetime(dict(), test_date, seconds=True))
 
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 30, 0).replace(tzinfo=pytz.utc)
             self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
+            self.assertEqual("20-07-2012 17:05:30", format_datetime(dict(), test_date, seconds=True))
 
             context = dict(user_org=self.org)
 
