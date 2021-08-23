@@ -58,9 +58,9 @@ class UpdateForm(UpdateChannelForm):
                     "seconds to take effect"
                 ),
             ),
-            "",
+            default="",
         )
 
     class Meta(UpdateChannelForm.Meta):
-        fields = "name", "address", "alert_email"
+        fields = ("name", "address", "alert_email")
         readonly = ("address",)

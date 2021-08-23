@@ -670,6 +670,10 @@ class BaseClaimNumberMixin(ClaimViewMixin):
 
 
 class UpdateChannelForm(forms.ModelForm):
+    name = forms.CharField(
+        label=_("Name"), max_length=64, required=True, help_text=_("Descriptive name for this channel.")
+    )
+
     def __init__(self, *args, **kwargs):
         self.object = kwargs["object"]
         del kwargs["object"]
@@ -681,11 +685,20 @@ class UpdateChannelForm(forms.ModelForm):
         if URN.TEL_SCHEME in self.object.schemes:
             self.add_config_field(
                 Channel.CONFIG_ALLOW_INTERNATIONAL,
-                forms.BooleanField(required=False, help_text=_("Allow international sending")),
-                False,
+                forms.BooleanField(required=False, help_text=_("Allow sending to international numbers.")),
+                default=False,
             )
 
-    def add_config_field(self, config_key, field, default):
+        if Channel.ROLE_CALL in self.object.role:
+            self.add_config_field(
+                Channel.CONFIG_MACHINE_DETECTION,
+                forms.BooleanField(
+                    required=False, help_text=_("Perform answering machine detection and hangup if machine detected.")
+                ),
+                default=False,
+            )
+
+    def add_config_field(self, config_key: str, field, *, default):
         field.initial = self.instance.config.get(config_key, default)
 
         self.fields[config_key] = field
@@ -693,7 +706,7 @@ class UpdateChannelForm(forms.ModelForm):
 
     class Meta:
         model = Channel
-        fields = "name", "alert_email"
+        fields = ("name", "alert_email")
         readonly = ()
         labels = {}
         helps = {}
