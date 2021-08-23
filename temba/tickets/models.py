@@ -152,6 +152,12 @@ class Topic(SmartModel):
     name = models.CharField(max_length=255)
     is_system = models.BooleanField(default=False)
 
+    @classmethod
+    def create_default_topic(cls, org):
+        assert not org.topics.exists(), "org already has default topic"
+
+        org.topics.create(name="General", is_system=True, created_by=org.created_by, modified_by=org.modified_by)
+
 
 class Ticket(models.Model):
     """
