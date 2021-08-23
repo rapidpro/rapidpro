@@ -220,6 +220,8 @@ class ChannelTest(TembaTest):
         self.assertEqual("+250 785 551 212", self.tel_channel.get_address_display())
         self.assertEqual("+250785551212", self.tel_channel.get_address_display(e164=True))
 
+        self.assertEqual("@billy_bob", self.twitter_channel.get_address_display())
+
         # make sure it works with alphanumeric numbers
         self.tel_channel.address = "EATRIGHT"
         self.assertEqual("EATRIGHT", self.tel_channel.get_address_display())
@@ -1439,7 +1441,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             android_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={"name": "My Android", "alert_email": None, "allow_international": None},
+            form_fields={"name": "My Android", "alert_email": None, "allow_international": False},
         )
         self.assertUpdateFetch(
             vonage_url,
@@ -1448,8 +1450,8 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             form_fields={
                 "name": "My Vonage",
                 "alert_email": None,
-                "allow_international": None,
-                "machine_detection": None,
+                "allow_international": False,
+                "machine_detection": False,
             },
         )
         self.assertUpdateFetch(
@@ -1469,14 +1471,33 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # make some changes
         self.assertUpdateSubmit(
-            vonage_url, {"name": "Updated Name", "allow_international": True, "machine_detection": True}
+            vonage_url,
+            {
+                "name": "Updated Name",
+                "alert_email": "bob@nyaruka.com",
+                "allow_international": True,
+                "machine_detection": True,
+            },
         )
 
         vonage_channel.refresh_from_db()
         self.assertEqual("Updated Name", vonage_channel.name)
         self.assertEqual("+1234567890", vonage_channel.address)
+        self.assertEqual("bob@nyaruka.com", vonage_channel.alert_email)
         self.assertTrue(vonage_channel.config.get("allow_international"))
         self.assertTrue(vonage_channel.config.get("machine_detection"))
+
+        self.assertUpdateFetch(
+            vonage_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "name": "Updated Name",
+                "alert_email": "bob@nyaruka.com",
+                "allow_international": True,
+                "machine_detection": True,
+            },
+        )
 
     def test_delete(self):
         delete_url = reverse("channels.channel_delete", args=[self.ex_channel.uuid])

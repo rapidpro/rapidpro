@@ -685,7 +685,7 @@ class UpdateChannelForm(forms.ModelForm):
         if URN.TEL_SCHEME in self.object.schemes:
             self.add_config_field(
                 Channel.CONFIG_ALLOW_INTERNATIONAL,
-                forms.BooleanField(required=False, help_text=_("Allow sending to international numbers.")),
+                forms.BooleanField(required=False, help_text=_("Allow sending to and calling international numbers.")),
                 default=False,
             )
 
