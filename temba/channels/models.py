@@ -276,6 +276,7 @@ class Channel(TembaModel, DependencyMixin):
     CONFIG_MESSAGING_SERVICE_SID = "messaging_service_sid"
     CONFIG_MAX_CONCURRENT_EVENTS = "max_concurrent_events"
     CONFIG_ALLOW_INTERNATIONAL = "allow_international"
+    CONFIG_MACHINE_DETECTION = "machine_detection"
 
     CONFIG_VONAGE_API_KEY = "nexmo_api_key"
     CONFIG_VONAGE_API_SECRET = "nexmo_api_secret"
@@ -334,12 +335,8 @@ class Channel(TembaModel, DependencyMixin):
     }
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="channels", null=True)
-
     channel_type = models.CharField(max_length=3)
-
-    name = models.CharField(
-        verbose_name=_("Name"), max_length=64, blank=True, null=True, help_text=_("Descriptive label for this channel")
-    )
+    name = models.CharField(max_length=64, null=True)
 
     address = models.CharField(
         verbose_name=_("Address"),
