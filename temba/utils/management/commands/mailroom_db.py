@@ -391,7 +391,7 @@ class Command(BaseCommand):
 
         # create each of our orgs
         for spec in ORGS:
-            self.create_org(spec, superuser, country, locations)
+            self.create_org(spec, superuser, country)
 
         # dump our file
         subprocess.check_call("pg_dump -Fc mailroom_test > mailroom_test.dump", shell=True)
@@ -424,7 +424,7 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + "\n")
         return country, locations
 
-    def create_org(self, spec, superuser, country, locations):
+    def create_org(self, spec, superuser, country):
         self._log(f"\nCreating org {spec['name']}...\n")
 
         org = Org.objects.create(
