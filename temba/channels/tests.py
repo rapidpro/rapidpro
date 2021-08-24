@@ -1922,6 +1922,9 @@ class ChannelCountTest(TembaTest):
 
 class ChannelLogTest(TembaTest):
     def test_views(self):
+        self.channel.role = "CASR"
+        self.channel.save(update_fields=("role",))
+
         other_org_channel = Channel.create(
             self.org2,
             self.admin2,
