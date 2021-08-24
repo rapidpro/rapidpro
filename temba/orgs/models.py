@@ -1565,7 +1565,7 @@ class Org(SmartModel):
 
         return all_components
 
-    def initialize(self, branding=None, topup_size=None):
+    def initialize(self, branding=None, topup_size=None, sample_flows=True):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
@@ -1585,7 +1585,8 @@ class Org(SmartModel):
             self.update_capabilities()
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
-        self.create_sample_flows(branding.get("api_link", ""))
+        if sample_flows:
+            self.create_sample_flows(branding.get("api_link", ""))
 
     def download_and_save_media(self, request, extension=None):  # pragma: needs cover
         """

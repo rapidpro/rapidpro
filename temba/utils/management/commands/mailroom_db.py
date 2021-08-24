@@ -391,7 +391,7 @@ class Command(BaseCommand):
 
         # create each of our orgs
         for spec in ORGS:
-            self.create_org(spec, superuser, country, locations)
+            self.create_org(spec, superuser, country)
 
         # dump our file
         subprocess.check_call("pg_dump -Fc mailroom_test > mailroom_test.dump", shell=True)
@@ -424,7 +424,7 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + "\n")
         return country, locations
 
-    def create_org(self, spec, superuser, country, locations):
+    def create_org(self, spec, superuser, country):
         self._log(f"\nCreating org {spec['name']}...\n")
 
         org = Org.objects.create(
@@ -437,9 +437,7 @@ class Command(BaseCommand):
             created_by=superuser,
             modified_by=superuser,
         )
-        ContactGroup.create_system_groups(org)
-        ContactField.create_system_fields(org)
-        org.init_topups(100_000)
+        org.initialize(topup_size=100_000, sample_flows=False)
 
         # set our sequences to make ids stable across orgs
         with connection.cursor() as cursor:
