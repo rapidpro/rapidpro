@@ -2054,13 +2054,6 @@ class ChannelLogTest(TembaTest):
             )
             self.assertContains(response, "30 seconds")
 
-        # show only IVR calls with errors
-        response = self.client.get(
-            reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1&errors=1"
-        )
-        self.assertContains(response, "warning")
-        self.assertContains(response, "1 result")
-
     def test_channellog_connection_anonymous(self):
         url = reverse("channels.channellog_connection", args=(1,))
 

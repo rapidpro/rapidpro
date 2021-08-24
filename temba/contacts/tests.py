@@ -2155,7 +2155,7 @@ class ContactTest(TembaTest):
             for path, expected in kwargs.items():
                 self.assertPathValue(item, path, expected, f"item {index}")
 
-        assertHistoryEvent(history, 0, "call_started", status="E", status_display="No Answer")
+        assertHistoryEvent(history, 0, "call_started", status="E", status_display="Errored (No Answer)")
         assertHistoryEvent(history, 1, "channel_event", channel_event_type="new_conversation")
         assertHistoryEvent(history, 2, "channel_event", channel_event_type="mo_miss")
         assertHistoryEvent(history, 3, "channel_event", channel_event_type="mt_miss")
@@ -2231,7 +2231,7 @@ class ContactTest(TembaTest):
         # now we'll see the message that just came in first, followed by the call event
         history = response.context["events"]
         assertHistoryEvent(history, 0, "msg_received", msg__text="Newer message")
-        assertHistoryEvent(history, 1, "call_started", status="E", status_display="No Answer")
+        assertHistoryEvent(history, 1, "call_started", status="E", status_display="Errored (No Answer)")
 
         recent_start = datetime_to_timestamp(timezone.now() - timedelta(days=1))
         response = self.fetch_protected(url + "?limit=100&after=%s" % recent_start, self.admin)

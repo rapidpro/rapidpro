@@ -32,6 +32,7 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
@@ -1439,37 +1440,34 @@ class ChannelLogCRUDL(SmartCRUDL):
         link_fields = ("channel", "description", "created_on")
         paginate_by = 50
 
+        FOLDER_MESSAGES = "messages"
+        FOLDER_CALLS = "calls"
+        FOLDER_OTHERS = "others"
+        FOLDER_ERRORS = "errors"
+
+        @property
+        def folder(self) -> str:
+            if self.request.GET.get("calls") or self.request.GET.get("connections"):
+                return self.FOLDER_CALLS
+            elif self.request.GET.get("others"):
+                return self.FOLDER_OTHERS
+            elif self.request.GET.get("errors"):
+                return self.FOLDER_ERRORS
+            else:
+                return self.FOLDER_MESSAGES
+
         def get_gear_links(self):
-            channel = self.derive_channel()
+            list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
             links = []
 
-            if self.request.GET.get("connections") or self.request.GET.get("others") or self.request.GET.get("errors"):
-                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid])))
-
-            if not self.request.GET.get("connections"):
-                if channel.supports_ivr():  # pragma: needs cover
-                    links.append(
-                        dict(
-                            title=_("Calls"),
-                            href=f"{reverse('channels.channellog_list', args=[channel.uuid])}?connections=1",
-                        )
-                    )
-
-            if not self.request.GET.get("others"):
-                links.append(
-                    dict(
-                        title=_("Other Interactions"),
-                        href=f"{reverse('channels.channellog_list', args=[channel.uuid])}?others=1",
-                    )
-                )
-
-            if not self.request.GET.get("errors"):
-                links.append(
-                    dict(
-                        title=_("Errors"),
-                        href=f"{reverse('channels.channellog_list', args=[channel.uuid])}?errors=1",
-                    )
-                )
+            if self.folder != self.FOLDER_MESSAGES:
+                links.append(dict(title=_("Messages"), href=list_url))
+            if self.folder != self.FOLDER_CALLS and self.channel.supports_ivr():
+                links.append(dict(title=_("Calls"), href=f"{list_url}?calls=1"))
+            if self.folder != self.FOLDER_OTHERS:
+                links.append(dict(title=_("Other Interactions"), href=f"{list_url}?others=1"))
+            if self.folder != self.FOLDER_ERRORS:
+                links.append(dict(title=_("Errors"), href=f"{list_url}?errors=1"))
 
             return links
 
@@ -1477,50 +1475,47 @@ class ChannelLogCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             return r"^%s/(?P<channel_uuid>[^/]+)/$" % path
 
-        def derive_channel(self):
+        def get_template_names(self):
+            if self.folder == self.FOLDER_CALLS:
+                return ("channels/channellog_calls.haml",)
+            else:
+                return super().get_template_names()
+
+        @cached_property
+        def channel(self):
             return get_object_or_404(Channel, uuid=self.kwargs["channel_uuid"])
 
         def derive_org(self):
-            channel = self.derive_channel()
-            return channel.org
+            return self.channel.org
 
         def derive_queryset(self, **kwargs):
-            channel = self.derive_channel()
-
-            if self.request.GET.get("connections"):
-                logs = (
-                    ChannelLog.objects.filter(channel=channel)
-                    .exclude(connection=None)
-                    .values_list("connection_id", flat=True)
-                )
+            if self.folder == self.FOLDER_CALLS:
+                logs = self.channel.logs.exclude(connection=None).values_list("connection_id", flat=True)
                 events = ChannelConnection.objects.filter(id__in=logs).order_by("-created_on")
 
-                if self.request.GET.get("errors"):
-                    events = events.filter(status=ChannelConnection.STATUS_FAILED)
-
-            elif self.request.GET.get("others"):
-                events = ChannelLog.objects.filter(channel=channel, connection=None, msg=None).order_by("-created_on")
+            elif self.folder == self.FOLDER_OTHERS:
+                events = self.channel.logs.filter(connection=None, msg=None).order_by("-created_on")
 
             else:
-                if self.request.GET.get("errors"):
-                    logs = ChannelLog.objects.filter(channel=channel, connection=None, is_error=True)
+                if self.folder == self.FOLDER_ERRORS:
+                    logs = self.channel.logs.filter(connection=None, is_error=True)
                 else:
-                    logs = ChannelLog.objects.filter(channel=channel, connection=None).exclude(msg=None)
+                    logs = self.channel.logs.filter(connection=None).exclude(msg=None)
 
                 events = logs.order_by("-created_on").select_related(
                     "msg", "msg__contact", "msg__contact_urn", "channel", "channel__org"
                 )
 
                 if self.request.GET.get("errors"):
-                    patch_queryset_count(events, channel.get_error_log_count)
+                    patch_queryset_count(events, self.channel.get_error_log_count)
                 else:
-                    patch_queryset_count(events, channel.get_non_ivr_log_count)
+                    patch_queryset_count(events, self.channel.get_non_ivr_log_count)
 
             return events
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["channel"] = self.derive_channel()
+            context["channel"] = self.channel
             return context
 
     class Connection(AnonMixin, SmartReadView):

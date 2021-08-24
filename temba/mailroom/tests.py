@@ -955,7 +955,7 @@ class EventTest(TembaTest):
             {
                 "type": "call_started",
                 "status": "E",
-                "status_display": "Busy",
+                "status_display": "Errored (Busy)",
                 "created_on": matchers.ISODate(),
                 "logs_url": None,
             },
