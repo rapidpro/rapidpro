@@ -1,3 +1,8 @@
+v6.5.24
+----------
+ * Add machine detection as config option to channels with call role
+ * Tweak event_fires management command to show timesince for events in the past
+
 v6.5.23
 ----------
  * Drop retry_count, make error_count non-null
