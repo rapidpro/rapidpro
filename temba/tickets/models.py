@@ -1,5 +1,6 @@
 from abc import ABCMeta
 
+import regex
 from smartmin.models import SmartModel
 
 from django.conf import settings
@@ -142,16 +143,17 @@ class Ticketer(SmartModel, DependencyMixin):
         return f"Ticketer[uuid={self.uuid}, name={self.name}]"
 
 
-class Topic(SmartModel):
+class Topic(SmartModel, DependencyMixin):
     """
     The topic of a ticket which controls who can access that ticket.
     """
 
-    DEFAULT_NAME = "General"
+    MAX_NAME_LEN = 255
+    DEFAULT_TOPIC = "General"
 
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="topics")
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=MAX_NAME_LEN)
     is_default = models.BooleanField(default=False)
 
     @classmethod
@@ -159,8 +161,28 @@ class Topic(SmartModel):
         assert not org.topics.filter(is_default=True).exists(), "org already has default topic"
 
         org.topics.create(
-            name=cls.DEFAULT_NAME, is_default=True, created_by=org.created_by, modified_by=org.modified_by
+            name=cls.DEFAULT_TOPIC, is_default=True, created_by=org.created_by, modified_by=org.modified_by
         )
+
+    @classmethod
+    def get_or_create(cls, org, user, name):
+        assert cls.is_valid_name(name), f"{name} is not a valid topic name"
+
+        existing = org.topics.filter(name=name)
+        if existing:
+            return existing
+        return org.topics.create(name=name, created_by=user, modified_by=user)
+
+    @classmethod
+    def is_valid_name(cls, name):
+        # don't allow empty strings, blanks, initial or trailing whitespace
+        if not name or name.strip() != name:
+            return False
+
+        if len(name) > cls.MAX_NAME_LEN:
+            return False
+
+        return regex.match(r"\w[\w- ]*", name, flags=regex.UNICODE)
 
 
 class Ticket(models.Model):

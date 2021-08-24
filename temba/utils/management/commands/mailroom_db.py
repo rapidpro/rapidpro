@@ -437,9 +437,7 @@ class Command(BaseCommand):
             created_by=superuser,
             modified_by=superuser,
         )
-        ContactGroup.create_system_groups(org)
-        ContactField.create_system_fields(org)
-        org.init_topups(100_000)
+        org.initialize(topup_size=100_000, sample_flows=False)
 
         # set our sequences to make ids stable across orgs
         with connection.cursor() as cursor:
