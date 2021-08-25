@@ -1,3 +1,7 @@
+v6.5.27
+----------
+ * Add migration to give all existing orgs a default ticket topic
+
 v6.5.26
 ----------
  * Move mailroom_db data to external JSON file
