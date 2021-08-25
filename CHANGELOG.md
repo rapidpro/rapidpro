@@ -1,3 +1,7 @@
+v6.5.25
+----------
+ * Improve display of channels logs for calls
+
 v6.5.24
 ----------
  * Add machine detection as config option to channels with call role
