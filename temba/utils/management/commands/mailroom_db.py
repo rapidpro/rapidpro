@@ -21,7 +21,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticketer
+from temba.tickets.models import Ticketer, Topic
 
 ORGS_SPEC_FILE = "temba/utils/management/commands/data/mailroom_db.json"
 
@@ -166,6 +166,7 @@ class Command(BaseCommand):
         self.create_templates(spec, org, superuser)
         self.create_classifiers(spec, org, superuser)
         self.create_ticketers(spec, org, superuser)
+        self.create_topics(spec, org, superuser)
 
         return org
 
@@ -231,6 +232,20 @@ class Command(BaseCommand):
                 config=t["config"],
                 ticketer_type=t["ticketer_type"],
                 uuid=t["uuid"],
+                created_by=user,
+                modified_by=user,
+            )
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
+    def create_topics(self, spec, org, user):
+        self._log(f"Creating {len(spec['topics'])} topics... ")
+
+        for t in spec["topics"]:
+            Topic.objects.create(
+                uuid=t["uuid"],
+                org=org,
+                name=t["name"],
                 created_by=user,
                 modified_by=user,
             )

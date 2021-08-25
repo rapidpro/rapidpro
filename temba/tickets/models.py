@@ -148,7 +148,7 @@ class Topic(SmartModel, DependencyMixin):
     The topic of a ticket which controls who can access that ticket.
     """
 
-    MAX_NAME_LEN = 255
+    MAX_NAME_LEN = 64
     DEFAULT_TOPIC = "General"
 
     uuid = models.UUIDField(unique=True, default=uuid4)

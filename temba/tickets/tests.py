@@ -573,6 +573,7 @@ class TopicTest(TembaTest):
         self.assertFalse(Topic.is_valid_name("   "))
         self.assertFalse(Topic.is_valid_name("  x  "))
         self.assertFalse(Topic.is_valid_name("!Sales"))
+        self.assertFalse(Topic.is_valid_name("x" * 65))  # too long
 
     def test_model(self):
         topic1 = Topic.get_or_create(self.org, self.admin, "Sales")
