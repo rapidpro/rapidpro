@@ -168,7 +168,7 @@ class Topic(SmartModel, DependencyMixin):
     def get_or_create(cls, org, user, name):
         assert cls.is_valid_name(name), f"{name} is not a valid topic name"
 
-        existing = org.topics.filter(name=name)
+        existing = org.topics.filter(name__iexact=name).first()
         if existing:
             return existing
         return org.topics.create(name=name, created_by=user, modified_by=user)

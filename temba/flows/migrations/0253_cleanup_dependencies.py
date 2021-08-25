@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def cleanup_dependencies(apps, schema_editor):
+def cleanup_dependencies(apps, schema_editor):  # pragma: no cover
     Flow = apps.get_model("flows", "Flow")
 
     for flow in Flow.objects.filter(is_active=False):
@@ -18,7 +18,7 @@ def cleanup_dependencies(apps, schema_editor):
         flow.template_dependencies.clear()
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

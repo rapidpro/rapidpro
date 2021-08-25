@@ -7,7 +7,7 @@ from django.utils import timezone
 from temba.contacts.models import Contact
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 
-from .models import Ticket, TicketCount, Ticketer, TicketEvent
+from .models import Ticket, TicketCount, Ticketer, TicketEvent, Topic
 from .tasks import squash_ticketcounts
 from .types import reload_ticketer_types
 from .types.internal import InternalType
@@ -563,3 +563,20 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
         self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
+
+
+class TopicTest(TembaTest):
+    def test_is_valid_name(self):
+        self.assertTrue(Topic.is_valid_name("Sales"))
+        self.assertTrue(Topic.is_valid_name("Support"))
+        self.assertFalse(Topic.is_valid_name(""))
+        self.assertFalse(Topic.is_valid_name("   "))
+        self.assertFalse(Topic.is_valid_name("  x  "))
+        self.assertFalse(Topic.is_valid_name("!Sales"))
+
+    def test_model(self):
+        topic1 = Topic.get_or_create(self.org, self.admin, "Sales")
+        topic2 = Topic.get_or_create(self.org, self.admin, "Support")
+
+        self.assertEqual(topic1, Topic.get_or_create(self.org, self.admin, "Sales"))
+        self.assertEqual(topic2, Topic.get_or_create(self.org, self.admin, "SUPPORT"))
