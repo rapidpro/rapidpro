@@ -1922,6 +1922,9 @@ class ChannelCountTest(TembaTest):
 
 class ChannelLogTest(TembaTest):
     def test_views(self):
+        self.channel.role = "CASR"
+        self.channel.save(update_fields=("role",))
+
         other_org_channel = Channel.create(
             self.org2,
             self.admin2,
@@ -2053,13 +2056,6 @@ class ChannelLogTest(TembaTest):
                 reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1"
             )
             self.assertContains(response, "30 seconds")
-
-        # show only IVR calls with errors
-        response = self.client.get(
-            reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1&errors=1"
-        )
-        self.assertContains(response, "warning")
-        self.assertContains(response, "1 result")
 
     def test_channellog_connection_anonymous(self):
         url = reverse("channels.channellog_connection", args=(1,))
