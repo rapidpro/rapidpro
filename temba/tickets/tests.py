@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 
 from .models import Ticket, TicketCount, Ticketer, TicketEvent, Topic
 from .tasks import squash_ticketcounts
@@ -581,3 +581,17 @@ class TopicTest(TembaTest):
 
         self.assertEqual(topic1, Topic.get_or_create(self.org, self.admin, "Sales"))
         self.assertEqual(topic2, Topic.get_or_create(self.org, self.admin, "SUPPORT"))
+
+
+class CreateDefaultTopicsMigrationTest(MigrationTest):
+    app = "tickets"
+    migrate_from = "0019_auto_20210818_1603"
+    migrate_to = "0020_create_default_topics"
+
+    def setUpBeforeMigration(self, apps):
+        self.org.topics.all().delete()
+
+    def test_migration(self):
+        self.assertEqual(2, Topic.objects.count())
+        self.assertTrue(self.org.topics.filter(name="General", is_default=True).exists())
+        self.assertTrue(self.org2.topics.filter(name="General", is_default=True).exists())
