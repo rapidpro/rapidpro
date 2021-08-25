@@ -4,7 +4,6 @@ from collections import defaultdict
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.contrib.postgres.fields.jsonb import KeyTextTransform
 from django.db import models
-from django.db.models import Q
 from django.db.models.functions import Cast
 
 from smartmin.models import SmartModel
@@ -73,9 +72,7 @@ class DataCollectionProcess(models.Model):
 
     @classmethod
     def get_last_collection_process_status(cls, org):
-        last_dc: DataCollectionProcess = (
-            cls.objects.filter(Q(related_org=org) | Q(start_type=cls.TYPE_AUTO)).order_by("-started_on").first()
-        )
+        last_dc: DataCollectionProcess = cls.objects.filter(related_org=org).order_by("-started_on").first()
         if last_dc:
             data_status = {
                 "lastUpdated": str(last_dc.started_on),
@@ -114,11 +111,7 @@ class CollectedFlowResultsData(models.Model):
     def collect_results_data(cls, flow: Flow):
         flow_results = {result["key"]: result["categories"] for result in flow.metadata.get("results", [])}
         result_keys = sorted(list(flow_results.keys()))
-        is_data_exists = cls.objects.filter(flow_id=flow.id).exists()
-        is_data_already_updated = is_data_exists and not flow.runs.filter(
-            modified_on__gt=flow.aggregated_results.last_updated
-        )
-        if is_data_already_updated or not result_keys:
+        if not result_keys:
             return
 
         # select runs data and build the aggregated data to save
@@ -147,7 +140,7 @@ class CollectedFlowResultsData(models.Model):
         final_data = json.loads(json.dumps(final_data))
 
         # create or update the aggregated data in DB
-        if is_data_exists:
+        if cls.objects.filter(flow_id=flow.id).exists():
             flow_results_agg = flow.aggregated_results
             flow_results_agg.data = final_data
             flow_results_agg.save()

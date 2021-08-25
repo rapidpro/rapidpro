@@ -37,6 +37,7 @@ def process_collecting(state_obj, flows):
 @task(track_started=True, name="analytics__auto_collect_flow_results_data")
 def automatically_collect_flow_results_data():
     for org in Org.objects.all().only("id"):
+        DataCollectionProcess.objects.filter(related_org=org, completed_on__isnull=True).update(completed_on=tz_now())
         filters = {
             "org_id": org.id,
             "is_active": True,
