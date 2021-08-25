@@ -274,6 +274,14 @@ class APITest(TembaTest):
         )
 
         assert_field(
+            fields.TopicField(source="test"),
+            submissions={str(self.org.default_ticket_topic.uuid): self.org.default_ticket_topic},
+            representations={
+                self.org.default_ticket_topic: {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"}
+            },
+        )
+
+        assert_field(
             fields.URNField(source="test"),
             submissions={
                 "tel:+1-800-123-4567": "tel:+18001234567",
@@ -4457,7 +4465,7 @@ class APITest(TembaTest):
             mailgun, ann, subject="Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
         )
         ticket2 = self.create_ticket(mailgun, bob, subject="Need help again", body="Now")
-        ticket3 = self.create_ticket(mailgun, bob, subject="It's bob", body="Pleeeease help")
+        ticket3 = self.create_ticket(mailgun, bob, subject="It's bob", body="Pleeeease help", assignee=self.agent)
 
         # on another org
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
@@ -4470,48 +4478,47 @@ class APITest(TembaTest):
         self.assertEqual(0, len(resp_json["results"]))
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url)
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json["next"], None)
-
         self.assertEqual(
             resp_json["results"],
             [
                 {
                     "uuid": str(ticket3.uuid),
-                    "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
-                    "assignee": None,
+                    "assignee": {"email": "Agent@nyaruka.com", "name": ""},
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
-                    "subject": "It's bob",
+                    "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Pleeeease help",
                     "opened_on": format_datetime(ticket3.opened_on),
+                    "closed_on": None,
                 },
                 {
                     "uuid": str(ticket2.uuid),
-                    "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "assignee": None,
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
-                    "subject": "Need help again",
+                    "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Now",
                     "opened_on": format_datetime(ticket2.opened_on),
+                    "closed_on": None,
                 },
                 {
                     "uuid": str(ticket1.uuid),
-                    "closed_on": "2021-01-01T12:30:45.123456Z",
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "assignee": None,
                     "contact": {"uuid": str(ann.uuid), "name": "Ann"},
                     "status": "closed",
-                    "subject": "Need help",
+                    "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Now",
                     "opened_on": format_datetime(ticket1.opened_on),
+                    "closed_on": "2021-01-01T12:30:45.123456Z",
                 },
             ],
         )
