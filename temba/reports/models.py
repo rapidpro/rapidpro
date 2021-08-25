@@ -112,7 +112,7 @@ class CollectedFlowResultsData(models.Model):
 
     @classmethod
     def collect_results_data(cls, flow: Flow):
-        flow_results = {result["key"]: result["categories"] for result in flow.metadata["results"]}
+        flow_results = {result["key"]: result["categories"] for result in flow.metadata.get("results", [])}
         result_keys = sorted(list(flow_results.keys()))
         is_data_exists = cls.objects.filter(flow_id=flow.id).exists()
         is_data_already_updated = is_data_exists and not flow.runs.filter(
