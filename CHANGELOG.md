@@ -1,3 +1,9 @@
+v6.5.26
+----------
+ * Move mailroom_db data to external JSON file
+ * Run CI tests with latest mailroom
+ * Add ticket topic model and initialize orgs with a default topic
+
 v6.5.25
 ----------
  * Improve display of channels logs for calls
