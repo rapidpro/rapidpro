@@ -54,7 +54,7 @@ class ReportCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             org = self.request.user.get_org()
-            dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
+            dev_mode = getattr(settings, "ANALYTICS_DEV_MODE", False)
             prefix = "http://localhost:3000" if dev_mode else settings.STATIC_URL
             analytics_folder = "@greatnonprofits-nfp/temba-analytics/build"
 

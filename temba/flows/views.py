@@ -220,7 +220,13 @@ class FlowRunCRUDL(SmartCRUDL):
         success_message = None
 
         def post(self, request, *args, **kwargs):
-            self.get_object().release(FlowRun.DELETE_FOR_USER)
+            flow_run = self.get_object()
+            flow = flow_run.flow
+            flow_run.release(FlowRun.DELETE_FOR_USER)
+
+            # mark flow as updated to be able to refresh analytics
+            flow.modified_on = timezone.now()
+            flow.save(update_fields=["modified_on"])
             return HttpResponse()
 
 
