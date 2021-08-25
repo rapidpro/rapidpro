@@ -2082,8 +2082,8 @@ class ContactTest(TembaTest):
 
         # two tickets for joe
         ticketer = Ticketer.create(self.org, self.user, "internal", "Internal", {})
-        self.create_ticket(ticketer, self.joe, "Question 1", closed_on=timezone.now())
-        ticket = self.create_ticket(ticketer, self.joe, "Question 2")
+        self.create_ticket(ticketer, self.joe, subject="Question 1", closed_on=timezone.now())
+        ticket = self.create_ticket(ticketer, self.joe, subject="Question 2")
 
         # create missed incoming and outgoing calls
         self.create_channel_event(
@@ -5013,7 +5013,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
             self.create_contact(name, urns=urns, fields=fields)
 
         def q(query):
-            results = search_contacts(self.org, query, group=self.org.cached_active_contacts_group)
+            results = search_contacts(self.org, query, group=self.org.active_contacts_group)
             return results.total
 
         db_config = connection.settings_dict
@@ -6005,13 +6005,13 @@ class PopulateTicketCountTest(MigrationTest):
         self.contact2 = self.create_contact("Jim", urns=["twitter:jimmy"])
         self.contact3 = self.create_contact("Ann", urns=["twitter:annie"])
 
-        self.create_ticket(ticketer, self.contact1, "Test")
-        self.create_ticket(ticketer, self.contact1, "Test")
-        self.create_ticket(ticketer, self.contact1, "Test", closed_on=timezone.now())
+        self.create_ticket(ticketer, self.contact1, body="Test")
+        self.create_ticket(ticketer, self.contact1, body="Test")
+        self.create_ticket(ticketer, self.contact1, body="Test", closed_on=timezone.now())
 
-        self.create_ticket(ticketer, self.contact2, "Test")
-        self.create_ticket(ticketer, self.contact2, "Test", closed_on=timezone.now())
-        self.create_ticket(ticketer, self.contact2, "Test", closed_on=timezone.now())
+        self.create_ticket(ticketer, self.contact2, body="Test")
+        self.create_ticket(ticketer, self.contact2, body="Test", closed_on=timezone.now())
+        self.create_ticket(ticketer, self.contact2, body="Test", closed_on=timezone.now())
 
     def test_migration(self):
         self.contact1.refresh_from_db()

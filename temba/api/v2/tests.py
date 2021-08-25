@@ -274,6 +274,14 @@ class APITest(TembaTest):
         )
 
         assert_field(
+            fields.TopicField(source="test"),
+            submissions={str(self.org.default_ticket_topic.uuid): self.org.default_ticket_topic},
+            representations={
+                self.org.default_ticket_topic: {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"}
+            },
+        )
+
+        assert_field(
             fields.URNField(source="test"),
             submissions={
                 "tel:+1-800-123-4567": "tel:+18001234567",
@@ -712,7 +720,7 @@ class APITest(TembaTest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Support Tickets", {})
-        ticket = self.create_ticket(ticketer, self.joe, "Help!")
+        ticket = self.create_ticket(ticketer, self.joe, body="Help!")
 
         bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", urns=["twitter:franky"])
         bcast2 = Broadcast.create(self.org, self.admin, "Hello 2", contacts=[self.joe])
@@ -4454,62 +4462,63 @@ class APITest(TembaTest):
         ann = self.create_contact("Ann", urns=["twitter:annie"])
         bob = self.create_contact("Bob", urns=["twitter:bobby"])
         ticket1 = self.create_ticket(
-            mailgun, ann, "Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
+            mailgun, ann, subject="Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
         )
-        ticket2 = self.create_ticket(mailgun, bob, "Need help again", body="Now")
-        ticket3 = self.create_ticket(mailgun, bob, "It's bob", body="Pleeeease help")
+        ticket2 = self.create_ticket(mailgun, bob, subject="Need help again", body="Now")
+        ticket3 = self.create_ticket(mailgun, bob, subject="It's bob", body="Pleeeease help", assignee=self.agent)
 
         # on another org
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
-        self.create_ticket(zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Need help")
+        self.create_ticket(
+            zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), subject="Need help"
+        )
 
         response = self.fetchJSON(url, "ticketer_type=zendesk")
         resp_json = response.json()
         self.assertEqual(0, len(resp_json["results"]))
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url)
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json["next"], None)
-
         self.assertEqual(
             resp_json["results"],
             [
                 {
                     "uuid": str(ticket3.uuid),
-                    "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
-                    "assignee": None,
+                    "assignee": {"email": "Agent@nyaruka.com", "name": ""},
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
-                    "subject": "It's bob",
+                    "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Pleeeease help",
                     "opened_on": format_datetime(ticket3.opened_on),
+                    "closed_on": None,
                 },
                 {
                     "uuid": str(ticket2.uuid),
-                    "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "assignee": None,
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
-                    "subject": "Need help again",
+                    "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Now",
                     "opened_on": format_datetime(ticket2.opened_on),
+                    "closed_on": None,
                 },
                 {
                     "uuid": str(ticket1.uuid),
-                    "closed_on": "2021-01-01T12:30:45.123456Z",
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "assignee": None,
                     "contact": {"uuid": str(ann.uuid), "name": "Ann"},
                     "status": "closed",
-                    "subject": "Need help",
+                    "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Now",
                     "opened_on": format_datetime(ticket1.opened_on),
+                    "closed_on": "2021-01-01T12:30:45.123456Z",
                 },
             ],
         )
@@ -4553,15 +4562,19 @@ class APITest(TembaTest):
         # create some tickets
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
         ticket1 = self.create_ticket(
-            mailgun, self.joe, "Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
+            mailgun,
+            self.joe,
+            subject="Need help",
+            body="Now",
+            closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC),
         )
-        ticket2 = self.create_ticket(mailgun, self.joe, "Need help again", body="Now")
-        self.create_ticket(mailgun, self.frank, "It's bob", body="Pleeeease help")
+        ticket2 = self.create_ticket(mailgun, self.joe, subject="Need help again", body="Now")
+        self.create_ticket(mailgun, self.frank, subject="It's bob", body="Pleeeease help")
 
         # on another org
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
         ticket4 = self.create_ticket(
-            zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Need help"
+            zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), subject="Need help"
         )
 
         # try actioning more tickets than this endpoint is allowed to operate on at one time

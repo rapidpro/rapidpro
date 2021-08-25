@@ -1,5 +1,6 @@
 from abc import ABCMeta
 
+import regex
 from smartmin.models import SmartModel
 
 from django.conf import settings
@@ -142,6 +143,48 @@ class Ticketer(SmartModel, DependencyMixin):
         return f"Ticketer[uuid={self.uuid}, name={self.name}]"
 
 
+class Topic(SmartModel, DependencyMixin):
+    """
+    The topic of a ticket which controls who can access that ticket.
+    """
+
+    MAX_NAME_LEN = 64
+    DEFAULT_TOPIC = "General"
+
+    uuid = models.UUIDField(unique=True, default=uuid4)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="topics")
+    name = models.CharField(max_length=MAX_NAME_LEN)
+    is_default = models.BooleanField(default=False)
+
+    @classmethod
+    def create_default_topic(cls, org):
+        assert not org.topics.filter(is_default=True).exists(), "org already has default topic"
+
+        org.topics.create(
+            name=cls.DEFAULT_TOPIC, is_default=True, created_by=org.created_by, modified_by=org.modified_by
+        )
+
+    @classmethod
+    def get_or_create(cls, org, user, name):
+        assert cls.is_valid_name(name), f"{name} is not a valid topic name"
+
+        existing = org.topics.filter(name__iexact=name).first()
+        if existing:
+            return existing
+        return org.topics.create(name=name, created_by=user, modified_by=user)
+
+    @classmethod
+    def is_valid_name(cls, name):
+        # don't allow empty strings, blanks, initial or trailing whitespace
+        if not name or name.strip() != name:
+            return False
+
+        if len(name) > cls.MAX_NAME_LEN:
+            return False
+
+        return regex.match(r"\w[\w- ]*", name, flags=regex.UNICODE)
+
+
 class Ticket(models.Model):
     """
     A ticket represents a period of human interaction with a contact.
@@ -156,22 +199,14 @@ class Ticket(models.Model):
 
     MAX_NOTE_LEN = 4096
 
-    # our UUID
     uuid = models.UUIDField(unique=True, default=uuid4)
-
-    # the organization this ticket belongs to
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="tickets")
-
-    # the ticketer that manages this ticket
     ticketer = models.ForeignKey(Ticketer, on_delete=models.PROTECT, related_name="tickets")
-
-    # the contact this ticket is tied to
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="tickets")
 
-    # the subject of the ticket
-    subject = models.TextField()
-
-    # the body of the ticket
+    # ticket content
+    topic = models.ForeignKey(Topic, null=True, on_delete=models.PROTECT, related_name="tickets")
+    subject = models.TextField(null=True)
     body = models.TextField()
 
     # the external id of the ticket
@@ -180,8 +215,9 @@ class Ticket(models.Model):
     # any configuration attributes for this ticket
     config = models.JSONField(null=True)
 
-    # the status of this ticket, one of open, closed, expired
+    # the status of this ticket and who it's currently assigned to
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
+    assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
     # when this ticket was opened, closed, modified
     opened_on = models.DateTimeField(default=timezone.now)
@@ -190,8 +226,6 @@ class Ticket(models.Model):
 
     # when this ticket last had activity which includes messages being sent and received, and is used for ordering
     last_activity_on = models.DateTimeField(default=timezone.now)
-
-    assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
     def assign(self, user: User, *, assignee: User, note: str):
         self.bulk_assign(self.org, user, [self], assignee=assignee, note=note)
@@ -291,7 +325,12 @@ class TicketFolder(metaclass=ABCMeta):
     icon = None
 
     def get_queryset(self, org, user):
-        return Ticket.objects.filter(org=org).order_by("-last_activity_on", "-id").prefetch_related("contact")
+        return (
+            Ticket.objects.filter(org=org)
+            .order_by("-last_activity_on", "-id")
+            .select_related("topic", "assignee")
+            .prefetch_related("contact")
+        )
 
     @classmethod
     def from_slug(cls, slug: str):

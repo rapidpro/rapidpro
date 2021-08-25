@@ -393,6 +393,16 @@
             "admin_user_id": "ADMIN346"
           }
         }
+      ],
+      "topics": [
+        {
+          "uuid": "9ef2ff21-064a-41f1-8560-ccc990b4f937",
+          "name": "Sales"
+        },
+        {
+          "uuid": "0a8f2e00-fef6-402c-bd79-d789446ec0e0",
+          "name": "Support"
+        }
       ]
     },
     {
@@ -456,7 +466,8 @@
       ],
       "campaigns": [],
       "templates": [],
-      "ticketers": []
+      "ticketers": [],
+      "topics": []
     }
   ]
 }

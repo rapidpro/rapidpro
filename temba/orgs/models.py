@@ -720,10 +720,14 @@ class Org(SmartModel):
         normalize_contact_tels_task.delay(self.pk)
 
     @cached_property
-    def cached_active_contacts_group(self):
+    def active_contacts_group(self):
         from temba.contacts.models import ContactGroup
 
-        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ACTIVE)
+        return self.all_groups(manager="system_groups").get(group_type=ContactGroup.TYPE_ACTIVE)
+
+    @cached_property
+    def default_ticket_topic(self):
+        return self.topics.get(is_default=True)
 
     def get_resthooks(self):
         """
@@ -1571,7 +1575,7 @@ class Org(SmartModel):
         """
         from temba.middleware import BrandingMiddleware
         from temba.contacts.models import ContactField, ContactGroup
-        from temba.tickets.models import Ticketer
+        from temba.tickets.models import Ticketer, Topic
 
         with transaction.atomic():
             if not branding:
@@ -1580,6 +1584,7 @@ class Org(SmartModel):
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
             Ticketer.create_internal_ticketer(self, branding)
+            Topic.create_default_topic(self)
 
             self.init_topups(topup_size)
             self.update_capabilities()
@@ -1721,6 +1726,7 @@ class Org(SmartModel):
         self.sessions.all().delete()
         self.ticket_events.all().delete()
         self.tickets.all().delete()
+        self.topics.all().delete()
         self.airtime_transfers.all().delete()
 
         for result in self.webhook_results.all():

@@ -192,18 +192,20 @@ class Event:
 
     @classmethod
     def from_ticket_event(cls, org: Org, user: User, obj: TicketEvent) -> dict:
+        ticket = obj.ticket
         return {
             "type": cls.ticket_event_types[obj.event_type],
             "note": obj.note,
             "assignee": _user(obj.assignee) if obj.assignee else None,
             "ticket": {
-                "uuid": str(obj.ticket.uuid),
-                "opened_on": obj.ticket.opened_on.isoformat(),
-                "closed_on": obj.ticket.closed_on.isoformat() if obj.ticket.closed_on else None,
-                "status": obj.ticket.status,
-                "subject": obj.ticket.subject,
-                "body": obj.ticket.body,
-                "ticketer": {"uuid": str(obj.ticket.ticketer.uuid), "name": obj.ticket.ticketer.name},
+                "uuid": str(ticket.uuid),
+                "opened_on": ticket.opened_on.isoformat(),
+                "closed_on": ticket.closed_on.isoformat() if ticket.closed_on else None,
+                "topic": {"uuid": str(ticket.topic.uuid), "name": ticket.topic.name} if ticket.topic else None,
+                "status": ticket.status,
+                "subject": ticket.subject,
+                "body": ticket.body,
+                "ticketer": {"uuid": str(ticket.ticketer.uuid), "name": ticket.ticketer.name},
             },
             "created_on": get_event_time(obj).isoformat(),
             "created_by": _user(obj.created_by) if obj.created_by else None,

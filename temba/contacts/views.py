@@ -965,7 +965,7 @@ class ContactCRUDL(SmartCRUDL):
                 return JsonResponse({"total": 0, "sample": [], "fields": {}})
 
             try:
-                results = search_contacts(org, query, group=org.cached_active_contacts_group, sort="-created_on")
+                results = search_contacts(org, query, group=org.active_contacts_group, sort="-created_on")
                 summary = {
                     "total": results.total,
                     "query": results.query,
