@@ -80,6 +80,15 @@
     document.addEventListener("DOMContentLoaded", function() {
       const formContainer = document.querySelector('#id-trigger-schedule-in-batch');
       const repeatPeriod = formContainer.querySelector("#id_schedule_repeat_period");
+      const tembaField = formContainer.querySelector('#id_schedule_omnibox').shadowRoot
+        .querySelector('temba-select').shadowRoot
+        .querySelector('temba-field');
+
+      const textNode = document.createTextNode("The batches will deploy in the order you add the group");
+      tembaField.appendChild(textNode);
+      const label = tembaField.shadowRoot.querySelector('label');
+      
+      if (label.innerHTML === '<!----><!---->') label.innerHTML = 'Groups';
 
       if (repeatPeriod) {
         repeatPeriod.addEventListener("change", function(event) {
