@@ -84,8 +84,11 @@
         .querySelector('temba-select').shadowRoot
         .querySelector('temba-field');
 
-      const textNode = document.createTextNode("The batches will deploy in the order you add the group");
-      tembaField.appendChild(textNode);
+      const helpTextNode = document.createElement('span');
+      const textNode = document.createTextNode('The batches will deploy in the order you add the group');
+      helpTextNode.appendChild(textNode);
+      helpTextNode.setAttribute('class', 'help-text');
+      tembaField.appendChild(helpTextNode);
       const label = tembaField.shadowRoot.querySelector('label');
       
       if (label.innerHTML === '<!----><!---->') label.innerHTML = 'Groups';
