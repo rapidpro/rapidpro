@@ -36,7 +36,7 @@ from temba.orgs.models import Org
 from temba.templates.models import TemplateTranslation
 from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tickets.models import Ticketer
+from temba.tickets.models import Ticketer, Topic
 from temba.tickets.types.mailgun import MailgunType
 from temba.tickets.types.zendesk import ZendeskType
 from temba.triggers.models import Trigger
@@ -4561,6 +4561,7 @@ class APITest(TembaTest):
 
         # create some tickets
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
+        sales = Topic.get_or_create(self.org, self.admin, "Sales")
         ticket1 = self.create_ticket(
             mailgun,
             self.joe,
@@ -4595,13 +4596,15 @@ class APITest(TembaTest):
 
         # try to assign ticket without specifying assignee
         response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid)], "action": "assign"})
-        self.assertResponseError(
-            response, "non_field_errors", 'For action "assign" you must also specify the assignee'
-        )
+        self.assertResponseError(response, "non_field_errors", 'For action "assign" you must specify the assignee')
 
         # try to add a note without specifying note
-        response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid)], "action": "note"})
-        self.assertResponseError(response, "non_field_errors", 'For action "note" you must also specify the note')
+        response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid)], "action": "add_note"})
+        self.assertResponseError(response, "non_field_errors", 'For action "add_note" you must specify the note')
+
+        # try to change topic without specifying topic
+        response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid)], "action": "change_topic"})
+        self.assertResponseError(response, "non_field_errors", 'For action "change_topic" you must specify the topic')
 
         # assign valid tickets to a user
         response = self.postJSON(
@@ -4618,16 +4621,31 @@ class APITest(TembaTest):
 
         # add a note to tickets
         response = self.postJSON(
-            url, None, {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "note", "note": "Looks important"}
+            url,
+            None,
+            {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "add_note", "note": "Looks important"},
         )
         self.assertEqual(response.status_code, 204)
         self.assertEqual("Looks important", ticket1.events.last().note)
         self.assertEqual("Looks important", ticket2.events.last().note)
 
+        # change topic of tickets
+        response = self.postJSON(
+            url,
+            None,
+            {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "change_topic", "topic": str(sales.uuid)},
+        )
+        ticket1.refresh_from_db()
+        ticket2.refresh_from_db()
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(sales, ticket1.topic)
+        self.assertEqual(sales, ticket2.topic)
+
         # close tickets
         response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "close"})
         ticket1.refresh_from_db()
         ticket2.refresh_from_db()
+        self.assertEqual(response.status_code, 204)
         self.assertEqual("C", ticket1.status)
         self.assertEqual("C", ticket2.status)
 
@@ -4635,6 +4653,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "reopen"})
         ticket1.refresh_from_db()
         ticket2.refresh_from_db()
+        self.assertEqual(response.status_code, 204)
         self.assertEqual("O", ticket1.status)
         self.assertEqual("O", ticket2.status)
 
