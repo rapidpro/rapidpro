@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def assign_default_topic(apps, schema_editor):
+def assign_default_topic(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
 
     for org in Org.objects.exclude(tickets=None):
@@ -11,7 +11,7 @@ def assign_default_topic(apps, schema_editor):
         org.tickets.filter(topic=None).update(topic=default_topic)
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

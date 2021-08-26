@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 
 from .models import Ticket, TicketCount, Ticketer, TicketEvent, Topic
 from .tasks import squash_ticketcounts
@@ -402,7 +402,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateSubmit(update_url, {"note": "I have a bad feeling about this."}, success_status=200)
 
-        self.assertEqual(1, ticket.events.filter(event_type=TicketEvent.TYPE_NOTE).count())
+        self.assertEqual(1, ticket.events.filter(event_type=TicketEvent.TYPE_NOTE_ADDED).count())
 
     @mock_mailroom
     def test_assign(self, mr_mocks):
@@ -583,28 +583,3 @@ class TopicTest(TembaTest):
         self.assertEqual(topic2, Topic.get_or_create(self.org, self.admin, "SUPPORT"))
 
         self.assertEqual(f"Topic[uuid={topic1.uuid}, topic=Sales]", str(topic1))
-
-
-class AssignDefaultTopicMigrationTest(MigrationTest):
-    app = "tickets"
-    migrate_from = "0020_create_default_topics"
-    migrate_to = "0021_assign_default_topic"
-
-    def setUpBeforeMigration(self, apps):
-        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
-        self.sales = Topic.get_or_create(self.org, self.admin, "Sales")
-
-        contact = self.create_contact("Bob", urns=["twitter:bobby"])
-
-        # create a ticket with a topic and one without a topic
-        self.ticket1 = self.create_ticket(ticketer, contact, topic=self.sales, body="Where are my cookies?")
-        self.ticket2 = self.create_ticket(ticketer, contact, body="Where are my cookies?")
-        self.ticket2.topic = None
-        self.ticket2.save()
-
-    def test_migration(self):
-        self.ticket1.refresh_from_db()
-        self.ticket2.refresh_from_db()
-
-        self.assertEqual(self.sales, self.ticket1.topic)
-        self.assertEqual(self.org.default_ticket_topic, self.ticket2.topic)

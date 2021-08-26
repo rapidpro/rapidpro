@@ -208,7 +208,7 @@ class TestClient(MailroomClient):
             ticket.events.create(
                 org_id=org_id,
                 contact=ticket.contact,
-                event_type=TicketEvent.TYPE_NOTE,
+                event_type=TicketEvent.TYPE_NOTE_ADDED,
                 note=note,
                 created_by_id=user_id,
             )
