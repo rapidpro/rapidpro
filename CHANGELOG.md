@@ -1,3 +1,8 @@
+v6.5.28
+----------
+ * Add new ticket event type for topic changes
+ * Migrations to assign default topic to all existing tickets
+
 v6.5.27
 ----------
  * Add migration to give all existing orgs a default ticket topic
