@@ -21,7 +21,7 @@ from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
 from temba.tests.dates import parse_datetime
-from temba.tickets.models import Ticket, TicketEvent
+from temba.tickets.models import Ticket, TicketEvent, Topic
 from temba.utils import format_number, get_anonymous_user, json
 from temba.utils.cache import incrby_existing
 
@@ -199,7 +199,7 @@ class TestClient(MailroomClient):
         return {"changed_ids": [t.id for t in tickets]}
 
     @_client_method
-    def ticket_note(self, org_id, user_id, ticket_ids, note):
+    def ticket_add_note(self, org_id, user_id, ticket_ids, note):
         now = timezone.now()
         tickets = Ticket.objects.filter(org_id=org_id, id__in=ticket_ids)
         tickets.update(modified_on=now, last_activity_on=now)
@@ -210,6 +210,24 @@ class TestClient(MailroomClient):
                 contact=ticket.contact,
                 event_type=TicketEvent.TYPE_NOTE_ADDED,
                 note=note,
+                created_by_id=user_id,
+            )
+
+        return {"changed_ids": [t.id for t in tickets]}
+
+    @_client_method
+    def ticket_change_topic(self, org_id, user_id, ticket_ids, topic_id):
+        now = timezone.now()
+        topic = Topic.objects.get(id=topic_id)
+        tickets = Ticket.objects.filter(org_id=org_id, id__in=ticket_ids)
+        tickets.update(topic=topic, modified_on=now, last_activity_on=now)
+
+        for ticket in tickets:
+            ticket.events.create(
+                org_id=org_id,
+                contact=ticket.contact,
+                event_type=TicketEvent.TYPE_TOPIC_CHANGED,
+                topic=topic,
                 created_by_id=user_id,
             )
 

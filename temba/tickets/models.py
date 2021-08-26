@@ -234,7 +234,7 @@ class Ticket(models.Model):
         self.bulk_assign(self.org, user, [self], assignee=assignee, note=note)
 
     def add_note(self, user: User, *, note: str):
-        self.bulk_note(self.org, user, [self], note=note)
+        self.bulk_add_note(self.org, user, [self], note=note)
 
     @classmethod
     def bulk_assign(cls, org, user: User, tickets: list, assignee: User, note: str = None):
@@ -243,9 +243,14 @@ class Ticket(models.Model):
         return mailroom.get_client().ticket_assign(org.id, user.id, ticket_ids, assignee_id, note)
 
     @classmethod
-    def bulk_note(cls, org, user: User, tickets: list, note: str):
+    def bulk_add_note(cls, org, user: User, tickets: list, note: str):
         ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
-        return mailroom.get_client().ticket_note(org.id, user.id, ticket_ids, note)
+        return mailroom.get_client().ticket_add_note(org.id, user.id, ticket_ids, note)
+
+    @classmethod
+    def bulk_change_topic(cls, org, user: User, tickets: list, topic: Topic):
+        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        return mailroom.get_client().ticket_change_topic(org.id, user.id, ticket_ids, topic.id)
 
     @classmethod
     def bulk_close(cls, org, user, tickets):

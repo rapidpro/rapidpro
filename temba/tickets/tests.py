@@ -18,7 +18,7 @@ from .types.zendesk import ZendeskType
 class TicketTest(TembaTest):
     def test_model(self):
         ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
-
+        topic = Topic.get_or_create(self.org, self.admin, "Sales")
         contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
         ticket = Ticket.objects.create(
@@ -47,10 +47,16 @@ class TicketTest(TembaTest):
         mock_assign.reset_mock()
 
         # test bulk adding a note
-        with patch("temba.mailroom.client.MailroomClient.ticket_note") as mock_note:
-            Ticket.bulk_note(self.org, self.admin, [ticket], "please handle")
+        with patch("temba.mailroom.client.MailroomClient.ticket_add_note") as mock_add_note:
+            Ticket.bulk_add_note(self.org, self.admin, [ticket], "please handle")
 
-        mock_note.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], "please handle")
+        mock_add_note.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], "please handle")
+
+        # test bulk changing topic
+        with patch("temba.mailroom.client.MailroomClient.ticket_change_topic") as mock_change_topic:
+            Ticket.bulk_change_topic(self.org, self.admin, [ticket], topic)
+
+        mock_change_topic.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], topic.id)
 
         # test bulk closing
         with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
