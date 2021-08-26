@@ -582,16 +582,29 @@ class TopicTest(TembaTest):
         self.assertEqual(topic1, Topic.get_or_create(self.org, self.admin, "Sales"))
         self.assertEqual(topic2, Topic.get_or_create(self.org, self.admin, "SUPPORT"))
 
+        self.assertEqual(f"Topic[uuid={topic1.uuid}, topic=Sales]", str(topic1))
 
-class CreateDefaultTopicsMigrationTest(MigrationTest):
+
+class AssignDefaultTopicMigrationTest(MigrationTest):
     app = "tickets"
-    migrate_from = "0019_auto_20210818_1603"
-    migrate_to = "0020_create_default_topics"
+    migrate_from = "0020_create_default_topics"
+    migrate_to = "0021_assign_default_topic"
 
     def setUpBeforeMigration(self, apps):
-        self.org.topics.all().delete()
+        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
+        self.sales = Topic.get_or_create(self.org, self.admin, "Sales")
+
+        contact = self.create_contact("Bob", urns=["twitter:bobby"])
+
+        # create a ticket with a topic and one without a topic
+        self.ticket1 = self.create_ticket(ticketer, contact, topic=self.sales, body="Where are my cookies?")
+        self.ticket2 = self.create_ticket(ticketer, contact, body="Where are my cookies?")
+        self.ticket2.topic = None
+        self.ticket2.save()
 
     def test_migration(self):
-        self.assertEqual(2, Topic.objects.count())
-        self.assertTrue(self.org.topics.filter(name="General", is_default=True).exists())
-        self.assertTrue(self.org2.topics.filter(name="General", is_default=True).exists())
+        self.ticket1.refresh_from_db()
+        self.ticket2.refresh_from_db()
+
+        self.assertEqual(self.sales, self.ticket2.topic)
+        self.assertEqual(self.org.default_ticket_topic, self.ticket2.topic)
