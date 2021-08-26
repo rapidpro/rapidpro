@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def create_default_topics(apps, schema_editor):
+def create_default_topics(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
 
     for org in Org.objects.all():
@@ -11,7 +11,7 @@ def create_default_topics(apps, schema_editor):
             org.topics.create(name="General", is_default=True, created_by=org.created_by, modified_by=org.modified_by)
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

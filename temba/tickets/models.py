@@ -184,6 +184,9 @@ class Topic(SmartModel, DependencyMixin):
 
         return regex.match(r"\w[\w- ]*", name, flags=regex.UNICODE)
 
+    def __str__(self):
+        return f"Topic[uuid={self.uuid}, topic={self.name}]"
+
 
 class Ticket(models.Model):
     """
@@ -259,7 +262,7 @@ class Ticket(models.Model):
         return org.get_users_with_perm(cls.ASSIGNEE_PERMISSION)
 
     def __str__(self):
-        return f"Ticket[uuid={self.uuid}, subject={self.subject}]"
+        return f"Ticket[uuid={self.uuid}, topic={self.topic.name}]"
 
     class Meta:
         indexes = [
