@@ -55,7 +55,7 @@ def automatically_collect_flow_results_data():
             flows_total=len(flows),
             related_org_id=org.id,
         )
-        processed, skipped, failed = process_collecting(processing_state, filters)
+        processed, skipped, failed = process_collecting(processing_state, flows)
         processing_state.flows_processed, processing_state.flows_skipped, processing_state.flows_failed = (
             processed,
             skipped,
