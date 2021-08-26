@@ -25,12 +25,12 @@ class TicketTest(TembaTest):
             org=self.org,
             ticketer=ticketer,
             contact=contact,
-            subject="Need help",
+            topic=self.org.default_ticket_topic,
             body="Where are my cookies?",
             status="O",
         )
 
-        self.assertEqual(f"Ticket[uuid={ticket.uuid}, subject=Need help]", str(ticket))
+        self.assertEqual(f"Ticket[uuid={ticket.uuid}, topic=General]", str(ticket))
 
         # test bulk assignment
         with patch("temba.mailroom.client.MailroomClient.ticket_assign") as mock_assign:
@@ -606,5 +606,5 @@ class AssignDefaultTopicMigrationTest(MigrationTest):
         self.ticket1.refresh_from_db()
         self.ticket2.refresh_from_db()
 
-        self.assertEqual(self.sales, self.ticket2.topic)
+        self.assertEqual(self.sales, self.ticket1.topic)
         self.assertEqual(self.org.default_ticket_topic, self.ticket2.topic)
