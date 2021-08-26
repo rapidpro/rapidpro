@@ -14,7 +14,7 @@ from temba.flows.models import FlowExit, FlowRun
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
-from temba.tickets.models import Ticket, TicketEvent
+from temba.tickets.models import Ticket, TicketEvent, Topic
 
 
 class Event:
@@ -42,6 +42,7 @@ class Event:
     TYPE_TICKET_ASSIGNED = "ticket_assigned"
     TYPE_TICKET_CLOSED = "ticket_closed"
     TYPE_TICKET_NOTE_ADDED = "ticket_note_added"
+    TYPE_TICKET_TOPIC_CHANGED = "ticket_topic_changed"
     TYPE_TICKET_OPENED = "ticket_opened"
     TYPE_TICKET_REOPENED = "ticket_reopened"
     TYPE_WEBHOOK_CALLED = "webhook_called"
@@ -55,7 +56,8 @@ class Event:
     ticket_event_types = {
         TicketEvent.TYPE_OPENED: TYPE_TICKET_OPENED,
         TicketEvent.TYPE_ASSIGNED: TYPE_TICKET_ASSIGNED,
-        TicketEvent.TYPE_NOTE: TYPE_TICKET_NOTE_ADDED,
+        TicketEvent.TYPE_NOTE_ADDED: TYPE_TICKET_NOTE_ADDED,
+        TicketEvent.TYPE_TOPIC_CHANGED: TYPE_TICKET_TOPIC_CHANGED,
         TicketEvent.TYPE_CLOSED: TYPE_TICKET_CLOSED,
         TicketEvent.TYPE_REOPENED: TYPE_TICKET_REOPENED,
     }
@@ -196,12 +198,13 @@ class Event:
         return {
             "type": cls.ticket_event_types[obj.event_type],
             "note": obj.note,
+            "topic": _topic(obj.topic) if obj.topic else None,
             "assignee": _user(obj.assignee) if obj.assignee else None,
             "ticket": {
                 "uuid": str(ticket.uuid),
                 "opened_on": ticket.opened_on.isoformat(),
                 "closed_on": ticket.closed_on.isoformat() if ticket.closed_on else None,
-                "topic": {"uuid": str(ticket.topic.uuid), "name": ticket.topic.name} if ticket.topic else None,
+                "topic": _topic(ticket.topic) if ticket.topic else None,
                 "status": ticket.status,
                 "subject": ticket.subject,
                 "body": ticket.body,
@@ -282,6 +285,10 @@ def _user(user: User) -> dict:
         "last_name": user.last_name,
         "email": user.email,
     }
+
+
+def _topic(topic: Topic) -> dict:
+    return {"uuid": str(topic.uuid), "name": topic.name}
 
 
 # map of history item types to methods to render them as events

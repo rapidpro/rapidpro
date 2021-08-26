@@ -292,13 +292,15 @@ class TicketEvent(models.Model):
 
     TYPE_OPENED = "O"
     TYPE_ASSIGNED = "A"
-    TYPE_NOTE = "N"
+    TYPE_NOTE_ADDED = "N"
+    TYPE_TOPIC_CHANGED = "T"
     TYPE_CLOSED = "C"
     TYPE_REOPENED = "R"
     TYPE_CHOICES = (
         (TYPE_OPENED, "Opened"),
         (TYPE_ASSIGNED, "Assigned"),
-        (TYPE_NOTE, "Note"),
+        (TYPE_NOTE_ADDED, "Note Added"),
+        (TYPE_TOPIC_CHANGED, "Topic Changed"),
         (TYPE_CLOSED, "Closed"),
         (TYPE_REOPENED, "Reopened"),
     )
@@ -308,6 +310,7 @@ class TicketEvent(models.Model):
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="ticket_events")
     event_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
     note = models.TextField(null=True, max_length=Ticket.MAX_NOTE_LEN)
+    topic = models.ForeignKey(Topic, on_delete=models.PROTECT, null=True, related_name="ticket_events")
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="ticket_assignee_events")
 
     created_by = models.ForeignKey(

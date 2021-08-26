@@ -869,7 +869,7 @@ class EventTest(TembaTest):
             org=self.org,
             contact=contact,
             ticket=ticket,
-            event_type=TicketEvent.TYPE_NOTE,
+            event_type=TicketEvent.TYPE_NOTE_ADDED,
             created_by=self.agent,
             note="this is important",
         )
@@ -878,6 +878,7 @@ class EventTest(TembaTest):
             {
                 "type": "ticket_note_added",
                 "note": "this is important",
+                "topic": None,
                 "assignee": None,
                 "ticket": {
                     "uuid": str(ticket.uuid),
@@ -904,6 +905,7 @@ class EventTest(TembaTest):
             {
                 "type": "ticket_closed",
                 "note": None,
+                "topic": None,
                 "assignee": None,
                 "ticket": {
                     "uuid": str(ticket.uuid),
