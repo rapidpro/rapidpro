@@ -720,10 +720,14 @@ class Org(SmartModel):
         normalize_contact_tels_task.delay(self.pk)
 
     @cached_property
-    def cached_active_contacts_group(self):
+    def active_contacts_group(self):
         from temba.contacts.models import ContactGroup
 
-        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ACTIVE)
+        return self.all_groups(manager="system_groups").get(group_type=ContactGroup.TYPE_ACTIVE)
+
+    @cached_property
+    def default_ticket_topic(self):
+        return self.topics.get(is_default=True)
 
     def get_resthooks(self):
         """
@@ -1565,13 +1569,13 @@ class Org(SmartModel):
 
         return all_components
 
-    def initialize(self, branding=None, topup_size=None):
+    def initialize(self, branding=None, topup_size=None, sample_flows=True):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.middleware import BrandingMiddleware
         from temba.contacts.models import ContactField, ContactGroup
-        from temba.tickets.models import Ticketer
+        from temba.tickets.models import Ticketer, Topic
 
         with transaction.atomic():
             if not branding:
@@ -1580,12 +1584,14 @@ class Org(SmartModel):
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
             Ticketer.create_internal_ticketer(self, branding)
+            Topic.create_default_topic(self)
 
             self.init_topups(topup_size)
             self.update_capabilities()
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
-        self.create_sample_flows(branding.get("api_link", ""))
+        if sample_flows:
+            self.create_sample_flows(branding.get("api_link", ""))
 
     def download_and_save_media(self, request, extension=None):  # pragma: needs cover
         """
@@ -1720,6 +1726,7 @@ class Org(SmartModel):
         self.sessions.all().delete()
         self.ticket_events.all().delete()
         self.tickets.all().delete()
+        self.topics.all().delete()
         self.airtime_transfers.all().delete()
 
         for result in self.webhook_results.all():

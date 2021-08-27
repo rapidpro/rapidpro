@@ -40,7 +40,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
 from temba.orgs.models import OrgRole
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
 
 from ..models import SSLPermission
@@ -3488,9 +3488,9 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **ticketer** - the UUID and name of the ticketer (object).
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **status** - the status of the ticket, e.g. 'open' or 'closed'.
-     * **subject** - the subject of the ticket.
-     * **body** - the body of the ticket.
-     * **opened_on** - when this ticket was opened.
+     * **topic** - the topic of the ticket (object).
+     * **body** - the body of the ticket (string).
+     * **opened_on** - when this ticket was opened (datetime).
 
     Example:
 
@@ -3507,7 +3507,7 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                 "ticketer": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Email (bob@acme.com)"},
                 "contact": {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Jim"},
                 "status": "open",
-                "subject": "Need help",
+                "topic": {"uuid": "040edbfe-be55-48f3-864d-a4a7147c447b", "name": "Support"},
                 "body": "Where did I leave my shorts?",
                 "opened_on": "2013-02-27T09:06:15.456"
             },
@@ -3546,7 +3546,9 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         queryset = queryset.prefetch_related(
             Prefetch("ticketer", queryset=Ticketer.objects.only("uuid", "name")),
+            Prefetch("topic", queryset=Topic.objects.only("uuid", "name")),
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
+            "assignee",
         )
 
         return queryset

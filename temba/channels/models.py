@@ -276,6 +276,7 @@ class Channel(TembaModel, DependencyMixin):
     CONFIG_MESSAGING_SERVICE_SID = "messaging_service_sid"
     CONFIG_MAX_CONCURRENT_EVENTS = "max_concurrent_events"
     CONFIG_ALLOW_INTERNATIONAL = "allow_international"
+    CONFIG_MACHINE_DETECTION = "machine_detection"
 
     CONFIG_VONAGE_API_KEY = "nexmo_api_key"
     CONFIG_VONAGE_API_SECRET = "nexmo_api_secret"
@@ -334,12 +335,8 @@ class Channel(TembaModel, DependencyMixin):
     }
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="channels", null=True)
-
     channel_type = models.CharField(max_length=3)
-
-    name = models.CharField(
-        verbose_name=_("Name"), max_length=64, blank=True, null=True, help_text=_("Descriptive label for this channel")
-    )
+    name = models.CharField(max_length=64, null=True)
 
     address = models.CharField(
         verbose_name=_("Address"),
@@ -1694,7 +1691,7 @@ class ChannelConnection(models.Model):
 
     DIRECTION_INCOMING = "I"
     DIRECTION_OUTGOING = "O"
-    DIRECTION_CHOICES = ((DIRECTION_INCOMING, "Incoming"), (DIRECTION_OUTGOING, "Outgoing"))
+    DIRECTION_CHOICES = ((DIRECTION_INCOMING, _("Incoming")), (DIRECTION_OUTGOING, _("Outgoing")))
 
     STATUS_PENDING = "P"  # used for initial creation in database
     STATUS_QUEUED = "Q"  # used when we need to throttle requests for new calls
@@ -1773,6 +1770,16 @@ class ChannelConnection(models.Model):
             duration = (timezone.now() - self.started_on).seconds
 
         return timedelta(seconds=duration)
+
+    @property
+    def status_display(self):
+        """
+        Gets the status/error_reason as display text, e.g. Wired, Errored (No Answer)
+        """
+        status = self.get_status_display()
+        if self.status in (self.STATUS_ERRORED, self.STATUS_FAILED) and self.error_reason:
+            status += f" ({self.get_error_reason_display()})"
+        return status
 
     def get_session(self):
         """

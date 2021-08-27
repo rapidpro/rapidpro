@@ -2082,8 +2082,8 @@ class ContactTest(TembaTest):
 
         # two tickets for joe
         ticketer = Ticketer.create(self.org, self.user, "internal", "Internal", {})
-        self.create_ticket(ticketer, self.joe, "Question 1", closed_on=timezone.now())
-        ticket = self.create_ticket(ticketer, self.joe, "Question 2")
+        self.create_ticket(ticketer, self.joe, subject="Question 1", closed_on=timezone.now())
+        ticket = self.create_ticket(ticketer, self.joe, subject="Question 2")
 
         # create missed incoming and outgoing calls
         self.create_channel_event(
@@ -2155,7 +2155,7 @@ class ContactTest(TembaTest):
             for path, expected in kwargs.items():
                 self.assertPathValue(item, path, expected, f"item {index}")
 
-        assertHistoryEvent(history, 0, "call_started", status="E", status_display="No Answer")
+        assertHistoryEvent(history, 0, "call_started", status="E", status_display="Errored (No Answer)")
         assertHistoryEvent(history, 1, "channel_event", channel_event_type="new_conversation")
         assertHistoryEvent(history, 2, "channel_event", channel_event_type="mo_miss")
         assertHistoryEvent(history, 3, "channel_event", channel_event_type="mt_miss")
@@ -2231,7 +2231,7 @@ class ContactTest(TembaTest):
         # now we'll see the message that just came in first, followed by the call event
         history = response.context["events"]
         assertHistoryEvent(history, 0, "msg_received", msg__text="Newer message")
-        assertHistoryEvent(history, 1, "call_started", status="E", status_display="No Answer")
+        assertHistoryEvent(history, 1, "call_started", status="E", status_display="Errored (No Answer)")
 
         recent_start = datetime_to_timestamp(timezone.now() - timedelta(days=1))
         response = self.fetch_protected(url + "?limit=100&after=%s" % recent_start, self.admin)
@@ -5013,7 +5013,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
             self.create_contact(name, urns=urns, fields=fields)
 
         def q(query):
-            results = search_contacts(self.org, query, group=self.org.cached_active_contacts_group)
+            results = search_contacts(self.org, query, group=self.org.active_contacts_group)
             return results.total
 
         db_config = connection.settings_dict
@@ -5242,9 +5242,11 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
         # update the query
         url = reverse("contacts.contactgroup_update", args=[adults.id])
-        response = self.client.post(url, dict(name="Adults", query="age > 18"))
+        self.client.post(url, dict(name="Adults", query="age > 18"))
 
-        time.sleep(5)
+        # need to wait at least 10 seconds because mailroom will wait that long to give indexer time to catch up if it
+        # sees recently modified contacts
+        time.sleep(13)
 
         # should have updated count
         self.assertEqual(81, adults.get_member_count())
@@ -6003,13 +6005,13 @@ class PopulateTicketCountTest(MigrationTest):
         self.contact2 = self.create_contact("Jim", urns=["twitter:jimmy"])
         self.contact3 = self.create_contact("Ann", urns=["twitter:annie"])
 
-        self.create_ticket(ticketer, self.contact1, "Test")
-        self.create_ticket(ticketer, self.contact1, "Test")
-        self.create_ticket(ticketer, self.contact1, "Test", closed_on=timezone.now())
+        self.create_ticket(ticketer, self.contact1, body="Test")
+        self.create_ticket(ticketer, self.contact1, body="Test")
+        self.create_ticket(ticketer, self.contact1, body="Test", closed_on=timezone.now())
 
-        self.create_ticket(ticketer, self.contact2, "Test")
-        self.create_ticket(ticketer, self.contact2, "Test", closed_on=timezone.now())
-        self.create_ticket(ticketer, self.contact2, "Test", closed_on=timezone.now())
+        self.create_ticket(ticketer, self.contact2, body="Test")
+        self.create_ticket(ticketer, self.contact2, body="Test", closed_on=timezone.now())
+        self.create_ticket(ticketer, self.contact2, body="Test", closed_on=timezone.now())
 
     def test_migration(self):
         self.contact1.refresh_from_db()

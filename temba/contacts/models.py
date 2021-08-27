@@ -822,7 +822,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         ticket_events = (
             self.ticket_events.filter(created_on__gte=after, created_on__lt=before)
-            .select_related("ticket__ticketer", "assignee", "created_by")
+            .select_related("ticket__ticketer", "ticket__topic", "assignee", "created_by")
             .order_by("-created_on")
         )
 

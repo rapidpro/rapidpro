@@ -1426,32 +1426,24 @@ class TicketReadSerializer(ReadSerializer):
 
     ticketer = fields.TicketerField()
     contact = fields.ContactField()
-    assignee = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
+    topic = fields.TopicField()
+    assignee = fields.UserField()
     opened_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     closed_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-
-    def get_assignee(self, obj):
-        return (
-            {"id": obj.assignee.id, "first_name": obj.assignee.first_name, "last_name": obj.assignee.last_name}
-            if obj.assignee
-            else None
-        )
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
 
     class Meta:
         model = Ticket
-        fields = ("uuid", "ticketer", "assignee", "contact", "status", "subject", "body", "opened_on", "closed_on")
+        fields = ("uuid", "ticketer", "contact", "status", "topic", "body", "assignee", "opened_on", "closed_on")
 
 
 class TicketWriteSerializer(WriteSerializer):
     STATUSES = {"open": Ticket.STATUS_OPEN, "closed": Ticket.STATUS_CLOSED}
 
-    status = serializers.CharField(
-        required=True,
-    )
+    status = serializers.CharField(required=True)
 
     def validate_status(self, value):
         return self.STATUSES[value]
@@ -1472,25 +1464,30 @@ class TicketWriteSerializer(WriteSerializer):
 
 class TicketBulkActionSerializer(WriteSerializer):
     ACTION_ASSIGN = "assign"
-    ACTION_NOTE = "note"
+    ACTION_ADD_NOTE = "add_note"
+    ACTION_CHANGE_TOPIC = "change_topic"
     ACTION_CLOSE = "close"
     ACTION_REOPEN = "reopen"
-    ACTION_CHOICES = (ACTION_ASSIGN, ACTION_NOTE, ACTION_CLOSE, ACTION_REOPEN)
+    ACTION_CHOICES = (ACTION_ASSIGN, ACTION_ADD_NOTE, ACTION_CHANGE_TOPIC, ACTION_CLOSE, ACTION_REOPEN)
 
     tickets = fields.TicketField(many=True)
     action = serializers.ChoiceField(required=True, choices=ACTION_CHOICES)
     assignee = fields.UserField(required=False, assignable_only=True)
+    topic = fields.TopicField(required=False)
     note = serializers.CharField(required=False, max_length=Ticket.MAX_NOTE_LEN)
 
     def validate(self, data):
         action = data["action"]
         assignee = data.get("assignee")
         note = data.get("note")
+        topic = data.get("topic")
 
         if action == self.ACTION_ASSIGN and not assignee:
-            raise serializers.ValidationError('For action "%s" you must also specify the assignee' % action)
-        elif action == self.ACTION_NOTE and not note:
-            raise serializers.ValidationError('For action "%s" you must also specify the note' % action)
+            raise serializers.ValidationError('For action "%s" you must specify the assignee' % action)
+        elif action == self.ACTION_ADD_NOTE and not note:
+            raise serializers.ValidationError('For action "%s" you must specify the note' % action)
+        elif action == self.ACTION_CHANGE_TOPIC and not topic:
+            raise serializers.ValidationError('For action "%s" you must specify the topic' % action)
 
         return data
 
@@ -1501,11 +1498,14 @@ class TicketBulkActionSerializer(WriteSerializer):
         action = self.validated_data["action"]
         assignee = self.validated_data.get("assignee")
         note = self.validated_data.get("note")
+        topic = self.validated_data.get("topic")
 
         if action == self.ACTION_ASSIGN:
             Ticket.bulk_assign(org, user, tickets, assignee=assignee, note=note)
-        elif action == self.ACTION_NOTE:
-            Ticket.bulk_note(org, user, tickets, note=note)
+        elif action == self.ACTION_ADD_NOTE:
+            Ticket.bulk_add_note(org, user, tickets, note=note)
+        elif action == self.ACTION_CHANGE_TOPIC:
+            Ticket.bulk_change_topic(org, user, tickets, topic=topic)
         elif action == self.ACTION_CLOSE:
             Ticket.bulk_close(org, user, tickets)
         elif action == self.ACTION_REOPEN:

@@ -345,8 +345,11 @@ class FormInitialValues(BaseCheck):
     def check(self, test_cls, response, msg_prefix):
         form = self.get_context_item(test_cls, response, "form", msg_prefix)
         for field_key, value in self.fields.items():
+            actual = form.initial[field_key] if field_key in form.initial else form.fields[field_key].initial
             test_cls.assertEqual(
-                form.initial.get(field_key), value, msg=f"{msg_prefix}: form field initial value mismatch"
+                actual,
+                value,
+                msg=f"{msg_prefix}: form field '{field_key}' initial value mismatch",
             )
 
 

@@ -1,3 +1,27 @@
+v6.5.28
+----------
+ * Add new ticket event type for topic changes
+ * Migrations to assign default topic to all existing tickets
+
+v6.5.27
+----------
+ * Add migration to give all existing orgs a default ticket topic
+
+v6.5.26
+----------
+ * Move mailroom_db data to external JSON file
+ * Run CI tests with latest mailroom
+ * Add ticket topic model and initialize orgs with a default topic
+
+v6.5.25
+----------
+ * Improve display of channels logs for calls
+
+v6.5.24
+----------
+ * Add machine detection as config option to channels with call role
+ * Tweak event_fires management command to show timesince for events in the past
+
 v6.5.23
 ----------
  * Drop retry_count, make error_count non-null

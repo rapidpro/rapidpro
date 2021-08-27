@@ -12,10 +12,7 @@
   {{ object.get_direction_display }}
 
 -block log-status
-  {{ object.get_status_display }}
-  -if object.status == "E" or object.status == "F"
-    -if object.error_reason
-      \({{ object.get_error_reason_display }})
+  {{ object.status_display }}
 
 -block log-entries
   -for log in object.channel_logs.all

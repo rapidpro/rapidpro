@@ -32,7 +32,7 @@ from temba.globals.models import Global
 from temba.msgs.models import Attachment, Label, Msg
 from temba.orgs.models import Org
 from temba.templates.models import Template
-from temba.tickets.models import Ticketer
+from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import (
@@ -172,6 +172,8 @@ class Flow(TembaModel):
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
     template_dependencies = models.ManyToManyField(Template, related_name="dependent_flows")
     ticketer_dependencies = models.ManyToManyField(Ticketer, related_name="dependent_flows")
+    topic_dependencies = models.ManyToManyField(Topic, related_name="dependent_topics")
+    user_dependencies = models.ManyToManyField(User, related_name="dependent_users")
 
     @classmethod
     def create(
@@ -557,6 +559,11 @@ class Flow(TembaModel):
             label = Label.get_or_create(self.org, user, ref["name"])
             dependency_mapping[ref["uuid"]] = str(label.uuid)
 
+        # ensure any topic dependencies exist
+        for ref in deps_of_type("topic"):
+            topic = Topic.get_or_create(self.org, user, ref["name"])
+            dependency_mapping[ref["uuid"]] = str(topic.uuid)
+
         # for dependencies we can't create, look for them by UUID (this is a clone in same workspace)
         # or name (this is an import from other workspace)
         dep_types = {
@@ -898,6 +905,8 @@ class Flow(TembaModel):
             "label": Label.label_objects.filter(org=self.org, uuid__in=identifiers["label"]),
             "template": self.org.templates.filter(uuid__in=identifiers["template"]),
             "ticketer": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["ticketer"]),
+            "topic": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["topic"]),
+            "user": self.org.get_users().filter(is_active=True, email__in=identifiers["user"]),
         }
 
         # reset the m2m for each type
@@ -937,8 +946,10 @@ class Flow(TembaModel):
         self.global_dependencies.clear()
         self.group_dependencies.clear()
         self.label_dependencies.clear()
-        self.ticketer_dependencies.clear()
         self.template_dependencies.clear()
+        self.ticketer_dependencies.clear()
+        self.topic_dependencies.clear()
+        self.user_dependencies.clear()
 
         # queue mailroom to interrupt sessions where contact is currently in this flow
         if interrupt_sessions:

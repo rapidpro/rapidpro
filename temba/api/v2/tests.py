@@ -36,7 +36,7 @@ from temba.orgs.models import Org
 from temba.templates.models import TemplateTranslation
 from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tickets.models import Ticketer
+from temba.tickets.models import Ticketer, Topic
 from temba.tickets.types.mailgun import MailgunType
 from temba.tickets.types.zendesk import ZendeskType
 from temba.triggers.models import Trigger
@@ -271,6 +271,14 @@ class APITest(TembaTest):
             fields.FlowField(source="test"),
             submissions={flow.uuid: flow},
             representations={flow: {"uuid": str(flow.uuid), "name": flow.name}},
+        )
+
+        assert_field(
+            fields.TopicField(source="test"),
+            submissions={str(self.org.default_ticket_topic.uuid): self.org.default_ticket_topic},
+            representations={
+                self.org.default_ticket_topic: {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"}
+            },
         )
 
         assert_field(
@@ -712,7 +720,7 @@ class APITest(TembaTest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Support Tickets", {})
-        ticket = self.create_ticket(ticketer, self.joe, "Help!")
+        ticket = self.create_ticket(ticketer, self.joe, body="Help!")
 
         bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", urns=["twitter:franky"])
         bcast2 = Broadcast.create(self.org, self.admin, "Hello 2", contacts=[self.joe])
@@ -4454,62 +4462,63 @@ class APITest(TembaTest):
         ann = self.create_contact("Ann", urns=["twitter:annie"])
         bob = self.create_contact("Bob", urns=["twitter:bobby"])
         ticket1 = self.create_ticket(
-            mailgun, ann, "Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
+            mailgun, ann, subject="Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
         )
-        ticket2 = self.create_ticket(mailgun, bob, "Need help again", body="Now")
-        ticket3 = self.create_ticket(mailgun, bob, "It's bob", body="Pleeeease help")
+        ticket2 = self.create_ticket(mailgun, bob, subject="Need help again", body="Now")
+        ticket3 = self.create_ticket(mailgun, bob, subject="It's bob", body="Pleeeease help", assignee=self.agent)
 
         # on another org
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
-        self.create_ticket(zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Need help")
+        self.create_ticket(
+            zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), subject="Need help"
+        )
 
         response = self.fetchJSON(url, "ticketer_type=zendesk")
         resp_json = response.json()
         self.assertEqual(0, len(resp_json["results"]))
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url)
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json["next"], None)
-
         self.assertEqual(
             resp_json["results"],
             [
                 {
                     "uuid": str(ticket3.uuid),
-                    "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
-                    "assignee": None,
+                    "assignee": {"email": "Agent@nyaruka.com", "name": ""},
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
-                    "subject": "It's bob",
+                    "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Pleeeease help",
                     "opened_on": format_datetime(ticket3.opened_on),
+                    "closed_on": None,
                 },
                 {
                     "uuid": str(ticket2.uuid),
-                    "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "assignee": None,
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
-                    "subject": "Need help again",
+                    "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Now",
                     "opened_on": format_datetime(ticket2.opened_on),
+                    "closed_on": None,
                 },
                 {
                     "uuid": str(ticket1.uuid),
-                    "closed_on": "2021-01-01T12:30:45.123456Z",
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "assignee": None,
                     "contact": {"uuid": str(ann.uuid), "name": "Ann"},
                     "status": "closed",
-                    "subject": "Need help",
+                    "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Now",
                     "opened_on": format_datetime(ticket1.opened_on),
+                    "closed_on": "2021-01-01T12:30:45.123456Z",
                 },
             ],
         )
@@ -4552,16 +4561,21 @@ class APITest(TembaTest):
 
         # create some tickets
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
+        sales = Topic.get_or_create(self.org, self.admin, "Sales")
         ticket1 = self.create_ticket(
-            mailgun, self.joe, "Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
+            mailgun,
+            self.joe,
+            subject="Need help",
+            body="Now",
+            closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC),
         )
-        ticket2 = self.create_ticket(mailgun, self.joe, "Need help again", body="Now")
-        self.create_ticket(mailgun, self.frank, "It's bob", body="Pleeeease help")
+        ticket2 = self.create_ticket(mailgun, self.joe, subject="Need help again", body="Now")
+        self.create_ticket(mailgun, self.frank, subject="It's bob", body="Pleeeease help")
 
         # on another org
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
         ticket4 = self.create_ticket(
-            zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Need help"
+            zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), subject="Need help"
         )
 
         # try actioning more tickets than this endpoint is allowed to operate on at one time
@@ -4582,13 +4596,15 @@ class APITest(TembaTest):
 
         # try to assign ticket without specifying assignee
         response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid)], "action": "assign"})
-        self.assertResponseError(
-            response, "non_field_errors", 'For action "assign" you must also specify the assignee'
-        )
+        self.assertResponseError(response, "non_field_errors", 'For action "assign" you must specify the assignee')
 
         # try to add a note without specifying note
-        response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid)], "action": "note"})
-        self.assertResponseError(response, "non_field_errors", 'For action "note" you must also specify the note')
+        response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid)], "action": "add_note"})
+        self.assertResponseError(response, "non_field_errors", 'For action "add_note" you must specify the note')
+
+        # try to change topic without specifying topic
+        response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid)], "action": "change_topic"})
+        self.assertResponseError(response, "non_field_errors", 'For action "change_topic" you must specify the topic')
 
         # assign valid tickets to a user
         response = self.postJSON(
@@ -4605,16 +4621,31 @@ class APITest(TembaTest):
 
         # add a note to tickets
         response = self.postJSON(
-            url, None, {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "note", "note": "Looks important"}
+            url,
+            None,
+            {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "add_note", "note": "Looks important"},
         )
         self.assertEqual(response.status_code, 204)
         self.assertEqual("Looks important", ticket1.events.last().note)
         self.assertEqual("Looks important", ticket2.events.last().note)
 
+        # change topic of tickets
+        response = self.postJSON(
+            url,
+            None,
+            {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "change_topic", "topic": str(sales.uuid)},
+        )
+        ticket1.refresh_from_db()
+        ticket2.refresh_from_db()
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(sales, ticket1.topic)
+        self.assertEqual(sales, ticket2.topic)
+
         # close tickets
         response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "close"})
         ticket1.refresh_from_db()
         ticket2.refresh_from_db()
+        self.assertEqual(response.status_code, 204)
         self.assertEqual("C", ticket1.status)
         self.assertEqual("C", ticket2.status)
 
@@ -4622,6 +4653,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "reopen"})
         ticket1.refresh_from_db()
         ticket2.refresh_from_db()
+        self.assertEqual(response.status_code, 204)
         self.assertEqual("O", ticket1.status)
         self.assertEqual("O", ticket2.status)
 

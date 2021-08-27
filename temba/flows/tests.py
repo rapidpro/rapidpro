@@ -27,7 +27,7 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticketer
@@ -1508,6 +1508,9 @@ class FlowTest(TembaTest):
 
         # global should have been created with blank value
         self.assertTrue(self.org.globals.filter(name="Org Name", key="org_name", value="").exists())
+
+        # topic should have been created too
+        self.assertTrue(self.org.topics.filter(name="Support").exists())
 
         # fields created with type if exists in export
         self.assertTrue(self.org.contactfields.filter(key="cat_breed", label="Cat Breed", value_type="T").exists())
@@ -5841,42 +5844,3 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
-
-
-class CleanupDependenciesTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0252_auto_20210512_1757"
-    migrate_to = "0253_cleanup_dependencies"
-
-    def setUpBeforeMigration(self, apps):
-        def create_flow(name, is_active):
-            flow = self.create_flow(name)
-            flow.is_active = is_active
-            flow.save(update_fields=("is_active",))
-            return flow
-
-        # inactive flow with field dependency
-        field = self.create_field("age", "Age")
-        self.flow1 = create_flow("Flow 1", is_active=False)
-        self.flow1.field_dependencies.add(field)
-
-        # inactive flow with group dependency
-        group = self.create_group("Testers", contacts=[])
-        self.flow2 = create_flow("Flow 2", is_active=False)
-        self.flow2.group_dependencies.add(group)
-
-        # active flow with field and group dependencies
-        self.flow3 = create_flow("Flow 3", is_active=True)
-        self.flow3.field_dependencies.add(field)
-        self.flow3.group_dependencies.add(group)
-
-    def test_migration(self):
-        self.flow1.refresh_from_db()
-        self.assertFalse(self.flow1.field_dependencies.exists())
-
-        self.flow2.refresh_from_db()
-        self.assertFalse(self.flow2.group_dependencies.exists())
-
-        self.flow3.refresh_from_db()
-        self.assertEqual(1, self.flow3.field_dependencies.count())
-        self.assertEqual(1, self.flow3.group_dependencies.count())

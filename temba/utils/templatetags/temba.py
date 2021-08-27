@@ -159,7 +159,7 @@ def delta_filter(delta):
             seconds2, name2 = TIME_SINCE_CHUNKS[i + 1]
             count2 = (since - (seconds * count)) // seconds2
             if count2 != 0:
-                result += ugettext(", ") + name2 % count2
+                result += ", " + name2 % count2
         return result
 
     except Exception:

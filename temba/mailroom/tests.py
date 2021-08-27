@@ -334,16 +334,28 @@ class MailroomClientTest(TembaTest):
                 json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "assignee_id": 4, "note": "please handle"},
             )
 
-    def test_ticket_note(self):
+    def test_ticket_add_note(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
-            response = get_client().ticket_note(1, 12, [123, 345], "please handle")
+            response = get_client().ticket_add_note(1, 12, [123, 345], "please handle")
 
             self.assertEqual({"changed_ids": [123]}, response)
             mock_post.assert_called_once_with(
-                "http://localhost:8090/mr/ticket/note",
+                "http://localhost:8090/mr/ticket/add_note",
                 headers={"User-Agent": "Temba"},
                 json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "note": "please handle"},
+            )
+
+    def test_ticket_change_topic(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
+            response = get_client().ticket_change_topic(1, 12, [123, 345], 67)
+
+            self.assertEqual({"changed_ids": [123]}, response)
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/ticket/change_topic",
+                headers={"User-Agent": "Temba"},
+                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "topic_id": 67},
             )
 
     def test_ticket_close(self):
@@ -474,7 +486,7 @@ class MailroomQueueTest(TembaTest):
         jim = self.create_contact("Jim", phone="+12065551212")
         bobs = self.create_group("Bobs", [self.create_contact("Bob", phone="+12065551313")])
         ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Support Tickets", {})
-        ticket = self.create_ticket(ticketer, jim, "Help!")
+        ticket = self.create_ticket(ticketer, jim, body="Help!")
 
         bcast = Broadcast.create(
             self.org,
@@ -862,14 +874,14 @@ class EventTest(TembaTest):
     def test_from_ticket_event(self):
         ticketer = Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
         contact = self.create_contact("Jim", phone="0979111111")
-        ticket = self.create_ticket(ticketer, contact, "Problem", body="Where my shoes?")
+        ticket = self.create_ticket(ticketer, contact, subject="Problem", body="Where my shoes?")
 
         # event with a user
         event1 = TicketEvent.objects.create(
             org=self.org,
             contact=contact,
             ticket=ticket,
-            event_type=TicketEvent.TYPE_NOTE,
+            event_type=TicketEvent.TYPE_NOTE_ADDED,
             created_by=self.agent,
             note="this is important",
         )
@@ -878,12 +890,14 @@ class EventTest(TembaTest):
             {
                 "type": "ticket_note_added",
                 "note": "this is important",
+                "topic": None,
                 "assignee": None,
                 "ticket": {
                     "uuid": str(ticket.uuid),
                     "opened_on": matchers.ISODate(),
                     "closed_on": None,
                     "status": "O",
+                    "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "subject": "Problem",
                     "body": "Where my shoes?",
                     "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
@@ -903,12 +917,14 @@ class EventTest(TembaTest):
             {
                 "type": "ticket_closed",
                 "note": None,
+                "topic": None,
                 "assignee": None,
                 "ticket": {
                     "uuid": str(ticket.uuid),
                     "opened_on": matchers.ISODate(),
                     "closed_on": None,
                     "status": "O",
+                    "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "subject": "Problem",
                     "body": "Where my shoes?",
                     "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
@@ -955,7 +971,7 @@ class EventTest(TembaTest):
             {
                 "type": "call_started",
                 "status": "E",
-                "status_display": "Busy",
+                "status_display": "Errored (Busy)",
                 "created_on": matchers.ISODate(),
                 "logs_url": None,
             },
