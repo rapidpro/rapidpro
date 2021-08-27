@@ -40,10 +40,24 @@
       });
     }
 
+    function buildFormData(form) {
+      return form.serializeArray().reduce(function(acc, item) {
+          let value = item.value;
+          if (item.name === 'omnibox' && value) {
+            value = acc['omnibox'] || [];
+            value.push(item.value);
+          }
+          acc[item.name] = value;
+          return acc;
+        }, {});
+    }
+
     function submitFormData(form) {
       const container = "#id-trigger-schedule-in-batch > .formax-container";
+      const groupIds = (buildFormData(form)['omnibox'] || []).map(row => JSON.parse(row).id);
+
       fetchPJAXContentV2('/trigger/schedule_in_batch/', container, {
-        postData: form.serialize(),
+        postData: form.serialize() + '&group_order=' + encodeURIComponent(groupIds),
         headers: {
           "X-FORMAX": true
         },
@@ -65,18 +79,6 @@
       });
     }
 
-    function buildFormData(form) {
-      return form.serializeArray().reduce(function(acc, item) {
-          let value = item.value;
-          if (item.name === 'omnibox' && value) {
-            value = acc['omnibox'] || [];
-            value.push(item.value);
-          }
-          acc[item.name] = value;
-          return acc;
-        }, {});
-    }
-
     document.addEventListener("DOMContentLoaded", function() {
       const formContainer = document.querySelector('#id-trigger-schedule-in-batch');
       const repeatPeriod = formContainer.querySelector("#id_schedule_repeat_period");
@@ -90,7 +92,7 @@
       helpTextNode.setAttribute('class', 'help-text');
       tembaField.appendChild(helpTextNode);
       const label = tembaField.shadowRoot.querySelector('label');
-      
+
       if (label.innerHTML === '<!----><!---->') label.innerHTML = 'Groups';
 
       if (repeatPeriod) {

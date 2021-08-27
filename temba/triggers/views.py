@@ -853,10 +853,13 @@ class TriggerCRUDL(SmartCRUDL):
             start_time = form.cleaned_data["start_datetime"]
             recipients = self.form.cleaned_data["omnibox"]
             batch_interval = self.form.cleaned_data["batch_interval"]
-
             triggers = []
             count = 0
-            for group in recipients["groups"]:
+
+            group_order = self.request._post.get('group_order', [])
+            sorted_groups = sorted(recipients["groups"], key=lambda x: group_order.index(x.uuid))
+
+            for group in sorted_groups:
                 if count > 0:
                     start_time = start_time + timedelta(minutes=int(batch_interval))
                 group_trigger = self.create_trigger(start_time, org, form)
