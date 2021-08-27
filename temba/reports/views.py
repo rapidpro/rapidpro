@@ -141,16 +141,19 @@ class ReportCRUDL(SmartCRUDL):
             if not any((values_filters, groups_filters)):
                 return set(), False
 
-            filter_ids = set()
+            filter_ids, exclude_ids = set(), set()
             for flow_id, fields in groupby(values_filters, lambda x: x["field"]["flow"]):
                 try:
                     flow = org.flows.get(id=flow_id)
                     results = flow.aggregated_results.data
                     for field in fields:
-                        for category in field["categories"]:
+                        for category in field.get("categories", []):
                             filter_ids.update(results.get(field["field"]["rule"], {}).get(category, []))
+                        for category in field.get("excludedCategories", []):
+                            exclude_ids.update(results.get(field["field"]["rule"], {}).get(category, []))
                 except ObjectDoesNotExist:
                     continue
+            filter_ids -= exclude_ids
 
             group_ids = [_id for _ids in groups_filters for _id in _ids]
             if group_ids:
