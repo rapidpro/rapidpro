@@ -2267,11 +2267,15 @@ class ContactImport(SmartModel):
         Starts this import, creating batches to be handled by mailroom
         """
 
+        from temba.notifications.models import Log
+
         assert self.started_on is None, "trying to start an already started import"
 
         # mark us as started to prevent double starting
         self.started_on = timezone.now()
         self.save(update_fields=("started_on",))
+
+        Log.import_started(self)
 
         # create new contact fields as necessary
         for item in self.mappings:

@@ -1489,9 +1489,23 @@ class Alert(SmartModel):
     ended_on = models.DateTimeField(verbose_name=_("Ended On"), blank=True, null=True)
 
     @classmethod
-    def check_power_alert(cls, sync):
-        alert_user = get_alert_user()
+    def create_and_send(cls, channel, alert_type: str, *, sync_event=None):
+        from temba.notifications.models import Log
 
+        user = get_alert_user()
+        alert = cls.objects.create(
+            channel=channel,
+            alert_type=alert_type,
+            sync_event=sync_event,
+            created_by=user,
+            modified_by=user,
+        )
+        alert.send_alert()
+
+        Log.channel_alert(alert)
+
+    @classmethod
+    def check_power_alert(cls, sync):
         if (
             sync.power_status
             in (SyncEvent.STATUS_DISCHARGING, SyncEvent.STATUS_UNKNOWN, SyncEvent.STATUS_NOT_CHARGING)
@@ -1501,14 +1515,7 @@ class Alert(SmartModel):
             alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
 
             if not alerts:
-                new_alert = Alert.objects.create(
-                    channel=sync.channel,
-                    sync_event=sync,
-                    alert_type=cls.TYPE_POWER,
-                    created_by=alert_user,
-                    modified_by=alert_user,
-                )
-                new_alert.send_alert()
+                cls.create_and_send(sync.channel, cls.TYPE_POWER, sync_event=sync)
 
         if sync.power_status == SyncEvent.STATUS_CHARGING or sync.power_status == SyncEvent.STATUS_FULL:
             alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
@@ -1527,7 +1534,6 @@ class Alert(SmartModel):
         from temba.channels.types.android import AndroidType
         from temba.msgs.models import Msg
 
-        alert_user = get_alert_user()
         thirty_minutes_ago = timezone.now() - timedelta(minutes=30)
 
         # end any alerts that no longer seem valid
@@ -1545,10 +1551,7 @@ class Alert(SmartModel):
         ):
             # have we already sent an alert for this channel
             if not Alert.objects.filter(channel=channel, alert_type=cls.TYPE_DISCONNECTED, ended_on=None):
-                alert = Alert.objects.create(
-                    channel=channel, alert_type=cls.TYPE_DISCONNECTED, modified_by=alert_user, created_by=alert_user
-                )
-                alert.send_alert()
+                cls.create_and_send(channel, cls.TYPE_DISCONNECTED)
 
         day_ago = timezone.now() - timedelta(days=1)
         six_hours_ago = timezone.now() - timedelta(hours=6)
@@ -1607,10 +1610,7 @@ class Alert(SmartModel):
 
                 # if we haven't sent an alert in the past six ours
                 if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)).exists():
-                    alert = Alert.objects.create(
-                        channel=channel, alert_type=cls.TYPE_SMS, modified_by=alert_user, created_by=alert_user
-                    )
-                    alert.send_alert()
+                    cls.create_and_send(channel, cls.TYPE_SMS)
 
     def send_alert(self):
         from .tasks import send_alert_task
