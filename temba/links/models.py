@@ -112,9 +112,9 @@ class Link(TembaModel):
         contacts = LinkContacts.objects.filter(link=self, created_on__gte=after, created_on__lt=before)
         if search:
             try:
-                contacts = Contact.objects.filter(
-                    models.Q(name__icontains=search) | models.Q(urns__path__icontains=search),
-                    id__in=contacts.values_list("contact__id"),
+                contacts = LinkContacts.objects.filter(
+                    models.Q(contact__name__icontains=search) | models.Q(contact__urns__path__icontains=search),
+                    contact__id__in=contacts.values_list("contact__id"),
                 ).only("id")
             except SearchException as e:
                 self.search_error = str(e.message)
