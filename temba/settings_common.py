@@ -17,7 +17,7 @@ SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
 
 
 def traces_sampler(sampling_context):  # pragma: no cover
-    return 0 if ("shell" in sys.argv) else 0.1
+    return 0 if ("shell" in sys.argv) else 0.01
 
 
 if SENTRY_DSN:  # pragma: no cover
