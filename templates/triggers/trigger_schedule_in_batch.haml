@@ -40,10 +40,24 @@
       });
     }
 
+    function buildFormData(form) {
+      return form.serializeArray().reduce(function(acc, item) {
+          let value = item.value;
+          if (item.name === 'omnibox' && value) {
+            value = acc['omnibox'] || [];
+            value.push(item.value);
+          }
+          acc[item.name] = value;
+          return acc;
+        }, {});
+    }
+
     function submitFormData(form) {
       const container = "#id-trigger-schedule-in-batch > .formax-container";
+      const groupIds = (buildFormData(form)['omnibox'] || []).map(row => JSON.parse(row).id);
+
       fetchPJAXContentV2('/trigger/schedule_in_batch/', container, {
-        postData: form.serialize(),
+        postData: form.serialize() + '&group_order=' + encodeURIComponent(groupIds),
         headers: {
           "X-FORMAX": true
         },
@@ -65,21 +79,20 @@
       });
     }
 
-    function buildFormData(form) {
-      return form.serializeArray().reduce(function(acc, item) {
-          let value = item.value;
-          if (item.name === 'omnibox' && value) {
-            value = acc['omnibox'] || [];
-            value.push(item.value);
-          }
-          acc[item.name] = value;
-          return acc;
-        }, {});
-    }
-
     document.addEventListener("DOMContentLoaded", function() {
       const formContainer = document.querySelector('#id-trigger-schedule-in-batch');
       const repeatPeriod = formContainer.querySelector("#id_schedule_repeat_period");
+      const tembaField = formContainer.querySelector('#id_schedule_omnibox').shadowRoot
+        .querySelector('temba-select').shadowRoot
+        .querySelector('temba-field');
+
+      const helpTextNode = document.createElement('div');
+      const textNode = document.createTextNode('The batches will deploy in the order you add the group');
+      helpTextNode.appendChild(textNode);
+      helpTextNode.setAttribute('style', 'font-size: 11px; margin-top: 6px; opacity: 1;');
+      tembaField.appendChild(helpTextNode);
+      const label = tembaField.shadowRoot.querySelector('label');
+      label.innerHTML = 'Groups';
 
       if (repeatPeriod) {
         repeatPeriod.addEventListener("change", function(event) {
