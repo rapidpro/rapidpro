@@ -92,8 +92,7 @@
       helpTextNode.setAttribute('style', 'font-size: 11px; margin-top: 6px; opacity: 1;');
       tembaField.appendChild(helpTextNode);
       const label = tembaField.shadowRoot.querySelector('label');
-
-      if (label.innerHTML === '<!----><!---->') label.innerHTML = 'Groups';
+      label.innerHTML = 'Groups';
 
       if (repeatPeriod) {
         repeatPeriod.addEventListener("change", function(event) {
