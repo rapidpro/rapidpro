@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
             name="Log",
             fields=[
                 ("id", models.BigAutoField(primary_key=True, serialize=False)),
-                ("type", models.CharField(max_length=16)),
+                ("log_type", models.CharField(max_length=16)),
                 ("created_on", models.DateTimeField(default=django.utils.timezone.now)),
                 (
                     "alert",

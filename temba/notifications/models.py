@@ -88,6 +88,9 @@ class TicketNoteLog(LogType):
     slug = "ticket:note"
 
 
+TYPES_BY_SLUG = {lt.slug: lt() for lt in LogType.__subclasses__()}
+
+
 class Log(models.Model):
     """
     A log of something that happened in an org that can be turned into notifications for specific users
@@ -95,7 +98,7 @@ class Log(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="logs")
-    type = models.CharField(max_length=16)
+    log_type = models.CharField(max_length=16)
     created_on = models.DateTimeField(default=timezone.now)
     created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="logs")
 
@@ -116,26 +119,40 @@ class Log(models.Model):
     }
 
     @classmethod
-    def _create(cls, org, user, log_type, **kwargs):
-        log = cls.objects.create(org=org, created_by=user, type=log_type.slug, **kwargs)
+    def _create(cls, org, user, log_type: str, **kwargs):
+        log_type = TYPES_BY_SLUG[log_type]
+        log = cls.objects.create(org=org, created_by=user, log_type=log_type.slug, **kwargs)
 
-        Notification.create_for_log(log, log_type)
+        Notification.create_for_log(log)
 
     @classmethod
     def channel_alert(cls, alert):
-        cls._create(alert.channel.org, None, ChannelAlertLog, alert=alert)
+        cls._create(alert.channel.org, None, ChannelAlertLog.slug, alert=alert)
 
     @classmethod
     def import_started(cls, imp):
-        cls._create(imp.org, imp.created_by, ImportStartedLog, contact_import=imp)
+        cls._create(imp.org, imp.created_by, ImportStartedLog.slug, contact_import=imp)
 
     @classmethod
     def export_started(cls, export):
-        cls._create(export.org, export.created_by, ExportStartedLog, **{cls.EXPORT_TYPES[type(export)]: export})
+        cls._create(export.org, export.created_by, ExportStartedLog.slug, **{cls.EXPORT_TYPES[type(export)]: export})
 
     @classmethod
     def export_completed(cls, export):
-        cls._create(export.org, export.created_by, ExportCompletedLog, **{cls.EXPORT_TYPES[type(export)]: export})
+        cls._create(export.org, export.created_by, ExportCompletedLog.slug, **{cls.EXPORT_TYPES[type(export)]: export})
+
+    @property
+    def type(self):
+        return TYPES_BY_SLUG[self.log_type]
+
+    def delete(self):
+        for notification in self.notifications.all():
+            notification.delete()
+
+        super().delete()
+
+    def __str__(self):  # pragma: no cover
+        return f"Log[type={self.type.slug} created_on={self.created_on.isoformat()}]"
 
     class Meta:
         indexes = [models.Index(fields=["org", "-created_on"])]
@@ -153,12 +170,12 @@ class Notification(models.Model):
     is_seen = models.BooleanField(default=False)
 
     @classmethod
-    def create_for_log(cls, log: Log, log_type):
+    def create_for_log(cls, log: Log):
         org = log.org
         user = log.created_by
-        who = log_type.notify_who
+        who = log.type.notify_who
 
-        if who == NotifyWho.all or who == NotifyWho.all_except_user:
+        if who == NotifyWho.all or who == NotifyWho.all_except_user:  # pragma: no cover
             notify_users = org.get_users()
             if who == NotifyWho.all_except_user and user:
                 notify_users = notify_users.exclude(id=user.id)

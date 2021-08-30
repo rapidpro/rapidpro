@@ -1668,6 +1668,9 @@ class Alert(SmartModel):
         send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())
 
     def release(self):
+        for log in self.logs.all():
+            log.delete()
+
         self.delete()
 
 

@@ -25,6 +25,7 @@ from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
+from temba.notifications.models import Log, Notification
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
@@ -3893,13 +3894,19 @@ class ExportFlowResultsTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
-                with self.assertNumQueries(43):
+                with self.assertNumQueries(46):
                     workbook = self._export(flow, group_memberships=[devs])
 
                 self.assertEqual(len(captured_logger.output), 3)
                 self.assertTrue("fetching runs from archives to export" in captured_logger.output[0])
                 self.assertTrue("found 5 runs in database to export" in captured_logger.output[1])
                 self.assertTrue("exported 5 in" in captured_logger.output[2])
+
+        # check that export was logged and notifications created
+        export = ExportFlowResultsTask.objects.order_by("id").last()
+        self.assertEqual(1, Log.objects.filter(log_type="export:started", results_export=export).count())
+        self.assertEqual(1, Log.objects.filter(log_type="export:completed", results_export=export).count())
+        self.assertEqual(1, Notification.objects.filter(log__results_export=export).count())
 
         tz = self.org.timezone
 
@@ -4133,7 +4140,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(44):
             workbook = self._export(flow, include_msgs=False, responded_only=True, group_memberships=(devs,))
 
         tz = self.org.timezone
@@ -4199,7 +4206,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(46):
             workbook = self._export(
                 flow,
                 include_msgs=False,
@@ -4429,7 +4436,7 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(51):
+        with self.assertNumQueries(54):
             workbook = self._export(flow)
 
         tz = self.org.timezone
@@ -4699,7 +4706,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(34):
+        with self.assertNumQueries(37):
             workbook = self._export(flow, include_msgs=False, responded_only=True)
 
         tz = self.org.timezone

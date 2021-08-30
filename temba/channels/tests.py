@@ -1239,7 +1239,8 @@ class ChannelTest(TembaTest):
         )
 
         # clear all the alerts
-        Alert.objects.all().delete()
+        for alert in Alert.objects.all():
+            alert.release()
 
         # the case the status is in not charging state
         response = self.sync(
@@ -1815,7 +1816,7 @@ class ChannelClaimTest(TembaTest):
         )
 
         # run again, nothing should change
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(9):
             check_channels_task()
 
         self.assertEqual(2, Alert.objects.filter(channel=self.channel, ended_on=None).count())

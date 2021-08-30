@@ -31,6 +31,7 @@ from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, modifiers
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
+from temba.notifications.models import Log, Notification
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import (
@@ -3829,7 +3830,7 @@ class ContactFieldTest(TembaTest):
             self.create_contact_import(path)
 
         # no group specified, so will default to 'Active'
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(40):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3882,10 +3883,16 @@ class ContactFieldTest(TembaTest):
 
         assertImportExportedFile()
 
+        # check that export was logged and notifications created
+        export = ExportContactsTask.objects.order_by("id").last()
+        self.assertEqual(1, Log.objects.filter(log_type="export:started", contact_export=export).count())
+        self.assertEqual(1, Log.objects.filter(log_type="export:completed", contact_export=export).count())
+        self.assertEqual(1, Notification.objects.filter(log__contact_export=export).count())
+
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(40):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3946,7 +3953,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(40):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -4036,7 +4043,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(41):
             self.assertExcelSheet(
                 request_export("?g=%s" % group.uuid)[0],
                 [
@@ -4104,7 +4111,7 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(40):
+                    with self.assertNumQueries(42):
                         self.assertExcelSheet(
                             request_export("?s=name+has+adam+or+name+has+deng")[0],
                             [
@@ -4166,7 +4173,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(39):
+            with self.assertNumQueries(41):
                 self.assertExcelSheet(
                     request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [

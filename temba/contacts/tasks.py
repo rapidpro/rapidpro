@@ -37,7 +37,7 @@ def import_contacts_task(import_id):
     """
     Import contacts from a spreadsheet
     """
-    ContactImport.objects.get(id=import_id).start()
+    ContactImport.objects.select_related("org", "created_by").get(id=import_id).start()
 
 
 @task(track_started=True, name="export_contacts_task")
@@ -45,7 +45,7 @@ def export_contacts_task(task_id):
     """
     Export contacts to a file and e-mail a link to the user
     """
-    ExportContactsTask.objects.get(id=task_id).perform()
+    ExportContactsTask.objects.select_related("org", "created_by").get(id=task_id).perform()
 
 
 @nonoverlapping_task(track_started=True, name="release_group_task")
