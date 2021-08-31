@@ -39,6 +39,10 @@ jobs:
             RAPIDPRO_APPS_GIT_URL=https://github.com/Ilhasoft/rapidpro-apps.git
             RAPIDPRO_APPS_GIT_BRANCH=main
             PROTOBUFFERS_URL=https://github.com/Ilhasoft/weni-protobuffers.git
+            PROTOBUFFERS_BRANCH=main
+            FLOWEDITOR_REPO=https://github.com/Ilhasoft/floweditor.git
+            FLOWEDITOR_BRANCH=feature/more-options-in-wait-for-response
+            FLOWEDITOR_VERSION=1.13.18
       - name: Build and push - Varnish Image
         id: docker_build2
         uses: docker/build-push-action@v2
