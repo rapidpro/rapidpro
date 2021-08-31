@@ -67,8 +67,13 @@ class BaseExportTask(TembaModel):
         Performs the actual export. If export generation throws an exception it's caught here and the task is marked
         as failed.
         """
+        from temba.notifications.models import Log
+
         try:
             self.update_status(self.STATUS_PROCESSING)
+
+            Log.export_started(self)
+
             print(f"Started perfoming {self.analytics_key} with ID {self.id}")
 
             start = time.time()
@@ -106,6 +111,8 @@ class BaseExportTask(TembaModel):
             elapsed = time.time() - start
             print(f"Completed {self.analytics_key} with ID {self.id} in {elapsed:.1f} seconds")
             analytics.track(self.created_by, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed))
+
+            Log.export_completed(self)
         finally:
             gc.collect()  # force garbage collection
 

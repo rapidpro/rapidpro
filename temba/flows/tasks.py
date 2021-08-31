@@ -48,7 +48,7 @@ def export_flow_results_task(export_id):
     """
     Export a flow to a file and e-mail a link to the user
     """
-    ExportFlowResultsTask.objects.select_related("org").get(id=export_id).perform()
+    ExportFlowResultsTask.objects.select_related("org", "created_by").get(id=export_id).perform()
 
 
 @nonoverlapping_task(track_started=True, name="squash_flowcounts", lock_timeout=7200)

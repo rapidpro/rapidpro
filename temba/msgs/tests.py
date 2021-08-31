@@ -33,6 +33,7 @@ from temba.msgs.models import (
     SystemLabel,
     SystemLabelCount,
 )
+from temba.notifications.models import Log, Notification
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
 from temba.tests.engine import MockSessionWriter
@@ -435,7 +436,7 @@ class MsgTest(TembaTest):
             return load_workbook(filename=filename)
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(29):
+        with self.assertNumQueries(31):
             with patch("temba.utils.s3.client", return_value=mock_s3):
                 workbook = request_export("?l=I", {"export_all": 1})
 
@@ -873,7 +874,7 @@ class MsgTest(TembaTest):
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
-        self.assertNumQueries(11, lambda: blocking_export.perform())
+        self.assertNumQueries(15, lambda: blocking_export.perform())
 
         blocking_export.refresh_from_db()
         # after performing the export `modified_on` should be updated
@@ -895,7 +896,7 @@ class MsgTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 5
 
-                with self.assertNumQueries(29):
+                with self.assertNumQueries(31):
                     self.assertExcelSheet(
                         request_export("?l=I", {"export_all": 1}),
                         [
@@ -1025,9 +1026,14 @@ class MsgTest(TembaTest):
                 self.assertTrue("found 8 msgs in database to export" in captured_logger.output[1])
                 self.assertTrue("exported 8 in" in captured_logger.output[2])
 
+        # check that export was logged and notifications created
+        export = ExportMessagesTask.objects.order_by("id").last()
+        self.assertEqual(1, Log.objects.filter(log_type="export:started", message_export=export).count())
+        self.assertEqual(1, Log.objects.filter(log_type="export:completed", message_export=export).count())
+        self.assertEqual(1, Notification.objects.filter(log__message_export=export).count())
+
         # check email was sent correctly
         email_args = mock_send_temba_email.call_args[0]  # all positional args
-        export = ExportMessagesTask.objects.order_by("-id").first()
         self.assertEqual(email_args[0], "Your messages export from %s is ready" % self.org.name)
         self.assertIn("https://app.rapidpro.io/assets/download/message_export/%d/" % export.id, email_args[1])
         self.assertNotIn("{{", email_args[1])
