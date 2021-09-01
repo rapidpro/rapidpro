@@ -5744,6 +5744,13 @@ class ContactImportTest(TembaTest):
         for test in tests:
             self.assertEqual(test[1], ContactImport(org=self.org, original_filename=test[0]).get_default_group_name())
 
+    @mock_mailroom
+    def test_delete(self, mr_mocks):
+        imp = self.create_contact_import("media/test_imports/simple.csv")
+        imp.start()
+
+        imp.delete()
+
 
 class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create_and_preview(self):

@@ -1750,7 +1750,7 @@ class ContactGroup(TembaModel, DependencyMixin):
 
         # remove any contact imports associated with this group
         for ci in ContactImport.objects.filter(group=self):
-            ci.release()
+            ci.delete()
 
         # mark any triggers that operate only on this group as inactive
         from temba.triggers.models import Trigger
@@ -2252,15 +2252,19 @@ class ContactImport(SmartModel):
 
         on_transaction_commit(lambda: import_contacts_task.delay(self.id))
 
-    def release(self):
+    def delete(self):
         # delete our source import file
         self.file.delete()
 
         # delete any batches associated with this import
         ContactImportBatch.objects.filter(contact_import=self).delete()
 
+        # delete any log attached this import
+        for log in self.logs.all():
+            log.delete()
+
         # then ourselves
-        self.delete()
+        super().delete()
 
     def start(self):
         """
