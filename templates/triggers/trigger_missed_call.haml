@@ -10,3 +10,25 @@
     -trans "Flow Parameters"
   #embedded-data-missed_call.hidden
     #embed-container-missed_call
+
+  %temba-dialog#confirm-missed-call-trigger.hide(header='{{ _("Trigger Confirmation")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
+    .p-6
+
+
+-block extra-script
+  :javascript
+    function onMissedCallSuccess(form, htmlString, status, jqXHR) {
+      const requiredFields = ['div.field_flow']
+      handleSubmissionResponse(requiredFields, form, { htmlString, status, jqXHR });
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+      const options = {
+        formContainerId: '#id-trigger-missedcall',
+        confirmationBoxId: '#confirm-missed-call-trigger',
+        flowFieldId: '#id_missed_call_flow',
+        postUrl: '/trigger/missed_call/',
+        successFunc: onMissedCallSuccess
+      };
+      initForm(options);
+    });

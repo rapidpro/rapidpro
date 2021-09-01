@@ -67,6 +67,7 @@
   {{ block.super }}
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
   <script src="{{ STATIC_URL }}js/flow-parameters.js"></script>
+  <script src="{{ STATIC_URL }}js/trigger-common.js"></script>
   :javascript
 
     ["keyword", "schedule", "missed_call", "new_conversation", "referral", "catchall", "schedule-in-batch"].forEach(triggerType => {

@@ -9,74 +9,9 @@
   :javascript
     const messageTemplate = 'Are you sure you want to schedule the flow "{flowName}", to {groupCount} groups with an interval of {batchInterval} minutes?'
 
-    function fetchPJAXContentV2(url, container, options) {
-      let type = 'GET';
-      let data;
-      if (options) {
-        if ('postData' in options) {
-          type = 'POST';
-          data = options['postData'];
-        }
-      }
-
-      let headers = { 'X-PJAX': true };
-      if (options && 'headers' in options) {
-        headers = Object.keys(options).reduce(function(acc, key) {
-          acc[key] = options['headers'][key]
-          return acc;
-        }, Object.assign(headers, {}));
-      }
-
-      document.dispatchEvent(new Event('temba-pjax-begin'));
-      $.ajax({
-        headers: headers,
-        type: type,
-        url: url,
-        data: data,
-        success: function(response, status, jqXHR) {
-          options['onSuccess'](response, status, jqXHR);
-          document.dispatchEvent(new Event('temba-pjax-complete'));
-        }
-      });
-    }
-
-    function buildFormData(form) {
-      return form.serializeArray().reduce(function(acc, item) {
-          let value = item.value;
-          if (item.name === 'omnibox' && value) {
-            value = acc['omnibox'] || [];
-            value.push(item.value);
-          }
-          acc[item.name] = value;
-          return acc;
-        }, {});
-    }
-
-    function submitFormData(form) {
-      const container = "#id-trigger-schedule-in-batch > .formax-container";
-      const groupIds = (buildFormData(form)['omnibox'] || []).map(row => JSON.parse(row).id);
-
-      fetchPJAXContentV2('/trigger/schedule_in_batch/', container, {
-        postData: form.serialize() + '&group_order=' + encodeURIComponent(groupIds),
-        headers: {
-          "X-FORMAX": true
-        },
-        onSuccess: function(htmlString, status, jqXHR) {
-          const requiredFields = ['trigger_flow', 'trigger_omnibox', 'schedule-options']
-          const responseForm = $($.parseHTML(htmlString));
-          const hasErrors = responseForm.find("div.error").length > 0;
-          if (hasErrors) {
-            for (let i = 0; i < requiredFields.length; i += 1) {
-              const fieldId = '#' + requiredFields[i];
-              $(form).find(fieldId).html(responseForm.find(fieldId));
-            }
-          }
-
-          if (!hasErrors) {
-            window.document.location.href = jqXHR.getResponseHeader('REDIRECT');
-          }
-        }
-      });
+    function onSuccess(form, htmlString, status, jqXHR) {
+      const requiredFields = ['#trigger_flow', '#trigger_omnibox', '#schedule-options']
+      handleSubmissionResponse(requiredFields, form, { htmlString, status, jqXHR });
     }
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -93,6 +28,8 @@
       tembaField.appendChild(helpTextNode);
       const label = tembaField.shadowRoot.querySelector('label');
       label.innerHTML = 'Groups';
+
+      lockScheduleDate(formContainer);
 
       if (repeatPeriod) {
         repeatPeriod.addEventListener("change", function(event) {
@@ -132,7 +69,13 @@
       });
 
       inBatchConfirmation.addEventListener("temba-button-clicked", function(event) {
-        if (!event.detail.button.secondary) submitFormData(form);
+        const container = "#id-trigger-schedule-in-batch > .formax-container";
+        const groupIds = (buildFormData(form)['omnibox'] || []).map(row => JSON.parse(row).id);
+        const appendToForm = '&group_order=' + encodeURIComponent(JSON.stringify(groupIds));
+        const options = {
+          form, container, successFunc: onSuccess, appendToForm, postUrl: '/trigger/schedule_in_batch/'
+        };
+        if (!event.detail.button.secondary) submitFormData(options);
         inBatchConfirmation.classList.add("hide");
         inBatchConfirmation.open = false;
       });
