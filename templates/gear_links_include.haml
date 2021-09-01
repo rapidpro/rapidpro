@@ -9,6 +9,10 @@
     float: right;
   }
 
+  #gear-container {
+    margin-left: 1em;
+  }
+
 -with gear_links=view.get_gear_links
   -if gear_links
 
@@ -25,8 +29,8 @@
               %span{class:'gear-flag'}
                 {{link.flag}}
 
-          -else
-            .button-light{onclick:'goto(event)', href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
+          -else          
+            .button-light{onclick:'{%if link.on_click%}{{link.on_click}}{% else %}goto(event){%endif%}', href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
               {{link.title}}
 
       - else
@@ -39,11 +43,11 @@
 
           -else
             -if link.js_class
-              .button-light{class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
+              .button-light{onclick:'{%if link.on_click%}{{link.on_click}}{% else %}void(0);{%endif%}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
                 {{link.title}}
 
             -else
-              .button-light{onclick:'goto(event)', href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
+              .button-light{onclick:'{%if link.on_click%}{{link.on_click}}{% else %}goto(event){%endif%}', href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
                 {{link.title}}
 
         .btn-group.gear-menu.ml-3
@@ -69,12 +73,12 @@
 
                     -else
                       -if link.js_class
-                        .hover-linked.font-normal{class:'{{ link|gear_link_classes }}', href:'{{link.href}}', data-success-url:'{{ link.success_url }}'}
+                        .hover-linked.font-normal{onclick:'{%if link.on_click%}{{link.on_click}}{% else %}void(0);{%endif%}', class:'{{ link|gear_link_classes }}', href:'{{link.href}}', data-success-url:'{{ link.success_url }}'}
                           {{link.title}}
                           %span{class:'gear-flag'}
                             {{link.flag}}
                       -else
-                        .hover-linked.font-normal{onclick:"goto(event);", href:'{{link.href}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
+                        .hover-linked.font-normal{onclick:"{%if link.on_click%}{{link.on_click}}{% else %}goto(event){%endif%}", href:'{{link.href}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
                           {{link.title}}
                           %span{class:'gear-flag'}
                             {{link.flag}}

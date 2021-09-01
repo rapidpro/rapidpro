@@ -1645,6 +1645,11 @@ class ContactGroup(TembaModel, DependencyMixin):
         # first character must be a word char
         return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
+    @classmethod
+    def apply_action_delete(cls, user, groups):
+        groups.update(is_active=False, modified_by=user)
+        # update flow issues, campaigns, etc
+
     def get_icon(self):
         if self.is_dynamic:
             return "atom"

@@ -985,6 +985,14 @@ class UserCRUDL(SmartCRUDL):
             return context
 
 
+class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+    permission = "orgs.org_home"
+    template_name = "spa_frame.haml"
+
+    def has_permission(self, request, *args, **kwargs):
+        return request.user.is_beta()
+
+
 class OrgCRUDL(SmartCRUDL):
     actions = (
         "signup",
@@ -1002,6 +1010,7 @@ class OrgCRUDL(SmartCRUDL):
         "manage_accounts",
         "manage_accounts_sub_org",
         "manage",
+        "menu",
         "update",
         "country",
         "languages",
@@ -1025,6 +1034,66 @@ class OrgCRUDL(SmartCRUDL):
     )
 
     model = Org
+
+    class Menu(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+        def render_to_response(self, context, **response_kwargs):
+            menu = []
+            # menu.append({"id": "msgs", "name": "Messages", "icon": "inbox", "href": reverse("msgs.msg_inbox")}),
+            menu.append(
+                {
+                    "id": "contacts",
+                    "name": "Contacts",
+                    "icon": "contact-cal",
+                    "endpoint": reverse("contacts.contact_menu"),
+                }
+            ),
+
+            # menu.append({"id": "flows", "name": "Flows", "icon": "flow", "href": reverse("flows.flow_list")}),
+
+            # menu.append(
+            #    {
+            #        "id": "campaigns",
+            #        "name": "Campaigns",
+            #        "icon": "campaign",
+            #        "href": reverse("campaigns.campaign_list"),
+            #    }
+            # ),
+
+            menu.append(
+                {
+                    "id": "tickets",
+                    "name": "Tickets",
+                    "icon": "agent",
+                    "href": reverse("tickets.ticket_list"),
+                    "endpoint": reverse("tickets.ticket_menu"),
+                }
+            ),
+
+            # menu.append(
+            #     {"id": "triggers", "name": "Triggers", "icon": "radio", "href": reverse("triggers.trigger_list")}
+            # ),
+
+            # menu.append(
+            #    {
+            #        "id": "settings",
+            #        "name": "Settings",
+            #        "icon": "settings",
+            #        "bottom": True,
+            #        "href": reverse("orgs.org_home"),
+            #    }
+            # )
+
+            menu.append(
+                {
+                    "id": "support",
+                    "name": "Support",
+                    "icon": "help-circle",
+                    "bottom": True,
+                    "trigger": "showSupportWidget",
+                }
+            )
+
+            return JsonResponse({"results": menu})
 
     class Import(NonAtomicMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class FlowImportForm(Form):

@@ -12,7 +12,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.msgs.models import Msg
 from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget, SelectWidget
-from temba.utils.views import ComponentFormMixin
+from temba.utils.views import ComponentFormMixin, SpaMixin
 
 from .models import Ticket, TicketCount, Ticketer, TicketFolder
 
@@ -74,7 +74,7 @@ class TicketCRUDL(SmartCRUDL):
     model = Ticket
     actions = ("list", "folder", "note", "assign", "menu")
 
-    class List(OrgPermsMixin, SmartListView):
+    class List(SpaMixin, OrgPermsMixin, SmartListView):
         """
         A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
         """
@@ -93,9 +93,20 @@ class TicketCRUDL(SmartCRUDL):
             status = self.kwargs.get("status")
             uuid = self.kwargs.get("uuid")
 
+            path = context["temba_referer"]
+            if path and len(path) > 1 and path[0] == "tickets":
+                if not folder and len(path) > 1:
+                    folder = path[1]
+
+                if not status and len(path) > 2:
+                    status = path[2]
+
+                if not uuid and len(path) > 3:
+                    uuid = path[3]
+
             # if we have a uuid make sure it is in our first page of tickets
             if uuid:
-                status_filter = Ticket.STATUS_OPEN if self.kwargs["status"] == "open" else Ticket.STATUS_CLOSED
+                status_filter = Ticket.STATUS_OPEN if status == "open" else Ticket.STATUS_CLOSED
                 user = self.request.user
                 tickets = list(
                     TicketFolder.from_slug(folder).get_queryset(user.get_org(), user).filter(status=status_filter)[:25]
@@ -105,6 +116,7 @@ class TicketCRUDL(SmartCRUDL):
                 found = list(filter(lambda ticket: str(ticket.uuid) == uuid, tickets))
                 if not found:
                     ticket = Ticket.objects.filter(org=org, uuid=uuid).first()
+
                     if ticket:
                         folder = "all"
                         status = "open" if ticket.status == Ticket.STATUS_OPEN else "closed"
@@ -114,6 +126,7 @@ class TicketCRUDL(SmartCRUDL):
 
             context["folder"] = folder if folder else "mine"
             context["status"] = status if status else "open"
+
             return context
 
         def get_queryset(self, **kwargs):
