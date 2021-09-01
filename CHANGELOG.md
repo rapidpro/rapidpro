@@ -1,3 +1,7 @@
+v6.5.30
+----------
+ * Fix deleting of imports and exports now that they have associated logs
+
 v6.5.29
 ----------
  * Add basic (and unused for now) JSON endpoint for listing notifications
