@@ -773,6 +773,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.ivr.models import IVRCall
         from temba.mailroom.events import get_event_time
         from temba.msgs.models import Msg
+        from temba.tickets.models import TicketEvent
 
         msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
@@ -814,20 +815,25 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         calls = (
             IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
-            .filter(status__in=[IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED])
+            .exclude(status__in=[IVRCall.STATUS_PENDING, IVRCall.STATUS_WIRED])
             .order_by("-created_on")
             .select_related("channel")[:limit]
         )
 
         ticket_events = (
             self.ticket_events.filter(created_on__gte=after, created_on__lt=before)
-            .select_related("ticket__ticketer")
+            .select_related("ticket__ticketer", "ticket__topic", "assignee", "created_by")
             .order_by("-created_on")
         )
 
-        # can limit to single ticket when viewing a specific ticket rather than the contact read page
         if ticket:
+            # if we have a ticket this is for the ticket UI, so we want *all* events for *only* that ticket
             ticket_events = ticket_events.filter(ticket=ticket)
+        else:
+            # if not then this for the contact read page so only show ticket opened/closed/reopened events
+            ticket_events = ticket_events.filter(
+                event_type__in=[TicketEvent.TYPE_OPENED, TicketEvent.TYPE_CLOSED, TicketEvent.TYPE_REOPENED]
+            )
 
         ticket_events = ticket_events[:limit]
 
@@ -2266,11 +2272,15 @@ class ContactImport(SmartModel):
         Starts this import, creating batches to be handled by mailroom
         """
 
+        from temba.notifications.models import Log
+
         assert self.started_on is None, "trying to start an already started import"
 
         # mark us as started to prevent double starting
         self.started_on = timezone.now()
         self.save(update_fields=("started_on",))
+
+        Log.import_started(self)
 
         # create new contact fields as necessary
         for item in self.mappings:

@@ -2,14 +2,14 @@ from unittest.mock import patch
 
 from django.urls import reverse
 
-from temba.tests import MockResponse, TembaTest
+from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
 from temba.utils import json
 
 from ...models import Channel
 from .views import CONFIG_WELCOME_MESSAGE
 
 
-class ViberPublicTypeTest(TembaTest):
+class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
@@ -69,29 +69,33 @@ class ViberPublicTypeTest(TembaTest):
 
     def test_update(self):
         update_url = reverse("channels.channel_update", args=[self.channel.id])
-        response = self.client.get(update_url)
-        self.assertLoginRedirect(response)
 
-        self.login(self.admin)
-        response = self.client.get(reverse("channels.channel_read", args=[self.channel.uuid]))
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={"name": "Viber", "alert_email": None, "welcome_message": ""},
+        )
 
-        self.assertContains(response, update_url)
-
-        response = self.client.get(update_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["form"].fields["welcome_message"].initial, "")
-
-        postdata = response.context["view"].derive_initial()
-        postdata["welcome_message"] = "Welcome, please subscribe for more"
-
-        response = self.client.post(update_url, postdata, follow=True)
-        self.assertEqual(response.status_code, 200)
+        self.assertUpdateSubmit(
+            update_url, {"name": "Updated", "welcome_message": "Welcome, please subscribe for more"}
+        )
 
         self.channel.refresh_from_db()
-        self.assertEqual(self.channel.config.get(CONFIG_WELCOME_MESSAGE, ""), "Welcome, please subscribe for more")
+        self.assertEqual("Updated", self.channel.name)
+        self.assertEqual("Welcome, please subscribe for more", self.channel.config.get(CONFIG_WELCOME_MESSAGE))
 
-        response = self.client.get(update_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.context["form"].fields["welcome_message"].initial, "Welcome, please subscribe for more"
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "name": "Updated",
+                "alert_email": None,
+                "welcome_message": "Welcome, please subscribe for more",
+            },
         )
+
+        # read page has link to update page
+        response = self.client.get(reverse("channels.channel_read", args=[self.channel.uuid]))
+        self.assertContains(response, update_url)

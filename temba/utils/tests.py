@@ -32,6 +32,7 @@ from temba.flows.models import FlowRun
 from temba.orgs.models import Org
 from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json, uuid
+from temba.utils.templatetags.temba import format_datetime
 
 from . import (
     chunk_list,
@@ -282,19 +283,18 @@ class TemplateTagTest(TembaTest):
         self.assertEqual("", icon(None))
 
     def test_format_datetime(self):
-        import pytz
-        from temba.utils.templatetags.temba import format_datetime
-
         with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
             self.org.date_format = "D"
             self.org.save()
 
             # date without timezone and no user org in context
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 30, 0)
             self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
+            self.assertEqual("20-07-2012 17:05:30", format_datetime(dict(), test_date, seconds=True))
 
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 30, 0).replace(tzinfo=pytz.utc)
             self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
+            self.assertEqual("20-07-2012 17:05:30", format_datetime(dict(), test_date, seconds=True))
 
             context = dict(user_org=self.org)
 
@@ -998,7 +998,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         )
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual("7a7ab82c-9fff-49f3-a390-a2957fd60834", ContactGroup.user_groups.order_by("id").first().uuid)
+        self.assertEqual("f2a3f8c5-e831-4df3-b046-8d8cdb90f178", ContactGroup.user_groups.order_by("id").first().uuid)
 
         # check if contact fields are serialized
         self.assertIsNotNone(Contact.objects.first().fields)
@@ -1184,11 +1184,12 @@ class TestJSONField(TembaTest):
 
 class LanguagesTest(TembaTest):
     def test_get_name(self):
-        with override_settings(NON_ISO6391_LANGUAGES={"acx", "frc"}):
+        with override_settings(NON_ISO6391_LANGUAGES={"acx", "frc", "kir"}):
             languages.reload()
             self.assertEqual("French", languages.get_name("fra"))
             self.assertEqual("Arabic (Omani, ISO-639-3)", languages.get_name("acx"))  # name is overridden
             self.assertEqual("Cajun French", languages.get_name("frc"))  # non ISO-639-1 lang explicitly included
+            self.assertEqual("Kyrgyz", languages.get_name("kir"))
 
             self.assertEqual("", languages.get_name("cpi"))  # not in our allowed languages
             self.assertEqual("", languages.get_name("xyz"))

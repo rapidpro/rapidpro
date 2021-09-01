@@ -276,6 +276,7 @@ class Channel(TembaModel, DependencyMixin):
     CONFIG_MESSAGING_SERVICE_SID = "messaging_service_sid"
     CONFIG_MAX_CONCURRENT_EVENTS = "max_concurrent_events"
     CONFIG_ALLOW_INTERNATIONAL = "allow_international"
+    CONFIG_MACHINE_DETECTION = "machine_detection"
 
     CONFIG_VONAGE_API_KEY = "nexmo_api_key"
     CONFIG_VONAGE_API_SECRET = "nexmo_api_secret"
@@ -334,12 +335,8 @@ class Channel(TembaModel, DependencyMixin):
     }
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="channels", null=True)
-
     channel_type = models.CharField(max_length=3)
-
-    name = models.CharField(
-        verbose_name=_("Name"), max_length=64, blank=True, null=True, help_text=_("Descriptive label for this channel")
-    )
+    name = models.CharField(max_length=64, null=True)
 
     address = models.CharField(
         verbose_name=_("Address"),
@@ -1325,6 +1322,15 @@ class ChannelLog(models.Model):
     def release(self):
         self.delete()
 
+    class Meta:
+        indexes = [
+            models.Index(
+                name="channels_log_error_created",
+                fields=("channel", "is_error", "-created_on"),
+                condition=Q(is_error=True),
+            )
+        ]
+
 
 class SyncEvent(SmartModel):
     """
@@ -1483,9 +1489,23 @@ class Alert(SmartModel):
     ended_on = models.DateTimeField(verbose_name=_("Ended On"), blank=True, null=True)
 
     @classmethod
-    def check_power_alert(cls, sync):
-        alert_user = get_alert_user()
+    def create_and_send(cls, channel, alert_type: str, *, sync_event=None):
+        from temba.notifications.models import Log
 
+        user = get_alert_user()
+        alert = cls.objects.create(
+            channel=channel,
+            alert_type=alert_type,
+            sync_event=sync_event,
+            created_by=user,
+            modified_by=user,
+        )
+        alert.send_alert()
+
+        Log.channel_alert(alert)
+
+    @classmethod
+    def check_power_alert(cls, sync):
         if (
             sync.power_status
             in (SyncEvent.STATUS_DISCHARGING, SyncEvent.STATUS_UNKNOWN, SyncEvent.STATUS_NOT_CHARGING)
@@ -1495,14 +1515,7 @@ class Alert(SmartModel):
             alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
 
             if not alerts:
-                new_alert = Alert.objects.create(
-                    channel=sync.channel,
-                    sync_event=sync,
-                    alert_type=cls.TYPE_POWER,
-                    created_by=alert_user,
-                    modified_by=alert_user,
-                )
-                new_alert.send_alert()
+                cls.create_and_send(sync.channel, cls.TYPE_POWER, sync_event=sync)
 
         if sync.power_status == SyncEvent.STATUS_CHARGING or sync.power_status == SyncEvent.STATUS_FULL:
             alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
@@ -1521,7 +1534,6 @@ class Alert(SmartModel):
         from temba.channels.types.android import AndroidType
         from temba.msgs.models import Msg
 
-        alert_user = get_alert_user()
         thirty_minutes_ago = timezone.now() - timedelta(minutes=30)
 
         # end any alerts that no longer seem valid
@@ -1539,10 +1551,7 @@ class Alert(SmartModel):
         ):
             # have we already sent an alert for this channel
             if not Alert.objects.filter(channel=channel, alert_type=cls.TYPE_DISCONNECTED, ended_on=None):
-                alert = Alert.objects.create(
-                    channel=channel, alert_type=cls.TYPE_DISCONNECTED, modified_by=alert_user, created_by=alert_user
-                )
-                alert.send_alert()
+                cls.create_and_send(channel, cls.TYPE_DISCONNECTED)
 
         day_ago = timezone.now() - timedelta(days=1)
         six_hours_ago = timezone.now() - timedelta(hours=6)
@@ -1601,10 +1610,7 @@ class Alert(SmartModel):
 
                 # if we haven't sent an alert in the past six ours
                 if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)).exists():
-                    alert = Alert.objects.create(
-                        channel=channel, alert_type=cls.TYPE_SMS, modified_by=alert_user, created_by=alert_user
-                    )
-                    alert.send_alert()
+                    cls.create_and_send(channel, cls.TYPE_SMS)
 
     def send_alert(self):
         from .tasks import send_alert_task
@@ -1662,6 +1668,9 @@ class Alert(SmartModel):
         send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())
 
     def release(self):
+        for log in self.logs.all():
+            log.delete()
+
         self.delete()
 
 
@@ -1680,84 +1689,60 @@ class ChannelConnection(models.Model):
     Base for IVR sessions which require a connection to specific channel
     """
 
-    PENDING = "P"  # initial state for all sessions
-    QUEUED = "Q"  # the session is queued internally
-    WIRED = "W"  # the API provider has confirmed that it successfully received the API request
+    TYPE_VOICE = "V"
+    TYPE_CHOICES = ((TYPE_VOICE, "Voice"),)
 
-    # valid for IVR sessions
-    RINGING = "R"  # the call in ringing
-    IN_PROGRESS = "I"  # the call has been answered
-    BUSY = "B"  # the call is busy or rejected by the user
-    FAILED = "F"  # the platform failed to initiate the call (bad phone number)
-    NO_ANSWER = "N"  # the call has timed-out or ringed-out
-    CANCELED = "C"  # the call was terminated by platform
-    COMPLETED = "D"  # the call was completed successfully
+    DIRECTION_INCOMING = "I"
+    DIRECTION_OUTGOING = "O"
+    DIRECTION_CHOICES = ((DIRECTION_INCOMING, _("Incoming")), (DIRECTION_OUTGOING, _("Outgoing")))
 
-    # valid for USSD sessions
-    TRIGGERED = "T"
-    INTERRUPTED = "X"
-    INITIATED = "A"
-    ENDING = "E"
-
-    DONE = (COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED)
-    RETRY_CALL = (BUSY, NO_ANSWER, FAILED)
-
-    INCOMING = "I"
-    OUTGOING = "O"
-
-    IVR = "F"  # deprecated use VOICE
-    VOICE = "V"
-
-    DIRECTION_CHOICES = ((INCOMING, "Incoming"), (OUTGOING, "Outgoing"))
-
-    TYPE_CHOICES = ((VOICE, "Voice"),)
-
+    STATUS_PENDING = "P"  # used for initial creation in database
+    STATUS_QUEUED = "Q"  # used when we need to throttle requests for new calls
+    STATUS_WIRED = "W"  # the call has been requested on the IVR provider
+    STATUS_IN_PROGRESS = "I"  # the call has been answered
+    STATUS_COMPLETED = "D"  # the call was completed successfully
+    STATUS_ERRORED = "E"  # temporary failure (will be retried)
+    STATUS_FAILED = "F"  # permanent failure
     STATUS_CHOICES = (
-        (PENDING, "Pending"),
-        (QUEUED, "Queued"),
-        (WIRED, "Wired"),
-        (RINGING, "Ringing"),
-        (IN_PROGRESS, "In Progress"),
-        (COMPLETED, "Complete"),
-        (BUSY, "Busy"),
-        (FAILED, "Failed"),
-        (NO_ANSWER, "No Answer"),
-        (CANCELED, "Canceled"),
-        (INTERRUPTED, "Interrupted"),
-        (TRIGGERED, "Triggered"),
-        (INITIATED, "Initiated"),
-        (ENDING, "Ending"),
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_QUEUED, _("Queued")),
+        (STATUS_WIRED, _("Wired")),
+        (STATUS_IN_PROGRESS, _("In Progress")),
+        (STATUS_COMPLETED, _("Complete")),
+        (STATUS_ERRORED, _("Errored")),
+        (STATUS_FAILED, _("Failed")),
     )
 
-    created_on = models.DateTimeField(
-        default=timezone.now, editable=False, blank=True, help_text="When this item was originally created"
+    ERROR_PROVIDER = "P"
+    ERROR_BUSY = "B"
+    ERROR_NOANSWER = "N"
+    ERROR_MACHINE = "M"
+    ERROR_CHOICES = (
+        (ERROR_PROVIDER, _("Provider")),  # an API call to the IVR provider returned an error
+        (ERROR_BUSY, _("Busy")),  # the contact couldn't be called because they're busy
+        (ERROR_NOANSWER, _("No Answer")),  # the contact didn't answer the call
+        (ERROR_MACHINE, _("Answering Machine")),  # the call went to an answering machine
     )
 
-    modified_on = models.DateTimeField(
-        default=timezone.now, editable=False, blank=True, help_text="When this item was last modified"
-    )
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    connection_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
+    direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
-    external_id = models.CharField(max_length=255, help_text="The external id for this session, our twilio id usually")
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING)
     channel = models.ForeignKey("Channel", on_delete=models.PROTECT, related_name="connections")
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="connections")
     contact_urn = models.ForeignKey("contacts.ContactURN", on_delete=models.PROTECT, related_name="connections")
-    direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
-    started_on = models.DateTimeField(null=True, blank=True)
-    ended_on = models.DateTimeField(null=True, blank=True)
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
-    connection_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
-    duration = models.IntegerField(default=0, null=True, help_text="The length of this connection in seconds")
+    external_id = models.CharField(max_length=255)  # e.g. Twilio call ID
 
-    retry_count = models.IntegerField(
-        default=0, verbose_name=_("Retry Count"), help_text="The number of times this call has been retried"
-    )
-    error_count = models.IntegerField(
-        default=0, verbose_name=_("Error Count"), help_text="The number of times this call has errored"
-    )
-    next_attempt = models.DateTimeField(
-        verbose_name=_("Next Attempt"), help_text="When we should next attempt to make this call", null=True
-    )
+    created_on = models.DateTimeField(default=timezone.now)
+    modified_on = models.DateTimeField(default=timezone.now)
+    started_on = models.DateTimeField(null=True)
+    ended_on = models.DateTimeField(null=True)
+    duration = models.IntegerField(null=True)  # in seconds
+
+    error_reason = models.CharField(max_length=1, null=True, choices=ERROR_CHOICES)
+    error_count = models.IntegerField(default=0)
+    next_attempt = models.DateTimeField(null=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1767,7 +1752,7 @@ class ChannelConnection(models.Model):
         all the methods the proxy model implements. """
 
         if type(self) is ChannelConnection:
-            if self.connection_type == self.IVR:
+            if self.connection_type == self.TYPE_VOICE:
                 from temba.ivr.models import IVRCall
 
                 self.__class__ = IVRCall
@@ -1784,10 +1769,20 @@ class ChannelConnection(models.Model):
         """
         duration = self.duration or 0
 
-        if not duration and self.status == self.IN_PROGRESS and self.started_on:
+        if not duration and self.status == self.STATUS_IN_PROGRESS and self.started_on:
             duration = (timezone.now() - self.started_on).seconds
 
         return timedelta(seconds=duration)
+
+    @property
+    def status_display(self):
+        """
+        Gets the status/error_reason as display text, e.g. Wired, Errored (No Answer)
+        """
+        status = self.get_status_display()
+        if self.status in (self.STATUS_ERRORED, self.STATUS_FAILED) and self.error_reason:
+            status += f" ({self.get_error_reason_display()})"
+        return status
 
     def get_session(self):
         """
@@ -1814,3 +1809,13 @@ class ChannelConnection(models.Model):
             msg.release()
 
         self.delete()
+
+    class Meta:
+        indexes = [
+            # used by mailroom to fetch calls that need to be retried
+            models.Index(
+                name="channelconnection_ivr_to_retry",
+                fields=["next_attempt"],
+                condition=Q(connection_type="V", status__in=("Q", "E"), next_attempt__isnull=False),
+            )
+        ]

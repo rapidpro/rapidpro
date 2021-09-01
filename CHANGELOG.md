@@ -1,3 +1,55 @@
+v6.5.28
+----------
+ * Add new ticket event type for topic changes
+ * Migrations to assign default topic to all existing tickets
+
+v6.5.27
+----------
+ * Add migration to give all existing orgs a default ticket topic
+
+v6.5.26
+----------
+ * Move mailroom_db data to external JSON file
+ * Run CI tests with latest mailroom
+ * Add ticket topic model and initialize orgs with a default topic
+
+v6.5.25
+----------
+ * Improve display of channels logs for calls
+
+v6.5.24
+----------
+ * Add machine detection as config option to channels with call role
+ * Tweak event_fires management command to show timesince for events in the past
+
+v6.5.23
+----------
+ * Drop retry_count, make error_count non-null
+ * Improve channel log templates so that we use consistent date formating, show call error reasons, and show back button for calls
+ * Tweak how we assert form errors and fix where they don't match exactly
+ * Re-add QUEUED status for channel connections
+
+v6.5.22
+----------
+ * Tweak index used for retrying IVR calls to only include statuses Q and E
+ * Dont show ticket events like note added or assignment on contact read page
+ * Include error reason in call_started events in contact history
+ * Remove channel connection statuses that we don't use and add error_reason
+
+v6.5.21
+----------
+ * Prevent saving of campaign events without start_mode
+ * Improve handling of group lookups in contact list views
+ * Add button to see channel error logs
+
+v6.5.20
+----------
+ * Make ChannelConnection.error_count nullable so it can be removed
+ * Cleanup ChannelConnection and add index for IVR retries
+ * Fix error display on contact update modal
+ * Update to zapier app directory, wide formax option and fixes
+ * Enable filtering on the channel log to see only errors
+
 v6.5.19
 ----------
  * Fix system group labels on contact read page

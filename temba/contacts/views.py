@@ -26,7 +26,7 @@ from django.db import transaction
 from django.db.models import Count
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -198,6 +198,10 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
 
         return super().pre_process(request, *args, **kwargs)
 
+    @cached_property
+    def group(self):
+        return self.derive_group()
+
     def derive_group(self):
         return ContactGroup.all_groups.get(org=self.request.user.get_org(), group_type=self.system_group)
 
@@ -206,15 +210,14 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         redirect = urlquote_plus(self.request.get_full_path())
         return "%s?g=%s&s=%s&redirect=%s" % (
             reverse("contacts.contact_export"),
-            self.derive_group().uuid,
+            self.group.uuid,
             search,
             redirect,
         )
 
     def derive_refresh(self):
         # dynamic groups that are reevaluating should refresh every 2 seconds
-        group = self.derive_group()
-        if group.is_dynamic and group.status != ContactGroup.STATUS_READY:
+        if self.group.is_dynamic and self.group.status != ContactGroup.STATUS_READY:
             return 2000
 
         return None
@@ -276,7 +279,6 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
 
     def get_queryset(self, **kwargs):
         org = self.request.user.get_org()
-        group = self.derive_group()
         self.search_error = None
 
         # contact list views don't use regular field searching but use more complex contact searching
@@ -294,14 +296,14 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
             # should no longer appear in this view, even though ES won't have caught up yet
             bulk_action_ids = self.kwargs.get("bulk_action_ids", [])
             if bulk_action_ids:
-                reappearing_ids = set(group.contacts.filter(id__in=bulk_action_ids).values_list("id", flat=True))
+                reappearing_ids = set(self.group.contacts.filter(id__in=bulk_action_ids).values_list("id", flat=True))
                 exclude_ids = [i for i in bulk_action_ids if i not in reappearing_ids]
             else:
                 exclude_ids = []
 
             try:
                 results = search_contacts(
-                    org, search_query, group=group, sort=sort_on, offset=offset, exclude_ids=exclude_ids
+                    org, search_query, group=self.group, sort=sort_on, offset=offset, exclude_ids=exclude_ids
                 )
                 self.parsed_query = results.query if len(results.query) > 0 else None
                 self.save_dynamic_search = results.metadata.allow_as_group
@@ -315,11 +317,11 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         else:
             # if user search is not defined, use DB to select contacts
             qs = (
-                group.contacts.filter(org=self.request.user.get_org())
+                self.group.contacts.filter(org=self.request.user.get_org())
                 .order_by("-id")
                 .prefetch_related("org", "all_groups")
             )
-            patch_queryset_count(qs, group.get_member_count)
+            patch_queryset_count(qs, self.group.get_member_count)
             return qs
 
     def get_bulk_action_labels(self):
@@ -1041,7 +1043,7 @@ class ContactCRUDL(SmartCRUDL):
                 return JsonResponse({"total": 0, "sample": [], "fields": {}})
 
             try:
-                results = search_contacts(org, query, group=org.cached_active_contacts_group, sort="-created_on")
+                results = search_contacts(org, query, group=org.active_contacts_group, sort="-created_on")
                 summary = {
                     "total": results.total,
                     "query": results.query,
@@ -1066,7 +1068,7 @@ class ContactCRUDL(SmartCRUDL):
                     "fields": contact.fields if contact.fields else {},
                     "primary_urn_formatted": primary_urn,
                 }
-                contact_json["created_on"] = org.format_datetime(contact.created_on, False)
+                contact_json["created_on"] = org.format_datetime(contact.created_on, show_time=False)
 
                 json_contacts.append(contact_json)
             summary["sample"] = json_contacts
@@ -1219,7 +1221,6 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
-            group = self.derive_group()
 
             if self.has_org_perm("contacts.contactfield_list"):
                 links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
@@ -1230,7 +1231,7 @@ class ContactCRUDL(SmartCRUDL):
                         id="edit-group",
                         title=_("Edit Group"),
                         modax=_("Edit Group"),
-                        href=reverse("contacts.contactgroup_update", args=[group.id]),
+                        href=reverse("contacts.contactgroup_update", args=[self.group.id]),
                     )
                 )
 
@@ -1249,7 +1250,7 @@ class ContactCRUDL(SmartCRUDL):
                     id="group-usages",
                     title=_("Usages"),
                     modax=_("Usages"),
-                    href=reverse("contacts.contactgroup_usages", args=[group.uuid]),
+                    href=reverse("contacts.contactgroup_usages", args=[self.group.uuid]),
                 )
             )
 
@@ -1259,21 +1260,19 @@ class ContactCRUDL(SmartCRUDL):
                         id="delete-group",
                         title=_("Delete Group"),
                         modax=_("Delete Group"),
-                        href=reverse("contacts.contactgroup_delete", args=[group.id]),
+                        href=reverse("contacts.contactgroup_delete", args=[self.group.id]),
                     )
                 )
             return links
 
         def get_bulk_actions(self):
-            return ("block", "archive") if self.derive_group().is_dynamic else ("block", "label", "unlabel")
+            return ("block", "archive") if self.group.is_dynamic else ("block", "label", "unlabel")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-
-            group = self.derive_group()
             org = self.request.user.get_org()
 
-            context["current_group"] = group
+            context["current_group"] = self.group
             context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
             return context
 
@@ -1282,10 +1281,13 @@ class ContactCRUDL(SmartCRUDL):
             return r"^%s/%s/(?P<group>[^/]+)/$" % (path, action)
 
         def get_object_org(self):
-            return ContactGroup.user_groups.get(uuid=self.kwargs["group"]).org
+            return self.group.org
 
         def derive_group(self):
-            return ContactGroup.user_groups.get(uuid=self.kwargs["group"], org=self.request.user.get_org())
+            try:
+                return ContactGroup.user_groups.get(uuid=self.kwargs["group"])
+            except ContactGroup.DoesNotExist:
+                raise Http404("Group not found")
 
     class Create(NonAtomicMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm

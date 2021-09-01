@@ -17,7 +17,7 @@ SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
 
 
 def traces_sampler(sampling_context):  # pragma: no cover
-    return 0 if ("shell" in sys.argv) else 0.1
+    return 0 if ("shell" in sys.argv) else 0.01
 
 
 if SENTRY_DSN:  # pragma: no cover
@@ -279,6 +279,7 @@ INSTALLED_APPS = (
     "temba.contacts",
     "temba.channels",
     "temba.msgs",
+    "temba.notifications",
     "temba.flows",
     "temba.tickets",
     "temba.triggers",
@@ -566,7 +567,6 @@ GROUP_PERMISSIONS = {
         "airtime.airtimetransfer_read",
         "api.apitoken_refresh",
         "api.resthook_api",
-        "api.resthook_list",
         "api.resthooksubscriber_api",
         "api.webhookevent_api",
         "api.webhookresult_list",
@@ -696,7 +696,6 @@ GROUP_PERMISSIONS = {
     "Editors": (
         "api.apitoken_refresh",
         "api.resthook_api",
-        "api.resthook_list",
         "api.resthooksubscriber_api",
         "api.webhookevent_api",
         "api.webhookevent_list",
@@ -797,7 +796,6 @@ GROUP_PERMISSIONS = {
         "triggers.trigger.*",
     ),
     "Viewers": (
-        "api.resthook_list",
         "campaigns.campaign_archived",
         "campaigns.campaign_list",
         "campaigns.campaign_read",

@@ -1,5 +1,5 @@
-{% extends "smartmin/list.html" %}
--load i18n contacts smartmin humanize
+-extends "smartmin/list.html"
+-load i18n contacts smartmin humanize temba
 
 -block page-title
   -trans "Channel Events"
@@ -11,9 +11,7 @@
 -block subtitle
   {{channel.get_channel_type_display}}
 
-  -if request.GET.connections and channel.supports_ivr
-    -trans "Calls"
-  -elif request.GET.others
+  -if request.GET.others
     -trans "Interactions"
   -else
     -trans "Recent Events"
@@ -30,9 +28,6 @@
                 %th{ style:'width:120px' }
                   -trans "Contact"
                 %th
-                -if request.GET.connections
-                  %th{ style:'width:150px' }
-
                 %th{ style:'width:200px'}
                   -trans "Elapsed"
 
@@ -41,40 +36,7 @@
 
             %tbody
               -for obj in object_list
-                -if request.GET.connections
-                  %tr{class:"{%if obj.status == 'F'%}warning{%endif%}"}
-                    %td.clickable
-                      -if obj.contact_urn
-                        %a{ href:'{% url "contacts.contact_read" obj.contact.uuid %}' }
-                          {{obj.contact_urn.get_display}}
-
-                    %td.clickable
-                      %a{ href:'{% url "channels.channellog_connection" obj.pk %}' }><
-                        -if obj.direction == 'I'
-                          -trans "Incoming"
-                        -else
-                          -trans "Outgoing"
-                        -if obj.connection_type == 'F' or obj.connection_type == 'V'
-                          -trans "phone call"
-
-                        -if obj.is_done
-                          -trans "complete"
-
-                    %td.clickable{ style:'text-align: right', nowrap:'true' }
-                      %a{ href:'{% url "channels.channellog_connection" obj.pk %}' }><
-                        -if obj.get_duration
-                          {{obj.get_duration|delta}}
-                        -else
-                          {{obj.get_status_display}}
-
-                    %td
-                      -if obj.request_time
-                        %span
-                          {{ obj.request_time|default:"0"|intcomma }}ms
-
-                    %td{ style:'text-align: right', nowrap:'true' }
-                      {{obj.created_on|date:"M d, Y, H:m:s"}}
-                -elif request.GET.others
+                -if request.GET.others
                   %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
                     %td
                       -trans "Channel interaction"
@@ -84,23 +46,25 @@
                       %span
                         {{ obj.request_time|default:"0"|intcomma }}ms
 
-                    %td{ style:'text-align: right', nowrap:'true' }
-                      {{obj.created_on}}
+                    %td(style='text-align: right' nowrap='true')
+                      {% format_datetime obj.created_on seconds=True %}
 
                 -else
                   %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
                     %td.clickable
-                      -if obj.msg.contact
+                      -if obj.msg and obj.msg.contact
                         %a{ href:'{% url "contacts.contact_read" obj.msg.contact.uuid %}' }
                           {{obj.msg.contact_urn.get_display}}
+                      -else
+                        -trans "Channel interaction"
                     %td.clickable
                       %a{ href:'{% url "channels.channellog_read" obj.id %}' }= obj.description
                     %td
                       %span
                         {{ obj.request_time|default:"0"|intcomma }}ms
 
-                    %td{ style:'text-align: right', nowrap:'true' }
-                      {{obj.created_on}}
+                    %td(style='text-align: right' nowrap='true')
+                      {% format_datetime obj.created_on seconds=True %}
 
           .flex.flex-col.mb-16
             -include "includes/pagination.haml"

@@ -197,6 +197,9 @@ class TicketCRUDL(SmartCRUDL):
             return context
 
         def render_to_response(self, context, **response_kwargs):
+            def topic_as_json(t):
+                return {"uuid": str(t.uuid), "name": t.name}
+
             def user_as_json(u):
                 return {
                     "id": u.id,
@@ -231,7 +234,9 @@ class TicketCRUDL(SmartCRUDL):
                     "ticket": {
                         "uuid": str(t.uuid),
                         "assignee": user_as_json(t.assignee) if t.assignee else None,
+                        "topic": topic_as_json(t.topic) if t.topic else None,
                         "subject": t.subject,
+                        "body": t.body,
                         "last_activity_on": t.last_activity_on,
                         "closed_on": t.closed_on,
                     },

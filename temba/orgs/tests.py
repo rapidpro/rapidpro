@@ -820,7 +820,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # add a ticketer and ticket
         ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob)", {})
-        ticket = self.create_ticket(ticketer, self.org.contacts.first(), "Need help")
+        ticket = self.create_ticket(ticketer, self.org.contacts.first(), body="Help")
         ticket.events.create(org=self.org, contact=ticket.contact, event_type="N", note="spam", created_by=self.admin)
 
     def release_org(self, org, child_org=None, delete=False, expected_files=3):
@@ -2482,12 +2482,6 @@ class OrgTest(TembaTest):
         response = self.client.post(resthook_url, {"new_slug": "Mother-Registration"})
         self.assertFormError(response, "form", "new_slug", "This event name has already been used.")
 
-        # hit our list page used by select2, checking it lists our resthook
-        response = self.client.get(reverse("api.resthook_list") + "?_format=select2")
-        results = response.json()["results"]
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0], dict(text="mother-registration", id="mother-registration"))
-
         # add a subscriber
         subscriber = mother_reg.add_subscriber("http://foo", self.admin)
 
@@ -3820,6 +3814,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_org_timezone(self):
         self.assertEqual(self.org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M"), self.org.get_datetime_formats())
+        self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M:%S"), self.org.get_datetime_formats(seconds=True))
 
         contact = self.create_contact("Bob", phone="+250788382382")
         self.create_incoming_msg(contact, "My name is Frank")

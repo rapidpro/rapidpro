@@ -1,0 +1,473 @@
+{
+  "orgs": [
+    {
+      "uuid": "bf0514a5-9407-44c9-b0f9-3f36f9c18414",
+      "name": "UNICEF",
+      "languages": [
+        "eng",
+        "fra"
+      ],
+      "sequence_start": 10000,
+      "users": [
+        {
+          "email": "admin1@nyaruka.com",
+          "role": "administrators",
+          "first_name": "Andy",
+          "last_name": "Admin"
+        },
+        {
+          "email": "editor1@nyaruka.com",
+          "role": "editors",
+          "first_name": "Ed",
+          "last_name": "McEditor"
+        },
+        {
+          "email": "viewer1@nyaruka.com",
+          "role": "viewers",
+          "first_name": "Veronica",
+          "last_name": "Views"
+        },
+        {
+          "email": "agent1@nyaruka.com",
+          "role": "agents",
+          "first_name": "Ann",
+          "last_name": "D'Agent"
+        },
+        {
+          "email": "surveyor1@nyaruka.com",
+          "role": "surveyors",
+          "first_name": "Steve",
+          "last_name": "Surveys"
+        }
+      ],
+      "classifiers": [
+        {
+          "uuid": "097e026c-ae79-4740-af67-656dbedf0263",
+          "classifier_type": "luis",
+          "name": "LUIS",
+          "config": {
+            "app_id": "12345",
+            "version": "0.1",
+            "endpoint_url": "https://foo.com",
+            "primary_key": "sesame"
+          },
+          "intents": [
+            {
+              "name": "book_flight",
+              "external_id": "10406609-9749-47d4-bd2b-f3b778d5a491"
+            },
+            {
+              "name": "book_car",
+              "external_id": "65eae80b-c0fb-4054-9d64-10de08e59a62"
+            }
+          ]
+        },
+        {
+          "uuid": "ff2a817c-040a-4eb2-8404-7d92e8b79dd0",
+          "classifier_type": "wit",
+          "name": "Wit.ai",
+          "config": {
+            "app_id": "67890",
+            "access_token": "sesame"
+          },
+          "intents": [
+            {
+              "name": "register",
+              "external_id": "register"
+            }
+          ]
+        },
+        {
+          "uuid": "859b436d-3005-4e43-9ad5-3de5f26ede4c",
+          "classifier_type": "bothub",
+          "name": "BotHub",
+          "config": {
+            "access_token": "access_token"
+          },
+          "intents": [
+            {
+              "name": "intent",
+              "external_id": "intent"
+            }
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "uuid": "74729f45-7f29-4868-9dc4-90e491e3c7d8",
+          "name": "Twilio",
+          "channel_type": "T",
+          "address": "+13605551212",
+          "scheme": "tel",
+          "role": "SRCA"
+        },
+        {
+          "uuid": "19012bfd-3ce3-4cae-9bb9-76cf92c73d49",
+          "name": "Vonage",
+          "channel_type": "NX",
+          "address": "5789",
+          "scheme": "tel",
+          "role": "SR"
+        },
+        {
+          "uuid": "0f661e8b-ea9d-4bd3-9953-d368340acf91",
+          "name": "Twitter",
+          "channel_type": "TWT",
+          "address": "ureport",
+          "scheme": "twitter",
+          "role": "SR"
+        }
+      ],
+      "globals": [
+        {
+          "uuid": "c1a65849-243c-438e-987e-3fa5f884e3e1",
+          "key": "org_name",
+          "name": "Org Name",
+          "value": "Nyaruka"
+        },
+        {
+          "uuid": "57a18892-9fc9-45f7-aa14-c7e5b3583b54",
+          "key": "access_token",
+          "name": "Access Token",
+          "value": "A213CD78"
+        }
+      ],
+      "groups": [
+        {
+          "uuid": "c153e265-f7c9-4539-9dbc-9b358714b638",
+          "name": "Doctors",
+          "size": 120
+        },
+        {
+          "uuid": "5e9d8fab-5e7e-4f51-b533-261af5dea70d",
+          "name": "Testers",
+          "size": 10
+        }
+      ],
+      "fields": [
+        {
+          "uuid": "3a5891e4-756e-4dc9-8e12-b7a766168824",
+          "key": "gender",
+          "label": "Gender",
+          "value_type": "T"
+        },
+        {
+          "uuid": "903f51da-2717-47c7-a0d3-f2f32877013d",
+          "key": "age",
+          "label": "Age",
+          "value_type": "N"
+        },
+        {
+          "uuid": "d83aae24-4bbf-49d0-ab85-6bfd201eac6d",
+          "key": "joined",
+          "label": "Joined",
+          "value_type": "D"
+        },
+        {
+          "uuid": "de6878c1-b174-4947-9a65-8910ebe7d10f",
+          "key": "ward",
+          "label": "Ward",
+          "value_type": "W"
+        },
+        {
+          "uuid": "3ca3e36b-3d5a-42a4-b292-482282ce9a90",
+          "key": "district",
+          "label": "District",
+          "value_type": "I"
+        },
+        {
+          "uuid": "1dddea55-9a3b-449f-9d43-57772614ff50",
+          "key": "state",
+          "label": "State",
+          "value_type": "S"
+        }
+      ],
+      "contacts": [
+        {
+          "uuid": "6393abc0-283d-4c9b-a1b3-641a035c34bf",
+          "name": "Cathy",
+          "urns": [
+            "tel:+16055741111"
+          ],
+          "groups": [
+            "Doctors"
+          ],
+          "fields": {
+            "gender": "F",
+            "state": "Nigeria > Yobe",
+            "ward": "Nigeria > Yobe > Gulani > Dokshi"
+          },
+          "created_on": "2021-06-01T12:29:30Z"
+        },
+        {
+          "uuid": "b699a406-7e44-49be-9f01-1a82893e8a10",
+          "name": "Bob",
+          "urns": [
+            "tel:+16055742222"
+          ],
+          "fields": {
+            "joined": "2019-01-24T04:32:22Z"
+          },
+          "created_on": "2020-12-31T16:45:30Z"
+        },
+        {
+          "uuid": "8d024bcd-f473-4719-a00a-bd0bb1190135",
+          "name": "George",
+          "urns": [
+            "tel:+16055743333"
+          ],
+          "fields": {
+            "age": "30"
+          },
+          "created_on": "2018-03-31T09:45:30Z"
+        },
+        {
+          "uuid": "9709c157-4606-4d41-9df3-9e9c9b4ae2d4",
+          "name": "Alexandia",
+          "urns": [
+            "tel:+1605574444"
+          ],
+          "created_on": "2020-12-31T16:45:30Z"
+        }
+      ],
+      "labels": [
+        {
+          "uuid": "ebc4dedc-91c4-4ed4-9dd6-daa05ea82698",
+          "name": "Reporting"
+        },
+        {
+          "uuid": "a6338cdc-7938-4437-8b05-2d5d785e3a08",
+          "name": "Testing"
+        },
+        {
+          "uuid": "fe33e8e3-f32d-4167-8632-64c2ba1c574d",
+          "name": "Youth"
+        }
+      ],
+      "flows": [
+        {
+          "uuid": "9de3663f-c5c5-4c92-9f45-ecbc09abcc85",
+          "name": "Favorites",
+          "file": "favorites_timeout.json"
+        },
+        {
+          "uuid": "5890fe3a-f204-4661-b74d-025be4ee019c",
+          "name": "Pick a Number",
+          "file": "pick_a_number.json"
+        },
+        {
+          "uuid": "70b04fa1-e2ee-4afd-b658-9a3f87f9b6f7",
+          "name": "SMS Form",
+          "file": "sms_form.json"
+        },
+        {
+          "uuid": "2f81d0ea-4d75-4843-9371-3f7465311cce",
+          "name": "IVR Flow",
+          "file": "ivr_flow.json"
+        },
+        {
+          "uuid": "a7c11d68-f008-496f-b56d-2d5cf4cf16a5",
+          "name": "Send All",
+          "file": "send_all.json"
+        },
+        {
+          "uuid": "ed8cf8d4-a42c-4ce1-a7e3-44a2918e3cec",
+          "name": "Contact Surveyor",
+          "file": "contact_surveyor.json"
+        },
+        {
+          "uuid": "376d3de6-7f0e-408c-80d6-b1919738bc80",
+          "name": "Incoming Extra",
+          "file": "incoming_extra.json"
+        },
+        {
+          "uuid": "81c0f323-7e06-4e0c-a960-19c20f17117c",
+          "name": "Parent Child Expiration",
+          "file": "parent_child_expiration.json"
+        }
+      ],
+      "campaigns": [
+        {
+          "uuid": "72aa12c5-cc11-4bc7-9406-044047845c70",
+          "name": "Doctor Reminders",
+          "group": "Doctors",
+          "events": [
+            {
+              "flow": "Favorites",
+              "offset_field": "joined",
+              "offset": "5",
+              "offset_unit": "D",
+              "delivery_hour": 12
+            },
+            {
+              "uuid": "3a92a964-3a8d-420b-9206-2cd9d884ac30",
+              "base_language": "eng",
+              "message": {
+                "eng": "Hi @contact.name, it is time to consult with your patients.",
+                "fra": "Bonjour @contact.name, il est temps de consulter vos patients."
+              },
+              "offset_field": "joined",
+              "offset": "10",
+              "offset_unit": "M"
+            }
+          ]
+        }
+      ],
+      "templates": [
+        {
+          "uuid": "9c22b594-fcab-4b29-9bcb-ce4404894a80",
+          "name": "revive_issue",
+          "translations": [
+            {
+              "channel_uuid": "0f661e8b-ea9d-4bd3-9953-d368340acf91",
+              "country": "US",
+              "language": "eng",
+              "content": "Hi {{1}}, are you still experiencing problems with {{2}}?",
+              "variable_count": 2,
+              "namespace": "2d40b45c_25cd_4965_9019_f05d0124c5fa",
+              "status": "A",
+              "external_id": "eng1"
+            },
+            {
+              "channel_uuid": "0f661e8b-ea9d-4bd3-9953-d368340acf91",
+              "country": null,
+              "language": "fra",
+              "content": "Bonjour {{1}}, a tu des problems avec {{2}}?",
+              "variable_count": 2,
+              "namespace": "ea9cd1b3_b018_4ffe_bb0e_7cb898e527ae",
+              "status": "P",
+              "external_id": "fra1"
+            }
+          ]
+        },
+        {
+          "uuid": "3b8dd151-1a91-411f-90cb-dd9065bb7a71",
+          "name": "goodbye",
+          "translations": [
+            {
+              "channel_uuid": "0f661e8b-ea9d-4bd3-9953-d368340acf91",
+              "country": null,
+              "language": "fra",
+              "content": "Salut!",
+              "variable_count": 0,
+              "namespace": "",
+              "status": "A",
+              "external_id": "fra2"
+            }
+          ]
+        }
+      ],
+      "ticketers": [
+        {
+          "uuid": "f9c9447f-a291-4f3c-8c79-c089bbd4e713",
+          "name": "Mailgun (IT Support)",
+          "ticketer_type": "mailgun",
+          "config": {
+            "domain": "tickets.rapidpro.io",
+            "api_key": "sesame",
+            "to_address": "bob@acme.com",
+            "brand_name": "RapidPro",
+            "url_base": "https://app.rapidpro.io"
+          }
+        },
+        {
+          "uuid": "4ee6d4f3-f92b-439b-9718-8da90c05490b",
+          "name": "Zendesk (Nyaruka)",
+          "ticketer_type": "zendesk",
+          "config": {
+            "subdomain": "nyaruka",
+            "oauth_token": "754845822",
+            "secret": "sesame",
+            "push_id": "1234-abcd",
+            "push_token": "523562"
+          }
+        },
+        {
+          "uuid": "6c50665f-b4ff-4e37-9625-bc464fe6a999",
+          "name": "Rocket.Chat",
+          "ticketer_type": "rocketchat",
+          "config": {
+            "base_url": "https://temba.rocket.chat/apps/public/1234",
+            "secret": "123456789",
+            "admin_auth_token": "1234",
+            "admin_user_id": "ADMIN346"
+          }
+        }
+      ],
+      "topics": [
+        {
+          "uuid": "9ef2ff21-064a-41f1-8560-ccc990b4f937",
+          "name": "Sales"
+        },
+        {
+          "uuid": "0a8f2e00-fef6-402c-bd79-d789446ec0e0",
+          "name": "Support"
+        }
+      ]
+    },
+    {
+      "uuid": "3ae7cdeb-fd96-46e5-abc4-a4622f349921",
+      "name": "Nyaruka",
+      "languages": [
+        "eng",
+        "fra"
+      ],
+      "sequence_start": 20000,
+      "users": [
+        {
+          "email": "admin2@nyaruka.com",
+          "role": "administrators",
+          "first_name": "",
+          "last_name": ""
+        }
+      ],
+      "channels": [
+        {
+          "uuid": "a89bc872-3763-4b95-91d9-31d4e56c6651",
+          "name": "Twilio",
+          "channel_type": "T",
+          "address": "1234",
+          "scheme": "tel",
+          "role": "SR"
+        }
+      ],
+      "classifiers": [],
+      "globals": [],
+      "groups": [
+        {
+          "uuid": "492e438c-02e5-43a4-953a-57410b7fe3dd",
+          "name": "Doctors",
+          "size": 120
+        }
+      ],
+      "fields": [],
+      "contacts": [
+        {
+          "uuid": "26d20b72-f7d8-44dc-87f2-aae046dbff95",
+          "name": "Fred",
+          "urns": [
+            "tel:+250700000005"
+          ],
+          "created_on": "2020-12-31T16:45:30Z"
+        }
+      ],
+      "labels": [],
+      "flows": [
+        {
+          "uuid": "f161bd16-3c60-40bd-8c92-228ce815b9cd",
+          "name": "Favorites",
+          "file": "favorites_timeout.json"
+        },
+        {
+          "uuid": "5277916d-6011-41ac-a4a4-f6ac6a4f1dd9",
+          "name": "Send All",
+          "file": "send_all.json"
+        }
+      ],
+      "campaigns": [],
+      "templates": [],
+      "ticketers": [],
+      "topics": []
+    }
+  ]
+}

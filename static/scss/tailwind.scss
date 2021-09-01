@@ -678,6 +678,10 @@ code {
 
 .formax {
   .formax-section {
+    transition: all 200ms ease-in-out;
+    margin-left: 0px;
+    margin-right: 0px;
+
     @apply border-0 rounded-lg shadow bg-white mb-4 p-0 overflow-hidden flex items-stretch;
 
     &:hover {
@@ -735,7 +739,27 @@ code {
       }
     }
 
+
+    &.wide.open {
+      margin-left: -115px;
+      margin-right: -115px;
+
+      .formax-icon {
+        font-size: 50px;
+        padding-top: 0px;
+        flex-basis: 0px;
+
+        .i-container {
+          width: 0px;
+          margin-top: 20px;
+          margin-left:-25px;
+        }
+      }
+    }
+
     &.open {
+      margin-left: -30px;
+      margin-right: -30px;
       @apply shadow-lg;
 
       &:hover {

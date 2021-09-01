@@ -2771,7 +2771,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return obj
 
-    class Resthooks(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class Resthooks(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ResthookForm(forms.ModelForm):
             new_slug = forms.SlugField(
                 required=False,
@@ -2786,7 +2786,7 @@ class OrgCRUDL(SmartCRUDL):
                 field_mapping = []
 
                 for resthook in self.instance.get_resthooks():
-                    check_field = forms.BooleanField(required=False)
+                    check_field = forms.BooleanField(required=False, widget=CheckboxWidget())
                     field_name = "resthook_%d" % resthook.id
 
                     field_mapping.append((field_name, check_field))
@@ -3046,7 +3046,10 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_resthooks"):
                 formax.add_section(
-                    "resthooks", reverse("orgs.org_resthooks"), icon="icon-cloud-lightning", dependents="resthooks"
+                    "resthooks",
+                    reverse("orgs.org_resthooks"),
+                    icon="icon-cloud-lightning",
+                    wide="true",
                 )
 
             # show globals and archives

@@ -177,14 +177,6 @@ def history_icon(event: dict) -> str:
 
 
 @register.filter
-def history_user(user: dict) -> str:
-    name = " ".join([user.get("first_name"), user.get("last_name")]).strip()
-    if not name:
-        name = user.get("email")
-    return name
-
-
-@register.filter
 def history_class(event: dict) -> str:
     event_type = event["type"]
     classes = []
@@ -201,7 +193,7 @@ def history_class(event: dict) -> str:
             classes.append("warning")
         elif event_type == Event.TYPE_WEBHOOK_CALLED and event["status"] != "success":
             classes.append("warning")
-        elif event_type == Event.TYPE_CALL_STARTED and event["status"] == IVRCall.FAILED:
+        elif event_type == Event.TYPE_CALL_STARTED and event["status"] == IVRCall.STATUS_FAILED:
             classes.append("warning")
         elif event_type == Event.TYPE_CAMPAIGN_FIRED and event["fired_result"] == EventFire.RESULT_SKIPPED:
             classes.append("skipped")
