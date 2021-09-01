@@ -1504,6 +1504,8 @@ class Alert(SmartModel):
 
         Log.channel_alert(alert)
 
+        return alert
+
     @classmethod
     def check_power_alert(cls, sync):
         if (

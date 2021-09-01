@@ -161,9 +161,11 @@ class BaseExportTask(TembaModel):
             return clean_string(str(value))
 
     def get_email_context(self, branding):
-        asset_store = get_asset_store(model=self.__class__)
+        return {"link": self.get_download_url(branding)}
 
-        return {"link": branding["link"] + asset_store.get_asset_url(self.id)}
+    def get_download_url(self, branding: dict) -> str:
+        asset_store = get_asset_store(model=self.__class__)
+        return branding["link"] + asset_store.get_asset_url(self.id)
 
     class Meta:
         abstract = True

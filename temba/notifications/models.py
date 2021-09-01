@@ -23,53 +23,85 @@ class NotifyWho(Enum):
 
 class LogType:
     slug = None
-    notify_who = None
-    email_template = None
+    notify_who = None  # only set for log types created in RapidPro rather than mailroom
+
+    def as_json(self, log) -> dict:
+        return {
+            "type": log.type.slug,
+            "created_on": log.created_on.isoformat(),
+            "created_by": {"email": log.created_by.email, "name": log.created_by.name} if log.created_by else None,
+        }
 
 
 class BroadcastStartedLog(LogType):
     slug = "bcast:started"
-    notify_who = NotifyWho.admins
 
 
 class BroadcastCompletedLog(LogType):
     slug = "bcast:completed"
-    notify_who = NotifyWho.user
 
 
 class ChannelAlertLog(LogType):
     slug = "channel:alert"
     notify_who = NotifyWho.admins
 
+    def as_json(self, log) -> dict:
+        json = super().as_json(log)
+        json["alert"] = {
+            "type": log.alert.alert_type,
+            "channel": {"uuid": str(log.alert.channel.uuid), "name": log.alert.channel.name},
+        }
+        return json
+
 
 class FlowStartStartedLog(LogType):
     slug = "start:started"
-    notify_who = NotifyWho.admins
 
 
 class FlowStartCompletedLog(LogType):
     slug = "start:completed"
-    notify_who = NotifyWho.user
 
 
 class ImportStartedLog(LogType):
     slug = "import:started"
     notify_who = NotifyWho.admins_except_user
 
+    def as_json(self, log) -> dict:
+        json = super().as_json(log)
+        json["import"] = {"num_records": log.contact_import.num_records}
+        return json
+
 
 class ImportCompletedLog(LogType):
     slug = "import:completed"
-    notify_who = NotifyWho.user
+
+    def as_json(self, log) -> dict:
+        json = super().as_json(log)
+        json["import"] = {"num_records": log.contact_import.num_records}
+        return json
 
 
 class ExportStartedLog(LogType):
     slug = "export:started"
     notify_who = NotifyWho.admins_except_user
 
+    def as_json(self, log) -> dict:
+        json = super().as_json(log)
+        json["export"] = {"type": Log.get_export_type_key(log.export)}
+        return json
+
 
 class ExportCompletedLog(LogType):
     slug = "export:completed"
     notify_who = NotifyWho.user
+
+    def as_json(self, log) -> dict:
+        json = super().as_json(log)
+        json["export"] = {
+            "type": Log.get_export_type_key(log.export),
+            "download_url": log.export.get_download_url(log.org.get_branding()),
+        }
+        return json
 
 
 class TicketOpenedLog(LogType):
@@ -112,14 +144,12 @@ class Log(models.Model):
     ticket = models.ForeignKey(Ticket, null=True, on_delete=models.PROTECT, related_name="logs")
     ticket_event = models.ForeignKey(TicketEvent, null=True, on_delete=models.PROTECT, related_name="logs")
 
-    EXPORT_TYPES = {
-        ExportContactsTask: "contact_export",
-        ExportMessagesTask: "message_export",
-        ExportFlowResultsTask: "results_export",
-    }
+    EXPORT_TYPES = {ExportContactsTask: "contact", ExportMessagesTask: "message", ExportFlowResultsTask: "results"}
 
     @classmethod
     def _create(cls, org, user, log_type: str, **kwargs):
+        assert log_type in TYPES_BY_SLUG, f"{log_type} is not a valid log type"
+
         log_type = TYPES_BY_SLUG[log_type]
         log = cls.objects.create(org=org, created_by=user, log_type=log_type.slug, **kwargs)
 
@@ -135,21 +165,34 @@ class Log(models.Model):
 
     @classmethod
     def export_started(cls, export):
-        cls._create(export.org, export.created_by, ExportStartedLog.slug, **{cls.EXPORT_TYPES[type(export)]: export})
+        field_name = cls.get_export_type_key(export) + "_export"
+        cls._create(export.org, export.created_by, ExportStartedLog.slug, **{field_name: export})
 
     @classmethod
     def export_completed(cls, export):
-        cls._create(export.org, export.created_by, ExportCompletedLog.slug, **{cls.EXPORT_TYPES[type(export)]: export})
+        field_name = cls.get_export_type_key(export) + "_export"
+        cls._create(export.org, export.created_by, ExportCompletedLog.slug, **{field_name: export})
 
     @property
     def type(self):
         return TYPES_BY_SLUG[self.log_type]
+
+    @property
+    def export(self):
+        return self.contact_export or self.message_export or self.results_export
+
+    @classmethod
+    def get_export_type_key(cls, export):
+        return cls.EXPORT_TYPES[type(export)]
 
     def delete(self):
         for notification in self.notifications.all():
             notification.delete()
 
         super().delete()
+
+    def as_json(self) -> dict:
+        return self.type.as_json(self)
 
     def __str__(self):  # pragma: no cover
         return f"Log[type={self.type.slug} created_on={self.created_on.isoformat()}]"
@@ -188,6 +231,9 @@ class Notification(models.Model):
 
         for notify_user in notify_users:
             cls.objects.create(org=org, user=notify_user, log=log)
+
+    def as_json(self) -> dict:
+        return {"log": self.log.type.as_json(self.log), "is_seen": self.is_seen}
 
     class Meta:
         indexes = [models.Index(fields=["org", "user", "-id"])]
