@@ -6,12 +6,12 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('links', '0003_link_related_flow'),
+        ("links", "0003_link_related_flow"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='link',
-            name='clicks_count',
+            model_name="link",
+            name="clicks_count",
         ),
     ]
