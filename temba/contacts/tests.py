@@ -79,6 +79,38 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # point so create them explicitly here, so that we also get the sample groups
         self.org.create_sample_flows("https://api.rapidpro.io")
 
+    def test_menu(self):
+        menu_url = reverse("contacts.contact_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+        self.assertEqual(
+            [
+                {"id": "active", "count": 0, "name": "Active", "href": "/contact/"},
+                {"id": "blocked", "count": 0, "name": "Blocked", "href": "/contact/blocked/"},
+                {"id": "stopped", "count": 0, "name": "Stopped", "href": "/contact/stopped/"},
+                {"id": "archived", "count": 0, "name": "Archived", "href": "/contact/archived/"},
+                {
+                    "id": "smart",
+                    "icon": "atom",
+                    "name": "Smart Groups",
+                    "href": "/contactgroup/?type=smart",
+                    "count": 0,
+                },
+                {"id": "groups", "icon": "users", "name": "Groups", "href": "/contactgroup/?type=static", "count": 2},
+                {
+                    "id": "fields",
+                    "icon": "layers",
+                    "count": 2,
+                    "name": "Fields",
+                    "href": "/contactfield/",
+                    "endpoint": "/contactfield/menu/",
+                    "inline": True,
+                },
+                {"id": "import", "icon": "upload-cloud", "href": "/contactimport/create/", "name": "Import"},
+            ],
+            menu,
+        )
+
     @mock_mailroom
     def test_list(self, mr_mocks):
         self.login(self.user)

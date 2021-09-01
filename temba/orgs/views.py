@@ -993,6 +993,22 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         return request.user.is_beta()
 
 
+class MenuMixin(OrgPermsMixin):
+    def add_menu(self, menu, name, icon, reverse_name, href=None):
+        if self.has_org_perm(reverse_name):
+            menu_item = {
+                "id": slugify(name),
+                "name": name,
+                "icon": icon,
+                "endpoint": reverse(reverse_name),
+            }
+
+            if href and self.has_org_perm(href):
+                menu_item["href"] = reverse(href)
+
+            menu.append(menu_item)
+
+
 class OrgCRUDL(SmartCRUDL):
     actions = (
         "signup",
@@ -1035,43 +1051,15 @@ class OrgCRUDL(SmartCRUDL):
 
     model = Org
 
-    class Menu(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+    class Menu(MenuMixin, InferOrgMixin, SmartTemplateView):
         def render_to_response(self, context, **response_kwargs):
             menu = []
-            # menu.append({"id": "msgs", "name": "Messages", "icon": "inbox", "href": reverse("msgs.msg_inbox")}),
-            menu.append(
-                {
-                    "id": "contacts",
-                    "name": "Contacts",
-                    "icon": "contact-cal",
-                    "endpoint": reverse("contacts.contact_menu"),
-                }
-            ),
-
-            # menu.append({"id": "flows", "name": "Flows", "icon": "flow", "href": reverse("flows.flow_list")}),
-
-            # menu.append(
-            #    {
-            #        "id": "campaigns",
-            #        "name": "Campaigns",
-            #        "icon": "campaign",
-            #        "href": reverse("campaigns.campaign_list"),
-            #    }
-            # ),
-
-            menu.append(
-                {
-                    "id": "tickets",
-                    "name": "Tickets",
-                    "icon": "agent",
-                    "href": reverse("tickets.ticket_list"),
-                    "endpoint": reverse("tickets.ticket_menu"),
-                }
-            ),
-
-            # menu.append(
-            #     {"id": "triggers", "name": "Triggers", "icon": "radio", "href": reverse("triggers.trigger_list")}
-            # ),
+            # self.add_menu(menu, "Messages", "messages", "msgs.msg_menu")
+            self.add_menu(menu, "Contacts", "contact-cal", "contacts.contact_menu")
+            # self.add_menu(menu, "Flows", "flow", "flows.flow_menu")
+            # self.add_menu(menu, "Campaigns", "campaign", "campaigns.campaigns_menu")
+            self.add_menu(menu, "Tickets", "agent", "tickets.ticket_menu", "tickets.ticket_list")
+            self.add_menu(menu, "Triggers", "radio", "triggers.trigger_menu")
 
             # menu.append(
             #    {
