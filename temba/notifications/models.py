@@ -112,8 +112,8 @@ class TicketNewMsgsLog(LogType):
     slug = "ticket:msgs"
 
 
-class TicketAssignmentLog(LogType):
-    slug = "ticket:assign"
+class TicketAssignedLog(LogType):
+    slug = "ticket:assigned"
 
 
 class TicketNoteLog(LogType):
