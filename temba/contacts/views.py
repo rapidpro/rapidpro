@@ -1539,30 +1539,7 @@ class ContactCRUDL(SmartCRUDL):
 
 class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
-    actions = ("list", "menu", "create", "update", "usages", "delete")
-
-    class Menu(OrgPermsMixin, SmartTemplateView):
-        def render_to_response(self, context, **response_kwargs):
-            org = self.request.user.get_org()
-            groups = ContactGroup.get_user_groups(org, ready_only=False).select_related("org").order_by(Upper("name"))
-            menu = [
-                {
-                    "id": "smart",
-                    "icon": "atom",
-                    "name": _("Smart Groups"),
-                    "href": reverse("contacts.contactgroup_list") + "?type=smart",
-                    "count": len(groups.exclude(query=None)),
-                },
-                {
-                    "id": "static",
-                    "icon": "users",
-                    "name": _("Static Groups"),
-                    "href": reverse("contacts.contactgroup_list") + "?type=static",
-                    "count": len(groups.filter(query=None)),
-                },
-            ]
-
-            return JsonResponse({"results": menu})
+    actions = ("list", "create", "update", "usages", "delete")
 
     class List(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         fields = ("name", "query", "count", "created_on")
