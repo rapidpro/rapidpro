@@ -346,6 +346,7 @@ ANNOUNCEMENT_BUTTON = env("ANNOUNCEMENT_BUTTON")
 HOTJAR_IDS = env.dict('HOTJAR_IDS')
 
 SUCCESS_LOGS_TRIM_TIME = env("SUCCESS_LOGS_TRIM_TIME", default=48)
+ALL_LOGS_TRIM_TIME = env("ALL_LOGS_TRIM_TIME", default=24*30)  # 30 days
 
 
 # ------------------------------------------------------------------------------------------
