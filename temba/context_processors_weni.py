@@ -13,8 +13,9 @@ def show_sidemenu(request):
         return {"show_sidemenu": False}
 
     for path in settings.SIDEBAR_EXCLUDE_PATHS:
-        if path in request.path:
-            return {"show_sidemenu": False}
+        if request.path not in settings.SIDEBAR_ALLOWLIST:
+            if path in request.path:
+                return {"show_sidemenu": False}
 
     return {"show_sidemenu": True}
 

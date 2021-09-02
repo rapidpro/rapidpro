@@ -25,14 +25,6 @@
       .unnnic-tooltip
         -trans "Contacts"
 
-  -if org_perms.flows.flow_list and not request.user.is_superuser
-    %a{href:"{% url 'flows.flow_list' %}", class:"{% active request '(?<!msg)/flow' %}"}
-      .circle.unnnic-icon-hierarchy-3-2.unnnic-icon-ant{class:"{% active request '(?<!msg)/flow' %}"}
-      .title 
-        -trans "Flows"
-      .unnnic-tooltip
-        -trans "Flows"
-
   -if org_perms.campaigns.campaign_list and not request.user.is_superuser
     %a{href:"{% url 'campaigns.campaign_list' %}", class:"{% active request 'campaign' %}"}
       .circle.unnnic-icon-synchronize-arrow-clock-4.unnnic-icon-ant{class:"{% active request 'campaign' %}"}
