@@ -5,6 +5,11 @@ import django.utils.timezone
 from django.db import migrations, models
 
 
+def delete_all_notifications(apps, schema_editor):
+    apps.get_model("notifications", "Notification").objects.all().delete()
+    apps.get_model("notifications", "Log").objects.all().delete()
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -16,6 +21,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(delete_all_notifications),
         migrations.RemoveIndex(
             model_name="log",
             name="notificatio_org_id_d0ef64_idx",
