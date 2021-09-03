@@ -80,9 +80,20 @@ class NotificationTest(TembaTest):
             expected_users={self.admin, self.editor},
         )
 
+        # if a user visits the channel read page, their notification for that channel is now read
+        self.login(self.admin)
+        self.client.get(reverse("channels.channel_read", kwargs={"uuid": vonage.uuid}))
+
+        self.assertTrue(self.admin.notifications.get(channel=vonage).is_seen)
+        self.assertFalse(self.editor.notifications.get(channel=vonage).is_seen)
+
     def test_export_finished(self):
         export = ExportContactsTask.create(self.org, self.editor)
+        export.perform()
+
         Notification.export_finished(export)
+
+        self.assertFalse(self.editor.notifications.get(contact_export=export).is_seen)
 
         # we only notify the user that started the export
         self.assert_notifications(
@@ -97,6 +108,12 @@ class NotificationTest(TembaTest):
             expected_users={self.editor},
         )
 
+        # if a user visits the export download page, their notification for that export is now read
+        self.login(self.editor)
+        self.client.get(export.get_download_url())
+
+        self.assertTrue(self.editor.notifications.get(contact_export=export).is_seen)
+
     def test_import_finished(self):
         imp = ContactImport.objects.create(
             org=self.org, mappings={}, num_records=5, created_by=self.editor, modified_by=self.editor
@@ -106,6 +123,7 @@ class NotificationTest(TembaTest):
         Notification._create_all(
             imp.org, "import:finished", scope=f"contact:{imp.id}", users=[self.editor], contact_import=imp
         )
+        self.assertFalse(self.editor.notifications.get(contact_import=imp).is_seen)
 
         # we only notify the user that started the import
         self.assert_notifications(
@@ -119,6 +137,12 @@ class NotificationTest(TembaTest):
             },
             expected_users={self.editor},
         )
+
+        # if a user visits the import read page, their notification for that import is now read
+        self.login(self.editor)
+        self.client.get(reverse("contacts.contactimport_read", args=[imp.id]))
+
+        self.assertTrue(self.editor.notifications.get(contact_import=imp).is_seen)
 
 
 class NotificationCRUDLTest(TembaTest):

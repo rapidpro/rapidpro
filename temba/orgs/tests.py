@@ -788,15 +788,15 @@ class OrgDeleteTest(TembaNonAtomicTest):
         export = ExportFlowResultsTask.create(
             self.parent_org, self.admin, [parent_flow], [parent_field], True, True, (), ()
         )
-        Notification.export_completed(export)
+        Notification.export_finished(export)
         ExportFlowResultsTask.create(self.child_org, self.admin, [child_flow], [child_field], True, True, (), ())
 
         export = ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)
-        Notification.export_completed(export)
+        Notification.export_finished(export)
         ExportContactsTask.create(self.child_org, self.admin, group=child_group)
 
         export = ExportMessagesTask.create(self.parent_org, self.admin, label=parent_label, groups=[parent_group])
-        Notification.export_completed(export)
+        Notification.export_finished(export)
         ExportMessagesTask.create(self.child_org, self.admin, label=child_label, groups=[child_group])
 
         def create_archive(org, period, rollup=None):

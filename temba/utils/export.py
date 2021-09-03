@@ -26,6 +26,11 @@ class BaseExportAssetStore(BaseAssetStore):
     def is_asset_ready(self, asset):
         return asset.status == BaseExportTask.STATUS_COMPLETE
 
+    def download_accessed(self, user, asset):
+        from temba.notifications.models import Notification
+
+        Notification.export_seen(asset, user)
+
 
 class BaseExportTask(TembaModel):
     """
@@ -110,7 +115,7 @@ class BaseExportTask(TembaModel):
             print(f"Completed {self.analytics_key} with ID {self.id} in {elapsed:.1f} seconds")
             analytics.track(self.created_by, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed))
 
-            Notification.export_completed(self)
+            Notification.export_finished(self)
         finally:
             gc.collect()  # force garbage collection
 

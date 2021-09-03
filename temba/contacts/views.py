@@ -2037,13 +2037,11 @@ class ContactImportCRUDL(SmartCRUDL):
 
     class Read(OrgObjPermsMixin, SmartReadView):
         def get_context_data(self, **kwargs):
-            is_finished = self.is_import_finished()
-            if is_finished:
-                Notification.import_seen(self.get_object(), self.request.user)
+            Notification.import_seen(self.get_object(), self.request.user)
 
             context = super().get_context_data(**kwargs)
             context["info"] = self.import_info
-            context["is_finished"] = is_finished
+            context["is_finished"] = self.is_import_finished()
             return context
 
         @cached_property
