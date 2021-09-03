@@ -80,15 +80,15 @@ class NotificationTest(TembaTest):
             expected_users={self.admin, self.editor},
         )
 
-    def test_export_completed(self):
+    def test_export_finished(self):
         export = ExportContactsTask.create(self.org, self.editor)
-        Notification.export_completed(export)
+        Notification.export_finished(export)
 
         # we only notify the user that started the export
         self.assert_notifications(
             after=export.created_on,
             expected_json={
-                "type": "export:completed",
+                "type": "export:finished",
                 "created_on": matchers.ISODate(),
                 "target_url": f"/assets/download/contact_export/{export.id}/",
                 "is_seen": False,
@@ -97,19 +97,21 @@ class NotificationTest(TembaTest):
             expected_users={self.editor},
         )
 
-    def test_import_completed(self):
+    def test_import_finished(self):
         imp = ContactImport.objects.create(
             org=self.org, mappings={}, num_records=5, created_by=self.editor, modified_by=self.editor
         )
 
         # mailroom will create these notifications when it's complete
-        Notification._create_all(imp.org, "import:completed", [self.editor], target_id=imp.id, contact_import=imp)
+        Notification._create_all(
+            imp.org, "import:finished", scope=f"contact:{imp.id}", users=[self.editor], contact_import=imp
+        )
 
         # we only notify the user that started the import
         self.assert_notifications(
             after=imp.created_on,
             expected_json={
-                "type": "import:completed",
+                "type": "import:finished",
                 "created_on": matchers.ISODate(),
                 "target_url": f"/contactimport/read/{imp.id}/",
                 "is_seen": False,
@@ -123,9 +125,9 @@ class NotificationCRUDLTest(TembaTest):
     def test_list(self):
         list_url = reverse("notifications.notification_list")
 
-        # simulate an export completing
+        # simulate an export finishing
         export = ExportContactsTask.create(self.org, self.editor)
-        Notification.export_completed(export)
+        Notification.export_finished(export)
 
         # not access for anon
         self.assertLoginRedirect(self.client.get(list_url))
@@ -142,7 +144,7 @@ class NotificationCRUDLTest(TembaTest):
             {
                 "results": [
                     {
-                        "type": "export:completed",
+                        "type": "export:finished",
                         "created_on": matchers.ISODate(),
                         "target_url": f"/assets/download/contact_export/{export.id}/",
                         "is_seen": False,

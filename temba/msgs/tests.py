@@ -1025,10 +1025,10 @@ class MsgTest(TembaTest):
                 self.assertTrue("found 8 msgs in database to export" in captured_logger.output[1])
                 self.assertTrue("exported 8 in" in captured_logger.output[2])
 
-        # check that export was logged and notifications created
+        # check that notifications were created
         export = ExportMessagesTask.objects.order_by("id").last()
         self.assertEqual(
-            1, self.admin.notifications.filter(notification_type="export:completed", message_export=export).count()
+            1, self.admin.notifications.filter(notification_type="export:finished", message_export=export).count()
         )
 
         # check email was sent correctly

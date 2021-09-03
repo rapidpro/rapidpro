@@ -3886,7 +3886,7 @@ class ContactFieldTest(TembaTest):
         # check that notifications were created
         export = ExportContactsTask.objects.order_by("id").last()
         self.assertEqual(
-            1, self.admin.notifications.filter(notification_type="export:completed", contact_export=export).count()
+            1, self.admin.notifications.filter(notification_type="export:finished", contact_export=export).count()
         )
 
         # change the order of the fields

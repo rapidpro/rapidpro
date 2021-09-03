@@ -3901,10 +3901,10 @@ class ExportFlowResultsTest(TembaTest):
                 self.assertTrue("found 5 runs in database to export" in captured_logger.output[1])
                 self.assertTrue("exported 5 in" in captured_logger.output[2])
 
-        # check that export was logged and notifications created
+        # check that notifications were created
         export = ExportFlowResultsTask.objects.order_by("id").last()
         self.assertEqual(
-            1, self.admin.notifications.filter(notification_type="export:completed", results_export=export).count()
+            1, self.admin.notifications.filter(notification_type="export:finished", results_export=export).count()
         )
 
         tz = self.org.timezone

@@ -38,6 +38,7 @@ from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.flows.models import Flow, FlowStart
 from temba.mailroom.events import Event
+from temba.notifications.models import Notification
 from temba.orgs.models import Org
 from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
@@ -2036,9 +2037,13 @@ class ContactImportCRUDL(SmartCRUDL):
 
     class Read(OrgObjPermsMixin, SmartReadView):
         def get_context_data(self, **kwargs):
+            is_finished = self.is_import_finished()
+            if is_finished:
+                Notification.import_seen(self.get_object(), self.request.user)
+
             context = super().get_context_data(**kwargs)
             context["info"] = self.import_info
-            context["is_finished"] = self.is_import_finished()
+            context["is_finished"] = is_finished
             return context
 
         @cached_property

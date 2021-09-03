@@ -2259,9 +2259,8 @@ class ContactImport(SmartModel):
         # delete any batches associated with this import
         ContactImportBatch.objects.filter(contact_import=self).delete()
 
-        # delete any log attached this import
-        for log in self.logs.all():
-            log.delete()
+        # delete any notifications attached this import
+        self.notifications.all().delete()
 
         # then ourselves
         super().delete()

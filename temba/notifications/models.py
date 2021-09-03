@@ -39,8 +39,8 @@ class ChannelAlertNotificationType(NotificationType):
         return json
 
 
-class ExportCompletedNotificationType(NotificationType):
-    slug = "export:completed"
+class ExportFinishedNotificationType(NotificationType):
+    slug = "export:finished"
 
     def get_target_url(self, notification) -> str:
         return self._get_export(notification).get_download_url()
@@ -57,8 +57,8 @@ class ExportCompletedNotificationType(NotificationType):
         return notification.contact_export or notification.message_export or notification.results_export
 
 
-class ImportCompletedNotificationType(NotificationType):
-    slug = "import:completed"
+class ImportFinishedNotificationType(NotificationType):
+    slug = "import:finished"
 
     def get_target_url(self, notification) -> str:
         return reverse("contacts.contactimport_read", args=[notification.contact_import.id])
@@ -108,12 +108,17 @@ class Notification(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="notifications")
-    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="notifications")
     notification_type = models.CharField(max_length=16, null=True)
+
+    # The scope is what we maintain uniqueness of unseen notifications for within an org. For some notification types,
+    # user can only have one unseen of that type per org, and so this will be an empty string. For other notification
+    # types like channel alerts, it will be the UUID of an object.
+    scope = models.CharField(max_length=36)
+
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="notifications")
     is_seen = models.BooleanField(default=False)
     created_on = models.DateTimeField(default=timezone.now)
 
-    target_id = models.BigIntegerField(default=0)  # has to be zero if not used as PG treats each NULL as distinct
     channel = models.ForeignKey(Channel, null=True, on_delete=models.PROTECT, related_name="notifications")
     contact_export = models.ForeignKey(
         ExportContactsTask, null=True, on_delete=models.PROTECT, related_name="notifications"
@@ -138,34 +143,59 @@ class Notification(models.Model):
         """
         org = alert.channel.org
         cls._create_all(
-            org, ChannelAlertNotificationType.slug, org.get_admins(), target_id=alert.channel.id, channel=alert.channel
+            org,
+            ChannelAlertNotificationType.slug,
+            scope=str(alert.channel.uuid),
+            users=org.get_admins(),
+            channel=alert.channel,
         )
 
     @classmethod
-    def export_completed(cls, export):
+    def export_finished(cls, export):
         """
-        Creates an export completed notification for the creator of the given export.
+        Creates an export finished notification for the creator of the given export.
         """
-        field_name = cls.EXPORT_TYPES[type(export)] + "_export"
+
+        type_key = cls.EXPORT_TYPES[type(export)]
+
         cls._create_all(
             export.org,
-            ExportCompletedNotificationType.slug,
-            [export.created_by],
-            target_id=export.id,
-            **{field_name: export},
+            ExportFinishedNotificationType.slug,
+            scope=f"{type_key}:{export.id}",
+            users=[export.created_by],
+            **{type_key + "_export": export},
         )
 
     @classmethod
-    def _create_all(cls, org, notification_type: str, users, *, target_id: int, **kwargs):
+    def _create_all(cls, org, notification_type: str, *, scope: str, users, **kwargs):
         for user in users:
             cls.objects.get_or_create(
                 org=org,
-                user=user,
                 notification_type=notification_type,
-                target_id=target_id,
+                scope=scope,
+                user=user,
                 is_seen=False,
                 defaults=kwargs,
             )
+
+    @classmethod
+    def channel_seen(cls, channel, user):
+        cls._mark_seen(channel.org_id, ChannelAlertNotificationType.slug, scope=str(channel.uuid), user=user)
+
+    @classmethod
+    def export_seen(cls, export, user):
+        type_key = cls.EXPORT_TYPES[type(export)]
+        cls._mark_seen(export.org_id, ExportFinishedNotificationType.slug, scope=f"{type_key}:{export.id}", user=user)
+
+    @classmethod
+    def import_seen(cls, imp, user):
+        cls._mark_seen(imp.org_id, ImportFinishedNotificationType.slug, scope=f"contact:{imp.id}", user=user)
+
+    @classmethod
+    def _mark_seen(cls, org_id: int, notification_type: str, *, scope: str, user):
+        cls.objects.filter(
+            org_id=org_id, notification_type=notification_type, scope=scope, user=user, is_seen=False
+        ).update(is_seen=True)
 
     @property
     def type(self):
@@ -178,10 +208,11 @@ class Notification(models.Model):
         indexes = [
             # used to list org specific notifications for a user
             models.Index(fields=["org", "user", "-created_on"]),
-            # used to check if we already have existing unseen notifications for something
+            # used to check if we already have existing unseen notifications for something or to clear unseen
+            # notifications when visiting their target URL
             models.Index(
                 name="notifications_unseen_of_type",
-                fields=["org", "user", "notification_type", "target_id"],
+                fields=["org", "notification_type", "scope", "user"],
                 condition=Q(is_seen=False),
             ),
         ]
