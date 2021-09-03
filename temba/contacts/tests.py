@@ -31,7 +31,6 @@ from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, modifiers
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
-from temba.notifications.models import Log, Notification
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import (
@@ -3884,11 +3883,11 @@ class ContactFieldTest(TembaTest):
 
         assertImportExportedFile()
 
-        # check that export was logged and notifications created
+        # check that notifications were created
         export = ExportContactsTask.objects.order_by("id").last()
-        self.assertEqual(1, Log.objects.filter(log_type="export:started", contact_export=export).count())
-        self.assertEqual(1, Log.objects.filter(log_type="export:completed", contact_export=export).count())
-        self.assertEqual(1, Notification.objects.filter(log__contact_export=export).count())
+        self.assertEqual(
+            1, self.admin.notifications.filter(notification_type="export:completed", contact_export=export).count()
+        )
 
         # change the order of the fields
         self.contactfield_2.priority = 15

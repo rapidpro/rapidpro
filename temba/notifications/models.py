@@ -1,10 +1,10 @@
-from enum import Enum
-
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models import Q
+from django.urls import reverse
 from django.utils import timezone
 
-from temba.channels.models import Alert
+from temba.channels.models import Alert, Channel
 from temba.contacts.models import ContactImport, ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask, FlowStart
 from temba.msgs.models import Broadcast, ExportMessagesTask
@@ -12,120 +12,77 @@ from temba.orgs.models import Org
 from temba.tickets.models import Ticket, TicketEvent
 
 
-class NotifyWho(Enum):
-    all = 1
-    all_except_user = 2
-    admins = 3
-    admins_except_user = 4
-    user = 5
-    nobody = 6
-
-
-class LogType:
+class NotificationType:
     slug = None
-    notify_who = None  # only set for log types created in RapidPro rather than mailroom
 
-    def as_json(self, log) -> dict:
+    def get_target_url(self, notification) -> str:
+        return ""
+
+    def as_json(self, notification) -> dict:
         return {
-            "type": log.type.slug,
-            "created_on": log.created_on.isoformat(),
-            "created_by": {"email": log.created_by.email, "name": log.created_by.name} if log.created_by else None,
+            "type": notification.type.slug,
+            "created_on": notification.created_on.isoformat(),
+            "target_url": self.get_target_url(notification),
+            "is_seen": notification.is_seen,
         }
 
 
-class BroadcastStartedLog(LogType):
-    slug = "bcast:started"
-
-
-class BroadcastCompletedLog(LogType):
-    slug = "bcast:completed"
-
-
-class ChannelAlertLog(LogType):
+class ChannelAlertNotificationType(NotificationType):
     slug = "channel:alert"
-    notify_who = NotifyWho.admins
 
-    def as_json(self, log) -> dict:
-        json = super().as_json(log)
-        json["alert"] = {
-            "type": log.alert.alert_type,
-            "channel": {"uuid": str(log.alert.channel.uuid), "name": log.alert.channel.name},
-        }
+    def get_target_url(self, notification) -> str:
+        return reverse("channels.channel_read", kwargs={"uuid": notification.channel.uuid})
+
+    def as_json(self, notification) -> dict:
+        json = super().as_json(notification)
+        json["channel"] = {"uuid": str(notification.channel.uuid), "name": notification.channel.name}
         return json
 
 
-class FlowStartStartedLog(LogType):
-    slug = "start:started"
+class ExportCompletedNotificationType(NotificationType):
+    slug = "export:completed"
 
+    def get_target_url(self, notification) -> str:
+        return self._get_export(notification).get_download_url()
 
-class FlowStartCompletedLog(LogType):
-    slug = "start:completed"
+    def as_json(self, notification) -> dict:
+        export = self._get_export(notification)
 
-
-class ImportStartedLog(LogType):
-    slug = "import:started"
-    notify_who = NotifyWho.admins_except_user
-
-    def as_json(self, log) -> dict:
-        json = super().as_json(log)
-        json["import"] = {"num_records": log.contact_import.num_records}
+        json = super().as_json(notification)
+        json["export"] = {"type": Notification.EXPORT_TYPES[type(export)]}
         return json
 
+    @staticmethod
+    def _get_export(notification):
+        return notification.contact_export or notification.message_export or notification.results_export
 
-class ImportCompletedLog(LogType):
+
+class ImportCompletedNotificationType(NotificationType):
     slug = "import:completed"
 
-    def as_json(self, log) -> dict:
-        json = super().as_json(log)
-        json["import"] = {"num_records": log.contact_import.num_records}
+    def get_target_url(self, notification) -> str:
+        return reverse("contacts.contactimport_read", args=[notification.contact_import.id])
+
+    def as_json(self, notification) -> dict:
+        json = super().as_json(notification)
+        json["import"] = {"num_records": notification.contact_import.num_records}
         return json
 
 
-class ExportStartedLog(LogType):
-    slug = "export:started"
-    notify_who = NotifyWho.admins_except_user
-
-    def as_json(self, log) -> dict:
-        json = super().as_json(log)
-        json["export"] = {"type": Log.get_export_type_key(log.export)}
-        return json
+class TicketsOpenedNotificationType(NotificationType):
+    slug = "tickets:opened"
 
 
-class ExportCompletedLog(LogType):
-    slug = "export:completed"
-    notify_who = NotifyWho.user
-
-    def as_json(self, log) -> dict:
-        json = super().as_json(log)
-        json["export"] = {
-            "type": Log.get_export_type_key(log.export),
-            "download_url": log.export.get_download_url(log.org.get_branding()),
-        }
-        return json
+class TicketActivityNotificationType(NotificationType):
+    slug = "tickets:activity"
 
 
-class TicketOpenedLog(LogType):
-    slug = "ticket:opened"
-
-
-class TicketNewMsgsLog(LogType):
-    slug = "ticket:msgs"
-
-
-class TicketAssignedLog(LogType):
-    slug = "ticket:assigned"
-
-
-class TicketNoteLog(LogType):
-    slug = "ticket:note"
-
-
-TYPES_BY_SLUG = {lt.slug: lt() for lt in LogType.__subclasses__()}
+TYPES_BY_SLUG = {lt.slug: lt() for lt in NotificationType.__subclasses__()}
 
 
 class Log(models.Model):
     """
-    A log of something that happened in an org that can be turned into notifications for specific users
+    TODO drop
     """
 
     id = models.BigAutoField(primary_key=True)
@@ -133,7 +90,6 @@ class Log(models.Model):
     log_type = models.CharField(max_length=16)
     created_on = models.DateTimeField(default=timezone.now)
     created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="logs")
-
     alert = models.ForeignKey(Alert, null=True, on_delete=models.PROTECT, related_name="logs")
     broadcast = models.ForeignKey(Broadcast, null=True, on_delete=models.PROTECT, related_name="logs")
     flow_start = models.ForeignKey(FlowStart, null=True, on_delete=models.PROTECT, related_name="logs")
@@ -144,96 +100,88 @@ class Log(models.Model):
     ticket = models.ForeignKey(Ticket, null=True, on_delete=models.PROTECT, related_name="logs")
     ticket_event = models.ForeignKey(TicketEvent, null=True, on_delete=models.PROTECT, related_name="logs")
 
-    EXPORT_TYPES = {ExportContactsTask: "contact", ExportMessagesTask: "message", ExportFlowResultsTask: "results"}
-
-    @classmethod
-    def _create(cls, org, user, log_type: str, **kwargs):
-        assert log_type in TYPES_BY_SLUG, f"{log_type} is not a valid log type"
-
-        log_type = TYPES_BY_SLUG[log_type]
-        log = cls.objects.create(org=org, created_by=user, log_type=log_type.slug, **kwargs)
-
-        Notification.create_for_log(log)
-
-    @classmethod
-    def channel_alert(cls, alert):
-        cls._create(alert.channel.org, None, ChannelAlertLog.slug, alert=alert)
-
-    @classmethod
-    def import_started(cls, imp):
-        cls._create(imp.org, imp.created_by, ImportStartedLog.slug, contact_import=imp)
-
-    @classmethod
-    def export_started(cls, export):
-        field_name = cls.get_export_type_key(export) + "_export"
-        cls._create(export.org, export.created_by, ExportStartedLog.slug, **{field_name: export})
-
-    @classmethod
-    def export_completed(cls, export):
-        field_name = cls.get_export_type_key(export) + "_export"
-        cls._create(export.org, export.created_by, ExportCompletedLog.slug, **{field_name: export})
-
-    @property
-    def type(self):
-        return TYPES_BY_SLUG[self.log_type]
-
-    @property
-    def export(self):
-        return self.contact_export or self.message_export or self.results_export
-
-    @classmethod
-    def get_export_type_key(cls, export):
-        return cls.EXPORT_TYPES[type(export)]
-
-    def delete(self):
-        for notification in self.notifications.all():
-            notification.delete()
-
-        super().delete()
-
-    def as_json(self) -> dict:
-        return self.type.as_json(self)
-
-    def __str__(self):  # pragma: no cover
-        return f"Log[type={self.type.slug} created_on={self.created_on.isoformat()}]"
-
-    class Meta:
-        indexes = [models.Index(fields=["org", "-created_on"])]
-
 
 class Notification(models.Model):
     """
-    A user specific notification of a log instance
+    A user specific notification
     """
 
     id = models.BigAutoField(primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="notifications")
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="notifications")
-    log = models.ForeignKey(Log, on_delete=models.PROTECT, related_name="notifications")
+    notification_type = models.CharField(max_length=16, null=True)
     is_seen = models.BooleanField(default=False)
+    created_on = models.DateTimeField(default=timezone.now)
+
+    target_id = models.BigIntegerField(default=0)  # has to be zero if not used as PG treats each NULL as distinct
+    channel = models.ForeignKey(Channel, null=True, on_delete=models.PROTECT, related_name="notifications")
+    contact_export = models.ForeignKey(
+        ExportContactsTask, null=True, on_delete=models.PROTECT, related_name="notifications"
+    )
+    message_export = models.ForeignKey(
+        ExportMessagesTask, null=True, on_delete=models.PROTECT, related_name="notifications"
+    )
+    results_export = models.ForeignKey(
+        ExportFlowResultsTask, null=True, on_delete=models.PROTECT, related_name="notifications"
+    )
+    contact_import = models.ForeignKey(
+        ContactImport, null=True, on_delete=models.PROTECT, related_name="notifications"
+    )
+
+    EXPORT_TYPES = {ExportContactsTask: "contact", ExportMessagesTask: "message", ExportFlowResultsTask: "results"}
 
     @classmethod
-    def create_for_log(cls, log: Log):
-        org = log.org
-        user = log.created_by
-        who = log.type.notify_who
+    def channel_alert(cls, alert):
+        """
+        Creates a new channel alert notification for each org admin if there they don't already have an unread one for
+        the channel.
+        """
+        org = alert.channel.org
+        cls._create_all(
+            org, ChannelAlertNotificationType.slug, org.get_admins(), target_id=alert.channel.id, channel=alert.channel
+        )
 
-        if who == NotifyWho.all or who == NotifyWho.all_except_user:  # pragma: no cover
-            notify_users = org.get_users()
-            if who == NotifyWho.all_except_user and user:
-                notify_users = notify_users.exclude(id=user.id)
-        elif who == NotifyWho.admins or who == NotifyWho.admins_except_user:
-            notify_users = org.get_admins()
-            if who == NotifyWho.admins_except_user and user:
-                notify_users = notify_users.exclude(id=user.id)
-        else:  # log_type.notify_who == NotifyWho.user:
-            notify_users = [user]
+    @classmethod
+    def export_completed(cls, export):
+        """
+        Creates an export completed notification for the creator of the given export.
+        """
+        field_name = cls.EXPORT_TYPES[type(export)] + "_export"
+        cls._create_all(
+            export.org,
+            ExportCompletedNotificationType.slug,
+            [export.created_by],
+            target_id=export.id,
+            **{field_name: export},
+        )
 
-        for notify_user in notify_users:
-            cls.objects.create(org=org, user=notify_user, log=log)
+    @classmethod
+    def _create_all(cls, org, notification_type: str, users, *, target_id: int, **kwargs):
+        for user in users:
+            cls.objects.get_or_create(
+                org=org,
+                user=user,
+                notification_type=notification_type,
+                target_id=target_id,
+                is_seen=False,
+                defaults=kwargs,
+            )
+
+    @property
+    def type(self):
+        return TYPES_BY_SLUG[self.notification_type]
 
     def as_json(self) -> dict:
-        return {"log": self.log.type.as_json(self.log), "is_seen": self.is_seen}
+        return self.type.as_json(self)
 
     class Meta:
-        indexes = [models.Index(fields=["org", "user", "-id"])]
+        indexes = [
+            # used to list org specific notifications for a user
+            models.Index(fields=["org", "user", "-created_on"]),
+            # used to check if we already have existing unseen notifications for something
+            models.Index(
+                name="notifications_unseen_of_type",
+                fields=["org", "user", "notification_type", "target_id"],
+                condition=Q(is_seen=False),
+            ),
+        ]

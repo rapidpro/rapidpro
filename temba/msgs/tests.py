@@ -33,7 +33,6 @@ from temba.msgs.models import (
     SystemLabel,
     SystemLabelCount,
 )
-from temba.notifications.models import Log, Notification
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
 from temba.tests.engine import MockSessionWriter
@@ -1028,9 +1027,9 @@ class MsgTest(TembaTest):
 
         # check that export was logged and notifications created
         export = ExportMessagesTask.objects.order_by("id").last()
-        self.assertEqual(1, Log.objects.filter(log_type="export:started", message_export=export).count())
-        self.assertEqual(1, Log.objects.filter(log_type="export:completed", message_export=export).count())
-        self.assertEqual(1, Notification.objects.filter(log__message_export=export).count())
+        self.assertEqual(
+            1, self.admin.notifications.filter(notification_type="export:completed", message_export=export).count()
+        )
 
         # check email was sent correctly
         email_args = mock_send_temba_email.call_args[0]  # all positional args

@@ -42,7 +42,7 @@ from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, 
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg
-from temba.notifications.models import Log
+from temba.notifications.models import Notification
 from temba.orgs.models import BackupToken, Debit, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
@@ -788,18 +788,15 @@ class OrgDeleteTest(TembaNonAtomicTest):
         export = ExportFlowResultsTask.create(
             self.parent_org, self.admin, [parent_flow], [parent_field], True, True, (), ()
         )
-        Log.export_started(export)
-        Log.export_completed(export)
+        Notification.export_completed(export)
         ExportFlowResultsTask.create(self.child_org, self.admin, [child_flow], [child_field], True, True, (), ())
 
         export = ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)
-        Log.export_started(export)
-        Log.export_completed(export)
+        Notification.export_completed(export)
         ExportContactsTask.create(self.child_org, self.admin, group=child_group)
 
         export = ExportMessagesTask.create(self.parent_org, self.admin, label=parent_label, groups=[parent_group])
-        Log.export_started(export)
-        Log.export_completed(export)
+        Notification.export_completed(export)
         ExportMessagesTask.create(self.child_org, self.admin, label=child_label, groups=[child_group])
 
         def create_archive(org, period, rollup=None):

@@ -1490,7 +1490,7 @@ class Alert(SmartModel):
 
     @classmethod
     def create_and_send(cls, channel, alert_type: str, *, sync_event=None):
-        from temba.notifications.models import Log
+        from temba.notifications.models import Notification
 
         user = get_alert_user()
         alert = cls.objects.create(
@@ -1502,7 +1502,7 @@ class Alert(SmartModel):
         )
         alert.send_alert()
 
-        Log.channel_alert(alert)
+        Notification.channel_alert(alert)
 
         return alert
 
