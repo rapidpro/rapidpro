@@ -1576,12 +1576,6 @@ class ContactGroupCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             qs = super().get_queryset(**kwargs)
             qs = qs.filter(group_type=ContactGroup.TYPE_USER_DEFINED, org=org, is_active=True)
-
-            group_type = self.request.GET.get("type", "")
-            if group_type == "smart":
-                qs = qs.exclude(query=None)
-            elif group_type == "static":
-                qs = qs.filter(query=None)
             return qs
 
     class Create(ComponentFormMixin, ModalMixin, OrgPermsMixin, SmartCreateView):

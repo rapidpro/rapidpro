@@ -151,6 +151,9 @@ class TembaTestMixin:
         self.org.country = self.country
         self.org.save(update_fields=("country",))
 
+    def make_beta(self, user):
+        user.groups.add(Group.objects.get(name="Beta"))
+
     def clear_cache(self):
         """
         Clears the redis cache. We are extra paranoid here and check that redis host is 'localhost'
