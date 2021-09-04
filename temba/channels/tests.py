@@ -1239,8 +1239,7 @@ class ChannelTest(TembaTest):
         )
 
         # clear all the alerts
-        for alert in Alert.objects.all():
-            alert.release()
+        Alert.objects.all().delete()
 
         # the case the status is in not charging state
         response = self.sync(

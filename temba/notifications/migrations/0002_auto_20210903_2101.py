@@ -5,7 +5,7 @@ import django.utils.timezone
 from django.db import migrations, models
 
 
-def delete_all_notifications(apps, schema_editor):
+def delete_all_notifications(apps, schema_editor):  # pragma: no cover
     apps.get_model("notifications", "Notification").objects.all().delete()
     apps.get_model("notifications", "Log").objects.all().delete()
 

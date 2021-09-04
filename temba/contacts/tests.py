@@ -37,7 +37,6 @@ from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
-    MigrationTest,
     TembaNonAtomicTest,
     TembaTest,
     matchers,
@@ -6008,32 +6007,3 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
-
-
-class PopulateTicketCountTest(MigrationTest):
-    app = "contacts"
-    migrate_from = "0140_zeroize_ticket_count"
-    migrate_to = "0141_populate_ticket_count"
-
-    def setUpBeforeMigration(self, apps):
-        ticketer = Ticketer.create(self.org, self.admin, "internal", "bob@acme.com", {})
-        self.contact1 = self.create_contact("Bob", urns=["twitter:bobby"])
-        self.contact2 = self.create_contact("Jim", urns=["twitter:jimmy"])
-        self.contact3 = self.create_contact("Ann", urns=["twitter:annie"])
-
-        self.create_ticket(ticketer, self.contact1, body="Test")
-        self.create_ticket(ticketer, self.contact1, body="Test")
-        self.create_ticket(ticketer, self.contact1, body="Test", closed_on=timezone.now())
-
-        self.create_ticket(ticketer, self.contact2, body="Test")
-        self.create_ticket(ticketer, self.contact2, body="Test", closed_on=timezone.now())
-        self.create_ticket(ticketer, self.contact2, body="Test", closed_on=timezone.now())
-
-    def test_migration(self):
-        self.contact1.refresh_from_db()
-        self.contact2.refresh_from_db()
-        self.contact3.refresh_from_db()
-
-        self.assertEqual(2, self.contact1.ticket_count)
-        self.assertEqual(1, self.contact2.ticket_count)
-        self.assertEqual(0, self.contact3.ticket_count)

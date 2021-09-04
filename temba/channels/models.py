@@ -1413,8 +1413,7 @@ class SyncEvent(SmartModel):
         return sync_event
 
     def release(self):
-        for alert in self.alerts.all():
-            alert.release()
+        self.alerts.all().delete()
         self.delete()
 
     def get_pending_messages(self):

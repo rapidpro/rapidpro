@@ -1,3 +1,5 @@
+from abc import abstractmethod
+
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q
@@ -15,8 +17,9 @@ from temba.tickets.models import Ticket, TicketEvent
 class NotificationType:
     slug = None
 
-    def get_target_url(self, notification) -> str:
-        return ""
+    @abstractmethod
+    def get_target_url(self, notification) -> str:  # pragma: no cover
+        pass
 
     def as_json(self, notification) -> dict:
         return {
