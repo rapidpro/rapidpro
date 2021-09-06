@@ -498,10 +498,10 @@ class ContactReadSerializer(ReadSerializer):
         return obj.language if obj.is_active else None
 
     def get_urns(self, obj):
-        if self.context["org"].is_anon or not obj.is_active:
+        if not obj.is_active:
             return []
 
-        return [str(urn) for urn in obj.get_urns()]
+        return [urn.api_urn(org=self.context["org"]) for urn in obj.get_urns()]
 
     def get_groups(self, obj):
         if not obj.is_active:

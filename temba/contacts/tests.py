@@ -3620,6 +3620,15 @@ class ContactURNTest(TembaTest):
         with self.assertRaises(IntegrityError):
             ContactURN.objects.create(org=self.org, scheme="ext", path="1234", identity="ext:5678")
 
+    def test_api_urn(self):
+        urn = ContactURN.objects.create(
+            org=self.org, scheme="tel", path="+250788383383", identity="tel:+250788383383", priority=50
+        )
+        self.assertEqual(urn.api_urn(), "tel:+250788383383")
+
+        with AnonymousOrg(self.org):
+            self.assertEqual(urn.api_urn(), "tel:********")
+
 
 class ContactFieldTest(TembaTest):
     def setUp(self):

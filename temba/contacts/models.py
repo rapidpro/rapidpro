@@ -1425,6 +1425,14 @@ class ContactURN(models.Model):
 
         return URN.format(self.urn, international=international, formatted=formatted)
 
+    def api_urn(self, org=None):
+        if not org:
+            org = self.org
+        if org.is_anon:
+            return URN.from_parts(self.scheme, self.ANON_MASK)
+
+        return URN.from_parts(self.scheme, self.path, display=self.display)
+
     @property
     def urn(self):
         """
