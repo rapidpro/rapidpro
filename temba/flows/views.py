@@ -1563,6 +1563,7 @@ class FlowCRUDL(SmartCRUDL):
             return queryset
 
     class ExportPdf(OrgObjPermsMixin, SmartReadView):
+        permission = "flows.flow_pdf_export"
         slug_url_kwarg = "uuid"
 
         def derive_title(self):
