@@ -1216,6 +1216,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # cache all URN values (a priority ordered list on each contact)
         urns = ContactURN.objects.filter(contact__in=contact_map.keys()).order_by("contact", "-priority", "pk")
         for urn in urns:
+            urn.org = org
             contact = contact_map[urn.contact_id]
             getattr(contact, "_urns_cache").append(urn)
 
@@ -1232,7 +1233,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if hasattr(self, cache_attr):
             return getattr(self, cache_attr)
 
-        urns = self.urns.order_by("-priority", "pk")
+        urns = self.urns.order_by("-priority", "pk").select_related("org")
         setattr(self, cache_attr, urns)
         return urns
 
@@ -1424,6 +1425,12 @@ class ContactURN(models.Model):
             return self.ANON_MASK
 
         return URN.format(self.urn, international=international, formatted=formatted)
+
+    def api_urn(self):
+        if self.org.is_anon:
+            return URN.from_parts(self.scheme, self.ANON_MASK)
+
+        return URN.from_parts(self.scheme, self.path, display=self.display)
 
     @property
     def urn(self):

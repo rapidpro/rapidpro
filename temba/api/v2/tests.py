@@ -1704,6 +1704,31 @@ class APITest(TembaTest):
         self.assertEqual(resp_json["next"], None)
         self.assertResultsByUUID(response, [self.frank, contact1, contact2, self.joe, contact4])
 
+        with AnonymousOrg(self.org):
+            with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
+                response = self.fetchJSON(url)
+
+            resp_json = response.json()
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(resp_json["next"], None)
+            self.assertResultsByUUID(response, [contact4, self.joe, contact2, contact1, self.frank])
+            self.assertEqual(
+                resp_json["results"][0],
+                {
+                    "uuid": contact4.uuid,
+                    "name": "Don",
+                    "language": "fra",
+                    "urns": ["tel:********"],
+                    "groups": [{"uuid": group.uuid, "name": group.name}],
+                    "fields": {"nickname": "Donnie", "gender": "male"},
+                    "blocked": False,
+                    "stopped": False,
+                    "created_on": format_datetime(contact4.created_on),
+                    "modified_on": format_datetime(contact4.modified_on),
+                    "last_seen_on": "2020-08-12T13:30:45.123456Z",
+                },
+            )
+
         # filter by UUID
         response = self.fetchJSON(url, "uuid=%s" % contact2.uuid)
         self.assertResultsByUUID(response, [contact2])
@@ -2170,7 +2195,7 @@ class APITest(TembaTest):
             # output shouldn't include URNs
             response = self.fetchJSON(url, "uuid=%s" % jean.uuid)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json()["results"][0]["urns"], [])
+            self.assertEqual(response.json()["results"][0]["urns"], ["tel:********", "twitter:********"])
 
             # but can create with URNs
             response = self.postJSON(url, None, {"name": "Xavier", "urns": ["tel:+250-78-7777777", "twitter:XAVIER"]})
