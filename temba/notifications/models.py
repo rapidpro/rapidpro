@@ -211,9 +211,11 @@ class Notification(models.Model):
         indexes = [
             # used to list org specific notifications for a user
             models.Index(fields=["org", "user", "-created_on"]),
+        ]
+        constraints = [
             # used to check if we already have existing unseen notifications for something or to clear unseen
             # notifications when visiting their target URL
-            models.Index(
+            models.UniqueConstraint(
                 name="notifications_unseen_of_type",
                 fields=["org", "notification_type", "scope", "user"],
                 condition=Q(is_seen=False),

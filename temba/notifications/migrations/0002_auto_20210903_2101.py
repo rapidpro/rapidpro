@@ -104,11 +104,11 @@ class Migration(migrations.Migration):
             model_name="notification",
             index=models.Index(fields=["org", "user", "-created_on"], name="notificatio_org_id_17c9ee_idx"),
         ),
-        migrations.AddIndex(
+        migrations.AddConstraint(
             model_name="notification",
-            index=models.Index(
+            constraint=models.UniqueConstraint(
                 condition=models.Q(("is_seen", False)),
-                fields=["org", "notification_type", "scope", "user"],
+                fields=("org", "notification_type", "scope", "user"),
                 name="notifications_unseen_of_type",
             ),
         ),
