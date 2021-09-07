@@ -2989,7 +2989,7 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section(
                         "tickets",
                         reverse("tickets.ticketer_read", args=[ticketer.uuid]),
-                        icon=ticketer.get_type().icon,
+                        icon=ticketer.type.icon,
                     )
 
             if self.has_org_perm("orgs.org_profile"):

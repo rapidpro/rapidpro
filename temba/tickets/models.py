@@ -117,7 +117,8 @@ class Ticketer(SmartModel, DependencyMixin):
 
         return TYPES.values()
 
-    def get_type(self):
+    @property
+    def type(self):
         """
         Returns the type instance
         """
@@ -125,15 +126,24 @@ class Ticketer(SmartModel, DependencyMixin):
 
         return TYPES[self.ticketer_type]
 
+    @property
+    def is_internal(self):
+        from .types.internal import InternalType
+
+        return self.type == InternalType
+
     def release(self, user):
         """
         Releases this, closing all associated tickets in the process
         """
+
+        assert not self.is_internal, "can't release internal ticketers"
+
         super().release(user)
 
         open_tickets = self.tickets.filter(status=Ticket.STATUS_OPEN)
         if open_tickets.exists():
-            Ticket.bulk_close(self.org, user, open_tickets)
+            Ticket.bulk_close(self.org, user, open_tickets, force=True)
 
         self.is_active = False
         self.modified_by = user
@@ -253,9 +263,9 @@ class Ticket(models.Model):
         return mailroom.get_client().ticket_change_topic(org.id, user.id, ticket_ids, topic.id)
 
     @classmethod
-    def bulk_close(cls, org, user, tickets):
+    def bulk_close(cls, org, user, tickets, *, force: bool = False):
         ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
-        return mailroom.get_client().ticket_close(org.id, user.id, ticket_ids)
+        return mailroom.get_client().ticket_close(org.id, user.id, ticket_ids, force=force)
 
     @classmethod
     def bulk_reopen(cls, org, user, tickets):
