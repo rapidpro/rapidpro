@@ -912,9 +912,9 @@ class Channel(TembaModel, DependencyMixin):
         # disassociate them
         Channel.objects.filter(parent=self).update(parent=None)
 
-        # release any alerts we sent
-        for alert in self.alerts.all():
-            alert.release()
+        # delete any alerts or notifications
+        self.alerts.all().delete()
+        self.notifications.all().delete()
 
         # any related sync events
         for sync_event in self.sync_events.all():
@@ -1413,8 +1413,7 @@ class SyncEvent(SmartModel):
         return sync_event
 
     def release(self):
-        for alert in self.alerts.all():
-            alert.release()
+        self.alerts.all().delete()
         self.delete()
 
     def get_pending_messages(self):
@@ -1490,7 +1489,7 @@ class Alert(SmartModel):
 
     @classmethod
     def create_and_send(cls, channel, alert_type: str, *, sync_event=None):
-        from temba.notifications.models import Log
+        from temba.notifications.models import Notification
 
         user = get_alert_user()
         alert = cls.objects.create(
@@ -1502,7 +1501,7 @@ class Alert(SmartModel):
         )
         alert.send_alert()
 
-        Log.channel_alert(alert)
+        Notification.channel_alert(alert)
 
         return alert
 
@@ -1668,12 +1667,6 @@ class Alert(SmartModel):
         context["subject"] = subject
 
         send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())
-
-    def release(self):
-        for log in self.logs.all():
-            log.delete()
-
-        self.delete()
 
 
 def get_alert_user():

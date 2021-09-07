@@ -6,7 +6,7 @@ from django.utils import timezone
 STATUS_OPEN = "O"
 
 
-def populate_ticket_count(apps, schema_editor):
+def populate_ticket_count(apps, schema_editor):  # pragma: no cover
     Contact = apps.get_model("contacts", "Contact")
 
     num_updated = 0
@@ -20,7 +20,7 @@ def populate_ticket_count(apps, schema_editor):
         print(f"Updated ticket_count for {num_updated} contacts")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

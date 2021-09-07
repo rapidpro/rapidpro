@@ -25,7 +25,6 @@ from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
-from temba.notifications.models import Log, Notification
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
@@ -3902,11 +3901,11 @@ class ExportFlowResultsTest(TembaTest):
                 self.assertTrue("found 5 runs in database to export" in captured_logger.output[1])
                 self.assertTrue("exported 5 in" in captured_logger.output[2])
 
-        # check that export was logged and notifications created
+        # check that notifications were created
         export = ExportFlowResultsTask.objects.order_by("id").last()
-        self.assertEqual(1, Log.objects.filter(log_type="export:started", results_export=export).count())
-        self.assertEqual(1, Log.objects.filter(log_type="export:completed", results_export=export).count())
-        self.assertEqual(1, Notification.objects.filter(log__results_export=export).count())
+        self.assertEqual(
+            1, self.admin.notifications.filter(notification_type="export:finished", results_export=export).count()
+        )
 
         tz = self.org.timezone
 

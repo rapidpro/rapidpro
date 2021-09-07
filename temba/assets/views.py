@@ -14,7 +14,7 @@ def handle_asset_request(user, asset_store, pk):
     Request handler shared by the asset view and the asset API endpoint
     """
     try:
-        asset_org, location, filename = asset_store.resolve(user, pk)
+        asset, location, filename = asset_store.resolve(user, pk)
         mime_type = mimetypes.guess_type(filename)[0]
 
         if location.startswith("http"):  # pragma: needs cover
@@ -51,14 +51,16 @@ class AssetDownloadView(SmartTemplateView):
         pk = kwargs.pop("pk")
 
         try:
-            asset_org, location, filename = asset_store.resolve(self.request.user, pk)
+            asset, location, filename = asset_store.resolve(self.request.user, pk)
+
+            asset_store.download_accessed(self.request.user, asset)
         except (AssetEntityNotFound, AssetFileNotFound):
             file_error = _("File not found")
         except AssetAccessDenied:  # pragma: needs cover
             file_error = _("You do not have permission to access this file")
         else:
             file_error = None
-            self.request.user.set_org(asset_org)
+            self.request.user.set_org(asset.org)
 
         download_url = asset_store.get_asset_url(pk, direct=True)
 
