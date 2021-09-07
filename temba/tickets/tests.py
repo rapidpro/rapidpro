@@ -228,15 +228,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(str(ticket.uuid), response.context["uuid"])
 
         # fetch with spa flag
-        response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")
+        response = self.client.get(
+            list_url,
+            content_type="application/json",
+            HTTP_TEMBA_SPA="1",
+            HTTP_TEMBA_REFERER_PATH=f"/tickets/mine/open/{ticket.uuid}",
+        )
         self.assertEqual(response.context["base_template"], "spa.html")
-
-        # can still deep link with spa, but need to be a beta user
-        self.make_beta(self.admin)
-        self.login(self.admin)
-        deep_link = reverse("spa.level_2", args=["tickets", "all", "open", ticket.uuid])
-        response = self.client.get(deep_link)
-        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.context["temba_referer"], ["tickets", "mine", "open", str(ticket.uuid)])
 
     def test_menu(self):
         menu_url = reverse("tickets.ticket_menu")
