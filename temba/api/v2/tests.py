@@ -4570,7 +4570,7 @@ class APITest(TembaTest):
         self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "closed"})
 
         # check that triggered a call to mailroom
-        mock_ticket_close.assert_called_once_with(self.org.id, self.admin.id, [ticket1.id])
+        mock_ticket_close.assert_called_once_with(self.org.id, self.admin.id, [ticket1.id], force=False)
 
         # reopen a ticket
         self.postJSON(url, f"uuid={ticket2.uuid}", {"status": "open"})

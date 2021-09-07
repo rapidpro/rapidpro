@@ -234,7 +234,7 @@ class TestClient(MailroomClient):
         return {"changed_ids": [t.id for t in tickets]}
 
     @_client_method
-    def ticket_close(self, org_id, user_id, ticket_ids):
+    def ticket_close(self, org_id: int, user_id: int, ticket_ids: list, force: bool):
         tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_OPEN, id__in=ticket_ids)
 
         for ticket in tickets:

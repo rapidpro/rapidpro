@@ -60,9 +60,9 @@ class TicketTest(TembaTest):
 
         # test bulk closing
         with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
-            Ticket.bulk_close(self.org, self.admin, [ticket])
+            Ticket.bulk_close(self.org, self.admin, [ticket], force=True)
 
-        mock_close.assert_called_once_with(self.org.id, self.admin.id, [ticket.id])
+        mock_close.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], force=True)
 
         # test bulk re-opening
         with patch("temba.mailroom.client.MailroomClient.ticket_reopen") as mock_reopen:
@@ -482,7 +482,7 @@ class TicketerTest(TembaTest):
         self.assertEqual(self.user, ticketer.modified_by)
 
         # will have asked mailroom to close the ticket
-        mock_ticket_close.assert_called_once_with(self.org.id, self.user.id, [ticket.id])
+        mock_ticket_close.assert_called_once_with(self.org.id, self.user.id, [ticket.id], force=True)
 
         # reactivate
         ticketer.is_active = True
