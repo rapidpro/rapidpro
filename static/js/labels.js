@@ -46,8 +46,7 @@ function getObjectRowLabels(objectId) {
 function runActionOnObjectRows(action) {
     var objectIds = getCheckedIds();
     jQuery.ajaxSettings.traditional = true;
-    
-    fetchPJAXContent('', '#pjax', {
+    fetchPJAXContent(window.lastFetch || '', '#pjax', {
         postData: { objects: objectIds, action: action, pjax: 'true' },
         onSuccess: function (data, textStatus) {
             wireTableListeners();
@@ -60,7 +59,7 @@ function unlabelObjectRows(labelId) {
     var addLabel = false;
 
     jQuery.ajaxSettings.traditional = true;
-    fetchPJAXContent('', '#pjax', {
+    fetchPJAXContent(window.lastFetch || '', '#pjax', {
         postData: {
             objects: objectsIds,
             label: labelId,
@@ -73,7 +72,7 @@ function unlabelObjectRows(labelId) {
 }
 
 function postLabelChanges(smsIds, labelId, addLabel, number, onError) {
-    fetchPJAXContent('', '#pjax', {
+    fetchPJAXContent(window.lastFetch || '', '#pjax', {
         postData: {
             objects: smsIds,
             label: labelId,

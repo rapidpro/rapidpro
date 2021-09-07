@@ -150,36 +150,38 @@
         globals="/api/v2/globals.json")
 
   .flex.flex-col.h-full
-    <!-- Header -->
 
-    -if user_org
-      .org-header.self-end
-        -if user_orgs|length > 1
-          .pull-right.toggle
-            .icon-menu-2
+    -block header
+      <!-- Header -->
 
-        .org
-          {{ user_org.name|truncatechars:30 }}
+      -if user_org
+        .org-header.self-end
+          -if user_orgs|length > 1
+            .pull-right.toggle
+              .icon-menu-2
 
-        .other-orgs.hide
-          -for org in user_orgs
-            -if org != user_org
-              .org
-                %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
-                  {{ org.name }}
+          .org
+            {{ user_org.name|truncatechars:30 }}
 
-
-
-    #header
-      &nbsp;
+          .other-orgs.hide
+            -for org in user_orgs
+              -if org != user_org
+                .org
+                  %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
+                    {{ org.name }}
 
 
-    %a#big-logo.logo.icon-logo{href:"{% if user.is_authenticated %}{% url 'msgs.msg_inbox' %}{% else %}/{% endif %}", title:"{{brand.name}}", class:"hover:no-underline"}
-      .name
-        {{brand.name}}
 
-    -block nav
-      -include 'includes/nav.html'
+      #header
+        &nbsp;
+
+
+      %a#big-logo.logo.icon-logo{href:"{% if user.is_authenticated %}{% url 'msgs.msg_inbox' %}{% else %}/{% endif %}", title:"{{brand.name}}", class:"hover:no-underline"}
+        .name
+          {{brand.name}}
+
+      -block nav
+        -include 'includes/nav.html'
 
 
     -if messages
@@ -309,6 +311,12 @@
       }
 
     -block extra-script
+
+    -block full-page-script
+      :javascript
+        document.addEventListener("temba-redirected", function(event){
+          document.location.href = event.detail.url;
+        });
 
     <script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
 

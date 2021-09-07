@@ -11,6 +11,7 @@ from smartmin.views import (
     SmartFormView,
     SmartListView,
     SmartReadView,
+    SmartTemplateView,
     SmartUpdateView,
     SmartView,
     smart_url,
@@ -53,7 +54,7 @@ from temba.utils.fields import (
     TembaMultipleChoiceField,
 )
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
-from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin, SpaMixin
 
 from .models import (
     URN,
@@ -172,7 +173,7 @@ class ContactGroupForm(forms.ModelForm):
         help_texts = {"query": _("Only contacts matching this query will belong to this group.")}
 
 
-class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
+class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
@@ -548,6 +549,7 @@ class ContactCRUDL(SmartCRUDL):
         "stopped",
         "archived",
         "list",
+        "menu",
         "read",
         "filter",
         "blocked",
@@ -562,6 +564,80 @@ class ContactCRUDL(SmartCRUDL):
         "history",
         "start",
     )
+
+    class Menu(OrgPermsMixin, SmartTemplateView):
+        def render_to_response(self, context, **response_kwargs):
+            org = self.request.user.get_org()
+            counts = ContactGroup.get_system_group_counts(org)
+            menu = [
+                dict(
+                    id="active",
+                    count=counts[ContactGroup.TYPE_ACTIVE],
+                    name=_("Active"),
+                    href=reverse("contacts.contact_list"),
+                ),
+                dict(
+                    id="blocked",
+                    count=counts[ContactGroup.TYPE_BLOCKED],
+                    name=_("Blocked"),
+                    href=reverse("contacts.contact_blocked"),
+                ),
+                dict(
+                    id="stopped",
+                    count=counts[ContactGroup.TYPE_STOPPED],
+                    name=_("Stopped"),
+                    href=reverse("contacts.contact_stopped"),
+                ),
+                dict(
+                    id="archived",
+                    count=counts[ContactGroup.TYPE_ARCHIVED],
+                    name=_("Archived"),
+                    href=reverse("contacts.contact_archived"),
+                ),
+            ]
+
+            groups = ContactGroup.get_user_groups(org, ready_only=False).select_related("org").order_by(Upper("name"))
+            menu += [
+                {
+                    "id": "smart",
+                    "icon": "atom",
+                    "name": _("Smart Groups"),
+                    "href": reverse("contacts.contactgroup_list") + "?type=smart",
+                    "count": len(groups.exclude(query=None)),
+                },
+                {
+                    "id": "groups",
+                    "icon": "users",
+                    "name": _("Groups"),
+                    "href": reverse("contacts.contactgroup_list") + "?type=static",
+                    "count": len(groups.filter(query=None)),
+                },
+            ]
+
+            if self.has_org_perm("contacts.contactfield_list"):
+                count = len(ContactField.user_fields.active_for_org(org=org))
+                menu.append(
+                    dict(
+                        id="fields",
+                        icon="layers",
+                        count=count,
+                        name=_("Fields"),
+                        href=reverse("contacts.contactfield_list"),
+                        endpoint=reverse("contacts.contactfield_menu"),
+                        inline=True,
+                    )
+                )
+
+            menu.append(
+                {
+                    "id": "import",
+                    "icon": "upload-cloud",
+                    "href": reverse("contacts.contactimport_create"),
+                    "name": _("Import"),
+                }
+            )
+
+            return JsonResponse({"results": menu})
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
 
@@ -641,13 +717,15 @@ class ContactCRUDL(SmartCRUDL):
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
             else:  # pragma: no cover
-                return self.render_to_response(
+                response = self.render_to_response(
                     self.get_context_data(
                         form=form,
                         success_url=self.get_success_url(),
                         success_script=getattr(self, "success_script", None),
                     )
                 )
+                response["Temba-Success"] = self.get_success_url()
+                return response
 
     class Omnibox(OrgPermsMixin, SmartListView):
         paginate_by = 75
@@ -1014,6 +1092,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
+            is_spa = "HTTP_TEMBA_SPA" in self.request.META
             search = self.request.GET.get("search")
 
             # define save search conditions
@@ -1027,15 +1106,15 @@ class ContactCRUDL(SmartCRUDL):
                         links.append(
                             dict(
                                 id="create-smartgroup",
-                                title=_("Save as Group"),
-                                modax=_("Save as Group"),
+                                title=_("Create Smart Group"),
+                                modax=_("Create Smart Group"),
                                 href=f"{reverse('contacts.contactgroup_create')}?search={urlquote_plus(search)}",
                             )
                         )
                 except SearchException:  # pragma: no cover
                     pass
 
-            if self.has_org_perm("contacts.contactfield_list"):
+            if self.has_org_perm("contacts.contactfield_list") and not is_spa:
                 links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
 
             if self.has_org_perm("contacts.contact_export"):
@@ -1047,6 +1126,27 @@ class ContactCRUDL(SmartCRUDL):
                         href=self.derive_export_url(),
                     )
                 )
+
+            if is_spa:
+
+                links.append(
+                    dict(
+                        id="create-contact",
+                        title=_("New Contact"),
+                        modax=_("New Contact"),
+                        href=reverse("contacts.contact_create"),
+                    )
+                )
+
+                links.append(
+                    dict(
+                        id="create-group",
+                        title=_("New Group"),
+                        modax=_("New Group"),
+                        href=reverse("contacts.contactgroup_create"),
+                    )
+                )
+
             return links
 
         def get_context_data(self, *args, **kwargs):
@@ -1107,7 +1207,13 @@ class ContactCRUDL(SmartCRUDL):
             links = []
             if self.has_org_perm("contacts.contact_delete"):
                 links.append(
-                    dict(title=_("Delete All"), style="btn-default", js_class="contacts-btn-delete-all", href="#")
+                    dict(
+                        title=_("Delete All"),
+                        style="btn-default",
+                        on_click="handleDeleteAllContacts(event)",
+                        js_class="contacts-btn-delete-all",
+                        href="#",
+                    )
                 )
             return links
 
@@ -1434,7 +1540,44 @@ class ContactCRUDL(SmartCRUDL):
 
 class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
-    actions = ("create", "update", "usages", "delete")
+    actions = ("list", "create", "update", "usages", "delete")
+
+    class List(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+        fields = ("name", "query", "count", "created_on")
+        search_fields = ("name__icontains", "query")
+        default_order = ("name",)
+        paginate_by = 250
+
+        def get_gear_links(self):
+            links = []
+            group_type = self.request.GET.get("type", "")
+            if group_type != "smart" and self.has_org_perm("contacts.contactgroup_create"):
+                links.append(
+                    {
+                        "id": "new-group",
+                        "title": _("New Group"),
+                        "style": "button-primary",
+                        "href": f"{reverse('contacts.contactgroup_create')}",
+                        "modax": _("New Group"),
+                    }
+                )
+
+            return links
+
+        def get_bulk_actions(self):
+            return ("delete",) if self.has_org_perm("contacts.contactgroup_delete") else ()
+
+        def get_count(self, obj):
+            if not self.group_counts:
+                self.group_counts = ContactGroupCount.get_totals(self.get_queryset())
+            return self.group_counts[obj]
+
+        def get_queryset(self, **kwargs):
+            self.group_counts = {}
+            org = self.request.user.get_org()
+            qs = super().get_queryset(**kwargs)
+            qs = qs.filter(group_type=ContactGroup.TYPE_USER_DEFINED, org=org, is_active=True)
+            return qs
 
     class Create(ComponentFormMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
@@ -1584,7 +1727,7 @@ class ContactFieldForm(forms.ModelForm):
         }
 
 
-class ContactFieldListView(OrgPermsMixin, SmartListView):
+class ContactFieldListView(SpaMixin, OrgPermsMixin, SmartListView):
     queryset = ContactField.user_fields
     title = _("Manage Contact Fields")
     fields = ("label", "show_in_table", "key", "value_type")
@@ -1639,15 +1782,51 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
         context.update(self._get_static_context_data(**kwargs))
-
         return context
 
 
 class ContactFieldCRUDL(SmartCRUDL):
     model = ContactField
-    actions = ("list", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "usages")
+    actions = ("list", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "menu", "usages")
+
+    class Menu(OrgPermsMixin, SmartTemplateView):
+        def render_to_response(self, context, **response_kwargs):
+
+            org = self.request.user.get_org()
+            menu = []
+
+            if self.has_org_perm("contacts.contactfield_list"):
+                qs = ContactField.user_fields
+                active_user_fields = qs.filter(org=org, is_active=True)
+                featured_count = active_user_fields.filter(show_in_table=True).count()
+                type_counts = (
+                    active_user_fields.values("value_type")
+                    .annotate(type_count=Count("value_type"))
+                    .order_by("-type_count", "value_type")
+                )
+                value_type_map = {vt[0]: vt[1] for vt in ContactField.TYPE_CHOICES}
+
+                menu = [
+                    {
+                        "name": value_type_map[type_cnt["value_type"]],
+                        "count": type_cnt["type_count"],
+                        "href": reverse("contacts.contactfield_filter_by_type", args=type_cnt["value_type"]),
+                        "id": ContactField.ENGINE_TYPES[type_cnt["value_type"]],
+                    }
+                    for type_cnt in type_counts
+                ]
+
+                menu.append(
+                    {
+                        "id": "featured",
+                        "name": _("Featured"),
+                        "count": featured_count,
+                        "href": reverse("contacts.contactfield_featured"),
+                    }
+                )
+
+            return JsonResponse({"results": menu})
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         class Form(ContactFieldForm):
@@ -1782,7 +1961,7 @@ class ContactImportCRUDL(SmartCRUDL):
     model = ContactImport
     actions = ("create", "preview", "read")
 
-    class Create(OrgPermsMixin, SmartCreateView):
+    class Create(SpaMixin, OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
             file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=("xls", "xlsx", "csv"))])
 
@@ -1835,7 +2014,7 @@ class ContactImportCRUDL(SmartCRUDL):
             obj.num_records = self.form.num_records
             return obj
 
-    class Preview(OrgObjPermsMixin, SmartUpdateView):
+    class Preview(SpaMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             GROUP_MODE_NEW = "N"
             GROUP_MODE_EXISTING = "E"

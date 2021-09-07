@@ -95,14 +95,13 @@ a {
 }
 
 .button {
-  @apply px-6 py-3 leading-none text-lg shadow transition duration-300 text-center rounded-lg select-none whitespace-nowrap font-normal inline-block;
+  @apply px-6 py-3 leading-none text-lg shadow transition duration-200 text-center rounded-lg select-none whitespace-nowrap font-normal inline-block;
   margin-top: 1px;
 
   &:active {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
   }
 
   &:hover {
@@ -111,7 +110,7 @@ a {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
+      
   }
 
 }
@@ -124,7 +123,6 @@ a {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .6);
   }
 }
 
@@ -145,7 +143,8 @@ a {
 }
 
 .button-primary {
-  @apply button text-white bg-primary;
+  @apply button text-white;
+  background: var(--color-primary-dark) !important;
 }
 
 .button-white {
@@ -562,7 +561,6 @@ table.list {
 }
 
 .gear-links {
-  @apply ml-4;
   min-height: 34.5px;
 }
 

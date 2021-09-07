@@ -1,26 +1,25 @@
 {% load sms %}
 
 {% render as pjax %}
-    {% block pjax %}
-    {% endblock %}
+  {% block pjax %}
+  {% endblock %}
+{% endrender %}
+
+{% render as scripts %}
+  {% block extra-script %}{% endblock %}
+  {% block extra-style %}{% endblock %}
 {% endrender %}
 
 {% if 'HTTP_X_FORMAX' in request.META %}
-
-    {% block extra-script %}{% endblock %}
-    {% block extra-style %}{% endblock %}
+    {{ scripts }}
     <div class="formax-summary">
-        {% block summary %}
-        {% endblock %}
+      {% block summary %}
+      {% endblock %}
     </div>
-
     <div class="formax-form {% if form.errors %}errors{% endif %}">
-        {{ pjax }}
+      {{ pjax }}
     </div>
-
 {% else %}
-
-    {{ pjax }}
-
-
+  {{ scripts }}
+  {{ pjax }}
 {% endif %}

@@ -78,6 +78,38 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # point so create them explicitly here, so that we also get the sample groups
         self.org.create_sample_flows("https://api.rapidpro.io")
 
+    def test_menu(self):
+        menu_url = reverse("contacts.contact_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+        self.assertEqual(
+            [
+                {"id": "active", "count": 0, "name": "Active", "href": "/contact/"},
+                {"id": "blocked", "count": 0, "name": "Blocked", "href": "/contact/blocked/"},
+                {"id": "stopped", "count": 0, "name": "Stopped", "href": "/contact/stopped/"},
+                {"id": "archived", "count": 0, "name": "Archived", "href": "/contact/archived/"},
+                {
+                    "id": "smart",
+                    "icon": "atom",
+                    "name": "Smart Groups",
+                    "href": "/contactgroup/?type=smart",
+                    "count": 0,
+                },
+                {"id": "groups", "icon": "users", "name": "Groups", "href": "/contactgroup/?type=static", "count": 2},
+                {
+                    "id": "fields",
+                    "icon": "layers",
+                    "count": 2,
+                    "name": "Fields",
+                    "href": "/contactfield/",
+                    "endpoint": "/contactfield/menu/",
+                    "inline": True,
+                },
+                {"id": "import", "icon": "upload-cloud", "href": "/contactimport/create/", "name": "Import"},
+            ],
+            menu,
+        )
+
     @mock_mailroom
     def test_list(self, mr_mocks):
         self.login(self.user)
@@ -130,6 +162,10 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                 },
             ],
         )
+
+        # fetch with spa flag
+        response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")
+        self.assertEqual(response.context["base_template"], "spa.html")
 
         mr_mocks.contact_search("age = 18", contacts=[frank], allow_as_group=True)
 
@@ -1063,6 +1099,26 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
 
         self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
+
+    def test_list(self):
+        list_url = reverse("contacts.contactgroup_list")
+        response = self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        self.assertEqual(
+            [
+                "delete",
+            ],
+            list(response.context["actions"]),
+        )
+
+        group = ContactGroup.create_static(self.org, self.admin, "My New Group")
+
+        # let's delete it and make sure it's gone
+        self.client.post(list_url, {"action": "delete", "objects": group.id})
+        self.assertFalse(ContactGroup.user_groups.filter(id=group.id).exists())
+
+        # fetch with spa flag
+        response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")
+        self.assertEqual(response.context["base_template"], "spa.html")
 
     @override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=10)
     @patch.object(Org, "LIMIT_DEFAULTS", dict(groups=10))
@@ -4569,6 +4625,20 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.deleted.save(update_fields=("is_active",))
 
         self.other_org_field = ContactField.get_or_create(self.org2, self.admin2, "other", "Other")
+
+    def test_menu(self):
+        menu_url = reverse("contacts.contactfield_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=False, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+        self.assertEqual(
+            [
+                {"name": "Number", "count": 1, "href": "/contactfield/filter_by_type/N/", "id": "number"},
+                {"name": "State", "count": 1, "href": "/contactfield/filter_by_type/S/", "id": "state"},
+                {"name": "Text", "count": 1, "href": "/contactfield/filter_by_type/T/", "id": "text"},
+                {"id": "featured", "name": "Featured", "count": 1, "href": "/contactfield/featured/"},
+            ],
+            menu,
+        )
 
     def test_create(self):
         create_url = reverse("contacts.contactfield_create")

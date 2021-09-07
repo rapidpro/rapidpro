@@ -700,7 +700,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -708,7 +708,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
   }
 
 .button:hover {
@@ -717,7 +716,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-light {
@@ -741,7 +739,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -749,7 +747,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-light:hover {
@@ -758,7 +755,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-light {
@@ -773,7 +769,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .6);
   }
 
 .button-action {
@@ -797,7 +792,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -805,7 +800,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-action:hover {
@@ -814,7 +808,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-action {
@@ -829,7 +822,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .6);
   }
 
 .button-action {
@@ -865,7 +857,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -873,7 +865,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-tertiary:hover {
@@ -882,7 +873,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-tertiary {
@@ -912,7 +902,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -920,7 +910,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-secondary:hover {
@@ -929,7 +918,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-secondary {
@@ -959,7 +947,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -967,7 +955,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-primary:hover {
@@ -976,13 +963,12 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-primary {
-  background-color: rgb(var(--primary-rgb));
   --tw-text-opacity: 1;
   color: rgba(255, 255, 255, var(--tw-text-opacity));
+  background: var(--color-primary-dark) !important;
 }
 
 .button-white {
@@ -1006,7 +992,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -1014,7 +1000,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-white:hover {
@@ -1023,7 +1008,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-white {
@@ -1053,7 +1037,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -1061,7 +1045,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-danger:hover {
@@ -1070,7 +1053,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-danger {
@@ -1100,7 +1082,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -1108,7 +1090,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-dark-alpha:hover {
@@ -1117,7 +1098,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-dark-alpha {
@@ -1147,7 +1127,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -1155,7 +1135,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-sm:hover {
@@ -1164,7 +1143,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-sm {
@@ -1767,7 +1745,6 @@ table.list.selectable tbody tr.checked td {
     }
 
 .gear-links {
-  margin-left: 1rem;
   min-height: 34.5px;
 }
 

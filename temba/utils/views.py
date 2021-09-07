@@ -15,6 +15,26 @@ from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget
 logger = logging.getLogger(__name__)
 
 
+class SpaMixin(View):
+    """
+    Uses SPA base template if the header is set appropriately
+    """
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        if "HTTP_TEMBA_SPA" in self.request.META:
+            context["base_template"] = "spa.html"
+            context["is_spa"] = True
+
+        referer = self.request.META.get("HTTP_TEMBA_REFERER_PATH", "")
+        path = self.request.META.get("HTTP_TEMBA_PATH", "")
+
+        context["temba_path"] = [s for s in path.split("/") if s != ""]
+        context["temba_referer"] = [s for s in referer.split("/") if s != ""]
+        return context
+
+
 class ComponentFormMixin(View):
     """
     Mixin to replace form field controls with component based widgets
