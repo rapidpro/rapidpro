@@ -1,3 +1,9 @@
+v6.5.32
+----------
+ * Fix template indentation
+ * Pass force=True when closing ticket as part of releasing a ticketer
+ * Add beginings of new nav and SPA based UI (hidden from users for now)
+
 v6.5.31
 ----------
  * Show masked urns for contacts API on anon orgs
