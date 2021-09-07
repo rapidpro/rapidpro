@@ -1,3 +1,8 @@
+v6.5.31
+----------
+ * Show masked urns for contacts API on anon orgs
+ * Rework notifications, don't use Log model
+
 v6.5.30
 ----------
  * Fix deleting of imports and exports now that they have associated logs
