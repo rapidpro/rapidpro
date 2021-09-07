@@ -26,6 +26,11 @@ class BaseExportAssetStore(BaseAssetStore):
     def is_asset_ready(self, asset):
         return asset.status == BaseExportTask.STATUS_COMPLETE
 
+    def download_accessed(self, user, asset):
+        from temba.notifications.models import Notification
+
+        Notification.export_seen(asset, user)
+
 
 class BaseExportTask(TembaModel):
     """
@@ -67,12 +72,10 @@ class BaseExportTask(TembaModel):
         Performs the actual export. If export generation throws an exception it's caught here and the task is marked
         as failed.
         """
-        from temba.notifications.models import Log
+        from temba.notifications.models import Notification
 
         try:
             self.update_status(self.STATUS_PROCESSING)
-
-            Log.export_started(self)
 
             print(f"Started perfoming {self.analytics_key} with ID {self.id}")
 
@@ -112,7 +115,7 @@ class BaseExportTask(TembaModel):
             print(f"Completed {self.analytics_key} with ID {self.id} in {elapsed:.1f} seconds")
             analytics.track(self.created_by, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed))
 
-            Log.export_completed(self)
+            Notification.export_finished(self)
         finally:
             gc.collect()  # force garbage collection
 
@@ -161,9 +164,11 @@ class BaseExportTask(TembaModel):
             return clean_string(str(value))
 
     def get_email_context(self, branding):
-        asset_store = get_asset_store(model=self.__class__)
+        return {"link": branding["link"] + self.get_download_url()}
 
-        return {"link": branding["link"] + asset_store.get_asset_url(self.id)}
+    def get_download_url(self) -> str:
+        asset_store = get_asset_store(model=self.__class__)
+        return asset_store.get_asset_url(self.id)
 
     class Meta:
         abstract = True

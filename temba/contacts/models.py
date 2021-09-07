@@ -1216,6 +1216,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # cache all URN values (a priority ordered list on each contact)
         urns = ContactURN.objects.filter(contact__in=contact_map.keys()).order_by("contact", "-priority", "pk")
         for urn in urns:
+            urn.org = org
             contact = contact_map[urn.contact_id]
             getattr(contact, "_urns_cache").append(urn)
 
@@ -1232,7 +1233,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if hasattr(self, cache_attr):
             return getattr(self, cache_attr)
 
-        urns = self.urns.order_by("-priority", "pk")
+        urns = self.urns.order_by("-priority", "pk").select_related("org")
         setattr(self, cache_attr, urns)
         return urns
 
@@ -1424,6 +1425,12 @@ class ContactURN(models.Model):
             return self.ANON_MASK
 
         return URN.format(self.urn, international=international, formatted=formatted)
+
+    def api_urn(self):
+        if self.org.is_anon:
+            return URN.from_parts(self.scheme, self.ANON_MASK)
+
+        return URN.from_parts(self.scheme, self.path, display=self.display)
 
     @property
     def urn(self):
@@ -1755,7 +1762,7 @@ class ContactGroup(TembaModel, DependencyMixin):
 
         # remove any contact imports associated with this group
         for ci in ContactImport.objects.filter(group=self):
-            ci.release()
+            ci.delete()
 
         # mark any triggers that operate only on this group as inactive
         from temba.triggers.models import Trigger
@@ -2257,30 +2264,29 @@ class ContactImport(SmartModel):
 
         on_transaction_commit(lambda: import_contacts_task.delay(self.id))
 
-    def release(self):
+    def delete(self):
         # delete our source import file
         self.file.delete()
 
         # delete any batches associated with this import
         ContactImportBatch.objects.filter(contact_import=self).delete()
 
+        # delete any notifications attached this import
+        self.notifications.all().delete()
+
         # then ourselves
-        self.delete()
+        super().delete()
 
     def start(self):
         """
         Starts this import, creating batches to be handled by mailroom
         """
 
-        from temba.notifications.models import Log
-
         assert self.started_on is None, "trying to start an already started import"
 
         # mark us as started to prevent double starting
         self.started_on = timezone.now()
         self.save(update_fields=("started_on",))
-
-        Log.import_started(self)
 
         # create new contact fields as necessary
         for item in self.mappings:

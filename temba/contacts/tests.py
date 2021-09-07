@@ -31,14 +31,12 @@ from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, modifiers
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
-from temba.notifications.models import Log, Notification
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
-    MigrationTest,
     TembaNonAtomicTest,
     TembaTest,
     matchers,
@@ -58,6 +56,7 @@ from .models import (
     ContactGroup,
     ContactGroupCount,
     ContactImport,
+    ContactImportBatch,
     ContactURN,
     ExportContactsTask,
 )
@@ -3675,6 +3674,15 @@ class ContactURNTest(TembaTest):
         with self.assertRaises(IntegrityError):
             ContactURN.objects.create(org=self.org, scheme="ext", path="1234", identity="ext:5678")
 
+    def test_api_urn(self):
+        urn = ContactURN.objects.create(
+            org=self.org, scheme="tel", path="+250788383383", identity="tel:+250788383383", priority=50
+        )
+        self.assertEqual(urn.api_urn(), "tel:+250788383383")
+
+        with AnonymousOrg(self.org):
+            self.assertEqual(urn.api_urn(), "tel:********")
+
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
@@ -3939,11 +3947,11 @@ class ContactFieldTest(TembaTest):
 
         assertImportExportedFile()
 
-        # check that export was logged and notifications created
+        # check that notifications were created
         export = ExportContactsTask.objects.order_by("id").last()
-        self.assertEqual(1, Log.objects.filter(log_type="export:started", contact_export=export).count())
-        self.assertEqual(1, Log.objects.filter(log_type="export:completed", contact_export=export).count())
-        self.assertEqual(1, Notification.objects.filter(log__contact_export=export).count())
+        self.assertEqual(
+            1, self.admin.notifications.filter(notification_type="export:finished", contact_export=export).count()
+        )
 
         # change the order of the fields
         self.contactfield_2.priority = 15
@@ -5814,6 +5822,15 @@ class ContactImportTest(TembaTest):
         for test in tests:
             self.assertEqual(test[1], ContactImport(org=self.org, original_filename=test[0]).get_default_group_name())
 
+    @mock_mailroom
+    def test_delete(self, mr_mocks):
+        imp = self.create_contact_import("media/test_imports/simple.csv")
+        imp.start()
+        imp.delete()
+
+        self.assertEqual(0, ContactImport.objects.count())
+        self.assertEqual(0, ContactImportBatch.objects.count())
+
 
 class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create_and_preview(self):
@@ -6069,32 +6086,3 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
-
-
-class PopulateTicketCountTest(MigrationTest):
-    app = "contacts"
-    migrate_from = "0140_zeroize_ticket_count"
-    migrate_to = "0141_populate_ticket_count"
-
-    def setUpBeforeMigration(self, apps):
-        ticketer = Ticketer.create(self.org, self.admin, "internal", "bob@acme.com", {})
-        self.contact1 = self.create_contact("Bob", urns=["twitter:bobby"])
-        self.contact2 = self.create_contact("Jim", urns=["twitter:jimmy"])
-        self.contact3 = self.create_contact("Ann", urns=["twitter:annie"])
-
-        self.create_ticket(ticketer, self.contact1, body="Test")
-        self.create_ticket(ticketer, self.contact1, body="Test")
-        self.create_ticket(ticketer, self.contact1, body="Test", closed_on=timezone.now())
-
-        self.create_ticket(ticketer, self.contact2, body="Test")
-        self.create_ticket(ticketer, self.contact2, body="Test", closed_on=timezone.now())
-        self.create_ticket(ticketer, self.contact2, body="Test", closed_on=timezone.now())
-
-    def test_migration(self):
-        self.contact1.refresh_from_db()
-        self.contact2.refresh_from_db()
-        self.contact3.refresh_from_db()
-
-        self.assertEqual(2, self.contact1.ticket_count)
-        self.assertEqual(1, self.contact2.ticket_count)
-        self.assertEqual(0, self.contact3.ticket_count)

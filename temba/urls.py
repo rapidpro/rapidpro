@@ -28,6 +28,8 @@ urlpatterns = [
     url(r"^", include("temba.ivr.urls")),
     url(r"^", include("temba.locations.urls")),
     url(r"^", include("temba.msgs.urls")),
+    url(r"^", include("temba.notifications.urls")),
+    url(r"^", include("temba.orgs.urls")),
     url(r"^", include("temba.policies.urls")),
     url(r"^", include("temba.public.urls")),
     url(r"^", include("temba.request_logs.urls")),

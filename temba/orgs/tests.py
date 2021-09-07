@@ -42,6 +42,7 @@ from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, 
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg
+from temba.notifications.models import Notification
 from temba.orgs.models import BackupToken, Debit, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
@@ -783,14 +784,19 @@ class OrgDeleteTest(TembaNonAtomicTest):
         # create some archives
         self.mock_s3 = MockS3Client()
 
-        # make some exports
-        ExportFlowResultsTask.create(self.parent_org, self.admin, [parent_flow], [parent_field], True, True, (), ())
+        # make some exports with logs
+        export = ExportFlowResultsTask.create(
+            self.parent_org, self.admin, [parent_flow], [parent_field], True, True, (), ()
+        )
+        Notification.export_finished(export)
         ExportFlowResultsTask.create(self.child_org, self.admin, [child_flow], [child_field], True, True, (), ())
 
-        ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)
+        export = ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)
+        Notification.export_finished(export)
         ExportContactsTask.create(self.child_org, self.admin, group=child_group)
 
-        ExportMessagesTask.create(self.parent_org, self.admin, label=parent_label, groups=[parent_group])
+        export = ExportMessagesTask.create(self.parent_org, self.admin, label=parent_label, groups=[parent_group])
+        Notification.export_finished(export)
         ExportMessagesTask.create(self.child_org, self.admin, label=child_label, groups=[child_group])
 
         def create_archive(org, period, rollup=None):
