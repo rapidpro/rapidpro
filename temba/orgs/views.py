@@ -990,7 +990,7 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
     template_name = "spa_frame.haml"
 
     def has_permission(self, request, *args, **kwargs):
-        return request.user.is_beta()
+        return not request.user.is_anonymous and request.user.is_beta()
 
 
 class MenuMixin(OrgPermsMixin):
