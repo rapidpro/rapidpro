@@ -1,6 +1,5 @@
 -extends "smartmin/list.html"
--load smartmin sms contacts temba
--load i18n humanize
+-load smartmin sms contacts temba i18n humanize
 
 -block page-title
   -if current_group
@@ -55,16 +54,16 @@
                 -if org_perms.contacts.contact_create
                   %temba-modax#create-label-modal(header='{% trans "Create Contact" %}' endpoint="{% url 'contacts.contact_create' %}")
                     .button-light.block.mt-3
-                      - trans "Create Contact"
+                      -trans "Create Contact"
 
                 -if org_perms.contacts.contactgroup_create
                   %temba-modax#create-group-modal(header='{% trans "Create Group" %}' endpoint="{% url 'contacts.contactgroup_create' %}" -temba-loaded="handleCreateGroupModalLoaded")
                     .button-light.block.mt-3
-                      - trans "Create Group"
+                      -trans "Create Group"
 
               .lp-nav.upper
                 .font-normal.uppercase.text-xs.pb-1.text-gray-500
-                  - trans "Smart Groups"
+                  -trans "Smart Groups"
                 .inner-scroll
                   -for group in groups
                     -if group.is_dynamic
@@ -76,7 +75,7 @@
 
               .lp-nav.lower
                 .font-normal.uppercase.text-xs.text-gray-500.pb-1
-                  - trans "Groups"
+                  -trans "Groups"
                 .inner-scroll
                   -for group in groups
                     -if not group.is_dynamic
@@ -160,11 +159,10 @@
                       .flex-grow
                         .flex
                           .flex-grow.self-end.items-end
-
-                              .flex.flex-col
-                                %form#search-form(method="get")
-                                  %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
-                                  %input.hide(type="submit")
+                            .flex.flex-col
+                              %form#search-form(method="get")
+                                %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+                                %input.hide(type="submit")
                           .spa-page-menu
                             -include "spa_page_menu.haml"
                     -else
@@ -266,7 +264,7 @@
                       -for object in contacts
                         %tr.contact.select-row.object-row(data-uuid="{{object.uuid}}" data-object-id="{{object.id}}" onrowclick='handleRowClicked("{{object.uuid}}")')
 
-                          - if org_perms.contacts.contact_update or org_perms.msgs.broadcast_send
+                          -if org_perms.contacts.contact_update or org_perms.msgs.broadcast_send
                             %td.contact.checkbox.object-row-checkbox
                               %temba-checkbox(onclick="handleRowSelection(this)")
 
