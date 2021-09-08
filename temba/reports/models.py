@@ -52,6 +52,11 @@ class Report(SmartModel):
         unique_together = (("org", "title"),)
 
 
+class DataCollectionProcessConfig(models.Model):
+    org = models.OneToOneField("orgs.Org", on_delete=models.PROTECT, related_name="analytics_config")
+    flows = models.ManyToManyField("flows.Flow")
+
+
 class DataCollectionProcess(models.Model):
     TYPE_AUTO = "A"
     TYPE_MANUAL = "M"
