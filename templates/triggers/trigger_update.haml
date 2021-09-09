@@ -4,7 +4,8 @@
 
 -block fields
   %script{src:"{{ STATIC_URL }}js/temba.js"}
-  
+  %script{src:"{{ STATIC_URL }}js/trigger-common.js"}
+
   -if object.schedule
     :css
       #schedule-options #start-datetime {
@@ -13,7 +14,7 @@
         cursor:pointer;
       }
 
-    #trigger_flow  
+    #trigger_flow
       -render_field 'flow'
     #trigger_omnibox
       -render_field 'omnibox'
@@ -84,7 +85,18 @@
   :javascript
     {{block.super}}
 
+    function lockScheduleDate(formContainer) {
+      const scheduleOption = formContainer.querySelector('#schedule-options');
+      if (scheduleOption) {
+        const datePickerElem = scheduleOption.querySelector('#id_start_datetime').shadowRoot
+          .querySelector('lit-flatpickr');
+        datePickerElem.setAttribute('minDate', new Date().toJSON().substring(0,10));
+      }
+    }
+
     var body = document.querySelector("#update-trigger").getBody();
+
+    lockScheduleDate(body);
     var repeatPeriod = body.querySelector("#id_repeat_period");
     if (repeatPeriod) {
       repeatPeriod.addEventListener("change", function(event){
