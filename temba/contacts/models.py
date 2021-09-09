@@ -11,10 +11,10 @@ import phonenumbers
 import pyexcel
 import pytz
 import regex
+from django_redis import get_redis_connection
 from smartmin.models import SmartModel
 
 from django.conf import settings
-from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, models, transaction
@@ -2090,6 +2090,12 @@ class ContactImport(SmartModel):
     STATUS_PROCESSING = "O"
     STATUS_COMPLETE = "C"
     STATUS_FAILED = "F"
+    STATUS_CHOICES = (
+        (STATUS_PENDING, "Pending"),
+        (STATUS_PROCESSING, "Processing"),
+        (STATUS_COMPLETE, "Complete"),
+        (STATUS_FAILED, "Failed"),
+    )
 
     MAPPING_IGNORE = {"type": "ignore"}
 
@@ -2102,8 +2108,9 @@ class ContactImport(SmartModel):
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, null=True, related_name="imports")
     started_on = models.DateTimeField(null=True)
 
-    # no longer used
-    headers = ArrayField(models.CharField(max_length=255), null=True)
+    # TODO can't read from these until mailroom is updated to set them when all batches finish
+    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
+    finished_on = models.DateTimeField(null=True)
 
     @classmethod
     def try_to_parse(cls, org: Org, file, filename: str) -> Tuple[List, int]:
@@ -2282,11 +2289,12 @@ class ContactImport(SmartModel):
         Starts this import, creating batches to be handled by mailroom
         """
 
-        assert self.started_on is None, "trying to start an already started import"
+        assert self.status == self.STATUS_PENDING, "trying to start an already started import"
 
-        # mark us as started to prevent double starting
+        # mark us as processing to prevent double starting
+        self.status = self.STATUS_PROCESSING
         self.started_on = timezone.now()
-        self.save(update_fields=("started_on",))
+        self.save(update_fields=("status", "started_on"))
 
         # create new contact fields as necessary
         for item in self.mappings:
@@ -2309,7 +2317,7 @@ class ContactImport(SmartModel):
         data = pyexcel.iget_array(file_stream=file, file_type=file_type, start_row=1)
 
         urns = []
-
+        batches = []
         record_num = 0
         for row_batch in chunk_list(data, ContactImport.BATCH_SIZE):
             batch_specs = []
@@ -2323,7 +2331,14 @@ class ContactImport(SmartModel):
 
                 urns.extend(spec.get("urns", []))
 
-            batch = self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num)
+            batches.append(self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num))
+
+        # set redis key which mailroom batch tasks can decrement to know when import has completed
+        r = get_redis_connection()
+        r.set(f"contact_import_batches_remaining:{self.id}", len(batches), ex=24 * 60 * 60)
+
+        # start each batch...
+        for batch in batches:
             batch.import_async()
 
         # flag org if the set of imported URNs looks suspicious
