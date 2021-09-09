@@ -1,3 +1,9 @@
+v6.5.33
+----------
+ * Fix Add To Group bulk action on contact list page
+ * Add status field to ContactImport and before starting batches, set redis key mailroom can use to track progress
+ * Delete unused template and minor cleanup
+
 v6.5.32
 ----------
  * Fix template indentation
