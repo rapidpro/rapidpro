@@ -121,32 +121,27 @@
                               .-mt-1.mr-2.glyph.icon-user-remove
                               -trans "Remove From Group"
 
-                            -if 'unlabel' in actions
-                              .button-action(onclick="unlabelObjectRows({{current_group.pk}});")
-                                .-mt-1.mr-2.glyph.icon-user-remove
-                                -trans "Remove From Group"
+                          -if 'label' in actions
+                            .btn-group
+                              .button-action.dropdown-toggle(data-toggle="dropdown" data-delay="800")
+                                .-mt-1.mr-2.glyph.icon-users-2(style="width:16px")
+                                -trans "Groups"
 
-                            -if 'label' in actions
-                              .btn-group
-                                .button-action.dropdown-toggle(data-toggle="dropdown" data-delay="800")
-                                  .-mt-1.mr-2.glyph.icon-users-2(style="width:16px")
-                                  -trans "Groups"
-
-                                %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
-                                  -for group in groups
-                                    -if not group.is_dynamic
-                                      %li
-                                        .lbl-menu(href='#' onclick='addContactToGroup({{group.pk}})' data-id='{{group.pk}}')
-                                          .flex.items-center.py-1.hover-linked
-                                            .glyph.message-label.label-checkbox
-                                            .name.px-2
-                                              {{ group.label }}
-                                  - if org_perms.contacts.contactgroup_create
-                                    - if groups
-                                      %li.separator.-mx-4.border-b.my-3
+                              %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
+                                -for group in groups
+                                  -if not group.is_dynamic
                                     %li
-                                      .lbl-menu.add-group.hover-linked(onclick="handleAddGroupClicked()")
-                                        - trans "New Group..."
+                                      .lbl-menu(href='#' onclick='addContactToGroup({{group.pk}})' data-id='{{group.pk}}')
+                                        .flex.items-center.py-1.hover-linked
+                                          .glyph.message-label.label-checkbox
+                                          .name.px-2
+                                            {{ group.label }}
+                                - if org_perms.contacts.contactgroup_create
+                                  - if groups
+                                    %li.separator.-mx-4.border-b.my-3
+                                  %li
+                                    .lbl-menu.add-group.hover-linked(onclick="handleAddGroupClicked()")
+                                      - trans "New Group..."
 
                           -if org_perms.msgs.broadcast_send and not reply_disabled
                             %temba-modax#send-message-modal(header='{{_("Send Message")|escapejs}}' endpoint="{% url 'msgs.broadcast_send' %}")
