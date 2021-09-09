@@ -13,14 +13,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response as APIResponse
 from smartmin.views import SmartCRUDL, SmartTemplateView
 from temba.orgs.views import OrgPermsMixin
-from .models import Report, DataCollectionProcess
+from .models import Report, DataCollectionProcess, DataCollectionProcessConfig
 from .tasks import manually_collect_flow_results_data
 from ..contacts.models import ContactGroup
 from ..flows.models import Flow, FlowRunCount
 
 
 class ReportCRUDL(SmartCRUDL):
-    actions = ("create", "delete", "analytics", "charts_data", "update_charts_data")
+    actions = ("create", "delete", "analytics", "select_flows", "charts_data", "update_charts_data")
     model = Report
 
     class Create(OrgPermsMixin, APIView):
@@ -108,8 +108,13 @@ class ReportCRUDL(SmartCRUDL):
                     "stats": {"created_on": str(flow.created_on), "runs": sum(FlowRunCount.get_totals(flow).values())},
                 }
 
-            flows = Flow.objects.filter(org_id=org.id, is_active=True, is_system=False, is_archived=False)
-            flow_json = list(map(flow_cast, filter(lambda x: x.metadata.get("results"), flows)))
+            all_flows = Flow.objects.filter(org_id=org.id, is_active=True, is_system=False, is_archived=False)
+            all_flow_json = list(map(flow_cast, filter(lambda x: x.metadata.get("results"), all_flows)))
+            try:
+                selected_flows = org.analytics_config.flows
+            except ObjectDoesNotExist:
+                selected_flows = []
+            selected_flow_json = list(map(flow_cast, filter(lambda x: x.metadata.get("results"), selected_flows)))
 
             groups = ContactGroup.user_groups.filter(org=org).order_by("name")
             groups_json = list(filter(lambda x: x is not None, [group.analytics_json() for group in groups]))
@@ -120,7 +125,8 @@ class ReportCRUDL(SmartCRUDL):
             return dict(
                 analytics_context=json.dumps(
                     dict(
-                        flows=flow_json,
+                        flows=selected_flow_json,
+                        available_flows=all_flow_json,
                         groups=groups_json,
                         reports=reports_json,
                         data_status=DataCollectionProcess.get_last_collection_process_status(org),
@@ -130,6 +136,25 @@ class ReportCRUDL(SmartCRUDL):
                 scripts=scripts,
                 styles=styles,
             )
+
+    class SelectFlows(OrgPermsMixin, APIView):
+        permission = "reports.report_create"
+
+        def post(self, request, *args, **kwargs):
+            user = self.request.user
+            org = user.get_org()
+
+            flow_ids = self.request.data.get("flows", [])
+            flows = org.flows.filter(id__in=flow_ids)
+
+            try:
+                config = org.analytics_config
+            except ObjectDoesNotExist:
+                config = DataCollectionProcessConfig.objects.create(org=org)
+
+            config.flows.clear()
+            config.flows.add(*flows)
+            return APIResponse()
 
     class ChartsData(OrgPermsMixin, APIView):
         permission = "reports.report_read"
