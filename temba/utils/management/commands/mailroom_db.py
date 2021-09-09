@@ -107,6 +107,9 @@ class Command(BaseCommand):
         for spec in orgs_spec["orgs"]:
             self.create_org(spec, superuser, country)
 
+        # leave id sequences starting at a known number so it's easier to identity newly created data in mailroom tests
+        self.reset_id_sequences(30000)
+
         # dump our file
         subprocess.check_call("pg_dump -Fc mailroom_test > mailroom_test.dump", shell=True)
 
@@ -133,6 +136,11 @@ class Command(BaseCommand):
 
         return AdminBoundary.objects.filter(level=0).get()
 
+    def reset_id_sequences(self, start: int):
+        with connection.cursor() as cursor:
+            for seq_name in RESET_SEQUENCES:
+                cursor.execute(f"ALTER SEQUENCE {seq_name} RESTART WITH {start}")
+
     def create_org(self, spec, superuser, country):
         self._log(f"\nCreating org {spec['name']}...\n")
 
@@ -149,9 +157,7 @@ class Command(BaseCommand):
         org.initialize(topup_size=100_000, sample_flows=False)
 
         # set our sequences to make ids stable across orgs
-        with connection.cursor() as cursor:
-            for seq_name in RESET_SEQUENCES:
-                cursor.execute(f"ALTER SEQUENCE {seq_name} RESTART WITH {spec['sequence_start']}")
+        self.reset_id_sequences(spec["sequence_start"])
 
         self.create_users(spec, org)
         self.create_channels(spec, org, superuser)
