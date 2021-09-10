@@ -26,11 +26,6 @@ class BaseExportAssetStore(BaseAssetStore):
     def is_asset_ready(self, asset):
         return asset.status == BaseExportTask.STATUS_COMPLETE
 
-    def download_accessed(self, user, asset):
-        from temba.notifications.models import Notification
-
-        Notification.export_seen(asset, user)
-
 
 class BaseExportTask(TembaModel):
     """
