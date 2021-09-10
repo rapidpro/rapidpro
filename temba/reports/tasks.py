@@ -7,7 +7,6 @@ from django.db.models import Max, F, Q
 from django.db.models.functions import Greatest
 from django.utils.timezone import now as tz_now
 
-from temba.flows.models import Flow
 from .models import DataCollectionProcess, CollectedFlowResultsData
 from ..orgs.models import Org
 
@@ -36,16 +35,15 @@ def process_collecting(state_obj, flows):
 
 @task(track_started=True, name="analytics__auto_collect_flow_results_data")
 def automatically_collect_flow_results_data():
-    for org in Org.objects.all().only("id"):
+    for org in Org.objects.filter(analytics_config__isnull=False).only("id"):
         DataCollectionProcess.objects.filter(related_org=org, completed_on__isnull=True).update(completed_on=tz_now())
         filters = {
-            "org_id": org.id,
             "is_active": True,
             "is_system": False,
             "is_archived": False,
         }
         flows = (
-            Flow.objects.filter(**filters)
+            org.analytics_config.flows.filter(**filters)
             .annotate(last_updated=Greatest(Max("runs__modified_on"), F("modified_on")))
             .filter(Q(aggregated_results__isnull=True) | Q(aggregated_results__last_updated__lt=F("last_updated")))
             .only("metadata")
@@ -66,16 +64,21 @@ def automatically_collect_flow_results_data():
 
 
 @task(track_started=True, name="analytics__collect_flow_results_data")
-def manually_collect_flow_results_data(user_id, org_id, flow_id=None):
+def manually_collect_flow_results_data(user_id, org_id, flow_ids: list = None):
     filters = {
-        "org_id": org_id,
         "is_active": True,
         "is_system": False,
         "is_archived": False,
     }
-    filters.update({"id": flow_id} if flow_id else {})
+    org = Org.objects.filter(id=org_id, analytics_config__isnull=False).first()
+    if not org:
+        return
+
+    if flow_ids:
+        filters["id__in"] = flow_ids
+
     flows = (
-        Flow.objects.filter(**filters)
+        org.analytics_config.flows.filter(**filters)
         .annotate(last_updated=Greatest(Max("runs__modified_on"), F("modified_on")))
         .filter(Q(aggregated_results__isnull=True) | Q(aggregated_results__last_updated__lt=F("last_updated")))
         .only("metadata")
