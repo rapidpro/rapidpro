@@ -39,6 +39,7 @@ class BaseExportTask(TembaModel):
 
     analytics_key = None
     asset_type = None
+    notification_export_type = None
 
     MAX_EXCEL_ROWS = 1_048_576
     MAX_EXCEL_COLS = 16384
@@ -169,6 +170,9 @@ class BaseExportTask(TembaModel):
     def get_download_url(self) -> str:
         asset_store = get_asset_store(model=self.__class__)
         return asset_store.get_asset_url(self.id)
+
+    def get_notification_scope(self) -> str:
+        return f"{self.notification_export_type}:{self.id}"
 
     class Meta:
         abstract = True

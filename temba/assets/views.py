@@ -6,6 +6,8 @@ from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFoun
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
 
+from temba.notifications.views import NotificationTargetMixin
+
 from .models import AssetAccessDenied, AssetEntityNotFound, AssetFileNotFound, get_asset_store
 
 
@@ -34,7 +36,7 @@ def handle_asset_request(user, asset_store, pk):
         return HttpResponseNotFound("Object has no associated asset")
 
 
-class AssetDownloadView(SmartTemplateView):
+class AssetDownloadView(NotificationTargetMixin, SmartTemplateView):
     """
     Provides a landing page for an asset, e.g. /assets/download/contact_export/123/
     """
@@ -44,16 +46,29 @@ class AssetDownloadView(SmartTemplateView):
     def has_permission(self, request, *args, **kwargs):
         return self.request.user.is_authenticated
 
+    def get_notification_scope(self) -> tuple:
+        try:
+            scope = self.get_asset().get_notification_scope()
+        except Exception:
+            scope = None
+
+        return "export:finished", scope
+
+    @property
+    def asset_store(self):
+        return get_asset_store(self.kwargs["type"])
+
+    def get_asset(self):
+        asset, _, _ = self.asset_store.resolve(self.request.user, self.kwargs["pk"])
+        return asset
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
-        asset_store = get_asset_store(kwargs.pop("type"))
-        pk = kwargs.pop("pk")
+        download_url = None
 
         try:
-            asset, location, filename = asset_store.resolve(self.request.user, pk)
-
-            asset_store.download_accessed(self.request.user, asset)
+            asset = self.get_asset()
+            download_url = self.asset_store.get_asset_url(asset.id, direct=True)
         except (AssetEntityNotFound, AssetFileNotFound):
             file_error = _("File not found")
         except AssetAccessDenied:  # pragma: needs cover
@@ -61,8 +76,6 @@ class AssetDownloadView(SmartTemplateView):
         else:
             file_error = None
             self.request.user.set_org(asset.org)
-
-        download_url = asset_store.get_asset_url(pk, direct=True)
 
         context["file_error"] = file_error
         context["download_url"] = download_url

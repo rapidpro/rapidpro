@@ -144,6 +144,12 @@ class NotificationTest(TembaTest):
 
         self.assertTrue(self.editor.notifications.get(contact_import=imp).is_seen)
 
+    def test_tickets_opened(self):
+        # mailroom will create these notifications
+        Notification._create_all(self.org, "tickets:opened", scope=f"", users=[self.admin, self.editor, self.agent])
+
+        # TODO
+
 
 class NotificationCRUDLTest(TembaTest):
     def test_list(self):

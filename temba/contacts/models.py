@@ -1893,6 +1893,7 @@ class ExportContactsTask(BaseExportTask):
     analytics_key = "contact_export"
     email_subject = "Your contacts export from %s is ready"
     email_template = "contacts/email/contacts_export_download"
+    notification_export_type = "contact"
 
     group = models.ForeignKey(
         ContactGroup,
