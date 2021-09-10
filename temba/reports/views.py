@@ -20,7 +20,7 @@ from ..flows.models import Flow, FlowRunCount
 
 
 class ReportCRUDL(SmartCRUDL):
-    actions = ("create", "delete", "analytics", "select_flows", "charts_data", "update_charts_data")
+    actions = ("create", "delete", "analytics", "configure_flows", "charts_data", "update_charts_data")
     model = Report
 
     class Create(OrgPermsMixin, APIView):
@@ -111,7 +111,7 @@ class ReportCRUDL(SmartCRUDL):
             all_flows = Flow.objects.filter(org_id=org.id, is_active=True, is_system=False, is_archived=False)
             all_flow_json = list(map(flow_cast, filter(lambda x: x.metadata.get("results"), all_flows)))
             try:
-                selected_flows = org.analytics_config.flows
+                selected_flows = org.analytics_config.flows.all()
             except ObjectDoesNotExist:
                 selected_flows = []
             selected_flow_json = list(map(flow_cast, filter(lambda x: x.metadata.get("results"), selected_flows)))
@@ -137,7 +137,7 @@ class ReportCRUDL(SmartCRUDL):
                 styles=styles,
             )
 
-    class SelectFlows(OrgPermsMixin, APIView):
+    class ConfigureFlows(OrgPermsMixin, APIView):
         permission = "reports.report_create"
 
         def post(self, request, *args, **kwargs):
@@ -154,6 +154,7 @@ class ReportCRUDL(SmartCRUDL):
 
             config.flows.clear()
             config.flows.add(*flows)
+            manually_collect_flow_results_data.delay(user.id, org.id)
             return APIResponse()
 
     class ChartsData(OrgPermsMixin, APIView):
@@ -279,5 +280,5 @@ class ReportCRUDL(SmartCRUDL):
             last_dc = DataCollectionProcess.get_last_collection_process_status(org)
             if only_status or not last_dc["completed"]:
                 return APIResponse({"created": False, **last_dc})
-            manually_collect_flow_results_data.delay(user.id, org.id, flow)
+            manually_collect_flow_results_data.delay(user.id, org.id, [flow] if flow else [])
             return APIResponse({"created": True, "lastUpdated": tz_now(), "completed": False, "progress": 0.01})

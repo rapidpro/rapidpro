@@ -64,7 +64,7 @@ def automatically_collect_flow_results_data():
 
 
 @task(track_started=True, name="analytics__collect_flow_results_data")
-def manually_collect_flow_results_data(user_id, org_id, flow_id=None):
+def manually_collect_flow_results_data(user_id, org_id, flow_ids: list = None):
     filters = {
         "is_active": True,
         "is_system": False,
@@ -74,7 +74,9 @@ def manually_collect_flow_results_data(user_id, org_id, flow_id=None):
     if not org:
         return
 
-    filters.update({"id": flow_id} if flow_id else {})
+    if flow_ids:
+        filters["id__in"] = flow_ids
+
     flows = (
         org.analytics_config.flows.filter(**filters)
         .annotate(last_updated=Greatest(Max("runs__modified_on"), F("modified_on")))
