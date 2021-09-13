@@ -63,9 +63,9 @@ class CRUDLTestMixin:
         allow_viewers,
         allow_editors,
         allow_agents=False,
+        allow_org2=True,  # by default list view URLs are not org specific
         context_objects=None,
         context_object_count=None,
-        object_url=True,
         status=200,
     ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
@@ -87,10 +87,7 @@ class CRUDLTestMixin:
         as_user(viewer, allowed=allow_viewers)
         as_user(editor, allowed=allow_editors)
         as_user(agent, allowed=allow_agents)
-
-        # if the URL references a specific object, need to check users from other orgs can't access it
-        as_user(org2_admin, allowed=not object_url)
-
+        as_user(org2_admin, allowed=allow_org2)
         return as_user(admin, allowed=True)
 
     def assertCreateFetch(self, url, *, allow_viewers, allow_editors, allow_agents=False, form_fields=(), status=200):
@@ -135,7 +132,7 @@ class CRUDLTestMixin:
         return as_user(admin, allowed=True)
 
     def assertUpdateFetch(
-        self, url, *, allow_viewers, allow_editors, allow_agents=False, object_url=True, form_fields=(), status=200
+        self, url, *, allow_viewers, allow_editors, allow_agents=False, allow_org2=False, form_fields=(), status=200
     ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
@@ -153,15 +150,10 @@ class CRUDLTestMixin:
         as_user(viewer, allowed=allow_viewers)
         as_user(editor, allowed=allow_editors)
         as_user(agent, allowed=allow_agents)
-
-        # if the URL references a specific object, need to check users from other orgs can't access it
-        as_user(org2_admin, allowed=not object_url)
-
+        as_user(org2_admin, allowed=allow_org2)
         return as_user(admin, allowed=True)
 
-    def assertUpdateSubmit(
-        self, url, data, *, object_url=True, form_errors=None, object_unchanged=None, success_status=302
-    ):
+    def assertUpdateSubmit(self, url, data, *, form_errors=None, object_unchanged=None, success_status=302):
         assert not form_errors or object_unchanged, "if form_errors specified, must also specify object_unchanged"
 
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
@@ -178,11 +170,6 @@ class CRUDLTestMixin:
             return self.requestView(url, user, post_data=data, checks=checks)
 
         as_user(None, allowed=False)
-
-        # if the URL references a specific object, need to check users from other orgs can't access it
-        if object_url:
-            as_user(org2_admin, allowed=False)
-
         return as_user(admin, allowed=True)
 
     def assertDeleteFetch(self, url, *, allow_viewers=False, allow_editors=False, allow_agents=False, status=200):

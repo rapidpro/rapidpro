@@ -79,7 +79,9 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("request_logs.httplog_classifier", args=[c1.uuid])
         log_url = reverse("request_logs.httplog_read", args=[l1.id])
 
-        response = self.assertListFetch(list_url, allow_viewers=False, allow_editors=False, context_objects=[l1])
+        response = self.assertListFetch(
+            list_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[l1]
+        )
         self.assertContains(response, "Intents Synced")
         self.assertContains(response, log_url)
         self.assertNotContains(response, "Classifier Called")
@@ -115,7 +117,9 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("request_logs.httplog_ticketer", args=[t1.uuid])
         log_url = reverse("request_logs.httplog_read", args=[l1.id])
 
-        response = self.assertListFetch(list_url, allow_viewers=False, allow_editors=False, context_objects=[l1])
+        response = self.assertListFetch(
+            list_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[l1]
+        )
         self.assertContains(response, "Ticketing Service Called")
         self.assertContains(response, log_url)
 

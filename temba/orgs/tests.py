@@ -4209,7 +4209,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             langs_url,
             allow_viewers=False,
             allow_editors=False,
-            object_url=False,
+            allow_org2=True,  # is same URL across orgs
             form_fields=["primary_lang", "other_langs"],
         )
 
@@ -4221,13 +4221,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(
             langs_url,
             {},
-            object_url=False,
             object_unchanged=self.org,
             form_errors={"primary_lang": "This field is required."},
         )
 
         # give the org a primary language
-        self.assertUpdateSubmit(langs_url, {"primary_lang": '{"name":"French", "value":"fra"}'}, object_url=False)
+        self.assertUpdateSubmit(langs_url, {"primary_lang": '{"name":"French", "value":"fra"}'})
 
         self.org.refresh_from_db()
         self.assertEqual(["fra"], self.org.flow_languages)
@@ -4244,7 +4243,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "primary_lang": '{"name":"French", "value":"fra"}',
                 "other_langs": ['{"name":"Haitian", "value":"hat"}', '{"name":"Hausa", "value":"hau"}'],
             },
-            object_url=False,
         )
 
         self.org.refresh_from_db()
