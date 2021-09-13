@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from itertools import chain
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Tuple
 
 import iso8601
 import phonenumbers
@@ -2108,8 +2108,6 @@ class ContactImport(SmartModel):
     group_name = models.CharField(null=True, max_length=ContactGroup.MAX_NAME_LEN)
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, null=True, related_name="imports")
     started_on = models.DateTimeField(null=True)
-
-    # TODO can't read from these until mailroom is updated to set them when all batches finish
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
     finished_on = models.DateTimeField(null=True)
 
@@ -2351,39 +2349,30 @@ class ContactImport(SmartModel):
         Gets info about this import by merging info from its batches
         """
 
-        statuses = set()
         num_created = 0
         num_updated = 0
         num_errored = 0
         errors = []
-        oldest_finished_on = None
-
-        batches = self.batches.values("status", "num_created", "num_updated", "num_errored", "errors", "finished_on")
+        batches = self.batches.values("num_created", "num_updated", "num_errored", "errors")
 
         for batch in batches:
-            statuses.add(batch["status"])
             num_created += batch["num_created"]
             num_updated += batch["num_updated"]
             num_errored += batch["num_errored"]
             errors.extend(batch["errors"])
 
-            if batch["finished_on"] and (oldest_finished_on is None or batch["finished_on"] > oldest_finished_on):
-                oldest_finished_on = batch["finished_on"]
-
-        status = self._get_overall_status(statuses)
-
         # sort errors by record #
         errors = sorted(errors, key=lambda e: e["record"])
 
-        if status in (ContactImport.STATUS_COMPLETE, ContactImport.STATUS_FAILED):
-            time_taken = oldest_finished_on - self.started_on
+        if self.finished_on:
+            time_taken = self.finished_on - self.started_on
         elif self.started_on:
             time_taken = timezone.now() - self.started_on
         else:
             time_taken = timedelta(seconds=0)
 
         return {
-            "status": status,
+            "status": self.status,
             "num_created": num_created,
             "num_updated": num_updated,
             "num_errored": num_errored,
@@ -2396,25 +2385,6 @@ class ContactImport(SmartModel):
         Returns one of xlxs, xls, or csv
         """
         return Path(self.file.name).suffix[1:].lower()
-
-    @staticmethod
-    def _get_overall_status(statuses: Set) -> str:
-        """
-        Merges the statues from the import's batches into a single status value
-        """
-        if not statuses:
-            return ContactImport.STATUS_PENDING
-        elif len(statuses) == 1:  # if there's only one status then we're that
-            return list(statuses)[0]
-
-        # if any batches haven't finished, we're processing
-        if ContactImport.STATUS_PENDING in statuses or ContactImport.STATUS_PROCESSING in statuses:
-            return ContactImport.STATUS_PROCESSING
-
-        # all batches have finished - if any batch failed (shouldn't happen), we failed
-        return (
-            ContactImport.STATUS_FAILED if ContactImport.STATUS_FAILED in statuses else ContactImport.STATUS_COMPLETE
-        )
 
     @staticmethod
     def _parse_header(header: str) -> Tuple[str, str]:

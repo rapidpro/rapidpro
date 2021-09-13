@@ -1,3 +1,7 @@
+v6.5.34
+----------
+ * Update to latest components (fixes overzealous list refresh, non-breaking ticket summary, and display name when created_by is null)
+
 v6.5.33
 ----------
  * Fix Add To Group bulk action on contact list page
