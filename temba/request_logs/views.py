@@ -12,8 +12,9 @@ from temba.tickets.models import Ticketer
 from .models import HTTPLog
 
 
-class LogListView(OrgObjPermsMixin, SmartListView):
+class BaseLogListView(OrgObjPermsMixin, SmartListView):
     paginate_by = 50
+    permission = "request_logs.httplog_list"
     default_order = ("-created_on",)
     template_name = "request_logs/httplog_list.html"
     source_field = None
@@ -50,7 +51,7 @@ class HTTPLogCRUDL(SmartCRUDL):
     model = HTTPLog
     actions = ("classifier", "ticketer", "read")
 
-    class Classifier(LogListView):
+    class Classifier(BaseLogListView):
         source_field = "classifier"
         source_url = "uuid@classifiers.classifier_read"
         title = _("Recent Classifier Events")
@@ -58,7 +59,7 @@ class HTTPLogCRUDL(SmartCRUDL):
         def get_source(self, uuid):
             return Classifier.objects.filter(uuid=uuid, is_active=True)
 
-    class Ticketer(LogListView):
+    class Ticketer(BaseLogListView):
         source_field = "ticketer"
         source_url = "@tickets.ticket_list"
         title = _("Recent Ticketing Service Events")
@@ -71,22 +72,12 @@ class HTTPLogCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
-            if self.get_object().classifier:
+            if self.object.classifier:
                 links.append(
                     dict(
                         title=_("Classifier Log"),
                         style="button-light",
-                        href=reverse("request_logs.httplog_classifier", args=[self.get_object().classifier.uuid]),
+                        href=reverse("request_logs.httplog_classifier", args=[self.object.classifier.uuid]),
                     )
                 )
             return links
-
-        @property
-        def permission(self):
-            obj = self.get_object()
-            if obj.classifier_id:
-                return "request_logs.httplog_classifier"
-            elif obj.ticketer_id:
-                return "request_logs.httplog_ticketer"
-
-            return "request_logs.httplog_read"
