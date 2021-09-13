@@ -7,7 +7,7 @@
     messages forwarded to the service, and replies made using the service will be sent back to the contact.
 
   .buttons.mt-5
-    -if org_perms.request_logs.httplog_ticketer
+    -if org_perms.request_logs.httplog_list
       .button-light.mr-3(onclick='goto(event)' href='{% url "request_logs.httplog_ticketer" object.uuid %}')
         -trans "HTTP Log"
     -if org_perms.tickets.ticketer_delete
