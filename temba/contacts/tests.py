@@ -5526,7 +5526,7 @@ class ContactImportTest(TembaTest):
         # info is calculated across all batches
         self.assertEqual(
             {
-                "status": "P",
+                "status": "O",
                 "num_created": 0,
                 "num_updated": 0,
                 "num_errored": 0,
@@ -5573,6 +5573,9 @@ class ContactImportTest(TembaTest):
 
         # simulate mailroom completing second batch
         imp.batches.filter(id=batches[1].id).update(status="C", finished_on=timezone.now())
+        imp.status = "C"
+        imp.finished_on = timezone.now()
+        imp.save(update_fields=("finished_on", "status"))
 
         self.assertEqual(
             {
@@ -5585,11 +5588,6 @@ class ContactImportTest(TembaTest):
             },
             imp.get_info(),
         )
-
-        # if a batch failed.. we all failed
-        imp.batches.filter(id=batches[1].id).update(status="F")
-
-        self.assertEqual("F", imp.get_info()["status"])
 
     @mock_mailroom
     def test_batches_with_fields(self, mr_mocks):

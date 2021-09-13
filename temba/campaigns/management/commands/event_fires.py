@@ -6,7 +6,18 @@ from temba.campaigns.models import EventFire
 from temba.utils.text import truncate
 
 
-class Command(BaseCommand):  # pragma: no cover
+class Command(BaseCommand):
+    """
+    Lists event fires by scheduled on to help find late fires. There is an issue in mailroom where sometimes fires
+    are marked in redis as fired but didn't actually fired, and because they are marked as fired in redis, we don't
+    retry firing them. You can fix this with...
+
+    from django_redis import get_redis_connection
+    r = get_redis_connection()
+    r.sismember("campaign_event_2021_09_10", "123456789")  # returns true
+    r.srem("campaign_event_2021_09_10", "123456789")  # allows mailroom to re-fire event
+    """
+
     help = "Lists unfired campaign events"
 
     def handle(self, *args, **options):
