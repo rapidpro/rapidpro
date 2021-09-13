@@ -559,9 +559,6 @@ GROUP_PERMISSIONS = {
         "policies.policy_update",
         "policies.policy_admin",
         "policies.policy_history",
-        "request_logs.httplog_read",
-        "request_logs.httplog_classifier",
-        "request_logs.httplog_ticketer",
     ),
     "Administrators": (
         "airtime.airtimetransfer_list",
@@ -688,7 +685,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
-        "request_logs.httplog_classifier",
+        "request_logs.httplog_list",
         "request_logs.httplog_read",
         "templates.template_api",
         "tickets.ticket.*",

@@ -65,6 +65,7 @@ class CRUDLTestMixin:
         allow_agents=False,
         context_objects=None,
         context_object_count=None,
+        object_url=True,
         status=200,
     ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
@@ -86,7 +87,10 @@ class CRUDLTestMixin:
         as_user(viewer, allowed=allow_viewers)
         as_user(editor, allowed=allow_editors)
         as_user(agent, allowed=allow_agents)
-        as_user(org2_admin, allowed=True)
+
+        # if the URL references a specific object, need to check users from other orgs can't access it
+        as_user(org2_admin, allowed=not object_url)
+
         return as_user(admin, allowed=True)
 
     def assertCreateFetch(self, url, *, allow_viewers, allow_editors, allow_agents=False, form_fields=(), status=200):
@@ -151,8 +155,7 @@ class CRUDLTestMixin:
         as_user(agent, allowed=allow_agents)
 
         # if the URL references a specific object, need to check users from other orgs can't access it
-        if object_url:
-            as_user(org2_admin, allowed=False)
+        as_user(org2_admin, allowed=not object_url)
 
         return as_user(admin, allowed=True)
 
