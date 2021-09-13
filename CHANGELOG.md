@@ -1,3 +1,7 @@
+v6.5.36
+----------
+ * Revert cryptography update
+
 v6.5.35
 ----------
  * Update to newer pycountry and bump other minor versions
