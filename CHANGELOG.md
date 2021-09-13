@@ -1,3 +1,12 @@
+v6.5.35
+----------
+ * Update to newer pycountry and bump other minor versions
+ * Fix ticketer HTTP logs not being accessible
+ * Add management command to re-eval a smart group
+ * Add comment to event_fires about mailroom issue
+ * Fix indexes on tickets to match new UI
+ * Now that mailroom is setting ContactImport.status, use in reads
+
 v6.5.34
 ----------
  * Update to latest components (fixes overzealous list refresh, non-breaking ticket summary, and display name when created_by is null)
