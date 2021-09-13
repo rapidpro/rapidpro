@@ -281,17 +281,12 @@ class Ticket(models.Model):
 
     class Meta:
         indexes = [
-            # used by the open folder
-            models.Index(name="tickets_org_open", fields=["org", "-last_activity_on", "-id"], condition=Q(status="O")),
-            # used by the closed folder
+            # used by the All folder
+            models.Index(name="tickets_org_status", fields=["org", "status", "-last_activity_on", "-id"]),
+            # used by the Unassigned and Mine folders
             models.Index(
-                name="tickets_org_closed", fields=["org", "-last_activity_on", "-id"], condition=Q(status="C")
-            ),
-            # used by the unassigned and mine folders
-            models.Index(
-                name="tickets_org_ticketer",
-                fields=["org", "assignee", "-last_activity_on", "-id"],
-                condition=Q(status="O"),
+                name="tickets_org_assignee_status",
+                fields=["org", "assignee", "status", "-last_activity_on", "-id"],
             ),
             # used by the list of tickets on contact page and also message handling to find open tickets for contact
             models.Index(name="tickets_contact_open", fields=["contact", "-opened_on"], condition=Q(status="O")),
