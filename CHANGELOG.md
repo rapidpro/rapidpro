@@ -1,3 +1,9 @@
+v6.5.37
+----------
+ * Add tracking of unseen notification counts for users
+ * Clear ticket notifications when visiting appropriate ticket views
+ * Remove no longer used Log model
+
 v6.5.36
 ----------
  * Revert cryptography update
