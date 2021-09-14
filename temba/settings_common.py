@@ -505,6 +505,7 @@ PERMISSIONS = {
     "templates.template": ("api",),
     "tickets.ticket": ("api", "assign", "assignee", "menu", "note"),
     "tickets.ticketer": ("api", "connect", "configure"),
+    "tickets.topic": ("api",),
     "triggers.trigger": ("archived", "type"),
 }
 
@@ -690,6 +691,7 @@ GROUP_PERMISSIONS = {
         "templates.template_api",
         "tickets.ticket.*",
         "tickets.ticketer.*",
+        "tickets.topic.*",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -793,6 +795,7 @@ GROUP_PERMISSIONS = {
         "templates.template_api",
         "tickets.ticket.*",
         "tickets.ticketer_api",
+        "tickets.topic_api",
         "triggers.trigger.*",
     ),
     "Viewers": (
@@ -871,6 +874,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "tickets.ticketer_api",
+        "tickets.topic_api",
         "triggers.trigger_archived",
         "triggers.trigger_list",
         "triggers.trigger_type",
@@ -889,6 +893,7 @@ GROUP_PERMISSIONS = {
         "tickets.ticket_list",
         "tickets.ticket_menu",
         "tickets.ticket_note",
+        "tickets.topic_api",
         "orgs.org_home",
         "orgs.org_menu",
         "orgs.org_profile",

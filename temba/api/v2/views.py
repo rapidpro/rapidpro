@@ -82,6 +82,7 @@ from .serializers import (
     TicketerReadSerializer,
     TicketReadSerializer,
     TicketWriteSerializer,
+    TopicReadSerializer,
     UserReadSerializer,
     WebHookEventReadSerializer,
     WorkspaceReadSerializer,
@@ -226,6 +227,7 @@ class RootView(views.APIView):
                 "ticketers": reverse("api.v2.ticketers", request=request),
                 # "tickets": reverse("api.v2.tickets", request=request),
                 # "ticket_actions": reverse("api.v2.ticket_actions", request=request),
+                # "topics": reverse("api.v2.topics", request=request),
                 "users": reverse("api.v2.users", request=request),
                 "workspace": reverse("api.v2.workspace", request=request),
             }
@@ -285,6 +287,7 @@ class ExplorerView(SmartTemplateView):
             # TicketsEndpoint.get_read_explorer(),
             # TicketsEndpoint.get_write_explorer(),
             # TicketActionsEndpoint.get_read_explorer(),
+            # TopicsEndpoint.get_read_explorer(),
             UsersEndpoint.get_read_explorer(),
             WorkspaceEndpoint.get_read_explorer(),
         ]
@@ -3617,6 +3620,51 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
     #             {"name": "assignee", "required": False, "help": "The email address of a user"},
     #             {"name": "note", "required": False, "help": "The note text"},
     #         ],
+    #     }
+
+
+class TopicsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the topics in your workspace.
+
+    ## Listing Topics
+
+    A **GET** returns the tickets for your organization, most recent first.
+
+     * **uuid** - the UUID of the topic (string).
+     * **name** - the name of the topic (string).
+     * **created_on** - when this topic was created (datetime).
+
+    Example:
+
+        GET /api/v2/topics.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
+                "name": "Support",
+                "created_on": "2013-02-27T09:06:15.456"
+            },
+            ...
+    """
+
+    permission = "tickets.topic_api"
+    model = Topic
+    serializer_class = TopicReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    # @classmethod
+    # def get_read_explorer(cls):
+    #     return {
+    #         "method": "GET",
+    #         "title": "List Topics",
+    #         "url": reverse("api.v2.topics"),
+    #         "slug": "topic-list",
     #     }
 
 

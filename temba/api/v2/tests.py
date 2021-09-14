@@ -4682,6 +4682,43 @@ class APITest(TembaTest):
         self.assertEqual("O", ticket1.status)
         self.assertEqual("O", ticket2.status)
 
+    def test_topics(self):
+        url = reverse("api.v2.topics")
+        self.assertEndpointAccess(url)
+
+        # create some topics
+        support = Topic.get_or_create(self.org, self.admin, "Support")
+        sales = Topic.get_or_create(self.org, self.admin, "Sales")
+        Topic.get_or_create(self.org2, self.admin, "Sales")
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
+
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "uuid": str(sales.uuid),
+                    "name": "Sales",
+                    "created_on": format_datetime(sales.created_on),
+                },
+                {
+                    "uuid": str(support.uuid),
+                    "name": "Support",
+                    "created_on": format_datetime(support.created_on),
+                },
+                {
+                    "uuid": str(self.org.default_ticket_topic.uuid),
+                    "name": "General",
+                    "created_on": format_datetime(self.org.default_ticket_topic.created_on),
+                },
+            ],
+        )
+
     def test_users(self):
         endpoint_url = reverse("api.v2.users")
 

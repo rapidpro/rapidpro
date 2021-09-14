@@ -25,7 +25,7 @@ from temba.mailroom import modifiers
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import extract_constants, json, on_transaction_commit
 
 from . import fields
@@ -1510,6 +1510,14 @@ class TicketBulkActionSerializer(WriteSerializer):
             Ticket.bulk_close(org, user, tickets)
         elif action == self.ACTION_REOPEN:
             Ticket.bulk_reopen(org, user, tickets)
+
+
+class TopicReadSerializer(ReadSerializer):
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    class Meta:
+        model = Topic
+        fields = ("uuid", "name", "created_on")
 
 
 class UserReadSerializer(ReadSerializer):
