@@ -4,6 +4,11 @@ import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
 
+
+def delete_all_notifications(apps, schema_editor):  # pragma: no cover
+    apps.get_model("notifications", "Notification").objects.all().delete()
+
+
 SQL = """
 ----------------------------------------------------------------------
 -- Inserts a new notificationcount row with the given values
@@ -51,6 +56,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(delete_all_notifications),
         migrations.CreateModel(
             name="NotificationCount",
             fields=[
