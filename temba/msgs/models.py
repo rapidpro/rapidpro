@@ -1268,8 +1268,6 @@ class ExportMessagesTask(BaseExportTask):
     """
 
     analytics_key = "msg_export"
-    email_subject = "Your messages export from %s is ready"
-    email_template = "msgs/email/msg_export_download"
     notification_export_type = "message"
 
     groups = models.ManyToManyField(ContactGroup)

@@ -1754,8 +1754,6 @@ class ExportFlowResultsTask(BaseExportTask):
     """
 
     analytics_key = "flowresult_export"
-    email_subject = "Your results export from %s is ready"
-    email_template = "flows/email/flow_export_download"
     notification_export_type = "results"
 
     INCLUDE_MSGS = "include_msgs"
@@ -1787,11 +1785,6 @@ class ExportFlowResultsTask(BaseExportTask):
             export.flows.add(flow)
 
         return export
-
-    def get_email_context(self, branding):
-        context = super().get_email_context(branding)
-        context["flows"] = self.flows.all()
-        return context
 
     def _get_runs_columns(self, extra_urn_columns, groups, contact_fields, result_fields, show_submitted_by=False):
         columns = []
