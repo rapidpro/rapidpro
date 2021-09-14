@@ -5459,7 +5459,7 @@ class ContactImportTest(TembaTest):
                 "errors": [],
                 "time_taken": 0,
                 "num_duplicates": 0,
-                "num_total": 0
+                "num_total": 0,
             },
             imp.get_info(),
         )
@@ -5516,7 +5516,7 @@ class ContactImportTest(TembaTest):
                 "errors": [],
                 "time_taken": matchers.Int(),
                 "num_duplicates": 0,
-                "num_total": 0
+                "num_total": 0,
             },
             imp.get_info(),
         )
@@ -5536,7 +5536,7 @@ class ContactImportTest(TembaTest):
                 "errors": [{"record": 1, "message": "that's wrong"}],
                 "time_taken": matchers.Int(),
                 "num_duplicates": 0,
-                "num_total": 3
+                "num_total": 3,
             },
             imp.get_info(),
         )
@@ -5557,7 +5557,7 @@ class ContactImportTest(TembaTest):
                 "errors": [{"record": 1, "message": "that's wrong"}, {"record": 3, "message": "that's not right"}],
                 "time_taken": matchers.Int(),
                 "num_duplicates": 0,
-                "num_total": 11
+                "num_total": 11,
             },
             imp.get_info(),
         )
@@ -5575,7 +5575,7 @@ class ContactImportTest(TembaTest):
                 "errors": [{"record": 1, "message": "that's wrong"}, {"record": 3, "message": "that's not right"}],
                 "time_taken": matchers.Int(),
                 "num_duplicates": 0,
-                "num_total": 11
+                "num_total": 11,
             },
             imp.get_info(),
         )

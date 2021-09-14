@@ -967,11 +967,11 @@ class TriggerTest(TembaTest):
                 "start": "later",
                 "batch_interval": batch_interval,
                 "start_datetime": datetime_to_str(tomorrow, "%Y-%m-%d %H:%M", self.org.timezone),
-                "group_order": "{},{},{},{}".format(*group_order)
+                "group_order": "{},{},{},{}".format(*group_order),
             },
         )
 
-        triggers = Trigger.objects.all().order_by('schedule__next_fire')
+        triggers = Trigger.objects.all().order_by("schedule__next_fire")
         first_trigger = triggers.first()
         last_trigger = triggers.last()
         first_trigger_time = first_trigger.schedule.next_fire

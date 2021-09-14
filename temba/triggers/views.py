@@ -306,9 +306,7 @@ class ScheduleTriggerInBatchForm(ScheduleTriggerForm):
         label=_("Contacts"),
         required=True,
         help_text=_("The groups and contacts the flow will be broadcast to"),
-        widget=OmniboxChoice(
-            attrs={"placeholder": _("Recipients, enter groups"), "groups": True}
-        ),
+        widget=OmniboxChoice(attrs={"placeholder": _("Recipients, enter groups"), "groups": True}),
     )
 
     batch_interval = forms.ChoiceField(
@@ -856,7 +854,7 @@ class TriggerCRUDL(SmartCRUDL):
             triggers = []
             count = 0
 
-            group_order = self.request._post.get('group_order', [])
+            group_order = self.request._post.get("group_order", [])
             sorted_groups = sorted(recipients["groups"], key=lambda x: group_order.index(x.uuid))
 
             for group in sorted_groups:

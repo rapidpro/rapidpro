@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0130_auto_20210420_1325'),
+        ("contacts", "0130_auto_20210420_1325"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='contactimport',
-            name='num_duplicates',
+            model_name="contactimport",
+            name="num_duplicates",
             field=models.IntegerField(default=0),
         ),
     ]

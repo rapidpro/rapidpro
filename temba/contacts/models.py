@@ -2379,7 +2379,7 @@ class ContactImport(SmartModel):
             "errors": errors,
             "time_taken": int(time_taken.total_seconds()),
             "num_duplicates": num_duplicates,
-            "num_total": (num_created + num_updated) - num_duplicates
+            "num_total": (num_created + num_updated) - num_duplicates,
         }
 
     def _get_file_type(self):
