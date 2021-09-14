@@ -336,6 +336,9 @@ WENI_DOMAINS = {"weni": env("WENI_DOMAIN", default="weni.ai")}
 # Exclude Weni Sidebar
 SIDEBAR_EXCLUDE_PATHS = env.list("SIDEBAR_EXCLUDE_PATHS", default=[])
 
+# Weni Sidebar allowlist
+SIDEBAR_ALLOWLIST = env.list("SIDEBAR_ALLOWLIST", default=[])
+
 # Weni announcement
 ANNOUNCEMENT_LEFT = env("ANNOUNCEMENT_LEFT")
 ANNOUNCEMENT_RIGHT = env("ANNOUNCEMENT_RIGHT")
