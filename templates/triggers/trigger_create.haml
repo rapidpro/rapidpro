@@ -54,12 +54,12 @@
       display: none;
     }
 
--block title  
+-block title
   {{title}}
 
   .mb-3.text-xl.mt-2
     -trans "Triggers allow users to start flows based on user actions or schedules."
-  
+
 -block content
   -include "formax.haml"
 
@@ -67,12 +67,14 @@
   {{ block.super }}
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
   <script src="{{ STATIC_URL }}js/flow-parameters.js"></script>
+  <script src="{{ STATIC_URL }}js/trigger-common.js"></script>
   :javascript
 
-    ["keyword", "schedule", "missed_call", "new_conversation", "referral", "catchall"].forEach(triggerType => {
+    ["keyword", "schedule", "missed_call", "new_conversation", "referral", "catchall", "schedule-in-batch"].forEach(triggerType => {
       let triggerBody = document.querySelector(`#id-trigger-${triggerType}, #id-trigger-${triggerType.replace('_', '')}, #id-trigger-${triggerType.replace('_', '-')}`);
       if (triggerBody) {
-        let flowElement = triggerBody.querySelector(`#id_${triggerType}_flow`);
+        const typeOverride = triggerType === 'schedule-in-batch' ? 'schedule' : triggerType;
+        let flowElement = triggerBody.querySelector(`#id_${typeOverride}_flow`);
         flowElement.addEventListener('change', function(event) {
           let selectedValue = event.target.values[0].value;
           let flowId = (selectedValue !== '' ? parseInt(selectedValue) : null);

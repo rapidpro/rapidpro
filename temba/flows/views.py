@@ -220,7 +220,13 @@ class FlowRunCRUDL(SmartCRUDL):
         success_message = None
 
         def post(self, request, *args, **kwargs):
-            self.get_object().release(FlowRun.DELETE_FOR_USER)
+            flow_run = self.get_object()
+            flow = flow_run.flow
+            flow_run.release(FlowRun.DELETE_FOR_USER)
+
+            # mark flow as updated to be able to refresh analytics
+            flow.modified_on = timezone.now()
+            flow.save(update_fields=["modified_on"])
             return HttpResponse()
 
 
@@ -1354,7 +1360,7 @@ class FlowCRUDL(SmartCRUDL):
             dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
             prefix = "/dev" if dev_mode else settings.STATIC_URL
 
-            # get our list of assets to incude
+            # get our list of assets to include
             scripts = []
             styles = []
 
@@ -1557,6 +1563,7 @@ class FlowCRUDL(SmartCRUDL):
             return queryset
 
     class ExportPdf(OrgObjPermsMixin, SmartReadView):
+        permission = "flows.flow_pdf_export"
         slug_url_kwarg = "uuid"
 
         def derive_title(self):

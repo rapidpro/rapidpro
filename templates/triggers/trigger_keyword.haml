@@ -10,3 +10,25 @@
     -trans "Flow Parameters"
   #embedded-data-keyword.hidden
     #embed-container-keyword
+
+  %temba-dialog#confirm-keyword-trigger.hide(header='{{ _("Trigger Confirmation")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
+    .p-6
+
+
+-block extra-script
+  :javascript
+    function onKeywordSuccess(form, htmlString, status, jqXHR) {
+      const requiredFields = ['div.field_keyword', 'div.field_flow']
+      handleSubmissionResponse(requiredFields, form, { htmlString, status, jqXHR });
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+      const options = {
+        formContainerId: '#id-trigger-keyword',
+        confirmationBoxId: '#confirm-keyword-trigger',
+        flowFieldId: '#id_keyword_flow',
+        postUrl: '/trigger/keyword/',
+        successFunc: onKeywordSuccess
+      };
+      initForm(options);
+    });

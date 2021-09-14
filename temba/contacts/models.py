@@ -1814,6 +1814,11 @@ class ContactGroup(TembaModel):
             if any(list(map(process_node, flow_revision.definition.get("nodes", [])))):
                 flow_revision.save()
 
+    def analytics_json(self):
+        member_count = self.get_member_count()
+        if member_count > 0:
+            return dict(name=self.name, id=self.pk, count=member_count)
+
     def __str__(self):
         return self.name
 
@@ -2105,12 +2110,13 @@ class ContactImport(SmartModel):
     num_records = models.IntegerField()
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, null=True, related_name="imports")
     started_on = models.DateTimeField(null=True)
+    num_duplicates = models.IntegerField(default=0)
 
     # no longer used
     headers = ArrayField(models.CharField(max_length=255), null=True)
 
     @classmethod
-    def try_to_parse(cls, org: Org, file, filename: str) -> Tuple[List, int]:
+    def try_to_parse(cls, org: Org, file, filename: str) -> Tuple[List, int, int]:
         """
         Tries to parse the given file stream as an import. If successful it returns the automatic column mappings and
         total number of records. Otherwise raises a ValidationError.
@@ -2137,6 +2143,8 @@ class ContactImport(SmartModel):
         seen_uuids = set()
         seen_urns = set()
         num_records = 0
+        num_duplicates = 0
+
         for raw_row in data:
             row = cls._parse_row(raw_row, len(mappings))
             uuid, urns = cls._extract_uuid_and_urns(row, mappings)
@@ -2148,9 +2156,11 @@ class ContactImport(SmartModel):
                 seen_uuids.add(uuid)
             for urn in urns:
                 if urn in seen_urns:
-                    raise ValidationError(
-                        _("Import file contains duplicated contact URN '%(urn)s'."), params={"urn": urn}
-                    )
+                    if not settings.ALLOW_DUPLICATE_CONTACT_IMPORT:
+                        raise ValidationError(
+                            _("Import file contains duplicated contact URN '%(urn)s'."), params={"urn": urn}
+                        )
+                    num_duplicates += 1
                 seen_urns.add(urn)
 
             # check if we exceed record limit
@@ -2160,13 +2170,12 @@ class ContactImport(SmartModel):
                     _("Import files can contain a maximum of %(max)d records."),
                     params={"max": ContactImport.MAX_RECORDS},
                 )
-
         if num_records == 0:
             raise ValidationError(_("Import file doesn't contain any records."))
 
         file.seek(0)  # seek back to beginning so subsequent reads work
 
-        return mappings, num_records
+        return mappings, num_records, num_duplicates
 
     @staticmethod
     def _extract_uuid_and_urns(row, mappings) -> Tuple[str, List[str]]:
@@ -2336,7 +2345,7 @@ class ContactImport(SmartModel):
         batches = self.batches.values(
             "status", "num_created", "num_updated", "num_blocked", "num_errored", "errors", "finished_on"
         )
-
+        num_duplicates = 0
         for batch in batches:
             statuses.add(batch["status"])
             num_created += batch["num_created"]
@@ -2347,6 +2356,7 @@ class ContactImport(SmartModel):
 
             if batch["finished_on"] and (oldest_finished_on is None or batch["finished_on"] > oldest_finished_on):
                 oldest_finished_on = batch["finished_on"]
+                num_duplicates = self.num_duplicates
 
         status = self._get_overall_status(statuses)
 
@@ -2368,6 +2378,8 @@ class ContactImport(SmartModel):
             "num_errored": num_errored,
             "errors": errors,
             "time_taken": int(time_taken.total_seconds()),
+            "num_duplicates": num_duplicates,
+            "num_total": (num_created + num_updated) - num_duplicates,
         }
 
     def _get_file_type(self):

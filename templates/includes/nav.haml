@@ -177,6 +177,13 @@
       .title
         -trans "tickets"
 
+  -if org_perms.reports.report_read and not request.user.is_superuser
+    %a{href:"{% url 'reports.report_analytics' %}", class:"{% active request 'analytics' %}"}
+      .circle
+        .icon-bars
+      .title
+        -trans "analytics"
+
   %a{href:"https://help.communityconnectlabs.com/support/home", class:"{% active request 'help' %}", target:"_blank"}
     .circle
       .icon-help

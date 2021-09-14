@@ -1,0 +1,38 @@
+- extends "frame.html"
+-load static
+
+- block extra-style
+  = block.super
+  %link(rel='stylesheet' type='text/css' href='{% static "@fortawesome/fontawesome-free/css/all.css" %}')
+  - for css in styles
+    %link(rel='stylesheet' type='text/css' href='{{css}}')
+
+  :css
+    .footer {
+      display: none;
+    }
+
+    .rotated-signal {
+      padding-right: 5px;
+    }
+
+- block extra-script
+  = block.super
+  - for script in scripts
+    %script{type:'text/javascript', src:'{{script}}'}
+
+  :javascript
+    var context = JSON.parse('{{analytics_context|escapejs}}');
+    context.endpoints = {
+      createUpdateReport: "{% url 'reports.report_create' %}",
+      loadChartsData: "{% url 'reports.report_charts_data' %}",
+      deleteReport: "{% url 'reports.report_delete' %}",
+      refreshChartsData: "{% url 'reports.report_update_charts_data' %}",
+      configureFlows: "{% url 'reports.report_configure_flows' %}"
+    };
+    showAnalytics(document.querySelector("#analytics-container"), context);
+
+
+- block page-container
+  #grid.h-full
+    #analytics-container

@@ -286,6 +286,7 @@ INSTALLED_APPS = (
     "temba.channels",
     "temba.msgs",
     "temba.flows",
+    "temba.reports",
     "temba.tickets",
     "temba.triggers",
     "temba.utils",
@@ -537,6 +538,7 @@ PERMISSIONS = {
         "referral",
         "register",
         "schedule",
+        "schedule_in_batch",
     ),
 }
 
@@ -698,6 +700,7 @@ GROUP_PERMISSIONS = {
         "channels.channellog_list",
         "channels.channellog_read",
         "channels.channellog_connection",
+        "reports.report.*",
         "flows.flow.*",
         "flows.flowstart.*",
         "flows.flowlabel.*",
@@ -811,6 +814,7 @@ GROUP_PERMISSIONS = {
         "channels.channel_search_numbers",
         "channels.channel_update",
         "channels.channelevent.*",
+        "reports.report.*",
         "flows.flow.*",
         "flows.flowstart_api",
         "flows.flowstart_list",
@@ -933,6 +937,7 @@ GROUP_PERMISSIONS = {
         "links.link_history",
         "links.link_list",
         "links.link_read",
+        "reports.report_read",
         "tickets.ticket_closed",
         "tickets.ticket_filter",
         "tickets.ticket_open",
@@ -1038,6 +1043,10 @@ CELERYBEAT_SCHEDULE = {
     "generate-missing-gif-thumbnails": {
         "task": "generate_missing_gif_thumbnails",
         "schedule": crontab(hour=3, minute=30),
+    },
+    "collect-flow-results-data-for-analytics": {
+        "task": "analytics__auto_collect_flow_results_data",
+        "schedule": crontab(hour=5, minute=30),
     },
 }
 
@@ -1403,3 +1412,7 @@ GOOGLE_FONT_API_KEY = os.environ.get("GOOGLE_FONT_API_KEY", "")
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_METHODS = ["GET"]
+
+# Contacts import via excel
+# if set to True will not raise error on duplicate, instead will use last row
+ALLOW_DUPLICATE_CONTACT_IMPORT = os.environ.get("ALLOW_DUPLICATE_CONTACT_IMPORT", "").lower() == "true"

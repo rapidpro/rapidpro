@@ -2,15 +2,20 @@
 -load i18n smartmin
 
 -block extra-script
-  {{ block.super }}  
+  {{ block.super }}
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
 
   :javascript
+    function onScheduleSuccess(form, htmlString, status, jqXHR) {
+      const requiredFields = ['#trigger_flow', '#trigger_omnibox'];
+      handleSubmissionResponse(requiredFields, form, { htmlString, status, jqXHR });
+    }
+
     document.addEventListener("DOMContentLoaded", function(){
       var repeatPeriod = document.querySelector("#id_schedule_repeat_period");
       if (repeatPeriod) {
         repeatPeriod.addEventListener("change", function(event){
-          
+
           var currentRepeat = event.currentTarget.values[0].value;
           if (currentRepeat == 'W') {
             document.querySelector(".weekly-repeat-options").classList.remove("hidden");
@@ -20,7 +25,17 @@
         });
       }
 
-  
+      const formContainerId = '#id-trigger-schedule';
+      const formContainer = document.querySelector(formContainerId);
+      lockScheduleDate(formContainer);
+      const options = {
+        formContainerId,
+        confirmationBoxId: '#confirm-schedule-trigger',
+        flowFieldId: '#id_schedule_flow',
+        postUrl: '/trigger/schedule/',
+        successFunc: onScheduleSuccess
+      };
+      initForm(options);
     });
 -block fields
   #trigger_flow
@@ -38,6 +53,9 @@
     -trans "Flow Parameters"
   #embedded-data-schedule.hidden
     #embed-container-schedule
+
+  %temba-dialog#confirm-schedule-trigger.hide(header='{{ _("Trigger Confirmation")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
+    .p-6
 
 
 -block summary
