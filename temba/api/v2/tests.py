@@ -3193,12 +3193,12 @@ class APITest(TembaTest):
 
         # try creating a new label after reaching the limit on labels
         current_count = Label.all_objects.filter(org=self.org, is_active=True).count()
-        with patch.object(Label, "MAX_ORG_LABELS", current_count):
+        with patch.object(Org, "LIMIT_DEFAULTS", {"labels": current_count}):
             response = self.postJSON(url, None, {"name": "Interesting"})
             self.assertResponseError(
                 response,
                 "non_field_errors",
-                "This org has 3 labels and the limit is 3. "
+                "This workspace has 3 labels and the limit is 3. "
                 "You must delete existing ones before you can create new ones.",
             )
 
@@ -4689,7 +4689,7 @@ class APITest(TembaTest):
         # create some topics
         support = Topic.get_or_create(self.org, self.admin, "Support")
         sales = Topic.get_or_create(self.org, self.admin, "Sales")
-        Topic.get_or_create(self.org2, self.admin, "Sales")
+        other_org = Topic.get_or_create(self.org2, self.admin, "Bugs")
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
@@ -4718,6 +4718,55 @@ class APITest(TembaTest):
                 },
             ],
         )
+
+        # try to create empty topic
+        response = self.postJSON(url, None, {})
+        self.assertResponseError(response, "name", "This field is required.")
+
+        # create new topic
+        response = self.postJSON(url, None, {"name": "Food"})
+        self.assertEqual(response.status_code, 201)
+
+        food = Topic.objects.get(name="Food")
+        self.assertEqual(response.json(), {"uuid": str(food.uuid), "name": "Food", "created_on": matchers.ISODate()})
+
+        # try to create another topic with same name
+        response = self.postJSON(url, None, {"name": "food"})
+        self.assertResponseError(response, "name", "This field must be unique.")
+
+        # it's fine if a topic in another org has that name
+        response = self.postJSON(url, None, {"name": "Bugs"})
+        self.assertEqual(response.status_code, 201)
+
+        # try to create a topic with invalid name
+        response = self.postJSON(url, None, {"name": "!!!#$%^"})
+        self.assertResponseError(response, "name", "Contains illegal characters.")
+
+        # try to create a topic with name that's too long
+        response = self.postJSON(url, None, {"name": "x" * 65})
+        self.assertResponseError(response, "name", "Ensure this field has no more than 64 characters.")
+
+        # update topic by UUID
+        response = self.postJSON(url, "uuid=%s" % support.uuid, {"name": "Support Tickets"})
+        self.assertEqual(response.status_code, 200)
+
+        support.refresh_from_db()
+        self.assertEqual(support.name, "Support Tickets")
+
+        # can't update ticket from other org
+        response = self.postJSON(url, "uuid=%s" % other_org.uuid, {"name": "Won't work"})
+        self.assert404(response)
+
+        # try creating a new topic after reaching the limit on labels
+        current_count = self.org.topics.filter(is_active=True).count()
+        with patch.object(Org, "LIMIT_DEFAULTS", {"topics": current_count}):
+            response = self.postJSON(url, None, {"name": "Interesting"})
+            self.assertResponseError(
+                response,
+                "non_field_errors",
+                "This workspace has 5 topics and the limit is 5. "
+                "You must delete existing ones before you can create new ones.",
+            )
 
     def test_users(self):
         endpoint_url = reverse("api.v2.users")

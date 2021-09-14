@@ -1020,7 +1020,6 @@ class Label(TembaModel, DependencyMixin):
     """
 
     MAX_NAME_LEN = 64
-    MAX_ORG_LABELS = 250
     MAX_ORG_FOLDERS = 250
 
     TYPE_FOLDER = "F"

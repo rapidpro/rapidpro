@@ -1142,12 +1142,12 @@ class LabelWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
-        labels_count = Label.label_objects.filter(org=self.context["org"], is_active=True).count()
-        if labels_count >= Label.MAX_ORG_LABELS:
+        org = self.context["org"]
+        count = Label.label_objects.filter(org=org, is_active=True).count()
+        if count >= org.get_limit(Org.LIMIT_LABELS):
             raise serializers.ValidationError(
-                "This org has %s labels and the limit is %s. "
-                "You must delete existing ones before you can "
-                "create new ones." % (labels_count, Label.MAX_ORG_LABELS)
+                "This workspace has %s labels and the limit is %s. You must delete existing ones before you can "
+                "create new ones." % (count, org.get_limit(Org.LIMIT_LABELS))
             )
         return data
 
@@ -1518,6 +1518,39 @@ class TopicReadSerializer(ReadSerializer):
     class Meta:
         model = Topic
         fields = ("uuid", "name", "created_on")
+
+
+class TopicWriteSerializer(WriteSerializer):
+    name = serializers.CharField(
+        required=True,
+        max_length=Topic.MAX_NAME_LEN,
+        validators=[UniqueForOrgValidator(queryset=Topic.objects.filter(is_active=True), ignore_case=True)],
+    )
+
+    def validate_name(self, value):
+        if not Topic.is_valid_name(value):
+            raise serializers.ValidationError("Contains illegal characters.")
+        return value
+
+    def validate(self, data):
+        org = self.context["org"]
+        count = org.topics.filter(is_active=True).count()
+        if count >= org.get_limit(Org.LIMIT_TOPICS):
+            raise serializers.ValidationError(
+                "This workspace has %s topics and the limit is %s. You must delete existing ones before you can "
+                "create new ones." % (count, org.get_limit(Org.LIMIT_TOPICS))
+            )
+        return data
+
+    def save(self):
+        name = self.validated_data["name"]
+
+        if self.instance:
+            self.instance.name = name
+            self.instance.save(update_fields=("name",))
+            return self.instance
+        else:
+            return Topic.get_or_create(self.context["org"], self.context["user"], name)
 
 
 class UserReadSerializer(ReadSerializer):

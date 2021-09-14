@@ -83,6 +83,7 @@ from .serializers import (
     TicketReadSerializer,
     TicketWriteSerializer,
     TopicReadSerializer,
+    TopicWriteSerializer,
     UserReadSerializer,
     WebHookEventReadSerializer,
     WorkspaceReadSerializer,
@@ -288,6 +289,7 @@ class ExplorerView(SmartTemplateView):
             # TicketsEndpoint.get_write_explorer(),
             # TicketActionsEndpoint.get_read_explorer(),
             # TopicsEndpoint.get_read_explorer(),
+            # TopicsEndpoint.get_write_explorer(),
             UsersEndpoint.get_read_explorer(),
             WorkspaceEndpoint.get_read_explorer(),
         ]
@@ -3623,7 +3625,7 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
     #     }
 
 
-class TopicsEndpoint(ListAPIMixin, BaseAPIView):
+class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list the topics in your workspace.
 
@@ -3656,6 +3658,7 @@ class TopicsEndpoint(ListAPIMixin, BaseAPIView):
     permission = "tickets.topic_api"
     model = Topic
     serializer_class = TopicReadSerializer
+    write_serializer_class = TopicWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
     # @classmethod
@@ -3665,6 +3668,17 @@ class TopicsEndpoint(ListAPIMixin, BaseAPIView):
     #         "title": "List Topics",
     #         "url": reverse("api.v2.topics"),
     #         "slug": "topic-list",
+    #     }
+
+    # @classmethod
+    # def get_write_explorer(cls):
+    #     return {
+    #         "method": "POST",
+    #         "title": "Add or Update Topics",
+    #         "url": reverse("api.v2.topics"),
+    #         "slug": "topic-write",
+    #         "params": [{"name": "uuid", "required": False, "help": "The UUID of the topic to update"}],
+    #         "fields": [{"name": "name", "required": True, "help": "The name of the topic"}],
     #     }
 
 
