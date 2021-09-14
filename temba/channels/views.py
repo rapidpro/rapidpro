@@ -39,7 +39,7 @@ from django.views.decorators.csrf import csrf_exempt
 from temba.contacts.models import URN
 from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
-from temba.notifications.models import Notification
+from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.models import Org
 from temba.orgs.views import AnonMixin, DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, countries, json
@@ -736,9 +736,12 @@ class ChannelCRUDL(SmartCRUDL):
     )
     permissions = True
 
-    class Read(OrgObjPermsMixin, SmartReadView):
+    class Read(OrgObjPermsMixin, NotificationTargetMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
+
+        def get_notification_scope(self) -> tuple:
+            return "channel:alert", str(self.object.uuid)
 
         def get_queryset(self):
             return Channel.objects.filter(is_active=True)
@@ -872,8 +875,6 @@ class ChannelCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             channel = self.object
-
-            Notification.channel_seen(channel, self.request.user)
 
             sync_events = SyncEvent.objects.filter(channel=channel.id).order_by("-created_on")
             context["last_sync"] = sync_events.first()

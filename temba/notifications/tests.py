@@ -11,8 +11,10 @@ from .models import Notification
 
 
 class NotificationTest(TembaTest):
-    def assert_notifications(self, *, after: datetime, expected_json: dict, expected_users: set):
-        notifications = Notification.objects.filter(created_on__gt=after)
+    def assert_notifications(self, *, after: datetime = None, expected_json: dict, expected_users: set):
+        notifications = Notification.objects.all()
+        if after:
+            notifications = notifications.filter(created_on__gt=after)
 
         self.assertEqual(len(expected_users), notifications.count(), "notification count mismatch")
 
@@ -143,6 +145,48 @@ class NotificationTest(TembaTest):
         self.client.get(reverse("contacts.contactimport_read", args=[imp.id]))
 
         self.assertTrue(self.editor.notifications.get(contact_import=imp).is_seen)
+
+    def test_tickets_opened(self):
+        # mailroom will create these notifications
+        Notification._create_all(self.org, "tickets:opened", scope="", users=[self.agent, self.editor])
+
+        self.assert_notifications(
+            expected_json={
+                "type": "tickets:opened",
+                "created_on": matchers.ISODate(),
+                "target_url": "/ticket/unassigned/",
+                "is_seen": False,
+            },
+            expected_users={self.agent, self.editor},
+        )
+
+        # if a user visits the unassigned tickets page, their notification is now read
+        self.login(self.agent)
+        self.client.get("/ticket/unassigned/")
+
+        self.assertTrue(self.agent.notifications.get().is_seen)
+        self.assertFalse(self.editor.notifications.get().is_seen)
+
+    def test_tickets_activity(self):
+        # mailroom will create these notifications
+        Notification._create_all(self.org, "tickets:activity", scope="", users=[self.agent, self.editor])
+
+        self.assert_notifications(
+            expected_json={
+                "type": "tickets:activity",
+                "created_on": matchers.ISODate(),
+                "target_url": "/ticket/mine/",
+                "is_seen": False,
+            },
+            expected_users={self.agent, self.editor},
+        )
+
+        # if a user visits their assigned tickets page, their notification is now read
+        self.login(self.agent)
+        self.client.get("/ticket/mine/")
+
+        self.assertTrue(self.agent.notifications.get().is_seen)
+        self.assertFalse(self.editor.notifications.get().is_seen)
 
 
 class NotificationCRUDLTest(TembaTest):

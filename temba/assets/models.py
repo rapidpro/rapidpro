@@ -140,6 +140,3 @@ class BaseAssetStore(object):
     def get_asset_url(self, pk, direct=False):
         view_name = "assets.stream" if direct else "assets.download"
         return reverse(view_name, kwargs=dict(type=self.key, pk=pk))
-
-    def download_accessed(self, user, asset):  # pragma: no cover
-        pass

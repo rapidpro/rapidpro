@@ -234,8 +234,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             HTTP_TEMBA_SPA="1",
             HTTP_TEMBA_REFERER_PATH=f"/tickets/mine/open/{ticket.uuid}",
         )
-        self.assertEqual(response.context["base_template"], "spa.html")
-        self.assertEqual(response.context["temba_referer"], ["tickets", "mine", "open", str(ticket.uuid)])
+        self.assertEqual("spa.html", response.context["base_template"])
+        self.assertEqual(("tickets", "mine", "open", str(ticket.uuid)), response.context["temba_referer"])
 
     def test_menu(self):
         menu_url = reverse("tickets.ticket_menu")

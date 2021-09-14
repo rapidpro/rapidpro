@@ -6,12 +6,11 @@ from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.channels.models import Alert, Channel
+from temba.channels.models import Channel
 from temba.contacts.models import ContactImport, ExportContactsTask
-from temba.flows.models import ExportFlowResultsTask, FlowStart
-from temba.msgs.models import Broadcast, ExportMessagesTask
+from temba.flows.models import ExportFlowResultsTask
+from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import Org
-from temba.tickets.models import Ticket, TicketEvent
 
 
 class NotificationType:
@@ -52,7 +51,7 @@ class ExportFinishedNotificationType(NotificationType):
         export = self._get_export(notification)
 
         json = super().as_json(notification)
-        json["export"] = {"type": Notification.EXPORT_TYPES[type(export)]}
+        json["export"] = {"type": export.notification_export_type}
         return json
 
     @staticmethod
@@ -75,33 +74,18 @@ class ImportFinishedNotificationType(NotificationType):
 class TicketsOpenedNotificationType(NotificationType):
     slug = "tickets:opened"
 
+    def get_target_url(self, notification) -> str:
+        return "/ticket/unassigned/"
+
 
 class TicketActivityNotificationType(NotificationType):
     slug = "tickets:activity"
 
+    def get_target_url(self, notification) -> str:
+        return "/ticket/mine/"
+
 
 TYPES_BY_SLUG = {lt.slug: lt() for lt in NotificationType.__subclasses__()}
-
-
-class Log(models.Model):
-    """
-    TODO drop
-    """
-
-    id = models.BigAutoField(primary_key=True)
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="logs")
-    log_type = models.CharField(max_length=16)
-    created_on = models.DateTimeField(default=timezone.now)
-    created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="logs")
-    alert = models.ForeignKey(Alert, null=True, on_delete=models.PROTECT, related_name="logs")
-    broadcast = models.ForeignKey(Broadcast, null=True, on_delete=models.PROTECT, related_name="logs")
-    flow_start = models.ForeignKey(FlowStart, null=True, on_delete=models.PROTECT, related_name="logs")
-    contact_import = models.ForeignKey(ContactImport, null=True, on_delete=models.PROTECT, related_name="logs")
-    contact_export = models.ForeignKey(ExportContactsTask, null=True, on_delete=models.PROTECT, related_name="logs")
-    message_export = models.ForeignKey(ExportMessagesTask, null=True, on_delete=models.PROTECT, related_name="logs")
-    results_export = models.ForeignKey(ExportFlowResultsTask, null=True, on_delete=models.PROTECT, related_name="logs")
-    ticket = models.ForeignKey(Ticket, null=True, on_delete=models.PROTECT, related_name="logs")
-    ticket_event = models.ForeignKey(TicketEvent, null=True, on_delete=models.PROTECT, related_name="logs")
 
 
 class Notification(models.Model):
@@ -136,8 +120,6 @@ class Notification(models.Model):
         ContactImport, null=True, on_delete=models.PROTECT, related_name="notifications"
     )
 
-    EXPORT_TYPES = {ExportContactsTask: "contact", ExportMessagesTask: "message", ExportFlowResultsTask: "results"}
-
     @classmethod
     def channel_alert(cls, alert):
         """
@@ -159,14 +141,12 @@ class Notification(models.Model):
         Creates an export finished notification for the creator of the given export.
         """
 
-        type_key = cls.EXPORT_TYPES[type(export)]
-
         cls._create_all(
             export.org,
             ExportFinishedNotificationType.slug,
-            scope=f"{type_key}:{export.id}",
+            scope=export.get_notification_scope(),
             users=[export.created_by],
-            **{type_key + "_export": export},
+            **{export.notification_export_type + "_export": export},
         )
 
     @classmethod
@@ -182,22 +162,9 @@ class Notification(models.Model):
             )
 
     @classmethod
-    def channel_seen(cls, channel, user):
-        cls._mark_seen(channel.org_id, ChannelAlertNotificationType.slug, scope=str(channel.uuid), user=user)
-
-    @classmethod
-    def export_seen(cls, export, user):
-        type_key = cls.EXPORT_TYPES[type(export)]
-        cls._mark_seen(export.org_id, ExportFinishedNotificationType.slug, scope=f"{type_key}:{export.id}", user=user)
-
-    @classmethod
-    def import_seen(cls, imp, user):
-        cls._mark_seen(imp.org_id, ImportFinishedNotificationType.slug, scope=f"contact:{imp.id}", user=user)
-
-    @classmethod
-    def _mark_seen(cls, org_id: int, notification_type: str, *, scope: str, user):
+    def mark_seen(cls, org, notification_type: str, *, scope: str, user):
         cls.objects.filter(
-            org_id=org_id, notification_type=notification_type, scope=scope, user=user, is_seen=False
+            org_id=org.id, notification_type=notification_type, scope=scope, user=user, is_seen=False
         ).update(is_seen=True)
 
     @property

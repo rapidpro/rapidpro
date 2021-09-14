@@ -1756,6 +1756,7 @@ class ExportFlowResultsTask(BaseExportTask):
     analytics_key = "flowresult_export"
     email_subject = "Your results export from %s is ready"
     email_template = "flows/email/flow_export_download"
+    notification_export_type = "results"
 
     INCLUDE_MSGS = "include_msgs"
     CONTACT_FIELDS = "contact_fields"

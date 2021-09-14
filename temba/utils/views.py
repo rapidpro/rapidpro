@@ -5,6 +5,7 @@ from django.db import transaction
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.http import urlquote
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
@@ -20,6 +21,14 @@ class SpaMixin(View):
     Uses SPA base template if the header is set appropriately
     """
 
+    @cached_property
+    def spa_path(self) -> tuple:
+        return tuple(s for s in self.request.META.get("HTTP_TEMBA_PATH", "").split("/") if s)
+
+    @cached_property
+    def spa_referrer_path(self) -> tuple:
+        return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
@@ -27,11 +36,8 @@ class SpaMixin(View):
             context["base_template"] = "spa.html"
             context["is_spa"] = True
 
-        referer = self.request.META.get("HTTP_TEMBA_REFERER_PATH", "")
-        path = self.request.META.get("HTTP_TEMBA_PATH", "")
-
-        context["temba_path"] = [s for s in path.split("/") if s != ""]
-        context["temba_referer"] = [s for s in referer.split("/") if s != ""]
+        context["temba_path"] = self.spa_path
+        context["temba_referer"] = self.spa_referrer_path
         return context
 
 
