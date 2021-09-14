@@ -11,6 +11,7 @@ from temba.contacts.models import ContactImport, ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import Org
+from temba.utils.models import SquashableModel
 
 
 class NotificationType:
@@ -167,6 +168,10 @@ class Notification(models.Model):
             org_id=org.id, notification_type=notification_type, scope=scope, user=user, is_seen=False
         ).update(is_seen=True)
 
+    @classmethod
+    def get_unseen_count(cls, org: Org, user: User) -> int:
+        return NotificationCount.get_total(org, user)
+
     @property
     def type(self):
         return TYPES_BY_SLUG[self.notification_type]
@@ -188,3 +193,33 @@ class Notification(models.Model):
                 condition=Q(is_seen=False),
             ),
         ]
+
+
+class NotificationCount(SquashableModel):
+    """
+    A count of a user's unseen notifications in a specific org
+    """
+
+    squash_over = ("org_id", "user_id")
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="notification_counts")
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="notification_counts")
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+            WITH deleted as (
+                DELETE FROM %(table)s WHERE "org_id" = %%s AND "user_id" = %%s RETURNING "count"
+            )
+            INSERT INTO %(table)s("org_id", "user_id", "count", "is_squashed")
+            VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+            """ % {
+            "table": cls._meta.db_table
+        }
+
+        return sql, (distinct_set.org_id, distinct_set.user_id) * 2
+
+    @classmethod
+    def get_total(cls, org: Org, user: User) -> int:
+        return cls.sum(cls.objects.filter(org=org, user=user))

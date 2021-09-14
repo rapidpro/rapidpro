@@ -8,6 +8,7 @@ from temba.orgs.models import OrgRole
 from temba.tests import TembaTest, matchers
 
 from .models import Notification
+from .tasks import squash_notificationcounts
 
 
 class NotificationTest(TembaTest):
@@ -187,6 +188,43 @@ class NotificationTest(TembaTest):
 
         self.assertTrue(self.agent.notifications.get().is_seen)
         self.assertFalse(self.editor.notifications.get().is_seen)
+
+    def test_get_unseen_count(self):
+        imp = ContactImport.objects.create(
+            org=self.org, mappings={}, num_records=5, created_by=self.editor, modified_by=self.editor
+        )
+        Notification._create_all(
+            imp.org, "import:finished", scope=f"contact:{imp.id}", users=[self.editor], contact_import=imp
+        )
+        Notification._create_all(self.org, "tickets:opened", scope="", users=[self.agent, self.editor])
+        Notification._create_all(self.org, "tickets:activity", scope="", users=[self.agent, self.editor])
+        Notification._create_all(self.org2, "tickets:activity", scope="", users=[self.editor])  # different org
+
+        self.assertEqual(2, Notification.get_unseen_count(self.org, self.agent))
+        self.assertEqual(3, Notification.get_unseen_count(self.org, self.editor))
+        self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
+        self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+
+        Notification.mark_seen(self.org, "tickets:activity", scope="", user=self.agent)
+
+        self.assertEqual(1, Notification.get_unseen_count(self.org, self.agent))
+        self.assertEqual(3, Notification.get_unseen_count(self.org, self.editor))
+        self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
+        self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+
+        Notification.objects.filter(org=self.org, user=self.editor, notification_type="tickets:opened").delete()
+
+        self.assertEqual(1, Notification.get_unseen_count(self.org, self.agent))
+        self.assertEqual(2, Notification.get_unseen_count(self.org, self.editor))
+        self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
+        self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+
+        squash_notificationcounts()
+
+        self.assertEqual(1, Notification.get_unseen_count(self.org, self.agent))
+        self.assertEqual(2, Notification.get_unseen_count(self.org, self.editor))
+        self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
+        self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
 
 
 class NotificationCRUDLTest(TembaTest):
