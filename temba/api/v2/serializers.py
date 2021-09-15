@@ -1474,21 +1474,18 @@ class TicketBulkActionSerializer(WriteSerializer):
 
     tickets = fields.TicketField(many=True)
     action = serializers.ChoiceField(required=True, choices=ACTION_CHOICES)
-    assignee = fields.UserField(required=False, assignable_only=True)
+    assignee = fields.UserField(required=False, allow_null=True, assignable_only=True)
     topic = fields.TopicField(required=False)
     note = serializers.CharField(required=False, max_length=Ticket.MAX_NOTE_LEN)
 
     def validate(self, data):
         action = data["action"]
-        assignee = data.get("assignee")
-        note = data.get("note")
-        topic = data.get("topic")
 
-        if action == self.ACTION_ASSIGN and not assignee:
+        if action == self.ACTION_ASSIGN and "assignee" not in data:
             raise serializers.ValidationError('For action "%s" you must specify the assignee' % action)
-        elif action == self.ACTION_ADD_NOTE and not note:
+        elif action == self.ACTION_ADD_NOTE and not data.get("note"):
             raise serializers.ValidationError('For action "%s" you must specify the note' % action)
-        elif action == self.ACTION_CHANGE_TOPIC and not topic:
+        elif action == self.ACTION_CHANGE_TOPIC and not data.get("topic"):
             raise serializers.ValidationError('For action "%s" you must specify the topic' % action)
 
         return data
