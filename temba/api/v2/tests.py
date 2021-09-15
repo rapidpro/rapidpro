@@ -4644,6 +4644,17 @@ class APITest(TembaTest):
         self.assertEqual(self.agent, ticket1.assignee)
         self.assertEqual(self.agent, ticket2.assignee)
 
+        # unassign tickets
+        response = self.postJSON(
+            url,
+            None,
+            {"tickets": [str(ticket1.uuid)], "action": "assign", "assignee": None},
+        )
+        self.assertEqual(response.status_code, 204)
+
+        ticket1.refresh_from_db()
+        self.assertIsNone(ticket1.assignee)
+
         # add a note to tickets
         response = self.postJSON(
             url,
