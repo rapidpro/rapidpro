@@ -218,8 +218,7 @@ class Ticket(models.Model):
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="tickets")
 
     # ticket content
-    topic = models.ForeignKey(Topic, null=True, on_delete=models.PROTECT, related_name="tickets")
-    subject = models.TextField(null=True)
+    topic = models.ForeignKey(Topic, on_delete=models.PROTECT, related_name="tickets")
     body = models.TextField()
 
     # the external id of the ticket
@@ -239,6 +238,9 @@ class Ticket(models.Model):
 
     # when this ticket last had activity which includes messages being sent and received, and is used for ordering
     last_activity_on = models.DateTimeField(default=timezone.now)
+
+    # TODO deprecated, remove
+    subject = models.TextField(null=True)
 
     def assign(self, user: User, *, assignee: User, note: str):
         self.bulk_assign(self.org, user, [self], assignee=assignee, note=note)

@@ -2138,8 +2138,8 @@ class ContactTest(TembaTest):
 
         # two tickets for joe
         ticketer = Ticketer.create(self.org, self.user, "internal", "Internal", {})
-        self.create_ticket(ticketer, self.joe, subject="Question 1", closed_on=timezone.now())
-        ticket = self.create_ticket(ticketer, self.joe, subject="Question 2")
+        self.create_ticket(ticketer, self.joe, "Question 1", closed_on=timezone.now())
+        ticket = self.create_ticket(ticketer, self.joe, "Question 2")
 
         # create missed incoming and outgoing calls
         self.create_channel_event(
@@ -2215,9 +2215,9 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history, 1, "channel_event", channel_event_type="new_conversation")
         assertHistoryEvent(history, 2, "channel_event", channel_event_type="mo_miss")
         assertHistoryEvent(history, 3, "channel_event", channel_event_type="mt_miss")
-        assertHistoryEvent(history, 4, "ticket_opened", ticket__subject="Question 2")
-        assertHistoryEvent(history, 5, "ticket_closed", ticket__subject="Question 1")
-        assertHistoryEvent(history, 6, "ticket_opened", ticket__subject="Question 1")
+        assertHistoryEvent(history, 4, "ticket_opened", ticket__body="Question 2")
+        assertHistoryEvent(history, 5, "ticket_closed", ticket__body="Question 1")
+        assertHistoryEvent(history, 6, "ticket_opened", ticket__body="Question 1")
         assertHistoryEvent(history, 7, "airtime_transferred", actual_amount=Decimal("100.00"))
         assertHistoryEvent(history, 8, "webhook_called", url="https://example.com/")
         assertHistoryEvent(history, 9, "run_result_changed", value="green")
@@ -2252,7 +2252,7 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history, 0, "ticket_assigned", assignee__id=self.admin.id)
         assertHistoryEvent(history, 1, "ticket_note_added", note="I have a bad feeling about this")
         assertHistoryEvent(history, 5, "channel_event", channel_event_type="mt_miss")
-        assertHistoryEvent(history, 6, "ticket_opened", ticket__subject="Question 2")
+        assertHistoryEvent(history, 6, "ticket_opened", ticket__body="Question 2")
         assertHistoryEvent(history, 7, "airtime_transferred", actual_amount=Decimal("100.00"))
 
         # can also fetch same page as JSON
