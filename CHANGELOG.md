@@ -1,3 +1,9 @@
+v6.5.38
+----------
+ * Deprecate subjects on tickets in favor of topics
+ * Tweak ticket bulk action endpoint to allow unassigning
+ * Add API endpoint to read and write ticket topics
+
 v6.5.37
 ----------
  * Add tracking of unseen notification counts for users
