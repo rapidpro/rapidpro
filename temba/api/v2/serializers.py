@@ -25,7 +25,7 @@ from temba.mailroom import modifiers
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import extract_constants, json, on_transaction_commit
 
 from . import fields
@@ -1142,12 +1142,12 @@ class LabelWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
-        labels_count = Label.label_objects.filter(org=self.context["org"], is_active=True).count()
-        if labels_count >= Label.MAX_ORG_LABELS:
+        org = self.context["org"]
+        count = Label.label_objects.filter(org=org, is_active=True).count()
+        if count >= org.get_limit(Org.LIMIT_LABELS):
             raise serializers.ValidationError(
-                "This org has %s labels and the limit is %s. "
-                "You must delete existing ones before you can "
-                "create new ones." % (labels_count, Label.MAX_ORG_LABELS)
+                "This workspace has %d labels and the limit is %d. You must delete existing ones before you can "
+                "create new ones." % (count, org.get_limit(Org.LIMIT_LABELS))
             )
         return data
 
@@ -1510,6 +1510,47 @@ class TicketBulkActionSerializer(WriteSerializer):
             Ticket.bulk_close(org, user, tickets)
         elif action == self.ACTION_REOPEN:
             Ticket.bulk_reopen(org, user, tickets)
+
+
+class TopicReadSerializer(ReadSerializer):
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    class Meta:
+        model = Topic
+        fields = ("uuid", "name", "created_on")
+
+
+class TopicWriteSerializer(WriteSerializer):
+    name = serializers.CharField(
+        required=True,
+        max_length=Topic.MAX_NAME_LEN,
+        validators=[UniqueForOrgValidator(queryset=Topic.objects.filter(is_active=True), ignore_case=True)],
+    )
+
+    def validate_name(self, value):
+        if not Topic.is_valid_name(value):
+            raise serializers.ValidationError("Contains illegal characters.")
+        return value
+
+    def validate(self, data):
+        org = self.context["org"]
+        count = org.topics.filter(is_active=True).count()
+        if count >= org.get_limit(Org.LIMIT_TOPICS):
+            raise serializers.ValidationError(
+                "This workspace has %s topics and the limit is %s. You must delete existing ones before you can "
+                "create new ones." % (count, org.get_limit(Org.LIMIT_TOPICS))
+            )
+        return data
+
+    def save(self):
+        name = self.validated_data["name"]
+
+        if self.instance:
+            self.instance.name = name
+            self.instance.save(update_fields=("name",))
+            return self.instance
+        else:
+            return Topic.get_or_create(self.context["org"], self.context["user"], name)
 
 
 class UserReadSerializer(ReadSerializer):

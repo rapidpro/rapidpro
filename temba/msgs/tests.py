@@ -33,6 +33,7 @@ from temba.msgs.models import (
     SystemLabel,
     SystemLabelCount,
 )
+from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
 from temba.tests.engine import MockSessionWriter
@@ -2495,14 +2496,14 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "name", "Name must not be blank or begin with punctuation")
 
         # try creating a new label after reaching the limit on labels
-        current_count = Label.all_objects.filter(org=self.org, is_active=True).count()
-        with patch.object(Label, "MAX_ORG_LABELS", current_count):
+        current_count = Label.label_objects.filter(org=self.org, is_active=True).count()
+        with patch.object(Org, "LIMIT_DEFAULTS", {"labels": current_count}):
             response = self.client.post(create_label_url, {"name": "CoolStuff"})
             self.assertFormError(
                 response,
                 "form",
                 "name",
-                "This org has 3 labels and the limit is 3. "
+                "This workspace has 2 labels and the limit is 2. "
                 "You must delete existing ones before you can create new ones.",
             )
 

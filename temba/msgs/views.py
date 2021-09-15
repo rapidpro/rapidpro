@@ -795,13 +795,12 @@ class BaseLabelForm(forms.ModelForm):
         if Label.all_objects.filter(org=self.org, name__iexact=name, is_active=True).exclude(pk=existing_id).exists():
             raise forms.ValidationError(_("Name must be unique"))
 
-        labels_count = Label.all_objects.filter(org=self.org, is_active=True).count()
-        if labels_count >= Label.MAX_ORG_LABELS:
+        count = Label.label_objects.filter(org=self.org, is_active=True).count()
+        if count >= self.org.get_limit(Org.LIMIT_LABELS):
             raise forms.ValidationError(
                 _(
-                    "This org has %(count)d labels and the limit is %(limit)d. "
-                    "You must delete existing ones before you can "
-                    "create new ones." % dict(count=labels_count, limit=Label.MAX_ORG_LABELS)
+                    "This workspace has %d labels and the limit is %s. You must delete existing ones before you can "
+                    "create new ones." % (count, self.org.get_limit(Org.LIMIT_LABELS))
                 )
             )
 
