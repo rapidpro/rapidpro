@@ -486,7 +486,7 @@ class MailroomQueueTest(TembaTest):
         jim = self.create_contact("Jim", phone="+12065551212")
         bobs = self.create_group("Bobs", [self.create_contact("Bob", phone="+12065551313")])
         ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Support Tickets", {})
-        ticket = self.create_ticket(ticketer, jim, body="Help!")
+        ticket = self.create_ticket(ticketer, jim, "Help!")
 
         bcast = Broadcast.create(
             self.org,
@@ -874,7 +874,7 @@ class EventTest(TembaTest):
     def test_from_ticket_event(self):
         ticketer = Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
         contact = self.create_contact("Jim", phone="0979111111")
-        ticket = self.create_ticket(ticketer, contact, subject="Problem", body="Where my shoes?")
+        ticket = self.create_ticket(ticketer, contact, "Where my shoes?")
 
         # event with a user
         event1 = TicketEvent.objects.create(
@@ -898,7 +898,7 @@ class EventTest(TembaTest):
                     "closed_on": None,
                     "status": "O",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
-                    "subject": "Problem",
+                    "subject": None,
                     "body": "Where my shoes?",
                     "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
                 },
@@ -925,7 +925,7 @@ class EventTest(TembaTest):
                     "closed_on": None,
                     "status": "O",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
-                    "subject": "Problem",
+                    "subject": None,
                     "body": "Where my shoes?",
                     "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
                 },
