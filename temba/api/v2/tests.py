@@ -4753,9 +4753,17 @@ class APITest(TembaTest):
         support.refresh_from_db()
         self.assertEqual(support.name, "Support Tickets")
 
-        # can't update ticket from other org
+        # can't update default topic for an org
+        response = self.postJSON(url, "uuid=%s" % self.org.default_ticket_topic.uuid, {"name": "Won't work"})
+        self.assertResponseError(response, "non_field_errors", "Can't modify default topic for a workspace.")
+
+        # can't update topic from other org
         response = self.postJSON(url, "uuid=%s" % other_org.uuid, {"name": "Won't work"})
         self.assert404(response)
+
+        # can't update topic to same name as existing topic
+        response = self.postJSON(url, "uuid=%s" % support.uuid, {"name": "General"})
+        self.assertResponseError(response, "name", "This field must be unique.")
 
         # try creating a new topic after reaching the limit on labels
         current_count = self.org.topics.filter(is_active=True).count()

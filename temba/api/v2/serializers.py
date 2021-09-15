@@ -1143,12 +1143,14 @@ class LabelWriteSerializer(WriteSerializer):
 
     def validate(self, data):
         org = self.context["org"]
+
         count = Label.label_objects.filter(org=org, is_active=True).count()
         if count >= org.get_limit(Org.LIMIT_LABELS):
             raise serializers.ValidationError(
                 "This workspace has %d labels and the limit is %d. You must delete existing ones before you can "
                 "create new ones." % (count, org.get_limit(Org.LIMIT_LABELS))
             )
+
         return data
 
     def save(self):
@@ -1534,6 +1536,10 @@ class TopicWriteSerializer(WriteSerializer):
 
     def validate(self, data):
         org = self.context["org"]
+
+        if self.instance and self.instance == org.default_ticket_topic:
+            raise serializers.ValidationError("Can't modify default topic for a workspace.")
+
         count = org.topics.filter(is_active=True).count()
         if count >= org.get_limit(Org.LIMIT_TOPICS):
             raise serializers.ValidationError(
