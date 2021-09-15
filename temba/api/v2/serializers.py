@@ -1146,7 +1146,7 @@ class LabelWriteSerializer(WriteSerializer):
         count = Label.label_objects.filter(org=org, is_active=True).count()
         if count >= org.get_limit(Org.LIMIT_LABELS):
             raise serializers.ValidationError(
-                "This workspace has %s labels and the limit is %s. You must delete existing ones before you can "
+                "This workspace has %d labels and the limit is %d. You must delete existing ones before you can "
                 "create new ones." % (count, org.get_limit(Org.LIMIT_LABELS))
             )
         return data
