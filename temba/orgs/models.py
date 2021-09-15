@@ -260,11 +260,15 @@ class Org(SmartModel):
     LIMIT_FIELDS = "fields"
     LIMIT_GLOBALS = "globals"
     LIMIT_GROUPS = "groups"
+    LIMIT_LABELS = "labels"
+    LIMIT_TOPICS = "topics"
 
     LIMIT_DEFAULTS = {
         LIMIT_FIELDS: settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG,
         LIMIT_GLOBALS: settings.MAX_ACTIVE_GLOBALS_PER_ORG,
         LIMIT_GROUPS: settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG,
+        LIMIT_LABELS: 250,
+        LIMIT_TOPICS: 250,
     }
 
     DELETE_DELAY_DAYS = 7  # how many days after releasing that an org is deleted
