@@ -64,36 +64,17 @@ def automatically_collect_flow_results_data():
 
 
 @task(track_started=True, name="analytics__collect_flow_results_data")
-def manually_collect_flow_results_data(user_id, org_id, flow_ids: list = None):
-    filters = {
-        "is_active": True,
-        "is_system": False,
-        "is_archived": False,
-    }
-    org = Org.objects.filter(id=org_id, analytics_config__isnull=False).first()
-    if not org:
-        return
-
-    if flow_ids:
-        filters["id__in"] = flow_ids
-
-    flows = (
-        org.analytics_config.flows.filter(**filters)
-        .annotate(last_updated=Greatest(Max("runs__modified_on"), F("modified_on")))
-        .filter(Q(aggregated_results__isnull=True) | Q(aggregated_results__last_updated__lt=F("last_updated")))
-        .only("metadata")
-    )
-    processing_state = DataCollectionProcess.objects.create(
-        start_type=DataCollectionProcess.TYPE_MANUAL,
-        flows_total=len(flows),
-        started_by_id=user_id,
-        related_org_id=org_id,
-    )
-    processed, skipped, failed = process_collecting(processing_state, flows)
-    processing_state.flows_processed, processing_state.flows_skipped, processing_state.flows_failed = (
-        processed,
-        skipped,
-        failed,
-    )
-    processing_state.completed_on = tz_now()
-    processing_state.save()
+def manually_collect_flow_results_data(processing_state_id, flow_ids: list = None):
+    try:
+        processing_state = DataCollectionProcess.objects.get(id=processing_state_id)
+        flows = processing_state.related_org.flows.filter(id__in=flow_ids).only("metadata")
+        processed, skipped, failed = process_collecting(processing_state, flows)
+        processing_state.flows_processed, processing_state.flows_skipped, processing_state.flows_failed = (
+            processed,
+            skipped,
+            failed,
+        )
+        processing_state.completed_on = tz_now()
+        processing_state.save()
+    except DataCollectionProcess.DoesNotExist:
+        pass

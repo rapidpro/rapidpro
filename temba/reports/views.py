@@ -14,7 +14,6 @@ from rest_framework.response import Response as APIResponse
 from smartmin.views import SmartCRUDL, SmartTemplateView
 from temba.orgs.views import OrgPermsMixin
 from .models import Report, DataCollectionProcess, DataCollectionProcessConfig
-from .tasks import manually_collect_flow_results_data
 from ..contacts.models import ContactGroup
 from ..flows.models import Flow, FlowRunCount
 
@@ -154,7 +153,7 @@ class ReportCRUDL(SmartCRUDL):
 
             config.flows.clear()
             config.flows.add(*flows)
-            manually_collect_flow_results_data.delay(user.id, org.id)
+            DataCollectionProcess.start_process(org, user)
             return APIResponse()
 
     class ChartsData(OrgPermsMixin, APIView):
@@ -280,5 +279,5 @@ class ReportCRUDL(SmartCRUDL):
             last_dc = DataCollectionProcess.get_last_collection_process_status(org)
             if only_status or not last_dc["completed"]:
                 return APIResponse({"created": False, **last_dc})
-            manually_collect_flow_results_data.delay(user.id, org.id, [flow] if flow else [])
+            DataCollectionProcess.start_process(org, user, [flow] if flow else [])
             return APIResponse({"created": True, "lastUpdated": tz_now(), "completed": False, "progress": 0.01})
