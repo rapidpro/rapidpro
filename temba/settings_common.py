@@ -938,19 +938,14 @@ _default_database_config = {
     "ATOMIC_REQUESTS": True,
     "CONN_MAX_AGE": 60,
     "OPTIONS": {},
+    "DISABLE_SERVER_SIDE_CURSORS": True,
 }
 
-_direct_database_config = _default_database_config.copy()
-_default_database_config["DISABLE_SERVER_SIDE_CURSORS"] = True
-
-DATABASES = {"default": _default_database_config, "direct": _direct_database_config}
+# installs can provide a default connection and an optional read-only connection (e.g. a separate read replica) which
+# will be used for certain fetch operations
+DATABASES = {"default": _default_database_config, "readonly": _default_database_config.copy()}
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
-
-# If we are testing, set both our connections as the same, Django seems to get
-# confused on Python 3.6 with transactional tests otherwise
-if TESTING:
-    DATABASES["default"] = _direct_database_config
 
 INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
 
