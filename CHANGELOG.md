@@ -1,3 +1,9 @@
+v6.5.40
+----------
+ * Update to floweditor 1.14.2
+ * Tweak database settings to add new readonly connection and remove no longer used direct connection
+ * Update menu on ticket list update
+
 v6.5.38
 ----------
  * Deprecate subjects on tickets in favor of topics
