@@ -47,7 +47,7 @@ def add_testing_flag_to_context(*args):
 
 
 class TembaTestMixin:
-    databases = ("default", "direct")
+    databases = ("default", "readonly")
 
     def setUpOrgs(self):
         # make sure we start off without any service users
