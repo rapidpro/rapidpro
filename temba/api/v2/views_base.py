@@ -37,7 +37,13 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
 
     def get_queryset(self):
         org = self.request.user.get_org()
-        return getattr(self.model, self.model_manager).filter(org=org)
+        qs = getattr(self.model, self.model_manager).filter(org=org)
+
+        # if this is a get request, fetch from readonly database
+        if self.request.method == "GET":
+            qs = qs.using("readonly")
+
+        return qs
 
     def get_lookup_values(self):
         """
