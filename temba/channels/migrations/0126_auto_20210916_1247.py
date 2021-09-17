@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
                     ("referral", "Referral"),
                     ("welcome_message", "Welcome Message"),
                 ],
-                max_length=16,
+                max_length=17,
             ),
         ),
     ]
