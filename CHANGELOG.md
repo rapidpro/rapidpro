@@ -1,3 +1,9 @@
+v6.5.41
+----------
+ * Update editor with fix for field creation
+ * Minor tidying of HTTPLog
+ * Fix rendering of tickets on contact read page which now don't have subjects
+
 v6.5.40
 ----------
  * Update to floweditor 1.14.2
