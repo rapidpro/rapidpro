@@ -4,7 +4,7 @@ from collections import defaultdict
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.contrib.postgres.fields.jsonb import KeyTextTransform
 from django.db import models
-from django.db.models.functions import Cast
+from django.db.models.functions import Cast, Greatest
 
 from smartmin.models import SmartModel
 
@@ -74,6 +74,38 @@ class DataCollectionProcess(models.Model):
 
     class Meta:
         ordering = ["-started_on", "-id"]
+
+    @classmethod
+    def start_process(cls, org, user, flow_ids: list = None):
+        from .tasks import manually_collect_flow_results_data
+
+        filters = {
+            "is_active": True,
+            "is_system": False,
+            "is_archived": False,
+        }
+        if flow_ids:
+            filters["id__in"] = flow_ids
+        try:
+            analytics_config = org.analytics_config
+            flow_ids = (
+                analytics_config.flows.filter(**filters)
+                .annotate(last_updated=Greatest(models.Max("runs__modified_on"), models.F("modified_on")))
+                .filter(
+                    models.Q(aggregated_results__isnull=True)
+                    | models.Q(aggregated_results__last_updated__lt=models.F("last_updated"))
+                )
+                .values_list("id", flat=True)
+            )
+            processing_state = DataCollectionProcess.objects.create(
+                start_type=DataCollectionProcess.TYPE_MANUAL,
+                flows_total=len(flow_ids),
+                started_by=user,
+                related_org=org,
+            )
+            manually_collect_flow_results_data.delay(processing_state.id, list(flow_ids))
+        except DataCollectionProcessConfig.DoesNotExist:
+            return
 
     @classmethod
     def get_last_collection_process_status(cls, org):
