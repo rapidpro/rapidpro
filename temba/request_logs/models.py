@@ -19,6 +19,7 @@ class HTTPLog(models.Model):
     HTTPLog is used to log HTTP requests and responses.
     """
 
+    # used for dumping traces
     REQUEST_DELIM = ">!>!>! "
     RESPONSE_DELIM = "<!<!<! "
 
@@ -42,47 +43,29 @@ class HTTPLog(models.Model):
         (WHATSAPP_CONTACTS_REFRESHED, _("WhatsApp Contacts Refreshed")),
     )
 
-    # the classifier this log is for
+    org = models.ForeignKey(Org, related_name="http_logs", on_delete=models.PROTECT)
+    log_type = models.CharField(max_length=32, choices=LOG_TYPE_CHOICES)
+
+    url = models.URLField(max_length=2048)
+    request = models.TextField()
+    response = models.TextField(null=True)
+    request_time = models.IntegerField()  # how long this request took in milliseconds
+    created_on = models.DateTimeField(default=timezone.now)
+
+    # whether this was an error which is dependent on the service being called
+    is_error = models.BooleanField()
+
+    # foreign keys for fetching logs
     classifier = models.ForeignKey(
         "classifiers.Classifier", related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
     )
-
-    # the ticketer this log is for
     ticketer = models.ForeignKey(
         "tickets.Ticketer", related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
     )
-
-    # the airtime transfer this log is for
     airtime_transfer = models.ForeignKey(
         "airtime.AirtimeTransfer", related_name="http_logs", on_delete=models.PROTECT, null=True
     )
-
-    # the channel this log is for
     channel = models.ForeignKey("channels.Channel", related_name="http_logs", on_delete=models.PROTECT, null=True)
-
-    # the type of log this is
-    log_type = models.CharField(max_length=32, choices=LOG_TYPE_CHOICES)
-
-    # the url that was called
-    url = models.URLField(max_length=2048)
-
-    # the request that was made
-    request = models.TextField()
-
-    # the response received
-    response = models.TextField(null=True)
-
-    # whether this was an error
-    is_error = models.BooleanField()
-
-    # how long this request took in milliseconds
-    request_time = models.IntegerField()
-
-    # when this was created
-    created_on = models.DateTimeField(default=timezone.now)
-
-    # the org this log is part of
-    org = models.ForeignKey(Org, related_name="http_logs", on_delete=models.PROTECT)
 
     def method(self):
         return self.request.split(" ")[0] if self.request else None
@@ -129,10 +112,8 @@ class HTTPLog(models.Model):
         request = "".join(request_lines)
         response = "".join(response_lines)
 
-        return HTTPLog.objects.create(
-            classifier=classifier,
-            channel=channel,
-            ticketer=ticketer,
+        return cls.objects.create(
+            org=org,
             log_type=log_type,
             url=url,
             request=request,
@@ -140,7 +121,9 @@ class HTTPLog(models.Model):
             is_error=is_error,
             created_on=timezone.now(),
             request_time=request_time,
-            org=org,
+            classifier=classifier,
+            channel=channel,
+            ticketer=ticketer,
         )
 
     @classmethod
@@ -155,10 +138,8 @@ class HTTPLog(models.Model):
         request_lines = data.split(cls.REQUEST_DELIM)
         request = "".join(request_lines)
 
-        return HTTPLog.objects.create(
-            channel=channel,
-            classifier=classifier,
-            ticketer=ticketer,
+        return cls.objects.create(
+            org=org,
             log_type=log_type,
             url=url,
             request=request,
@@ -166,7 +147,9 @@ class HTTPLog(models.Model):
             is_error=True,
             created_on=timezone.now(),
             request_time=(timezone.now() - start).total_seconds() * 1000,
-            org=org,
+            channel=channel,
+            classifier=classifier,
+            ticketer=ticketer,
         )
 
     class Meta:
