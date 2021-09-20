@@ -47,6 +47,11 @@ if TESTING:
 ADMINS = (("RapidPro", "code@yourdomain.io"),)
 MANAGERS = ADMINS
 
+# -----------------------------------------------------------------------------------
+# Location support
+# -----------------------------------------------------------------------------------
+LOCATION_SUPPORT = True
+
 # hardcode the postgis version so we can do reset db's from a blank database
 POSTGIS_VERSION = (2, 1)
 
