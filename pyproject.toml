@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "6.5.40"
+version = "6.5.41"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 license = "AGPL-3"
@@ -58,6 +58,7 @@ python-intercom = "^3.1.0"
 packaging = "^20.9"
 requests-toolbelt = "^0.9.1"
 chardet = "^4.0.0"
+openpyxl = "3.0.7"  # https://foss.heptapod.net/openpyxl/openpyxl/-/issues/1740
 
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"
