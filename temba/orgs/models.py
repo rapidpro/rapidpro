@@ -1728,6 +1728,7 @@ class Org(SmartModel):
             flow_label.delete()
 
         # delete contact-related data
+        self.http_logs.all().delete()
         self.sessions.all().delete()
         self.ticket_events.all().delete()
         self.tickets.all().delete()
@@ -1762,9 +1763,6 @@ class Org(SmartModel):
             channel.template_translations.all().delete()
 
             channel.delete()
-
-        for log in self.http_logs.all():
-            log.release()
 
         for g in self.globals.all():
             g.release(user)

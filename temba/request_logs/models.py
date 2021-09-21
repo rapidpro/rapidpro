@@ -59,6 +59,7 @@ class HTTPLog(models.Model):
     request = models.TextField()
     response = models.TextField(null=True)
     request_time = models.IntegerField()  # how long this request took in milliseconds
+    num_retries = models.IntegerField(null=True)
     created_on = models.DateTimeField(default=timezone.now)
 
     # whether this was an error which is dependent on the service being called
@@ -83,9 +84,6 @@ class HTTPLog(models.Model):
 
     def get_status_code(self):
         return self.status_code or self.response.split(" ")[1] if self.response else None
-
-    def release(self):
-        self.delete()
 
     @classmethod
     def trim(cls):
