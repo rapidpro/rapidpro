@@ -543,6 +543,7 @@ class Channel(TembaModel, DependencyMixin):
         schemes=("tel",),
         parent=None,
         name=None,
+        tps=None,
     ):
         return Channel.create(
             org,
@@ -555,6 +556,7 @@ class Channel(TembaModel, DependencyMixin):
             role=role,
             schemes=schemes,
             parent=parent,
+            tps=tps,
         )
 
     @classmethod
