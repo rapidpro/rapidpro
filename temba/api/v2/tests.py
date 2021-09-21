@@ -711,7 +711,6 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertEqual(response.json()["results"], [])
 
-    @override_settings(TESTING=False)
     @patch("temba.mailroom.queue_broadcast")
     def test_broadcasts(self, mock_queue_broadcast):
         url = reverse("api.v2.broadcasts")
