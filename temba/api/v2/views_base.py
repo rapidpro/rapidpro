@@ -28,6 +28,7 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
     model = None
     model_manager = "objects"
     lookup_params = {"uuid": "uuid"}
+    readonly_gets = True
 
     def options(self, request, *args, **kwargs):
         """
@@ -42,7 +43,7 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
 
         # if this is a get request, fetch from readonly database - but we can't do this during testing because test data
         # will have been created in a transaction in the default database
-        if self.request.method == "GET" and not settings.TESTING:
+        if self.readonly_gets and self.request.method == "GET" and not settings.TESTING:
             qs = qs.using("readonly")  # pragma: no cover
 
         return qs

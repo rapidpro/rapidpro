@@ -1394,6 +1394,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
     pagination_class = ModifiedOnCursorPagination
     throttle_scope = "v2.contacts"
     lookup_params = {"uuid": "uuid", "urn": "urns__identity"}
+    readonly_gets = False
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
