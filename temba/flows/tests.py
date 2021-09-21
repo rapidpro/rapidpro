@@ -358,38 +358,42 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, reverse("flows.flow_simulate", args=[flow.id]))
 
     def test_editor_feature_filters(self):
-        flow = self.get_flow("color")
+        flow = self.create_flow()
 
         self.login(self.admin)
 
-        def assert_features(features: list):
+        def assert_features(features: set):
             response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-            self.assertEqual(features, json.loads(response.context["feature_filters"]))
+            self.assertEqual(features, set(json.loads(response.context["feature_filters"])))
 
-        # empty feature set
-        assert_features(["ticketer"])
+        # every org has a ticketer now...
+        assert_features({"ticketer"})
 
         # add a resthook
         Resthook.objects.create(org=flow.org, created_by=self.admin, modified_by=self.admin)
-        assert_features(["ticketer", "resthook"])
+        assert_features({"ticketer", "resthook"})
 
         # add an NLP classifier
         Classifier.objects.create(org=flow.org, config="", created_by=self.admin, modified_by=self.admin)
-        assert_features(["classifier", "ticketer", "resthook"])
+        assert_features({"classifier", "ticketer", "resthook"})
 
         # add a DT One integration
         DTOneType().connect(flow.org, self.admin, "login", "token")
-        assert_features(["airtime", "classifier", "ticketer", "resthook"])
+        assert_features({"airtime", "classifier", "ticketer", "resthook"})
 
         # change our channel to use a whatsapp scheme
         self.channel.schemes = [URN.WHATSAPP_SCHEME]
         self.channel.save()
-        assert_features(["whatsapp", "airtime", "classifier", "ticketer", "resthook"])
+        assert_features({"whatsapp", "airtime", "classifier", "ticketer", "resthook"})
 
         # change our channel to use a facebook scheme
         self.channel.schemes = [URN.FACEBOOK_SCHEME]
         self.channel.save()
-        assert_features(["facebook", "airtime", "classifier", "ticketer", "resthook"])
+        assert_features({"facebook", "airtime", "classifier", "ticketer", "resthook"})
+
+        self.setUpLocations()
+
+        assert_features({"facebook", "airtime", "classifier", "ticketer", "resthook", "locations"})
 
     def test_save_revision(self):
         self.login(self.admin)
