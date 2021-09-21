@@ -1,3 +1,7 @@
+v6.5.44
+----------
+ * GET requests to API should use readonly database on the view's queryset
+
 v6.5.43
 ----------
  * Tweak how HTTP logs are deleted
