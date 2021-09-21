@@ -4,11 +4,17 @@ from datetime import timedelta
 from requests_toolbelt.utils import dump
 
 from django.db import models
-from django.db.models import Index
+from django.db.models import Index, Q
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
+from temba.airtime.models import AirtimeTransfer
+from temba.channels.models import Channel
+from temba.classifiers.models import Classifier
+from temba.flows.models import Flow
 from temba.orgs.models import Org
+from temba.tickets.models import Ticketer
 from temba.utils import chunk_list
 
 logger = logging.getLogger(__name__)
@@ -24,6 +30,7 @@ class HTTPLog(models.Model):
     RESPONSE_DELIM = "<!<!<! "
 
     # log type choices
+    WEBHOOK_CALLED = "webhook_called"
     INTENTS_SYNCED = "intents_synced"
     CLASSIFIER_CALLED = "classifier_called"
     TICKETER_CALLED = "ticketer_called"
@@ -34,6 +41,7 @@ class HTTPLog(models.Model):
 
     # possible log type choices and descriptive names
     LOG_TYPE_CHOICES = (
+        (WEBHOOK_CALLED, "Webhook Called"),
         (INTENTS_SYNCED, _("Intents Synced")),
         (CLASSIFIER_CALLED, _("Classifier Called")),
         (TICKETER_CALLED, _("Ticketing Service Called")),
@@ -47,6 +55,7 @@ class HTTPLog(models.Model):
     log_type = models.CharField(max_length=32, choices=LOG_TYPE_CHOICES)
 
     url = models.URLField(max_length=2048)
+    status_code = models.IntegerField(null=True)
     request = models.TextField()
     response = models.TextField(null=True)
     request_time = models.IntegerField()  # how long this request took in milliseconds
@@ -56,22 +65,24 @@ class HTTPLog(models.Model):
     is_error = models.BooleanField()
 
     # foreign keys for fetching logs
+    flow = models.ForeignKey(Flow, related_name="http_logs", on_delete=models.PROTECT, null=True)
     classifier = models.ForeignKey(
-        "classifiers.Classifier", related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
+        Classifier, related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
     )
     ticketer = models.ForeignKey(
-        "tickets.Ticketer", related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
+        Ticketer, related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
     )
     airtime_transfer = models.ForeignKey(
-        "airtime.AirtimeTransfer", related_name="http_logs", on_delete=models.PROTECT, null=True
+        AirtimeTransfer, related_name="http_logs", on_delete=models.PROTECT, null=True
     )
-    channel = models.ForeignKey("channels.Channel", related_name="http_logs", on_delete=models.PROTECT, null=True)
+    channel = models.ForeignKey(Channel, related_name="http_logs", on_delete=models.PROTECT, null=True)
 
+    @cached_property
     def method(self):
         return self.request.split(" ")[0] if self.request else None
 
-    def status_code(self):
-        return self.response.split(" ")[1] if self.response else None
+    def get_status_code(self):
+        return self.status_code or self.response.split(" ")[1] if self.response else None
 
     def release(self):
         self.delete()
@@ -82,9 +93,9 @@ class HTTPLog(models.Model):
         Deletes all HTTP Logs older than 3 days, 1000 at a time
         """
         cutoff = timezone.now() - timedelta(days=3)
-        ids = HTTPLog.objects.filter(created_on__lte=cutoff).values_list("id", flat=True)
+        ids = cls.objects.filter(created_on__lte=cutoff).values_list("id", flat=True)
         for chunk in chunk_list(ids, 1000):
-            HTTPLog.objects.filter(id__in=chunk).delete()
+            cls.objects.filter(id__in=chunk).delete()
 
     @classmethod
     def create_from_response(
@@ -153,4 +164,11 @@ class HTTPLog(models.Model):
         )
 
     class Meta:
-        indexes = (Index(fields=("classifier", "-created_on")), Index(fields=("ticketer", "-created_on")))
+        indexes = (
+            # for classifier specific log view
+            Index(fields=("classifier", "-created_on")),
+            # for webhook log view
+            Index(name="httplog_org_flows_only", fields=("org", "-created_on"), condition=Q(flow__isnull=False)),
+            # for ticketer specific log view
+            Index(fields=("ticketer", "-created_on")),
+        )
