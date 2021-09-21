@@ -1,3 +1,10 @@
+v6.5.42
+----------
+ * Pin pyopenxel to 3.0.7 until 3.0.8 release problems resolved
+ * Add new fields to HTTPLog to support saving webhook results
+ * Make TPS for Shaqodoon be 5 by default
+ * Make location support optional via new branding setting
+
 v6.5.41
 ----------
  * Update editor with fix for field creation
