@@ -85,9 +85,6 @@ class HTTPLog(models.Model):
     def get_status_code(self):
         return self.status_code or self.response.split(" ")[1] if self.response else None
 
-    def release(self):
-        self.delete()
-
     @classmethod
     def trim(cls):
         """
