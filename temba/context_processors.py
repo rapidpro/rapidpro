@@ -5,7 +5,6 @@ def config(request):
     return {
         "COMPONENTS_DEV_MODE": getattr(settings, "COMPONENTS_DEV_MODE", False),
         "EDITOR_DEV_MODE": getattr(settings, "EDITOR_DEV_MODE", False),
-        "LOCATION_SUPPORT": settings.LOCATION_SUPPORT,
     }
 
 

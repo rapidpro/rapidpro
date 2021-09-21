@@ -1055,7 +1055,9 @@ class OrgTest(TembaTest):
         response = self.client.get(home_url)
         self.assertContains(response, "Rwanda")
 
-        with override_settings(LOCATION_SUPPORT=False):
+        # if location support is disabled in the branding, don't display country formax
+        current_branding = settings.BRANDING["rapidpro.io"]
+        with override_settings(BRANDING={"rapidpro.io": {**current_branding, "location_support": False}}):
             response = self.client.get(home_url)
             self.assertNotContains(response, "Rwanda")
 
