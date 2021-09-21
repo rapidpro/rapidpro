@@ -1031,7 +1031,10 @@ class OrgTest(TembaTest):
     def test_country_view(self):
         self.setUpLocations()
 
+        home_url = reverse("orgs.org_home")
         country_url = reverse("orgs.org_country")
+
+        rwanda = AdminBoundary.objects.get(name="Rwanda")
 
         # can't see this page if not logged in
         self.assertLoginRedirect(self.client.get(country_url))
@@ -1042,12 +1045,21 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # save with Rwanda as a country
-        self.client.post(country_url, dict(country=AdminBoundary.objects.get(name="Rwanda").pk))
+        self.client.post(country_url, {"country": rwanda.id})
 
         # assert it has changed
         self.org.refresh_from_db()
         self.assertEqual("Rwanda", str(self.org.country))
         self.assertEqual("RW", self.org.default_country_code)
+
+        response = self.client.get(home_url)
+        self.assertContains(response, "Rwanda")
+
+        # if location support is disabled in the branding, don't display country formax
+        current_branding = settings.BRANDING["rapidpro.io"]
+        with override_settings(BRANDING={"rapidpro.io": {**current_branding, "location_support": False}}):
+            response = self.client.get(home_url)
+            self.assertNotContains(response, "Rwanda")
 
     def test_default_country(self):
         # if country boundary is set and name is valid country, that has priority
