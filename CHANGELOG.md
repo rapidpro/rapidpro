@@ -1,3 +1,8 @@
+v6.5.43
+----------
+ * Tweak how HTTP logs are deleted
+ * Add num_retries field to HTTPLog
+
 v6.5.42
 ----------
  * Pin pyopenxel to 3.0.7 until 3.0.8 release problems resolved
