@@ -1021,32 +1021,31 @@ class FlowCRUDL(SmartCRUDL):
 
             context["dev_mode"] = dev_mode
             context["is_starting"] = flow.is_starting()
-
-            feature_filters = []
-
-            facebook_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
-            if facebook_channel is not None:
-                feature_filters.append("facebook")
-
-            whatsapp_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
-            if whatsapp_channel is not None:
-                feature_filters.append("whatsapp")
-
-            if flow.org.get_integrations(IntegrationType.Category.AIRTIME):
-                feature_filters.append("airtime")
-
-            if flow.org.classifiers.filter(is_active=True).exists():
-                feature_filters.append("classifier")
-
-            if flow.org.ticketers.filter(is_active=True).exists():
-                feature_filters.append("ticketer")
-
-            if flow.org.get_resthooks():
-                feature_filters.append("resthook")
-
-            context["feature_filters"] = json.dumps(feature_filters)
-
+            context["feature_filters"] = json.dumps(self.get_features(flow.org))
             return context
+
+        def get_features(self, org) -> list:
+            features = []
+
+            facebook_channel = org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
+            whatsapp_channel = org.get_channel(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
+
+            if facebook_channel:
+                features.append("facebook")
+            if whatsapp_channel:
+                features.append("whatsapp")
+            if org.get_integrations(IntegrationType.Category.AIRTIME):
+                features.append("airtime")
+            if org.classifiers.filter(is_active=True).exists():
+                features.append("classifier")
+            if org.ticketers.filter(is_active=True).exists():
+                features.append("ticketer")
+            if org.get_resthooks():
+                features.append("resthook")
+            if org.country_id:
+                features.append("locations")
+
+            return features
 
         def get_gear_links(self):
             links = []
