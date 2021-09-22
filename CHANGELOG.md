@@ -1,3 +1,10 @@
+v6.5.45
+----------
+ * Temporarily disable refresh
+ * Don't use readonly database connection for GETs to contacts endpoint
+ * Add view for webhook calls saved as HTTP logs
+ * Pass location support flag to editor as a feature flag
+
 v6.5.44
 ----------
  * GET requests to API should use readonly database on the view's queryset
