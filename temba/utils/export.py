@@ -34,6 +34,7 @@ class BaseExportTask(TembaModel):
 
     analytics_key = None
     asset_type = None
+    notification_export_type = None
 
     MAX_EXCEL_ROWS = 1_048_576
     MAX_EXCEL_COLS = 16384
@@ -67,8 +68,11 @@ class BaseExportTask(TembaModel):
         Performs the actual export. If export generation throws an exception it's caught here and the task is marked
         as failed.
         """
+        from temba.notifications.models import Notification
+
         try:
             self.update_status(self.STATUS_PROCESSING)
+
             print(f"Started perfoming {self.analytics_key} with ID {self.id}")
 
             start = time.time()
@@ -106,6 +110,8 @@ class BaseExportTask(TembaModel):
             elapsed = time.time() - start
             print(f"Completed {self.analytics_key} with ID {self.id} in {elapsed:.1f} seconds")
             analytics.track(self.created_by, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed))
+
+            Notification.export_finished(self)
         finally:
             gc.collect()  # force garbage collection
 
@@ -154,9 +160,14 @@ class BaseExportTask(TembaModel):
             return clean_string(str(value))
 
     def get_email_context(self, branding):
-        asset_store = get_asset_store(model=self.__class__)
+        return {"link": branding["link"] + self.get_download_url()}
 
-        return {"link": branding["link"] + asset_store.get_asset_url(self.id)}
+    def get_download_url(self) -> str:
+        asset_store = get_asset_store(model=self.__class__)
+        return asset_store.get_asset_url(self.id)
+
+    def get_notification_scope(self) -> str:
+        return f"{self.notification_export_type}:{self.id}"
 
     class Meta:
         abstract = True

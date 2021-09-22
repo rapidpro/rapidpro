@@ -1,0 +1,9 @@
+-block spa-style
+-block spa-script
+-block spa-body
+  -if user_org.is_suspended
+    -include "org_suspended_include.haml"
+  -if is_spa and messages
+    -for msg in messages
+      %temba-alert.mb-3
+        {{ msg }}

@@ -95,14 +95,13 @@ a {
 }
 
 .button {
-  @apply px-6 py-3 leading-none text-lg shadow transition duration-300 text-center rounded-lg select-none whitespace-nowrap font-normal inline-block;
+  @apply px-6 py-3 leading-none text-lg shadow transition duration-200 text-center rounded-lg select-none whitespace-nowrap font-normal inline-block;
   margin-top: 1px;
 
   &:active {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
   }
 
   &:hover {
@@ -111,7 +110,7 @@ a {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
+      
   }
 
 }
@@ -124,7 +123,6 @@ a {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .6);
   }
 }
 
@@ -145,7 +143,8 @@ a {
 }
 
 .button-primary {
-  @apply button text-white bg-primary;
+  @apply button text-white;
+  background: var(--color-primary-dark) !important;
 }
 
 .button-white {
@@ -242,24 +241,13 @@ a {
 .lbl-group.inverted {
   @apply text-light-alpha-900;
 
-  
-
-  &::before {
-    @apply text-light-alpha-900;
-    content: "\e03c";
-  }
-
   &.linked:hover {
     @apply no-underline cursor-pointer text-light-alpha-900;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
   }
-}
 
-.lbl-group-dynamic {
-  @apply lbl-group;
-
-  &::before {
-    content: "\ebeb";
+  temba-icon {
+    --icon-color: rgba(255, 255, 255, .9);
   }
 }
 
@@ -573,7 +561,6 @@ table.list {
 }
 
 .gear-links {
-  @apply ml-4;
   min-height: 34.5px;
 }
 
@@ -691,6 +678,10 @@ code {
 
 .formax {
   .formax-section {
+    transition: all 200ms ease-in-out;
+    margin-left: 0px;
+    margin-right: 0px;
+
     @apply border-0 rounded-lg shadow bg-white mb-4 p-0 overflow-hidden flex items-stretch;
 
     &:hover {
@@ -748,7 +739,27 @@ code {
       }
     }
 
+
+    &.wide.open {
+      margin-left: -115px;
+      margin-right: -115px;
+
+      .formax-icon {
+        font-size: 50px;
+        padding-top: 0px;
+        flex-basis: 0px;
+
+        .i-container {
+          width: 0px;
+          margin-top: 20px;
+          margin-left:-25px;
+        }
+      }
+    }
+
     &.open {
+      margin-left: -30px;
+      margin-right: -30px;
       @apply shadow-lg;
 
       &:hover {

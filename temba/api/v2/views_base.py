@@ -6,6 +6,7 @@ from rest_framework import generics, mixins, status
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
 
+from django.conf import settings
 from django.db import transaction
 
 from temba.api.models import APIPermission, SSLPermission
@@ -37,7 +38,14 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
 
     def get_queryset(self):
         org = self.request.user.get_org()
-        return getattr(self.model, self.model_manager).filter(org=org)
+        qs = getattr(self.model, self.model_manager).filter(org=org)
+
+        # if this is a get request, fetch from readonly database - but we can't do this during testing because test data
+        # will have been created in a transaction in the default database
+        if self.request.method == "GET" and not settings.TESTING:
+            qs = qs.using("readonly")  # pragma: no cover
+
+        return qs
 
     def get_lookup_values(self):
         """
@@ -259,4 +267,9 @@ class ModifiedOnCursorPagination(CursorPagination):
         else:
             return "-modified_on", "-id"
 
+    offset_cutoff = 1000000
+
+
+class DateJoinedCursorPagination(CursorPagination):
+    ordering = ("-date_joined", "-id")
     offset_cutoff = 1000000

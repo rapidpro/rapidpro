@@ -26,7 +26,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.search import SearchException, SearchResults, search_contacts
 from temba.contacts.views import ContactListView
-from temba.flows.models import Flow, FlowStart
+from temba.flows.models import Flow, FlowSession, FlowStart
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, modifiers
@@ -43,6 +43,7 @@ from temba.tests import (
     mock_mailroom,
 )
 from temba.tests.engine import MockSessionWriter
+from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -55,6 +56,7 @@ from .models import (
     ContactGroup,
     ContactGroupCount,
     ContactImport,
+    ContactImportBatch,
     ContactURN,
     ExportContactsTask,
 )
@@ -76,6 +78,38 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # point so create them explicitly here, so that we also get the sample groups
         self.org.create_sample_flows("https://api.rapidpro.io")
 
+    def test_menu(self):
+        menu_url = reverse("contacts.contact_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+        self.assertEqual(
+            [
+                {"id": "active", "count": 0, "name": "Active", "href": "/contact/"},
+                {"id": "blocked", "count": 0, "name": "Blocked", "href": "/contact/blocked/"},
+                {"id": "stopped", "count": 0, "name": "Stopped", "href": "/contact/stopped/"},
+                {"id": "archived", "count": 0, "name": "Archived", "href": "/contact/archived/"},
+                {
+                    "id": "smart",
+                    "icon": "atom",
+                    "name": "Smart Groups",
+                    "href": "/contactgroup/?type=smart",
+                    "count": 0,
+                },
+                {"id": "groups", "icon": "users", "name": "Groups", "href": "/contactgroup/?type=static", "count": 2},
+                {
+                    "id": "fields",
+                    "icon": "layers",
+                    "count": 2,
+                    "name": "Fields",
+                    "href": "/contactfield/",
+                    "endpoint": "/contactfield/menu/",
+                    "inline": True,
+                },
+                {"id": "import", "icon": "upload-cloud", "href": "/contactimport/create/", "name": "Import"},
+            ],
+            menu,
+        )
+
     @mock_mailroom
     def test_list(self, mr_mocks):
         self.login(self.user)
@@ -88,7 +122,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING
         )
 
-        response = self.client.get(list_url)
+        with self.assertNumQueries(52):
+            response = self.client.get(list_url)
+
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertIsNone(response.context["search_error"])
         self.assertEqual([], list(response.context["actions"]))
@@ -126,6 +162,10 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                 },
             ],
         )
+
+        # fetch with spa flag
+        response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")
+        self.assertEqual(response.context["base_template"], "spa.html")
 
         mr_mocks.contact_search("age = 18", contacts=[frank], allow_as_group=True)
 
@@ -371,6 +411,47 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         response = self.client.get(archived_url)
         self.assertEqual(0, len(response.context["object_list"]))
+
+    @mock_mailroom
+    def test_filter(self, mr_mocks):
+        joe = self.create_contact("Joe", phone="123")
+        frank = self.create_contact("Frank", phone="124")
+        self.create_contact("Bob", phone="125")
+
+        mr_mocks.contact_search("age > 40", contacts=[frank], total=1, allow_as_group=True)
+
+        group1 = self.create_group("Testers", contacts=[joe, frank])  # static group
+        group2 = self.create_group("Oldies", query="age > 40")  # smart group
+        group2.contacts.add(frank)
+        group3 = self.create_group("Other Org", org=self.org2)
+
+        group1_url = reverse("contacts.contact_filter", args=[group1.uuid])
+        group2_url = reverse("contacts.contact_filter", args=[group2.uuid])
+        group3_url = reverse("contacts.contact_filter", args=[group3.uuid])
+
+        response = self.assertReadFetch(group1_url, allow_viewers=True, allow_editors=True)
+
+        self.assertEqual([frank, joe], list(response.context["object_list"]))
+        self.assertEqual(["block", "label", "unlabel"], list(response.context["actions"]))
+
+        response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
+
+        self.assertEqual([frank], list(response.context["object_list"]))
+        self.assertEqual(["block", "archive"], list(response.context["actions"]))
+        self.assertContains(response, "age &gt; 40")
+
+        # if a user tries to access a non-existent group, that's a 404
+        response = self.requestView(reverse("contacts.contact_filter", args=["21343253"]), self.admin)
+        self.assertEqual(404, response.status_code)
+
+        # if a user tries to access a group in another org, send them to the login page
+        response = self.requestView(group3_url, self.admin)
+        self.assertLoginRedirect(response)
+
+        # if the user has access to that org, we redirect to the org choose page
+        self.org2.administrators.add(self.admin)
+        response = self.requestView(group3_url, self.admin)
+        self.assertRedirect(response, "/org/choose/")
 
     @mock_mailroom
     def test_read(self, mr_mocks):
@@ -1019,6 +1100,26 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
 
+    def test_list(self):
+        list_url = reverse("contacts.contactgroup_list")
+        response = self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        self.assertEqual(
+            [
+                "delete",
+            ],
+            list(response.context["actions"]),
+        )
+
+        group = ContactGroup.create_static(self.org, self.admin, "My New Group")
+
+        # let's delete it and make sure it's gone
+        self.client.post(list_url, {"action": "delete", "objects": group.id})
+        self.assertFalse(ContactGroup.user_groups.filter(id=group.id).exists())
+
+        # fetch with spa flag
+        response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")
+        self.assertEqual(response.context["base_template"], "spa.html")
+
     @override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=10)
     @patch.object(Org, "LIMIT_DEFAULTS", dict(groups=10))
     @mock_mailroom
@@ -1250,6 +1351,8 @@ class ContactTest(TembaTest):
 
         # create contact in other org
         self.other_org_contact = self.create_contact(name="Fred", phone="+250768111222", org=self.org2)
+
+        self.mock_s3 = MockS3Client()
 
     def create_campaign(self):
         # create a campaign with a future event and add joe
@@ -2054,10 +2157,12 @@ class ContactTest(TembaTest):
         # try adding some failed calls
         call = IVRCall.objects.create(
             contact=self.joe,
-            status=IVRCall.NO_ANSWER,
+            status=IVRCall.STATUS_ERRORED,
+            error_reason=IVRCall.ERROR_NOANSWER,
             channel=self.channel,
             org=self.org,
             contact_urn=self.joe.urns.all().first(),
+            error_count=0,
         )
 
         # create a channel log for this call
@@ -2081,14 +2186,22 @@ class ContactTest(TembaTest):
             assignee=self.admin,
         )
 
+        # set an output URL on our session so we fetch from there
+        s = FlowSession.objects.get(contact=self.joe)
+        FlowSession.objects.filter(id=s.id).update(
+            output_url="https://temba-sessions.s3.aws.amazon.com/c/session.json"
+        )
+        self.mock_s3.objects[("temba-sessions", "c/session.json")] = io.StringIO(json.dumps(s.output))
+
         # fetch our contact history
         self.login(self.admin)
-        with self.assertNumQueries(52):
-            response = self.client.get(url + "?limit=100")
+        with patch("temba.utils.s3.s3.client", return_value=self.mock_s3):
+            with self.assertNumQueries(49):
+                response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
         history = response.context["events"]
-        self.assertEqual(100, len(history))
+        self.assertEqual(98, len(history))
 
         def assertHistoryEvent(events, index, expected_type, **kwargs):
             item = events[index]
@@ -2098,25 +2211,23 @@ class ContactTest(TembaTest):
             for path, expected in kwargs.items():
                 self.assertPathValue(item, path, expected, f"item {index}")
 
-        assertHistoryEvent(history, 0, "ticket_assigned", assignee__id=self.admin.id)
-        assertHistoryEvent(history, 1, "ticket_note_added", note="I have a bad feeling about this")
-        assertHistoryEvent(history, 2, "call_started", status="N")
-        assertHistoryEvent(history, 3, "channel_event", channel_event_type="new_conversation")
-        assertHistoryEvent(history, 4, "channel_event", channel_event_type="mo_miss")
-        assertHistoryEvent(history, 5, "channel_event", channel_event_type="mt_miss")
-        assertHistoryEvent(history, 6, "ticket_opened", ticket__subject="Question 2")
-        assertHistoryEvent(history, 7, "ticket_closed", ticket__subject="Question 1")
-        assertHistoryEvent(history, 8, "ticket_opened", ticket__subject="Question 1")
-        assertHistoryEvent(history, 9, "airtime_transferred", actual_amount=Decimal("100.00"))
-        assertHistoryEvent(history, 10, "webhook_called", url="https://example.com/")
-        assertHistoryEvent(history, 11, "run_result_changed", value="green")
-        assertHistoryEvent(history, 12, "msg_created", msg__text="What is your favorite color?")
-        assertHistoryEvent(history, 13, "flow_entered", flow__name="Colors")
-        assertHistoryEvent(history, 14, "msg_received", msg__text="Message caption")
+        assertHistoryEvent(history, 0, "call_started", status="E", status_display="Errored (No Answer)")
+        assertHistoryEvent(history, 1, "channel_event", channel_event_type="new_conversation")
+        assertHistoryEvent(history, 2, "channel_event", channel_event_type="mo_miss")
+        assertHistoryEvent(history, 3, "channel_event", channel_event_type="mt_miss")
+        assertHistoryEvent(history, 4, "ticket_opened", ticket__body="Question 2")
+        assertHistoryEvent(history, 5, "ticket_closed", ticket__body="Question 1")
+        assertHistoryEvent(history, 6, "ticket_opened", ticket__body="Question 1")
+        assertHistoryEvent(history, 7, "airtime_transferred", actual_amount=Decimal("100.00"))
+        assertHistoryEvent(history, 8, "webhook_called", url="https://example.com/")
+        assertHistoryEvent(history, 9, "run_result_changed", value="green")
+        assertHistoryEvent(history, 10, "msg_created", msg__text="What is your favorite color?")
+        assertHistoryEvent(history, 11, "flow_entered", flow__name="Colors")
+        assertHistoryEvent(history, 12, "msg_received", msg__text="Message caption")
         assertHistoryEvent(
-            history, 15, "msg_created", msg__text="A beautiful broadcast", msg__created_by__email="User@nyaruka.com"
+            history, 13, "msg_created", msg__text="A beautiful broadcast", msg__created_by__email="User@nyaruka.com"
         )
-        assertHistoryEvent(history, 16, "campaign_fired", campaign__name="Planting Reminders")
+        assertHistoryEvent(history, 14, "campaign_fired", campaign__name="Planting Reminders")
         assertHistoryEvent(history, -1, "msg_received", msg__text="Inbound message 11")
 
         self.assertContains(response, "<audio ")
@@ -2132,16 +2243,21 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Transferred <b>100.00</b> <b>RWF</b> of airtime")
         self.assertContains(response, reverse("airtime.airtimetransfer_read", args=[transfer.id]))
 
-        # can filter by ticket to only see ticket events from that ticket
+        # revert back to reading only from DB
+        FlowSession.objects.filter(id=s.id).update(output_url=None)
+
+        # can filter by ticket to only all ticket events from that ticket rather than some events from all tickets
         response = self.client.get(url + f"?ticket={ticket.uuid}&limit=100")
         history = response.context["events"]
+        assertHistoryEvent(history, 0, "ticket_assigned", assignee__id=self.admin.id)
+        assertHistoryEvent(history, 1, "ticket_note_added", note="I have a bad feeling about this")
         assertHistoryEvent(history, 5, "channel_event", channel_event_type="mt_miss")
-        assertHistoryEvent(history, 6, "ticket_opened", ticket__subject="Question 2")
+        assertHistoryEvent(history, 6, "ticket_opened", ticket__body="Question 2")
         assertHistoryEvent(history, 7, "airtime_transferred", actual_amount=Decimal("100.00"))
 
         # can also fetch same page as JSON
         response_json = self.client.get(url + "?limit=100&_format=json").json()
-        self.assertEqual(100, len(response_json["events"]))
+        self.assertEqual(98, len(response_json["events"]))
 
         # fetch next page
         before = datetime_to_timestamp(timezone.now() - timedelta(days=90))
@@ -2161,8 +2277,8 @@ class ContactTest(TembaTest):
         response = self.fetch_protected(url + "?limit=100", self.admin)
         history = response.context["events"]
 
-        self.assertEqual(100, len(history))
-        assertHistoryEvent(history, 12, "msg_created", msg__text="What is your favorite color?")
+        self.assertEqual(98, len(history))
+        assertHistoryEvent(history, 10, "msg_created", msg__text="What is your favorite color?")
 
         # if a new message comes in
         self.create_incoming_msg(self.joe, "Newer message")
@@ -2171,14 +2287,14 @@ class ContactTest(TembaTest):
         # now we'll see the message that just came in first, followed by the call event
         history = response.context["events"]
         assertHistoryEvent(history, 0, "msg_received", msg__text="Newer message")
-        assertHistoryEvent(history, 1, "ticket_assigned")
+        assertHistoryEvent(history, 1, "call_started", status="E", status_display="Errored (No Answer)")
 
         recent_start = datetime_to_timestamp(timezone.now() - timedelta(days=1))
         response = self.fetch_protected(url + "?limit=100&after=%s" % recent_start, self.admin)
 
         # with our recent flag on, should not see the older messages
         events = response.context["events"]
-        self.assertEqual(17, len(events))
+        self.assertEqual(15, len(events))
         self.assertContains(response, "file.mp4")
 
         # can't view history of contact in another org
@@ -2191,8 +2307,8 @@ class ContactTest(TembaTest):
         self.assertEqual(response.status_code, 404)
 
         # super users can view history of any contact
-        response = self.fetch_protected(url + "?limit=100", self.superuser)
-        self.assertEqual(100, len(response.context["events"]))
+        response = self.fetch_protected(url + "?limit=90", self.superuser)
+        self.assertEqual(90, len(response.context["events"]))
 
         response = self.fetch_protected(reverse("contacts.contact_history", args=[hans.uuid]), self.superuser)
         self.assertEqual(0, len(response.context["events"]))
@@ -2209,7 +2325,7 @@ class ContactTest(TembaTest):
 
         response = self.fetch_protected(url + "?limit=200", self.admin)
         history = response.context["events"]
-        self.assertEqual(104, len(history))
+        self.assertEqual(102, len(history))
 
         # before date should not match our last activity, that only happens when we truncate
         self.assertNotEqual(
@@ -2221,20 +2337,18 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history, 1, "flow_entered")
         assertHistoryEvent(history, 2, "flow_exited")
         assertHistoryEvent(history, 3, "msg_received", msg__text="Newer message")
-        assertHistoryEvent(history, 4, "ticket_assigned")
-        assertHistoryEvent(history, 5, "ticket_note_added")
-        assertHistoryEvent(history, 6, "call_started")
+        assertHistoryEvent(history, 4, "call_started")
+        assertHistoryEvent(history, 5, "channel_event")
+        assertHistoryEvent(history, 6, "channel_event")
         assertHistoryEvent(history, 7, "channel_event")
-        assertHistoryEvent(history, 8, "channel_event")
-        assertHistoryEvent(history, 9, "channel_event")
+        assertHistoryEvent(history, 8, "ticket_opened")
+        assertHistoryEvent(history, 9, "ticket_closed")
         assertHistoryEvent(history, 10, "ticket_opened")
-        assertHistoryEvent(history, 11, "ticket_closed")
-        assertHistoryEvent(history, 12, "ticket_opened")
-        assertHistoryEvent(history, 13, "airtime_transferred")
-        assertHistoryEvent(history, 14, "webhook_called")
-        assertHistoryEvent(history, 15, "run_result_changed")
-        assertHistoryEvent(history, 16, "msg_created", msg__text="What is your favorite color?")
-        assertHistoryEvent(history, 17, "flow_entered")
+        assertHistoryEvent(history, 11, "airtime_transferred")
+        assertHistoryEvent(history, 12, "webhook_called")
+        assertHistoryEvent(history, 13, "run_result_changed")
+        assertHistoryEvent(history, 14, "msg_created", msg__text="What is your favorite color?")
+        assertHistoryEvent(history, 15, "flow_entered")
 
         # make our message event older than our planting reminder
         self.message_event.created_on = self.planting_reminder.created_on - timedelta(days=1)
@@ -3560,6 +3674,15 @@ class ContactURNTest(TembaTest):
         with self.assertRaises(IntegrityError):
             ContactURN.objects.create(org=self.org, scheme="ext", path="1234", identity="ext:5678")
 
+    def test_api_urn(self):
+        urn = ContactURN.objects.create(
+            org=self.org, scheme="tel", path="+250788383383", identity="tel:+250788383383", priority=50
+        )
+        self.assertEqual(urn.api_urn(), "tel:+250788383383")
+
+        with AnonymousOrg(self.org):
+            self.assertEqual(urn.api_urn(), "tel:********")
+
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
@@ -3771,7 +3894,7 @@ class ContactFieldTest(TembaTest):
             self.create_contact_import(path)
 
         # no group specified, so will default to 'Active'
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(40):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3824,10 +3947,16 @@ class ContactFieldTest(TembaTest):
 
         assertImportExportedFile()
 
+        # check that notifications were created
+        export = ExportContactsTask.objects.order_by("id").last()
+        self.assertEqual(
+            1, self.admin.notifications.filter(notification_type="export:finished", contact_export=export).count()
+        )
+
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(40):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3888,7 +4017,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(40):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3978,7 +4107,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(41):
             self.assertExcelSheet(
                 request_export("?g=%s" % group.uuid)[0],
                 [
@@ -4046,7 +4175,7 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(41):
+                    with self.assertNumQueries(42):
                         self.assertExcelSheet(
                             request_export("?s=name+has+adam+or+name+has+deng")[0],
                             [
@@ -4108,7 +4237,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(40):
+            with self.assertNumQueries(41):
                 self.assertExcelSheet(
                     request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [
@@ -4496,6 +4625,20 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.deleted.save(update_fields=("is_active",))
 
         self.other_org_field = ContactField.get_or_create(self.org2, self.admin2, "other", "Other")
+
+    def test_menu(self):
+        menu_url = reverse("contacts.contactfield_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=False, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+        self.assertEqual(
+            [
+                {"name": "Number", "count": 1, "href": "/contactfield/filter_by_type/N/", "id": "number"},
+                {"name": "State", "count": 1, "href": "/contactfield/filter_by_type/S/", "id": "state"},
+                {"name": "Text", "count": 1, "href": "/contactfield/filter_by_type/T/", "id": "text"},
+                {"id": "featured", "name": "Featured", "count": 1, "href": "/contactfield/featured/"},
+            ],
+            menu,
+        )
 
     def test_create(self):
         create_url = reverse("contacts.contactfield_create")
@@ -4955,7 +5098,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
             self.create_contact(name, urns=urns, fields=fields)
 
         def q(query):
-            results = search_contacts(self.org, query, group=self.org.cached_active_contacts_group)
+            results = search_contacts(self.org, query, group=self.org.active_contacts_group)
             return results.total
 
         db_config = connection.settings_dict
@@ -5184,9 +5327,11 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
         # update the query
         url = reverse("contacts.contactgroup_update", args=[adults.id])
-        response = self.client.post(url, dict(name="Adults", query="age > 18"))
+        self.client.post(url, dict(name="Adults", query="age > 18"))
 
-        time.sleep(5)
+        # need to wait at least 10 seconds because mailroom will wait that long to give indexer time to catch up if it
+        # sees recently modified contacts
+        time.sleep(13)
 
         # should have updated count
         self.assertEqual(81, adults.get_member_count())
@@ -5381,7 +5526,7 @@ class ContactImportTest(TembaTest):
         # info is calculated across all batches
         self.assertEqual(
             {
-                "status": "P",
+                "status": "O",
                 "num_created": 0,
                 "num_updated": 0,
                 "num_errored": 0,
@@ -5428,6 +5573,9 @@ class ContactImportTest(TembaTest):
 
         # simulate mailroom completing second batch
         imp.batches.filter(id=batches[1].id).update(status="C", finished_on=timezone.now())
+        imp.status = "C"
+        imp.finished_on = timezone.now()
+        imp.save(update_fields=("finished_on", "status"))
 
         self.assertEqual(
             {
@@ -5440,11 +5588,6 @@ class ContactImportTest(TembaTest):
             },
             imp.get_info(),
         )
-
-        # if a batch failed.. we all failed
-        imp.batches.filter(id=batches[1].id).update(status="F")
-
-        self.assertEqual("F", imp.get_info()["status"])
 
     @mock_mailroom
     def test_batches_with_fields(self, mr_mocks):
@@ -5676,6 +5819,15 @@ class ContactImportTest(TembaTest):
         ]
         for test in tests:
             self.assertEqual(test[1], ContactImport(org=self.org, original_filename=test[0]).get_default_group_name())
+
+    @mock_mailroom
+    def test_delete(self, mr_mocks):
+        imp = self.create_contact_import("media/test_imports/simple.csv")
+        imp.start()
+        imp.delete()
+
+        self.assertEqual(0, ContactImport.objects.count())
+        self.assertEqual(0, ContactImportBatch.objects.count())
 
 
 class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):

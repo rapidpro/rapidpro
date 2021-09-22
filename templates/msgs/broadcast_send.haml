@@ -1,12 +1,28 @@
--extends 'smartmin/form.html'
+-extends 'includes/modax.html'
+-load smartmin i18n
 
--load smartmin temba i18n
+-block fields
+  -if blockers
+    -for blocker in blockers
+      .mb-2
+        {{ blocker|safe }}
 
--block extra-script
-  {{ block.super }}
+  -else
+    {{ block.super }}
+    .fixed-wrapper(style="position:fixed;width:362px;margin-left:200px;margin-top:-38px")
+      %temba-charcount
 
--block modal-script
-  {{block.super}}
+    -if recipient_count
+      -blocktrans trimmed count recipient_count as recipients
+        <b>{{ recipients }}</b> recipient currently at this point in the flow
+        -plural
+          <b>{{ recipients }}</b> recipients currently at this point in the flow
+
+
+-block form-buttons
+  -if not blockers
+    %input.btn.btn-primary(type="submit" value="{{ submit_button_name }}")
+
 
 -block modal-extra-style
   {{ block.super }}
@@ -15,23 +31,3 @@
     temba-completion {
       --textarea-height: 110px;
     }
-
--block fields
-  -if send_channel
-    {{block.super}}
-    .fixed-wrapper(style="position:fixed;width:362px;margin-left:200px;margin-top:-38px")
-      %temba-charcount
-
-  -else
-    -blocktrans trimmed with name=brand.name
-      To get started you need to add a channel to your workspace. A channel is a phone number or social network
-      account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
-      Android phone and your own cell phone plan, or we can connect you with a service provider in your country
-      directly.
-
--block extra-fields
-  -if recipient_count
-    -blocktrans trimmed count recipient_count as recipients
-      {{recipients}} recipient currently at this step in the flow
-      -plural
-        {{recipients}} recipients currently at this step in the flow

@@ -5,6 +5,7 @@ from .views import (
     ConfirmAccessView,
     LoginView,
     OrgCRUDL,
+    SpaView,
     StripeHandler,
     TopUpCRUDL,
     TwoFactorBackupView,
@@ -29,6 +30,8 @@ for integration in IntegrationType.get_all():
         integration_type_urls.append(url("^%s/" % integration.slug, include(integration_urls)))
 
 
+spa = SpaView.as_view()
+
 urlpatterns += [
     url(r"^login/$", check_login, name="users.user_check_login"),
     url(r"^users/login/$", LoginView.as_view(), name="users.login"),
@@ -39,4 +42,9 @@ urlpatterns += [
     url(r"^integrations/", include(integration_type_urls)),
     # for backwards compatibility
     url(r"^api/v1/stripe/$", StripeHandler.as_view()),
+    # for spa
+    url(r"^(?P<level_0>contacts|tickets)/$", spa, name="spa"),
+    url(r"^(?P<level_0>contacts|tickets)/(?P<level_1>\w+)/$", spa, name="spa.level_1"),
+    url(r"^(?P<level_0>contacts|tickets|)/(?P<level_1>\w+)/(?P<level_2>\w+)/$", spa, name="spa.level_2"),
+    url(r"^(?P<level_0>contacts|tickets|)/(?P<level_1>\w+)/(?P<level_2>\w+)/(?P<id>.*)$", spa, name="spa.level_3"),
 ]

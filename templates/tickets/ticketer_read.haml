@@ -2,12 +2,12 @@
 -load smartmin i18n
 
 -block pjax
-  -blocktrans trimmed with type_name=object.get_type.name name=object.name
+  -blocktrans trimmed with type_name=object.type.name name=object.name
     {{ type_name }} ticketing service over <b>{{ name }}</b>. Contacts who have open tickets with this service will have their
     messages forwarded to the service, and replies made using the service will be sent back to the contact.
 
   .buttons.mt-5
-    -if org_perms.request_logs.httplog_ticketer
+    -if org_perms.request_logs.httplog_list
       .button-light.mr-3(onclick='goto(event)' href='{% url "request_logs.httplog_ticketer" object.uuid %}')
         -trans "HTTP Log"
     -if org_perms.tickets.ticketer_delete
@@ -17,5 +17,5 @@
 
 
 -block summary
-  -blocktrans trimmed with type_name=object.get_type.name name=object.name
+  -blocktrans trimmed with type_name=object.type.name name=object.name
     {{ type_name }} ticketing service over <b>{{ name }}</b>.

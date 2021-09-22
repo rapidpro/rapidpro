@@ -27,7 +27,7 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticketer
@@ -1509,6 +1509,9 @@ class FlowTest(TembaTest):
         # global should have been created with blank value
         self.assertTrue(self.org.globals.filter(name="Org Name", key="org_name", value="").exists())
 
+        # topic should have been created too
+        self.assertTrue(self.org.topics.filter(name="Support").exists())
+
         # fields created with type if exists in export
         self.assertTrue(self.org.contactfields.filter(key="cat_breed", label="Cat Breed", value_type="T").exists())
         self.assertTrue(self.org.contactfields.filter(key="french_age", value_type="N").exists())
@@ -2567,7 +2570,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(
             broadcast_url,
             {"mode": "query", "query": "", "exclude_in_other": False, "exclude_reruns": False},
-            form_errors={"__all__": "Contact query is required."},
+            form_errors={"query": "This field is required."},
             object_unchanged=flow,
         )
 
@@ -3890,13 +3893,19 @@ class ExportFlowResultsTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
-                with self.assertNumQueries(44):
+                with self.assertNumQueries(46):
                     workbook = self._export(flow, group_memberships=[devs])
 
                 self.assertEqual(len(captured_logger.output), 3)
                 self.assertTrue("fetching runs from archives to export" in captured_logger.output[0])
                 self.assertTrue("found 5 runs in database to export" in captured_logger.output[1])
                 self.assertTrue("exported 5 in" in captured_logger.output[2])
+
+        # check that notifications were created
+        export = ExportFlowResultsTask.objects.order_by("id").last()
+        self.assertEqual(
+            1, self.admin.notifications.filter(notification_type="export:finished", results_export=export).count()
+        )
 
         tz = self.org.timezone
 
@@ -4130,7 +4139,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(44):
             workbook = self._export(flow, include_msgs=False, responded_only=True, group_memberships=(devs,))
 
         tz = self.org.timezone
@@ -4196,7 +4205,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(44):
+        with self.assertNumQueries(46):
             workbook = self._export(
                 flow,
                 include_msgs=False,
@@ -4426,7 +4435,7 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(52):
+        with self.assertNumQueries(54):
             workbook = self._export(flow)
 
         tz = self.org.timezone
@@ -4696,7 +4705,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(35):
+        with self.assertNumQueries(37):
             workbook = self._export(flow, include_msgs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -5214,7 +5223,7 @@ class ExportFlowResultsTest(TembaTest):
         )
         mock_s3.put_jsonl("test-bucket", "archive2.jsonl.gz", [contact2_run.as_archive_json()])
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = self._export(flow)
 
         tz = self.org.timezone
@@ -5667,6 +5676,23 @@ class FlowSessionCRUDLTest(TembaTest):
 
         response_json = json.loads(response.content)
         self.assertEqual("Temba", response_json["_metadata"]["org"])
+        self.assertEqual(session.uuid, response_json["uuid"])
+
+        # now try with an s3 session
+        mock_s3 = MockS3Client()
+        mock_s3.objects[("temba-sessions", "c/session.json")] = io.StringIO(json.dumps(session.output))
+
+        FlowSession.objects.filter(id=session.id).update(
+            output_url="https://temba-sessions.s3.aws.amazon.com/c/session.json",
+            output=None,
+        )
+
+        # fetch our contact history
+        with patch("temba.utils.s3.s3.client", return_value=mock_s3):
+            response = self.client.get(url)
+            self.assertEqual(200, response.status_code)
+            self.assertEqual("Temba", response_json["_metadata"]["org"])
+            self.assertEqual(session.uuid, response_json["uuid"])
 
 
 class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -5824,42 +5850,3 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
-
-
-class CleanupDependenciesTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0252_auto_20210512_1757"
-    migrate_to = "0253_cleanup_dependencies"
-
-    def setUpBeforeMigration(self, apps):
-        def create_flow(name, is_active):
-            flow = self.create_flow(name)
-            flow.is_active = is_active
-            flow.save(update_fields=("is_active",))
-            return flow
-
-        # inactive flow with field dependency
-        field = self.create_field("age", "Age")
-        self.flow1 = create_flow("Flow 1", is_active=False)
-        self.flow1.field_dependencies.add(field)
-
-        # inactive flow with group dependency
-        group = self.create_group("Testers", contacts=[])
-        self.flow2 = create_flow("Flow 2", is_active=False)
-        self.flow2.group_dependencies.add(group)
-
-        # active flow with field and group dependencies
-        self.flow3 = create_flow("Flow 3", is_active=True)
-        self.flow3.field_dependencies.add(field)
-        self.flow3.group_dependencies.add(group)
-
-    def test_migration(self):
-        self.flow1.refresh_from_db()
-        self.assertFalse(self.flow1.field_dependencies.exists())
-
-        self.flow2.refresh_from_db()
-        self.assertFalse(self.flow2.group_dependencies.exists())
-
-        self.flow3.refresh_from_db()
-        self.assertEqual(1, self.flow3.field_dependencies.count())
-        self.assertEqual(1, self.flow3.group_dependencies.count())

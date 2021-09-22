@@ -2,8 +2,6 @@ import datetime
 import decimal
 import json
 
-import psycopg2.extensions
-import psycopg2.extras
 import pytz
 
 
@@ -59,17 +57,6 @@ class TembaEncoder(json.JSONEncoder):
             return super().default(o)
 
 
-class TembaJsonAdapter(psycopg2.extras.Json):
-    """
-    Json adapter for psycopg2 that uses Temba specific `dumps` that serializes numbers as Decimal types
-    """
-
-    def dumps(self, o, **kwargs):
-        return dumps(o, **kwargs)
-
-
-# register UJsonAdapter for all dict Python types
-psycopg2.extensions.register_adapter(dict, TembaJsonAdapter)
-# register global json python encoders
-psycopg2.extras.register_default_jsonb(loads=loads, globally=True)
-psycopg2.extras.register_default_json(loads=loads, globally=True)
+class TembaDecoder(json.JSONDecoder):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, parse_float=decimal.Decimal, **kwargs)

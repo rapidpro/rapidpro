@@ -6,11 +6,11 @@ from collections import OrderedDict
 
 from smartmin.models import SmartModel
 
-from django.contrib.postgres.fields import HStoreField, JSONField as DjangoJSONField
+from django.contrib.postgres.fields import HStoreField
 from django.core import checks
 from django.core.exceptions import ValidationError
 from django.db import connection, models
-from django.db.models import Sum
+from django.db.models import JSONField as DjangoJSONField, Sum
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
@@ -224,8 +224,6 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
                 raise ValueError("JSONAsTextField should be a dict or a list, got %s => %s" % (type(data), data))
             else:
                 return data
-        elif isinstance(value, (list, dict)):  # if db column has been converted to JSONB, use value directly
-            return value
         else:
             raise ValueError('Unexpected type "%s" for JSONAsTextField' % (type(value),))
 
@@ -265,6 +263,7 @@ class JSONField(DjangoJSONField):
 
     def __init__(self, *args, **kwargs):
         kwargs["encoder"] = json.TembaEncoder
+        kwargs["decoder"] = json.TembaDecoder
         super().__init__(*args, **kwargs)
 
 

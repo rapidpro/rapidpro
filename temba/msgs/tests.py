@@ -33,6 +33,7 @@ from temba.msgs.models import (
     SystemLabel,
     SystemLabelCount,
 )
+from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
 from temba.tests.engine import MockSessionWriter
@@ -435,8 +436,8 @@ class MsgTest(TembaTest):
             return load_workbook(filename=filename)
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(29):
-            with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with self.assertNumQueries(31):
+            with patch("temba.utils.s3.client", return_value=mock_s3):
                 workbook = request_export("?l=I", {"export_all": 1})
 
         self.assertExcelSheet(
@@ -538,7 +539,7 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = request_export(
                 "?l=I",
                 {
@@ -581,7 +582,7 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = request_export("?l=I", {"export_all": 1, "groups": [self.just_joe.id]})
 
         self.assertExcelSheet(
@@ -670,7 +671,7 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = request_export("?l=S", {"export_all": 0})
 
         self.assertExcelSheet(
@@ -706,7 +707,7 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = request_export("?l=X", {"export_all": 0})
 
         self.assertExcelSheet(
@@ -742,7 +743,7 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = request_export("?l=W", {"export_all": 0})
 
         self.assertExcelSheet(
@@ -778,7 +779,7 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = request_export(f"?l={label.uuid}", {"export_all": 0})
 
         self.assertExcelSheet(
@@ -873,7 +874,7 @@ class MsgTest(TembaTest):
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
-        self.assertNumQueries(11, lambda: blocking_export.perform())
+        self.assertNumQueries(15, lambda: blocking_export.perform())
 
         blocking_export.refresh_from_db()
         # after performing the export `modified_on` should be updated
@@ -895,7 +896,7 @@ class MsgTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 5
 
-                with self.assertNumQueries(29):
+                with self.assertNumQueries(31):
                     self.assertExcelSheet(
                         request_export("?l=I", {"export_all": 1}),
                         [
@@ -1025,9 +1026,14 @@ class MsgTest(TembaTest):
                 self.assertTrue("found 8 msgs in database to export" in captured_logger.output[1])
                 self.assertTrue("exported 8 in" in captured_logger.output[2])
 
+        # check that notifications were created
+        export = ExportMessagesTask.objects.order_by("id").last()
+        self.assertEqual(
+            1, self.admin.notifications.filter(notification_type="export:finished", message_export=export).count()
+        )
+
         # check email was sent correctly
         email_args = mock_send_temba_email.call_args[0]  # all positional args
-        export = ExportMessagesTask.objects.order_by("-id").first()
         self.assertEqual(email_args[0], "Your messages export from %s is ready" % self.org.name)
         self.assertIn("https://app.rapidpro.io/assets/download/message_export/%d/" % export.id, email_args[1])
         self.assertNotIn("{{", email_args[1])
@@ -1946,157 +1952,6 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual("Hola a todos", broadcast.get_text(self.joe))  # but only if it's allowed
 
-    @patch("temba.mailroom.queue_broadcast")
-    def test_send(self, mock_queue_broadcast):
-        # remove all channels first
-        for channel in Channel.objects.all():
-            channel.release(self.admin)
-
-        send_url = reverse("msgs.broadcast_send")
-        self.login(self.admin)
-
-        # initialize broadcast form based on a message
-        msg = self.create_outgoing_msg(self.joe, "A test message to joe")
-        response = self.client.get(f"{send_url}?m={msg.id}")
-        omnibox = response.context["form"]["omnibox"]
-        self.assertEqual("Joe Blow", omnibox.value()[0]["name"])
-
-        # initialize a broadcast form based on a contact
-        response = self.client.get(f"{send_url}?c={self.joe.uuid}")
-        omnibox = response.context["form"]["omnibox"]
-        self.assertEqual("Joe Blow", omnibox.value()[0]["name"])
-
-        # initialize a broadcast form based on an urn
-        response = self.client.get(f"{send_url}?u={msg.contact_urn.id}")
-        omnibox = response.context["form"]["omnibox"]
-        self.assertEqual("tel:123", omnibox.value()[0]["id"])
-
-        # initialize a broadcast form based on a step uuid
-        response = self.client.get(f"{send_url}?step_node=step")
-        self.assertEqual(["text", "step_node", "loc"], list(response.context["form"].fields.keys()))
-
-        # try with no channel
-        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
-        response = self.client.post(send_url, {"text": "some text", "omnibox": omnibox}, follow=True)
-        self.assertContains(response, "You must add a phone number before sending messages", status_code=400)
-
-        # test when we have many channels
-        self.create_channel(
-            "A", "Android 1", "+2345", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "1234"}
-        )
-        self.create_channel(
-            "A", "Android 2", "+3456", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "123"}
-        )
-        self.create_channel("TT", "Twitter", "nyaruka")
-
-        response = self.client.get(send_url)
-
-        self.assertEqual(["omnibox", "text", "schedule", "step_node"], response.context["fields"])
-
-        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe, self.lucy], True)
-        self.client.post(send_url, {"text": "message #1", "omnibox": omnibox}, follow=True)
-
-        broadcast = Broadcast.objects.get()
-        self.assertEqual({"base": "message #1"}, broadcast.text)
-        self.assertEqual("message #1", broadcast.get_text())
-        self.assertEqual(1, broadcast.groups.count())
-        self.assertEqual(2, broadcast.contacts.count())
-
-        mock_queue_broadcast.assert_called_once_with(broadcast)
-
-        # test with one channel now
-        for channel in Channel.objects.all():
-            channel.release(self.admin)
-
-        self.create_channel(
-            "A", "Android", "+1234", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "123"}
-        )
-
-        response = self.client.get(send_url)
-        self.assertEqual(["omnibox", "text", "schedule", "step_node"], response.context["fields"])
-
-        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.kevin], True)
-        self.client.post(send_url, {"text": "message #2", "omnibox": omnibox}, follow=True)
-
-        broadcast = Broadcast.objects.order_by("id").last()
-        self.assertEqual({"base": "message #2"}, broadcast.text)
-        self.assertEqual(1, broadcast.groups.count())
-        self.assertEqual(1, broadcast.contacts.count())
-
-        # directly on user page
-        omnibox = omnibox_serialize(self.org, [], [self.kevin], True)
-        response = self.client.post(send_url, {"text": "contact send", "omnibox": omnibox})
-
-        self.assertEqual(3, Broadcast.objects.all().count())
-
-        # test sending to an arbitrary user
-        self.client.post(
-            send_url, {"text": "message content", "omnibox": '{"type": "urn", "id":"tel:2065551212"}'}, follow=True
-        )
-
-        self.assertEqual(4, Broadcast.objects.all().count())
-
-        bcast = Broadcast.objects.order_by("id").last()
-        self.assertEqual(["tel:2065551212"], bcast.raw_urns)
-
-        # test missing senders
-        response = self.client.post(send_url, {"text": "message content"}, follow=True)
-
-        self.assertContains(response, "At least one recipient is required")
-
-        response = self.client.post(
-            send_url, {"text": "message content", "omnibox": omnibox_serialize(self.org, [], [], True)}, follow=True
-        )
-
-        self.assertContains(response, "At least one recipient is required")
-
-        omnibox = omnibox_serialize(self.org, [], [self.kevin], True)
-        response = self.client.post(
-            send_url, {"text": "this is a test message", "omnibox": omnibox, "_format": "json"}, follow=True
-        )
-
-        self.assertContains(response, "success")
-
-        # give Joe a flow run that has stopped on a node
-        flow = self.get_flow("color_v13")
-        flow_nodes = flow.get_definition()["nodes"]
-        color_prompt = flow_nodes[0]
-        color_split = flow_nodes[4]
-        (
-            MockSessionWriter(self.joe, flow)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(color_split)
-            .wait()
-            .save()
-        ).session.runs.get()
-
-        # no error if we are sending to a flow node
-        omnibox = omnibox_serialize(self.org, [], [self.kevin], True)
-        payload = {"text": "message content", "omnibox": omnibox, "step_node": color_split["uuid"]}
-        response = self.client.post(send_url, payload, follow=True)
-
-        self.assertContains(response, "success")
-
-        response = self.client.post(send_url, payload)
-
-        self.assertRedirect(response, reverse("msgs.msg_inbox"))
-
-        broadcast = Broadcast.objects.order_by("id").last()
-        self.assertEqual(broadcast.text, {"base": "message content"})
-        self.assertEqual(broadcast.groups.count(), 0)
-        self.assertEqual({self.joe}, set(broadcast.contacts.all()))
-
-        self.assertEqual(7, Broadcast.objects.count())
-
-        # if there are no contacts at that node, we don't actually create a broadcast
-        self.joe.runs.update(is_active=False)
-
-        response = self.client.post(send_url, payload, follow=True)
-        self.assertContains(response, "success")
-
-        self.assertEqual(7, Broadcast.objects.count())
-
     def test_message_parts(self):
         contact = self.create_contact("Matt", phone="+12067778811")
 
@@ -2138,46 +1993,167 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", phone="123")
-        self.frank = self.create_contact("Frank Blow", phone="1234")
+        self.joe = self.create_contact("Joe Blow", urns=["tel:+12025550149"])
+        self.frank = self.create_contact("Frank Blow", urns=["tel:+12025550195"])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
-    def test_send(self):
-        url = reverse("msgs.broadcast_send")
+    @patch("temba.mailroom.queue_broadcast")
+    def test_send(self, mock_queue_broadcast):
+        send_url = reverse("msgs.broadcast_send")
 
         # can't send if you're not logged in
-        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
-        response = self.client.post(url, dict(text="Test", omnibox=omnibox))
+        response = self.client.get(send_url)
+        self.assertLoginRedirect(response)
+
+        response = self.client.post(
+            send_url, {"text": "Test", "omnibox": omnibox_serialize(self.org, [], [self.joe], json_encode=True)}
+        )
         self.assertLoginRedirect(response)
 
         # or just a viewer user
         self.login(self.user)
-        response = self.client.post(url, dict(text="Test", omnibox=omnibox))
+
+        response = self.client.get(send_url)
         self.assertLoginRedirect(response)
 
         # but editors can
         self.login(self.editor)
 
-        just_joe = self.create_group("Just Joe")
-        just_joe.contacts.add(self.joe)
+        response = self.client.get(send_url)
+        self.assertEqual(
+            ["omnibox", "text", "schedule", "step_node", "loc"], list(response.context["form"].fields.keys())
+        )
 
-        omnibox = omnibox_serialize(self.org, [just_joe], [self.frank], True)
-        omnibox.append('{"type": "urn", "id": "tel:0780000001"}')
+        # initialize form based on an existing message
+        msg = self.create_outgoing_msg(self.joe, "A test message to joe")
+        response = self.client.get(f"{send_url}?m={msg.id}")
+        omnibox = response.context["form"]["omnibox"]
+        self.assertEqual(
+            [{"id": str(self.joe.uuid), "name": "Joe Blow", "type": "contact", "urn": "(202) 555-0149"}],
+            omnibox.value(),
+        )
 
+        # initialize form based on a contact
+        response = self.client.get(f"{send_url}?c={self.joe.uuid}")
+        omnibox = response.context["form"]["omnibox"]
+        self.assertEqual(
+            [{"id": str(self.joe.uuid), "name": "Joe Blow", "type": "contact", "urn": "(202) 555-0149"}],
+            omnibox.value(),
+        )
+
+        # initialize form based on an existing URN
+        response = self.client.get(f"{send_url}?u={msg.contact_urn.id}")
+        omnibox = response.context["form"]["omnibox"]
+        self.assertEqual(
+            [
+                {
+                    "id": "tel:+12025550149",
+                    "name": "(202) 555-0149",
+                    "type": "urn",
+                    "contact": "Joe Blow",
+                    "scheme": "tel",
+                }
+            ],
+            omnibox.value(),
+        )
+
+        # submit with a send to a group, a contact, an existing URN and a raw URN
         response = self.client.post(
-            url, {"omnibox": omnibox, "text": "Hey Joe, where you goin' with that gun in your hand?"}
+            send_url,
+            {
+                "text": "Hey Joe, where you goin?",
+                "omnibox": omnibox_serialize(
+                    self.org,
+                    [self.joe_and_frank],
+                    [self.frank],
+                    urns=[self.joe.get_urn()],
+                    raw_urns=["tel:0780000001"],
+                    json_encode=True,
+                ),
+            },
         )
         self.assertEqual(302, response.status_code)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual({"base": "Hey Joe, where you goin' with that gun in your hand?"}, broadcast.text)
-        self.assertEqual({just_joe}, set(broadcast.groups.all()))
+        self.assertEqual({"base": "Hey Joe, where you goin?"}, broadcast.text)
+        self.assertEqual({self.joe_and_frank}, set(broadcast.groups.all()))
         self.assertEqual({self.frank}, set(broadcast.contacts.all()))
-        self.assertEqual(["tel:0780000001"], broadcast.raw_urns)
+        self.assertEqual(["tel:+12025550149", "tel:0780000001"], broadcast.raw_urns)
+
+        mock_queue_broadcast.assert_called_once_with(broadcast)
+
+        # try to submit a send to nobody
+        response = self.client.post(
+            send_url, {"text": "Broken", "omnibox": omnibox_serialize(self.org, [], [], json_encode=True)}
+        )
+        self.assertFormError(response, "form", "omnibox", "At least one recipient is required.")
+
+        # try to submit with an invalid URN
+        response = self.client.post(
+            send_url,
+            {
+                "text": "Broken",
+                "omnibox": omnibox_serialize(self.org, [], [], raw_urns=["tel:$$$$$$"], json_encode=True),
+            },
+        )
+        self.assertFormError(response, "form", "omnibox", "'tel:$$$$$$' is not a valid URN.")
+
+        # if we release our send channel we also can't start send
+        self.channel.release(self.admin)
+
+        response = self.requestView(send_url, self.admin)
+        self.assertContains(
+            response, 'To get started you need to <a href="/channels/channel/claim/">add a channel</a>'
+        )
+        self.assertNotContains(response, "Send")
+
+    @patch("temba.mailroom.queue_broadcast")
+    def test_send_to_node(self, mock_queue_broadcast):
+        send_url = reverse("msgs.broadcast_send")
+
+        self.login(self.editor)
+
+        # give Joe a flow run that has stopped on a node
+        flow = self.get_flow("color_v13")
+        flow_nodes = flow.get_definition()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[4]
+        (
+            MockSessionWriter(self.joe, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        ).session.runs.get()
+
+        # initialize form based on a flow node UUID
+        response = self.client.get(f"{send_url}?step_node={color_split['uuid']}")
+
+        # no omnibox...
+        self.assertEqual(["text", "step_node", "loc"], list(response.context["form"].fields.keys()))
+
+        response = self.client.post(send_url, {"text": "Hurry up", "step_node": color_split["uuid"]})
+        self.assertRedirect(response, reverse("msgs.msg_inbox"))
+
+        broadcast = Broadcast.objects.get()
+        self.assertEqual(broadcast.text, {"base": "Hurry up"})
+        self.assertEqual(broadcast.groups.count(), 0)
+        self.assertEqual({self.joe}, set(broadcast.contacts.all()))
+
+        mock_queue_broadcast.assert_called_once_with(broadcast)
+
+        # if there are no contacts at the given node, we don't actually create a broadcast
+        response = self.client.post(
+            send_url, {"text": "Hurry up", "step_node": "36b2c697-a1d9-47a9-9553-d07d6a725877"}
+        )
+        self.assertRedirect(response, reverse("msgs.msg_inbox"))
+
+        self.assertEqual(1, Broadcast.objects.count())
 
     def test_update(self):
         self.login(self.editor)
-        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+        omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
         self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
         url = reverse("msgs.broadcast_update", args=[broadcast.pk])
@@ -2185,7 +2161,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(url)
         self.assertEqual(list(response.context["form"].fields.keys()), ["message", "omnibox", "loc"])
 
-        omnibox = omnibox_serialize(self.org, [], [self.frank], True)
+        omnibox = omnibox_serialize(self.org, [], [self.frank], json_encode=True)
         response = self.client.post(url, dict(message="Dinner reminder", omnibox=omnibox))
         self.assertEqual(response.status_code, 302)
 
@@ -2220,7 +2196,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_schedule_read(self):
         self.login(self.editor)
 
-        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], True)
+        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
         self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 
@@ -2232,11 +2208,11 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_missing_contacts(self):
         self.login(self.editor)
 
-        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], True)
+        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
         self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 
-        omnibox = omnibox_serialize(self.org, [], [], True)
+        omnibox = omnibox_serialize(self.org, [], [], json_encode=True)
         response = self.client.post(
             reverse("msgs.broadcast_update", args=[broadcast.pk]),
             dict(omnibox=omnibox, message="Empty contacts", schedule=True),
@@ -2520,14 +2496,14 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "name", "Name must not be blank or begin with punctuation")
 
         # try creating a new label after reaching the limit on labels
-        current_count = Label.all_objects.filter(org=self.org, is_active=True).count()
-        with patch.object(Label, "MAX_ORG_LABELS", current_count):
+        current_count = Label.label_objects.filter(org=self.org, is_active=True).count()
+        with patch.object(Org, "LIMIT_DEFAULTS", {"labels": current_count}):
             response = self.client.post(create_label_url, {"name": "CoolStuff"})
             self.assertFormError(
                 response,
                 "form",
                 "name",
-                "This org has 3 labels and the limit is 3. "
+                "This workspace has 2 labels and the limit is 2. "
                 "You must delete existing ones before you can create new ones.",
             )
 

@@ -235,6 +235,7 @@
       mutable: {{mutable|lower}},
       filters: {{feature_filters|to_json}},
       brand: '{{brand.name|escapejs}}',
+      locationSupport: {{brand.location_support|lower}},
 
       help: {
         legacy_extra: 'https://help.nyaruka.com/en/articles/3747485-migrating-away-from-legacy_extra',
@@ -254,6 +255,8 @@
         templates: api + 'templates.json',
         flows: api + 'flows.json?archived=false',
         globals: api + 'globals.json',
+        users: api + 'users.json',
+        topics: api + 'topics.json',
         editor: '/flow/editor',
 
         // TODO: migrate to API?
