@@ -12,7 +12,7 @@ from rest_framework import serializers
 from rest_framework.test import APIClient
 
 from django.conf import settings
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, User
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.cache import cache
 from django.db import connection
@@ -23,20 +23,20 @@ from django.utils import timezone
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import ChannelEvent
+from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.luis import LuisType
 from temba.classifiers.types.wit import WitType
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
-from temba.locations.models import BoundaryAlias
+from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Org
-from temba.templates.models import TemplateTranslation
+from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tickets.models import Ticketer, Topic
+from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.tickets.types.mailgun import MailgunType
 from temba.tickets.types.zendesk import ZendeskType
 from temba.triggers.models import Trigger
@@ -75,15 +75,30 @@ class APITest(TembaTest):
 
         return self.client.get(url, HTTP_X_FORWARDED_HTTPS="https")
 
-    def fetchJSON(self, url, query=None, raw_url=False):
+    def fetchJSON(self, url, query=None, raw_url=False, using_readonly: set = None):
         if not raw_url:
             url += ".json"
             if query:
                 url += "?" + query
-        response = self.client.get(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS="https")
+
+        with patch("django.db.models.query.QuerySet.using", autospec=True) as mock_using:
+            readonly_models = set()
+
+            def using(qs, alias):
+                if alias == "readonly":
+                    readonly_models.add(qs.model)
+                return qs
+
+            mock_using.side_effect = using
+
+            response = self.client.get(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS="https")
+
+            if using_readonly:
+                self.assertEqual(using_readonly, readonly_models, f"expected using('readonly') for given types")
 
         # this will fail if our response isn't valid json
         response.json()
+
         return response
 
     def postJSON(self, url, query, data, **kwargs):
@@ -667,7 +682,7 @@ class APITest(TembaTest):
 
         # test without geometry
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={AdminBoundary})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -738,7 +753,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={Broadcast})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -906,7 +921,7 @@ class APITest(TembaTest):
             period=Archive.PERIOD_DAILY,
         )
 
-        response = self.fetchJSON(url)
+        response = self.fetchJSON(url, using_readonly={Archive})
         resp_json = response.json()
 
         self.assertEqual(response.status_code, 200)
@@ -974,7 +989,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={Campaign})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -1119,7 +1134,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={CampaignEvent})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -1543,7 +1558,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={Channel})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -1592,7 +1607,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={ChannelEvent})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -2512,7 +2527,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={ContactField})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -2614,7 +2629,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={Flow})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -2766,7 +2781,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={Global})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -2790,7 +2805,7 @@ class APITest(TembaTest):
         )
 
         # Filter by key
-        response = self.fetchJSON(url, "key=org_name")
+        response = self.fetchJSON(url, "key=org_name", using_readonly={Global})
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json["next"], None)
@@ -2807,7 +2822,7 @@ class APITest(TembaTest):
         )
 
         # filter by after
-        response = self.fetchJSON(url, "after=%s" % format_datetime(global1.modified_on))
+        response = self.fetchJSON(url, "after=%s" % format_datetime(global1.modified_on), using_readonly={Global})
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json["next"], None)
@@ -2830,7 +2845,7 @@ class APITest(TembaTest):
         )
 
         # filter by before
-        response = self.fetchJSON(url, "before=%s" % format_datetime(global1.modified_on))
+        response = self.fetchJSON(url, "before=%s" % format_datetime(global1.modified_on), using_readonly={Global})
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json["next"], None)
@@ -2915,7 +2930,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={ContactGroup})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -3111,7 +3126,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={Label})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -3270,7 +3285,7 @@ class APITest(TembaTest):
 
         # filter by inbox
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
-            response = self.fetchJSON(url, "folder=INBOX")
+            response = self.fetchJSON(url, "folder=INBOX", using_readonly={Msg})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -3377,8 +3392,8 @@ class APITest(TembaTest):
             response = self.fetchJSON(url, "id=%d" % joe_msg3.pk)
             self.assertIsNone(response.json()["results"][0]["urn"])
 
-    def test_org(self):
-        url = reverse("api.v2.org")
+    def test_workspace(self):
+        url = reverse("api.v2.workspace")
         self.assertEndpointAccess(url)
 
         # fetch as JSON
@@ -3505,7 +3520,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={FlowRun})
 
         self.assertEqual(200, response.status_code)
         self.assertEqual(None, response.json()["next"])
@@ -3853,7 +3868,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={Resthook})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -4186,7 +4201,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, "groups", "This field can only contain up to 100 items.")
 
         # check no params
-        response = self.fetchJSON(url)
+        response = self.fetchJSON(url, using_readonly={FlowStart})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["next"], None)
         self.assertResultsById(response, [start4, start3, start2, start1])
@@ -4329,7 +4344,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={Template})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -4383,7 +4398,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={Classifier})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -4433,7 +4448,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={Ticketer})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -4495,7 +4510,7 @@ class APITest(TembaTest):
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
         self.create_ticket(zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Stuff")
 
-        response = self.fetchJSON(url, "ticketer_type=zendesk")
+        response = self.fetchJSON(url, "ticketer_type=zendesk", using_readonly={Ticket})
         resp_json = response.json()
         self.assertEqual(0, len(resp_json["results"]))
 
@@ -4698,7 +4713,7 @@ class APITest(TembaTest):
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, using_readonly={Topic})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -4791,7 +4806,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(endpoint_url)
 
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
-            response = self.fetchJSON(endpoint_url)
+            response = self.fetchJSON(endpoint_url, using_readonly={User})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
