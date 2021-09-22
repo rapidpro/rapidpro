@@ -1,3 +1,7 @@
+v6.5.46
+----------
+ * Move list refresh registration out of content block
+
 v6.5.45
 ----------
  * Temporarily disable refresh
