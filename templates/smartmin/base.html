@@ -8,7 +8,7 @@
 
 {% block extra-script %}
 
-<script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
+
 
 <script>
 
@@ -136,7 +136,7 @@
 var refreshTimeout = 10000;
 function refresh(onSuccess, forceReload){
 
-  var url = "{{url_params|safe}}"
+  var url = params;
   {% if page_obj %}
     url += "page={{page_obj.number}}";
   {% endif %}
@@ -165,7 +165,6 @@ function refresh(onSuccess, forceReload){
         if (pjax) {
           return eval(document.querySelector("#pjax").dataset.noPjax);
         }
-        console.log("forcing ignore refresh");
         return true;
       },
       onIgnore: function() {
@@ -179,12 +178,9 @@ function refresh(onSuccess, forceReload){
 
 refreshTimeout = {{ refresh }};
 function scheduleRefresh() {
-    // window.setTimeout(refresh, refreshTimeout);
+  window.setTimeout(refresh, refreshTimeout);
 }
 
-$(document).ready(function(){
-  scheduleRefresh();
-});
 </script>
 {% endif %}
 {% endblock %}
