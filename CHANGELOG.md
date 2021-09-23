@@ -1,3 +1,10 @@
+v6.5.47
+----------
+ * Use readonly database connection for contacts API endpoint
+ * Use webhook_called events from sessions for contact history
+ * Remove unused webhook result views and improve httplog read view
+ * Fix API endpoints not always using readonly database connection and add testing
+
 v6.5.46
 ----------
  * Move list refresh registration out of content block
