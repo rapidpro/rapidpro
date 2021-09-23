@@ -32,7 +32,7 @@
             %a(href='{% url "request_logs.httplog_read" obj.id %}')
               {{ obj.url|truncatechars:128 }}
           %td.clickable
-            %a(href='{% url "api.webhookresult_read" obj.pk %}')
+            %a(href='{% url "request_logs.httplog_read" obj.id %}')
               {{ obj.status_code }}
           %td
             -if obj.request_time
