@@ -82,9 +82,6 @@ class HTTPLog(models.Model):
     def method(self):
         return self.request.split(" ")[0] if self.request else None
 
-    def get_status_code(self):
-        return self.status_code or self.response.split(" ")[1] if self.response else None
-
     @classmethod
     def trim(cls):
         """

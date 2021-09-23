@@ -1,10 +1,10 @@
 from django.utils import timezone
 
-from temba.api.models import WebHookResult
 from temba.channels.models import Channel
 from temba.contacts.models import URN, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.msgs.models import Msg
+from temba.request_logs.models import HTTPLog
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
 
@@ -330,14 +330,16 @@ class MockSessionWriter:
             ContactGroup.user_groups.get(uuid=group["uuid"]).contacts.remove(self.contact)
 
     def _handle_webhook_called(self, event):
-        WebHookResult.objects.create(
+        HTTPLog.objects.create(
             org=self.org,
-            contact=self.contact,
+            log_type=HTTPLog.WEBHOOK_CALLED,
             url=event["url"],
             status_code=event["status_code"],
+            is_error=event["status"] != "success",
             request=event["request"],
             response=event["response"],
             request_time=event["elapsed_ms"],
+            num_retries=0,
         )
 
     @staticmethod

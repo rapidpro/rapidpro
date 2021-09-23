@@ -33,8 +33,7 @@ def trim_webhook_event_task():
             "id", flat=True
         )
         for batch in chunk_list(result_ids, 1000):
-            for result in WebHookResult.objects.filter(id__in=batch):
-                result.release()
+            WebHookResult.objects.filter(id__in=batch).delete()
 
     if all_logs_trim_time:
         all_log_later = timezone.now() - timedelta(hours=all_logs_trim_time)
@@ -46,5 +45,4 @@ def trim_webhook_event_task():
 
         result_ids = WebHookResult.objects.filter(created_on__lte=all_log_later).values_list("id", flat=True)
         for batch in chunk_list(result_ids, 1000):
-            for result in WebHookResult.objects.filter(id__in=batch):
-                result.release()
+            WebHookResult.objects.filter(id__in=batch).delete()

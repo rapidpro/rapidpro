@@ -82,8 +82,8 @@
               .button-light.block.mt-3(onclick="goto(event)" href="{% url 'flows.flowstart_list' %}")
                 -trans "Flow Start Log"
 
-            -if org_perms.api.webhookresult_list
-              .mt-3.button-light.block.mt-3(onclick="goto(event)" href="{% url 'api.webhookresult_list' %}")
+            -if org_perms.request_logs.httplog_webhooks
+              .mt-3.button-light.block.mt-3(onclick="goto(event)" href="{% url 'request_logs.httplog_webhooks' %}")
                 -trans "Webhook Call Log"
 
         .right

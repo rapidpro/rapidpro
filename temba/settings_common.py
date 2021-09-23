@@ -574,8 +574,6 @@ GROUP_PERMISSIONS = {
         "api.resthook_api",
         "api.resthooksubscriber_api",
         "api.webhookevent_api",
-        "api.webhookresult_list",
-        "api.webhookresult_read",
         "archives.archive.*",
         "campaigns.campaign.*",
         "campaigns.campaignevent.*",

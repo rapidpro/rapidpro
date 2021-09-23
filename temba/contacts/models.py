@@ -809,10 +809,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .select_related("event__campaign", "event__relative_to")[:limit]
         )
 
-        webhook_results = self.webhook_results.filter(created_on__gte=after, created_on__lt=before).order_by(
-            "-created_on"
-        )[:limit]
-
         calls = (
             IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
             .exclude(status__in=[IVRCall.STATUS_PENDING, IVRCall.STATUS_WIRED])
@@ -851,7 +847,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             ticket_events,
             channel_events,
             campaign_events,
-            webhook_results,
             calls,
             transfers,
             session_events,
