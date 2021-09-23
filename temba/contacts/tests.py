@@ -2196,7 +2196,7 @@ class ContactTest(TembaTest):
         # fetch our contact history
         self.login(self.admin)
         with patch("temba.utils.s3.s3.client", return_value=self.mock_s3):
-            with self.assertNumQueries(49):
+            with self.assertNumQueries(46):
                 response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -2219,8 +2219,8 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history, 5, "ticket_closed", ticket__body="Question 1")
         assertHistoryEvent(history, 6, "ticket_opened", ticket__body="Question 1")
         assertHistoryEvent(history, 7, "airtime_transferred", actual_amount=Decimal("100.00"))
-        assertHistoryEvent(history, 8, "webhook_called", url="https://example.com/")
-        assertHistoryEvent(history, 9, "run_result_changed", value="green")
+        assertHistoryEvent(history, 8, "run_result_changed", value="green")
+        assertHistoryEvent(history, 9, "webhook_called", url="https://example.com/")
         assertHistoryEvent(history, 10, "msg_created", msg__text="What is your favorite color?")
         assertHistoryEvent(history, 11, "flow_entered", flow__name="Colors")
         assertHistoryEvent(history, 12, "msg_received", msg__text="Message caption")
@@ -2345,8 +2345,8 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history, 9, "ticket_closed")
         assertHistoryEvent(history, 10, "ticket_opened")
         assertHistoryEvent(history, 11, "airtime_transferred")
-        assertHistoryEvent(history, 12, "webhook_called")
-        assertHistoryEvent(history, 13, "run_result_changed")
+        assertHistoryEvent(history, 12, "run_result_changed")
+        assertHistoryEvent(history, 13, "webhook_called")
         assertHistoryEvent(history, 14, "msg_created", msg__text="What is your favorite color?")
         assertHistoryEvent(history, 15, "flow_entered")
 
