@@ -1734,9 +1734,7 @@ class Org(SmartModel):
         self.tickets.all().delete()
         self.topics.all().delete()
         self.airtime_transfers.all().delete()
-
-        for result in self.webhook_results.all():
-            result.release()
+        self.webhook_results.all().delete()
 
         # delete our contacts
         for contact in self.contacts.all():
