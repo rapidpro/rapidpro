@@ -1673,8 +1673,8 @@ class APITest(TembaTest):
         hans = self.create_contact("Hans", phone="0788000004", org=self.org2)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
-            response = self.fetchJSON(url)
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+            response = self.fetchJSON(url, readonly_models={Contact})
 
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
@@ -1698,7 +1698,7 @@ class APITest(TembaTest):
         )
 
         # reversed
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url, "reverse=true")
 
         resp_json = response.json()
@@ -1707,7 +1707,7 @@ class APITest(TembaTest):
         self.assertResultsByUUID(response, [self.frank, contact1, contact2, self.joe, contact4])
 
         with AnonymousOrg(self.org):
-            with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
+            with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
                 response = self.fetchJSON(url)
 
             resp_json = response.json()

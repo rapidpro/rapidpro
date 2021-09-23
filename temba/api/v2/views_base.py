@@ -27,7 +27,6 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
     model = None
     model_manager = "objects"
     lookup_params = {"uuid": "uuid"}
-    readonly_gets = True
 
     def options(self, request, *args, **kwargs):
         """
@@ -43,10 +42,9 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
     def get_queryset(self):
         qs = self.derive_queryset()
 
-        # if this is a get request, fetch from readonly database - but we can't do this during testing because test data
-        # will have been created in a transaction in the default database
-        if self.readonly_gets and self.request.method == "GET":
-            qs = qs.using("readonly")  # pragma: no cover
+        # if this is a get request, fetch from readonly database
+        if self.request.method == "GET":
+            qs = qs.using("readonly")
 
         return qs
 
@@ -159,11 +157,11 @@ class ListAPIMixin(mixins.ListModelMixin):
         page = super().paginate_queryset(queryset)
 
         # give views a chance to prepare objects for serialization
-        self.prepare_for_serialization(page)
+        self.prepare_for_serialization(page, using=queryset.db)
 
         return page
 
-    def prepare_for_serialization(self, page):
+    def prepare_for_serialization(self, page, using: str):
         """
         Views can override this to do things like bulk cache initialization of result objects
         """

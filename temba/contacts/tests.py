@@ -1767,38 +1767,20 @@ class ContactTest(TembaTest):
             self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", str(mr_long_name))
             self.assertEqual("Billy Nophone", str(self.billy))
 
-    def test_bulk_cache_initialize(self):
-        age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type="N", show_in_table=True)
-        nick = ContactField.get_or_create(
-            self.org, self.admin, "nick", "Nickname", value_type="T", show_in_table=False
-        )
-
-        self.set_contact_field(self.joe, "age", "32")
-        self.set_contact_field(self.joe, "nick", "Joey")
+    def test_bulk_urn_cache_initialize(self):
         self.joe.refresh_from_db()
         self.billy.refresh_from_db()
 
-        all = (self.joe, self.frank, self.billy)
-        Contact.bulk_cache_initialize(self.org, all)
-
-        self.assertEqual([u.scheme for u in getattr(self.joe, "_urns_cache")], [URN.TWITTER_SCHEME, URN.TEL_SCHEME])
-        self.assertEqual([u.scheme for u in getattr(self.frank, "_urns_cache")], [URN.TEL_SCHEME])
-        self.assertEqual(getattr(self.billy, "_urns_cache"), list())
+        contacts = (self.joe, self.frank, self.billy)
+        Contact.bulk_urn_cache_initialize(contacts)
 
         with self.assertNumQueries(0):
-            self.assertEqual(self.joe.get_field_value(age), 32)
-            self.assertIsNone(self.frank.get_field_value(age))
-            self.assertIsNone(self.billy.get_field_value(age))
-
-        Contact.bulk_cache_initialize(self.org, all)
-
-        with self.assertNumQueries(0):
-            self.assertEqual(self.joe.get_field_value(age), 32)
-            self.assertIsNone(self.frank.get_field_value(age))
-            self.assertIsNone(self.billy.get_field_value(age))
-            self.assertEqual(self.joe.get_field_value(nick), "Joey")
-            self.assertIsNone(self.frank.get_field_value(nick))
-            self.assertIsNone(self.billy.get_field_value(nick))
+            self.assertEqual(["twitter:blow80", "tel:+250781111111"], [u.urn for u in self.joe.get_urns()])
+            self.assertEqual(
+                ["twitter:blow80", "tel:+250781111111"], [u.urn for u in getattr(self.joe, "_urns_cache")]
+            )
+            self.assertEqual(["tel:+250782222222"], [u.urn for u in self.frank.get_urns()])
+            self.assertEqual([], [u.urn for u in self.billy.get_urns()])
 
     @mock_mailroom
     def test_omnibox(self, mr_mocks):
