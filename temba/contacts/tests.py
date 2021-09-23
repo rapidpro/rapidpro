@@ -1872,7 +1872,7 @@ class ContactTest(TembaTest):
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
                 SearchResults(query="", total=0, contact_ids=[]),
             ]
-            with self.assertNumQueries(16):
+            with self.assertNumQueries(17):
                 actual_result = omnibox_request(query="")
                 expected_result = [
                     # all 3 groups A-Z

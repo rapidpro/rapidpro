@@ -309,7 +309,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
                 self.parsed_query = results.query if len(results.query) > 0 else None
                 self.save_dynamic_search = results.metadata.allow_as_group
 
-                return IDSliceQuerySet(Contact, results.contact_ids, offset, results.total)
+                return IDSliceQuerySet(Contact, results.contact_ids, offset=offset, total=results.total)
             except SearchException as e:
                 self.search_error = str(e)
 
@@ -1049,7 +1049,7 @@ class ContactCRUDL(SmartCRUDL):
                     "total": results.total,
                     "query": results.query,
                     "fields": results.metadata.fields,
-                    "sample": IDSliceQuerySet(Contact, results.contact_ids, 0, results.total)[0:samples],
+                    "sample": IDSliceQuerySet(Contact, results.contact_ids, offset=0, total=results.total)[0:samples],
                 }
             except SearchException as e:
                 return JsonResponse({"total": 0, "sample": [], "query": "", "error": str(e)})
