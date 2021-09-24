@@ -38,6 +38,7 @@ class HTTPLog(models.Model):
     WHATSAPP_TEMPLATES_SYNCED = "whatsapp_templates_synced"
     WHATSAPP_TOKENS_SYNCED = "whatsapp_tokens_synced"
     WHATSAPP_CONTACTS_REFRESHED = "whatsapp_contacts_refreshed"
+    WHATSAPP_CHECK_HEALTH = "whataspp_check_health"
 
     # possible log type choices and descriptive names
     LOG_TYPE_CHOICES = (
@@ -49,6 +50,7 @@ class HTTPLog(models.Model):
         (WHATSAPP_TEMPLATES_SYNCED, _("WhatsApp Templates Synced")),
         (WHATSAPP_TOKENS_SYNCED, _("WhatsApp Tokens Synced")),
         (WHATSAPP_CONTACTS_REFRESHED, _("WhatsApp Contacts Refreshed")),
+        (WHATSAPP_CHECK_HEALTH, _("WhatsApp Health Check")),
     )
 
     org = models.ForeignKey(Org, related_name="http_logs", on_delete=models.PROTECT)
