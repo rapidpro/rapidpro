@@ -1785,8 +1785,7 @@ class Org(SmartModel):
         for topup in self.topups.all():
             topup.release()
 
-        for event in self.webhookevent_set.all():
-            event.release()
+        self.webhookevent_set.all().delete()
 
         for resthook in self.resthooks.all():
             resthook.release(user)

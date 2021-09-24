@@ -1,5 +1,4 @@
 import logging
-from datetime import timedelta
 
 from requests_toolbelt.utils import dump
 
@@ -15,7 +14,6 @@ from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.orgs.models import Org
 from temba.tickets.models import Ticketer
-from temba.utils import chunk_list
 
 logger = logging.getLogger(__name__)
 
@@ -81,16 +79,6 @@ class HTTPLog(models.Model):
     @cached_property
     def method(self):
         return self.request.split(" ")[0] if self.request else None
-
-    @classmethod
-    def trim(cls):
-        """
-        Deletes all HTTP Logs older than 3 days, 1000 at a time
-        """
-        cutoff = timezone.now() - timedelta(days=3)
-        ids = cls.objects.filter(created_on__lte=cutoff).values_list("id", flat=True)
-        for chunk in chunk_list(ids, 1000):
-            cls.objects.filter(id__in=chunk).delete()
 
     @classmethod
     def create_from_response(

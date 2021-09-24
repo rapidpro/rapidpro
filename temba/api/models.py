@@ -163,9 +163,6 @@ class WebHookEvent(models.Model):
     # when this event was created
     created_on = models.DateTimeField(default=timezone.now)
 
-    def release(self):
-        self.delete()
-
 
 class WebHookResult(models.Model):
     """

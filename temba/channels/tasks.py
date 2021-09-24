@@ -4,7 +4,7 @@ from datetime import timedelta
 import pytz
 
 from django.conf import settings
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.utils import timezone
 
 from celery.task import task
@@ -54,11 +54,25 @@ def send_alert_task(alert_id, resolved):
 
 
 @nonoverlapping_task(track_started=True, name="trim_sync_events_task")
-def trim_sync_events_task():  # pragma: needs cover
+def trim_sync_events_task():
     """
-    Runs daily and clears any channel sync events that are older than 7 days
+    Trims old sync events
     """
-    SyncEvent.trim()
+
+    trim_before = timezone.now() - settings.RETENTION_PERIODS["syncevent"]
+
+    channels_with_sync_events = (
+        SyncEvent.objects.filter(created_on__lte=trim_before)
+        .values("channel")
+        .annotate(Count("id"))
+        .filter(id__count__gt=1)
+    )
+    for channel_sync_events in channels_with_sync_events:
+        sync_events = SyncEvent.objects.filter(
+            created_on__lte=trim_before, channel_id=channel_sync_events["channel"]
+        ).order_by("-created_on")[1:]
+        for event in sync_events:
+            event.release()
 
 
 @nonoverlapping_task(track_started=True, name="trim_channel_log_task")
@@ -67,19 +81,15 @@ def trim_channel_log_task():  # pragma: needs cover
     Runs daily and clears any channel log items older than 48 hours.
     """
 
-    # keep success messages for only SUCCESS_LOGS_TRIM_TIME hours
-    success_logs_trim_time = settings.SUCCESS_LOGS_TRIM_TIME
+    if settings.RETENTION_PERIOD["channellog:success"]:
+        trim_before = timezone.now() - settings.RETENTION_PERIODS["channellog:success"]
 
-    # keep all errors for ALL_LOGS_TRIM_TIME days
-    all_logs_trim_time = settings.ALL_LOGS_TRIM_TIME
+        ChannelLog.objects.filter(created_on__lte=trim_before, is_error=False).delete()
 
-    if success_logs_trim_time:
-        success_log_later = timezone.now() - timedelta(hours=success_logs_trim_time)
-        ChannelLog.objects.filter(created_on__lte=success_log_later, is_error=False).delete()
+    if settings.RETENTION_PERIOD["channellog:error"]:
+        trim_before = timezone.now() - settings.RETENTION_PERIODS["channellog:error"]
 
-    if all_logs_trim_time:
-        all_log_later = timezone.now() - timedelta(hours=all_logs_trim_time)
-        ChannelLog.objects.filter(created_on__lte=all_log_later).delete()
+        ChannelLog.objects.filter(created_on__lte=trim_before, is_error=True).delete()
 
 
 @nonoverlapping_task(

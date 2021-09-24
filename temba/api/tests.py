@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 from django.test import override_settings
 from django.utils import timezone
 
-from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
+from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.api.tasks import trim_webhook_event_task
 from temba.tests import TembaTest
 
@@ -80,41 +80,18 @@ class WebHookTest(TembaTest):
     def test_trim_events_and_results(self):
         five_hours_ago = timezone.now() - timedelta(hours=5)
 
-        # create some events and results
+        # create some events
         resthook = Resthook.get_or_create(org=self.org, slug="registration", user=self.admin)
         WebHookEvent.objects.create(org=self.org, resthook=resthook, data={}, created_on=five_hours_ago)
-        WebHookResult.objects.create(org=self.org, status_code=200, created_on=five_hours_ago)
 
-        with override_settings(SUCCESS_LOGS_TRIM_TIME=0):
+        with override_settings(RETENTION_PERIODS={"webhookevent": None}):
             trim_webhook_event_task()
             self.assertTrue(WebHookEvent.objects.all())
-            self.assertTrue(WebHookResult.objects.all())
 
-        with override_settings(SUCCESS_LOGS_TRIM_TIME=12):
+        with override_settings(RETENTION_PERIODS={"webhookevent": timedelta(hours=12)}):  # older than our event
             trim_webhook_event_task()
             self.assertTrue(WebHookEvent.objects.all())
-            self.assertTrue(WebHookResult.objects.all())
 
-        with override_settings(SUCCESS_LOGS_TRIM_TIME=2):
+        with override_settings(RETENTION_PERIODS={"webhookevent": timedelta(hours=2)}):
             trim_webhook_event_task()
             self.assertFalse(WebHookEvent.objects.all())
-            self.assertFalse(WebHookResult.objects.all())
-
-        WebHookEvent.objects.create(org=self.org, resthook=resthook, data={}, created_on=five_hours_ago)
-        WebHookResult.objects.create(org=self.org, status_code=200, created_on=five_hours_ago)
-        WebHookResult.objects.create(org=self.org, status_code=401, created_on=five_hours_ago)
-
-        with override_settings(ALL_LOGS_TRIM_TIME=0):
-            trim_webhook_event_task()
-            self.assertTrue(WebHookEvent.objects.all())
-            self.assertTrue(WebHookResult.objects.all())
-
-        with override_settings(ALL_LOGS_TRIM_TIME=12):
-            trim_webhook_event_task()
-            self.assertTrue(WebHookEvent.objects.all())
-            self.assertTrue(WebHookResult.objects.all())
-
-        with override_settings(ALL_LOGS_TRIM_TIME=2):
-            trim_webhook_event_task()
-            self.assertFalse(WebHookEvent.objects.all())
-            self.assertFalse(WebHookResult.objects.all())
