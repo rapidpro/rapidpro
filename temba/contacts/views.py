@@ -1926,6 +1926,7 @@ class ContactImportCRUDL(SmartCRUDL):
     class Create(OrgPermsMixin, SmartCreateView):
         class Form(forms.ModelForm):
             file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=("xls", "xlsx", "csv"))])
+            validate_carrier = forms.BooleanField(required=False)
 
             def __init__(self, *args, org, **kwargs):
                 self.org = org
@@ -1933,12 +1934,10 @@ class ContactImportCRUDL(SmartCRUDL):
                 self.mappings = None
                 self.num_records = None
                 self.num_duplicates = None
-
                 super().__init__(*args, **kwargs)
 
             def clean_file(self):
                 file = self.cleaned_data["file"]
-
                 # try to parse the file saving the mappings so we don't have to repeat parsing when saving the import
                 self.mappings, self.num_records, self.num_duplicates = ContactImport.try_to_parse(
                     self.org, file.file, file.name
@@ -1963,7 +1962,7 @@ class ContactImportCRUDL(SmartCRUDL):
 
             class Meta:
                 model = ContactImport
-                fields = ("file",)
+                fields = ("file", "validate_carrier")
 
         form_class = Form
         success_message = ""
@@ -1973,6 +1972,12 @@ class ContactImportCRUDL(SmartCRUDL):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.derive_org()
             return kwargs
+
+        def can_validate_upload(self):
+            target_group = 'Customer Support'
+            org = self.derive_org()
+            user_group = org.get_user().groups.filter(name=target_group).first()
+            return user_group is not None
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1984,6 +1989,8 @@ class ContactImportCRUDL(SmartCRUDL):
             context["explicit_clear"] = ContactImport.EXPLICIT_CLEAR
             context["max_records"] = ContactImport.MAX_RECORDS
             context["org_country"] = self.org.default_country
+            context['can_validate_upload'] = self.can_validate_upload()
+
             return context
 
         def pre_save(self, obj):
@@ -1993,6 +2000,7 @@ class ContactImportCRUDL(SmartCRUDL):
             obj.mappings = self.form.mappings
             obj.num_records = self.form.num_records
             obj.num_duplicates = self.form.num_duplicates
+            obj.validate_carrier = self.form.cleaned_data.get("validate_carrier")
             return obj
 
     class Preview(OrgObjPermsMixin, SmartUpdateView):
@@ -2177,6 +2185,7 @@ class ContactImportCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["info"] = self.import_info
             context["is_finished"] = self.is_import_finished()
+            context["is_validated"] = self.is_validated()
             return context
 
         @cached_property
@@ -2185,6 +2194,9 @@ class ContactImportCRUDL(SmartCRUDL):
 
         def is_import_finished(self):
             return self.import_info["status"] in (ContactImport.STATUS_COMPLETE, ContactImport.STATUS_FAILED)
+
+        def is_validated(self):
+            return self.import_info["is_validated"]
 
         def derive_refresh(self):
             return 0 if self.is_import_finished() else 3000
