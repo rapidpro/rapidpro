@@ -10,6 +10,7 @@ from django.utils import timezone
 from celery.task import task
 
 from temba.orgs.models import Org
+from temba.utils import chunk_list
 from temba.utils.analytics import track
 from temba.utils.celery import nonoverlapping_task
 
@@ -76,20 +77,16 @@ def trim_sync_events_task():
 
 
 @nonoverlapping_task(track_started=True, name="trim_channel_log_task")
-def trim_channel_log_task():  # pragma: needs cover
+def trim_channel_log_task():
     """
-    Runs daily and clears any channel log items older than 48 hours.
+    Trims old channel logs
     """
 
-    if settings.RETENTION_PERIOD["channellog:success"]:
-        trim_before = timezone.now() - settings.RETENTION_PERIODS["channellog:success"]
+    trim_before = timezone.now() - settings.RETENTION_PERIODS["channellog"]
 
-        ChannelLog.objects.filter(created_on__lte=trim_before, is_error=False).delete()
-
-    if settings.RETENTION_PERIOD["channellog:error"]:
-        trim_before = timezone.now() - settings.RETENTION_PERIODS["channellog:error"]
-
-        ChannelLog.objects.filter(created_on__lte=trim_before, is_error=True).delete()
+    ids = ChannelLog.objects.filter(created_on__lte=trim_before).values_list("id", flat=True)
+    for chunk in chunk_list(ids, 1000):
+        ChannelLog.objects.filter(id__in=chunk).delete()
 
 
 @nonoverlapping_task(

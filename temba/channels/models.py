@@ -1241,7 +1241,7 @@ class ChannelLog(models.Model):
     request = models.TextField(null=True)
     response = models.TextField(null=True)
     response_status = models.IntegerField(null=True)
-    created_on = models.DateTimeField(auto_now_add=True)
+    created_on = models.DateTimeField(default=timezone.now)
     request_time = models.IntegerField(null=True)
 
     @classmethod

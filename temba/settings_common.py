@@ -1254,8 +1254,7 @@ GLOBAL_VALUE_SIZE = 10_000  # max length of global values
 # Data retention periods - tasks trim away data older than these settings
 # -----------------------------------------------------------------------------------
 RETENTION_PERIODS = {
-    "channellog:success": timedelta(hours=48),
-    "channellog:error": timedelta(days=30),
+    "channellog": timedelta(days=3),
     "eventfire": timedelta(days=90),  # matches default rp-archiver behavior
     "flowsession": timedelta(days=7),
     "flowstart": timedelta(days=7),
