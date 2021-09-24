@@ -1,3 +1,7 @@
+v6.5.48
+----------
+ * Fix clear contact field event on ticket history
+
 v6.5.47
 ----------
  * Use readonly database connection for contacts API endpoint
