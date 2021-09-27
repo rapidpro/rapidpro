@@ -327,6 +327,8 @@ class MsgTest(TembaTest):
 
     @patch("temba.utils.email.send_temba_email")
     def test_message_export_from_archives(self, mock_send_temba_email):
+        export_url = reverse("msgs.msg_export")
+
         self.clear_storage()
         self.login(self.admin)
 
@@ -429,7 +431,8 @@ class MsgTest(TembaTest):
         msg7.release()
 
         def request_export(query, data=None):
-            response = self.client.post(reverse("msgs.msg_export") + query, data)
+            with self.mockReadOnly():
+                response = self.client.post(export_url + query, data)
             self.assertEqual(response.status_code, 302)
             task = ExportMessagesTask.objects.order_by("-id").first()
             filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
@@ -817,6 +820,8 @@ class MsgTest(TembaTest):
 
     @patch("temba.utils.email.send_temba_email")
     def test_message_export(self, mock_send_temba_email):
+        export_url = reverse("msgs.msg_export")
+
         self.clear_storage()
         self.login(self.admin)
 
@@ -874,14 +879,16 @@ class MsgTest(TembaTest):
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
-        self.assertNumQueries(15, lambda: blocking_export.perform())
+        with self.mockReadOnly():
+            self.assertNumQueries(15, lambda: blocking_export.perform())
 
         blocking_export.refresh_from_db()
         # after performing the export `modified_on` should be updated
         self.assertNotEqual(old_modified_on, blocking_export.modified_on)
 
         def request_export(query, data=None):
-            response = self.client.post(reverse("msgs.msg_export") + query, data)
+            with self.mockReadOnly(assert_models={Msg}):
+                response = self.client.post(export_url + query, data)
             self.assertEqual(response.status_code, 302)
             task = ExportMessagesTask.objects.order_by("-id").first()
             filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)

@@ -22,7 +22,7 @@ from temba.api.models import Resthook
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.classifiers.models import Classifier
-from temba.contacts.models import URN, ContactField, ContactGroup
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
@@ -3736,7 +3736,14 @@ class ExportFlowResultsTest(TembaTest):
         self.contact3 = self.create_contact("Norbert", phone="+250788123456")
 
     def _export(
-        self, flow, responded_only=False, include_msgs=True, contact_fields=None, extra_urns=(), group_memberships=None
+        self,
+        flow,
+        responded_only=False,
+        include_msgs=True,
+        contact_fields=None,
+        extra_urns=(),
+        group_memberships=None,
+        has_results=True,
     ):
         """
         Exports results for the given flow and returns the generated workbook
@@ -3755,7 +3762,13 @@ class ExportFlowResultsTest(TembaTest):
         if group_memberships:
             form["group_memberships"] = [g.id for g in group_memberships]
 
-        response = self.client.post(reverse("flows.flow_export_results"), form)
+        readonly_models = {FlowRun, ContactGroup, ContactField}
+        if has_results:
+            readonly_models.add(Contact)
+
+        with self.mockReadOnly(assert_models=readonly_models):
+            response = self.client.post(reverse("flows.flow_export_results"), form)
+
         self.assertEqual(response.status_code, 302)
 
         task = ExportFlowResultsTask.objects.order_by("-id").first()
@@ -4710,7 +4723,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # test without msgs or unresponded
         with self.assertNumQueries(37):
-            workbook = self._export(flow, include_msgs=False, responded_only=True)
+            workbook = self._export(flow, include_msgs=False, responded_only=True, has_results=False)
 
         tz = self.org.timezone
         sheet_runs = workbook.worksheets[0]
@@ -5395,7 +5408,7 @@ class ExportFlowResultsTest(TembaTest):
 
         self.assertEqual(flow.get_run_stats()["total"], 0)
 
-        workbook = self._export(flow)
+        workbook = self._export(flow, has_results=False)
 
         self.assertEqual(len(workbook.worksheets), 1)
 

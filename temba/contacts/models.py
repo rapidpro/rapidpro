@@ -1921,13 +1921,14 @@ class ExportContactsTask(BaseExportTask):
 
         scheme_counts = dict()
         if not self.org.is_anon:
-            schemes_in_use = sorted(list(self.org.urns.order_by().values_list("scheme", flat=True).distinct()))
+            org_urns = self.org.urns.using("readonly")
+            schemes_in_use = sorted(list(org_urns.order_by().values_list("scheme", flat=True).distinct()))
             scheme_contact_max = {}
 
             # for each scheme used by this org, calculate the max number of URNs owned by a single contact
             for scheme in schemes_in_use:
                 scheme_contact_max[scheme] = (
-                    self.org.urns.filter(scheme=scheme)
+                    org_urns.filter(scheme=scheme)
                     .exclude(contact=None)
                     .values("contact")
                     .annotate(count=Count("contact"))
@@ -1948,7 +1949,10 @@ class ExportContactsTask(BaseExportTask):
                     )
 
         contact_fields_list = (
-            ContactField.user_fields.active_for_org(org=self.org).select_related("org").order_by("-priority", "pk")
+            ContactField.user_fields.active_for_org(org=self.org)
+            .using("readonly")
+            .select_related("org")
+            .order_by("-priority", "pk")
         )
         for contact_field in contact_fields_list:
             fields.append(
@@ -1968,8 +1972,7 @@ class ExportContactsTask(BaseExportTask):
 
     def write_export(self):
         fields, scheme_counts, group_fields = self.get_export_fields_and_schemes()
-
-        group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ACTIVE)
+        group = self.group or self.org.active_contacts_group
 
         include_group_memberships = bool(self.group_memberships.exists())
 
@@ -1988,13 +1991,13 @@ class ExportContactsTask(BaseExportTask):
         for batch_ids in chunk_list(contact_ids, 1000):
             # fetch all the contacts for our batch
             batch_contacts = (
-                Contact.objects.filter(id__in=batch_ids).prefetch_related("all_groups").select_related("org")
+                Contact.objects.filter(id__in=batch_ids).prefetch_related("org", "all_groups").using("readonly")
             )
 
             # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
             contact_by_id = {c.id: c for c in batch_contacts}
 
-            Contact.bulk_urn_cache_initialize(batch_contacts, using="default")
+            Contact.bulk_urn_cache_initialize(batch_contacts, using="readonly")
 
             for contact_id in batch_ids:
                 contact = contact_by_id[contact_id]
