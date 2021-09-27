@@ -134,4 +134,4 @@ class WhatsAppType(ChannelType):
         if response.status_code >= 400:
             raise requests.RequestException(f"Error checking API health: {response.content}", response=response)
 
-        return response.json()
+        return response
