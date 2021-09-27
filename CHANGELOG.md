@@ -1,3 +1,7 @@
+v6.5.50
+----------
+ * Fix response for WA message template to be HTTP response
+
 v6.5.49
 ----------
  * Truncate org name with ellipsis on org chooser
