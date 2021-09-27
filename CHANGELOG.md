@@ -1,3 +1,10 @@
+v6.5.49
+----------
+ * Truncate org name with ellipsis on org chooser
+ * Add new setting for retention periods for different types and make trimming tasks more consistent
+ * Use readonly database connection for contact, message and results exports
+ * Log update WA status error using HTTPLog
+
 v6.5.48
 ----------
  * Fix clear contact field event on ticket history
