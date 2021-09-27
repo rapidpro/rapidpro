@@ -162,12 +162,12 @@
               .icon-menu-2
 
           .org
-            {{ user_org.name|truncatechars:30 }}
+            {{ user_org.name }}
 
           .other-orgs.hide
             -for org in user_orgs
               -if org != user_org
-                .org
+                .org.text-primary
                   %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
                     {{ org.name }}
 
