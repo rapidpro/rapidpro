@@ -164,23 +164,6 @@ class WebHookEvent(models.Model):
     created_on = models.DateTimeField(default=timezone.now)
 
 
-class WebHookResult(models.Model):
-    """
-    TODO drop once completely replaced by HTTPLog
-    """
-
-    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="webhook_results")
-    url = models.TextField(null=True, blank=True)
-    request = models.TextField(null=True, blank=True)
-    status_code = models.IntegerField()
-    response = models.TextField(null=True, blank=True)
-    request_time = models.IntegerField(null=True)
-    contact = models.ForeignKey(
-        "contacts.Contact", on_delete=models.PROTECT, null=True, related_name="webhook_results"
-    )
-    created_on = models.DateTimeField(default=timezone.now, editable=False, blank=True)
-
-
 class APIToken(models.Model):
     """
     Our API token, ties in orgs
