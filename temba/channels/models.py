@@ -18,7 +18,7 @@ from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.db.models import Count, Max, Q, Sum
+from django.db.models import Max, Q, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
@@ -1241,7 +1241,7 @@ class ChannelLog(models.Model):
     request = models.TextField(null=True)
     response = models.TextField(null=True)
     response_status = models.IntegerField(null=True)
-    created_on = models.DateTimeField(auto_now_add=True)
+    created_on = models.DateTimeField(default=timezone.now)
     request_time = models.IntegerField(null=True)
 
     @classmethod
@@ -1423,23 +1423,6 @@ class SyncEvent(SmartModel):
 
     def get_retry_messages(self):
         return getattr(self, "retry_messages", [])
-
-    @classmethod
-    def trim(cls):
-        week_ago = timezone.now() - timedelta(days=7)
-
-        channels_with_sync_events = (
-            SyncEvent.objects.filter(created_on__lte=week_ago)
-            .values("channel")
-            .annotate(Count("id"))
-            .filter(id__count__gt=1)
-        )
-        for channel_sync_events in channels_with_sync_events:
-            sync_events = SyncEvent.objects.filter(
-                created_on__lte=week_ago, channel_id=channel_sync_events["channel"]
-            ).order_by("-created_on")[1:]
-            for event in sync_events:
-                event.release()
 
 
 @receiver(pre_save, sender=SyncEvent)
