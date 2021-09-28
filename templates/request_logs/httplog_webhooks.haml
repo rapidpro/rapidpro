@@ -24,7 +24,7 @@
 
     %tbody
       -for obj in object_list
-        %tr
+        %tr(class="{% if obj.is_error %}warning{% endif %}")
           %td.clickable
             %a(href='{% url "flows.flow_editor" obj.flow.uuid %}')
               {{ obj.flow.name }}
@@ -33,14 +33,14 @@
               {{ obj.url|truncatechars:128 }}
           %td.clickable
             %a(href='{% url "request_logs.httplog_read" obj.id %}')
-              {{ obj.status_code }}
-          %td
+              {{ obj.status_code|default:"--" }}
+          %td.whitespace-nowrap
             -if obj.request_time
               {{ obj.request_time|intcomma }}ms
             -else
               {{ "--" }}
           %td.text-right.whitespace-nowrap
-            {% format_datetime obj.created_on %}
+            {% format_datetime obj.created_on seconds=True %}
 
   -block paginator
     -if object_list.count

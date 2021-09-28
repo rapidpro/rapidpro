@@ -55,11 +55,11 @@ class HTTPLog(models.Model):
     log_type = models.CharField(max_length=32, choices=LOG_TYPE_CHOICES)
 
     url = models.URLField(max_length=2048)
-    status_code = models.IntegerField(null=True)
+    status_code = models.IntegerField(default=0, null=True)
     request = models.TextField()
     response = models.TextField(null=True)
     request_time = models.IntegerField()  # how long this request took in milliseconds
-    num_retries = models.IntegerField(null=True)
+    num_retries = models.IntegerField(default=0, null=True)
     created_on = models.DateTimeField(default=timezone.now)
 
     # whether this was an error which is dependent on the service being called
