@@ -387,6 +387,8 @@ class ContactField(SmartModel):
     KEY_CREATED_ON = "created_on"
     KEY_LANGUAGE = "language"
     KEY_LAST_SEEN_ON = "last_seen_on"
+    KEY_OPT_OUT_MSG = "opt_out_message"
+    KEY_OPTED_OUT_ON = "opt_out_datetime"
 
     # fields that cannot be updated by user
     IMMUTABLE_FIELDS = (KEY_ID, KEY_CREATED_ON, KEY_LAST_SEEN_ON)
@@ -397,6 +399,8 @@ class ContactField(SmartModel):
         KEY_CREATED_ON: dict(label="Created On", value_type=TYPE_DATETIME),
         KEY_LANGUAGE: dict(label="Language", value_type=TYPE_TEXT),
         KEY_LAST_SEEN_ON: dict(label="Last Seen On", value_type=TYPE_DATETIME),
+        KEY_OPT_OUT_MSG: dict(label="Opt-Out Message", value_type=TYPE_TEXT),
+        KEY_OPTED_OUT_ON: dict(label="Opt-Out Timestamp", value_type=TYPE_DATETIME),
     }
 
     EXPORT_KEY = "key"

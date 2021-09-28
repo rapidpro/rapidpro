@@ -755,6 +755,23 @@ class ContactCRUDL(SmartCRUDL):
 
             context["all_contact_fields"] = all_contact_fields
 
+            # add opt-out fields
+            try:
+                opt_out_message = ContactField.system_fields.get(org=contact.org, key=ContactField.KEY_OPT_OUT_MSG)
+                opt_out_datetime = ContactField.system_fields.get(org=contact.org, key=ContactField.KEY_OPTED_OUT_ON)
+                opt_out_message.field_type, opt_out_datetime.field_type = (
+                    ContactField.FIELD_TYPE_USER,
+                    ContactField.FIELD_TYPE_USER,
+                )
+                context.update(
+                    {
+                        "opt_out_message": contact.get_field_value(opt_out_message),
+                        "opt_out_datetime": contact.get_field_value(opt_out_datetime),
+                    }
+                )
+            except ContactField.DoesNotExist:
+                pass
+
             # add contact.language to the context
             if contact.language:
                 lang = languages.get_language_name(contact.language)
