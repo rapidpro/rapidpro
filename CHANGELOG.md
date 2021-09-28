@@ -1,3 +1,8 @@
+v6.5.51
+----------
+ * Add retry config to S3 client
+ * Add zero defaults to HTTPLog fields, drop WebHookResult and tweak HTTPLog templates for consistency
+
 v6.5.50
 ----------
  * Fix response for WA message template to be HTTP response
