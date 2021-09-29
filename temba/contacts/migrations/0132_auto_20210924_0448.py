@@ -7,18 +7,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0131_contactimport_num_duplicates'),
+        ("contacts", "0131_contactimport_num_duplicates"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='contactimport',
-            name='validate_carrier',
+            model_name="contactimport",
+            name="validate_carrier",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='contactimportbatch',
-            name='carrier_groups',
+            model_name="contactimportbatch",
+            name="carrier_groups",
             field=django.contrib.postgres.fields.jsonb.JSONField(default=dict),
         ),
     ]

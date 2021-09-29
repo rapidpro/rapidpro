@@ -718,7 +718,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def create(
-            cls, org, user, name: str, language: str, urns: List[str], fields: Dict[ContactField, str], groups: List
+        cls, org, user, name: str, language: str, urns: List[str], fields: Dict[ContactField, str], groups: List
     ):
         fields_by_key = {f.key: v for f, v in fields.items()}
         group_uuids = [g.uuid for g in groups]
@@ -804,17 +804,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         started_runs = (
             self.runs.filter(created_on__gte=after, created_on__lt=before)
-                .exclude(flow__is_system=True)
-                .order_by("-created_on")
-                .select_related("flow")[:limit]
+            .exclude(flow__is_system=True)
+            .order_by("-created_on")
+            .select_related("flow")[:limit]
         )
 
         exited_runs = (
             self.runs.filter(exited_on__gte=after, exited_on__lt=before)
-                .exclude(flow__is_system=True)
-                .exclude(exit_type=None)
-                .order_by("-created_on")
-                .select_related("flow")[:limit]
+            .exclude(flow__is_system=True)
+            .exclude(exit_type=None)
+            .order_by("-created_on")
+            .select_related("flow")[:limit]
         )
 
         channel_events = (
@@ -2367,7 +2367,13 @@ class ContactImport(SmartModel):
         landline_list = []
 
         batches = self.batches.values(
-            "status", "num_created", "num_updated", "num_blocked", "num_errored", "errors", "finished_on",
+            "status",
+            "num_created",
+            "num_updated",
+            "num_blocked",
+            "num_errored",
+            "errors",
+            "finished_on",
             "carrier_groups",
         )
         num_duplicates = 0
@@ -2409,10 +2415,12 @@ class ContactImport(SmartModel):
             num_total = all_operation - num_duplicates
 
         if self.validate_carrier:
-            validated_urn_carriers["mobile"] = self._generate_validation_report(mobile_list, "mobile",
-                                                                                MAX_MOBILE_GROUP_CONTACTS)
-            validated_urn_carriers["landline"] = self._generate_validation_report(landline_list, "landline",
-                                                                                  MAX_LANDLINE_GROUP_CONTACTS)
+            validated_urn_carriers["mobile"] = self._generate_validation_report(
+                mobile_list, "mobile", MAX_MOBILE_GROUP_CONTACTS
+            )
+            validated_urn_carriers["landline"] = self._generate_validation_report(
+                landline_list, "landline", MAX_LANDLINE_GROUP_CONTACTS
+            )
 
         return {
             "status": status,
@@ -2425,7 +2433,7 @@ class ContactImport(SmartModel):
             "num_duplicates": num_duplicates,
             "num_total": num_total,
             "is_validated": self.validate_carrier,
-            "validated_urn_carriers": validated_urn_carriers
+            "validated_urn_carriers": validated_urn_carriers,
         }
 
     def _get_file_type(self):
@@ -2441,9 +2449,9 @@ class ContactImport(SmartModel):
         validated_urn_carriers = []
         count = 0
         for contacts_chunk in chunk_list(validated_list, chunk_size):
-            chunk_group_name = f'{group_name} - {carrier_type}'
+            chunk_group_name = f"{group_name} - {carrier_type}"
             if count > 0:
-                chunk_group_name = f'{chunk_group_name} {count}'
+                chunk_group_name = f"{chunk_group_name} {count}"
             group = ContactGroup.get_or_create(self.org, self.created_by, chunk_group_name)
             group.contacts.add(*contacts_chunk)
             validated_urn_carriers.append(dict(group=group.name, count=len(contacts_chunk), uuid=group.uuid))

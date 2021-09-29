@@ -1974,7 +1974,7 @@ class ContactImportCRUDL(SmartCRUDL):
             return kwargs
 
         def can_validate_upload(self):
-            target_group = 'Customer Support'
+            target_group = "Customer Support"
             org = self.derive_org()
             user_group = org.get_user().groups.filter(name=target_group).first()
             return user_group is not None
@@ -1989,7 +1989,7 @@ class ContactImportCRUDL(SmartCRUDL):
             context["explicit_clear"] = ContactImport.EXPLICIT_CLEAR
             context["max_records"] = ContactImport.MAX_RECORDS
             context["org_country"] = self.org.default_country
-            context['can_validate_upload'] = self.can_validate_upload()
+            context["can_validate_upload"] = self.can_validate_upload()
 
             return context
 
