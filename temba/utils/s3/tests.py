@@ -47,18 +47,37 @@ class S3Test(TembaTest):
 
 class SelectTest(TembaTest):
     def test_compile_select(self):
-        self.assertEqual("", compile_select("s"))
-        self.assertEqual("c.uuid = '12345'", compile_select("c", uuid="12345"))
-        self.assertEqual("s.contact.uuid = '12345'", compile_select(contact__uuid="12345"))
+        self.assertEqual("SELECT s.* FROM s3object s", compile_select())
+        self.assertEqual("SELECT m.* FROM s3object m", compile_select(alias="m"))
         self.assertEqual(
-            "s.uuid = '12345' AND s.id = 123 AND s.active = TRUE", compile_select(uuid="12345", id=123, active=True)
+            "SELECT s.name, s.contact.uuid FROM s3object s", compile_select(fields=["name", "contact__uuid"])
         )
         self.assertEqual(
-            "s.created_on > CAST('2021-09-28T18:27:30.123456+00:00' AS TIMESTAMP)",
-            compile_select(created_on__gt=datetime(2021, 9, 28, 18, 27, 30, 123456, pytz.UTC)),
+            "SELECT c.* FROM s3object c WHERE c.uuid = '12345'", compile_select(alias="c", where={"uuid": "12345"})
         )
         self.assertEqual(
-            "s.modified_on <= CAST('2021-09-28T18:27:30.123456+00:00' AS TIMESTAMP)",
-            compile_select(modified_on__lte=datetime(2021, 9, 28, 18, 27, 30, 123456, pytz.UTC)),
+            "SELECT s.* FROM s3object s WHERE s.contact.uuid = '12345'",
+            compile_select(where={"contact__uuid": "12345"}),
         )
-        self.assertEqual("s.flow.uuid IN ('1234', '2345')", compile_select(flow__uuid__in=("1234", "2345")))
+        self.assertEqual(
+            "SELECT s.* FROM s3object s WHERE s.uuid = '12345' AND s.id = 123 AND s.active = TRUE",
+            compile_select(where={"uuid": "12345", "id": 123, "active": True}),
+        )
+        self.assertEqual(
+            "SELECT s.* FROM s3object s WHERE s.created_on > CAST('2021-09-28T18:27:30.123456+00:00' AS TIMESTAMP)",
+            compile_select(where={"created_on__gt": datetime(2021, 9, 28, 18, 27, 30, 123456, pytz.UTC)}),
+        )
+        self.assertEqual(
+            "SELECT s.* FROM s3object s WHERE s.modified_on <= CAST('2021-09-28T18:27:30.123456+00:00' AS TIMESTAMP)",
+            compile_select(where={"modified_on__lte": datetime(2021, 9, 28, 18, 27, 30, 123456, pytz.UTC)}),
+        )
+        self.assertEqual(
+            "SELECT s.* FROM s3object s WHERE s.flow.uuid IN ('1234', '2345')",
+            compile_select(where={"flow__uuid__in": ("1234", "2345")}),
+        )
+
+        # where can also be a string (used by search_archives command)
+        self.assertEqual(
+            "SELECT s.* FROM s3object s WHERE s.uuid = '2345' AND s.contact.uuid = '1234'",
+            compile_select(where={"uuid": "2345"}, raw_where="s.contact.uuid = '1234'"),
+        )

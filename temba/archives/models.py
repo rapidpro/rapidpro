@@ -3,7 +3,6 @@ from datetime import date, datetime
 from gettext import gettext as _
 from urllib.parse import urlparse
 
-import iso8601
 from dateutil.relativedelta import relativedelta
 
 from django.conf import settings
@@ -144,37 +143,43 @@ class Archive(models.Model):
 
     @classmethod
     def iter_all_records(
-        cls, org, archive_type: str, after: datetime = None, before: datetime = None, expression: str = None
+        cls,
+        org,
+        archive_type: str,
+        after: datetime = None,
+        before: datetime = None,
+        where: dict = None,
+        raw_where: str = None,
     ):
         """
         Creates a record iterator across archives of the given type for records which match the given criteria
 
         Expression should be SQL with s prefix for fields, e.g. s.direction = 'in' AND s.type = 'flow'
         """
+
+        if not where:
+            where = {}
+        if after:
+            where["created_on__gte"] = after
+        if before:
+            where["created_on__lte"] = before
+
         archives = cls._get_covering_period(org, archive_type, after, before)
         for archive in archives:
-            for record in archive.iter_records(expression):
-
-                # TODO could do this in S3 select
-                created_on = iso8601.parse_date(record["created_on"])
-                if after and created_on < after:
-                    continue
-                if before and created_on > before:
-                    continue
-
+            for record in archive.iter_records(where=where, raw_where=raw_where):
                 yield record
 
-    def iter_records(self, expression: str = None):
+    def iter_records(self, *, where: dict = None, raw_where: str = None):
         """
         Creates an iterator for the records in this archive, streaming and decompressing on the fly
         """
         s3_client = s3.client()
 
-        if expression:
+        if where:
             response = s3_client.select_object_content(
                 **self.s3_location(),
                 ExpressionType="SQL",
-                Expression=f"SELECT * FROM s3object s WHERE {expression}",
+                Expression=s3.compile_select(where=where, raw_where=raw_where),
                 InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
                 OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
             )

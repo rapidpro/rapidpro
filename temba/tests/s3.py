@@ -1,8 +1,14 @@
 import gzip
 import io
+from datetime import datetime
 from typing import Dict, List
 
+import iso8601
+
 from temba.utils import chunk_list, json
+from temba.utils.s3.select import LOOKUPS
+
+REVERSE_LOOKUPS = {v: k for k, v in LOOKUPS.items()}
 
 
 class MockEventStream:
@@ -63,7 +69,7 @@ class MockS3Client:
 
         return dict(Contents=matches)
 
-    def select_object_content(self, Bucket, Key, **kwargs):
+    def select_object_content(self, Bucket, Key, Expression=None, **kwargs):
         stream = self.objects[(Bucket, Key)]
         stream.seek(0)
         zstream = gzip.GzipFile(fileobj=stream)
@@ -74,7 +80,72 @@ class MockS3Client:
             if not line:
                 break
 
-            # unlike real S3 we don't actually filter any records by expression
-            records.append(json.loads(line.decode("utf-8")))
+            record = json.loads(line.decode("utf-8"))
+
+            if not Expression or select_matches(Expression, record):
+                records.append(record)
 
         return {"Payload": MockEventStream(records)}
+
+
+def select_matches(expression: str, record: dict) -> bool:
+    """
+    Our greatly simplified version of S3 select matching
+    """
+    conditions = _parse_expression(expression)
+    for field, op, val in conditions:
+        if not _condition_matches(field, op, val, record):
+            return False
+    return True
+
+
+def _condition_matches(field, op, val, record: dict) -> bool:
+    # find the value in the record
+    actual = record
+    for key in field.split("."):
+        actual = actual[key]
+
+    if isinstance(val, datetime):
+        actual = iso8601.parse_date(actual)
+
+    if op == "=":
+        return actual == val
+    elif op == ">=":
+        return actual >= val
+    elif op == ">":
+        return actual > val
+    elif op == "<=":
+        return actual <= val
+    elif op == "<":
+        return actual < val
+    elif op == "IN":
+        return actual in val
+
+
+def _parse_expression(exp: str) -> list:
+    """
+    Expressions we generate for S3 Select are very limited and don't require intelligent parsing
+    """
+    conditions = exp[33:].split(" AND ")
+    parsed = []
+    for con in conditions:
+        col, op, val = con.split(" ", maxsplit=2)
+        col = col[2:]  # remove alias prefix
+        parsed.append((col, op, _parse_value(val)))
+
+    return parsed
+
+
+def _parse_value(val: str):
+    if val.startswith("CAST('") and val.endswith("' AS TIMESTAMP)"):
+        return iso8601.parse_date(val[6:31])
+    elif val.startswith("("):
+        return [_parse_value(v) for v in val[1:-1].split(", ")]
+    elif val.startswith("'"):
+        return val[1:-1]
+    elif val[0].isdigit():
+        return int(val)
+    elif val == "TRUE":
+        return True
+    elif val == "FALSE":
+        return False

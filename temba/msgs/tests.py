@@ -394,6 +394,7 @@ class MsgTest(TembaTest):
             period="D",
             build_time=23425,
         )
+
         mock_s3 = MockS3Client()
         mock_s3.put_jsonl(
             "test-bucket",

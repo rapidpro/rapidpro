@@ -3,21 +3,39 @@ from datetime import datetime
 LOOKUPS = {"gt": ">", "gte": ">=", "lte": "<=", "lt": "<", "in": "IN"}
 
 
-def compile_select(alias: str = "s", **kwargs) -> str:
-    return " AND ".join([_compile_condition(alias, k, v) for k, v in kwargs.items()])
+def compile_select(*, fields=(), alias: str = "s", where: dict = None, raw_where: str = None) -> str:
+    """
+    Compiles a S3 select "SQL" query
+    """
+    columns = ", ".join([_compile_column(alias, f) for f in fields]) if fields else f"{alias}.*"
+    query = f"SELECT {columns} FROM s3object {alias}"
+
+    conditions = []
+    if where:
+        conditions += [_compile_condition(alias, k, v) for k, v in where.items()]
+    if raw_where:
+        conditions.append(raw_where)
+    if conditions:
+        query += f" WHERE {' AND '.join(conditions)}"
+
+    return query
 
 
-def _compile_condition(alias: str, col: str, val) -> str:
+def _compile_condition(alias: str, field: str, val) -> str:
     op = "="
-    col_parts = col.split("__")
-    if col_parts[-1] in LOOKUPS:
-        op = LOOKUPS[col_parts[-1]]
-        col_parts = col_parts[:-1]
+    field_parts = field.split("__")
+    if field_parts[-1] in LOOKUPS:
+        op = LOOKUPS[field_parts[-1]]
+        field = "__".join(field_parts[:-1])
 
-    col = ".".join(col_parts)
-    val = _compile_value(val)
+    column = _compile_column(alias, field)
+    value = _compile_value(val)
 
-    return f"{alias}.{col} {op} {val}"
+    return f"{column} {op} {value}"
+
+
+def _compile_column(alias, field) -> str:
+    return f"{alias}.{field.replace('__', '.')}"
 
 
 def _compile_value(val) -> str:

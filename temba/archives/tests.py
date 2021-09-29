@@ -27,14 +27,14 @@ class ArchiveTest(TembaTest):
             self.assertEqual(next(records_iter), {"id": 3})
             self.assertRaises(StopIteration, next, records_iter)
 
-    def test_iter_records_with_expression(self):
+    def test_iter_records_with_raw_where(self):
         mock_s3 = MockS3Client()
         archive = self.create_archive(
             Archive.TYPE_MSG, "D", timezone.now().date(), [{"id": 1}, {"id": 2}, {"id": 3}], s3=mock_s3
         )
 
         with patch("temba.utils.s3.client", return_value=mock_s3):
-            records_iter = archive.iter_records(expression="s.direction = 'in'")
+            records_iter = archive.iter_records(raw_where="s.direction = 'in'")
 
             self.assertEqual(next(records_iter), {"id": 1})
             self.assertEqual(next(records_iter), {"id": 2})
@@ -50,14 +50,20 @@ class ArchiveTest(TembaTest):
             Archive.TYPE_MSG,
             "D",
             date(2020, 7, 31),
-            [{"id": 1, "created_on": "2020-07-30T10:00:00Z"}, {"id": 2, "created_on": "2020-07-30T15:00:00Z"}],
+            [
+                {"id": 1, "created_on": "2020-07-30T10:00:00Z", "contact": {"name": "Bob"}},
+                {"id": 2, "created_on": "2020-07-30T15:00:00Z", "contact": {"name": "Jim"}},
+            ],
             s3=mock_s3,
         )
         self.create_archive(
             Archive.TYPE_MSG,
             "M",
             date(2020, 7, 1),
-            [{"id": 1, "created_on": "2020-07-30T10:00:00Z"}, {"id": 2, "created_on": "2020-07-30T15:00:00Z"}],
+            [
+                {"id": 1, "created_on": "2020-07-30T10:00:00Z", "contact": {"name": "Bob"}},
+                {"id": 2, "created_on": "2020-07-30T15:00:00Z", "contact": {"name": "Jim"}},
+            ],
             rollup_of=(d1,),
             s3=mock_s3,
         )
@@ -65,21 +71,30 @@ class ArchiveTest(TembaTest):
             Archive.TYPE_MSG,
             "D",
             date(2020, 8, 1),
-            [{"id": 3, "created_on": "2020-08-01T10:00:00Z"}, {"id": 4, "created_on": "2020-08-01T15:00:00Z"}],
+            [
+                {"id": 3, "created_on": "2020-08-01T10:00:00Z", "contact": {"name": "Jim"}},
+                {"id": 4, "created_on": "2020-08-01T15:00:00Z", "contact": {"name": "Bob"}},
+            ],
             s3=mock_s3,
         )
         self.create_archive(
             Archive.TYPE_FLOWRUN,
             "D",
             date(2020, 8, 1),
-            [{"id": 3, "created_on": "2020-08-01T10:00:00Z"}, {"id": 4, "created_on": "2020-08-01T15:00:00Z"}],
+            [
+                {"id": 3, "created_on": "2020-08-01T10:00:00Z", "contact": {"name": "Jim"}},
+                {"id": 4, "created_on": "2020-08-01T15:00:00Z", "contact": {"name": "Bob"}},
+            ],
             s3=mock_s3,
         )
         self.create_archive(
             Archive.TYPE_MSG,
             "D",
             date(2020, 8, 2),
-            [{"id": 5, "created_on": "2020-08-02T10:00:00Z"}, {"id": 6, "created_on": "2020-08-02T15:00:00Z"}],
+            [
+                {"id": 5, "created_on": "2020-08-02T10:00:00Z", "contact": {"name": "Bob"}},
+                {"id": 6, "created_on": "2020-08-02T15:00:00Z", "contact": {"name": "Bob"}},
+            ],
             s3=mock_s3,
         )
 
@@ -103,6 +118,16 @@ class ArchiveTest(TembaTest):
                 before=datetime(2020, 8, 2, 12, 0, 0, 0, pytz.UTC),
             ),
             [2, 3, 4, 5],
+        )
+        assert_records(
+            Archive.iter_all_records(
+                self.org,
+                Archive.TYPE_MSG,
+                after=datetime(2020, 7, 30, 12, 0, 0, 0, pytz.UTC),
+                before=datetime(2020, 8, 2, 12, 0, 0, 0, pytz.UTC),
+                where={"contact__name": "Bob"},
+            ),
+            [4, 5],
         )
 
     def test_end_date(self):
