@@ -96,7 +96,7 @@ def omnibox_mixed_search(org, query, types):
         try:
             search_results = search_contacts(org, query, group=org.active_contacts_group, sort="name")
             contacts = IDSliceQuerySet(
-                Contact, search_results.contact_ids, offset=0, total=len(search_results.contact_ids)
+                Contact, search_results.contact_ids, offset=0, total=len(search_results.contact_ids), using="readonly"
             ).prefetch_related("org")
             results += list(contacts[:per_type_limit])
             Contact.bulk_urn_cache_initialize(contacts=results)
