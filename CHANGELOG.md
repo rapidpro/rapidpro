@@ -1,3 +1,30 @@
+v6.5.52
+----------
+ * Merge pull request #3555 from nyaruka/ticket-att
+ * Update test to include attachment list for last_msg
+ * Update CHANGELOG.md for v6.5.51
+ * Merge pull request #3553 from nyaruka/httplog_tweaks
+ * Merge pull request #3554 from nyaruka/s3_retries
+ * Add other missing migration
+ * Add retry config to S3 client
+ * Add missing migration to drop WebhookResult model
+ * Update CHANGELOG.md for v6.5.50
+ * Merge pull request #3552 from nyaruka/fix-WA-check-health-logs
+ * Fix tests
+ * Add zero defaults to HTTPLog fields, drop WebHookResult and tweak HTTPLog templates for consistency
+ * Fix response for WA message template to be HTTP response
+ * Update CHANGELOG.md for v6.5.49
+ * Merge pull request #3549 from nyaruka/retention_periods
+ * Merge pull request #3546 from nyaruka/readonly_exports
+ * Merge pull request #3548 from nyaruka/fix-WA-check-health-logs
+ * Merge pull request #3550 from nyaruka/truncate-org
+ * Use single retention period setting for all channel logs
+ * Truncate org name with ellipsis on org chooser
+ * Add new setting for retention periods for different types and make trimming tasks more consistent
+ * Use readonly database connection for contact, message and results exports
+ * Add migration file
+ * Log update WA status error using HTTPLog
+
 v6.5.51
 ----------
  * Add retry config to S3 client
