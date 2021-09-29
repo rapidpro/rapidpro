@@ -1,14 +1,13 @@
 import gzip
 import io
+from collections import defaultdict
 from datetime import datetime
 from typing import Dict, List
+from unittest.mock import call
 
 import iso8601
 
 from temba.utils import chunk_list, json
-from temba.utils.s3.select import LOOKUPS
-
-REVERSE_LOOKUPS = {v: k for k, v in LOOKUPS.items()}
 
 
 class MockEventStream:
@@ -40,6 +39,7 @@ class MockS3Client:
 
     def __init__(self):
         self.objects = {}
+        self.calls = defaultdict(list)
 
     def put_jsonl(self, bucket: str, key: str, records: List[Dict]):
         stream = io.BytesIO()
@@ -53,6 +53,8 @@ class MockS3Client:
         self.objects[(bucket, key)] = stream
 
     def get_object(self, Bucket, Key, **kwargs):
+        self.calls["get_object"].append(call(Bucket=Bucket, Key=Key, **kwargs))
+
         stream = self.objects[(Bucket, Key)]
         stream.seek(0)
         return {"Bucket": Bucket, "Key": Key, "Body": stream}
@@ -70,6 +72,8 @@ class MockS3Client:
         return dict(Contents=matches)
 
     def select_object_content(self, Bucket, Key, Expression=None, **kwargs):
+        self.calls["select_object_content"].append(call(Bucket=Bucket, Key=Key, Expression=Expression, **kwargs))
+
         stream = self.objects[(Bucket, Key)]
         stream.seek(0)
         zstream = gzip.GzipFile(fileobj=stream)

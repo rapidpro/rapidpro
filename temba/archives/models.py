@@ -165,37 +165,45 @@ class Archive(models.Model):
             where["created_on__lte"] = before
 
         archives = cls._get_covering_period(org, archive_type, after, before)
-        for archive in archives:
-            for record in archive.iter_records(where=where, raw_where=raw_where):
-                yield record
+
+        def generator():
+            for archive in archives:
+                for record in archive.iter_records(where=where, raw_where=raw_where):
+                    yield record
+
+        return generator()
 
     def iter_records(self, *, where: dict = None, raw_where: str = None):
         """
         Creates an iterator for the records in this archive, streaming and decompressing on the fly
         """
+
         s3_client = s3.client()
 
-        if where:
-            response = s3_client.select_object_content(
-                **self.s3_location(),
-                ExpressionType="SQL",
-                Expression=s3.compile_select(where=where, raw_where=raw_where),
-                InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
-                OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
-            )
+        def generator():
+            if where or raw_where:
+                response = s3_client.select_object_content(
+                    **self.s3_location(),
+                    ExpressionType="SQL",
+                    Expression=s3.compile_select(where=where, raw_where=raw_where),
+                    InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
+                    OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
+                )
 
-            for record in EventStreamReader(response["Payload"]):
-                yield record
-        else:
-            s3_obj = s3_client.get_object(**self.s3_location())
-            stream = gzip.GzipFile(fileobj=s3_obj["Body"])
+                for record in EventStreamReader(response["Payload"]):
+                    yield record
+            else:
+                s3_obj = s3_client.get_object(**self.s3_location())
+                stream = gzip.GzipFile(fileobj=s3_obj["Body"])
 
-            while True:
-                line = stream.readline()
-                if not line:
-                    break
+                while True:
+                    line = stream.readline()
+                    if not line:
+                        break
 
-                yield json.loads(line.decode("utf-8"))
+                    yield json.loads(line.decode("utf-8"))
+
+        return generator()
 
     def release(self):
 
