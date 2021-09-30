@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Set output
         id: vars
-        run: echo ::set-output name=tag::$(echo ${GITHUB_REF#refs/heads/});
+        run: echo ::set-output name=tag::$(echo ${GITHUB_REF#refs/heads/}|cut -d'/' -f3);
       - name: Check out the repo
         uses: actions/checkout@v2
         with: 
