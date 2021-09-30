@@ -28,14 +28,19 @@ def _compile_condition(alias: str, field: str, val) -> str:
         op = LOOKUPS[field_parts[-1]]
         field = "__".join(field_parts[:-1])
 
-    column = _compile_column(alias, field)
+    column = _compile_column(alias, field, cast="TIMESTAMP" if isinstance(val, datetime) else None)
     value = _compile_value(val)
 
     return f"{column} {op} {value}"
 
 
-def _compile_column(alias, field) -> str:
-    return f"{alias}.{field.replace('__', '.')}"
+def _compile_column(alias: str, field: str, cast: str = None) -> str:
+    col = f"{alias}.{field.replace('__', '.')}"
+
+    if cast:
+        col = f"CAST({col} AS {cast})"
+
+    return col
 
 
 def _compile_value(val) -> str:

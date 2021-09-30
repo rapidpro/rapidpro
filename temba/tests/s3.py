@@ -6,6 +6,7 @@ from typing import Dict, List
 from unittest.mock import call
 
 import iso8601
+import regex
 
 from temba.utils import chunk_list, json
 
@@ -133,7 +134,12 @@ def _parse_expression(exp: str) -> list:
     conditions = exp[33:].split(" AND ")
     parsed = []
     for con in conditions:
-        col, op, val = con.split(" ", maxsplit=2)
+        match = regex.match(r"(.*)\s(=|!=|>|>=|<|<=|IN)\s(.+)", con)
+        col, op, val = match.group(1), match.group(2), match.group(3)
+
+        if col.startswith("CAST("):
+            col = regex.match(r"CAST\((.+) AS .+\)", col).group(1)
+
         col = col[2:]  # remove alias prefix
         parsed.append((col, op, _parse_value(val)))
 

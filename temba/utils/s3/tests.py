@@ -64,11 +64,11 @@ class SelectTest(TembaTest):
             compile_select(where={"uuid": "12345", "id": 123, "active": True}),
         )
         self.assertEqual(
-            "SELECT s.* FROM s3object s WHERE s.created_on > CAST('2021-09-28T18:27:30.123456+00:00' AS TIMESTAMP)",
+            "SELECT s.* FROM s3object s WHERE CAST(s.created_on AS TIMESTAMP) > CAST('2021-09-28T18:27:30.123456+00:00' AS TIMESTAMP)",
             compile_select(where={"created_on__gt": datetime(2021, 9, 28, 18, 27, 30, 123456, pytz.UTC)}),
         )
         self.assertEqual(
-            "SELECT s.* FROM s3object s WHERE s.modified_on <= CAST('2021-09-28T18:27:30.123456+00:00' AS TIMESTAMP)",
+            "SELECT s.* FROM s3object s WHERE CAST(s.modified_on AS TIMESTAMP) <= CAST('2021-09-28T18:27:30.123456+00:00' AS TIMESTAMP)",
             compile_select(where={"modified_on__lte": datetime(2021, 9, 28, 18, 27, 30, 123456, pytz.UTC)}),
         )
         self.assertEqual(
