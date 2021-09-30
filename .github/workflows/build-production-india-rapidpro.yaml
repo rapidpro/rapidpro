@@ -54,4 +54,4 @@ jobs:
           tags: 242357350604.dkr.ecr.ap-south-1.amazonaws.com/rapidpro:${{ steps.vars.outputs.tag }}-varnish
           no-cache: true
           build-args: |
-            BACKEND_ADDRESS=rapidpro-develop:8000
+            BACKEND_ADDRESS=rapidpro-production:8000
