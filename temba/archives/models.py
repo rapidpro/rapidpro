@@ -3,7 +3,6 @@ from datetime import date, datetime
 from gettext import gettext as _
 from urllib.parse import urlparse
 
-import boto3
 import iso8601
 from dateutil.relativedelta import relativedelta
 
@@ -12,7 +11,7 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
-from temba.utils import json, sizeof_fmt
+from temba.utils import json, s3, sizeof_fmt
 from temba.utils.s3 import EventStreamReader
 
 
@@ -80,13 +79,6 @@ class Archive(models.Model):
             return self.start_date + relativedelta(months=1)
 
     @classmethod
-    def s3_client(cls):
-        session = boto3.Session(
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-        )
-        return session.client("s3")
-
-    @classmethod
     def release_org_archives(cls, org):
         """
         Deletes all the archives for an org, also iterating any remaining files in S3 and removing that path
@@ -97,10 +89,12 @@ class Archive(models.Model):
             archive.release()
 
         # find any remaining S3 files and remove them for this org
-        s3 = cls.s3_client()
-        archive_files = s3.list_objects_v2(Bucket=settings.ARCHIVE_BUCKET, Prefix=f"{org.id}/").get("Contents", [])
+        s3_client = s3.client()
+        archive_files = s3_client.list_objects_v2(Bucket=settings.ARCHIVE_BUCKET, Prefix=f"{org.id}/").get(
+            "Contents", []
+        )
         for archive_file in archive_files:
-            s3.delete_object(Bucket=settings.ARCHIVE_BUCKET, Key=archive_file["Key"])
+            s3_client.delete_object(Bucket=settings.ARCHIVE_BUCKET, Key=archive_file["Key"])
 
     def filename(self):
         url_parts = urlparse(self.url)
@@ -108,7 +102,7 @@ class Archive(models.Model):
 
     def get_download_link(self):
         if self.url:
-            s3 = self.s3_client()
+            s3_client = s3.client()
             s3_params = {
                 **self.s3_location(),
                 # force browser to download and not uncompress our gzipped files
@@ -117,7 +111,7 @@ class Archive(models.Model):
                 "ResponseContentEncoding": "none",
             }
 
-            return s3.generate_presigned_url("get_object", Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
+            return s3_client.generate_presigned_url("get_object", Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
         else:
             return ""
 
@@ -174,10 +168,10 @@ class Archive(models.Model):
         """
         Creates an iterator for the records in this archive, streaming and decompressing on the fly
         """
-        s3 = self.s3_client()
+        s3_client = s3.client()
 
         if expression:
-            response = s3.select_object_content(
+            response = s3_client.select_object_content(
                 **self.s3_location(),
                 ExpressionType="SQL",
                 Expression=f"SELECT * FROM s3object s WHERE {expression}",
@@ -188,7 +182,7 @@ class Archive(models.Model):
             for record in EventStreamReader(response["Payload"]):
                 yield record
         else:
-            s3_obj = s3.get_object(**self.s3_location())
+            s3_obj = s3_client.get_object(**self.s3_location())
             stream = gzip.GzipFile(fileobj=s3_obj["Body"])
 
             while True:
@@ -205,8 +199,7 @@ class Archive(models.Model):
 
         # delete our archive file from s3
         if self.url:
-            s3 = self.s3_client()
-            s3.delete_object(**self.s3_location())
+            s3.client().delete_object(**self.s3_location())
 
         # and lastly delete ourselves
         self.delete()

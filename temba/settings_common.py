@@ -17,7 +17,7 @@ SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
 
 
 def traces_sampler(sampling_context):  # pragma: no cover
-    return 0 if ("shell" in sys.argv) else 0.1
+    return 0 if ("shell" in sys.argv) else 0.01
 
 
 if SENTRY_DSN:  # pragma: no cover
@@ -46,6 +46,11 @@ if TESTING:
 
 ADMINS = (("RapidPro", "code@yourdomain.io"),)
 MANAGERS = ADMINS
+
+# -----------------------------------------------------------------------------------
+# Location support
+# -----------------------------------------------------------------------------------
+LOCATION_SUPPORT = True
 
 # hardcode the postgis version so we can do reset db's from a blank database
 POSTGIS_VERSION = (2, 1)
@@ -279,6 +284,7 @@ INSTALLED_APPS = (
     "temba.contacts",
     "temba.channels",
     "temba.msgs",
+    "temba.notifications",
     "temba.flows",
     "temba.tickets",
     "temba.triggers",
@@ -341,6 +347,7 @@ BRANDING = {
         "logo": "brands/rapidpro/logo.png",
         "allow_signups": True,
         "flow_types": ["M", "V", "B", "S"],  # see Flow.FLOW_TYPES
+        "location_support": True,
         "tiers": dict(multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
@@ -383,6 +390,7 @@ PERMISSIONS = {
         "stopped",
         "filter",
         "history",
+        "menu",
         "omnibox",
         "restore",
         "search",
@@ -390,7 +398,7 @@ PERMISSIONS = {
         "update_fields",
         "update_fields_input",
     ),
-    "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type"),
+    "contacts.contactfield": ("api", "json", "menu", "update_priority", "featured", "filter_by_type"),
     "contacts.contactgroup": ("api",),
     "contacts.contactimport": ("preview",),
     "ivr.ivrcall": ("start",),
@@ -420,6 +428,7 @@ PERMISSIONS = {
         "manage_accounts",
         "manage_accounts_sub_org",
         "manage_integrations",
+        "menu",
         "vonage_account",
         "vonage_connect",
         "plan",
@@ -429,6 +438,7 @@ PERMISSIONS = {
         "resthooks",
         "service",
         "signup",
+        "spa",
         "sub_orgs",
         "surveyor",
         "transfer_credits",
@@ -502,6 +512,7 @@ PERMISSIONS = {
     "templates.template": ("api",),
     "tickets.ticket": ("api", "assign", "assignee", "menu", "note"),
     "tickets.ticketer": ("api", "connect", "configure"),
+    "tickets.topic": ("api",),
     "triggers.trigger": ("archived", "type"),
 }
 
@@ -519,6 +530,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_api",
         "locations.adminboundary_api",
         "orgs.org_api",
+        "orgs.org_spa",
         "orgs.org_surveyor",
         "msgs.msg_api",
     ),
@@ -540,12 +552,14 @@ GROUP_PERMISSIONS = {
         "flows.flowrun_delete",
         "flows.flow_editor_next",
         "flows.flowsession_json",
+        "notifications.log_list",
         "orgs.org_dashboard",
         "orgs.org_delete",
         "orgs.org_grant",
         "orgs.org_manage",
         "orgs.org_update",
         "orgs.org_service",
+        "orgs.org_spa",
         "orgs.topup_create",
         "orgs.topup_manage",
         "orgs.topup_update",
@@ -553,16 +567,12 @@ GROUP_PERMISSIONS = {
         "policies.policy_update",
         "policies.policy_admin",
         "policies.policy_history",
-        "request_logs.httplog_read",
-        "request_logs.httplog_classifier",
-        "request_logs.httplog_ticketer",
     ),
     "Administrators": (
         "airtime.airtimetransfer_list",
         "airtime.airtimetransfer_read",
         "api.apitoken_refresh",
         "api.resthook_api",
-        "api.resthook_list",
         "api.resthooksubscriber_api",
         "api.webhookevent_api",
         "api.webhookresult_list",
@@ -588,6 +598,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_filter",
         "contacts.contact_history",
         "contacts.contact_list",
+        "contacts.contact_menu",
         "contacts.contact_omnibox",
         "contacts.contact_read",
         "contacts.contact_restore",
@@ -607,6 +618,7 @@ GROUP_PERMISSIONS = {
         "locations.adminboundary_api",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
+        "notifications.notification_list",
         "orgs.org_accounts",
         "orgs.org_smtp_server",
         "orgs.org_api",
@@ -623,6 +635,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_manage_accounts",
         "orgs.org_manage_accounts_sub_org",
         "orgs.org_manage_integrations",
+        "orgs.org_menu",
         "orgs.org_vonage_account",
         "orgs.org_vonage_connect",
         "orgs.org_plan",
@@ -630,6 +643,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_profile",
         "orgs.org_prometheus",
         "orgs.org_resthooks",
+        "orgs.org_spa",
         "orgs.org_sub_orgs",
         "orgs.org_transfer_credits",
         "orgs.org_twilio_account",
@@ -679,17 +693,17 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
-        "request_logs.httplog_classifier",
+        "request_logs.httplog_list",
         "request_logs.httplog_read",
         "templates.template_api",
         "tickets.ticket.*",
         "tickets.ticketer.*",
+        "tickets.topic.*",
         "triggers.trigger.*",
     ),
     "Editors": (
         "api.apitoken_refresh",
         "api.resthook_api",
-        "api.resthook_list",
         "api.resthooksubscriber_api",
         "api.webhookevent_api",
         "api.webhookevent_list",
@@ -714,6 +728,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_filter",
         "contacts.contact_history",
         "contacts.contact_list",
+        "contacts.contact_menu",
         "contacts.contact_omnibox",
         "contacts.contact_read",
         "contacts.contact_restore",
@@ -733,13 +748,16 @@ GROUP_PERMISSIONS = {
         "locations.adminboundary_api",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
+        "notifications.notification_list",
         "orgs.org_api",
         "orgs.org_download",
         "orgs.org_export",
         "orgs.org_home",
         "orgs.org_import",
+        "orgs.org_menu",
         "orgs.org_profile",
         "orgs.org_resthooks",
+        "orgs.org_spa",
         "orgs.org_two_factor",
         "orgs.org_token",
         "orgs.topup_list",
@@ -784,10 +802,10 @@ GROUP_PERMISSIONS = {
         "templates.template_api",
         "tickets.ticket.*",
         "tickets.ticketer_api",
+        "tickets.topic_api",
         "triggers.trigger.*",
     ),
     "Viewers": (
-        "api.resthook_list",
         "campaigns.campaign_archived",
         "campaigns.campaign_list",
         "campaigns.campaign_read",
@@ -802,21 +820,26 @@ GROUP_PERMISSIONS = {
         "contacts.contact_filter",
         "contacts.contact_history",
         "contacts.contact_list",
+        "contacts.contact_menu",
         "contacts.contact_read",
         "contacts.contact_stopped",
         "contacts.contactfield_api",
         "contacts.contactfield_read",
         "contacts.contactgroup_api",
+        "contacts.contactgroup_list",
+        "contacts.contactgroup_menu",
         "contacts.contactgroup_read",
         "contacts.contactimport_read",
         "globals.global_api",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
         "locations.adminboundary_alias",
+        "notifications.notification_list",
         "orgs.org_download",
         "orgs.org_export",
         "orgs.org_home",
         "orgs.org_profile",
+        "orgs.org_spa",
         "orgs.org_two_factor",
         "orgs.topup_list",
         "orgs.topup_read",
@@ -853,10 +876,12 @@ GROUP_PERMISSIONS = {
         "msgs.msg_inbox",
         "msgs.msg_outbox",
         "msgs.msg_sent",
+        "orgs.org_menu",
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
         "tickets.ticketer_api",
+        "tickets.topic_api",
         "triggers.trigger_archived",
         "triggers.trigger_list",
         "triggers.trigger_type",
@@ -868,14 +893,18 @@ GROUP_PERMISSIONS = {
         "contacts.contactgroup_api",
         "globals.global_api",
         "msgs.broadcast_api",
+        "notifications.notification_list",
         "tickets.ticket_api",
         "tickets.ticket_assign",
         "tickets.ticket_assignee",
         "tickets.ticket_list",
         "tickets.ticket_menu",
         "tickets.ticket_note",
+        "tickets.topic_api",
         "orgs.org_home",
+        "orgs.org_menu",
         "orgs.org_profile",
+        "orgs.org_spa",
         "policies.policy_give_consent",
     ),
     "Prometheus": (),
@@ -916,17 +945,14 @@ _default_database_config = {
     "ATOMIC_REQUESTS": True,
     "CONN_MAX_AGE": 60,
     "OPTIONS": {},
+    "DISABLE_SERVER_SIDE_CURSORS": True,
 }
 
-_direct_database_config = _default_database_config.copy()
-_default_database_config["DISABLE_SERVER_SIDE_CURSORS"] = True
+# installs can provide a default connection and an optional read-only connection (e.g. a separate read replica) which
+# will be used for certain fetch operations
+DATABASES = {"default": _default_database_config, "readonly": _default_database_config.copy()}
 
-DATABASES = {"default": _default_database_config, "direct": _direct_database_config}
-
-# If we are testing, set both our connections as the same, Django seems to get
-# confused on Python 3.6 with transactional tests otherwise
-if TESTING:
-    DATABASES["default"] = _direct_database_config
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
 
@@ -950,6 +976,7 @@ CELERYBEAT_SCHEDULE = {
     "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=60)},
     "squash-flowcounts": {"task": "squash_flowcounts", "schedule": timedelta(seconds=60)},
     "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
+    "squash-notificationcounts": {"task": "squash_notificationcounts", "schedule": timedelta(seconds=60)},
     "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
     "squash-ticketcounts": {"task": "squash_ticketcounts", "schedule": timedelta(seconds=60)},
     "suspend-topup-orgs": {"task": "suspend_topup_orgs_task", "schedule": timedelta(hours=1)},

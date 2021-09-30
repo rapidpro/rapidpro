@@ -10,7 +10,7 @@ from temba.tests.s3 import MockS3Client
 
 
 class SearchArchivesTest(TembaTest):
-    @patch("temba.archives.models.Archive.s3_client")
+    @patch("temba.utils.s3.client")
     def test_command(self, mock_s3_client):
         mock_s3 = MockS3Client()
         mock_s3_client.return_value = mock_s3

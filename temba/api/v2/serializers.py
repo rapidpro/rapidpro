@@ -9,6 +9,7 @@ import regex
 from rest_framework import serializers
 
 from django.conf import settings
+from django.contrib.auth.models import User
 
 from temba import mailroom
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
@@ -22,9 +23,9 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
-from temba.orgs.models import Org
+from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import extract_constants, json, on_transaction_commit
 
 from . import fields
@@ -112,8 +113,7 @@ class WriteSerializer(serializers.Serializer):
             )
 
         if self.context["org"].is_flagged or self.context["org"].is_suspended:
-            state = "flagged" if self.context["org"].is_flagged else "suspended"
-            msg = f"Sorry, your workspace is currently {state}. To enable sending messages, please contact support."
+            msg = Org.BLOCKER_FLAGGED if self.context["org"].is_flagged else Org.BLOCKER_SUSPENDED
             raise serializers.ValidationError(detail={"non_field_errors": [msg]})
 
         return super().run_validation(data)
@@ -498,10 +498,10 @@ class ContactReadSerializer(ReadSerializer):
         return obj.language if obj.is_active else None
 
     def get_urns(self, obj):
-        if self.context["org"].is_anon or not obj.is_active:
+        if not obj.is_active:
             return []
 
-        return [str(urn) for urn in obj.get_urns()]
+        return [urn.api_urn() for urn in obj.get_urns()]
 
     def get_groups(self, obj):
         if not obj.is_active:
@@ -1142,13 +1142,15 @@ class LabelWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
-        labels_count = Label.label_objects.filter(org=self.context["org"], is_active=True).count()
-        if labels_count >= Label.MAX_ORG_LABELS:
+        org = self.context["org"]
+
+        count = Label.label_objects.filter(org=org, is_active=True).count()
+        if count >= org.get_limit(Org.LIMIT_LABELS):
             raise serializers.ValidationError(
-                "This org has %s labels and the limit is %s. "
-                "You must delete existing ones before you can "
-                "create new ones." % (labels_count, Label.MAX_ORG_LABELS)
+                "This workspace has %d labels and the limit is %d. You must delete existing ones before you can "
+                "create new ones." % (count, org.get_limit(Org.LIMIT_LABELS))
             )
+
         return data
 
     def save(self):
@@ -1426,32 +1428,24 @@ class TicketReadSerializer(ReadSerializer):
 
     ticketer = fields.TicketerField()
     contact = fields.ContactField()
-    assignee = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
+    topic = fields.TopicField()
+    assignee = fields.UserField()
     opened_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     closed_on = serializers.DateTimeField(default_timezone=pytz.UTC)
-
-    def get_assignee(self, obj):
-        return (
-            {"id": obj.assignee.id, "first_name": obj.assignee.first_name, "last_name": obj.assignee.last_name}
-            if obj.assignee
-            else None
-        )
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
 
     class Meta:
         model = Ticket
-        fields = ("uuid", "ticketer", "assignee", "contact", "status", "subject", "body", "opened_on", "closed_on")
+        fields = ("uuid", "ticketer", "contact", "status", "topic", "body", "assignee", "opened_on", "closed_on")
 
 
 class TicketWriteSerializer(WriteSerializer):
     STATUSES = {"open": Ticket.STATUS_OPEN, "closed": Ticket.STATUS_CLOSED}
 
-    status = serializers.CharField(
-        required=True,
-    )
+    status = serializers.CharField(required=True)
 
     def validate_status(self, value):
         return self.STATUSES[value]
@@ -1472,25 +1466,27 @@ class TicketWriteSerializer(WriteSerializer):
 
 class TicketBulkActionSerializer(WriteSerializer):
     ACTION_ASSIGN = "assign"
-    ACTION_NOTE = "note"
+    ACTION_ADD_NOTE = "add_note"
+    ACTION_CHANGE_TOPIC = "change_topic"
     ACTION_CLOSE = "close"
     ACTION_REOPEN = "reopen"
-    ACTION_CHOICES = (ACTION_ASSIGN, ACTION_NOTE, ACTION_CLOSE, ACTION_REOPEN)
+    ACTION_CHOICES = (ACTION_ASSIGN, ACTION_ADD_NOTE, ACTION_CHANGE_TOPIC, ACTION_CLOSE, ACTION_REOPEN)
 
     tickets = fields.TicketField(many=True)
     action = serializers.ChoiceField(required=True, choices=ACTION_CHOICES)
-    assignee = fields.UserField(required=False, assignable_only=True)
+    assignee = fields.UserField(required=False, allow_null=True, assignable_only=True)
+    topic = fields.TopicField(required=False)
     note = serializers.CharField(required=False, max_length=Ticket.MAX_NOTE_LEN)
 
     def validate(self, data):
         action = data["action"]
-        assignee = data.get("assignee")
-        note = data.get("note")
 
-        if action == self.ACTION_ASSIGN and not assignee:
-            raise serializers.ValidationError('For action "%s" you must also specify the assignee' % action)
-        elif action == self.ACTION_NOTE and not note:
-            raise serializers.ValidationError('For action "%s" you must also specify the note' % action)
+        if action == self.ACTION_ASSIGN and "assignee" not in data:
+            raise serializers.ValidationError('For action "%s" you must specify the assignee' % action)
+        elif action == self.ACTION_ADD_NOTE and not data.get("note"):
+            raise serializers.ValidationError('For action "%s" you must specify the note' % action)
+        elif action == self.ACTION_CHANGE_TOPIC and not data.get("topic"):
+            raise serializers.ValidationError('For action "%s" you must specify the topic' % action)
 
         return data
 
@@ -1501,15 +1497,84 @@ class TicketBulkActionSerializer(WriteSerializer):
         action = self.validated_data["action"]
         assignee = self.validated_data.get("assignee")
         note = self.validated_data.get("note")
+        topic = self.validated_data.get("topic")
 
         if action == self.ACTION_ASSIGN:
             Ticket.bulk_assign(org, user, tickets, assignee=assignee, note=note)
-        elif action == self.ACTION_NOTE:
-            Ticket.bulk_note(org, user, tickets, note=note)
+        elif action == self.ACTION_ADD_NOTE:
+            Ticket.bulk_add_note(org, user, tickets, note=note)
+        elif action == self.ACTION_CHANGE_TOPIC:
+            Ticket.bulk_change_topic(org, user, tickets, topic=topic)
         elif action == self.ACTION_CLOSE:
             Ticket.bulk_close(org, user, tickets)
         elif action == self.ACTION_REOPEN:
             Ticket.bulk_reopen(org, user, tickets)
+
+
+class TopicReadSerializer(ReadSerializer):
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    class Meta:
+        model = Topic
+        fields = ("uuid", "name", "created_on")
+
+
+class TopicWriteSerializer(WriteSerializer):
+    name = serializers.CharField(
+        required=True,
+        max_length=Topic.MAX_NAME_LEN,
+        validators=[UniqueForOrgValidator(queryset=Topic.objects.filter(is_active=True), ignore_case=True)],
+    )
+
+    def validate_name(self, value):
+        if not Topic.is_valid_name(value):
+            raise serializers.ValidationError("Contains illegal characters.")
+        return value
+
+    def validate(self, data):
+        org = self.context["org"]
+
+        if self.instance and self.instance == org.default_ticket_topic:
+            raise serializers.ValidationError("Can't modify default topic for a workspace.")
+
+        count = org.topics.filter(is_active=True).count()
+        if count >= org.get_limit(Org.LIMIT_TOPICS):
+            raise serializers.ValidationError(
+                "This workspace has %s topics and the limit is %s. You must delete existing ones before you can "
+                "create new ones." % (count, org.get_limit(Org.LIMIT_TOPICS))
+            )
+        return data
+
+    def save(self):
+        name = self.validated_data["name"]
+
+        if self.instance:
+            self.instance.name = name
+            self.instance.save(update_fields=("name",))
+            return self.instance
+        else:
+            return Topic.get_or_create(self.context["org"], self.context["user"], name)
+
+
+class UserReadSerializer(ReadSerializer):
+    ROLES = {
+        OrgRole.ADMINISTRATOR: "administrator",
+        OrgRole.EDITOR: "editor",
+        OrgRole.VIEWER: "viewer",
+        OrgRole.AGENT: "agent",
+        OrgRole.SURVEYOR: "surveyor",
+    }
+
+    role = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC, source="date_joined")
+
+    def get_role(self, obj):
+        role = self.context["user_roles"][obj]
+        return self.ROLES[role]
+
+    class Meta:
+        model = User
+        fields = ("email", "first_name", "last_name", "role", "created_on")
 
 
 class WorkspaceReadSerializer(ReadSerializer):

@@ -125,7 +125,7 @@ def export_messages_task(export_id):
     """
     Export messages to a file and e-mail a link to the user
     """
-    ExportMessagesTask.objects.get(id=export_id).perform()
+    ExportMessagesTask.objects.select_related("org", "created_by").get(id=export_id).perform()
 
 
 @nonoverlapping_task(track_started=True, name="retry_errored_messages", lock_timeout=300)

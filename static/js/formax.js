@@ -110,7 +110,7 @@
       form = $(this);
       section = form.parents(".formax-section");
       followRedirects = section.data("action") === 'redirect';
-      const formData = new FormData(this);
+      var formData = new FormData(this);
       return fetchPJAXContent(section.data("href"), "#" + section.attr("id") + " > .formax-container", {
         formData: formData,
         headers: {
@@ -127,6 +127,12 @@
           } else {
             if (section.data("action") !== 'fixed') {
               hideSection(section);
+
+              // refetch our primary form, but wait until our animation is done
+              window.setTimeout(function(){
+                fetchData(section);
+              }, 1000);
+              
             }
           }
           dependents = section.data("dependents");

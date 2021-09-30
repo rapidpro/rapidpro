@@ -86,6 +86,7 @@ class Command(BaseCommand):  # pragma: no cover
             "name": db_contact.name,
             "language": db_contact.language,
             "status": db_contact.status,
+            "tickets": db_contact.ticket_count,
             "is_active": db_contact.is_active,
             "created_on": db_contact.created_on,
             "modified_on": db_contact.modified_on,

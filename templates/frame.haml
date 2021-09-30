@@ -252,7 +252,8 @@
 
   -else
     .flex.flex-col.h-full
-      <!-- Header -->
+      -block header
+        <!-- Header -->
       -if user_org
         .org-header.self-end
           -if user_orgs|length > 1
@@ -384,6 +385,12 @@
       }
 
     -block extra-script
+
+    -block full-page-script
+      :javascript
+        document.addEventListener("temba-redirected", function(event){
+          document.location.href = event.detail.url;
+        });
 
     <script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
 

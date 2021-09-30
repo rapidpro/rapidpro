@@ -20,6 +20,7 @@ NAME_OVERRIDES = {
     "swh": "Swahili (Indiv. lang., ISO-639-3)",
     "zho": "Chinese",  # zh in ISO-639-1
     "cmn": "Chinese (Mandarin, ISO-639-3)",
+    "kir": "Kyrgyz",  # https://github.com/rapidpro/rapidpro/issues/1551
 }
 
 NAMES = {}

@@ -2,10 +2,10 @@
 -load smartmin i18n
 
 -block title
-  .medium-help.float-left(class='{{ object.get_type.icon }}')
+  .medium-help.float-left(class='{{ object.type.icon }}')
 
   %h2.font_normalize.header-margin.title
-    {{ ticketer.get_type.name }}
+    {{ ticketer.type.name }}
     -trans "Ticketing Service"
     .ticketer-name
       {{ ticketer.name }}

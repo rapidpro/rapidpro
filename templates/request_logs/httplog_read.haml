@@ -35,10 +35,10 @@
   %table.list
     %tbody
       %tr.border-b
-        -if object.status_code
+        -if object.get_status_code
           %td(style="width: 30px;")
             .font-normal.text-2xl
-              {{ object.status_code }}
+              {{ object.get_status_code }}
 
         %td
           .font-normal.inline.mr-1
