@@ -1828,7 +1828,7 @@ class ContactTest(TembaTest):
         # error is swallowed and we show no results
         self.assertEqual([], omnibox_request("search=-123`213"))
 
-        with self.mockReadOnly(), self.assertNumQueries(17):
+        with self.assertNumQueries(17):
             mock_search_contacts.side_effect = [
                 SearchResults(
                     query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id]
@@ -1851,7 +1851,7 @@ class ContactTest(TembaTest):
                 omnibox_request(query="", version="2"),
             )
 
-        with self.mockReadOnly():
+        with self.assertNumQueries(19):
             mock_search_contacts.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
                 SearchResults(query="", total=2, contact_ids=[self.voldemort.id, self.frank.id]),
@@ -1881,7 +1881,7 @@ class ContactTest(TembaTest):
                 omnibox_request(query="search=250", version="2"),
             )
 
-        with self.mockReadOnly(), self.assertNumQueries(17):
+        with self.assertNumQueries(17):
             mock_search_contacts.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
                 SearchResults(query="", total=0, contact_ids=[]),
@@ -1921,36 +1921,34 @@ class ContactTest(TembaTest):
             omnibox_request("types=s"),
         )
 
-        with self.mockReadOnly():
-            mock_search_contacts.side_effect = [
-                SearchResults(
-                    query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id]
-                ),
-                SearchResults(query="", total=3, contact_ids=[self.voldemort.id, self.joe.id, self.frank.id]),
-            ]
-            self.assertEqual(
-                [
-                    {"id": f"c-{self.billy.uuid}", "text": "Billy Nophone", "extra": ""},
-                    {"id": f"c-{self.frank.uuid}", "text": "Frank Smith", "extra": "250782222222"},
-                    {"id": f"c-{self.joe.uuid}", "text": "Joe Blow", "extra": "blow80"},
-                    {"id": f"c-{self.voldemort.uuid}", "text": "250768383383", "extra": "250768383383"},
-                    {"id": f"u-{voldemort_tel.id}", "text": "250768383383", "extra": None, "scheme": "tel"},
-                    {"id": f"u-{joe_tel.id}", "text": "250781111111", "extra": "Joe Blow", "scheme": "tel"},
-                    {"id": f"u-{frank_tel.id}", "text": "250782222222", "extra": "Frank Smith", "scheme": "tel"},
-                ],
-                omnibox_request("search=250&types=c,u"),
-            )
+        mock_search_contacts.side_effect = [
+            SearchResults(
+                query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id]
+            ),
+            SearchResults(query="", total=3, contact_ids=[self.voldemort.id, self.joe.id, self.frank.id]),
+        ]
+        self.assertEqual(
+            [
+                {"id": f"c-{self.billy.uuid}", "text": "Billy Nophone", "extra": ""},
+                {"id": f"c-{self.frank.uuid}", "text": "Frank Smith", "extra": "250782222222"},
+                {"id": f"c-{self.joe.uuid}", "text": "Joe Blow", "extra": "blow80"},
+                {"id": f"c-{self.voldemort.uuid}", "text": "250768383383", "extra": "250768383383"},
+                {"id": f"u-{voldemort_tel.id}", "text": "250768383383", "extra": None, "scheme": "tel"},
+                {"id": f"u-{joe_tel.id}", "text": "250781111111", "extra": "Joe Blow", "scheme": "tel"},
+                {"id": f"u-{frank_tel.id}", "text": "250782222222", "extra": "Frank Smith", "scheme": "tel"},
+            ],
+            omnibox_request("search=250&types=c,u"),
+        )
 
         # search for Frank by phone
-        with self.mockReadOnly():
-            mock_search_contacts.side_effect = [
-                SearchResults(query="name ~ 222", total=0, contact_ids=[]),
-                SearchResults(query="urn ~ 222", total=1, contact_ids=[self.frank.id]),
-            ]
-            self.assertEqual(
-                [{"id": f"u-{frank_tel.id}", "text": "250782222222", "extra": "Frank Smith", "scheme": "tel"}],
-                omnibox_request("search=222"),
-            )
+        mock_search_contacts.side_effect = [
+            SearchResults(query="name ~ 222", total=0, contact_ids=[]),
+            SearchResults(query="urn ~ 222", total=1, contact_ids=[self.frank.id]),
+        ]
+        self.assertEqual(
+            [{"id": f"u-{frank_tel.id}", "text": "250782222222", "extra": "Frank Smith", "scheme": "tel"}],
+            omnibox_request("search=222"),
+        )
 
         # create twitter channel
         self.create_channel("TT", "Twitter", "nyaruka")

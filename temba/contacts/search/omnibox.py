@@ -102,9 +102,7 @@ def omnibox_mixed_search(org, query, types):
                 offset=0,
                 total=len(search_results.contact_ids),
                 only=("id", "uuid", "name", "org_id"),
-            ).prefetch_related(
-                "org"
-            )  # .using("readonly")
+            ).prefetch_related("org")
 
             results += list(contacts[:per_type_limit])
             Contact.bulk_urn_cache_initialize(contacts=results)

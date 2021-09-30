@@ -38,7 +38,7 @@ class IDSliceQuerySet(models.query.RawQuerySet):
     QuerySet defined by a model, set of ids, offset and total count
     """
 
-    def __init__(self, model, ids, *, offset, total, only=None, _db="default", _raw_query=None):
+    def __init__(self, model, ids, *, offset, total, only=None, using="default", _raw_query=None):
         if _raw_query:
             # we're being cloned so can reuse our SQL query
             raw_query = _raw_query
@@ -54,7 +54,7 @@ class IDSliceQuerySet(models.query.RawQuerySet):
             else:
                 raw_query = f"""SELECT {cols} FROM {table} t WHERE t.id < 0"""
 
-        super().__init__(raw_query, model, using=_db)
+        super().__init__(raw_query, model, using=using)
 
         self.ids = ids
         self.offset = offset
@@ -88,7 +88,7 @@ class IDSliceQuerySet(models.query.RawQuerySet):
         return self
 
     def none(self):
-        return IDSliceQuerySet(self.model, [], offset=0, total=0, _db=self._db)
+        return IDSliceQuerySet(self.model, [], offset=0, total=0, using=self._db)
 
     def count(self):
         return self.total
@@ -105,11 +105,11 @@ class IDSliceQuerySet(models.query.RawQuerySet):
             else:
                 raise ValueError(f"IDSliceQuerySet instances can only be filtered by pk, not {k}")
 
-        return IDSliceQuerySet(self.model, ids, offset=0, total=len(ids), _db=self._db)
+        return IDSliceQuerySet(self.model, ids, offset=0, total=len(ids), using=self._db)
 
     def _clone(self):
         return self.__class__(
-            self.model, self.ids, offset=self.offset, total=self.total, _db=self._db, _raw_query=self.raw_query
+            self.model, self.ids, offset=self.offset, total=self.total, using=self._db, _raw_query=self.raw_query
         )
 
 
