@@ -3,7 +3,6 @@ from datetime import date, datetime
 from gettext import gettext as _
 from urllib.parse import urlparse
 
-import iso8601
 from dateutil.relativedelta import relativedelta
 
 from django.conf import settings
@@ -144,53 +143,67 @@ class Archive(models.Model):
 
     @classmethod
     def iter_all_records(
-        cls, org, archive_type: str, after: datetime = None, before: datetime = None, expression: str = None
+        cls,
+        org,
+        archive_type: str,
+        after: datetime = None,
+        before: datetime = None,
+        where: dict = None,
+        raw_where: str = None,
     ):
         """
         Creates a record iterator across archives of the given type for records which match the given criteria
 
         Expression should be SQL with s prefix for fields, e.g. s.direction = 'in' AND s.type = 'flow'
         """
+
+        if not where:
+            where = {}
+        if after:
+            where["created_on__gte"] = after
+        if before:
+            where["created_on__lte"] = before
+
         archives = cls._get_covering_period(org, archive_type, after, before)
-        for archive in archives:
-            for record in archive.iter_records(expression):
 
-                # TODO could do this in S3 select
-                created_on = iso8601.parse_date(record["created_on"])
-                if after and created_on < after:
-                    continue
-                if before and created_on > before:
-                    continue
+        def generator():
+            for archive in archives:
+                for record in archive.iter_records(where=where, raw_where=raw_where):
+                    yield record
 
-                yield record
+        return generator()
 
-    def iter_records(self, expression: str = None):
+    def iter_records(self, *, where: dict = None, raw_where: str = None):
         """
         Creates an iterator for the records in this archive, streaming and decompressing on the fly
         """
+
         s3_client = s3.client()
 
-        if expression:
-            response = s3_client.select_object_content(
-                **self.s3_location(),
-                ExpressionType="SQL",
-                Expression=f"SELECT * FROM s3object s WHERE {expression}",
-                InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
-                OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
-            )
+        def generator():
+            if where or raw_where:
+                response = s3_client.select_object_content(
+                    **self.s3_location(),
+                    ExpressionType="SQL",
+                    Expression=s3.compile_select(where=where, raw_where=raw_where),
+                    InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
+                    OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
+                )
 
-            for record in EventStreamReader(response["Payload"]):
-                yield record
-        else:
-            s3_obj = s3_client.get_object(**self.s3_location())
-            stream = gzip.GzipFile(fileobj=s3_obj["Body"])
+                for record in EventStreamReader(response["Payload"]):
+                    yield record
+            else:
+                s3_obj = s3_client.get_object(**self.s3_location())
+                stream = gzip.GzipFile(fileobj=s3_obj["Body"])
 
-            while True:
-                line = stream.readline()
-                if not line:
-                    break
+                while True:
+                    line = stream.readline()
+                    if not line:
+                        break
 
-                yield json.loads(line.decode("utf-8"))
+                    yield json.loads(line.decode("utf-8"))
+
+        return generator()
 
     def release(self):
 
