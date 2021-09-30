@@ -9,11 +9,6 @@ jobs:
     environment: 
       name: staging
     steps:
-      - name: Get Build Info
-        shell: bash
-        run: |
-          echo "BRANCH_NAME=main";
-          echo "IMAGE_TAG=$(echo ${GITHUB_REF#refs/heads/}";
       - name: Set output
         id: vars
         run: echo ::set-output name=tag::$(echo ${GITHUB_REF#refs/heads/});

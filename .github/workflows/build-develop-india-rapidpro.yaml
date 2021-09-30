@@ -9,11 +9,6 @@ jobs:
     environment: 
       name: develop-india
     steps:
-      - name: Get Build Info
-        shell: bash
-        run: |
-          echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/}|cut -d'-' -f3-4|tr -s '-' '/')";
-          echo "IMAGE_TAG=$(echo ${GITHUB_REF#refs/heads/}|cut -d'/' -f3-|cut -d'-' -f1-2)";
       - name: Set output
         id: vars
         run: |
