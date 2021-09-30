@@ -1782,8 +1782,9 @@ class ContactTest(TembaTest):
             self.assertEqual(["tel:+250782222222"], [u.urn for u in self.frank.get_urns()])
             self.assertEqual([], [u.urn for u in self.billy.get_urns()])
 
+    @patch("temba.contacts.search.omnibox.search_contacts")
     @mock_mailroom
-    def test_omnibox(self, mr_mocks):
+    def test_omnibox(self, mr_mocks, mock_search_contacts):
         # add a group with members and an empty group
         self.create_field("gender", "Gender")
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
@@ -1817,125 +1818,138 @@ class ContactTest(TembaTest):
             response = self.client.get(f"{path}?{query}&v={version}")
             return response.json()["results"]
 
-        # omnibox makes two search calls (X and tel = X), but we ignore errors
+        # omnibox view will try to search it as a contact then as a URN so 2 calls to mailroom search endpoint
         mr_mocks.error("ooh that doesn't look right")
         mr_mocks.error("ooh that doesn't look right again")
 
+        # for this one test we want to call the actual search method..
+        mock_search_contacts.side_effect = search_contacts
+
+        # error is swallowed and we show no results
         self.assertEqual([], omnibox_request("search=-123`213"))
 
-        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
-            sc.side_effect = [
+        with self.mockReadOnly(), self.assertNumQueries(17):
+            mock_search_contacts.side_effect = [
                 SearchResults(
                     query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id]
                 ),
                 SearchResults(query="", total=3, contact_ids=[]),
             ]
-            actual_result = omnibox_request(query="", version="2")
-            expected_result = [
-                # all 3 groups A-Z
-                {"id": joe_and_frank.uuid, "name": "Joe and Frank", "type": "group", "count": 2},
-                {"id": men.uuid, "name": "Men", "type": "group", "count": 0},
-                {"id": nobody.uuid, "name": "Nobody", "type": "group", "count": 0},
-                # all 4 contacts A-Z
-                {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact", "urn": ""},
-                {"id": self.frank.uuid, "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
-                {"id": self.joe.uuid, "name": "Joe Blow", "type": "contact", "urn": "blow80"},
-                {"id": self.voldemort.uuid, "name": "250768383383", "type": "contact", "urn": "250768383383"},
-            ]
 
-            self.assertEqual(expected_result, actual_result)
+            self.assertEqual(
+                [
+                    # all 3 groups A-Z
+                    {"id": joe_and_frank.uuid, "name": "Joe and Frank", "type": "group", "count": 2},
+                    {"id": men.uuid, "name": "Men", "type": "group", "count": 0},
+                    {"id": nobody.uuid, "name": "Nobody", "type": "group", "count": 0},
+                    # all 4 contacts A-Z
+                    {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact", "urn": ""},
+                    {"id": self.frank.uuid, "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
+                    {"id": self.joe.uuid, "name": "Joe Blow", "type": "contact", "urn": "blow80"},
+                    {"id": self.voldemort.uuid, "name": "250768383383", "type": "contact", "urn": "250768383383"},
+                ],
+                omnibox_request(query="", version="2"),
+            )
 
-        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
-            sc.side_effect = [
+        with self.mockReadOnly():
+            mock_search_contacts.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
                 SearchResults(query="", total=2, contact_ids=[self.voldemort.id, self.frank.id]),
             ]
-            actual_result = omnibox_request(query="search=250", version="2")
-            expected_result = [
-                # 2 contacts
-                {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact", "urn": ""},
-                {"id": self.frank.uuid, "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
-                # 2 sendable URNs with contact names
-                {"id": "tel:250768383383", "name": "250768383383", "contact": None, "scheme": "tel", "type": "urn"},
-                {
-                    "id": "tel:250782222222",
-                    "name": "250782222222",
-                    "type": "urn",
-                    "contact": "Frank Smith",
-                    "scheme": "tel",
-                },
-            ]
-            self.assertEqual(expected_result, actual_result)
 
-        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
-            sc.side_effect = [
+            self.assertEqual(
+                [
+                    # 2 contacts
+                    {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact", "urn": ""},
+                    {"id": self.frank.uuid, "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
+                    # 2 sendable URNs with contact names
+                    {
+                        "id": "tel:250768383383",
+                        "name": "250768383383",
+                        "contact": None,
+                        "scheme": "tel",
+                        "type": "urn",
+                    },
+                    {
+                        "id": "tel:250782222222",
+                        "name": "250782222222",
+                        "type": "urn",
+                        "contact": "Frank Smith",
+                        "scheme": "tel",
+                    },
+                ],
+                omnibox_request(query="search=250", version="2"),
+            )
+
+        with self.mockReadOnly(), self.assertNumQueries(17):
+            mock_search_contacts.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
                 SearchResults(query="", total=0, contact_ids=[]),
             ]
-            with self.assertNumQueries(17):
-                actual_result = omnibox_request(query="")
-                expected_result = [
-                    # all 3 groups A-Z
-                    dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2),
-                    dict(id="g-%s" % men.uuid, text="Men", extra=0),
-                    dict(id="g-%s" % nobody.uuid, text="Nobody", extra=0),
-                    # 2 contacts A-Z
-                    dict(id="c-%s" % self.billy.uuid, text="Billy Nophone", extra=""),
-                    dict(id="c-%s" % self.frank.uuid, text="Frank Smith", extra="250782222222"),
-                ]
 
-            self.assertEqual(expected_result, actual_result)
+            self.assertEqual(
+                [
+                    # all 3 groups A-Z
+                    {"id": f"g-{joe_and_frank.uuid}", "text": "Joe and Frank", "extra": 2},
+                    {"id": f"g-{men.uuid}", "text": "Men", "extra": 0},
+                    {"id": f"g-{nobody.uuid}", "text": "Nobody", "extra": 0},
+                    # 2 contacts A-Z
+                    {"id": f"c-{self.billy.uuid}", "text": "Billy Nophone", "extra": ""},
+                    {"id": f"c-{self.frank.uuid}", "text": "Frank Smith", "extra": "250782222222"},
+                ],
+                omnibox_request(query=""),
+            )
 
         # apply type filters...
 
         # g = just the 3 groups
         self.assertEqual(
-            omnibox_request("types=g"),
             [
-                dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2),
-                dict(id="g-%s" % men.uuid, text="Men", extra=0),
-                dict(id="g-%s" % nobody.uuid, text="Nobody", extra=0),
+                {"id": f"g-{joe_and_frank.uuid}", "text": "Joe and Frank", "extra": 2},
+                {"id": f"g-{men.uuid}", "text": "Men", "extra": 0},
+                {"id": f"g-{nobody.uuid}", "text": "Nobody", "extra": 0},
             ],
+            omnibox_request("types=g"),
         )
 
         # s = just the 2 non-dynamic (static) groups
         self.assertEqual(
-            omnibox_request("types=s"),
             [
-                dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2),
-                dict(id="g-%s" % nobody.uuid, text="Nobody", extra=0),
+                {"id": f"g-{joe_and_frank.uuid}", "text": "Joe and Frank", "extra": 2},
+                {"id": f"g-{nobody.uuid}", "text": "Nobody", "extra": 0},
             ],
+            omnibox_request("types=s"),
         )
 
-        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
-            sc.side_effect = [
+        with self.mockReadOnly():
+            mock_search_contacts.side_effect = [
                 SearchResults(
                     query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id]
                 ),
                 SearchResults(query="", total=3, contact_ids=[self.voldemort.id, self.joe.id, self.frank.id]),
             ]
             self.assertEqual(
-                omnibox_request("search=250&types=c,u"),
                 [
-                    dict(id="c-%s" % self.billy.uuid, text="Billy Nophone", extra=""),
-                    dict(id="c-%s" % self.frank.uuid, text="Frank Smith", extra="250782222222"),
-                    dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80"),
-                    dict(id="c-%s" % self.voldemort.uuid, text="250768383383", extra="250768383383"),
-                    dict(id="u-%d" % voldemort_tel.pk, text="250768383383", extra=None, scheme="tel"),
-                    dict(id="u-%d" % joe_tel.pk, text="250781111111", extra="Joe Blow", scheme="tel"),
-                    dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel"),
+                    {"id": f"c-{self.billy.uuid}", "text": "Billy Nophone", "extra": ""},
+                    {"id": f"c-{self.frank.uuid}", "text": "Frank Smith", "extra": "250782222222"},
+                    {"id": f"c-{self.joe.uuid}", "text": "Joe Blow", "extra": "blow80"},
+                    {"id": f"c-{self.voldemort.uuid}", "text": "250768383383", "extra": "250768383383"},
+                    {"id": f"u-{voldemort_tel.id}", "text": "250768383383", "extra": None, "scheme": "tel"},
+                    {"id": f"u-{joe_tel.id}", "text": "250781111111", "extra": "Joe Blow", "scheme": "tel"},
+                    {"id": f"u-{frank_tel.id}", "text": "250782222222", "extra": "Frank Smith", "scheme": "tel"},
                 ],
+                omnibox_request("search=250&types=c,u"),
             )
 
         # search for Frank by phone
-        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
-            sc.side_effect = [
+        with self.mockReadOnly():
+            mock_search_contacts.side_effect = [
                 SearchResults(query="name ~ 222", total=0, contact_ids=[]),
                 SearchResults(query="urn ~ 222", total=1, contact_ids=[self.frank.id]),
             ]
             self.assertEqual(
+                [{"id": f"u-{frank_tel.id}", "text": "250782222222", "extra": "Frank Smith", "scheme": "tel"}],
                 omnibox_request("search=222"),
-                [dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel")],
             )
 
         # create twitter channel
@@ -1945,81 +1959,78 @@ class ContactTest(TembaTest):
         Channel.create(self.org, self.user, "RW", "EX", schemes=[URN.TEL_SCHEME])
 
         # search for Joe - match on last name and twitter handle
-        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
-            sc.side_effect = [
-                SearchResults(query="name ~ blow", total=1, contact_ids=[self.joe.id]),
-                SearchResults(query="urn ~ blow", total=1, contact_ids=[self.joe.id]),
-            ]
-            self.assertEqual(
-                omnibox_request("search=BLOW"),
-                [
-                    dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80"),
-                    dict(id="u-%d" % joe_tel.pk, text="0781 111 111", extra="Joe Blow", scheme="tel"),
-                    dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
-                ],
-            )
+        mock_search_contacts.side_effect = [
+            SearchResults(query="name ~ blow", total=1, contact_ids=[self.joe.id]),
+            SearchResults(query="urn ~ blow", total=1, contact_ids=[self.joe.id]),
+        ]
+        self.assertEqual(
+            [
+                dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80"),
+                dict(id="u-%d" % joe_tel.pk, text="0781 111 111", extra="Joe Blow", scheme="tel"),
+                dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
+            ],
+            omnibox_request("search=BLOW"),
+        )
 
         # lookup by group id
         self.assertEqual(
-            omnibox_request("g=%s" % joe_and_frank.uuid),
             [dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2)],
+            omnibox_request(f"g={joe_and_frank.uuid}"),
         )
 
         # lookup by URN ids
         urn_query = "u=%d,%d" % (self.joe.get_urn(URN.TWITTER_SCHEME).id, self.frank.get_urn(URN.TEL_SCHEME).id)
         self.assertEqual(
-            omnibox_request(urn_query),
             [
                 dict(id="u-%d" % frank_tel.pk, text="0782 222 222", extra="Frank Smith", scheme="tel"),
                 dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
             ],
+            omnibox_request(urn_query),
         )
 
         # lookup by message ids
         msg = self.create_incoming_msg(self.joe, "some message")
         self.assertEqual(
-            omnibox_request("m=%d" % msg.pk), [dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80")]
+            [dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80")], omnibox_request(f"m={msg.id}")
         )
 
         # lookup by label ids
         label = Label.get_or_create(self.org, self.user, "msg label")
-        self.assertEqual(omnibox_request("l=%d" % label.pk), [])
+        self.assertEqual([], omnibox_request(f"l={label.id}"))
 
         msg.labels.add(label)
         self.assertEqual(
-            omnibox_request("l=%d" % label.pk), [dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80")]
+            [dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80")], omnibox_request(f"l={label.id}")
         )
 
         with AnonymousOrg(self.org):
-            with patch("temba.contacts.search.omnibox.search_contacts") as sc:
-                sc.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
-                self.assertEqual(
-                    omnibox_request(""),
-                    [
-                        # all 3 groups...
-                        dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2),
-                        dict(id="g-%s" % men.uuid, text="Men", extra=0),
-                        dict(id="g-%s" % nobody.uuid, text="Nobody", extra=0),
-                        # 1 contact
-                        dict(id="c-%s" % self.billy.uuid, text="Billy Nophone"),
-                        # no urns
-                    ],
-                )
+            mock_search_contacts.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
+            self.assertEqual(
+                [
+                    # all 3 groups...
+                    {"id": f"g-{joe_and_frank.uuid}", "text": "Joe and Frank", "extra": 2},
+                    {"id": f"g-{men.uuid}", "text": "Men", "extra": 0},
+                    {"id": f"g-{nobody.uuid}", "text": "Nobody", "extra": 0},
+                    # 1 contact
+                    {"id": f"c-{self.billy.uuid}", "text": "Billy Nophone"},
+                    # no urns
+                ],
+                omnibox_request(""),
+            )
 
             # same search but with v2 format
-            with patch("temba.contacts.search.omnibox.search_contacts") as sc:
-                sc.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
-                self.assertEqual(
-                    omnibox_request("", version="2"),
-                    [
-                        # all 3 groups A-Z
-                        {"id": joe_and_frank.uuid, "name": "Joe and Frank", "type": "group", "count": 2},
-                        {"id": men.uuid, "name": "Men", "type": "group", "count": 0},
-                        {"id": nobody.uuid, "name": "Nobody", "type": "group", "count": 0},
-                        # 1 contact
-                        {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact"},
-                    ],
-                )
+            mock_search_contacts.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
+            self.assertEqual(
+                [
+                    # all 3 groups A-Z
+                    {"id": joe_and_frank.uuid, "name": "Joe and Frank", "type": "group", "count": 2},
+                    {"id": men.uuid, "name": "Men", "type": "group", "count": 0},
+                    {"id": nobody.uuid, "name": "Nobody", "type": "group", "count": 0},
+                    # 1 contact
+                    {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact"},
+                ],
+                omnibox_request("", version="2"),
+            )
 
         # exclude blocked and stopped contacts
         self.joe.block(self.admin)
@@ -2031,11 +2042,11 @@ class ContactTest(TembaTest):
         # but still lookup by URN ids
         urn_query = "u=%d,%d" % (self.joe.get_urn(URN.TWITTER_SCHEME).pk, self.frank.get_urn(URN.TEL_SCHEME).pk)
         self.assertEqual(
-            omnibox_request(urn_query),
             [
-                dict(id="u-%d" % frank_tel.pk, text="0782 222 222", extra="Frank Smith", scheme="tel"),
-                dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
+                {"id": f"u-{frank_tel.id}", "text": "0782 222 222", "extra": "Frank Smith", "scheme": "tel"},
+                {"id": f"u-{joe_twitter.id}", "text": "blow80", "extra": "Joe Blow", "scheme": "twitter"},
             ],
+            omnibox_request(urn_query),
         )
 
     def test_history(self):
