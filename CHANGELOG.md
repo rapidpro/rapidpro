@@ -1,3 +1,9 @@
+v6.5.53
+----------
+ * Disable all sentry transactions
+ * Use S3 select for flow result exports
+ * Add utils for compiling S3 select queries
+
 v6.5.52
 ----------
  * Merge pull request #3555 from nyaruka/ticket-att
