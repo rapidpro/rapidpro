@@ -1,3 +1,7 @@
+v6.5.54
+----------
+ * Fix S3 select query generation for date fields
+
 v6.5.53
 ----------
  * Disable all sentry transactions
