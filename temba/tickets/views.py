@@ -232,6 +232,7 @@ class TicketCRUDL(SmartCRUDL):
                     "type": m.msg_type,
                     "created_on": m.created_on,
                     "sender": sender,
+                    "attachments": m.attachments,
                 }
 
             def as_json(t):

@@ -319,6 +319,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "type": "I",
                         "created_on": matchers.ISODate(),
                         "sender": None,
+                        "attachments": [],
                     },
                     "ticket": {
                         "uuid": str(contact2.tickets.filter(status="O").first().uuid),
@@ -340,6 +341,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "type": "I",
                         "created_on": matchers.ISODate(),
                         "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
+                        "attachments": [],
                     },
                     "ticket": {
                         "uuid": str(joes_open_tickets[0].uuid),
@@ -361,6 +363,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "type": "I",
                         "created_on": matchers.ISODate(),
                         "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
+                        "attachments": [],
                     },
                     "ticket": {
                         "uuid": str(joes_open_tickets[1].uuid),
