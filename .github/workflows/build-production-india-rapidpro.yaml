@@ -1,0 +1,62 @@
+name: Build Production India Rapidpro
+on:
+  push:
+    tags:
+      - '!v*.*.*-staging*'
+      - '!v*.*.*-develop*'
+      - 'v*.*.*'
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    environment: 
+      name: production-india
+    steps:
+      - name: Get Build Info
+        shell: bash
+        run: |
+          echo "BRANCH_NAME=main";
+          echo "IMAGE_TAG=$(echo ${GITHUB_REF#refs/heads/}";
+      - name: Set output
+        id: vars
+        run: echo ::set-output name=tag::$(echo ${GITHUB_REF#refs/heads/});
+      - name: Check out the repo
+        uses: actions/checkout@v2
+        with: 
+          ref: main
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to ECR
+        uses: docker/login-action@v1 
+        with:
+          registry: 242357350604.dkr.ecr.ap-south-1.amazonaws.com
+          username: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Build and push - Rapidpro Image
+        id: docker_build1
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: 242357350604.dkr.ecr.ap-south-1.amazonaws.com/rapidpro:${{ steps.vars.outputs.tag }}
+          no-cache: true
+          build-args: |
+            RAPIDPRO_APPS_GIT_URL=https://github.com/Ilhasoft/rapidpro-apps.git
+            RAPIDPRO_APPS_GIT_BRANCH=main
+            PROTOBUFFERS_URL=https://github.com/Ilhasoft/weni-protobuffers.git
+            FLOWEDITOR_VERSION=1.14.0
+            FLOWEDITOR_REPO=https://github.com/ilhasoft/floweditor.git
+            FLOWEDITOR_BRANCH=main
+      - name: Build and push - Varnish Image
+        id: docker_build2
+        uses: docker/build-push-action@v2
+        with:
+          context: docker
+          file: docker/Dockerfile.varnish
+          push: true
+          tags: 242357350604.dkr.ecr.ap-south-1.amazonaws.com/rapidpro:${{ steps.vars.outputs.tag }}-varnish
+          no-cache: true
+          build-args: |
+            BACKEND_ADDRESS=rapidpro-develop:8000
