@@ -100,16 +100,12 @@
 
       -block fields
         -if can_validate_upload
-          %label#validate-upload-label(for="validate-upload-input")
-            %input#validate-upload-input(type="checkbox" name="validate_carrier")
-            %span#validate-upload-text
-              -trans "Import Verified Contacts"
-
+          %temba-checkbox#validate-upload-input(type="checkbox" name="validate_carrier" label="Import Verified Contacts")
           %i#validate-upload-tooltip(
             class="fa fa-info-circle"
             data-toggle="popover"
-            title="Popover title"
-            data-content="By checking this box you will the list of contacts against Twilo’s Lookup API to verify whether contacts are mobile/VOIP or Landlines. At the end of this process, you will have a group for each type. For inactive contacts or we are not able to identify carrier or phone type, we will not import them into the platform. For Mobile/VOIP  type contacts, we will create groups of 50k contacts. For Landlines, we will create groups of 10k contacts"
+            title="Import verified contact"
+            data-content="<p>By checking this box you will the list of contacts against Twilo’s Lookup API to verify whether contacts are mobile/VOIP or Landlines.</p> <p>At the end of this process, you will have a group for each type.</p><p> For inactive contacts or we are not able to identify carrier or phone type, we will not import them into the platform.</p> <p>For Mobile/VOIP  type contacts, we will create groups of 50k contacts. For Landlines, we will create groups of 10k contacts</p>"
           )
 
         .mt-4.mb-6.text-error
@@ -201,6 +197,16 @@
       display: inline-block;
     }
 
+    #validate-upload-input {
+      display: inline-block;
+    }
+    #validate-upload-input .checkbox-label {
+      font-weight: bold;
+    }
+
     #validate-upload-tooltip {
       cursor: pointer;
+    }
+    #validate-upload-tooltip p {
+      padding-bottom: 10px;
     }
