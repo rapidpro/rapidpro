@@ -1974,10 +1974,9 @@ class ContactImportCRUDL(SmartCRUDL):
             return kwargs
 
         def can_validate_upload(self):
-            target_group = "Customer Support"
             org = self.derive_org()
-            user_group = org.get_user().groups.filter(name=target_group).first()
-            return user_group is not None
+            user = org.get_user()
+            return org.is_connected_to_twilio() and user.is_support()
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
