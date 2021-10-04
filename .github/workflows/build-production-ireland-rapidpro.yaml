@@ -2,9 +2,9 @@ name: Build Production Ireland Rapidpro
 on:
   push:
     tags:
+      - 'v*.*.*'
       - '!v*.*.*-staging*'
       - '!v*.*.*-develop*'
-      - 'v*.*.*'
 jobs:
   docker:
     runs-on: ubuntu-latest
@@ -41,7 +41,7 @@ jobs:
             RAPIDPRO_APPS_GIT_URL=https://github.com/Ilhasoft/rapidpro-apps.git
             RAPIDPRO_APPS_GIT_BRANCH=main
             PROTOBUFFERS_URL=https://github.com/Ilhasoft/weni-protobuffers.git
-            FLOWEDITOR_VERSION=1.14.0
+            FLOWEDITOR_VERSION=1.14.3
             FLOWEDITOR_REPO=https://github.com/ilhasoft/floweditor.git
             FLOWEDITOR_BRANCH=main
       - name: Build and push - Varnish Image
@@ -54,4 +54,4 @@ jobs:
           tags: 452158872079.dkr.ecr.eu-west-1.amazonaws.com/rapidpro:${{ steps.vars.outputs.tag }}-varnish
           no-cache: true
           build-args: |
-            BACKEND_ADDRESS=rapidpro-develop:8000
+            BACKEND_ADDRESS=rapidpro-production:8000

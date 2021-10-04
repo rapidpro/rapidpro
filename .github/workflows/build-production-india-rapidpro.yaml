@@ -2,9 +2,9 @@ name: Build Production India Rapidpro
 on:
   push:
     tags:
+      - 'v*.*.*'
       - '!v*.*.*-staging*'
       - '!v*.*.*-develop*'
-      - 'v*.*.*'
 jobs:
   docker:
     runs-on: ubuntu-latest
