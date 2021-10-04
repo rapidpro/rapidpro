@@ -6,13 +6,17 @@ from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
 from temba.classifiers.models import Classifier
-from temba.orgs.views import OrgObjPermsMixin
+from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticketer
 
 from .models import HTTPLog
 
 
-class BaseLogListView(OrgObjPermsMixin, SmartListView):
+class BaseObjLogsView(OrgObjPermsMixin, SmartListView):
+    """
+    Base list view for logs associated with an object (e.g. ticketer, classifier)
+    """
+
     paginate_by = 50
     permission = "request_logs.httplog_list"
     default_order = ("-created_on",)
@@ -49,9 +53,22 @@ class BaseLogListView(OrgObjPermsMixin, SmartListView):
 
 class HTTPLogCRUDL(SmartCRUDL):
     model = HTTPLog
-    actions = ("classifier", "ticketer", "read")
+    actions = ("webhooks", "classifier", "ticketer", "read")
 
-    class Classifier(BaseLogListView):
+    class Webhooks(OrgPermsMixin, SmartListView):
+        title = _("Webhook Calls")
+        default_order = ("-created_on",)
+        select_related = ("flow",)
+
+        fields = ("flow", "url", "status_code", "request_time", "created_on")
+
+        def get_gear_links(self):
+            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"))]
+
+        def get_queryset(self, **kwargs):
+            return super().get_queryset(**kwargs).filter(org=self.request.org, flow__isnull=False)
+
+    class Classifier(BaseObjLogsView):
         source_field = "classifier"
         source_url = "uuid@classifiers.classifier_read"
         title = _("Recent Classifier Events")
@@ -59,7 +76,7 @@ class HTTPLogCRUDL(SmartCRUDL):
         def get_source(self, uuid):
             return Classifier.objects.filter(uuid=uuid, is_active=True)
 
-    class Ticketer(BaseLogListView):
+    class Ticketer(BaseObjLogsView):
         source_field = "ticketer"
         source_url = "@tickets.ticket_list"
         title = _("Recent Ticketing Service Events")
@@ -69,6 +86,10 @@ class HTTPLogCRUDL(SmartCRUDL):
 
     class Read(OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
+
+        @property
+        def permission(self):
+            return "request_logs.httplog_webhooks" if self.get_object().flow else "request_logs.httplog_read"
 
         def get_gear_links(self):
             links = []

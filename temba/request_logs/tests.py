@@ -49,6 +49,54 @@ class HTTPLogTest(TembaTest):
 
 
 class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_webhooks(self):
+        flow = self.create_flow()
+        l1 = HTTPLog.objects.create(
+            org=self.org,
+            log_type="webhook_called",
+            url="http://org1.bar/",
+            request="GET /zap",
+            response=" OK 200",
+            request_time=10,
+            is_error=False,
+            flow=flow,
+        )
+
+        # log from other org
+        HTTPLog.objects.create(
+            org=self.org2,
+            log_type="webhook_called",
+            url="http://org1.bar/",
+            request="GET /zap",
+            response=" OK 200",
+            request_time=10,
+            is_error=False,
+            flow=flow,
+        )
+
+        # non-webhook log
+        HTTPLog.objects.create(
+            org=self.org,
+            log_type="intents_synced",
+            url="http://org1.bar/",
+            request="GET /zap",
+            response=" OK 200",
+            request_time=10,
+            is_error=False,
+        )
+
+        webhooks_url = reverse("request_logs.httplog_webhooks")
+        log_url = reverse("request_logs.httplog_read", args=[l1.id])
+
+        response = self.assertListFetch(webhooks_url, allow_viewers=False, allow_editors=True, context_objects=[l1])
+        self.assertContains(response, "Webhook Calls")
+        self.assertContains(response, log_url)
+
+        # view the individual log item
+        response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=True, context_object=l1)
+        self.assertContains(response, "200")
+        self.assertContains(response, "http://org1.bar/")
+
     def test_classifier(self):
         c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
         c2 = Classifier.create(self.org, self.admin, WitType.slug, "Old Booker", {}, sync=False)

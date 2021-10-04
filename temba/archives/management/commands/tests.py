@@ -24,7 +24,7 @@ class SearchArchivesTest(TembaTest):
         )
 
         out = StringIO()
-        call_command("search_archives", self.org.id, "run", expression="", limit=10, stdout=out)
+        call_command("search_archives", self.org.id, "run", where="", limit=10, stdout=out)
 
         self.assertIn('"id": 1', out.getvalue())
         self.assertIn("Fetched 2 records in", out.getvalue())

@@ -1,5 +1,4 @@
 import logging
-from datetime import timedelta
 
 from requests_toolbelt.utils import dump
 
@@ -15,7 +14,6 @@ from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.orgs.models import Org
 from temba.tickets.models import Ticketer
-from temba.utils import chunk_list
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +36,7 @@ class HTTPLog(models.Model):
     WHATSAPP_TEMPLATES_SYNCED = "whatsapp_templates_synced"
     WHATSAPP_TOKENS_SYNCED = "whatsapp_tokens_synced"
     WHATSAPP_CONTACTS_REFRESHED = "whatsapp_contacts_refreshed"
+    WHATSAPP_CHECK_HEALTH = "whataspp_check_health"
 
     # possible log type choices and descriptive names
     LOG_TYPE_CHOICES = (
@@ -49,17 +48,18 @@ class HTTPLog(models.Model):
         (WHATSAPP_TEMPLATES_SYNCED, _("WhatsApp Templates Synced")),
         (WHATSAPP_TOKENS_SYNCED, _("WhatsApp Tokens Synced")),
         (WHATSAPP_CONTACTS_REFRESHED, _("WhatsApp Contacts Refreshed")),
+        (WHATSAPP_CHECK_HEALTH, _("WhatsApp Health Check")),
     )
 
     org = models.ForeignKey(Org, related_name="http_logs", on_delete=models.PROTECT)
     log_type = models.CharField(max_length=32, choices=LOG_TYPE_CHOICES)
 
     url = models.URLField(max_length=2048)
-    status_code = models.IntegerField(null=True)
+    status_code = models.IntegerField(default=0, null=True)
     request = models.TextField()
     response = models.TextField(null=True)
     request_time = models.IntegerField()  # how long this request took in milliseconds
-    num_retries = models.IntegerField(null=True)
+    num_retries = models.IntegerField(default=0, null=True)
     created_on = models.DateTimeField(default=timezone.now)
 
     # whether this was an error which is dependent on the service being called
@@ -81,19 +81,6 @@ class HTTPLog(models.Model):
     @cached_property
     def method(self):
         return self.request.split(" ")[0] if self.request else None
-
-    def get_status_code(self):
-        return self.status_code or self.response.split(" ")[1] if self.response else None
-
-    @classmethod
-    def trim(cls):
-        """
-        Deletes all HTTP Logs older than 3 days, 1000 at a time
-        """
-        cutoff = timezone.now() - timedelta(days=3)
-        ids = cls.objects.filter(created_on__lte=cutoff).values_list("id", flat=True)
-        for chunk in chunk_list(ids, 1000):
-            cls.objects.filter(id__in=chunk).delete()
 
     @classmethod
     def create_from_response(

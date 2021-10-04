@@ -6,7 +6,6 @@ from rest_framework import generics, mixins, status
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
 
-from django.conf import settings
 from django.db import transaction
 
 from temba.api.models import APIPermission, SSLPermission
@@ -36,14 +35,16 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
         """
         return self.http_method_not_allowed(request, *args, **kwargs)
 
-    def get_queryset(self):
+    def derive_queryset(self):
         org = self.request.user.get_org()
-        qs = getattr(self.model, self.model_manager).filter(org=org)
+        return getattr(self.model, self.model_manager).filter(org=org)
 
-        # if this is a get request, fetch from readonly database - but we can't do this during testing because test data
-        # will have been created in a transaction in the default database
-        if self.request.method == "GET" and not settings.TESTING:
-            qs = qs.using("readonly")  # pragma: no cover
+    def get_queryset(self):
+        qs = self.derive_queryset()
+
+        # if this is a get request, fetch from readonly database
+        if self.request.method == "GET":
+            qs = qs.using("readonly")
 
         return qs
 
@@ -156,11 +157,11 @@ class ListAPIMixin(mixins.ListModelMixin):
         page = super().paginate_queryset(queryset)
 
         # give views a chance to prepare objects for serialization
-        self.prepare_for_serialization(page)
+        self.prepare_for_serialization(page, using=queryset.db)
 
         return page
 
-    def prepare_for_serialization(self, page):
+    def prepare_for_serialization(self, page, using: str):
         """
         Views can override this to do things like bulk cache initialization of result objects
         """

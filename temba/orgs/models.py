@@ -1735,9 +1735,6 @@ class Org(SmartModel):
         self.topics.all().delete()
         self.airtime_transfers.all().delete()
 
-        for result in self.webhook_results.all():
-            result.release()
-
         # delete our contacts
         for contact in self.contacts.all():
             contact.release(user, full=True, immediately=True)
@@ -1787,8 +1784,7 @@ class Org(SmartModel):
         for topup in self.topups.all():
             topup.release()
 
-        for event in self.webhookevent_set.all():
-            event.release()
+        self.webhookevent_set.all().delete()
 
         for resthook in self.resthooks.all():
             resthook.release(user)

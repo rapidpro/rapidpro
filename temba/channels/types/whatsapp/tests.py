@@ -25,7 +25,7 @@ from .type import (
 class WhatsAppTypeTest(TembaTest):
     @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
     def test_claim(self, mock_health):
-        mock_health.return_value = {"meta": {"api_status": "stable", "version": "v2.35.2"}}
+        mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "v2.35.2"}}')
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
 
@@ -232,7 +232,7 @@ class WhatsAppTypeTest(TembaTest):
 
     @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
     def test_claim_self_hosted_templates(self, mock_health):
-        mock_health.return_value = {"meta": {"api_status": "stable", "version": "v2.35.2"}}
+        mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "v2.35.2"}}')
         Channel.objects.all().delete()
 
         url = reverse("channels.types.whatsapp.claim")
@@ -375,7 +375,15 @@ class WhatsAppTypeTest(TembaTest):
         Channel.objects.all().delete()
 
         # channel has namespace in the channel config
-        channel = self.create_channel("WA", "Channel", "1234", config={"fb_namespace": "foo_namespace"})
+        channel = self.create_channel(
+            "WA",
+            "Channel",
+            "1234",
+            config={
+                "fb_namespace": "foo_namespace",
+                Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
+            },
+        )
 
         self.login(self.admin)
         mock_get_api_templates.side_effect = [
@@ -384,7 +392,7 @@ class WhatsAppTypeTest(TembaTest):
             ([{"name": "hello"}], True),
             ([{"name": "hello"}], True),
         ]
-        mock_health.return_value = {"meta": {"api_status": "stable", "version": "v2.35.2"}}
+        mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "v2.35.2"}}')
         update_local_templates_mock.return_value = None
 
         # should skip if locked

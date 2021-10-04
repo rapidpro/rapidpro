@@ -28,7 +28,7 @@ from celery.app.task import Task
 
 import temba.utils.analytics
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
-from temba.flows.models import FlowRun
+from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import Org
 from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json, uuid
@@ -1542,10 +1542,10 @@ class AnalyticsTest(SmartminTest):
 
 class IDSliceQuerySetTest(TembaTest):
     def test_slicing(self):
-        empty = IDSliceQuerySet(User, [], 0, 0)
+        empty = IDSliceQuerySet(User, [], offset=0, total=0)
         self.assertEqual(0, len(empty))
 
-        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], 0, 3)
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], offset=0, total=3)
         self.assertEqual(self.user.id, users[0].id)
         self.assertEqual(self.editor.id, users[0:3][1].id)
         self.assertEqual(0, users.offset)
@@ -1563,7 +1563,7 @@ class IDSliceQuerySetTest(TembaTest):
         with self.assertRaises(TypeError):
             users["foo"]
 
-        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], 10, 100)
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], offset=10, total=100)
         self.assertEqual(self.user.id, users[10].id)
         self.assertEqual(self.user.id, users[10:11][0].id)
 
@@ -1574,7 +1574,7 @@ class IDSliceQuerySetTest(TembaTest):
             users[11:15]
 
     def test_filter(self):
-        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], 10, 100)
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], offset=10, total=100)
 
         filtered = users.filter(pk=self.user.id)
         self.assertEqual(User, filtered.model)
@@ -1597,10 +1597,18 @@ class IDSliceQuerySetTest(TembaTest):
             users.filter(name="Bob")
 
     def test_none(self):
-        users = IDSliceQuerySet(User, [self.user.id, self.editor.id], 0, 2)
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id], offset=0, total=2)
         empty = users.none()
         self.assertEqual([], empty.ids)
         self.assertEqual(0, empty.total)
+
+    def test_prefetch_related(self):
+        flow1 = self.create_flow()
+        flow2 = self.create_flow()
+        with self.assertNumQueries(2):
+            flows = list(IDSliceQuerySet(Flow, [flow1.id, flow2.id], offset=0, total=2).prefetch_related("org"))
+            self.assertEqual(self.org, flows[0].org)
+            self.assertEqual(self.org, flows[1].org)
 
 
 class RedactTest(TestCase):

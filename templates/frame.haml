@@ -60,6 +60,7 @@
       :javascript
         var static_url = '{{STATIC_URL}}';
 
+      %script{src:"{{ STATIC_URL }}js/libs/jquery.url.js"}
       %script{src:"{{ STATIC_URL }}bower/toastr/toastr.js"}
       %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-modal.js"}
       %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-dropdown.js"}
@@ -261,12 +262,12 @@
                 .icon-menu
 
           .org
-            {{ user_org.name|truncatechars:30 }}
+            {{ user_org.name }}
 
           .other-orgs.hide
             -for org in user_orgs
               -if org != user_org
-                .org
+                .org.text-primary
                   %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
                     {{ org.name }}
 
@@ -399,6 +400,14 @@
     </form>
 
     :javascript
+
+      var params = '{{url_params|safe}}';
+      $(document).ready(function(){
+        if (window.scheduleRefresh) {
+          scheduleRefresh();
+        }
+      });
+
       $(document).ready(function() {
 
         {% if use_weni_layout %}
