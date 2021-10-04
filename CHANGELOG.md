@@ -1,3 +1,7 @@
+v6.5.57
+----------
+ * Fix Archive.rewrite
+
 v6.5.56
 ----------
  * Encode content hashes sent to S3 using Base64
