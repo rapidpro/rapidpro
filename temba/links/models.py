@@ -50,8 +50,6 @@ class Link(TembaModel):
 
     is_archived = models.BooleanField(default=False, help_text=_("Whether this trackable link is archived"))
 
-    clicks_count = models.PositiveIntegerField(default=0, help_text="Clicks count for this trackable link")
-
     @classmethod
     def create(cls, org, user, name, destination, related_flow=None):
         links_arg = dict(
@@ -114,9 +112,10 @@ class Link(TembaModel):
         contacts = LinkContacts.objects.filter(link=self, created_on__gte=after, created_on__lt=before)
         if search:
             try:
-                contacts = Contact.objects.filter(
-                    models.Q(name__icontains=search) | models.Q(urns__path__icontains=search),
-                    id__in=contacts.values_list("contact__id"),
+                contacts = LinkContacts.objects.filter(
+                    models.Q(contact__name__icontains=search) | models.Q(contact__urns__path__icontains=search),
+                    contact__id__in=contacts.values_list("contact__id"),
+                    link=self,
                 ).only("id")
             except SearchException as e:
                 self.search_error = str(e.message)
@@ -217,6 +216,12 @@ class Link(TembaModel):
             if any(list(map(update_node, revision.definition.get("nodes", [])))):
                 revisions.append(revision)
         FlowRevision.objects.bulk_update(revisions, ["definition"])
+
+    def get_clicks_count(self):
+        return self.contacts.all().only("id").count()
+
+    def get_unique_clicks_count(self):
+        return self.contacts.distinct("contact").only("id").count()
 
     def __str__(self):
         return self.name

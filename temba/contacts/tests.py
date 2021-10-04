@@ -5249,6 +5249,9 @@ class ContactImportTest(TembaTest):
             ("uuid_only.csv", "Import files must contain columns besides UUID."),
         ]
 
+        # force test mode to default regardless of user local setting
+        settings.ALLOW_DUPLICATE_CONTACT_IMPORT = False
+
         for imp_file, imp_error in bad_files:
             with self.assertRaises(ValidationError, msg=f"expected error in {imp_file}") as e:
                 try_to_parse(imp_file)
@@ -5359,7 +5362,17 @@ class ContactImportTest(TembaTest):
 
         # info can be fetched but it's empty
         self.assertEqual(
-            {"status": "P", "num_created": 0, "num_updated": 0, "num_errored": 0, "errors": [], "time_taken": 0},
+            {
+                "status": "P",
+                "num_created": 0,
+                "num_updated": 0,
+                "num_blocked": 0,
+                "num_errored": 0,
+                "errors": [],
+                "time_taken": 0,
+                "num_duplicates": 0,
+                "num_total": 0,
+            },
             imp.get_info(),
         )
 
@@ -5410,9 +5423,12 @@ class ContactImportTest(TembaTest):
                 "status": "P",
                 "num_created": 0,
                 "num_updated": 0,
+                "num_blocked": 0,
                 "num_errored": 0,
                 "errors": [],
                 "time_taken": matchers.Int(),
+                "num_duplicates": 0,
+                "num_total": 0,
             },
             imp.get_info(),
         )
@@ -5427,9 +5443,12 @@ class ContactImportTest(TembaTest):
                 "status": "O",
                 "num_created": 2,
                 "num_updated": 1,
+                "num_blocked": 0,
                 "num_errored": 0,
                 "errors": [{"record": 1, "message": "that's wrong"}],
                 "time_taken": matchers.Int(),
+                "num_duplicates": 0,
+                "num_total": 3,
             },
             imp.get_info(),
         )
@@ -5445,9 +5464,12 @@ class ContactImportTest(TembaTest):
                 "status": "O",
                 "num_created": 5,
                 "num_updated": 6,
+                "num_blocked": 0,
                 "num_errored": 0,
                 "errors": [{"record": 1, "message": "that's wrong"}, {"record": 3, "message": "that's not right"}],
                 "time_taken": matchers.Int(),
+                "num_duplicates": 0,
+                "num_total": 11,
             },
             imp.get_info(),
         )
@@ -5460,9 +5482,12 @@ class ContactImportTest(TembaTest):
                 "status": "C",
                 "num_created": 5,
                 "num_updated": 6,
+                "num_blocked": 0,
                 "num_errored": 0,
                 "errors": [{"record": 1, "message": "that's wrong"}, {"record": 3, "message": "that's not right"}],
                 "time_taken": matchers.Int(),
+                "num_duplicates": 0,
+                "num_total": 11,
             },
             imp.get_info(),
         )

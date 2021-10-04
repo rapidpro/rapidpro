@@ -3,3 +3,27 @@
 
 -block summary
   -trans "Start a flow after receiving a call."
+
+-block fields
+  {{ block.super }}
+  %temba-dialog#confirm-inbound-trigger.hide(header='{{ _("Trigger Confirmation")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
+    .p-6
+
+
+-block extra-script
+  :javascript
+    function onInboundSuccess(form, htmlString, status, jqXHR) {
+      const requiredFields = ['div.field_keyword', 'div.field_flow']
+      handleSubmissionResponse(requiredFields, form, { htmlString, status, jqXHR });
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+      const options = {
+        formContainerId: '#id-trigger-inboundcall',
+        confirmationBoxId: '#confirm-inbound-trigger',
+        flowFieldId: '#id_inbound_call_flow',
+        postUrl: '/trigger/inbound_call/',
+        successFunc: onInboundSuccess
+      };
+      initForm(options);
+    });

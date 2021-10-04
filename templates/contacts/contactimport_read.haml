@@ -25,6 +25,18 @@
           -else
             .icon.icon-loop.mr-2.text-gray-400.spin
 
+          -blocktrans trimmed count info.num_duplicates as count
+            Duplicated {{ count }} contact
+            -plural
+              Duplicated {{ count }} contacts
+
+
+        .import-result.text-lg.mt-2
+          -if is_finished
+            .icon.icon-checkmark.text-success.mr-2
+          -else
+            .icon.icon-loop.mr-2.text-gray-400.spin
+
           -blocktrans trimmed count info.num_updated as count
             Updated {{ count }} existing contact
             -plural
@@ -35,7 +47,7 @@
             .icon.icon-checkmark.text-success.mr-2
 
             {% url 'contacts.contact_filter' object.group.uuid as group_url %}
-            -blocktrans trimmed count info.num_created|add:info.num_updated as count with group_url=group_url group_name=object.group.name
+            -blocktrans trimmed count info.num_total as count with group_url=group_url group_name=object.group.name
               Added {{ count }} contact to the <a href="{{ group_url }}">{{ group_name }}</a> group
               -plural
                 Added {{ count }} contacts to the <a href="{{ group_url }}">{{ group_name }}</a> group

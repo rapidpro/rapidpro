@@ -1061,6 +1061,21 @@ class FlowStartWriteSerializer(WriteSerializer):
         )
 
 
+class FlowVariableQuerySerializer(serializers.Serializer):
+    flow = serializers.UUIDField()
+    variables = serializers.ListField(child=serializers.CharField(), default=list)
+    format = serializers.ChoiceField(choices=["value", "category"], default="category")
+    top = serializers.IntegerField(default=0)
+
+    def validate_flow(self, flow_uuid):
+        org = self.context["request"].user.get_org()
+        try:
+            Flow.objects.get(org=org, uuid=flow_uuid)
+            return flow_uuid
+        except Flow.DoesNotExist as e:
+            raise serializers.ValidationError(e)
+
+
 class GlobalReadSerializer(ReadSerializer):
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 

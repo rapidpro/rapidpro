@@ -1997,6 +1997,7 @@ class ContactImportCRUDL(SmartCRUDL):
                 self.headers = None
                 self.mappings = None
                 self.num_records = None
+                self.num_duplicates = None
 
                 super().__init__(*args, **kwargs)
 
@@ -2004,7 +2005,9 @@ class ContactImportCRUDL(SmartCRUDL):
                 file = self.cleaned_data["file"]
 
                 # try to parse the file saving the mappings so we don't have to repeat parsing when saving the import
-                self.mappings, self.num_records = ContactImport.try_to_parse(self.org, file.file, file.name)
+                self.mappings, self.num_records, self.num_duplicates = ContactImport.try_to_parse(
+                    self.org, file.file, file.name
+                )
 
                 return file
 
@@ -2039,6 +2042,7 @@ class ContactImportCRUDL(SmartCRUDL):
             obj.original_filename = self.form.cleaned_data["file"].name
             obj.mappings = self.form.mappings
             obj.num_records = self.form.num_records
+            obj.num_duplicates = self.form.num_duplicates
             return obj
 
     class Preview(OrgObjPermsMixin, SmartUpdateView):
@@ -2208,6 +2212,7 @@ class ContactImportCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["num_records"] = self.get_object().num_records
+            context["num_duplicates"] = self.get_object().num_duplicates
             return context
 
         def pre_save(self, obj):

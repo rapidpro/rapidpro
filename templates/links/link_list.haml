@@ -78,7 +78,11 @@
                 -if org_perms.links.link_update
                   %th
                 %th
+                  -trans "Name"
                 %th
+                  -trans "Unique clicks"
+                %th
+                  -trans "Total clicks"
               %tbody
                 -for object in object_list
                   -with object.get_and_clear_unread_responses as new_responses
@@ -89,18 +93,29 @@
                       %td.value-name
                         = object.name
 
-                      -if not object.clicks_count
-                        %td.value-status
+                      -if not object.get_unique_clicks_count
+                        %td.value-unique-clicks
                           -trans "No clicks"
 
                       -else
-                        %td.value-status
-                          {% blocktrans count clicks_count=object.clicks_count %}
+                        %td.value-unique-clicks
+                          {% blocktrans count unique_clicks_count=object.get_unique_clicks_count %}
+                            {{ unique_clicks_count }} click
+                          {% plural %}
+                            {{ unique_clicks_count }} clicks
+                          {% endblocktrans %}
+
+                      -if not object.get_clicks_count
+                        %td.value-total-clicks
+                          -trans "No clicks"
+
+                      -else
+                        %td.value-total-clicks
+                          {% blocktrans count clicks_count=object.get_clicks_count %}
                             {{ clicks_count }} click
                           {% plural %}
                             {{ clicks_count }} clicks
                           {% endblocktrans %}
-
                 -empty
                   %tr.link
                     %td.link

@@ -365,7 +365,7 @@ class LinkHandler(RedirectView):
         from user_agents import parse
         from .tasks import handle_link_task
 
-        link = Link.objects.filter(uuid=self.kwargs.get("uuid")).only("id", "clicks_count").first()
+        link = Link.objects.filter(uuid=self.kwargs.get("uuid")).only("id", "destination").first()
         contact = Contact.objects.filter(uuid=self.request.GET.get("contact")).only("id").first()
 
         # Whether the contact is from the simulator
