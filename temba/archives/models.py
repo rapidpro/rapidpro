@@ -1,3 +1,4 @@
+import base64
 import gzip
 import hashlib
 import re
@@ -227,8 +228,9 @@ class Archive(models.Model):
         new_file.seek(0)
 
         match = KEY_PATTERN.match(key)
-        new_key = f"{self.org.id}/{match.group('type')}_{match.group('period')}_{new_hash}.jsonl.gz"
+        new_key = f"{self.org.id}/{match.group('type')}_{match.group('period')}_{new_hash.hexdigest()}.jsonl.gz"
         new_url = f"https://{bucket}.s3.amazonaws.com/{new_key}"
+        new_hash_base64 = base64.standard_b64encode(new_hash.digest()).decode()
 
         s3_client.put_object(
             Bucket=bucket,
@@ -237,12 +239,12 @@ class Archive(models.Model):
             ContentType="application/json",
             ContentEncoding="gzip",
             ACL="private",
-            ContentMD5=new_hash,
-            Metadata={"md5chksum": new_hash},
+            ContentMD5=new_hash_base64,
+            Metadata={"md5chksum": new_hash_base64},
         )
 
         self.url = new_url
-        self.hash = new_hash
+        self.hash = new_hash.hexdigest()
         self.size = new_size
         self.save(update_fields=("url", "hash", "size"))
 
@@ -295,7 +297,7 @@ def jsonlgz_rewrite(in_file, out_file, transform) -> tuple:
 
     out_stream.close()
 
-    return out_wrapped.hash.hexdigest(), out_wrapped.size
+    return out_wrapped.hash, out_wrapped.size
 
 
 class FileAndHash:

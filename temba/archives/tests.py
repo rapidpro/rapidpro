@@ -1,3 +1,4 @@
+import base64
 import gzip
 import hashlib
 import io
@@ -196,7 +197,19 @@ class ArchiveTest(TembaTest):
         self.assertNotEqual(key, new_key)
         self.assertEqual({(bucket, new_key)}, set(mock_s3.objects.keys()))
 
+        self.assertEqual(32, len(archive.hash))
+        self.assertEqual(
+            f"https://s3-bucket.s3.amazonaws.com/{self.org.id}/run_D20200801_{archive.hash}.jsonl.gz", archive.url
+        )
+
+        hash_b64 = base64.standard_b64encode(bytes.fromhex(archive.hash)).decode()
+
         self.assertEqual(2, len(mock_s3.calls["put_object"]))
+
+        kwargs = mock_s3.calls["put_object"][1][2]
+        self.assertEqual("s3-bucket", kwargs["Bucket"])
+        self.assertEqual(f"{self.org.id}/run_D20200801_{archive.hash}.jsonl.gz", kwargs["Key"])
+        self.assertEqual(hash_b64, kwargs["ContentMD5"])
         self.assertEqual([call(Bucket="s3-bucket", Key=key)], mock_s3.calls["delete_object"])
 
 
@@ -273,7 +286,7 @@ class JSONLGZTest(TembaTest):
             in_file = io.BytesIO(b)
             out_file = io.BytesIO()
             md5, size = jsonlgz_rewrite(in_file, out_file, transform)
-            return out_file.getvalue(), md5, size
+            return out_file.getvalue(), md5.hexdigest(), size
 
         data = b'{"id": 123, "name": "Jim"}\n{"id": 234, "name": "Bob"}\n{"id": 345, "name": "Ann"}\n'
         gzipped = gzip.compress(data)
