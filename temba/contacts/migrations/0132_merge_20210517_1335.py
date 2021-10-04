@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('contacts', '0131_contactimport_group_name'),
-        ('contacts', '0130_auto_20210420_1325'),
+        ('contacts', '0131_contactimport_num_duplicates'),
     ]
 
     operations = [
