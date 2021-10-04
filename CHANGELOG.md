@@ -1,3 +1,9 @@
+v6.5.55
+----------
+ * Trim mailgun ticketer names to <= 64 chars when creating
+ * Management command to audit archives
+ * Use field limiting on omnibox searches
+
 v6.5.54
 ----------
  * Fix S3 select query generation for date fields
