@@ -1,11 +1,11 @@
 from abc import ABCMeta
 
+import regex
 from smartmin.models import SmartModel
 
 from django.conf import settings
 from django.conf.urls import url
 from django.contrib.auth.models import User
-from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import Q, Sum
 from django.template import Engine
@@ -82,7 +82,7 @@ class Ticketer(SmartModel, DependencyMixin):
     name = models.CharField(max_length=64)
 
     # the configuration options
-    config = JSONField()
+    config = models.JSONField()
 
     @classmethod
     def create(cls, org, user, ticketer_type: str, name: str, config: dict):
@@ -117,7 +117,8 @@ class Ticketer(SmartModel, DependencyMixin):
 
         return TYPES.values()
 
-    def get_type(self):
+    @property
+    def type(self):
         """
         Returns the type instance
         """
@@ -125,15 +126,24 @@ class Ticketer(SmartModel, DependencyMixin):
 
         return TYPES[self.ticketer_type]
 
+    @property
+    def is_internal(self):
+        from .types.internal import InternalType
+
+        return self.type == InternalType
+
     def release(self, user):
         """
         Releases this, closing all associated tickets in the process
         """
+
+        assert not self.is_internal, "can't release internal ticketers"
+
         super().release(user)
 
         open_tickets = self.tickets.filter(status=Ticket.STATUS_OPEN)
         if open_tickets.exists():
-            Ticket.bulk_close(self.org, user, open_tickets)
+            Ticket.bulk_close(self.org, user, open_tickets, force=True)
 
         self.is_active = False
         self.modified_by = user
@@ -141,6 +151,51 @@ class Ticketer(SmartModel, DependencyMixin):
 
     def __str__(self):
         return f"Ticketer[uuid={self.uuid}, name={self.name}]"
+
+
+class Topic(SmartModel, DependencyMixin):
+    """
+    The topic of a ticket which controls who can access that ticket.
+    """
+
+    MAX_NAME_LEN = 64
+    DEFAULT_TOPIC = "General"
+
+    uuid = models.UUIDField(unique=True, default=uuid4)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="topics")
+    name = models.CharField(max_length=MAX_NAME_LEN)
+    is_default = models.BooleanField(default=False)
+
+    @classmethod
+    def create_default_topic(cls, org):
+        assert not org.topics.filter(is_default=True).exists(), "org already has default topic"
+
+        org.topics.create(
+            name=cls.DEFAULT_TOPIC, is_default=True, created_by=org.created_by, modified_by=org.modified_by
+        )
+
+    @classmethod
+    def get_or_create(cls, org, user, name):
+        assert cls.is_valid_name(name), f"{name} is not a valid topic name"
+
+        existing = org.topics.filter(name__iexact=name).first()
+        if existing:
+            return existing
+        return org.topics.create(name=name, created_by=user, modified_by=user)
+
+    @classmethod
+    def is_valid_name(cls, name):
+        # don't allow empty strings, blanks, initial or trailing whitespace
+        if not name or name.strip() != name:
+            return False
+
+        if len(name) > cls.MAX_NAME_LEN:
+            return False
+
+        return regex.match(r"\w[\w- ]*", name, flags=regex.UNICODE)
+
+    def __str__(self):
+        return f"Topic[uuid={self.uuid}, topic={self.name}]"
 
 
 class Ticket(models.Model):
@@ -157,32 +212,24 @@ class Ticket(models.Model):
 
     MAX_NOTE_LEN = 4096
 
-    # our UUID
     uuid = models.UUIDField(unique=True, default=uuid4)
-
-    # the organization this ticket belongs to
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="tickets")
-
-    # the ticketer that manages this ticket
     ticketer = models.ForeignKey(Ticketer, on_delete=models.PROTECT, related_name="tickets")
-
-    # the contact this ticket is tied to
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="tickets")
 
-    # the subject of the ticket
-    subject = models.TextField()
-
-    # the body of the ticket
+    # ticket content
+    topic = models.ForeignKey(Topic, on_delete=models.PROTECT, related_name="tickets")
     body = models.TextField()
 
     # the external id of the ticket
     external_id = models.CharField(null=True, max_length=255)
 
     # any configuration attributes for this ticket
-    config = JSONField(null=True)
+    config = models.JSONField(null=True)
 
-    # the status of this ticket, one of open, closed, expired
+    # the status of this ticket and who it's currently assigned to
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
+    assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
     # when this ticket was opened, closed, modified
     opened_on = models.DateTimeField(default=timezone.now)
@@ -192,13 +239,14 @@ class Ticket(models.Model):
     # when this ticket last had activity which includes messages being sent and received, and is used for ordering
     last_activity_on = models.DateTimeField(default=timezone.now)
 
-    assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
+    # TODO deprecated, remove
+    subject = models.TextField(null=True)
 
     def assign(self, user: User, *, assignee: User, note: str):
         self.bulk_assign(self.org, user, [self], assignee=assignee, note=note)
 
     def add_note(self, user: User, *, note: str):
-        self.bulk_note(self.org, user, [self], note=note)
+        self.bulk_add_note(self.org, user, [self], note=note)
 
     @classmethod
     def bulk_assign(cls, org, user: User, tickets: list, assignee: User, note: str = None):
@@ -207,14 +255,19 @@ class Ticket(models.Model):
         return mailroom.get_client().ticket_assign(org.id, user.id, ticket_ids, assignee_id, note)
 
     @classmethod
-    def bulk_note(cls, org, user: User, tickets: list, note: str):
+    def bulk_add_note(cls, org, user: User, tickets: list, note: str):
         ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
-        return mailroom.get_client().ticket_note(org.id, user.id, ticket_ids, note)
+        return mailroom.get_client().ticket_add_note(org.id, user.id, ticket_ids, note)
 
     @classmethod
-    def bulk_close(cls, org, user, tickets):
+    def bulk_change_topic(cls, org, user: User, tickets: list, topic: Topic):
         ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
-        return mailroom.get_client().ticket_close(org.id, user.id, ticket_ids)
+        return mailroom.get_client().ticket_change_topic(org.id, user.id, ticket_ids, topic.id)
+
+    @classmethod
+    def bulk_close(cls, org, user, tickets, *, force: bool = False):
+        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        return mailroom.get_client().ticket_close(org.id, user.id, ticket_ids, force=force)
 
     @classmethod
     def bulk_reopen(cls, org, user, tickets):
@@ -226,21 +279,16 @@ class Ticket(models.Model):
         return org.get_users_with_perm(cls.ASSIGNEE_PERMISSION)
 
     def __str__(self):
-        return f"Ticket[uuid={self.uuid}, subject={self.subject}]"
+        return f"Ticket[uuid={self.uuid}, topic={self.topic.name}]"
 
     class Meta:
         indexes = [
-            # used by the open folder
-            models.Index(name="tickets_org_open", fields=["org", "-last_activity_on", "-id"], condition=Q(status="O")),
-            # used by the closed folder
+            # used by the All folder
+            models.Index(name="tickets_org_status", fields=["org", "status", "-last_activity_on", "-id"]),
+            # used by the Unassigned and Mine folders
             models.Index(
-                name="tickets_org_closed", fields=["org", "-last_activity_on", "-id"], condition=Q(status="C")
-            ),
-            # used by the unassigned and mine folders
-            models.Index(
-                name="tickets_org_ticketer",
-                fields=["org", "assignee", "-last_activity_on", "-id"],
-                condition=Q(status="O"),
+                name="tickets_org_assignee_status",
+                fields=["org", "assignee", "status", "-last_activity_on", "-id"],
             ),
             # used by the list of tickets on contact page and also message handling to find open tickets for contact
             models.Index(name="tickets_contact_open", fields=["contact", "-opened_on"], condition=Q(status="O")),
@@ -256,13 +304,15 @@ class TicketEvent(models.Model):
 
     TYPE_OPENED = "O"
     TYPE_ASSIGNED = "A"
-    TYPE_NOTE = "N"
+    TYPE_NOTE_ADDED = "N"
+    TYPE_TOPIC_CHANGED = "T"
     TYPE_CLOSED = "C"
     TYPE_REOPENED = "R"
     TYPE_CHOICES = (
         (TYPE_OPENED, "Opened"),
         (TYPE_ASSIGNED, "Assigned"),
-        (TYPE_NOTE, "Note"),
+        (TYPE_NOTE_ADDED, "Note Added"),
+        (TYPE_TOPIC_CHANGED, "Topic Changed"),
         (TYPE_CLOSED, "Closed"),
         (TYPE_REOPENED, "Reopened"),
     )
@@ -272,6 +322,7 @@ class TicketEvent(models.Model):
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="ticket_events")
     event_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
     note = models.TextField(null=True, max_length=Ticket.MAX_NOTE_LEN)
+    topic = models.ForeignKey(Topic, on_delete=models.PROTECT, null=True, related_name="ticket_events")
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="ticket_assignee_events")
 
     created_by = models.ForeignKey(
@@ -292,7 +343,12 @@ class TicketFolder(metaclass=ABCMeta):
     icon = None
 
     def get_queryset(self, org, user):
-        return Ticket.objects.filter(org=org).order_by("-last_activity_on", "-id").prefetch_related("contact")
+        return (
+            Ticket.objects.filter(org=org)
+            .order_by("-last_activity_on", "-id")
+            .select_related("topic", "assignee")
+            .prefetch_related("contact")
+        )
 
     @classmethod
     def from_slug(cls, slug: str):

@@ -1,3 +1,261 @@
+v6.5.55
+----------
+ * Trim mailgun ticketer names to <= 64 chars when creating
+ * Management command to audit archives
+ * Use field limiting on omnibox searches
+
+v6.5.54
+----------
+ * Fix S3 select query generation for date fields
+
+v6.5.53
+----------
+ * Disable all sentry transactions
+ * Use S3 select for flow result exports
+ * Add utils for compiling S3 select queries
+
+v6.5.52
+----------
+ * Merge pull request #3555 from nyaruka/ticket-att
+ * Update test to include attachment list for last_msg
+ * Update CHANGELOG.md for v6.5.51
+ * Merge pull request #3553 from nyaruka/httplog_tweaks
+ * Merge pull request #3554 from nyaruka/s3_retries
+ * Add other missing migration
+ * Add retry config to S3 client
+ * Add missing migration to drop WebhookResult model
+ * Update CHANGELOG.md for v6.5.50
+ * Merge pull request #3552 from nyaruka/fix-WA-check-health-logs
+ * Fix tests
+ * Add zero defaults to HTTPLog fields, drop WebHookResult and tweak HTTPLog templates for consistency
+ * Fix response for WA message template to be HTTP response
+ * Update CHANGELOG.md for v6.5.49
+ * Merge pull request #3549 from nyaruka/retention_periods
+ * Merge pull request #3546 from nyaruka/readonly_exports
+ * Merge pull request #3548 from nyaruka/fix-WA-check-health-logs
+ * Merge pull request #3550 from nyaruka/truncate-org
+ * Use single retention period setting for all channel logs
+ * Truncate org name with ellipsis on org chooser
+ * Add new setting for retention periods for different types and make trimming tasks more consistent
+ * Use readonly database connection for contact, message and results exports
+ * Add migration file
+ * Log update WA status error using HTTPLog
+
+v6.5.51
+----------
+ * Add retry config to S3 client
+ * Add zero defaults to HTTPLog fields, drop WebHookResult and tweak HTTPLog templates for consistency
+
+v6.5.50
+----------
+ * Fix response for WA message template to be HTTP response
+
+v6.5.49
+----------
+ * Truncate org name with ellipsis on org chooser
+ * Add new setting for retention periods for different types and make trimming tasks more consistent
+ * Use readonly database connection for contact, message and results exports
+ * Log update WA status error using HTTPLog
+
+v6.5.48
+----------
+ * Fix clear contact field event on ticket history
+
+v6.5.47
+----------
+ * Use readonly database connection for contacts API endpoint
+ * Use webhook_called events from sessions for contact history
+ * Remove unused webhook result views and improve httplog read view
+ * Fix API endpoints not always using readonly database connection and add testing
+
+v6.5.46
+----------
+ * Move list refresh registration out of content block
+
+v6.5.45
+----------
+ * Temporarily disable refresh
+ * Don't use readonly database connection for GETs to contacts endpoint
+ * Add view for webhook calls saved as HTTP logs
+ * Pass location support flag to editor as a feature flag
+
+v6.5.44
+----------
+ * GET requests to API should use readonly database on the view's queryset
+
+v6.5.43
+----------
+ * Tweak how HTTP logs are deleted
+ * Add num_retries field to HTTPLog
+
+v6.5.42
+----------
+ * Pin pyopenxel to 3.0.7 until 3.0.8 release problems resolved
+ * Add new fields to HTTPLog to support saving webhook results
+ * Make TPS for Shaqodoon be 5 by default
+ * Make location support optional via new branding setting
+
+v6.5.41
+----------
+ * Update editor with fix for field creation
+ * Minor tidying of HTTPLog
+ * Fix rendering of tickets on contact read page which now don't have subjects
+
+v6.5.40
+----------
+ * Update to floweditor 1.14.2
+ * Tweak database settings to add new readonly connection and remove no longer used direct connection
+ * Update menu on ticket list update
+
+v6.5.38
+----------
+ * Deprecate subjects on tickets in favor of topics
+ * Tweak ticket bulk action endpoint to allow unassigning
+ * Add API endpoint to read and write ticket topics
+
+v6.5.37
+----------
+ * Add tracking of unseen notification counts for users
+ * Clear ticket notifications when visiting appropriate ticket views
+ * Remove no longer used Log model
+
+v6.5.36
+----------
+ * Revert cryptography update
+
+v6.5.35
+----------
+ * Update to newer pycountry and bump other minor versions
+ * Fix ticketer HTTP logs not being accessible
+ * Add management command to re-eval a smart group
+ * Add comment to event_fires about mailroom issue
+ * Fix indexes on tickets to match new UI
+ * Now that mailroom is setting ContactImport.status, use in reads
+
+v6.5.34
+----------
+ * Update to latest components (fixes overzealous list refresh, non-breaking ticket summary, and display name when created_by is null)
+
+v6.5.33
+----------
+ * Fix Add To Group bulk action on contact list page
+ * Add status field to ContactImport and before starting batches, set redis key mailroom can use to track progress
+ * Delete unused template and minor cleanup
+
+v6.5.32
+----------
+ * Fix template indentation
+ * Pass force=True when closing ticket as part of releasing a ticketer
+ * Add beginings of new nav and SPA based UI (hidden from users for now)
+
+v6.5.31
+----------
+ * Show masked urns for contacts API on anon orgs
+ * Rework notifications, don't use Log model
+
+v6.5.30
+----------
+ * Fix deleting of imports and exports now that they have associated logs
+
+v6.5.29
+----------
+ * Add basic (and unused for now) JSON endpoint for listing notifications
+ * Reduce sentry trace sampling to 0.01
+ * Override kir language name
+ * Add change_topic as action to ticket bulk actions API endpoint
+ * Add Log and Notification model
+
+v6.5.28
+----------
+ * Add new ticket event type for topic changes
+ * Migrations to assign default topic to all existing tickets
+
+v6.5.27
+----------
+ * Add migration to give all existing orgs a default ticket topic
+
+v6.5.26
+----------
+ * Move mailroom_db data to external JSON file
+ * Run CI tests with latest mailroom
+ * Add ticket topic model and initialize orgs with a default topic
+
+v6.5.25
+----------
+ * Improve display of channels logs for calls
+
+v6.5.24
+----------
+ * Add machine detection as config option to channels with call role
+ * Tweak event_fires management command to show timesince for events in the past
+
+v6.5.23
+----------
+ * Drop retry_count, make error_count non-null
+ * Improve channel log templates so that we use consistent date formating, show call error reasons, and show back button for calls
+ * Tweak how we assert form errors and fix where they don't match exactly
+ * Re-add QUEUED status for channel connections
+
+v6.5.22
+----------
+ * Tweak index used for retrying IVR calls to only include statuses Q and E
+ * Dont show ticket events like note added or assignment on contact read page
+ * Include error reason in call_started events in contact history
+ * Remove channel connection statuses that we don't use and add error_reason
+
+v6.5.21
+----------
+ * Prevent saving of campaign events without start_mode
+ * Improve handling of group lookups in contact list views
+ * Add button to see channel error logs
+
+v6.5.20
+----------
+ * Make ChannelConnection.error_count nullable so it can be removed
+ * Cleanup ChannelConnection and add index for IVR retries
+ * Fix error display on contact update modal
+ * Update to zapier app directory, wide formax option and fixes
+ * Enable filtering on the channel log to see only errors
+
+v6.5.19
+----------
+ * Fix system group labels on contact read page
+ * Use shared error messages for orgs being flagged or suspended
+ * Update to latest smartmin (ignores _format=json on views that don't support it)
+ * Add command to undo events from a flow start
+ * Send modal should validate URNs
+ * Use s3 when appropriate to get session output
+ * Add basic user accounts API endpoint
+
+v6.5.18
+----------
+ * Apply webhook ticket fix to successful webhook calls too
+
+v6.5.17
+----------
+ * Tweak error message on flow start modal now field component is fixed
+ * Fix issue for ticket window growing with url length
+ * Update LUIS classifiers to work with latest API requirements
+ * Tweak migration to populate contact.ticket_count so that it can be run manually
+ * Switch from django.contrib.postgres.fields.JSONField to django.db.models.JSONField
+ * Introduce s3 utility functions, use for reading s3 sessions in contact history
+
+v6.5.16
+----------
+ * Update to Django 3.2
+ * Migration to populate contact.ticket_count
+
+v6.5.15
+----------
+ * Add warning to flow start modal that options have changed
+ * Fix importing of dynamic groups when field doesn't exist
+
+v6.5.14
+----------
+ * Update to latest cryptography 3.x
+ * Add deep linking for tickets
+ * Update db trigger on ticket table to maintain contact.ticket_count
+
 v6.5.13
 ----------
  * Tweak previous data migration to work with migrate_manual

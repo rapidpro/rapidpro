@@ -4,17 +4,17 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from itertools import chain
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Tuple
 
 import iso8601
 import phonenumbers
 import pyexcel
 import pytz
 import regex
+from django_redis import get_redis_connection
 from smartmin.models import SmartModel
 
 from django.conf import settings
-from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, models, transaction
@@ -32,7 +32,7 @@ from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Org, OrgLock
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
+from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
@@ -662,7 +662,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     )
 
     # custom field values for this contact, keyed by field UUID
-    fields = TembaJSONField(null=True)
+    fields = JSONField(null=True)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
 
@@ -773,6 +773,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.ivr.models import IVRCall
         from temba.mailroom.events import get_event_time
         from temba.msgs.models import Msg
+        from temba.tickets.models import TicketEvent
 
         msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
@@ -808,26 +809,27 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .select_related("event__campaign", "event__relative_to")[:limit]
         )
 
-        webhook_results = self.webhook_results.filter(created_on__gte=after, created_on__lt=before).order_by(
-            "-created_on"
-        )[:limit]
-
         calls = (
             IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
-            .filter(status__in=[IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED])
+            .exclude(status__in=[IVRCall.STATUS_PENDING, IVRCall.STATUS_WIRED])
             .order_by("-created_on")
             .select_related("channel")[:limit]
         )
 
         ticket_events = (
             self.ticket_events.filter(created_on__gte=after, created_on__lt=before)
-            .select_related("ticket__ticketer")
+            .select_related("ticket__ticketer", "ticket__topic", "assignee", "created_by")
             .order_by("-created_on")
         )
 
-        # can limit to single ticket when viewing a specific ticket rather than the contact read page
         if ticket:
+            # if we have a ticket this is for the ticket UI, so we want *all* events for *only* that ticket
             ticket_events = ticket_events.filter(ticket=ticket)
+        else:
+            # if not then this for the contact read page so only show ticket opened/closed/reopened events
+            ticket_events = ticket_events.filter(
+                event_type__in=[TicketEvent.TYPE_OPENED, TicketEvent.TYPE_CLOSED, TicketEvent.TYPE_REOPENED]
+            )
 
         ticket_events = ticket_events[:limit]
 
@@ -845,7 +847,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             ticket_events,
             channel_events,
             campaign_events,
-            webhook_results,
             calls,
             transfers,
             session_events,
@@ -863,7 +864,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         )
         events = []
         for session in sessions:
-            for run in session.output.get("runs", []):
+            for run in session.output_json.get("runs", []):
                 for event in run.get("events", []):
                     event["session_uuid"] = str(session.uuid)
                     event_time = iso8601.parse_date(event["created_on"])
@@ -1193,10 +1194,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 broadcast.contacts.remove(self)
 
     @classmethod
-    def bulk_cache_initialize(cls, org, contacts):
+    def bulk_urn_cache_initialize(cls, contacts, *, using="default"):
         """
-        Performs optimizations on our contacts to prepare them to send. This includes loading all our contact fields for
-        variable substitution.
+        Initializes the URN caches on the given contacts.
         """
         if not contacts:
             return
@@ -1208,15 +1208,15 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             setattr(contact, "_urns_cache", list())
 
         # cache all URN values (a priority ordered list on each contact)
-        urns = ContactURN.objects.filter(contact__in=contact_map.keys()).order_by("contact", "-priority", "pk")
+        urns = (
+            ContactURN.objects.filter(contact__in=contact_map.keys())
+            .using(using)
+            .order_by("contact", "-priority", "id")
+        )
         for urn in urns:
             contact = contact_map[urn.contact_id]
+            urn.org = contact.org
             getattr(contact, "_urns_cache").append(urn)
-
-        # set the cache initialize as correct
-        for contact in contacts:
-            contact.org = org
-            setattr(contact, "__cache_initialized", True)
 
     def get_urns(self):
         """
@@ -1226,7 +1226,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if hasattr(self, cache_attr):
             return getattr(self, cache_attr)
 
-        urns = self.urns.order_by("-priority", "pk")
+        urns = self.urns.order_by("-priority", "pk").select_related("org")
         setattr(self, cache_attr, urns)
         return urns
 
@@ -1248,7 +1248,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # otherwise return highest priority of any scheme
             return urns[0] if urns else None
 
-    def get_display(self, org=None, formatted=True, short=False, for_expressions=False):
+    def get_display(self, org=None, formatted=True, short=False):
         """
         Gets a displayable name or URN for the contact. If available, org can be provided to avoid having to fetch it
         again based on the contact.
@@ -1259,7 +1259,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if self.name:
             res = self.name
         elif org.is_anon:
-            res = self.id if for_expressions else self.anon_identifier
+            res = self.anon_identifier
         else:
             res = self.get_urn_display(org=org, formatted=formatted)
 
@@ -1418,6 +1418,12 @@ class ContactURN(models.Model):
             return self.ANON_MASK
 
         return URN.format(self.urn, international=international, formatted=formatted)
+
+    def api_urn(self):
+        if self.org.is_anon:
+            return URN.from_parts(self.scheme, self.ANON_MASK)
+
+        return URN.from_parts(self.scheme, self.path, display=self.display)
 
     @property
     def urn(self):
@@ -1645,6 +1651,11 @@ class ContactGroup(TembaModel, DependencyMixin):
         # first character must be a word char
         return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
+    @classmethod
+    def apply_action_delete(cls, user, groups):
+        groups.update(is_active=False, modified_by=user)
+        # update flow issues, campaigns, etc
+
     def get_icon(self):
         if self.is_dynamic:
             return "atom"
@@ -1744,7 +1755,7 @@ class ContactGroup(TembaModel, DependencyMixin):
 
         # remove any contact imports associated with this group
         for ci in ContactImport.objects.filter(group=self):
-            ci.release()
+            ci.delete()
 
         # mark any triggers that operate only on this group as inactive
         from temba.triggers.models import Trigger
@@ -1779,7 +1790,7 @@ class ContactGroup(TembaModel, DependencyMixin):
 
             parsed_query = None
             if group_query:
-                parsed_query = parse_query(org, group_query)
+                parsed_query = parse_query(org, group_query, parse_only=True)
                 for field_ref in parsed_query.metadata.fields:
                     ContactField.get_or_create(org, user, key=field_ref["key"])
 
@@ -1875,6 +1886,7 @@ class ExportContactsTask(BaseExportTask):
     analytics_key = "contact_export"
     email_subject = "Your contacts export from %s is ready"
     email_template = "contacts/email/contacts_export_download"
+    notification_export_type = "contact"
 
     group = models.ForeignKey(
         ContactGroup,
@@ -1909,13 +1921,14 @@ class ExportContactsTask(BaseExportTask):
 
         scheme_counts = dict()
         if not self.org.is_anon:
-            schemes_in_use = sorted(list(self.org.urns.order_by().values_list("scheme", flat=True).distinct()))
+            org_urns = self.org.urns.using("readonly")
+            schemes_in_use = sorted(list(org_urns.order_by().values_list("scheme", flat=True).distinct()))
             scheme_contact_max = {}
 
             # for each scheme used by this org, calculate the max number of URNs owned by a single contact
             for scheme in schemes_in_use:
                 scheme_contact_max[scheme] = (
-                    self.org.urns.filter(scheme=scheme)
+                    org_urns.filter(scheme=scheme)
                     .exclude(contact=None)
                     .values("contact")
                     .annotate(count=Count("contact"))
@@ -1936,7 +1949,10 @@ class ExportContactsTask(BaseExportTask):
                     )
 
         contact_fields_list = (
-            ContactField.user_fields.active_for_org(org=self.org).select_related("org").order_by("-priority", "pk")
+            ContactField.user_fields.active_for_org(org=self.org)
+            .using("readonly")
+            .select_related("org")
+            .order_by("-priority", "pk")
         )
         for contact_field in contact_fields_list:
             fields.append(
@@ -1956,8 +1972,7 @@ class ExportContactsTask(BaseExportTask):
 
     def write_export(self):
         fields, scheme_counts, group_fields = self.get_export_fields_and_schemes()
-
-        group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ACTIVE)
+        group = self.group or self.org.active_contacts_group
 
         include_group_memberships = bool(self.group_memberships.exists())
 
@@ -1976,14 +1991,13 @@ class ExportContactsTask(BaseExportTask):
         for batch_ids in chunk_list(contact_ids, 1000):
             # fetch all the contacts for our batch
             batch_contacts = (
-                Contact.objects.filter(id__in=batch_ids).prefetch_related("all_groups").select_related("org")
+                Contact.objects.filter(id__in=batch_ids).prefetch_related("org", "all_groups").using("readonly")
             )
 
             # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
             contact_by_id = {c.id: c for c in batch_contacts}
 
-            # bulk initialize them
-            Contact.bulk_cache_initialize(self.org, batch_contacts)
+            Contact.bulk_urn_cache_initialize(batch_contacts, using="readonly")
 
             for contact_id in batch_ids:
                 contact = contact_by_id[contact_id]
@@ -2072,20 +2086,25 @@ class ContactImport(SmartModel):
     STATUS_PROCESSING = "O"
     STATUS_COMPLETE = "C"
     STATUS_FAILED = "F"
+    STATUS_CHOICES = (
+        (STATUS_PENDING, "Pending"),
+        (STATUS_PROCESSING, "Processing"),
+        (STATUS_COMPLETE, "Complete"),
+        (STATUS_FAILED, "Failed"),
+    )
 
     MAPPING_IGNORE = {"type": "ignore"}
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contact_imports")
     file = models.FileField(upload_to=get_import_upload_path)
     original_filename = models.TextField()
-    mappings = JSONField()
+    mappings = models.JSONField()
     num_records = models.IntegerField()
     group_name = models.CharField(null=True, max_length=ContactGroup.MAX_NAME_LEN)
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, null=True, related_name="imports")
     started_on = models.DateTimeField(null=True)
-
-    # no longer used
-    headers = ArrayField(models.CharField(max_length=255), null=True)
+    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
+    finished_on = models.DateTimeField(null=True)
 
     @classmethod
     def try_to_parse(cls, org: Org, file, filename: str) -> Tuple[List, int]:
@@ -2246,26 +2265,30 @@ class ContactImport(SmartModel):
 
         on_transaction_commit(lambda: import_contacts_task.delay(self.id))
 
-    def release(self):
+    def delete(self):
         # delete our source import file
         self.file.delete()
 
         # delete any batches associated with this import
         ContactImportBatch.objects.filter(contact_import=self).delete()
 
+        # delete any notifications attached this import
+        self.notifications.all().delete()
+
         # then ourselves
-        self.delete()
+        super().delete()
 
     def start(self):
         """
         Starts this import, creating batches to be handled by mailroom
         """
 
-        assert self.started_on is None, "trying to start an already started import"
+        assert self.status == self.STATUS_PENDING, "trying to start an already started import"
 
-        # mark us as started to prevent double starting
+        # mark us as processing to prevent double starting
+        self.status = self.STATUS_PROCESSING
         self.started_on = timezone.now()
-        self.save(update_fields=("started_on",))
+        self.save(update_fields=("status", "started_on"))
 
         # create new contact fields as necessary
         for item in self.mappings:
@@ -2288,7 +2311,7 @@ class ContactImport(SmartModel):
         data = pyexcel.iget_array(file_stream=file, file_type=file_type, start_row=1)
 
         urns = []
-
+        batches = []
         record_num = 0
         for row_batch in chunk_list(data, ContactImport.BATCH_SIZE):
             batch_specs = []
@@ -2302,7 +2325,14 @@ class ContactImport(SmartModel):
 
                 urns.extend(spec.get("urns", []))
 
-            batch = self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num)
+            batches.append(self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num))
+
+        # set redis key which mailroom batch tasks can decrement to know when import has completed
+        r = get_redis_connection()
+        r.set(f"contact_import_batches_remaining:{self.id}", len(batches), ex=24 * 60 * 60)
+
+        # start each batch...
+        for batch in batches:
             batch.import_async()
 
         # flag org if the set of imported URNs looks suspicious
@@ -2314,39 +2344,30 @@ class ContactImport(SmartModel):
         Gets info about this import by merging info from its batches
         """
 
-        statuses = set()
         num_created = 0
         num_updated = 0
         num_errored = 0
         errors = []
-        oldest_finished_on = None
-
-        batches = self.batches.values("status", "num_created", "num_updated", "num_errored", "errors", "finished_on")
+        batches = self.batches.values("num_created", "num_updated", "num_errored", "errors")
 
         for batch in batches:
-            statuses.add(batch["status"])
             num_created += batch["num_created"]
             num_updated += batch["num_updated"]
             num_errored += batch["num_errored"]
             errors.extend(batch["errors"])
 
-            if batch["finished_on"] and (oldest_finished_on is None or batch["finished_on"] > oldest_finished_on):
-                oldest_finished_on = batch["finished_on"]
-
-        status = self._get_overall_status(statuses)
-
         # sort errors by record #
         errors = sorted(errors, key=lambda e: e["record"])
 
-        if status in (ContactImport.STATUS_COMPLETE, ContactImport.STATUS_FAILED):
-            time_taken = oldest_finished_on - self.started_on
+        if self.finished_on:
+            time_taken = self.finished_on - self.started_on
         elif self.started_on:
             time_taken = timezone.now() - self.started_on
         else:
             time_taken = timedelta(seconds=0)
 
         return {
-            "status": status,
+            "status": self.status,
             "num_created": num_created,
             "num_updated": num_updated,
             "num_errored": num_errored,
@@ -2359,25 +2380,6 @@ class ContactImport(SmartModel):
         Returns one of xlxs, xls, or csv
         """
         return Path(self.file.name).suffix[1:].lower()
-
-    @staticmethod
-    def _get_overall_status(statuses: Set) -> str:
-        """
-        Merges the statues from the import's batches into a single status value
-        """
-        if not statuses:
-            return ContactImport.STATUS_PENDING
-        elif len(statuses) == 1:  # if there's only one status then we're that
-            return list(statuses)[0]
-
-        # if any batches haven't finished, we're processing
-        if ContactImport.STATUS_PENDING in statuses or ContactImport.STATUS_PROCESSING in statuses:
-            return ContactImport.STATUS_PROCESSING
-
-        # all batches have finished - if any batch failed (shouldn't happen), we failed
-        return (
-            ContactImport.STATUS_FAILED if ContactImport.STATUS_FAILED in statuses else ContactImport.STATUS_COMPLETE
-        )
 
     @staticmethod
     def _parse_header(header: str) -> Tuple[str, str]:
@@ -2516,7 +2518,7 @@ class ContactImportBatch(models.Model):
 
     contact_import = models.ForeignKey(ContactImport, on_delete=models.PROTECT, related_name="batches")
     status = models.CharField(max_length=1, default=ContactImport.STATUS_PENDING, choices=STATUS_CHOICES)
-    specs = JSONField()
+    specs = models.JSONField()
 
     # the range of records from the entire import contained in this batch
     record_start = models.IntegerField()
@@ -2526,7 +2528,7 @@ class ContactImportBatch(models.Model):
     num_created = models.IntegerField(default=0)
     num_updated = models.IntegerField(default=0)
     num_errored = models.IntegerField(default=0)
-    errors = JSONField(default=list)
+    errors = models.JSONField(default=list)
     finished_on = models.DateTimeField(null=True)
 
     def import_async(self):

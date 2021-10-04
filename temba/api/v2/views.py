@@ -11,6 +11,7 @@ from smartmin.views import SmartFormView, SmartTemplateView
 
 from django import forms
 from django.contrib.auth import authenticate, login
+from django.contrib.auth.models import User
 from django.db.models import Prefetch, Q
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
@@ -21,6 +22,7 @@ from temba.api.v2.views_base import (
     BaseAPIView,
     BulkWriteAPIMixin,
     CreatedOnCursorPagination,
+    DateJoinedCursorPagination,
     DeleteAPIMixin,
     ListAPIMixin,
     ModifiedOnCursorPagination,
@@ -36,8 +38,9 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
+from temba.orgs.models import OrgRole
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
 
 from ..models import SSLPermission
@@ -79,6 +82,9 @@ from .serializers import (
     TicketerReadSerializer,
     TicketReadSerializer,
     TicketWriteSerializer,
+    TopicReadSerializer,
+    TopicWriteSerializer,
+    UserReadSerializer,
     WebHookEventReadSerializer,
     WorkspaceReadSerializer,
 )
@@ -89,7 +95,7 @@ class RootView(views.APIView):
     We provide a RESTful JSON API for you to interact with your data from outside applications. The following endpoints
     are available:
 
-     * [/api/v2/archives](/api/v2/archives) - to list archives
+     * [/api/v2/archives](/api/v2/archives) - to list archives of messages and runs
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
      * [/api/v2/campaigns](/api/v2/campaigns) - to list, create, or update campaigns
@@ -114,6 +120,7 @@ class RootView(views.APIView):
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
      * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
      * [/api/v2/ticketers](/api/v2/ticketers) - to list ticketing services
+     * [/api/v2/users](/api/v2/users) - to list user logins
      * [/api/v2/workspace](/api/v2/workspace) - to view your workspace
 
     To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
@@ -194,6 +201,7 @@ class RootView(views.APIView):
     def get(self, request, *args, **kwargs):
         return Response(
             {
+                "archives": reverse("api.v2.archives", request=request),
                 "boundaries": reverse("api.v2.boundaries", request=request),
                 "broadcasts": reverse("api.v2.broadcasts", request=request),
                 "campaigns": reverse("api.v2.campaigns", request=request),
@@ -220,6 +228,8 @@ class RootView(views.APIView):
                 "ticketers": reverse("api.v2.ticketers", request=request),
                 # "tickets": reverse("api.v2.tickets", request=request),
                 # "ticket_actions": reverse("api.v2.ticket_actions", request=request),
+                # "topics": reverse("api.v2.topics", request=request),
+                "users": reverse("api.v2.users", request=request),
                 "workspace": reverse("api.v2.workspace", request=request),
             }
         )
@@ -278,6 +288,9 @@ class ExplorerView(SmartTemplateView):
             # TicketsEndpoint.get_read_explorer(),
             # TicketsEndpoint.get_write_explorer(),
             # TicketActionsEndpoint.get_read_explorer(),
+            # TopicsEndpoint.get_read_explorer(),
+            # TopicsEndpoint.get_write_explorer(),
+            UsersEndpoint.get_read_explorer(),
             WorkspaceEndpoint.get_read_explorer(),
         ]
         return context
@@ -478,7 +491,7 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = AdminBoundaryReadSerializer
     pagination_class = Pagination
 
-    def get_queryset(self):
+    def derive_queryset(self):
         org = self.request.user.get_org()
         if not org.country:
             return AdminBoundary.objects.none()
@@ -878,7 +891,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
     write_serializer_class = CampaignEventWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
-    def get_queryset(self):
+    def derive_queryset(self):
         return self.model.objects.filter(campaign__org=self.request.user.get_org(), is_active=True)
 
     def filter_queryset(self, queryset):
@@ -1410,19 +1423,18 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
+            Prefetch("org"),
             Prefetch(
                 "all_groups",
                 queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk"),
                 to_attr="prefetched_user_groups",
-            )
+            ),
         )
 
         return self.filter_before_after(queryset, "modified_on")
 
-    def prepare_for_serialization(self, object_list):
-        # initialize caches of all contact fields and URNs
-        org = self.request.user.get_org()
-        Contact.bulk_cache_initialize(org, object_list)
+    def prepare_for_serialization(self, object_list, using: str):
+        Contact.bulk_urn_cache_initialize(object_list, using=using)
 
     def get_serializer_context(self):
         """
@@ -1772,7 +1784,7 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     pagination_class = CreatedOnCursorPagination
     lookup_params = {"key": "key"}
 
-    def get_queryset(self):
+    def derive_queryset(self):
         org = self.request.user.get_org()
         return self.model.user_fields.filter(org=org, is_active=True)
 
@@ -2180,7 +2192,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True).exclude(status=ContactGroup.STATUS_INITIALIZING)
 
-    def prepare_for_serialization(self, object_list):
+    def prepare_for_serialization(self, object_list, using: str):
         group_counts = ContactGroupCount.get_totals(object_list)
         for group in object_list:
             group.count = group_counts[group]
@@ -2364,7 +2376,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True)
 
-    def prepare_for_serialization(self, object_list):
+    def prepare_for_serialization(self, object_list, using: str):
         label_counts = LabelCount.get_totals(object_list)
         for label in object_list:
             label.count = label_counts[label]
@@ -2522,7 +2534,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         "sent": SystemLabel.TYPE_SENT,
     }
 
-    def get_queryset(self):
+    def derive_queryset(self):
         org = self.request.user.get_org()
         folder = self.request.query_params.get("folder")
 
@@ -3480,9 +3492,9 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **ticketer** - the UUID and name of the ticketer (object).
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **status** - the status of the ticket, e.g. 'open' or 'closed'.
-     * **subject** - the subject of the ticket.
-     * **body** - the body of the ticket.
-     * **opened_on** - when this ticket was opened.
+     * **topic** - the topic of the ticket (object).
+     * **body** - the body of the ticket (string).
+     * **opened_on** - when this ticket was opened (datetime).
 
     Example:
 
@@ -3499,7 +3511,7 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                 "ticketer": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Email (bob@acme.com)"},
                 "contact": {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Jim"},
                 "status": "open",
-                "subject": "Need help",
+                "topic": {"uuid": "040edbfe-be55-48f3-864d-a4a7147c447b", "name": "Support"},
                 "body": "Where did I leave my shorts?",
                 "opened_on": "2013-02-27T09:06:15.456"
             },
@@ -3538,7 +3550,9 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         queryset = queryset.prefetch_related(
             Prefetch("ticketer", queryset=Ticketer.objects.only("uuid", "name")),
+            Prefetch("topic", queryset=Topic.objects.only("uuid", "name")),
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
+            "assignee",
         )
 
         return queryset
@@ -3608,6 +3622,139 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
     #             {"name": "note", "required": False, "help": "The note text"},
     #         ],
     #     }
+
+
+class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the topics in your workspace.
+
+    ## Listing Topics
+
+    A **GET** returns the tickets for your organization, most recent first.
+
+     * **uuid** - the UUID of the topic (string).
+     * **name** - the name of the topic (string).
+     * **created_on** - when this topic was created (datetime).
+
+    Example:
+
+        GET /api/v2/topics.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
+                "name": "Support",
+                "created_on": "2013-02-27T09:06:15.456"
+            },
+            ...
+    """
+
+    permission = "tickets.topic_api"
+    model = Topic
+    serializer_class = TopicReadSerializer
+    write_serializer_class = TopicWriteSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    # @classmethod
+    # def get_read_explorer(cls):
+    #     return {
+    #         "method": "GET",
+    #         "title": "List Topics",
+    #         "url": reverse("api.v2.topics"),
+    #         "slug": "topic-list",
+    #     }
+
+    # @classmethod
+    # def get_write_explorer(cls):
+    #     return {
+    #         "method": "POST",
+    #         "title": "Add or Update Topics",
+    #         "url": reverse("api.v2.topics"),
+    #         "slug": "topic-write",
+    #         "params": [{"name": "uuid", "required": False, "help": "The UUID of the topic to update"}],
+    #         "fields": [{"name": "name", "required": True, "help": "The name of the topic"}],
+    #     }
+
+
+class UsersEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the user logins in your workspace.
+
+    ## Listing Users
+
+    A **GET** returns the users in your workspace, ordered by newest created first.
+
+     * **email** - the email address of the user (string).
+     * **first_name** - the first name of the user (string).
+     * **last_name** - the last name of the user (string).
+     * **role** - the role of the user (string), filterable as `role` which can be repeated.
+     * **created_on** - when this user was created (datetime).
+
+    Example:
+
+        GET /api/v2/users.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "email": "bob@flow.com",
+                "first_name": "Bob",
+                "last_name": "McFlow",
+                "role": "agent",
+                "created_on": "2013-03-02T17:28:12.123456Z"
+            },
+            ...
+    """
+
+    permission = "orgs.org_api"
+    model = User
+    serializer_class = UserReadSerializer
+    pagination_class = DateJoinedCursorPagination
+
+    def derive_queryset(self):
+        org = self.request.user.get_org()
+
+        # limit to roles if specified
+        roles = self.request.query_params.getlist("role")
+        if roles:
+            role_by_name = {name: role for role, name in UserReadSerializer.ROLES.items()}
+            roles = [role_by_name.get(r) for r in roles if r in role_by_name]
+        else:
+            roles = []
+
+        return org.get_users(roles=roles).filter(is_active=True)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+
+        # build a map of users to roles so that serializing multiple users only uses on query per role
+        org = self.request.user.get_org()
+        user_roles = {}
+        for role in OrgRole:
+            for user in role.get_users(org):
+                user_roles[user] = role
+
+        context["user_roles"] = user_roles
+        return context
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Users",
+            "url": reverse("api.v2.users"),
+            "slug": "user-list",
+            "params": [],
+        }
 
 
 class WorkspaceEndpoint(BaseAPIView):

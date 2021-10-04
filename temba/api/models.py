@@ -1,6 +1,5 @@
 import hmac
 import logging
-from datetime import timedelta
 from hashlib import sha1
 
 from rest_framework.permissions import BasePermission
@@ -116,9 +115,6 @@ class Resthook(SmartModel):
         self.modified_by = user
         self.save(update_fields=["is_active", "modified_on", "modified_by"])
 
-    def as_select2(self):
-        return dict(text=self.slug, id=self.slug)
-
     def __str__(self):  # pragma: needs cover
         return str(self.slug)
 
@@ -166,53 +162,6 @@ class WebHookEvent(models.Model):
 
     # when this event was created
     created_on = models.DateTimeField(default=timezone.now)
-
-    def release(self):
-        self.delete()
-
-
-class WebHookResult(models.Model):
-    """
-    Represents the result of trying to make a webhook call in a flow
-    """
-
-    # the org this result belongs to
-    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="webhook_results")
-
-    # the url this result is for
-    url = models.TextField(null=True, blank=True)
-
-    # the body of the request
-    request = models.TextField(null=True, blank=True)
-
-    # the status code returned (set to 503 for connection errors)
-    status_code = models.IntegerField()
-
-    # the body of the response
-    response = models.TextField(null=True, blank=True)
-
-    # how long the request took to return in milliseconds
-    request_time = models.IntegerField(null=True)
-
-    # the contact associated with this result (if any)
-    contact = models.ForeignKey(
-        "contacts.Contact", on_delete=models.PROTECT, null=True, related_name="webhook_results"
-    )
-
-    # when this result was created
-    created_on = models.DateTimeField(default=timezone.now, editable=False, blank=True)
-
-    @classmethod
-    def get_recent_errored(cls, org):
-        past_hour = timezone.now() - timedelta(hours=1)
-        return cls.objects.filter(org=org, status_code__gte=400, created_on__gte=past_hour)
-
-    @property
-    def is_success(self):
-        return 200 <= self.status_code < 300
-
-    def release(self):
-        self.delete()
 
 
 class APIToken(models.Model):

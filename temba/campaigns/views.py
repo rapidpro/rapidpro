@@ -300,33 +300,36 @@ class CampaignEventForm(forms.ModelForm):
             (CampaignEvent.MODE_PASSIVE, _("Send the message")),
         ),
         required=False,
-        widget=SelectWidget(attrs={"placeholder": _("Message sending rules"), "widget_only": True}),
+        widget=SelectWidget(attrs={"widget_only": True}),
     )
 
     def clean(self):
         data = super().clean()
-        if self.data["event_type"] == CampaignEvent.TYPE_MESSAGE and self.languages:
-            language = self.languages[0].language
-            iso_code = language["iso_code"]
-            if iso_code not in self.data or not self.data[iso_code].strip():
-                raise ValidationError(_("A message is required for '%s'") % language["name"])
 
-            for lang_data in self.languages:
-                lang = lang_data.language
-                iso_code = lang["iso_code"]
-                if iso_code in self.data and len(self.data[iso_code].strip()) > Msg.MAX_TEXT_LEN:
-                    raise ValidationError(
-                        _("Translation for '%(language)s' exceeds the %(limit)d character limit.")
-                        % dict(language=lang["name"], limit=Msg.MAX_TEXT_LEN)
-                    )
+        if self.data["event_type"] == CampaignEvent.TYPE_MESSAGE:
+            if self.languages:
+                language = self.languages[0].language
+                iso_code = language["iso_code"]
+                if iso_code not in self.data or not self.data[iso_code].strip():
+                    raise ValidationError(_("A message is required for '%s'") % language["name"])
+
+                for lang_data in self.languages:
+                    lang = lang_data.language
+                    iso_code = lang["iso_code"]
+                    if iso_code in self.data and len(self.data[iso_code].strip()) > Msg.MAX_TEXT_LEN:
+                        raise ValidationError(
+                            _("Translation for '%(language)s' exceeds the %(limit)d character limit.")
+                            % dict(language=lang["name"], limit=Msg.MAX_TEXT_LEN)
+                        )
+            if not data.get("message_start_mode"):
+                self.add_error("message_start_mode", _("This field is required."))
+        else:
+            if not data.get("flow_to_start"):
+                self.add_error("flow_to_start", _("This field is required."))
+            if not data.get("flow_start_mode"):
+                self.add_error("flow_start_mode", _("This field is required."))
 
         return data
-
-    def clean_flow_to_start(self):
-        if self.data["event_type"] == CampaignEvent.TYPE_FLOW:
-            if "flow_to_start" not in self.data or not self.data["flow_to_start"]:
-                raise ValidationError("Please select a flow")
-            return self.data["flow_to_start"]
 
     def pre_save(self, request, obj):
         org = self.user.get_org()
@@ -364,7 +367,7 @@ class CampaignEventForm(forms.ModelForm):
 
         # otherwise, it's an event that runs an existing flow
         else:
-            obj.flow = Flow.objects.get(org=org, id=self.cleaned_data["flow_to_start"])
+            obj.flow = self.cleaned_data["flow_to_start"]
             obj.start_mode = self.cleaned_data["flow_start_mode"]
 
     def __init__(self, user, *args, **kwargs):

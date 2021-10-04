@@ -23,15 +23,18 @@
   .flex.flex-wrap.mt-1
 
     -if contact.status == 'B'
-      .lbl-group.mt-2.mr-2.bg-secondary.linked.inverted.cursor-pointer{onclick:"goto(event)", href:"{% url 'contacts.contact_blocked' %}"}
+      .lbl-group.linked.inverted.bg-secondary.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_blocked' %}")
+        %temba-icon(name="slash")
         -trans "Blocked"
   
     -elif contact.status == 'S'
-      .lbl-group.inverted.linked.mt-2.mr-2.bg-secondary.font-normal{onclick:"goto(event)", href:"{% url 'contacts.contact_stopped' %}"}
+      .lbl-group.linked.inverted.bg-secondary.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_stopped' %}")
+        %temba-icon(name="alert-octagon")
         -trans "Stopped"
 
     -elif contact.status == 'V'
-      .lbl-group.mt-2.mr-2.linked.bg-secondary.inverted.font-normal{onclick:"goto(event)", href:"{% url 'contacts.contact_archived' %}"}
+      .lbl-group.linked.inverted.bg-secondary.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_archived' %}")
+        %temba-icon(name="archive")
         -trans "Archived"
 
     -for group in contact_groups
@@ -162,13 +165,14 @@
       -for ticket in open_tickets
         %tr.item
           %td.icon
-            %span.glyph.icon-ticket
-          %td.details
-            {{ ticket.subject }}
-          %td.details
-            {{ ticket.body }}
+            .pl-2
+              %span.glyph.icon-ticket
+          %td.details.w-full
+            %a(href="{% url 'tickets.ticket_list' %}all/open/{{ticket.uuid}}/")
+              {{ ticket.body|default:"empty"|truncatechars:64 }}
           %td.created_on
-            {% short_datetime ticket.opened_on %}
+            .pr-6
+              {% short_datetime ticket.opened_on %}
 
   -if upcoming_events
     -if upcoming_events|length > 3

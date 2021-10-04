@@ -1,6 +1,7 @@
 import shutil
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytz
 import redis
@@ -40,6 +41,7 @@ from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 
 from .mailroom import create_contact_locally, decrement_credit, update_field_locally
+from .s3 import jsonlgz_encode
 
 
 def add_testing_flag_to_context(*args):
@@ -47,7 +49,7 @@ def add_testing_flag_to_context(*args):
 
 
 class TembaTestMixin:
-    databases = ("default", "direct")
+    databases = ("default", "readonly")
 
     def setUpOrgs(self):
         # make sure we start off without any service users
@@ -150,6 +152,9 @@ class TembaTestMixin:
 
         self.org.country = self.country
         self.org.save(update_fields=("country",))
+
+    def make_beta(self, user):
+        user.groups.add(Group.objects.get(name="Beta"))
 
     def clear_cache(self):
         """
@@ -446,14 +451,14 @@ class TembaTestMixin:
 
         return flow
 
-    def create_incoming_call(self, flow, contact, status=IVRCall.COMPLETED):
+    def create_incoming_call(self, flow, contact, status=IVRCall.STATUS_COMPLETED):
         """
         Create something that looks like an incoming IVR call handled by mailroom
         """
         call = IVRCall.objects.create(
             org=self.org,
             channel=self.channel,
-            direction=IVRCall.INCOMING,
+            direction=IVRCall.DIRECTION_INCOMING,
             contact=contact,
             contact_urn=contact.get_urn(),
             status=status,
@@ -477,10 +482,10 @@ class TembaTestMixin:
             channel=self.channel,
             connection=call,
             request='{"say": "Hello"}',
-            response='{"status": "%s"}' % ("error" if status == IVRCall.FAILED else "OK"),
+            response='{"status": "%s"}' % ("error" if status == IVRCall.STATUS_FAILED else "OK"),
             url="https://acme-calls.com/reply",
             method="POST",
-            is_error=status == IVRCall.FAILED,
+            is_error=status == IVRCall.STATUS_FAILED,
             response_status=200,
             description="Looks good",
         )
@@ -489,17 +494,21 @@ class TembaTestMixin:
     def create_archive(
         self, archive_type, period, start_date, records=(), needs_deletion=False, rollup_of=(), s3=None, org=None
     ):
-        archive_hash = uuid4().hex
+        org = org or self.org
+        body, md5, size = jsonlgz_encode(records)
         bucket = "s3-bucket"
-        key = f"things/{archive_hash}.jsonl.gz"
+        type_code = "run" if archive_type == Archive.TYPE_FLOWRUN else "message"
+        date_code = start_date.strftime("%Y%m") if period == "M" else start_date.strftime("%Y%m%d")
+        key = f"{org.id}/{type_code}_{period}{date_code}_{md5}.jsonl.gz"
+
         if s3:
-            s3.put_jsonl(bucket, key, records)
+            s3.put_object(bucket, key, body)
 
         archive = Archive.objects.create(
-            org=org or self.org,
+            org=org,
             archive_type=archive_type,
-            size=10,
-            hash=archive_hash,
+            size=size,
+            hash=md5,
             url=f"http://{bucket}.aws.com/{key}",
             record_count=len(records),
             start_date=start_date,
@@ -575,8 +584,8 @@ class TembaTestMixin:
         self,
         ticketer,
         contact,
-        subject,
-        body="",
+        body: str,
+        topic=None,
         assignee=None,
         opened_on=None,
         opened_by=None,
@@ -590,7 +599,7 @@ class TembaTestMixin:
             org=ticketer.org,
             ticketer=ticketer,
             contact=contact,
-            subject=subject,
+            topic=topic or ticketer.org.default_ticket_topic,
             body=body,
             status=Ticket.STATUS_CLOSED if closed_on else Ticket.STATUS_OPEN,
             assignee=assignee,
@@ -710,6 +719,9 @@ class TembaTest(TembaTestMixin, SmartminTest):
     def tearDown(self):
         clear_flow_users()
 
+    def mockReadOnly(self, assert_models: set = None):
+        return MockReadOnly(self, assert_models=assert_models)
+
 
 class TembaNonAtomicTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
     """
@@ -719,7 +731,7 @@ class TembaNonAtomicTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase)
     pass
 
 
-class AnonymousOrg(object):
+class AnonymousOrg:
     """
     Makes the given org temporarily anonymous
     """
@@ -734,6 +746,34 @@ class AnonymousOrg(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.org.is_anon = False
         self.org.save(update_fields=("is_anon",))
+
+
+class MockReadOnly:
+    """
+    Context manager which mocks calls to .using("readonly") on querysets and records the model types.
+    """
+
+    def __init__(self, test_class, assert_models: set = None):
+        self.test_class = test_class
+        self.assert_models = assert_models
+        self.actual_models = set()
+
+    def __enter__(self):
+        self.patch_using = patch("django.db.models.query.QuerySet.using", autospec=True)
+        mock_using = self.patch_using.start()
+
+        def using(qs, alias):
+            if alias == "readonly":
+                self.actual_models.add(qs.model)
+            return qs
+
+        mock_using.side_effect = using
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.patch_using.stop()
+
+        if self.assert_models:
+            self.test_class.assertEqual(self.assert_models, self.actual_models)
 
 
 class MigrationTest(TembaTest):

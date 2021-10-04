@@ -94,10 +94,18 @@ def omnibox_mixed_search(org, query, types):
 
     if SEARCH_CONTACTS in search_types:
         try:
-            search_results = search_contacts(org, query, group=org.cached_active_contacts_group, sort="name")
-            contacts = IDSliceQuerySet(Contact, search_results.contact_ids, 0, len(search_results.contact_ids))
+            # query elastic search for contact ids, then fetch contacts from db
+            search_results = search_contacts(org, query, group=org.active_contacts_group, sort="name")
+            contacts = IDSliceQuerySet(
+                Contact,
+                search_results.contact_ids,
+                offset=0,
+                total=len(search_results.contact_ids),
+                only=("id", "uuid", "name", "org_id"),
+            ).prefetch_related("org")
+
             results += list(contacts[:per_type_limit])
-            Contact.bulk_cache_initialize(org, contacts=results)
+            Contact.bulk_urn_cache_initialize(contacts=results)
 
         except SearchException:
             pass
@@ -108,9 +116,7 @@ def omnibox_mixed_search(org, query, types):
                 # build an OR'ed query of all sendable schemes
                 sendable_schemes = org.get_schemes(Channel.ROLE_SEND)
                 scheme_query = " OR ".join(f"{s} ~ {json.dumps(query)}" for s in sendable_schemes)
-                search_results = search_contacts(
-                    org, scheme_query, group=org.cached_active_contacts_group, sort="name"
-                )
+                search_results = search_contacts(org, scheme_query, group=org.active_contacts_group, sort="name")
                 urns = ContactURN.objects.filter(
                     contact_id__in=search_results.contact_ids, scheme__in=sendable_schemes
                 )
@@ -121,11 +127,13 @@ def omnibox_mixed_search(org, query, types):
     return results
 
 
-def omnibox_serialize(org, groups, contacts, json_encode=False):
+def omnibox_serialize(org, groups, contacts, *, urns=(), raw_urns=(), json_encode=False):
     """
     Shortcut for proper way to serialize a queryset of groups and contacts for omnibox component
     """
-    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts), version="2")
+    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts) + list(urns), version="2")
+
+    serialized += [{"type": "urn", "id": u} for u in raw_urns]
 
     if json_encode:
         return [json.dumps(_) for _ in serialized]

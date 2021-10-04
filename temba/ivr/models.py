@@ -6,10 +6,10 @@ from temba.channels.models import ChannelConnection
 
 class IVRManager(models.Manager):
     def create(self, *args, **kwargs):
-        return super().create(*args, connection_type=IVRCall.IVR, **kwargs)
+        return super().create(*args, connection_type=IVRCall.TYPE_VOICE, **kwargs)
 
     def get_queryset(self):
-        return super().get_queryset().filter(connection_type__in=[IVRCall.IVR, IVRCall.VOICE])
+        return super().get_queryset().filter(connection_type=IVRCall.TYPE_VOICE)
 
 
 class IVRCall(ChannelConnection):

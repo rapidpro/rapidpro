@@ -97,6 +97,7 @@ class SyncLogsView(OrgPermsMixin, SmartReadView):
                     HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
                     HTTPLog.WHATSAPP_TOKENS_SYNCED,
                     HTTPLog.WHATSAPP_CONTACTS_REFRESHED,
+                    HTTPLog.WHATSAPP_CHECK_HEALTH,
                 ],
                 channel=self.object,
             )

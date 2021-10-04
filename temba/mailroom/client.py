@@ -177,8 +177,8 @@ class MailroomClient:
         }
         return self._request("contact/search", payload)
 
-    def parse_query(self, org_id, query, group_uuid=""):
-        payload = {"org_id": org_id, "query": query, "group_uuid": group_uuid}
+    def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = ""):
+        payload = {"org_id": org_id, "query": query, "parse_only": parse_only, "group_uuid": group_uuid}
 
         return self._request("contact/parse_query", payload)
 
@@ -193,13 +193,18 @@ class MailroomClient:
 
         return self._request("ticket/assign", payload)
 
-    def ticket_note(self, org_id: int, user_id: int, ticket_ids: list, note: str):
+    def ticket_add_note(self, org_id: int, user_id: int, ticket_ids: list, note: str):
         payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids, "note": note}
 
-        return self._request("ticket/note", payload)
+        return self._request("ticket/add_note", payload)
 
-    def ticket_close(self, org_id, user_id, ticket_ids):
-        payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids}
+    def ticket_change_topic(self, org_id: int, user_id: int, ticket_ids: list, topic_id: int):
+        payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids, "topic_id": topic_id}
+
+        return self._request("ticket/change_topic", payload)
+
+    def ticket_close(self, org_id: int, user_id: int, ticket_ids: list, force: bool):
+        payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids, "force": force}
 
         return self._request("ticket/close", payload)
 

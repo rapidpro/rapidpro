@@ -7,35 +7,45 @@ from temba.classifiers.models import Classifier
 from temba.classifiers.views import BaseConnectView
 from temba.utils.fields import ExternalURLField
 
+from .client import AuthoringClient, PredictionClient
+
 
 class ConnectView(BaseConnectView):
     class Form(forms.Form):
+        SLOT_CHOICES = (("staging", _("Staging")), ("production", _("Production")))
+
         name = forms.CharField(help_text=_("The name of your LUIS app"))
-        app_id = forms.CharField(label=_("App ID"), help_text=_("The ID for your LUIS app"))
-        version = forms.CharField(help_text=_("The name of the version of your LUIS app to use"))
-        primary_key = forms.CharField(help_text=_("The primary key for your LUIS app"))
-        endpoint_url = ExternalURLField(help_text=_("The endpoint URL for your LUIS app"))
+        app_id = forms.CharField(label=_("App ID"), help_text=_("The ID of your LUIS app"))
+        authoring_endpoint = ExternalURLField(help_text=_("The authoring resource endpoint URL"))
+        authoring_key = forms.CharField(help_text=_("The authoring resource access key"))
+        prediction_endpoint = ExternalURLField(help_text=_("The prediction resource endpoint URL"))
+        prediction_key = forms.CharField(help_text=_("The prediction resource access key"))
+        slot = forms.ChoiceField(
+            help_text=_("The slot where the prediction resource has been published"), choices=SLOT_CHOICES
+        )
 
         def clean(self):
-            from .type import LuisType
-
             cleaned = super().clean()
 
             if not self.is_valid():
                 return cleaned
 
-            endpoint = cleaned["endpoint_url"]
+            # first check authoring credentials work
+            try:
+                client = AuthoringClient(cleaned["authoring_endpoint"], cleaned["authoring_key"])
+                app_info = client.get_app(cleaned["app_id"])
+                app_endpoints = app_info["endpoints"]
+                if cleaned["slot"].upper() not in app_endpoints:
+                    raise forms.ValidationError(_("App has not yet been published to %s slot.") % cleaned["slot"])
+            except requests.RequestException as e:
+                raise forms.ValidationError(_("Check authoring credentials: %s") % str(e))
 
-            # try to look up intents
-            response = requests.get(
-                endpoint + "/apps/" + cleaned["app_id"] + "/versions/" + cleaned["version"] + "/intents",
-                headers={LuisType.AUTH_HEADER: cleaned["primary_key"]},
-            )
-
-            if response.status_code != 200:
-                raise forms.ValidationError(
-                    _("Unable to get intents for your app, please check credentials and try again")
-                )
+            # then check prediction credentials work
+            try:
+                client = PredictionClient(cleaned["prediction_endpoint"], cleaned["prediction_key"])
+                client.predict(cleaned["app_id"], cleaned["slot"], "test")
+            except requests.RequestException as e:
+                raise forms.ValidationError(_("Check prediction credentials: %s") % str(e))
 
             return cleaned
 
@@ -46,9 +56,11 @@ class ConnectView(BaseConnectView):
 
         config = {
             LuisType.CONFIG_APP_ID: form.cleaned_data["app_id"],
-            LuisType.CONFIG_VERSION: form.cleaned_data["version"],
-            LuisType.CONFIG_PRIMARY_KEY: form.cleaned_data["primary_key"],
-            LuisType.CONFIG_ENDPOINT_URL: form.cleaned_data["endpoint_url"],
+            LuisType.CONFIG_AUTHORING_ENDPOINT: form.cleaned_data["authoring_endpoint"],
+            LuisType.CONFIG_AUTHORING_KEY: form.cleaned_data["authoring_key"],
+            LuisType.CONFIG_PREDICTION_ENDPOINT: form.cleaned_data["prediction_endpoint"],
+            LuisType.CONFIG_PREDICTION_KEY: form.cleaned_data["prediction_key"],
+            LuisType.CONFIG_SLOT: form.cleaned_data["slot"],
         }
 
         self.object = Classifier.create(self.org, self.request.user, LuisType.slug, form.cleaned_data["name"], config)

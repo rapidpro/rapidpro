@@ -700,7 +700,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -708,7 +708,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
   }
 
 .button:hover {
@@ -717,7 +716,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-light {
@@ -741,7 +739,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -749,7 +747,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-light:hover {
@@ -758,7 +755,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-light {
@@ -773,7 +769,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .6);
   }
 
 .button-action {
@@ -797,7 +792,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -805,7 +800,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-action:hover {
@@ -814,7 +808,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-action {
@@ -829,7 +822,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .6);
   }
 
 .button-action {
@@ -865,7 +857,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -873,7 +865,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-tertiary:hover {
@@ -882,7 +873,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-tertiary {
@@ -912,7 +902,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -920,7 +910,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-secondary:hover {
@@ -929,7 +918,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-secondary {
@@ -959,7 +947,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -967,7 +955,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-primary:hover {
@@ -976,13 +963,12 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-primary {
-  background-color: rgb(var(--primary-rgb));
   --tw-text-opacity: 1;
   color: rgba(255, 255, 255, var(--tw-text-opacity));
+  background: var(--color-primary-dark) !important;
 }
 
 .button-white {
@@ -1006,7 +992,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -1014,7 +1000,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-white:hover {
@@ -1023,7 +1008,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-white {
@@ -1053,7 +1037,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -1061,7 +1045,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-danger:hover {
@@ -1070,7 +1053,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-danger {
@@ -1100,7 +1082,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -1108,7 +1090,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-dark-alpha:hover {
@@ -1117,7 +1098,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-dark-alpha {
@@ -1147,7 +1127,7 @@ a:hover {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   margin-top: 1px;
 }
 
@@ -1155,7 +1135,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15);
   }
 
 .button-sm:hover {
@@ -1164,7 +1143,6 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-sm {
@@ -1377,11 +1355,6 @@ a:hover {
   color: rgba(255, 255, 255, .9);
 }
 
-.lbl-group.inverted::before {
-    color: rgba(255, 255, 255, .9);
-    content: "\e03c";
-  }
-
 .lbl-group.inverted.linked:hover {
     cursor: pointer;
     color: rgba(255, 255, 255, .9);
@@ -1389,78 +1362,8 @@ a:hover {
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
   }
 
-.lbl-group-dynamic {
-  background-color: rgba(0, 0, 0, .05);
-  border-radius: 9999px;
-  cursor: default;
-  display: inline-block;
-  font-weight: 400;
-  font-size: 0.75rem;
-  line-height: 1.25;
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
-  --tw-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-  text-align: center;
-  color: rgba(0, 0, 0, .5);
-  text-decoration: none;
-  letter-spacing: 0.025em;
-  white-space: nowrap;
-}
-
-.lbl-group-dynamic.linked:hover {
-    cursor: pointer;
-    color: rgba(0, 0, 0, .5);
-    text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .3);
-  }
-
-.lbl-group-dynamic.linked:active {
-    --tw-shadow: 0 0 #0000;
-    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-  }
-
-.lbl-group-dynamic.inverted {
-  color: rgba(255, 255, 255, .9);
-}
-
-.lbl-group-dynamic.inverted.linked:hover {
-    cursor: pointer;
-    color: rgba(255, 255, 255, .9);
-    text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
-  }
-
-.lbl-group-dynamic {
-  display: flex;
-  align-items: center;
-}
-
-.lbl-group-dynamic temba-icon {
-    --icon-color: rgba(0,0,0,.5);
-    margin-right: 3px;
-  }
-
-.lbl-group-dynamic.inverted {
-  color: rgba(255, 255, 255, .9);
-}
-
-.lbl-group-dynamic.inverted::before {
-    color: rgba(255, 255, 255, .9);
-    content: "\e03c";
-  }
-
-.lbl-group-dynamic.inverted.linked:hover {
-    cursor: pointer;
-    color: rgba(255, 255, 255, .9);
-    text-decoration: none;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
-  }
-
-.lbl-group-dynamic::before {
-    content: "\ebeb";
+.lbl-group.inverted temba-icon {
+    --icon-color: rgba(255, 255, 255, .9);
   }
 
 .lbl-secondary {
@@ -1842,7 +1745,6 @@ table.list.selectable tbody tr.checked td {
     }
 
 .gear-links {
-  margin-left: 1rem;
   min-height: 34.5px;
 }
 
@@ -2042,6 +1944,9 @@ code {
   }
 
 .formax .formax-section {
+    transition: all 200ms ease-in-out;
+    margin-left: 0px;
+    margin-right: 0px;
     --tw-bg-opacity: 1;
     background-color: rgba(255, 255, 255, var(--tw-bg-opacity));
     border-radius: 0.5rem;
@@ -2114,7 +2019,26 @@ code {
           display: none;
         }
 
+.formax .formax-section.wide.open {
+      margin-left: -115px;
+      margin-right: -115px;
+    }
+
+.formax .formax-section.wide.open .formax-icon {
+        font-size: 50px;
+        padding-top: 0px;
+        flex-basis: 0px;
+      }
+
+.formax .formax-section.wide.open .formax-icon .i-container {
+          width: 0px;
+          margin-top: 20px;
+          margin-left:-25px;
+        }
+
 .formax .formax-section.open {
+      margin-left: -30px;
+      margin-right: -30px;
       --tw-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
       box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
     }

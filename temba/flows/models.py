@@ -32,8 +32,8 @@ from temba.globals.models import Global
 from temba.msgs.models import Attachment, Label, Msg
 from temba.orgs.models import Org
 from temba.templates.models import Template
-from temba.tickets.models import Ticketer
-from temba.utils import analytics, chunk_list, json, on_transaction_commit
+from temba.tickets.models import Ticketer, Topic
+from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import (
     JSONAsTextField,
@@ -172,6 +172,8 @@ class Flow(TembaModel):
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
     template_dependencies = models.ManyToManyField(Template, related_name="dependent_flows")
     ticketer_dependencies = models.ManyToManyField(Ticketer, related_name="dependent_flows")
+    topic_dependencies = models.ManyToManyField(Topic, related_name="dependent_topics")
+    user_dependencies = models.ManyToManyField(User, related_name="dependent_users")
 
     @classmethod
     def create(
@@ -557,6 +559,11 @@ class Flow(TembaModel):
             label = Label.get_or_create(self.org, user, ref["name"])
             dependency_mapping[ref["uuid"]] = str(label.uuid)
 
+        # ensure any topic dependencies exist
+        for ref in deps_of_type("topic"):
+            topic = Topic.get_or_create(self.org, user, ref["name"])
+            dependency_mapping[ref["uuid"]] = str(topic.uuid)
+
         # for dependencies we can't create, look for them by UUID (this is a clone in same workspace)
         # or name (this is an import from other workspace)
         dep_types = {
@@ -898,6 +905,8 @@ class Flow(TembaModel):
             "label": Label.label_objects.filter(org=self.org, uuid__in=identifiers["label"]),
             "template": self.org.templates.filter(uuid__in=identifiers["template"]),
             "ticketer": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["ticketer"]),
+            "topic": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["topic"]),
+            "user": self.org.get_users().filter(is_active=True, email__in=identifiers["user"]),
         }
 
         # reset the m2m for each type
@@ -937,8 +946,10 @@ class Flow(TembaModel):
         self.global_dependencies.clear()
         self.group_dependencies.clear()
         self.label_dependencies.clear()
-        self.ticketer_dependencies.clear()
         self.template_dependencies.clear()
+        self.ticketer_dependencies.clear()
+        self.topic_dependencies.clear()
+        self.user_dependencies.clear()
 
         # queue mailroom to interrupt sessions where contact is currently in this flow
         if interrupt_sessions:
@@ -1012,37 +1023,27 @@ class FlowSession(models.Model):
     )
 
     uuid = models.UUIDField(unique=True)
+    org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
+    contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True)
 
     # the modality of this session
     session_type = models.CharField(max_length=1, choices=Flow.TYPE_CHOICES, default=Flow.TYPE_MESSAGE)
 
-    # the organization this session belongs to
-    org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
-
-    # the contact that this session is with
-    contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
-
-    # the channel connection used for flow sessions over IVR or USSD"),
+    # the channel connection used for flow sessions over IVR
     connection = models.OneToOneField(
         "channels.ChannelConnection", on_delete=models.PROTECT, null=True, related_name="session"
     )
 
-    # the status of this session
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True)
-
     # whether the contact has responded in this session
     responded = models.BooleanField(default=False)
 
-    # the goflow output of this session
+    # the engine output of this session (either stored in this field or at the URL pointed to by output_url)
     output = JSONAsTextField(null=True, default=dict)
-
-    # the URL for the JSON file that contains our session content (optional)
     output_url = models.URLField(null=True, max_length=2048)
 
-    # when this session was created
+    # when this session was created and ended
     created_on = models.DateTimeField(default=timezone.now)
-
-    # when this session ended
     ended_on = models.DateTimeField(null=True)
 
     # when this session's wait will time out (if at all)
@@ -1053,6 +1054,19 @@ class FlowSession(models.Model):
 
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
+
+    @property
+    def output_json(self):
+        """
+        Returns the output JSON for this session, loading it either from our DB field or S3 if stored there.
+        """
+        # if our output is stored on S3, fetch it from there
+        if self.output_url:
+            return json.loads(s3.get_body(self.output_url))
+
+        # otherwise, read it from our DB field
+        else:
+            return self.output
 
     def release(self):
         self.delete()
@@ -1115,31 +1129,22 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
 
     uuid = models.UUIDField(unique=True, default=uuid4)
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="runs", db_index=False)
-
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="runs")
-
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="runs")
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
     # session this run belongs to (can be null if session has been trimmed)
     session = models.ForeignKey(FlowSession, on_delete=models.PROTECT, related_name="runs", null=True)
-
-    # current status of this run
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
     # for an IVR session this is the connection to the IVR channel
     connection = models.ForeignKey(
         "channels.ChannelConnection", on_delete=models.PROTECT, related_name="runs", null=True
     )
 
-    # when this run was created
+    # when this run was created, last modified and exited
     created_on = models.DateTimeField(default=timezone.now)
-
-    # when this run was last modified
     modified_on = models.DateTimeField(default=timezone.now)
-
-    # when this run ended
     exited_on = models.DateTimeField(null=True)
 
     # when this run will expire
@@ -1751,6 +1756,7 @@ class ExportFlowResultsTask(BaseExportTask):
     analytics_key = "flowresult_export"
     email_subject = "Your results export from %s is ready"
     email_template = "flows/email/flow_export_download"
+    notification_export_type = "results"
 
     INCLUDE_MSGS = "include_msgs"
     CONTACT_FIELDS = "contact_fields"
@@ -1847,11 +1853,12 @@ class ExportFlowResultsTask(BaseExportTask):
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
         group_memberships = config.get(ExportFlowResultsTask.GROUP_MEMBERSHIPS, [])
 
-        contact_fields = ContactField.user_fields.active_for_org(org=self.org).filter(id__in=contact_field_ids)
-
+        contact_fields = (
+            ContactField.user_fields.active_for_org(org=self.org).filter(id__in=contact_field_ids).using("readonly")
+        )
         groups = ContactGroup.user_groups.filter(
             org=self.org, id__in=group_memberships, status=ContactGroup.STATUS_READY, is_active=True
-        )
+        ).using("readonly")
 
         # get all result saving nodes across all flows being exported
         show_submitted_by = False
@@ -1934,21 +1941,22 @@ class ExportFlowResultsTask(BaseExportTask):
             if earliest_created_on is None or flow.created_on < earliest_created_on:
                 earliest_created_on = flow.created_on
 
-        records = Archive.iter_all_records(self.org, Archive.TYPE_FLOWRUN, after=earliest_created_on)
-        flow_uuids = {str(flow.uuid) for flow in flows}
+        flow_uuids = [str(flow.uuid) for flow in flows]
+        where = {"flow__uuid__in": flow_uuids}
+        if responded_only:
+            where["responded"] = True
+        records = Archive.iter_all_records(self.org, Archive.TYPE_FLOWRUN, after=earliest_created_on, where=where)
         seen = set()
 
         for record_batch in chunk_list(records, 1000):
             matching = []
             for record in record_batch:
-                if record["flow"]["uuid"] in flow_uuids and (not responded_only or record["responded"]):
-                    seen.add(record["id"])
-                    matching.append(record)
-
+                seen.add(record["id"])
+                matching.append(record)
             yield matching
 
         # secondly get runs from database
-        runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on")
+        runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on").using("readonly")
         if responded_only:
             runs = runs.filter(responded=True)
         run_ids = array(str("l"), runs.values_list("id", flat=True))
@@ -1959,7 +1967,10 @@ class ExportFlowResultsTask(BaseExportTask):
 
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (
-                FlowRun.objects.filter(id__in=id_batch).select_related("contact", "flow").order_by("modified_on", "pk")
+                FlowRun.objects.filter(id__in=id_batch)
+                .select_related("contact", "flow")
+                .order_by("modified_on", "id")
+                .using("readonly")
             )
 
             # convert this batch of runs to same format as records in our archives
@@ -1982,7 +1993,11 @@ class ExportFlowResultsTask(BaseExportTask):
         """
         # get all the contacts referenced in this batch
         contact_uuids = {r["contact"]["uuid"] for r in runs}
-        contacts = Contact.objects.filter(org=self.org, uuid__in=contact_uuids).prefetch_related("all_groups")
+        contacts = (
+            Contact.objects.filter(org=self.org, uuid__in=contact_uuids)
+            .prefetch_related("all_groups")
+            .using("readonly")
+        )
         contacts_by_uuid = {str(c.uuid): c for c in contacts}
 
         for run in runs:

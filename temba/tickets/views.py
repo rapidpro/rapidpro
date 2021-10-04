@@ -10,11 +10,12 @@ from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
 from temba.msgs.models import Msg
+from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget, SelectWidget
-from temba.utils.views import ComponentFormMixin
+from temba.utils.views import ComponentFormMixin, SpaMixin
 
-from .models import Ticket, TicketCount, Ticketer, TicketFolder
+from .models import AllFolder, MineFolder, Ticket, TicketCount, Ticketer, TicketFolder, UnassignedFolder
 
 
 class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
@@ -74,7 +75,7 @@ class TicketCRUDL(SmartCRUDL):
     model = Ticket
     actions = ("list", "folder", "note", "assign", "menu")
 
-    class List(OrgPermsMixin, SmartListView):
+    class List(SpaMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
         A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
         """
@@ -84,16 +85,61 @@ class TicketCRUDL(SmartCRUDL):
             folders = "|".join(TicketFolder.all().keys())
             return rf"^ticket/((?P<folder>{folders})/((?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+)/)?)?)?$"
 
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            org = self.request.user.get_org()
-            context["has_tickets"] = Ticket.objects.filter(org=org).exists()
+        def get_notification_scope(self) -> tuple:
+            folder, status, _, _ = self.tickets_path
+            if folder == UnassignedFolder.slug and status == "open":
+                return "tickets:opened", ""
+            elif folder == MineFolder.slug and status == "open":
+                return "tickets:activity", ""
+            return "", ""
 
+        @cached_property
+        def tickets_path(self) -> tuple:
+            """
+            Returns tuple of folder, status, ticket uuid, and whether that ticket exists in first page of tickets
+            """
             folder = self.kwargs.get("folder")
             status = self.kwargs.get("status")
-            context["folder"] = folder if folder else "mine"
-            context["status"] = status if status else "open"
+            uuid = self.kwargs.get("uuid")
+            in_page = False
 
+            path = self.spa_referrer_path
+            if path and len(path) > 1 and path[0] == "tickets":
+                if not folder and len(path) > 1:
+                    folder = path[1]
+                if not status and len(path) > 2:
+                    status = path[2]
+                if not uuid and len(path) > 3:
+                    uuid = path[3]
+
+            # if we have a uuid make sure it is in our first page of tickets
+            if uuid:
+                status_code = Ticket.STATUS_OPEN if status == "open" else Ticket.STATUS_CLOSED
+                org = self.request.org
+                user = self.request.user
+                tickets = list(TicketFolder.from_slug(folder).get_queryset(org, user).filter(status=status_code)[:25])
+
+                found = list(filter(lambda t: str(t.uuid) == uuid, tickets))
+                if found:
+                    in_page = True
+                else:
+                    # if it's not, switch our folder to everything with that ticket's state
+                    ticket = org.tickets.filter(uuid=uuid).first()
+                    if ticket:
+                        folder = AllFolder.slug
+                        status = "open" if ticket.status == Ticket.STATUS_OPEN else "closed"
+
+            return folder or MineFolder.slug, status or "open", uuid, in_page
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            folder, status, uuid, in_page = self.tickets_path
+
+            context["folder"] = folder
+            context["status"] = status
+            context["nextUUID" if in_page else "uuid"] = uuid
+            context["has_tickets"] = self.request.org.tickets.exists()
             return context
 
         def get_queryset(self, **kwargs):
@@ -104,9 +150,9 @@ class TicketCRUDL(SmartCRUDL):
             user = self.request.user
             count_by_assignee = TicketCount.get_by_assignees(user.get_org(), [None, user], Ticket.STATUS_OPEN)
             counts = {
-                "mine": count_by_assignee[user],
-                "unassigned": count_by_assignee[None],
-                "all": TicketCount.get_all(user.get_org(), Ticket.STATUS_OPEN),
+                MineFolder.slug: count_by_assignee[user],
+                UnassignedFolder.slug: count_by_assignee[None],
+                AllFolder.slug: TicketCount.get_all(user.get_org(), Ticket.STATUS_OPEN),
             }
 
             menu = []
@@ -127,7 +173,7 @@ class TicketCRUDL(SmartCRUDL):
         @classmethod
         def derive_url_pattern(cls, path, action):
             folders = "|".join(TicketFolder.all().keys())
-            return rf"^{path}/{action}/(?P<folder>{folders})/(?P<status>open|closed)/$"
+            return rf"^{path}/{action}/(?P<folder>{folders})/(?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+))?$"
 
         @cached_property
         def folder(self):
@@ -136,7 +182,13 @@ class TicketCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             user = self.request.user
             status = Ticket.STATUS_OPEN if self.kwargs["status"] == "open" else Ticket.STATUS_CLOSED
-            return self.folder.get_queryset(user.get_org(), user).filter(status=status)
+            qs = self.folder.get_queryset(user.get_org(), user).filter(status=status)
+
+            uuid = self.kwargs.get("uuid", None)
+            if uuid:
+                qs = qs.filter(uuid=uuid)
+
+            return qs
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -155,10 +207,12 @@ class TicketCRUDL(SmartCRUDL):
             )
 
             context["last_msgs"] = {m.contact: m for m in last_msgs}
-
             return context
 
         def render_to_response(self, context, **response_kwargs):
+            def topic_as_json(t):
+                return {"uuid": str(t.uuid), "name": t.name}
+
             def user_as_json(u):
                 return {
                     "id": u.id,
@@ -178,6 +232,7 @@ class TicketCRUDL(SmartCRUDL):
                     "type": m.msg_type,
                     "created_on": m.created_on,
                     "sender": sender,
+                    "attachments": m.attachments,
                 }
 
             def as_json(t):
@@ -193,7 +248,9 @@ class TicketCRUDL(SmartCRUDL):
                     "ticket": {
                         "uuid": str(t.uuid),
                         "assignee": user_as_json(t.assignee) if t.assignee else None,
+                        "topic": topic_as_json(t.topic) if t.topic else None,
                         "subject": t.subject,
+                        "body": t.body,
                         "last_activity_on": t.last_activity_on,
                         "closed_on": t.closed_on,
                     },

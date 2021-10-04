@@ -1020,7 +1020,6 @@ class Label(TembaModel, DependencyMixin):
     """
 
     MAX_NAME_LEN = 64
-    MAX_ORG_LABELS = 250
     MAX_ORG_FOLDERS = 250
 
     TYPE_FOLDER = "F"
@@ -1270,6 +1269,7 @@ class ExportMessagesTask(BaseExportTask):
     analytics_key = "msg_export"
     email_subject = "Your messages export from %s is ready"
     email_template = "msgs/email/msg_export_download"
+    notification_export_type = "message"
 
     groups = models.ManyToManyField(ContactGroup)
 
@@ -1425,7 +1425,7 @@ class ExportMessagesTask(BaseExportTask):
         if self.groups.all():
             messages = messages.filter(contact__all_groups__in=self.groups.all())
 
-        messages = messages.order_by("created_on")
+        messages = messages.order_by("created_on").using("readonly")
         if last_created_on:
             messages = messages.filter(created_on__gt=last_created_on)
 

@@ -985,6 +985,30 @@ class UserCRUDL(SmartCRUDL):
             return context
 
 
+class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+    permission = "orgs.org_home"
+    template_name = "spa_frame.haml"
+
+    def has_permission(self, request, *args, **kwargs):
+        return not request.user.is_anonymous and request.user.is_beta()
+
+
+class MenuMixin(OrgPermsMixin):
+    def add_menu(self, menu, name, icon, reverse_name, href=None):
+        if self.has_org_perm(reverse_name):
+            menu_item = {
+                "id": slugify(name),
+                "name": name,
+                "icon": icon,
+                "endpoint": reverse(reverse_name),
+            }
+
+            if href and self.has_org_perm(href):
+                menu_item["href"] = reverse(href)
+
+            menu.append(menu_item)
+
+
 class OrgCRUDL(SmartCRUDL):
     actions = (
         "signup",
@@ -1002,6 +1026,7 @@ class OrgCRUDL(SmartCRUDL):
         "manage_accounts",
         "manage_accounts_sub_org",
         "manage",
+        "menu",
         "update",
         "country",
         "languages",
@@ -1025,6 +1050,38 @@ class OrgCRUDL(SmartCRUDL):
     )
 
     model = Org
+
+    class Menu(MenuMixin, InferOrgMixin, SmartTemplateView):
+        def render_to_response(self, context, **response_kwargs):
+            menu = []
+            # self.add_menu(menu, "Messages", "messages", "msgs.msg_menu")
+            self.add_menu(menu, "Contacts", "contact-cal", "contacts.contact_menu")
+            # self.add_menu(menu, "Flows", "flow", "flows.flow_menu")
+            # self.add_menu(menu, "Campaigns", "campaign", "campaigns.campaigns_menu")
+            self.add_menu(menu, "Tickets", "agent", "tickets.ticket_menu", "tickets.ticket_list")
+            self.add_menu(menu, "Triggers", "radio", "triggers.trigger_menu")
+
+            # menu.append(
+            #    {
+            #        "id": "settings",
+            #        "name": "Settings",
+            #        "icon": "settings",
+            #        "bottom": True,
+            #        "href": reverse("orgs.org_home"),
+            #    }
+            # )
+
+            menu.append(
+                {
+                    "id": "support",
+                    "name": "Support",
+                    "icon": "help-circle",
+                    "bottom": True,
+                    "trigger": "showSupportWidget",
+                }
+            )
+
+            return JsonResponse({"results": menu})
 
     class Import(NonAtomicMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class FlowImportForm(Form):
@@ -2702,7 +2759,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return obj
 
-    class Resthooks(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class Resthooks(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ResthookForm(forms.ModelForm):
             new_slug = forms.SlugField(
                 required=False,
@@ -2717,7 +2774,7 @@ class OrgCRUDL(SmartCRUDL):
                 field_mapping = []
 
                 for resthook in self.instance.get_resthooks():
-                    check_field = forms.BooleanField(required=False)
+                    check_field = forms.BooleanField(required=False, widget=CheckboxWidget())
                     field_name = "resthook_%d" % resthook.id
 
                     field_mapping.append((field_name, check_field))
@@ -2773,13 +2830,6 @@ class OrgCRUDL(SmartCRUDL):
         form_class = TokenForm
         success_url = "@orgs.org_home"
         success_message = ""
-
-        def get_context_data(self, **kwargs):
-            from temba.api.models import WebHookResult
-
-            context = super().get_context_data(**kwargs)
-            context["failed_webhooks"] = WebHookResult.get_recent_errored(self.request.user.get_org()).exists()
-            return context
 
     class Prometheus(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ToggleForm(forms.ModelForm):
@@ -2932,7 +2982,7 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section(
                         "tickets",
                         reverse("tickets.ticketer_read", args=[ticketer.uuid]),
-                        icon=ticketer.get_type().icon,
+                        icon=ticketer.type.icon,
                     )
 
             if self.has_org_perm("orgs.org_profile"):
@@ -2958,7 +3008,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
 
-            if self.has_org_perm("orgs.org_country"):
+            if self.has_org_perm("orgs.org_country") and org.get_branding().get("location_support"):
                 formax.add_section("country", reverse("orgs.org_country"), icon="icon-location2")
 
             if self.has_org_perm("orgs.org_smtp_server"):
@@ -2977,7 +3027,10 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_resthooks"):
                 formax.add_section(
-                    "resthooks", reverse("orgs.org_resthooks"), icon="icon-cloud-lightning", dependents="resthooks"
+                    "resthooks",
+                    reverse("orgs.org_resthooks"),
+                    icon="icon-cloud-lightning",
+                    wide="true",
                 )
 
             # show globals and archives
