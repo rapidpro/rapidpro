@@ -1,3 +1,6 @@
+import gzip
+import hashlib
+import io
 from datetime import date, datetime
 from unittest.mock import call, patch
 
@@ -9,7 +12,7 @@ from django.utils import timezone
 from temba.tests import CRUDLTestMixin, TembaTest
 from temba.tests.s3 import MockS3Client
 
-from .models import Archive
+from .models import Archive, jsonlgz_rewrite
 
 
 class ArchiveTest(TembaTest):
@@ -21,7 +24,7 @@ class ArchiveTest(TembaTest):
         archive = self.create_archive(
             Archive.TYPE_MSG, "D", timezone.now().date(), [{"id": 1}, {"id": 2}, {"id": 3}], s3=mock_s3
         )
-        s3_key = archive.s3_location()["Key"]
+        bucket, key = archive.get_storage_location()
 
         # can fetch records without any filtering
         records_iter = archive.iter_records()
@@ -30,7 +33,7 @@ class ArchiveTest(TembaTest):
         self.assertEqual(next(records_iter), {"id": 2})
         self.assertEqual(next(records_iter), {"id": 3})
         self.assertRaises(StopIteration, next, records_iter)
-        self.assertEqual(mock_s3.calls["get_object"][-1], call(Bucket="s3-bucket", Key=s3_key))
+        self.assertEqual(mock_s3.calls["get_object"][-1], call(Bucket="s3-bucket", Key=key))
 
         # can filter using where dict
         records_iter = archive.iter_records(where={"id__gt": 1})
@@ -40,7 +43,7 @@ class ArchiveTest(TembaTest):
             mock_s3.calls["select_object_content"][-1],
             call(
                 Bucket="s3-bucket",
-                Key=s3_key,
+                Key=key,
                 Expression="SELECT s.* FROM s3object s WHERE s.id > 1",
                 ExpressionType="SQL",
                 InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
@@ -56,7 +59,7 @@ class ArchiveTest(TembaTest):
             mock_s3.calls["select_object_content"][-1],
             call(
                 Bucket="s3-bucket",
-                Key=s3_key,
+                Key=key,
                 Expression="SELECT s.* FROM s3object s WHERE s.id < 3",
                 ExpressionType="SQL",
                 InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
@@ -163,6 +166,39 @@ class ArchiveTest(TembaTest):
         # check the start date of our db data
         self.assertEqual(date(2018, 2, 1), self.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN))
 
+    @patch("temba.utils.s3.client")
+    def test_rewrite(self, mock_s3_client):
+        mock_s3 = MockS3Client()
+        mock_s3_client.return_value = mock_s3
+
+        archive = self.create_archive(
+            Archive.TYPE_FLOWRUN,
+            "D",
+            date(2020, 8, 1),
+            [
+                {"id": 1, "created_on": "2020-08-01T09:00:00Z", "contact": {"name": "Bob"}},
+                {"id": 2, "created_on": "2020-08-01T10:00:00Z", "contact": {"name": "Jim"}},
+                {"id": 3, "created_on": "2020-08-01T15:00:00Z", "contact": {"name": "Bob"}},
+            ],
+            s3=mock_s3,
+        )
+
+        bucket, key = archive.get_storage_location()
+        self.assertEqual({(bucket, key)}, set(mock_s3.objects.keys()))
+        self.assertEqual(1, len(mock_s3.calls["put_object"]))
+
+        def purge_jim(record):
+            return record if record["contact"]["name"] != "Jim" else None
+
+        archive.rewrite(purge_jim, delete_old=True)
+
+        bucket, new_key = archive.get_storage_location()
+        self.assertNotEqual(key, new_key)
+        self.assertEqual({(bucket, new_key)}, set(mock_s3.objects.keys()))
+
+        self.assertEqual(2, len(mock_s3.calls["put_object"]))
+        self.assertEqual([call(Bucket="s3-bucket", Key=key)], mock_s3.calls["delete_object"])
+
 
 class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_empty_list(self):
@@ -202,8 +238,8 @@ class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
         archive = self.create_archive(Archive.TYPE_MSG, "D", date(2020, 7, 31), [{"id": 1}, {"id": 2}])
 
         download_url = (
-            f"https://s3-bucket.s3.amazonaws.com/things/{archive.hash}.jsonl.gz?response-content-disposition="
-            f"attachment%3B&response-content-type=application%2Foctet&response-content-encoding=none"
+            f"https://s3-bucket.s3.amazonaws.com/{self.org.id}/message_D20200731_{archive.hash}.jsonl.gz?response-con"
+            f"tent-disposition=attachment%3B&response-content-type=application%2Foctet&response-content-encoding=none"
         )
 
         response = self.assertReadFetch(
@@ -229,3 +265,53 @@ class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(url)
         self.assertContains(response, "4 records")
         self.assertContains(response, reverse("archives.archive_message"))
+
+
+class JSONLGZTest(TembaTest):
+    def test_jsonlgz_rewrite(self):
+        def rewrite(b: bytes, transform):
+            in_file = io.BytesIO(b)
+            out_file = io.BytesIO()
+            md5, size = jsonlgz_rewrite(in_file, out_file, transform)
+            return out_file.getvalue(), md5, size
+
+        data = b'{"id": 123, "name": "Jim"}\n{"id": 234, "name": "Bob"}\n{"id": 345, "name": "Ann"}\n'
+        gzipped = gzip.compress(data)
+
+        # rewrite that using a pass-through transform for each record
+        data1, hash1, size1 = rewrite(gzipped, lambda r: r)
+
+        self.assertEqual(data, gzip.decompress(data1))
+        self.assertEqual(hashlib.md5(data1).hexdigest(), hash1)
+        self.assertEqual(68, size1)
+
+        # should get the exact same file and hash if we just repeat that
+        data2, hash2, size2 = rewrite(gzipped, lambda r: r)
+
+        self.assertEqual(data1, data2)
+        self.assertEqual(hash1, hash2)
+        self.assertEqual(68, size2)
+
+        # rewrite with a transform that modifies each record
+        def name_to_upper(record) -> dict:
+            record["name"] = record["name"].upper()
+            return record
+
+        data3, hash3, size3 = rewrite(gzipped, name_to_upper)
+
+        self.assertEqual(
+            b'{"id": 123, "name": "JIM"}\n{"id": 234, "name": "BOB"}\n{"id": 345, "name": "ANN"}\n',
+            gzip.decompress(data3),
+        )
+        self.assertEqual(hashlib.md5(data3).hexdigest(), hash3)
+        self.assertEqual(68, size3)
+
+        # rewrite with a transform that removes a record
+        def remove_bob(record) -> dict:
+            return None if record["id"] == 234 else record
+
+        data4, hash4, size4 = rewrite(gzipped, remove_bob)
+
+        self.assertEqual(b'{"id": 123, "name": "Jim"}\n{"id": 345, "name": "Ann"}\n', gzip.decompress(data4))
+        self.assertEqual(hashlib.md5(data4).hexdigest(), hash4)
+        self.assertEqual(58, size4)
