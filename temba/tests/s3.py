@@ -8,6 +8,7 @@ from unittest.mock import call
 import iso8601
 import regex
 
+from temba.archives.models import FileAndHash, jsonlgz_iterate
 from temba.utils import chunk_list, json
 
 
@@ -42,26 +43,23 @@ class MockS3Client:
         self.objects = {}
         self.calls = defaultdict(list)
 
-    def put_jsonl(self, bucket: str, key: str, records: List[Dict]):
-        stream = io.BytesIO()
-        gz = gzip.GzipFile(fileobj=stream, mode="wb")
+    def put_object(self, Bucket: str, Key: str, Body, **kwargs):
+        self.calls["put_object"].append(call(Bucket=Bucket, Key=Key, Body=Body, **kwargs))
 
-        for record in records:
-            gz.write(json.dumps(record).encode("utf-8"))
-            gz.write(b"\n")
-        gz.close()
-
-        self.objects[(bucket, key)] = stream
+        self.objects[(Bucket, Key)] = Body
 
     def get_object(self, Bucket, Key, **kwargs):
         self.calls["get_object"].append(call(Bucket=Bucket, Key=Key, **kwargs))
 
-        stream = self.objects[(Bucket, Key)]
-        stream.seek(0)
-        return {"Bucket": Bucket, "Key": Key, "Body": stream}
+        body = self.objects[(Bucket, Key)]
+        body.seek(0)
+        return {"Bucket": Bucket, "Key": Key, "Body": body}
 
     def delete_object(self, Bucket, Key, **kwargs):
+        self.calls["delete_object"].append(call(Bucket=Bucket, Key=Key, **kwargs))
+
         del self.objects[(Bucket, Key)]
+
         return {"DeleteMarker": False, "VersionId": "versionId", "RequestCharged": "requester"}
 
     def list_objects_v2(self, Bucket, Prefix, **kwargs):
@@ -77,20 +75,26 @@ class MockS3Client:
 
         stream = self.objects[(Bucket, Key)]
         stream.seek(0)
-        zstream = gzip.GzipFile(fileobj=stream)
-
         records = []
-        while True:
-            line = zstream.readline()
-            if not line:
-                break
 
-            record = json.loads(line.decode("utf-8"))
-
-            if not Expression or select_matches(Expression, record):
+        for record in jsonlgz_iterate(stream):
+            if select_matches(Expression, record):
                 records.append(record)
 
         return {"Payload": MockEventStream(records)}
+
+
+def jsonlgz_encode(records: list) -> tuple:
+    stream = io.BytesIO()
+    wrapper = FileAndHash(stream)
+    gz = gzip.GzipFile(fileobj=wrapper, mode="wb")
+
+    for record in records:
+        gz.write(json.dumps(record).encode("utf-8"))
+        gz.write(b"\n")
+    gz.close()
+
+    return stream, wrapper.hash.hexdigest(), wrapper.size
 
 
 def select_matches(expression: str, record: dict) -> bool:

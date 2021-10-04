@@ -166,6 +166,39 @@ class ArchiveTest(TembaTest):
         # check the start date of our db data
         self.assertEqual(date(2018, 2, 1), self.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN))
 
+    @patch("temba.utils.s3.client")
+    def test_rewrite(self, mock_s3_client):
+        mock_s3 = MockS3Client()
+        mock_s3_client.return_value = mock_s3
+
+        archive = self.create_archive(
+            Archive.TYPE_FLOWRUN,
+            "D",
+            date(2020, 8, 1),
+            [
+                {"id": 1, "created_on": "2020-08-01T09:00:00Z", "contact": {"name": "Bob"}},
+                {"id": 2, "created_on": "2020-08-01T10:00:00Z", "contact": {"name": "Jim"}},
+                {"id": 3, "created_on": "2020-08-01T15:00:00Z", "contact": {"name": "Bob"}},
+            ],
+            s3=mock_s3,
+        )
+
+        bucket, key = archive.get_storage_location()
+        self.assertEqual({(bucket, key)}, set(mock_s3.objects.keys()))
+        self.assertEqual(1, len(mock_s3.calls["put_object"]))
+
+        def purge_jim(record):
+            return record if record["contact"]["name"] != "Jim" else None
+
+        archive.rewrite(purge_jim, delete_old=True)
+
+        bucket, new_key = archive.get_storage_location()
+        self.assertNotEqual(key, new_key)
+        self.assertEqual({(bucket, new_key)}, set(mock_s3.objects.keys()))
+
+        self.assertEqual(2, len(mock_s3.calls["put_object"]))
+        self.assertEqual([call(Bucket="s3-bucket", Key=key)], mock_s3.calls["delete_object"])
+
 
 class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_empty_list(self):
@@ -205,8 +238,8 @@ class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
         archive = self.create_archive(Archive.TYPE_MSG, "D", date(2020, 7, 31), [{"id": 1}, {"id": 2}])
 
         download_url = (
-            f"https://s3-bucket.s3.amazonaws.com/things/{archive.hash}.jsonl.gz?response-content-disposition="
-            f"attachment%3B&response-content-type=application%2Foctet&response-content-encoding=none"
+            f"https://s3-bucket.s3.amazonaws.com/{self.org.id}/message_D20200731_{archive.hash}.jsonl.gz?response-con"
+            f"tent-disposition=attachment%3B&response-content-type=application%2Foctet&response-content-encoding=none"
         )
 
         response = self.assertReadFetch(

@@ -16,7 +16,9 @@ from django.utils import timezone
 from temba.utils import json, s3, sizeof_fmt
 from temba.utils.s3 import EventStreamReader
 
-S3_KEY_PATTERN = re.compile(r"/(?P<org>\d)/(?P<type>run|message)_(?P<period>D|M\d+)_(?P<hash>[0-9a-f]{32})\.jsonl\.gz")
+KEY_PATTERN = re.compile(
+    r"^(?P<org>\d+)/(?P<type>run|message)_(?P<period>(D|M)\d+)_(?P<hash>[0-9a-f]{32})\.jsonl\.gz$"
+)
 
 
 class Archive(models.Model):
@@ -217,16 +219,16 @@ class Archive(models.Model):
         bucket, key = self.get_storage_location()
 
         s3_obj = s3_client.get_object(Bucket=bucket, Key=key)
-        old_file = gzip.GzipFile(fileobj=s3_obj["Body"])
+        old_file = s3_obj["Body"]
 
         new_file = tempfile.TemporaryFile()
         new_hash, new_size = jsonlgz_rewrite(old_file, new_file, transform)
 
         new_file.seek(0)
 
-        match = S3_KEY_PATTERN.match(key)
-        new_key = f"/{self.org.id}/{match.group('type')}_{match.group('period')}_{new_hash}.jsonl.gz"
-        new_url = f"https://{bucket}.s3.amazonaws.com{new_key}"
+        match = KEY_PATTERN.match(key)
+        new_key = f"{self.org.id}/{match.group('type')}_{match.group('period')}_{new_hash}.jsonl.gz"
+        new_url = f"https://{bucket}.s3.amazonaws.com/{new_key}"
 
         s3_client.put_object(
             Bucket=bucket,
@@ -311,8 +313,8 @@ class FileAndHash:
         self.hash.update(data)
         self.size += len(data)
 
-    def flush(self):
+    def flush(self):  # pragma: no cover
         self.f.flush()
 
-    def close(self):
+    def close(self):  # pragma: no cover
         self.f.close()

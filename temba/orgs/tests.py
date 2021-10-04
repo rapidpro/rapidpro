@@ -57,7 +57,7 @@ from temba.tests import (
     mock_mailroom,
 )
 from temba.tests.engine import MockSessionWriter
-from temba.tests.s3 import MockS3Client
+from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
@@ -801,6 +801,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         def create_archive(org, period, rollup=None):
             file = f"{org.id}/archive{Archive.objects.all().count()}.jsonl.gz"
+            body, md5, size = jsonlgz_encode([{"id": 1}])
             archive = Archive.objects.create(
                 org=org,
                 url=f"http://{settings.ARCHIVE_BUCKET}.aws.com/{file}",
@@ -809,8 +810,10 @@ class OrgDeleteTest(TembaNonAtomicTest):
                 archive_type=Archive.TYPE_MSG,
                 period=period,
                 rollup=rollup,
+                size=size,
+                hash=md5,
             )
-            self.mock_s3.put_jsonl(settings.ARCHIVE_BUCKET, file, [])
+            self.mock_s3.put_object(settings.ARCHIVE_BUCKET, file, body)
             return archive
 
         # parent archives
@@ -822,7 +825,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         create_archive(self.child_org, Archive.PERIOD_MONTHLY, daily)
 
         # extra S3 file in child archive dir
-        self.mock_s3.put_jsonl(settings.ARCHIVE_BUCKET, f"{self.child_org.id}/extra_file.json", [])
+        self.mock_s3.put_object(settings.ARCHIVE_BUCKET, f"{self.child_org.id}/extra_file.json", io.StringIO("[]"))
 
         # add a ticketer and ticket
         ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob)", {})
