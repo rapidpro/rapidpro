@@ -273,7 +273,7 @@ class JSONLGZTest(TembaTest):
             in_file = io.BytesIO(b)
             out_file = io.BytesIO()
             md5, size = jsonlgz_rewrite(in_file, out_file, transform)
-            return out_file.getvalue(), md5, size
+            return out_file.getvalue(), md5.hexdigest(), size
 
         data = b'{"id": 123, "name": "Jim"}\n{"id": 234, "name": "Bob"}\n{"id": 345, "name": "Ann"}\n'
         gzipped = gzip.compress(data)
