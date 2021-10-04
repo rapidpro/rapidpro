@@ -206,7 +206,7 @@ class ArchiveTest(TembaTest):
 
         self.assertEqual(2, len(mock_s3.calls["put_object"]))
 
-        kwargs = mock_s3.calls["put_object"][1].kwargs
+        kwargs = mock_s3.calls["put_object"][1][2]
         self.assertEqual("s3-bucket", kwargs["Bucket"])
         self.assertEqual(f"{self.org.id}/run_D20200801_{archive.hash}.jsonl.gz", kwargs["Key"])
         self.assertEqual(hash_b64, kwargs["ContentMD5"])
