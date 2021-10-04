@@ -1,3 +1,7 @@
+v6.5.56
+----------
+ * Encode content hashes sent to S3 using Base64
+
 v6.5.55
 ----------
  * Trim mailgun ticketer names to <= 64 chars when creating
