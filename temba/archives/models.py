@@ -228,9 +228,9 @@ class Archive(models.Model):
         new_file.seek(0)
 
         match = KEY_PATTERN.match(key)
-        new_key = f"{self.org.id}/{match.group('type')}_{match.group('period')}_{new_hash}.jsonl.gz"
+        new_key = f"{self.org.id}/{match.group('type')}_{match.group('period')}_{new_hash.hexdigest()}.jsonl.gz"
         new_url = f"https://{bucket}.s3.amazonaws.com/{new_key}"
-        new_hash_base64 = base64.standard_b64encode(new_hash.digest())
+        new_hash_base64 = base64.standard_b64encode(new_hash.digest()).decode()
 
         s3_client.put_object(
             Bucket=bucket,
@@ -244,7 +244,7 @@ class Archive(models.Model):
         )
 
         self.url = new_url
-        self.hash = new_hash
+        self.hash = new_hash.hexdigest()
         self.size = new_size
         self.save(update_fields=("url", "hash", "size"))
 
