@@ -190,7 +190,6 @@ class Event:
                 "closed_on": ticket.closed_on.isoformat() if ticket.closed_on else None,
                 "topic": _topic(ticket.topic) if ticket.topic else None,
                 "status": ticket.status,
-                "subject": ticket.subject,
                 "body": ticket.body,
                 "ticketer": {"uuid": str(ticket.ticketer.uuid), "name": ticket.ticketer.name},
             },
