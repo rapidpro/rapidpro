@@ -69,7 +69,7 @@ class Command(BaseCommand):  # pragma: no cover
             record["path"] = record["path"][:MAX_PATH_LEN]
             progress["records"] += 1
 
-            if progress["records"] % 10_000 == 0:
+            if progress["records"] % 100_000 == 0:
                 percent = 100 * progress["records"] // archive.record_count
                 self.stdout.write(f"    ⏳ {percent}%")
 
