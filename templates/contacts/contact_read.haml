@@ -58,8 +58,6 @@
     }
 
     function handleDetailsToggled() {
-      console.log("clicked!");
-
       var summary = document.querySelector(".details .summary");
       var expanded = document.querySelector(".details .expanded");
       var icon = document.querySelector(".details temba-icon");
@@ -78,42 +76,6 @@
 
 -block spa-style
   :css
-    temba-contact-history {
-      background: #fff;
-    }
-
-    .history-wrapper {
-      display: flex;
-      flex-grow:1;
-      flex-direction: column;
-      background: #fff;
-      overflow:hidden;
-      border-radius: var(--curvature);
-      -webkit-mask-image: -webkit-radial-gradient(white, black);
-    }
-
-    .outer-shadow {
-      border-radius: var(--curvature);
-      display: flex;
-      flex-grow:1;
-    }
-
-    .details:hover temba-icon {
-      opacity:1;
-      transform: scale(1);
-    }
-
-    .details temba-icon {
-      opacity:0;
-      transition: all 100ms ease-in-out;
-      transition-delay: 400ms;
-      transform: scale(.3);
-      cursor: pointer;
-    }
-
-    .summary {
-
-    }
 
 -block spa-body  
   .flex.flex-col(style="height:100%")
@@ -643,8 +605,6 @@
       // reset our modal
       window.setTimeout(function(){ modax.endpoint = endpoint;}, 1000);
     });
-    
-
 
     {% endif %}
 
