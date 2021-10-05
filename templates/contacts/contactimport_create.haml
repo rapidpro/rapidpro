@@ -1,5 +1,6 @@
 -extends "smartmin/form.html"
 -load smartmin i18n humanize
+-load static
 
 -block title
   -trans "Import Contacts"
@@ -8,6 +9,11 @@
   .flex.mb-4.flex-col(style="min-height:41px")
     -blocktrans trimmed
       You can import contacts from an Excel spreadsheet or comma separated values file.
+    -if can_validate_upload
+      -blocktrans trimmed
+        Using the option at the end, you will have 2 groups, one containing Mobile and VOIP (contacts that you can reach using SMS) and one with landlines (contacts that you can only reach calling).
+
+        Contacts will also have new contact fields by default, Carrier Type(Mobile VOIP, Landline) and Carrier Name (T-Mobile, AT&T, Sprint…)
 
     %table#example.list.my-6
       %tr
@@ -93,6 +99,15 @@
           {{ form.non_field_errors }}
 
       -block fields
+        -if can_validate_upload
+          %temba-checkbox#validate-upload-input(type="checkbox" name="validate_carrier" label="Import Verified Contacts")
+          %i#validate-upload-tooltip(
+            class="fa fa-info-circle"
+            data-toggle="popover"
+            title="Import verified contact"
+            data-content="<p>By checking this box you will the list of contacts against Twilo’s Lookup API to verify whether contacts are mobile/VOIP or Landlines.</p> <p>At the end of this process, you will have a group for each type.</p><p> For inactive contacts or we are not able to identify carrier or phone type, we will not import them into the platform.</p> <p>For Mobile/VOIP  type contacts, we will create groups of 50k contacts. For Landlines, we will create groups of 10k contacts</p>"
+          )
+
         .mt-4.mb-6.text-error
           {{ form.file.errors }}
         #file-upload
@@ -109,7 +124,9 @@
 
 -block extra-script
   {{ block.super }}
+  %script(src='{% static "bower/bootstrap/js/bootstrap-popover.js" %}')
   :javascript
+    $('#validate-upload-tooltip').popover({ html: true, trigger: 'hover' })
     function onFileChange() {
       var file = $('#import-file').val();
       while (file.indexOf('\\') >= 0) {
@@ -120,6 +137,8 @@
 
 
 -block extra-style
+  %link(rel='stylesheet' type='text/css' href='{% static "@fortawesome/fontawesome-free/css/all.css" %}')
+
   :css
     input {
       padding: 9px;
@@ -166,4 +185,28 @@
       filter: alpha(opacity: 0);
       opacity: 0;
       z-index: 2;
+    }
+
+    #validate-upload-text {
+      font-weight: bold !important;
+      padding-left: 10px;
+    }
+
+    #validate-upload-label {
+      padding: 10px;
+      display: inline-block;
+    }
+
+    #validate-upload-input {
+      display: inline-block;
+    }
+    #validate-upload-input .checkbox-label {
+      font-weight: bold;
+    }
+
+    #validate-upload-tooltip {
+      cursor: pointer;
+    }
+    #validate-upload-tooltip p {
+      padding-bottom: 10px;
     }
