@@ -1006,6 +1006,7 @@ DATABASES = {
 # confused on Python 3.6 with transactional tests otherwise
 if TESTING:
     DATABASES["default"] = _direct_database_config
+    DATABASES["read_only_db"] = _direct_database_config
 
 INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
 
