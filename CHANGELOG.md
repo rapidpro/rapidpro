@@ -1,3 +1,8 @@
+v6.5.59
+----------
+ * Less progress updates in audit_archives
+ * Tweak tickets API endpoint to accept a uuid URL param
+
 v6.5.58
 ----------
  * Add progress feedback to audit_archives
