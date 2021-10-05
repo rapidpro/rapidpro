@@ -1,3 +1,8 @@
+v6.5.58
+----------
+ * Add progress feedback to audit_archives
+ * Update locale files
+
 v6.5.57
 ----------
  * Fix Archive.rewrite
