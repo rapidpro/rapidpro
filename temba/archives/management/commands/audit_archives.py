@@ -63,11 +63,19 @@ class Command(BaseCommand):  # pragma: no cover
 
         bucket, key = archive.get_storage_location()
 
+        progress = {"records": 0}
+
         def trim_path(record) -> dict:
             record["path"] = record["path"][:MAX_PATH_LEN]
+            progress["records"] += 1
+
+            if progress["records"] % 10_000 == 0:
+                percent = 100 * progress["records"] // archive.record_count
+                self.stdout.write(f"    ⏳ {percent}%")
+
             return record
 
         archive.rewrite(trim_path, delete_old=True)
         bucket, new_key = archive.get_storage_location()
 
-        self.stdout.write(f"    🔧 {key} replaced by {new_key}")
+        self.stdout.write(f"    ✅️ {key} replaced by {new_key}")
