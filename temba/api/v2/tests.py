@@ -4562,7 +4562,7 @@ class APITest(TembaTest):
         self.assertEqual("Bob", resp_json["results"][0]["contact"]["name"])
 
         # filter further by ticket uuid
-        response = self.fetchJSON(url, f"ticket={ticket3.uuid}")
+        response = self.fetchJSON(url, f"uuid={ticket3.uuid}")
         resp_json = response.json()
         self.assertEqual(1, len(resp_json["results"]))
 
