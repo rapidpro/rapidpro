@@ -17,7 +17,7 @@
 
     temba-textinput[name='new_path'] {
       --temba-textinput-padding: 10px;
-      margin-top:16px;
+      margin-top:21px;
       margin-left:5px;
       width:345px
     }
@@ -44,7 +44,7 @@
     });
 
     function createMoveLinks() {
-      var body = document.querySelector("#edit-contact").shadowRoot.querySelector(".modax-body");
+      var body = document.querySelector("#edit-contact, #gear-modax").shadowRoot.querySelector(".modax-body");
 
       $(body).find('.order-helper').remove();
 
@@ -74,7 +74,7 @@
     }
 
     function moveUp(link) {
-      var body = document.querySelector("#edit-contact").shadowRoot.querySelector(".modax-body");
+      var body = document.querySelector("#edit-contact, #gear-modax").shadowRoot.querySelector(".modax-body");
       var group = $(body).find('#' + link).parents('.control-group');
       var previous = group.prev();
       previous.before(group);
