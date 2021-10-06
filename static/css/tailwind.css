@@ -1530,7 +1530,8 @@ a:hover {
 .page-title {
   font-size: 1.875rem;
   --tw-text-opacity: 1;
-  color: rgba(74, 74, 74, var(--tw-text-opacity))
+  color: rgba(74, 74, 74, var(--tw-text-opacity));
+  --icon-color: rgb(77,77,77);
 }
 
 .page-subtitle {
@@ -1942,6 +1943,10 @@ code {
 .hover-box:hover {
     box-shadow: var(--widget-box-shadow-focused);
   }
+
+.safari-scroll-clip {
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+}
 
 .formax .formax-section {
     transition: all 200ms ease-in-out;
