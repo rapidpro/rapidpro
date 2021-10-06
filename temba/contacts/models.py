@@ -2318,9 +2318,10 @@ class ContactImport(SmartModel):
                     self.org, self.created_by, mapping["key"], label=mapping["name"], value_type=mapping["value_type"]
                 )
 
-        # create the destination group
-        self.group = ContactGroup.create_static(self.org, self.created_by, self._default_group_name())
-        self.save(update_fields=("group",))
+        if not self.validate_carrier:
+            # create the destination group
+            self.group = ContactGroup.create_static(self.org, self.created_by, self._default_group_name())
+            self.save(update_fields=("group",))
 
         # CSV reader expects str stream so wrap file
         file_type = self._get_file_type()
@@ -2449,7 +2450,7 @@ class ContactImport(SmartModel):
     def _generate_validation_report(self, validated_list: list, carrier_type: str, chunk_size: int) -> list:
         # sort for consistent behavior
         validated_list = sorted(validated_list)
-        group_name = self.group.name
+        group_name = self._default_group_name()
         validated_urn_carriers = []
         count = 0
         for contacts_chunk in chunk_list(validated_list, chunk_size):
@@ -2497,7 +2498,9 @@ class ContactImport(SmartModel):
         Convert a record (dict of headers to values) to a contact spec
         """
 
-        spec = {"groups": [str(self.group.uuid)]}
+        spec = {}
+        if not self.validate_carrier:
+            spec["groups"] = [str(self.group.uuid)]
 
         for value, item in zip(row, self.mappings):
             mapping = item["mapping"]
