@@ -1,3 +1,43 @@
+v6.5.60
+----------
+ * Add option to audit_archives to check flow run counts
+ * Drop no longer used ticket subject column
+ * Add contact read page based on contact chat component
+
+v6.5.59
+----------
+ * Less progress updates in audit_archives
+ * Tweak tickets API endpoint to accept a uuid URL param
+
+v6.5.58
+----------
+ * Add progress feedback to audit_archives
+ * Update locale files
+
+v6.5.57
+----------
+ * Fix Archive.rewrite
+
+v6.5.56
+----------
+ * Encode content hashes sent to S3 using Base64
+
+v6.5.55
+----------
+ * Trim mailgun ticketer names to <= 64 chars when creating
+ * Management command to audit archives
+ * Use field limiting on omnibox searches
+
+v6.5.54
+----------
+ * Fix S3 select query generation for date fields
+
+v6.5.53
+----------
+ * Disable all sentry transactions
+ * Use S3 select for flow result exports
+ * Add utils for compiling S3 select queries
+
 v6.5.52
 ----------
  * Merge pull request #3555 from nyaruka/ticket-att

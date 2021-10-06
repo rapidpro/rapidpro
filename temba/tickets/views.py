@@ -250,7 +250,6 @@ class TicketCRUDL(SmartCRUDL):
                         "uuid": str(t.uuid),
                         "assignee": user_as_json(t.assignee) if t.assignee else None,
                         "topic": topic_as_json(t.topic) if t.topic else None,
-                        "subject": t.subject,
                         "body": t.body,
                         "last_activity_on": t.last_activity_on,
                         "closed_on": t.closed_on,

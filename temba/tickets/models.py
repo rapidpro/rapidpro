@@ -239,9 +239,6 @@ class Ticket(models.Model):
     # when this ticket last had activity which includes messages being sent and received, and is used for ordering
     last_activity_on = models.DateTimeField(default=timezone.now)
 
-    # TODO deprecated, remove
-    subject = models.TextField(null=True)
-
     def assign(self, user: User, *, assignee: User, note: str):
         self.bulk_assign(self.org, user, [self], assignee=assignee, note=note)
 

@@ -4562,21 +4562,9 @@ class APITest(TembaTest):
         self.assertEqual("Bob", resp_json["results"][0]["contact"]["name"])
 
         # filter further by ticket uuid
-        response = self.fetchJSON(url, f"ticket={ticket3.uuid}")
+        response = self.fetchJSON(url, f"uuid={ticket3.uuid}")
         resp_json = response.json()
         self.assertEqual(1, len(resp_json["results"]))
-
-        # close one of the tickets
-        self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "closed"})
-
-        # check that triggered a call to mailroom
-        mock_ticket_close.assert_called_once_with(self.org.id, self.admin.id, [ticket1.id], force=False)
-
-        # reopen a ticket
-        self.postJSON(url, f"uuid={ticket2.uuid}", {"status": "open"})
-
-        # check that triggered a call to mailroom
-        mock_ticket_reopen.assert_called_once_with(self.org.id, self.admin.id, [ticket2.id])
 
     @mock_mailroom
     def test_ticket_actions(self, mr_mocks):

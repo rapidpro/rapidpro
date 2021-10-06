@@ -37,8 +37,7 @@ from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
 from temba.tests.engine import MockSessionWriter
-from temba.tests.s3 import MockS3Client
-from temba.utils.uuid import uuid4
+from temba.tests.s3 import MockS3Client, jsonlgz_encode
 
 from .tasks import retry_errored_messages, squash_msgcounts
 from .templatetags.sms import as_icon
@@ -383,29 +382,20 @@ class MsgTest(TembaTest):
         msg3.save()
 
         # archive 5 msgs
+        mock_s3 = MockS3Client()
+        body, md5, size = jsonlgz_encode([m.as_archive_json() for m in (msg1, msg2, msg3, msg4, msg5, msg6)])
+        mock_s3.put_object("test-bucket", "archive1.jsonl.gz", body)
+
         Archive.objects.create(
             org=self.org,
             archive_type=Archive.TYPE_MSG,
-            size=10,
-            hash=uuid4().hex,
+            size=size,
+            hash=md5,
             url="http://test-bucket.aws.com/archive1.jsonl.gz",
             record_count=6,
             start_date=msg5.created_on.date(),
             period="D",
             build_time=23425,
-        )
-        mock_s3 = MockS3Client()
-        mock_s3.put_jsonl(
-            "test-bucket",
-            "archive1.jsonl.gz",
-            [
-                msg1.as_archive_json(),
-                msg2.as_archive_json(),
-                msg3.as_archive_json(),
-                msg4.as_archive_json(),
-                msg5.as_archive_json(),
-                msg6.as_archive_json(),
-            ],
         )
 
         msg2.release()
@@ -415,18 +405,19 @@ class MsgTest(TembaTest):
         msg6.release()
 
         # create an archive earlier than our flow created date so we check that it isn't included
+        body, md5, size = jsonlgz_encode([msg7.as_archive_json()])
         Archive.objects.create(
             org=self.org,
             archive_type=Archive.TYPE_MSG,
-            size=10,
-            hash=uuid4().hex,
+            size=size,
+            hash=md5,
             url="http://test-bucket.aws.com/archive2.jsonl.gz",
             record_count=1,
             start_date=self.org.created_on - timedelta(days=2),
             period="D",
             build_time=5678,
         )
-        mock_s3.put_jsonl("test-bucket", "archive2.jsonl.gz", [msg7.as_archive_json()])
+        mock_s3.put_object("test-bucket", "archive2.jsonl.gz", body)
 
         msg7.release()
 

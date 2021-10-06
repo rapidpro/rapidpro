@@ -38,22 +38,21 @@ class IDSliceQuerySet(models.query.RawQuerySet):
     QuerySet defined by a model, set of ids, offset and total count
     """
 
-    def __init__(self, model, ids, *, offset, total, using="default", _raw_query=None):
+    def __init__(self, model, ids, *, offset, total, only=None, using="default", _raw_query=None):
         if _raw_query:
             # we're being cloned so can reuse our SQL query
             raw_query = _raw_query
         else:
+            cols = ", ".join([f"t.{f}" for f in only]) if only else "t.*"
+            table = model._meta.db_table
+
             if len(ids) > 0:
                 # build a list of sequence to model id, so we can sort by the sequence in our results
-                pairs = ",".join(str((seq, model_id)) for seq, model_id in enumerate(ids, start=1))
+                pairs = ", ".join(str((seq, model_id)) for seq, model_id in enumerate(ids, start=1))
 
-                raw_query = f"""SELECT model.* FROM {model._meta.db_table} AS model
-                JOIN (VALUES {pairs}) tmp_resultset (seq, model_id)
-                ON model.id = tmp_resultset.model_id
-                ORDER BY tmp_resultset.seq
-                """
+                raw_query = f"""SELECT {cols} FROM {table} t JOIN (VALUES {pairs}) tmp_resultset (seq, model_id) ON t.id = tmp_resultset.model_id ORDER BY tmp_resultset.seq"""
             else:
-                raw_query = f"""SELECT * FROM {model._meta.db_table} WHERE id < 0"""
+                raw_query = f"""SELECT {cols} FROM {table} t WHERE t.id < 0"""
 
         super().__init__(raw_query, model, using=using)
 

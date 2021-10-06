@@ -29,7 +29,7 @@ from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tests.s3 import MockS3Client
+from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -5217,11 +5217,10 @@ class ExportFlowResultsTest(TembaTest):
         old_archive_format["values"] = [old_archive_format["values"]]
 
         mock_s3 = MockS3Client()
-        mock_s3.put_jsonl(
-            "test-bucket",
-            "archive1.jsonl.gz",
-            [contact1_run.as_archive_json(), old_archive_format, contact2_other_flow.as_archive_json()],
+        body, md5, size = jsonlgz_encode(
+            [contact1_run.as_archive_json(), old_archive_format, contact2_other_flow.as_archive_json()]
         )
+        mock_s3.put_object("test-bucket", "archive1.jsonl.gz", body)
 
         contact1_run.release()
         contact2_run.release()
@@ -5238,7 +5237,8 @@ class ExportFlowResultsTest(TembaTest):
             period="D",
             build_time=5678,
         )
-        mock_s3.put_jsonl("test-bucket", "archive2.jsonl.gz", [contact2_run.as_archive_json()])
+        body, md5, size = jsonlgz_encode([contact2_run.as_archive_json()])
+        mock_s3.put_object("test-bucket", "archive2.jsonl.gz", body)
 
         with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = self._export(flow)

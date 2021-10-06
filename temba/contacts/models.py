@@ -1247,7 +1247,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # otherwise return highest priority of any scheme
             return urns[0] if urns else None
 
-    def get_display(self, org=None, formatted=True, short=False, for_expressions=False):
+    def get_display(self, org=None, formatted=True, short=False):
         """
         Gets a displayable name or URN for the contact. If available, org can be provided to avoid having to fetch it
         again based on the contact.
@@ -1258,7 +1258,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if self.name:
             res = self.name
         elif org.is_anon:
-            res = self.id if for_expressions else self.anon_identifier
+            res = self.anon_identifier
         else:
             res = self.get_urn_display(org=org, formatted=formatted)
 

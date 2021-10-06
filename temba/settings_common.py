@@ -16,16 +16,12 @@ from celery.schedules import crontab
 SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
 
 
-def traces_sampler(sampling_context):  # pragma: no cover
-    return 0 if ("shell" in sys.argv) else 0.01
-
-
 if SENTRY_DSN:  # pragma: no cover
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration(), CeleryIntegration(), LoggingIntegration()],
         send_default_pii=True,
-        traces_sampler=traces_sampler,
+        traces_sample_rate=0,
     )
     ignore_logger("django.security.DisallowedHost")
 
