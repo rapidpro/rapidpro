@@ -747,7 +747,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return HttpResponse(json.dumps(json_result), content_type="application/json")
 
-    class Read(OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         fields = ("name",)
 
@@ -1397,7 +1397,11 @@ class ContactCRUDL(SmartCRUDL):
                     attrs={"widget_only": True, "searchable": True, "placeholder": _("Select a field to update")}
                 ),
             )
-            field_value = forms.CharField(required=False)
+
+            field_value = forms.CharField(
+                required=False,
+                widget=InputWidget({"hide_label": True, "textarea": True}),
+            )
 
             def __init__(self, user, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
