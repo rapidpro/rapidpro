@@ -1442,28 +1442,6 @@ class TicketReadSerializer(ReadSerializer):
         fields = ("uuid", "ticketer", "contact", "status", "topic", "body", "assignee", "opened_on", "closed_on")
 
 
-class TicketWriteSerializer(WriteSerializer):
-    STATUSES = {"open": Ticket.STATUS_OPEN, "closed": Ticket.STATUS_CLOSED}
-
-    status = serializers.CharField(required=True)
-
-    def validate_status(self, value):
-        return self.STATUSES[value]
-
-    def save(self):
-        """
-        Update our ticket
-        """
-        status = self.validated_data.get("status")
-        if self.instance:
-            if status == Ticket.STATUS_CLOSED:
-                Ticket.bulk_close(self.context["org"], self.context["user"], [self.instance])
-            elif status == Ticket.STATUS_OPEN:
-                Ticket.bulk_reopen(self.context["org"], self.context["user"], [self.instance])
-
-        return self.instance
-
-
 class TicketBulkActionSerializer(WriteSerializer):
     ACTION_ASSIGN = "assign"
     ACTION_ADD_NOTE = "add_note"
