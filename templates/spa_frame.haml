@@ -84,7 +84,7 @@
       padding-top:0em;
       padding-right: 0em;
       padding-left: 0em;
-      
+      height: 100%;      
     }
 
     .lp-frame .left { 
@@ -410,7 +410,7 @@
 
 
     function goto(event, ele) {
-       if (!ele) {
+      if (!ele) {
         ele = event.target;
       }
 
@@ -457,23 +457,35 @@
       menu.refresh();
     }
 
+    function gotoURL(urlToGo, urlToShow, ignoreEvents) {
+        var refererPath = window.location.pathname;
+        window.lastFetch = urlToGo;
+        window.history.pushState({ url: urlToGo,  },"", urlToShow);
+        fetchPJAXContent(urlToGo, ".spa-content", { "headers": { 
+            "TEMBA-SPA": "1", 
+            "TEMBA-REFERER-PATH": refererPath,
+            "TEMBA-PATH": urlToShow
+            }, 
+          "onSuccess": hideLoading, "ignoreEvents": ignoreEvents
+        });
+    }
+
     function fetchURL(url, triggerEvents) {
       showLoading();
-
       var refererPath = window.location.pathname;
-      
       window.lastFetch = url;
       var menu = document.querySelector("temba-menu");
       var path = "/" + menu.getSelection().join("/") + "/";
-      window.history.pushState({ url: url,  },"", path);
 
-      fetchPJAXContent(url, ".spa-content", { "headers": { 
-          "TEMBA-SPA": "1", 
-          "TEMBA-REFERER-PATH": refererPath,
-          "TEMBA-PATH": path
-          }, 
-        "onSuccess": hideLoading, "ignoreEvents": !triggerEvents
-      });
+      if (url.indexOf("/contact/read/") == 0) {
+        path = url.replace("/contact/read/", "/contacts/read/");
+      }
+
+      if (url.indexOf("/contact/filter/") == 0) {
+        path = url.replace("/contact/filter/", "/contacts/filter/");
+      }
+
+      gotoURL(url, path, !triggerEvents);
     }
    
     function handleMenuChanged(event) {
@@ -494,6 +506,14 @@
       }
     }
 
+    function handleNoPath(event) {
+      var details = event.detail;
+      if (details.item == "contacts") {
+        console.log("No path loading", "/" + details.item + "/" + details.path)
+        gotoURL("/contact/" + details.path, "/" + details.item + "/" + details.path);
+      }
+    }
+
 -block temba-store
   %temba-store(
     completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
@@ -510,7 +530,7 @@
   .flex-col
     .flex.widget-container(style="height:100vh;")
       .folders       
-        %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true")
+        %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)")
       .flex-grow.text-lg.spa-container.p-5
         .spa-content
   

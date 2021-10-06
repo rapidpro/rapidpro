@@ -17,6 +17,17 @@
       });
     }
   {% endif %}
+  :javascript
+    function handleRowClicked(event) {
+      if (event.target.tagName == "TEMBA-CHECKBOX") {
+        return;
+      }
+
+      var row = event.target.closest("tr");
+      var uuid = row.getAttribute("data-uuid");
+
+      fetchURL("/contact/filter/" + uuid + "/");
+    }
 
 
 -block spa-body
@@ -51,14 +62,14 @@
           %thead
           %tbody
             - for obj in object_list
-              %tr.select-row.object-row(data-uuid="{{obj.uuid}}" data-object-id="{{obj.id}}")
+              %tr.select-row.object-row(onclick='handleRowClicked(event)' data-uuid="{{obj.uuid}}" data-object-id="{{obj.id}}")
                 -if org_perms.contacts.contactgroup_update
-                  %td.checkbox.object-row-checkbox
+                  %td.checkbox.object-row-checkbox(style="width:0px")
                     %temba-checkbox(onclick="handleRowSelection(this)")
 
                 %td.pl-2(style="{%if not org_perms.contacts.contactgroup_update %}padding-left:0px;{%endif%}")
                   -if org_perms.contacts.contactfield_update
-                    .overflow-ellipsis.overflow-hidden.whitespace-nowrap.hover-linked.update.pr-4(style="max-width:64rem" onclick="")
+                    .overflow-ellipsis.overflow-hidden.whitespace-nowrap.update.pr-4(style="max-width:64rem" onclick="")
                       {{ obj.name }}                          
                   -else
                     .w-128

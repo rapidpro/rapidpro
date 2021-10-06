@@ -36,7 +36,6 @@ from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableMo
 from temba.utils.text import decode_stream, truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
-
 from .search import SearchException, elastic, parse_query
 
 logger = logging.getLogger(__name__)
@@ -1654,6 +1653,13 @@ class ContactGroup(TembaModel, DependencyMixin):
     @classmethod
     def apply_action_delete(cls, user, groups):
         groups.update(is_active=False, modified_by=user)
+
+        from .tasks import release_group_task
+
+        for group in groups:
+            # release each group in a background task
+            on_transaction_commit(lambda: release_group_task.delay(group.id))
+
         # update flow issues, campaigns, etc
 
     def get_icon(self):

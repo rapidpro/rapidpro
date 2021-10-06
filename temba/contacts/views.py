@@ -1545,7 +1545,26 @@ class ContactCRUDL(SmartCRUDL):
 
 class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
-    actions = ("list", "create", "update", "usages", "delete")
+    actions = ("list", "create", "update", "usages", "delete", "menu")
+
+    class Menu(OrgPermsMixin, SmartTemplateView):  # pragma: no cover
+        def render_to_response(self, context, **response_kwargs):
+            org = self.request.user.get_org()
+            groups = ContactGroup.get_user_groups(org, ready_only=False).select_related("org").order_by(Upper("name"))
+            group_counts = ContactGroupCount.get_totals(groups)
+
+            menu = []
+            for g in groups:
+                menu.append(
+                    {
+                        "id": g.uuid,
+                        "name": g.name,
+                        "count": group_counts[g],
+                        "href": reverse("contacts.contact_filter", args=[g.uuid]),
+                        "icon": "loader" if g.status != ContactGroup.STATUS_READY else "",
+                    }
+                )
+            return JsonResponse({"results": menu})
 
     class List(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         fields = ("name", "query", "count", "created_on")
@@ -1579,9 +1598,16 @@ class ContactGroupCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             self.group_counts = {}
+            group_type = self.request.GET.get("type", "")
             org = self.request.user.get_org()
             qs = super().get_queryset(**kwargs)
             qs = qs.filter(group_type=ContactGroup.TYPE_USER_DEFINED, org=org, is_active=True)
+
+            if group_type == "smart":
+                qs = qs.exclude(query=None)
+            else:
+                qs = qs.filter(query=None)
+
             return qs
 
     class Create(ComponentFormMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
@@ -1805,31 +1831,16 @@ class ContactFieldCRUDL(SmartCRUDL):
                 qs = ContactField.user_fields
                 active_user_fields = qs.filter(org=org, is_active=True)
                 featured_count = active_user_fields.filter(show_in_table=True).count()
-                type_counts = (
-                    active_user_fields.values("value_type")
-                    .annotate(type_count=Count("value_type"))
-                    .order_by("-type_count", "value_type")
-                )
-                value_type_map = {vt[0]: vt[1] for vt in ContactField.TYPE_CHOICES}
 
                 menu = [
                     {
-                        "name": value_type_map[type_cnt["value_type"]],
-                        "count": type_cnt["type_count"],
-                        "href": reverse("contacts.contactfield_filter_by_type", args=type_cnt["value_type"]),
-                        "id": ContactField.ENGINE_TYPES[type_cnt["value_type"]],
-                    }
-                    for type_cnt in type_counts
-                ]
-
-                menu.append(
-                    {
+                        "icon": "bookmark",
                         "id": "featured",
                         "name": _("Featured"),
                         "count": featured_count,
                         "href": reverse("contacts.contactfield_featured"),
                     }
-                )
+                ]
 
             return JsonResponse({"results": menu})
 

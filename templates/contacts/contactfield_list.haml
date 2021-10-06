@@ -52,6 +52,7 @@
             -if view.search_fields
               %form#search-form.mb-4(method="get")
                 %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+                %input(type="submit" class="hide")
             -else
               -if not is_spa
                 .title
