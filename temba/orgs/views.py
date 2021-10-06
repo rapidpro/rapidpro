@@ -2831,13 +2831,6 @@ class OrgCRUDL(SmartCRUDL):
         success_url = "@orgs.org_home"
         success_message = ""
 
-        def get_context_data(self, **kwargs):
-            from temba.api.models import WebHookResult
-
-            context = super().get_context_data(**kwargs)
-            context["failed_webhooks"] = WebHookResult.get_recent_errored(self.request.user.get_org()).exists()
-            return context
-
     class Prometheus(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ToggleForm(forms.ModelForm):
             class Meta:
@@ -3015,7 +3008,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
 
-            if self.has_org_perm("orgs.org_country"):
+            if self.has_org_perm("orgs.org_country") and org.get_branding().get("location_support"):
                 formax.add_section("country", reverse("orgs.org_country"), icon="icon-location2")
 
             if self.has_org_perm("orgs.org_smtp_server"):

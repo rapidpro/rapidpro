@@ -7,7 +7,6 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 
 from temba.airtime.models import AirtimeTransfer
-from temba.api.models import WebHookResult
 from temba.campaigns.models import EventFire
 from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowExit, FlowRun
@@ -178,21 +177,6 @@ class Event:
         }
 
     @classmethod
-    def from_webhook_result(cls, org: Org, user: User, obj: WebHookResult) -> dict:
-        logs_url = _url_for_user(org, user, "api.webhookresult_read", args=[obj.id])
-
-        return {
-            "type": cls.TYPE_WEBHOOK_CALLED,
-            "created_on": get_event_time(obj).isoformat(),
-            "url": obj.url,
-            "status": "success" if obj.is_success else "response_error",
-            "status_code": obj.status_code,
-            "elapsed_ms": obj.request_time,
-            # additional properties
-            "logs_url": logs_url,
-        }
-
-    @classmethod
     def from_ticket_event(cls, org: Org, user: User, obj: TicketEvent) -> dict:
         ticket = obj.ticket
         return {
@@ -206,7 +190,6 @@ class Event:
                 "closed_on": ticket.closed_on.isoformat() if ticket.closed_on else None,
                 "topic": _topic(ticket.topic) if ticket.topic else None,
                 "status": ticket.status,
-                "subject": ticket.subject,
                 "body": ticket.body,
                 "ticketer": {"uuid": str(ticket.ticketer.uuid), "name": ticket.ticketer.name},
             },
@@ -301,7 +284,6 @@ event_renderers = {
     IVRCall: Event.from_ivr_call,
     Msg: Event.from_msg,
     TicketEvent: Event.from_ticket_event,
-    WebHookResult: Event.from_webhook_result,
 }
 
 # map of history item types to a callable which can extract the event time from that type

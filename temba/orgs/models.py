@@ -1728,14 +1728,12 @@ class Org(SmartModel):
             flow_label.delete()
 
         # delete contact-related data
+        self.http_logs.all().delete()
         self.sessions.all().delete()
         self.ticket_events.all().delete()
         self.tickets.all().delete()
         self.topics.all().delete()
         self.airtime_transfers.all().delete()
-
-        for result in self.webhook_results.all():
-            result.release()
 
         # delete our contacts
         for contact in self.contacts.all():
@@ -1763,9 +1761,6 @@ class Org(SmartModel):
 
             channel.delete()
 
-        for log in self.http_logs.all():
-            log.release()
-
         for g in self.globals.all():
             g.release(user)
 
@@ -1789,8 +1784,7 @@ class Org(SmartModel):
         for topup in self.topups.all():
             topup.release()
 
-        for event in self.webhookevent_set.all():
-            event.release()
+        self.webhookevent_set.all().delete()
 
         for resthook in self.resthooks.all():
             resthook.release(user)

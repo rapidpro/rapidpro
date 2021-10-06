@@ -27,6 +27,7 @@ html {
 
   /* primary colors, should be dark */
   --color-selection: #f0f6ff;
+  --color-row-hover: rgba(var(--selection-light-rgb), .4);
 
   --widget-box-shadow-focused: 0 0 0 3px rgba(164, 202, 254, .45);
   --widget-box-shadow-focused-error: 0 0 0 3px rgba(var(--error-rgb), 0.3);

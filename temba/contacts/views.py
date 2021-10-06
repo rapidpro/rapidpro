@@ -84,6 +84,7 @@ HISTORY_INCLUDE_EVENTS = {
     Event.TYPE_FAILURE,
     Event.TYPE_INPUT_LABELS_ADDED,
     Event.TYPE_RUN_RESULT_CHANGED,
+    Event.TYPE_WEBHOOK_CALLED,
 }
 
 
@@ -309,7 +310,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
                 self.parsed_query = results.query if len(results.query) > 0 else None
                 self.save_dynamic_search = results.metadata.allow_as_group
 
-                return IDSliceQuerySet(Contact, results.contact_ids, offset, results.total)
+                return IDSliceQuerySet(Contact, results.contact_ids, offset=offset, total=results.total)
             except SearchException as e:
                 self.search_error = str(e)
 
@@ -343,9 +344,9 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
             ),
         ]
 
-        # resolve the paginated object list so we can initialize a cache of URNs and fields
+        # resolve the paginated object list so we can initialize a cache of URNs
         contacts = context["object_list"]
-        Contact.bulk_cache_initialize(org, contacts)
+        Contact.bulk_urn_cache_initialize(contacts)
 
         context["contacts"] = contacts
         context["groups"] = self.get_user_groups(org)
@@ -746,7 +747,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return HttpResponse(json.dumps(json_result), content_type="application/json")
 
-    class Read(OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         fields = ("name",)
 
@@ -818,7 +819,7 @@ class ContactCRUDL(SmartCRUDL):
             context["has_sendable_urn"] = has_sendable_urn
 
             # load our contacts values
-            Contact.bulk_cache_initialize(contact.org, [contact])
+            Contact.bulk_urn_cache_initialize([contact])
 
             # lookup all of our contact fields
             all_contact_fields = []
@@ -1049,7 +1050,7 @@ class ContactCRUDL(SmartCRUDL):
                     "total": results.total,
                     "query": results.query,
                     "fields": results.metadata.fields,
-                    "sample": IDSliceQuerySet(Contact, results.contact_ids, 0, results.total)[0:samples],
+                    "sample": IDSliceQuerySet(Contact, results.contact_ids, offset=0, total=results.total)[0:samples],
                 }
             except SearchException as e:
                 return JsonResponse({"total": 0, "sample": [], "query": "", "error": str(e)})
@@ -1396,7 +1397,11 @@ class ContactCRUDL(SmartCRUDL):
                     attrs={"widget_only": True, "searchable": True, "placeholder": _("Select a field to update")}
                 ),
             )
-            field_value = forms.CharField(required=False)
+
+            field_value = forms.CharField(
+                required=False,
+                widget=InputWidget({"hide_label": True, "textarea": True}),
+            )
 
             def __init__(self, user, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)

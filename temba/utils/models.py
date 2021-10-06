@@ -38,30 +38,27 @@ class IDSliceQuerySet(models.query.RawQuerySet):
     QuerySet defined by a model, set of ids, offset and total count
     """
 
-    def __init__(self, model, ids, offset, total):
-        if len(ids) > 0:
-            # build a list of sequence to model id, so we can sort by the sequence in our results
-            pairs = ",".join(str((seq, model_id)) for seq, model_id in enumerate(ids, start=1))
-
-            super().__init__(
-                f"""
-                SELECT
-                  model.*
-                FROM
-                  {model._meta.db_table} AS model
-                JOIN (VALUES {pairs}) tmp_resultset (seq, model_id)
-                ON model.id = tmp_resultset.model_id
-                ORDER BY tmp_resultset.seq
-                """,
-                model,
-            )
+    def __init__(self, model, ids, *, offset, total, only=None, using="default", _raw_query=None):
+        if _raw_query:
+            # we're being cloned so can reuse our SQL query
+            raw_query = _raw_query
         else:
-            super().__init__(f"""SELECT * FROM {model._meta.db_table} WHERE id < 0""", model)
+            cols = ", ".join([f"t.{f}" for f in only]) if only else "t.*"
+            table = model._meta.db_table
 
-        self.model = model
+            if len(ids) > 0:
+                # build a list of sequence to model id, so we can sort by the sequence in our results
+                pairs = ", ".join(str((seq, model_id)) for seq, model_id in enumerate(ids, start=1))
+
+                raw_query = f"""SELECT {cols} FROM {table} t JOIN (VALUES {pairs}) tmp_resultset (seq, model_id) ON t.id = tmp_resultset.model_id ORDER BY tmp_resultset.seq"""
+            else:
+                raw_query = f"""SELECT {cols} FROM {table} t WHERE t.id < 0"""
+
+        super().__init__(raw_query, model, using=using)
+
         self.ids = ids
-        self.total = total
         self.offset = offset
+        self.total = total
 
     def __getitem__(self, k):
         """
@@ -91,7 +88,7 @@ class IDSliceQuerySet(models.query.RawQuerySet):
         return self
 
     def none(self):
-        return IDSliceQuerySet(self.model, [], 0, 0)
+        return IDSliceQuerySet(self.model, [], offset=0, total=0, using=self._db)
 
     def count(self):
         return self.total
@@ -108,7 +105,12 @@ class IDSliceQuerySet(models.query.RawQuerySet):
             else:
                 raise ValueError(f"IDSliceQuerySet instances can only be filtered by pk, not {k}")
 
-        return IDSliceQuerySet(self.model, ids, offset=0, total=len(ids))
+        return IDSliceQuerySet(self.model, ids, offset=0, total=len(ids), using=self._db)
+
+    def _clone(self):
+        return self.__class__(
+            self.model, self.ids, offset=self.offset, total=self.total, using=self._db, _raw_query=self.raw_query
+        )
 
 
 def mapEStoDB(model, es_queryset, only_ids=False):  # pragma: no cover

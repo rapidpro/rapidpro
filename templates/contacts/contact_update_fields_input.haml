@@ -1,14 +1,22 @@
+:css
+  .controls {
+    --textarea-height: 5em;
+  }
+
 %label.control-label
   {{contact_field.get_value_type_display}} Value
 .controls
 	-if contact_field
-		%temba-textinput{ name:'field_value', type:'text', value:'{%if value %}{{value}}{%endif%}' }
+    -if contact_field.get_value_type_display == 'Text'
+      %temba-textinput{ name:'field_value', type:'text', textarea:'true', value:'{%if value %}{{value}}{%endif%}'}
+    -else
+      %temba-textinput{ name:'field_value', type:'text', value:'{%if value %}{{value}}{%endif%}'}
 	-else
 		%temba-textinput{ name:'field_value',	type:'text', disabled:'disabled' }
 
 :javascript
 
-  var modaxBody = document.querySelector("#update-custom-fields").shadowRoot.querySelector(".modax-body");
+  var modaxBody = document.querySelector("#update-custom-fields, #gear-modax").shadowRoot.querySelector(".modax-body");
   
   // aggressively grab focus when we load
   var ele = $(modaxBody).find('temba-textinput[name="field_value"]');

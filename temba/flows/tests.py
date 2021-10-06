@@ -22,14 +22,14 @@ from temba.api.models import Resthook
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.classifiers.models import Classifier
-from temba.contacts.models import URN, ContactField, ContactGroup
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tests.s3 import MockS3Client
+from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -358,38 +358,42 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, reverse("flows.flow_simulate", args=[flow.id]))
 
     def test_editor_feature_filters(self):
-        flow = self.get_flow("color")
+        flow = self.create_flow()
 
         self.login(self.admin)
 
-        def assert_features(features: list):
+        def assert_features(features: set):
             response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-            self.assertEqual(features, json.loads(response.context["feature_filters"]))
+            self.assertEqual(features, set(json.loads(response.context["feature_filters"])))
 
-        # empty feature set
-        assert_features(["ticketer"])
+        # every org has a ticketer now...
+        assert_features({"ticketer"})
 
         # add a resthook
         Resthook.objects.create(org=flow.org, created_by=self.admin, modified_by=self.admin)
-        assert_features(["ticketer", "resthook"])
+        assert_features({"ticketer", "resthook"})
 
         # add an NLP classifier
         Classifier.objects.create(org=flow.org, config="", created_by=self.admin, modified_by=self.admin)
-        assert_features(["classifier", "ticketer", "resthook"])
+        assert_features({"classifier", "ticketer", "resthook"})
 
         # add a DT One integration
         DTOneType().connect(flow.org, self.admin, "login", "token")
-        assert_features(["airtime", "classifier", "ticketer", "resthook"])
+        assert_features({"airtime", "classifier", "ticketer", "resthook"})
 
         # change our channel to use a whatsapp scheme
         self.channel.schemes = [URN.WHATSAPP_SCHEME]
         self.channel.save()
-        assert_features(["whatsapp", "airtime", "classifier", "ticketer", "resthook"])
+        assert_features({"whatsapp", "airtime", "classifier", "ticketer", "resthook"})
 
         # change our channel to use a facebook scheme
         self.channel.schemes = [URN.FACEBOOK_SCHEME]
         self.channel.save()
-        assert_features(["facebook", "airtime", "classifier", "ticketer", "resthook"])
+        assert_features({"facebook", "airtime", "classifier", "ticketer", "resthook"})
+
+        self.setUpLocations()
+
+        assert_features({"facebook", "airtime", "classifier", "ticketer", "resthook", "locations"})
 
     def test_save_revision(self):
         self.login(self.admin)
@@ -3732,7 +3736,14 @@ class ExportFlowResultsTest(TembaTest):
         self.contact3 = self.create_contact("Norbert", phone="+250788123456")
 
     def _export(
-        self, flow, responded_only=False, include_msgs=True, contact_fields=None, extra_urns=(), group_memberships=None
+        self,
+        flow,
+        responded_only=False,
+        include_msgs=True,
+        contact_fields=None,
+        extra_urns=(),
+        group_memberships=None,
+        has_results=True,
     ):
         """
         Exports results for the given flow and returns the generated workbook
@@ -3751,7 +3762,13 @@ class ExportFlowResultsTest(TembaTest):
         if group_memberships:
             form["group_memberships"] = [g.id for g in group_memberships]
 
-        response = self.client.post(reverse("flows.flow_export_results"), form)
+        readonly_models = {FlowRun, ContactGroup, ContactField}
+        if has_results:
+            readonly_models.add(Contact)
+
+        with self.mockReadOnly(assert_models=readonly_models):
+            response = self.client.post(reverse("flows.flow_export_results"), form)
+
         self.assertEqual(response.status_code, 302)
 
         task = ExportFlowResultsTask.objects.order_by("-id").first()
@@ -4706,7 +4723,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # test without msgs or unresponded
         with self.assertNumQueries(37):
-            workbook = self._export(flow, include_msgs=False, responded_only=True)
+            workbook = self._export(flow, include_msgs=False, responded_only=True, has_results=False)
 
         tz = self.org.timezone
         sheet_runs = workbook.worksheets[0]
@@ -5200,11 +5217,10 @@ class ExportFlowResultsTest(TembaTest):
         old_archive_format["values"] = [old_archive_format["values"]]
 
         mock_s3 = MockS3Client()
-        mock_s3.put_jsonl(
-            "test-bucket",
-            "archive1.jsonl.gz",
-            [contact1_run.as_archive_json(), old_archive_format, contact2_other_flow.as_archive_json()],
+        body, md5, size = jsonlgz_encode(
+            [contact1_run.as_archive_json(), old_archive_format, contact2_other_flow.as_archive_json()]
         )
+        mock_s3.put_object("test-bucket", "archive1.jsonl.gz", body)
 
         contact1_run.release()
         contact2_run.release()
@@ -5221,7 +5237,8 @@ class ExportFlowResultsTest(TembaTest):
             period="D",
             build_time=5678,
         )
-        mock_s3.put_jsonl("test-bucket", "archive2.jsonl.gz", [contact2_run.as_archive_json()])
+        body, md5, size = jsonlgz_encode([contact2_run.as_archive_json()])
+        mock_s3.put_object("test-bucket", "archive2.jsonl.gz", body)
 
         with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = self._export(flow)
@@ -5391,7 +5408,7 @@ class ExportFlowResultsTest(TembaTest):
 
         self.assertEqual(flow.get_run_stats()["total"], 0)
 
-        workbook = self._export(flow)
+        workbook = self._export(flow, has_results=False)
 
         self.assertEqual(len(workbook.worksheets), 1)
 

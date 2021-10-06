@@ -48,6 +48,7 @@ class ShaqodoonTypeTest(TembaTest):
         self.assertEqual(post_data["username"], channel.config["username"])
         self.assertEqual(post_data["password"], channel.config["password"])
         self.assertEqual("SQ", channel.channel_type)
+        self.assertEqual(5, channel.tps)
 
         config_url = reverse("channels.channel_configuration", args=[channel.uuid])
         self.assertRedirect(response, config_url)

@@ -491,7 +491,7 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = AdminBoundaryReadSerializer
     pagination_class = Pagination
 
-    def get_queryset(self):
+    def derive_queryset(self):
         org = self.request.user.get_org()
         if not org.country:
             return AdminBoundary.objects.none()
@@ -891,7 +891,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
     write_serializer_class = CampaignEventWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
-    def get_queryset(self):
+    def derive_queryset(self):
         return self.model.objects.filter(campaign__org=self.request.user.get_org(), is_active=True)
 
     def filter_queryset(self, queryset):
@@ -1423,19 +1423,18 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
+            Prefetch("org"),
             Prefetch(
                 "all_groups",
                 queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk"),
                 to_attr="prefetched_user_groups",
-            )
+            ),
         )
 
         return self.filter_before_after(queryset, "modified_on")
 
-    def prepare_for_serialization(self, object_list):
-        # initialize caches of all contact fields and URNs
-        org = self.request.user.get_org()
-        Contact.bulk_cache_initialize(org, object_list)
+    def prepare_for_serialization(self, object_list, using: str):
+        Contact.bulk_urn_cache_initialize(object_list, using=using)
 
     def get_serializer_context(self):
         """
@@ -1785,7 +1784,7 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     pagination_class = CreatedOnCursorPagination
     lookup_params = {"key": "key"}
 
-    def get_queryset(self):
+    def derive_queryset(self):
         org = self.request.user.get_org()
         return self.model.user_fields.filter(org=org, is_active=True)
 
@@ -2193,7 +2192,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True).exclude(status=ContactGroup.STATUS_INITIALIZING)
 
-    def prepare_for_serialization(self, object_list):
+    def prepare_for_serialization(self, object_list, using: str):
         group_counts = ContactGroupCount.get_totals(object_list)
         for group in object_list:
             group.count = group_counts[group]
@@ -2377,7 +2376,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True)
 
-    def prepare_for_serialization(self, object_list):
+    def prepare_for_serialization(self, object_list, using: str):
         label_counts = LabelCount.get_totals(object_list)
         for label in object_list:
             label.count = label_counts[label]
@@ -2535,7 +2534,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         "sent": SystemLabel.TYPE_SENT,
     }
 
-    def get_queryset(self):
+    def derive_queryset(self):
         org = self.request.user.get_org()
         folder = self.request.query_params.get("folder")
 
@@ -3540,9 +3539,9 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             else:
                 queryset = queryset.filter(id=-1)
 
-        ticket_uuid = params.get("ticket")
-        if ticket_uuid:
-            queryset = queryset.filter(uuid=ticket_uuid)
+        uuid = params.get("uuid") or params.get("ticket")
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
 
         # filter by ticketer type if provided, unpublished support for agents
         ticketer_type = params.get("ticketer_type")
@@ -3721,7 +3720,7 @@ class UsersEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = UserReadSerializer
     pagination_class = DateJoinedCursorPagination
 
-    def get_queryset(self):
+    def derive_queryset(self):
         org = self.request.user.get_org()
 
         # limit to roles if specified

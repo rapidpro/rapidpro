@@ -218,8 +218,7 @@ class Ticket(models.Model):
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="tickets")
 
     # ticket content
-    topic = models.ForeignKey(Topic, null=True, on_delete=models.PROTECT, related_name="tickets")
-    subject = models.TextField(null=True)
+    topic = models.ForeignKey(Topic, on_delete=models.PROTECT, related_name="tickets")
     body = models.TextField()
 
     # the external id of the ticket

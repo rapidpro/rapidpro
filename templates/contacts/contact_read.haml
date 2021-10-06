@@ -46,6 +46,41 @@
 
 -block read-buttons
 
+-block spa-script
+  :javascript
+    function handleFieldClicked(event) {
+      var endpoint = '{% url "contacts.contact_update_fields" object.pk %}';
+      var field_id = event.target.closest('.contact-field').getAttribute("data-id");
+      var modax = document.querySelector("#gear-modax");
+      modax.header = '{{_("Update Field")|escapejs}}';
+      modax.endpoint = endpoint + '?field=' + field_id;
+      modax.open = true;
+    }
+
+    function handleDetailsToggled() {
+      var summary = document.querySelector(".details .summary");
+      var expanded = document.querySelector(".details .expanded");
+      var icon = document.querySelector(".details temba-icon");
+      
+      if (summary.classList.contains("hidden")) {
+        summary.classList.remove("hidden");
+        expanded.classList.add("hidden");
+        icon.name = "chevrons-down"
+
+      } else {
+        summary.classList.add("hidden");
+        expanded.classList.remove("hidden");
+        icon.name = "chevrons-up";
+      }
+    }
+
+-block spa-style
+  :css
+
+-block spa-body  
+  .flex.flex-col(style="height:100%")
+    %temba-contact-chat(contact="{{object.uuid}}" monitor="true")
+
 -block content
 
   // Needed for table wrapping on IE 9
@@ -54,7 +89,6 @@
     table.activity { table-layout: fixed; }
   </style>
   <![endif]-->
-
 
   -if all_contact_fields.0.show_in_table
     .bg-gray-100.rounded-lg.p-3.mb-6
@@ -169,7 +203,7 @@
               %span.glyph.icon-ticket
           %td.details.w-full
             %a(href="{% url 'tickets.ticket_list' %}all/open/{{ticket.uuid}}/")
-              {{ ticket.subject }}
+              {{ ticket.body|default:"empty"|truncatechars:64 }}
           %td.created_on
             .pr-6
               {% short_datetime ticket.opened_on %}

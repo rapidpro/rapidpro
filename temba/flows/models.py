@@ -1846,11 +1846,12 @@ class ExportFlowResultsTask(BaseExportTask):
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
         group_memberships = config.get(ExportFlowResultsTask.GROUP_MEMBERSHIPS, [])
 
-        contact_fields = ContactField.user_fields.active_for_org(org=self.org).filter(id__in=contact_field_ids)
-
+        contact_fields = (
+            ContactField.user_fields.active_for_org(org=self.org).filter(id__in=contact_field_ids).using("readonly")
+        )
         groups = ContactGroup.user_groups.filter(
             org=self.org, id__in=group_memberships, status=ContactGroup.STATUS_READY, is_active=True
-        )
+        ).using("readonly")
 
         # get all result saving nodes across all flows being exported
         show_submitted_by = False
@@ -1933,21 +1934,22 @@ class ExportFlowResultsTask(BaseExportTask):
             if earliest_created_on is None or flow.created_on < earliest_created_on:
                 earliest_created_on = flow.created_on
 
-        records = Archive.iter_all_records(self.org, Archive.TYPE_FLOWRUN, after=earliest_created_on)
-        flow_uuids = {str(flow.uuid) for flow in flows}
+        flow_uuids = [str(flow.uuid) for flow in flows]
+        where = {"flow__uuid__in": flow_uuids}
+        if responded_only:
+            where["responded"] = True
+        records = Archive.iter_all_records(self.org, Archive.TYPE_FLOWRUN, after=earliest_created_on, where=where)
         seen = set()
 
         for record_batch in chunk_list(records, 1000):
             matching = []
             for record in record_batch:
-                if record["flow"]["uuid"] in flow_uuids and (not responded_only or record["responded"]):
-                    seen.add(record["id"])
-                    matching.append(record)
-
+                seen.add(record["id"])
+                matching.append(record)
             yield matching
 
         # secondly get runs from database
-        runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on")
+        runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on").using("readonly")
         if responded_only:
             runs = runs.filter(responded=True)
         run_ids = array(str("l"), runs.values_list("id", flat=True))
@@ -1958,7 +1960,10 @@ class ExportFlowResultsTask(BaseExportTask):
 
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (
-                FlowRun.objects.filter(id__in=id_batch).select_related("contact", "flow").order_by("modified_on", "pk")
+                FlowRun.objects.filter(id__in=id_batch)
+                .select_related("contact", "flow")
+                .order_by("modified_on", "id")
+                .using("readonly")
             )
 
             # convert this batch of runs to same format as records in our archives
@@ -1981,7 +1986,11 @@ class ExportFlowResultsTask(BaseExportTask):
         """
         # get all the contacts referenced in this batch
         contact_uuids = {r["contact"]["uuid"] for r in runs}
-        contacts = Contact.objects.filter(org=self.org, uuid__in=contact_uuids).prefetch_related("all_groups")
+        contacts = (
+            Contact.objects.filter(org=self.org, uuid__in=contact_uuids)
+            .prefetch_related("all_groups")
+            .using("readonly")
+        )
         contacts_by_uuid = {str(c.uuid): c for c in contacts}
 
         for run in runs:

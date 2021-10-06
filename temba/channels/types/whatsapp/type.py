@@ -132,6 +132,6 @@ class WhatsAppType(ChannelType):
             raise Exception(f"Could not establish a connection with the WhatsApp server: {ex}")
 
         if response.status_code >= 400:
-            raise Exception(f"Error checking API health: {response.content}")
+            raise requests.RequestException(f"Error checking API health: {response.content}", response=response)
 
-        return response.json()
+        return response

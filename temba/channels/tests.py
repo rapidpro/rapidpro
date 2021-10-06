@@ -36,6 +36,7 @@ from .tasks import (
     squash_channelcounts,
     sync_old_seen_channels_task,
     track_org_channel_counts,
+    trim_channel_log_task,
     trim_sync_events_task,
 )
 
@@ -2631,6 +2632,41 @@ Error: missing request signature""",
 
             # when we can't identify the contact, url, request and response objects are completely masked
             self.assertContains(response, ContactURN.ANON_MASK, count=3)
+
+    def test_trim_task(self):
+        contact = self.create_contact("Fred Jones", phone="12345")
+        msg = self.create_incoming_msg(contact, "incoming msg", channel=self.channel)
+
+        ChannelLog.objects.create(
+            channel=self.channel,
+            msg=msg,
+            description="Successfully Sent",
+            is_error=False,
+            url="htpp://example.com",
+            method="POST",
+            request='{"json": "ok"}',
+            response='{"json": "ok"}',
+            response_status=200,
+            created_on=timezone.now() - timedelta(days=7),
+        )
+        l2 = ChannelLog.objects.create(
+            channel=self.channel,
+            msg=msg,
+            description="Successfully Sent",
+            is_error=False,
+            url="htpp://example.com",
+            method="POST",
+            request='{"json": "ok"}',
+            response='{"json": "ok"}',
+            response_status=200,
+            created_on=timezone.now() - timedelta(days=2),
+        )
+
+        trim_channel_log_task()
+
+        # should only have one log remaining and should be l2
+        self.assertEqual(1, ChannelLog.objects.all().count())
+        self.assertTrue(ChannelLog.objects.filter(id=l2.id))
 
 
 class FacebookWhitelistTest(TembaTest):

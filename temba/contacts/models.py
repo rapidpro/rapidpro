@@ -809,10 +809,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .select_related("event__campaign", "event__relative_to")[:limit]
         )
 
-        webhook_results = self.webhook_results.filter(created_on__gte=after, created_on__lt=before).order_by(
-            "-created_on"
-        )[:limit]
-
         calls = (
             IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
             .exclude(status__in=[IVRCall.STATUS_PENDING, IVRCall.STATUS_WIRED])
@@ -851,7 +847,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             ticket_events,
             channel_events,
             campaign_events,
-            webhook_results,
             calls,
             transfers,
             session_events,
@@ -1199,10 +1194,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 broadcast.contacts.remove(self)
 
     @classmethod
-    def bulk_cache_initialize(cls, org, contacts):
+    def bulk_urn_cache_initialize(cls, contacts, *, using="default"):
         """
-        Performs optimizations on our contacts to prepare them to send. This includes loading all our contact fields for
-        variable substitution.
+        Initializes the URN caches on the given contacts.
         """
         if not contacts:
             return
@@ -1214,16 +1208,15 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             setattr(contact, "_urns_cache", list())
 
         # cache all URN values (a priority ordered list on each contact)
-        urns = ContactURN.objects.filter(contact__in=contact_map.keys()).order_by("contact", "-priority", "pk")
+        urns = (
+            ContactURN.objects.filter(contact__in=contact_map.keys())
+            .using(using)
+            .order_by("contact", "-priority", "id")
+        )
         for urn in urns:
-            urn.org = org
             contact = contact_map[urn.contact_id]
+            urn.org = contact.org
             getattr(contact, "_urns_cache").append(urn)
-
-        # set the cache initialize as correct
-        for contact in contacts:
-            contact.org = org
-            setattr(contact, "__cache_initialized", True)
 
     def get_urns(self):
         """
@@ -1255,7 +1248,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # otherwise return highest priority of any scheme
             return urns[0] if urns else None
 
-    def get_display(self, org=None, formatted=True, short=False, for_expressions=False):
+    def get_display(self, org=None, formatted=True, short=False):
         """
         Gets a displayable name or URN for the contact. If available, org can be provided to avoid having to fetch it
         again based on the contact.
@@ -1266,7 +1259,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if self.name:
             res = self.name
         elif org.is_anon:
-            res = self.id if for_expressions else self.anon_identifier
+            res = self.anon_identifier
         else:
             res = self.get_urn_display(org=org, formatted=formatted)
 
@@ -1926,13 +1919,14 @@ class ExportContactsTask(BaseExportTask):
 
         scheme_counts = dict()
         if not self.org.is_anon:
-            schemes_in_use = sorted(list(self.org.urns.order_by().values_list("scheme", flat=True).distinct()))
+            org_urns = self.org.urns.using("readonly")
+            schemes_in_use = sorted(list(org_urns.order_by().values_list("scheme", flat=True).distinct()))
             scheme_contact_max = {}
 
             # for each scheme used by this org, calculate the max number of URNs owned by a single contact
             for scheme in schemes_in_use:
                 scheme_contact_max[scheme] = (
-                    self.org.urns.filter(scheme=scheme)
+                    org_urns.filter(scheme=scheme)
                     .exclude(contact=None)
                     .values("contact")
                     .annotate(count=Count("contact"))
@@ -1953,7 +1947,10 @@ class ExportContactsTask(BaseExportTask):
                     )
 
         contact_fields_list = (
-            ContactField.user_fields.active_for_org(org=self.org).select_related("org").order_by("-priority", "pk")
+            ContactField.user_fields.active_for_org(org=self.org)
+            .using("readonly")
+            .select_related("org")
+            .order_by("-priority", "pk")
         )
         for contact_field in contact_fields_list:
             fields.append(
@@ -1973,8 +1970,7 @@ class ExportContactsTask(BaseExportTask):
 
     def write_export(self):
         fields, scheme_counts, group_fields = self.get_export_fields_and_schemes()
-
-        group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ACTIVE)
+        group = self.group or self.org.active_contacts_group
 
         include_group_memberships = bool(self.group_memberships.exists())
 
@@ -1993,14 +1989,13 @@ class ExportContactsTask(BaseExportTask):
         for batch_ids in chunk_list(contact_ids, 1000):
             # fetch all the contacts for our batch
             batch_contacts = (
-                Contact.objects.filter(id__in=batch_ids).prefetch_related("all_groups").select_related("org")
+                Contact.objects.filter(id__in=batch_ids).prefetch_related("org", "all_groups").using("readonly")
             )
 
             # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
             contact_by_id = {c.id: c for c in batch_contacts}
 
-            # bulk initialize them
-            Contact.bulk_cache_initialize(self.org, batch_contacts)
+            Contact.bulk_urn_cache_initialize(batch_contacts, using="readonly")
 
             for contact_id in batch_ids:
                 contact = contact_by_id[contact_id]

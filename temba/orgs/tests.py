@@ -22,7 +22,7 @@ from django.utils import timezone
 
 from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
-from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
+from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Alert, Channel, SyncEvent
@@ -57,7 +57,7 @@ from temba.tests import (
     mock_mailroom,
 )
 from temba.tests.engine import MockSessionWriter
-from temba.tests.s3 import MockS3Client
+from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
@@ -801,6 +801,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         def create_archive(org, period, rollup=None):
             file = f"{org.id}/archive{Archive.objects.all().count()}.jsonl.gz"
+            body, md5, size = jsonlgz_encode([{"id": 1}])
             archive = Archive.objects.create(
                 org=org,
                 url=f"http://{settings.ARCHIVE_BUCKET}.aws.com/{file}",
@@ -809,8 +810,10 @@ class OrgDeleteTest(TembaNonAtomicTest):
                 archive_type=Archive.TYPE_MSG,
                 period=period,
                 rollup=rollup,
+                size=size,
+                hash=md5,
             )
-            self.mock_s3.put_jsonl(settings.ARCHIVE_BUCKET, file, [])
+            self.mock_s3.put_object(settings.ARCHIVE_BUCKET, file, body)
             return archive
 
         # parent archives
@@ -822,11 +825,11 @@ class OrgDeleteTest(TembaNonAtomicTest):
         create_archive(self.child_org, Archive.PERIOD_MONTHLY, daily)
 
         # extra S3 file in child archive dir
-        self.mock_s3.put_jsonl(settings.ARCHIVE_BUCKET, f"{self.child_org.id}/extra_file.json", [])
+        self.mock_s3.put_object(settings.ARCHIVE_BUCKET, f"{self.child_org.id}/extra_file.json", io.StringIO("[]"))
 
         # add a ticketer and ticket
         ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob)", {})
-        ticket = self.create_ticket(ticketer, self.org.contacts.first(), body="Help")
+        ticket = self.create_ticket(ticketer, self.org.contacts.first(), "Help")
         ticket.events.create(org=self.org, contact=ticket.contact, event_type="N", note="spam", created_by=self.admin)
 
     def release_org(self, org, child_org=None, delete=False, expected_files=3):
@@ -842,14 +845,6 @@ class OrgDeleteTest(TembaNonAtomicTest):
             resthook = Resthook.get_or_create(org, "registration", self.admin)
             resthook.subscribers.create(target_url="http://foo.bar", created_by=self.admin, modified_by=self.admin)
             WebHookEvent.objects.create(org=org, resthook=resthook, data={})
-            WebHookResult.objects.create(
-                org=self.org,
-                url="http://foo.bar",
-                request="GET http://foo.bar",
-                status_code=200,
-                response="zap!",
-                contact=self.org.contacts.first(),
-            )
 
             TemplateTranslation.get_or_create(
                 self.channel,
@@ -1031,7 +1026,10 @@ class OrgTest(TembaTest):
     def test_country_view(self):
         self.setUpLocations()
 
+        home_url = reverse("orgs.org_home")
         country_url = reverse("orgs.org_country")
+
+        rwanda = AdminBoundary.objects.get(name="Rwanda")
 
         # can't see this page if not logged in
         self.assertLoginRedirect(self.client.get(country_url))
@@ -1042,12 +1040,21 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # save with Rwanda as a country
-        self.client.post(country_url, dict(country=AdminBoundary.objects.get(name="Rwanda").pk))
+        self.client.post(country_url, {"country": rwanda.id})
 
         # assert it has changed
         self.org.refresh_from_db()
         self.assertEqual("Rwanda", str(self.org.country))
         self.assertEqual("RW", self.org.default_country_code)
+
+        response = self.client.get(home_url)
+        self.assertContains(response, "Rwanda")
+
+        # if location support is disabled in the branding, don't display country formax
+        current_branding = settings.BRANDING["rapidpro.io"]
+        with override_settings(BRANDING={"rapidpro.io": {**current_branding, "location_support": False}}):
+            response = self.client.get(home_url)
+            self.assertNotContains(response, "Rwanda")
 
     def test_default_country(self):
         # if country boundary is set and name is valid country, that has priority

@@ -1,0 +1,47 @@
+-extends "smartmin/list.html"
+-load i18n temba humanize
+
+-block page-title
+  {{ title }}
+
+-block title
+  {{ title }}
+
+-block content
+  %table.list.object-list.lined
+    %thead
+      %tr
+        %th
+          -trans "Flow"
+        %th
+          -trans "URL"
+        %th(style="width:100px;")
+          -trans "Status"
+        %th(style="width:100px;")
+          -trans "Elapsed"
+        %th.text-right(style="width:100px;")
+          -trans "Time"
+
+    %tbody
+      -for obj in object_list
+        %tr(class="{% if obj.is_error %}warning{% endif %}")
+          %td.clickable
+            %a(href='{% url "flows.flow_editor" obj.flow.uuid %}')
+              {{ obj.flow.name }}
+          %td.clickable
+            %a(href='{% url "request_logs.httplog_read" obj.id %}')
+              {{ obj.url|truncatechars:128 }}
+          %td.clickable
+            %a(href='{% url "request_logs.httplog_read" obj.id %}')
+              {{ obj.status_code|default:"--" }}
+          %td.whitespace-nowrap
+            -if obj.request_time
+              {{ obj.request_time|intcomma }}ms
+            -else
+              {{ "--" }}
+          %td.text-right.whitespace-nowrap
+            {% format_datetime obj.created_on seconds=True %}
+
+  -block paginator
+    -if object_list.count
+      -include "includes/pagination.haml"
