@@ -897,7 +897,7 @@ class CampaignTest(TembaTest):
         self.assertContains(response, "Archived", count=2)
 
         gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Activate", "Export"])
+        self.assertListEqual([gl["title"] for gl in gear_links], ["Export", "Activate"])
 
     def test_view_campaign_archive(self):
         self.login(self.admin)
@@ -959,9 +959,6 @@ class CampaignTest(TembaTest):
         # page title and main content title should contain Archived
         self.assertContains(response, "Perform the rain dance", count=1)
         self.assertContains(response, "Archived", count=1)
-
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Delete"])
 
     def test_view_campaignevent_update_on_archived_campaign(self):
         self.login(self.admin)

@@ -1,4 +1,5 @@
 import gzip
+import hashlib
 from datetime import date, datetime
 from gettext import gettext as _
 from urllib.parse import urlparse
@@ -213,3 +214,57 @@ class Archive(models.Model):
 
     class Meta:
         unique_together = ("org", "archive_type", "start_date", "period")
+
+
+def jsonlgz_iterate(in_file):
+    """
+    Iterates over a records in a gzipped JSONL stream
+    """
+    in_stream = gzip.GzipFile(fileobj=in_file, mode="r")
+
+    def generator():
+        for line in in_stream:
+            record = json.loads(line.decode("utf-8"))
+            yield record
+
+    return generator()
+
+
+def jsonlgz_rewrite(in_file, out_file, transform) -> tuple:
+    """
+    Rewrites a stream of gzipped JSONL using a transformation function and returns the new MD5 hash and size
+    """
+    out_wrapped = FileAndHash(out_file)
+    out_stream = gzip.GzipFile(fileobj=out_wrapped, mode="w")
+
+    for record in jsonlgz_iterate(in_file):
+        record = transform(record)
+        if record is not None:
+            new_line = (json.dumps(record) + "\n").encode("utf-8")
+            out_stream.write(new_line)
+
+    out_stream.close()
+
+    return out_wrapped.hash, out_wrapped.size
+
+
+class FileAndHash:
+    """
+    Stream which writes to both a child stream and a MD5 hash
+    """
+
+    def __init__(self, f):
+        self.f = f
+        self.hash = hashlib.md5()
+        self.size = 0
+
+    def write(self, data):
+        self.f.write(data)
+        self.hash.update(data)
+        self.size += len(data)
+
+    def flush(self):  # pragma: no cover
+        self.f.flush()
+
+    def close(self):  # pragma: no cover
+        self.f.close()

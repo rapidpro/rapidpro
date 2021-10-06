@@ -950,6 +950,7 @@ class MiddlewareTest(TembaTest):
         with self.settings(BRANDING=branding):
             self.assertRedirect(self.client.get(reverse("public.public_index")), "/redirect")
 
+
 # -- has issues with mailroom
 # class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
 #     def test_command(self):
