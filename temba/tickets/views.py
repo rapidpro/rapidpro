@@ -135,11 +135,12 @@ class TicketCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
 
             folder, status, uuid, in_page = self.tickets_path
-
             context["folder"] = folder
             context["status"] = status
-            context["nextUUID" if in_page else "uuid"] = uuid
             context["has_tickets"] = self.request.org.tickets.exists()
+            if uuid:
+                context["nextUUID" if in_page else "uuid"] = uuid
+
             return context
 
         def get_queryset(self, **kwargs):
@@ -249,7 +250,6 @@ class TicketCRUDL(SmartCRUDL):
                         "uuid": str(t.uuid),
                         "assignee": user_as_json(t.assignee) if t.assignee else None,
                         "topic": topic_as_json(t.topic) if t.topic else None,
-                        "subject": t.subject,
                         "body": t.body,
                         "last_activity_on": t.last_activity_on,
                         "closed_on": t.closed_on,

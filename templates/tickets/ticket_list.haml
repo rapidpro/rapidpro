@@ -86,7 +86,16 @@
       var focusNext;
 
       function handleTicketsMenuChanged(selection) {
-        var menu = event.target;
+
+        var statusSelect = document.querySelector('temba-select[name="ticket-status"]');
+
+        // sometimes our main menu calls us before we are full loaded
+        if (!statusSelect) {
+          window.setTimeout(function(){ handleTicketsMenuChanged(selection)}, 500);
+          return;
+        }
+
+        var menu = document.querySelector('temba-menu');
         var path = menu.getSelection();
 
         var section = path[0];
@@ -97,7 +106,6 @@
           focusNext = null;
           if (folder !== selection) {
             // whenever our menu changes, reset filter
-            var statusSelect = document.querySelector('temba-select[name="ticket-status"]');
             statusSelect.setValue("open");
             status = "open";
             folder = selection;
@@ -152,7 +160,8 @@
         var contact = event.target.getSelection();
 
         var chat = document.querySelector("temba-contact-chat");
-        chat.contact = contact;
+        chat.contactUUID = contact.uuid;
+        chat.currentTicket = contact.ticket;
 
         var filterNote = document.querySelector(".filter-note");
         if (filterNote) {
@@ -170,7 +179,9 @@
       function handleContactHistoryUpdated(event) {
         // tell our list to refresh since we know things happened
         var tickets = document.querySelector("temba-contacts");
-        tickets.refresh();
+        if (tickets) {
+          tickets.refresh();
+        }
       }
 
       function handleTicketsRefreshed(event) {
