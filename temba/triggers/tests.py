@@ -14,6 +14,7 @@ from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, TembaTest
 
 from .models import Trigger
+from .types import KeywordTriggerType
 
 
 class TriggerTest(TembaTest):
@@ -367,6 +368,22 @@ class TriggerTest(TembaTest):
             },
         )
 
+    def test_is_valid_keyword(self):
+        self.assertFalse(KeywordTriggerType.is_valid_keyword(""))
+        self.assertFalse(KeywordTriggerType.is_valid_keyword(" x "))
+        self.assertFalse(KeywordTriggerType.is_valid_keyword("a b"))
+        self.assertFalse(KeywordTriggerType.is_valid_keyword("thisistoolongokplease"))
+        self.assertFalse(KeywordTriggerType.is_valid_keyword("🎺🦆"))
+        self.assertFalse(KeywordTriggerType.is_valid_keyword("👋👋"))
+        self.assertFalse(KeywordTriggerType.is_valid_keyword("👋🏾"))  # is actually 👋 + 🏾
+
+        self.assertTrue(KeywordTriggerType.is_valid_keyword("a"))
+        self.assertTrue(KeywordTriggerType.is_valid_keyword("7"))
+        self.assertTrue(KeywordTriggerType.is_valid_keyword("heyjoinnowplease"))
+        self.assertTrue(KeywordTriggerType.is_valid_keyword("١٠٠"))
+        self.assertTrue(KeywordTriggerType.is_valid_keyword("मिलाए"))
+        self.assertTrue(KeywordTriggerType.is_valid_keyword("👋"))
+
     @patch("temba.channels.types.facebook.FacebookType.deactivate_trigger")
     def test_release(self, mock_deactivate_trigger):
         channel = self.create_channel("FB", "Facebook", "234567")
@@ -469,14 +486,18 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"keyword": "with spaces", "flow": flow1.id, "match_type": "F"},
-            form_errors={"keyword": "Must be a single word containing only letters and numbers."},
+            form_errors={
+                "keyword": "Must be a single word containing only letters and numbers, or a single emoji character."
+            },
         )
 
         # try a keyword with special characters
         self.assertCreateSubmit(
             create_url,
             {"keyword": "keyw!o^rd__", "flow": flow1.id, "match_type": "F"},
-            form_errors={"keyword": "Must be a single word containing only letters and numbers."},
+            form_errors={
+                "keyword": "Must be a single word containing only letters and numbers, or a single emoji character."
+            },
         )
 
         # try with group as both inclusion and exclusion
@@ -1060,7 +1081,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(
             update_url,
             {"keyword": "", "flow": flow.id, "match_type": "F"},
-            form_errors={"keyword": "Must be a single word containing only letters and numbers."},
+            form_errors={
+                "keyword": "Must be a single word containing only letters and numbers, or a single emoji character."
+            },
             object_unchanged=trigger,
         )
 
