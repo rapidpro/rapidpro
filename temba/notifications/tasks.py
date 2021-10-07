@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 @nonoverlapping_task(track_started=True, name="send_notification_emails", lock_timeout=1800)
 def send_notification_emails():
     pending = list(
-        Notification.objects.filter(email=Notification.EMAIL_PENDING)
+        Notification.objects.filter(email_status=Notification.EMAIL_STATUS_PENDING)
         .select_related("org", "user")
         .order_by("created_on")
     )
@@ -20,7 +20,7 @@ def send_notification_emails():
 
     for notification in pending:
         try:
-            pending.send_email()
+            notification.send_email()
         except Exception:
             logger.error(f"error sending notification email", exc_info=True)
 

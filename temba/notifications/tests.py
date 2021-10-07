@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from django.core import mail
+from django.test import override_settings
 from django.urls import reverse
 
 from temba.channels.models import Alert
@@ -8,11 +10,12 @@ from temba.orgs.models import OrgRole
 from temba.tests import TembaTest, matchers
 
 from .models import Notification
-from .tasks import squash_notificationcounts
+from .tasks import send_notification_emails, squash_notificationcounts
 
 
+@override_settings(SEND_EMAILS=True)
 class NotificationTest(TembaTest):
-    def assert_notifications(self, *, after: datetime = None, expected_json: dict, expected_users: set):
+    def assert_notifications(self, *, after: datetime = None, expected_json: dict, expected_users: set, email: True):
         notifications = Notification.objects.all()
         if after:
             notifications = notifications.filter(created_on__gt=after)
@@ -23,6 +26,7 @@ class NotificationTest(TembaTest):
 
         for notification in notifications:
             self.assertEqual(expected_json, notification.as_json())
+            self.assertEqual(email, notification.email_status == Notification.EMAIL_STATUS_PENDING)
             actual_users.add(notification.user)
 
         # check who was notified
@@ -43,12 +47,13 @@ class NotificationTest(TembaTest):
                 "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
             },
             expected_users={self.admin, self.editor},
+            email=False,
         )
 
         # creating another alert for the same channel won't create any new notifications
         alert2 = Alert.create_and_send(self.channel, Alert.TYPE_POWER)
 
-        self.assert_notifications(after=alert2.created_on, expected_json={}, expected_users=set())
+        self.assert_notifications(after=alert2.created_on, expected_json={}, expected_users=set(), email=False)
 
         # if a user clears their notifications however, they will get new ones for this channel
         self.admin.notifications.update(is_seen=True)
@@ -65,6 +70,7 @@ class NotificationTest(TembaTest):
                 "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
             },
             expected_users={self.admin},
+            email=False,
         )
 
         # an alert for a different channel will also create new notifications
@@ -81,6 +87,7 @@ class NotificationTest(TembaTest):
                 "channel": {"uuid": str(vonage.uuid), "name": "Vonage"},
             },
             expected_users={self.admin, self.editor},
+            email=False,
         )
 
         # if a user visits the channel read page, their notification for that channel is now read
@@ -109,7 +116,14 @@ class NotificationTest(TembaTest):
                 "export": {"type": "contact"},
             },
             expected_users={self.editor},
+            email=True,
         )
+
+        send_notification_emails()
+
+        self.assertEqual(1, len(mail.outbox))
+        self.assertEqual("[Temba] Your contact export is ready", mail.outbox[0].subject)
+        self.assertEqual(["Editor@nyaruka.com"], mail.outbox[0].recipients())
 
         # if a user visits the export download page, their notification for that export is now read
         self.login(self.editor)
@@ -136,9 +150,10 @@ class NotificationTest(TembaTest):
                 "created_on": matchers.ISODate(),
                 "target_url": f"/contactimport/read/{imp.id}/",
                 "is_seen": False,
-                "import": {"num_records": 5},
+                "import": {"type": "contact", "num_records": 5},
             },
             expected_users={self.editor},
+            email=False,
         )
 
         # if a user visits the import read page, their notification for that import is now read
@@ -159,6 +174,7 @@ class NotificationTest(TembaTest):
                 "is_seen": False,
             },
             expected_users={self.agent, self.editor},
+            email=False,
         )
 
         # if a user visits the unassigned tickets page, their notification is now read
@@ -180,6 +196,7 @@ class NotificationTest(TembaTest):
                 "is_seen": False,
             },
             expected_users={self.agent, self.editor},
+            email=False,
         )
 
         # if a user visits their assigned tickets page, their notification is now read

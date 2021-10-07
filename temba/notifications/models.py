@@ -70,7 +70,7 @@ class ExportFinishedNotificationType(NotificationType):
 
     def get_email_template(self, notification) -> tuple:
         export_type = notification.export.notification_export_type
-        return f"Your {export_type} export is ready", f"notificationa/email/export_finished.{export_type}"
+        return f"Your {export_type} export is ready", f"notifications/email/export_finished.{export_type}"
 
     def get_email_context(self, notification):
         context = super().get_email_context(notification)
@@ -118,10 +118,14 @@ class Notification(models.Model):
     A user specific notification
     """
 
-    EMAIL_PENDING = "P"
-    EMAIL_SENT = "S"
-    EMAIL_NONE = "N"
-    EMAIL_CHOICES = ((EMAIL_PENDING, "Pending"), (EMAIL_SENT, "Sent"), (EMAIL_NONE, "None"))
+    EMAIL_STATUS_PENDING = "P"
+    EMAIL_STATUS_SENT = "S"
+    EMAIL_STATUS_NONE = "N"
+    EMAIL_STATUS_CHOICES = (
+        (EMAIL_STATUS_PENDING, "Pending"),
+        (EMAIL_STATUS_SENT, "Sent"),
+        (EMAIL_STATUS_NONE, "None"),
+    )
 
     id = models.BigAutoField(primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="notifications")
@@ -134,7 +138,7 @@ class Notification(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="notifications")
     is_seen = models.BooleanField(default=False)
-    email = models.CharField(choices=EMAIL_CHOICES, default=EMAIL_NONE, null=True)
+    email_status = models.CharField(choices=EMAIL_STATUS_CHOICES, max_length=1, default=EMAIL_STATUS_NONE)
     created_on = models.DateTimeField(default=timezone.now)
 
     channel = models.ForeignKey(Channel, null=True, on_delete=models.PROTECT, related_name="notifications")
@@ -177,7 +181,7 @@ class Notification(models.Model):
             ExportFinishedNotificationType.slug,
             scope=export.get_notification_scope(),
             users=[export.created_by],
-            email=cls.EMAIL_PENDING,
+            email_status=cls.EMAIL_STATUS_PENDING,
             **{export.notification_export_type + "_export": export},
         )
 
@@ -208,8 +212,8 @@ class Notification(models.Model):
         else:
             logger.warning(f"skipping email send for notification type {self.type.slug} not configured for email")
 
-        self.email = Notification.EMAIL_SENT
-        self.save(update_fields=("email",))
+        self.email_status = Notification.EMAIL_STATUS_SENT
+        self.save(update_fields=("email_status",))
 
     @classmethod
     def mark_seen(cls, org, notification_type: str, *, scope: str, user):
@@ -237,7 +241,7 @@ class Notification(models.Model):
             # used to list org specific notifications for a user
             models.Index(fields=["org", "user", "-created_on"]),
             # used to find notifications with pending email sends
-            models.Index(fields=["created_on"], condition=Q(email="P")),
+            models.Index(name="notifications_email_pending", fields=["created_on"], condition=Q(email_status="P")),
         ]
         constraints = [
             # used to check if we already have existing unseen notifications for something or to clear unseen
