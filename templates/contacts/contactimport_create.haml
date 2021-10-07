@@ -135,11 +135,11 @@
     }
 
     function getTooltipContent() {
-      let content = "<p>By checking this box you will run the list of contacts against Twilio's Lookup API to verify whether contacts are Mobile/VOIP or Landlines.</p>";
-      content += "<p>At the end of this process, you will have a group for each phone type.</p><br>";
-      content += "<p>For contacts who we are not active or who we are not able to identify carrier or phone type, we will not import them onto the platform.</p><br>";
-      content += "<p>For Mobile/VOIP type contacts, we will create groups of 50k contacts.</p><br>";
-      content += "<p>For Landlines, we will create groups of 10k contacts.</p>";
+      let content = "<p>By checking this box you will run the list of contacts against Twilio's Lookup API to verify whether contacts are Mobile/VOIP or Landlines.</p> <br />"
+      content += "<p>At the end of this process, you will have a group for each phone type.</p><br />"
+      content += "<p>For contacts who we are not active or who we are not able to identify carrier or phone type, we will not import them onto the platform.</p><br />"
+      content += "<p>For Mobile/VOIP type contacts, we will create groups of 50k contacts.</p>"
+      content += "<p>For Landlines, we will create groups of 10k contacts.</p>"
 
       return content;
     }
