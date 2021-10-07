@@ -1,3 +1,9 @@
+v6.5.62
+----------
+ * Use crontab for WA tokens task schedule
+ * Allow keyword triggers to be single emojis
+ * Celery 5.x
+
 v6.5.60
 ----------
  * Add option to audit_archives to check flow run counts

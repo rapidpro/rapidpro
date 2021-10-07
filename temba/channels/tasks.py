@@ -7,7 +7,7 @@ from django.conf import settings
 from django.db.models import Count, Sum
 from django.utils import timezone
 
-from celery.task import task
+from celery import shared_task
 
 from temba.orgs.models import Org
 from temba.utils import chunk_list
@@ -19,7 +19,7 @@ from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
 logger = logging.getLogger(__name__)
 
 
-@task(track_started=True, name="sync_channel_fcm_task")
+@shared_task(track_started=True, name="sync_channel_fcm_task")
 def sync_channel_fcm_task(cloud_registration_id, channel_id=None):  # pragma: no cover
     channel = Channel.objects.filter(pk=channel_id).first()
     Channel.sync_channel_fcm(cloud_registration_id, channel)
@@ -48,7 +48,7 @@ def sync_old_seen_channels_task():
         channel.trigger_sync()
 
 
-@task(track_started=True, name="send_alert_task")
+@shared_task(track_started=True, name="send_alert_task")
 def send_alert_task(alert_id, resolved):
     alert = Alert.objects.get(pk=alert_id)
     alert.send_email(resolved)

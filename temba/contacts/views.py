@@ -702,7 +702,7 @@ class ContactCRUDL(SmartCRUDL):
                 # schedule the export job
                 on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
 
-                if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: no cover
+                if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: no cover
                     messages.info(
                         self.request,
                         _("We are preparing your export. We will e-mail you at %s when it is ready.")

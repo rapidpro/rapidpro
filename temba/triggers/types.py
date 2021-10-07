@@ -19,7 +19,11 @@ class KeywordTriggerType(TriggerType):
     A trigger for incoming messages that match given keywords
     """
 
-    KEYWORD_REGEX = regex.compile(r"^\w+$", flags=regex.UNICODE | regex.V0)
+    # keywords must a single sequence of word chars, or a single emoji (since engine treats each emoji as a word)
+    KEYWORD_REGEX = regex.compile(
+        r"^(\w+|[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF])$",
+        flags=regex.UNICODE,
+    )
 
     class Form(BaseTriggerForm):
         def __init__(self, user, *args, **kwargs):
@@ -49,14 +53,9 @@ class KeywordTriggerType(TriggerType):
         if not self.is_valid_keyword(trigger_def["keyword"]):
             raise ValueError(f"{trigger_def['keyword']} is not a valid keyword")
 
-    def is_valid_keyword(self, keyword):
-        return (
-            keyword
-            and len(keyword) <= Trigger.KEYWORD_MAX_LEN
-            and self.KEYWORD_REGEX.match(
-                keyword.strip(),
-            )
-        )
+    @classmethod
+    def is_valid_keyword(cls, keyword: str) -> bool:
+        return 0 < len(keyword) <= Trigger.KEYWORD_MAX_LEN and cls.KEYWORD_REGEX.match(keyword) is not None
 
 
 class CatchallTriggerType(TriggerType):

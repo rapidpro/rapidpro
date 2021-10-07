@@ -95,7 +95,9 @@ class BaseTriggerForm(forms.ModelForm):
         keyword = keyword.strip()
 
         if not self.trigger_type.is_valid_keyword(keyword):
-            raise forms.ValidationError(_("Must be a single word containing only letters and numbers."))
+            raise forms.ValidationError(
+                _("Must be a single word containing only letters and numbers, or a single emoji character.")
+            )
 
         return keyword.lower()
 
