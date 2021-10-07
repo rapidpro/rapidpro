@@ -4,7 +4,7 @@ from datetime import timedelta
 from django.core.cache import cache
 from django.utils import timezone
 
-from celery.task import task
+from celery import shared_task
 
 from temba.utils import analytics
 from temba.utils.celery import nonoverlapping_task
@@ -23,7 +23,7 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 
-@task(track_started=True, name="send_to_flow_node")
+@shared_task(track_started=True, name="send_to_flow_node")
 def send_to_flow_node(org_id, user_id, text, **kwargs):
     from django.contrib.auth.models import User
     from temba.contacts.models import Contact
@@ -49,7 +49,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
         analytics.track(user, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
 
 
-@task(track_started=True, name="fail_old_messages")
+@shared_task(track_started=True, name="fail_old_messages")
 def fail_old_messages():  # pragma: needs cover
     Msg.fail_old_messages()
 
@@ -120,7 +120,7 @@ def collect_message_metrics_task():  # pragma: needs cover
     cache.set("last_cron", timezone.now())
 
 
-@task(track_started=True, name="export_sms_task")
+@shared_task(track_started=True, name="export_sms_task")
 def export_messages_task(export_id):
     """
     Export messages to a file and e-mail a link to the user

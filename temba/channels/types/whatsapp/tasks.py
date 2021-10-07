@@ -5,7 +5,7 @@ from django_redis import get_redis_connection
 
 from django.utils import timezone
 
-from celery.task import task
+from celery import shared_task
 
 from temba.channels.models import Channel
 from temba.request_logs.models import HTTPLog
@@ -13,7 +13,7 @@ from temba.request_logs.models import HTTPLog
 logger = logging.getLogger(__name__)
 
 
-@task(track_started=True, name="refresh_whatsapp_tokens")
+@shared_task(track_started=True, name="refresh_whatsapp_tokens")
 def refresh_whatsapp_tokens():
     r = get_redis_connection()
     if r.get("refresh_whatsapp_tokens"):  # pragma: no cover
