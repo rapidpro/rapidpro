@@ -29,6 +29,13 @@ class WebHookResultCRUDL(SmartCRUDL):
     class Read(OrgObjPermsMixin, SmartReadView):
         fields = ("url", "status_code", "request_time", "created_on")
 
+        def get(self, request, *args, **kwargs):
+            self.object = self.get_object()
+            obj_request = [header for header in self.object.request.split('\r\n') if not header.startswith('Authorization')]
+            self.object.request = '\r\n'.join(obj_request)
+            context = self.get_context_data(object=self.object)
+            return self.render_to_response(context)
+
         def get_gear_links(self):  # pragma: needs cover
             return [dict(title=_("Webhook Log"), style="button-light", href=reverse("api.webhookresult_list"))]
 
