@@ -1,8 +1,10 @@
-{% load i18n %}
+{% load i18n %}{% trans "Hi there!" %}
 
-{% trans "Hi there!" %}
+{% trans "Your export of results for the following flows is ready." %}
 
-{% trans "Your flow results export is ready." %}
+{% for flow in flows %}
+ * {{ flow.name }}
+{% endfor %}
 
 {% blocktrans with url=target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}
 
