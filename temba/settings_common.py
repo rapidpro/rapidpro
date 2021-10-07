@@ -965,7 +965,7 @@ CELERYBEAT_SCHEDULE = {
     "retry-errored-messages": {"task": "retry_errored_messages", "schedule": timedelta(seconds=60)},
     "refresh-jiochat-access-tokens": {"task": "refresh_jiochat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
-    "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=24)},
+    "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": crontab(hour=6, minute=0)},
     "refresh-whatsapp-templates": {"task": "refresh_whatsapp_templates", "schedule": timedelta(seconds=900)},
     "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=60)},
     "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=60)},
