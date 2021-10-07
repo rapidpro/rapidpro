@@ -578,7 +578,7 @@ class MsgCRUDL(SmartCRUDL):
 
                 on_transaction_commit(lambda: export_messages_task.delay(export.id))
 
-                if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: needs cover
+                if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: needs cover
                     messages.info(
                         self.request,
                         _("We are preparing your export. We will e-mail you at %s when " "it is ready.")
