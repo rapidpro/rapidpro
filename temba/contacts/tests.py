@@ -4625,10 +4625,13 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         menu = response.json()["results"]
         self.assertEqual(
             [
-                {"name": "Number", "count": 1, "href": "/contactfield/filter_by_type/N/", "id": "number"},
-                {"name": "State", "count": 1, "href": "/contactfield/filter_by_type/S/", "id": "state"},
-                {"name": "Text", "count": 1, "href": "/contactfield/filter_by_type/T/", "id": "text"},
-                {"id": "featured", "name": "Featured", "count": 1, "href": "/contactfield/featured/"},
+                {
+                    "icon": "bookmark",
+                    "id": "featured",
+                    "name": "Featured",
+                    "count": 1,
+                    "href": "/contactfield/featured/",
+                },
             ],
             menu,
         )
