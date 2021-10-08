@@ -45,7 +45,7 @@ from temba.utils import json
 from . import fields
 from .serializers import format_datetime, normalize_extra
 
-NUM_BASE_REQUEST_QUERIES = 6  # number of db queries required for any API request
+NUM_BASE_REQUEST_QUERIES = 7  # number of db queries required for any API request
 
 
 class APITest(TembaTest):
@@ -121,11 +121,11 @@ class APITest(TembaTest):
         # viewers can do gets on some endpoints
         self.login(self.user)
         response = self.fetchHTML(url, query)
-        self.assertIn(response.status_code, [200, 403])
+        self.assertIn(response.status_code, [200, 403, 405])
 
         # same with JSON
         response = self.fetchJSON(url, query)
-        self.assertIn(response.status_code, [200, 403])
+        self.assertIn(response.status_code, [200, 403, 405])
 
         # but viewers should always get a forbidden when posting
         response = self.postJSON(url, query, {})
@@ -3486,6 +3486,7 @@ class APITest(TembaTest):
                     "color": {
                         "value": "blue",
                         "category": "Blue",
+                        "corrected": None,
                         "node": color_split["uuid"],
                         "time": format_datetime(iso8601.parse_date(joe_run1.results["color"]["created_on"])),
                         "name": "Color",
@@ -3632,6 +3633,7 @@ class APITest(TembaTest):
                     "value": "",
                     "input": None,
                     "category": None,
+                    "corrected": None,
                     "node": "6edeb849-1f65-4038-95dc-4d99d7dde6b8",
                     "time": "2019-06-28T06:37:02.628152Z",
                 }
