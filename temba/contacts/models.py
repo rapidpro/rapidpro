@@ -36,6 +36,7 @@ from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableMo
 from temba.utils.text import decode_stream, truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
+
 from .search import SearchException, elastic, parse_query
 
 logger = logging.getLogger(__name__)
