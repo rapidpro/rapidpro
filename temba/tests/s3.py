@@ -102,33 +102,50 @@ def select_matches(expression: str, record: dict) -> bool:
     Our greatly simplified version of S3 select matching
     """
     conditions = _parse_expression(expression)
-    for field, op, val in conditions:
-        if not _condition_matches(field, op, val, record):
+    for lh, op, rh in conditions:
+        if not _condition_matches(lh, op, rh, record):
             return False
     return True
 
 
-def _condition_matches(field, op, val, record: dict) -> bool:
-    # find the value in the record
-    actual = record
-    for key in field.split("."):
-        actual = actual[key]
+def _condition_matches(lh, op, rh, record: dict) -> bool:
+    def _resolve(ref):
+        ref = ref[2:]
+        val = record
+        for key in ref.split("."):
+            return_all = False
+            if key.endswith("[*]"):
+                return_all = True
+                key = key[:-3]
 
-    if isinstance(val, datetime):
-        actual = iso8601.parse_date(actual)
+            if isinstance(val, list) and return_all:
+                val = [o[key] for o in val]
+            else:
+                val = val[key]
+        return val
+
+    if isinstance(lh, str) and lh.startswith("s."):
+        lh = _resolve(lh)
+    if isinstance(rh, str) and rh.startswith("s."):
+        rh = _resolve(rh)
+
+    if isinstance(lh, datetime):
+        rh = iso8601.parse_date(rh)
+    elif isinstance(rh, datetime):
+        lh = iso8601.parse_date(lh)
 
     if op == "=":
-        return actual == val
+        return lh == rh
     elif op == ">=":
-        return actual >= val
+        return lh >= rh
     elif op == ">":
-        return actual > val
+        return lh > rh
     elif op == "<=":
-        return actual <= val
+        return lh <= rh
     elif op == "<":
-        return actual < val
+        return lh < rh
     elif op == "IN":
-        return actual in val
+        return lh in rh
 
 
 def _parse_expression(exp: str) -> list:
@@ -139,20 +156,22 @@ def _parse_expression(exp: str) -> list:
     parsed = []
     for con in conditions:
         match = regex.match(r"(.*)\s(=|!=|>|>=|<|<=|IN)\s(.+)", con)
-        col, op, val = match.group(1), match.group(2), match.group(3)
+        lh, op, rh = match.group(1), match.group(2), match.group(3)
 
-        if col.startswith("CAST("):
-            col = regex.match(r"CAST\((.+) AS .+\)", col).group(1)
-
-        col = col[2:]  # remove alias prefix
-        parsed.append((col, op, _parse_value(val)))
+        parsed.append((_parse_value(lh), op, _parse_value(rh)))
 
     return parsed
 
 
 def _parse_value(val: str):
-    if val.startswith("CAST('") and val.endswith("' AS TIMESTAMP)"):
-        return iso8601.parse_date(val[6:31])
+    if val.startswith("s."):  # field reference
+        return val
+    elif val.startswith("CAST(") and val.endswith(" AS TIMESTAMP)"):
+        val = regex.match(r"CAST\((.+) AS .+\)", val).group(1)
+        if val.startswith("s."):
+            return val
+        else:
+            return iso8601.parse_date(val[1:-1])
     elif val.startswith("("):
         return [_parse_value(v) for v in val[1:-1].split(", ")]
     elif val.startswith("'"):

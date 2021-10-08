@@ -52,7 +52,7 @@ class ArchiveTest(TembaTest):
             ),
         )
         # can also filter using raw where string (used by search_archives command)
-        records_iter = archive.iter_records(raw_where="s.id < 3")
+        records_iter = archive.iter_records(where={"__raw__": "s.id < 3"})
 
         self.assertEqual([{"id": 1}, {"id": 2}], list(records_iter))
 

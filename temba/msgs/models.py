@@ -1380,8 +1380,8 @@ class ExportMessagesTask(BaseExportTask):
                 where["type"] = msg_type
             if statuses:
                 where["status__in"] = statuses
-
-        # TODO figure out how to filter for a user label... something like labels[*].uuid IN label_uuids
+        elif label:
+            where["__raw__"] = f"'{label.uuid}' IN s.labels[*].uuid[*]"
 
         records = Archive.iter_all_records(self.org, Archive.TYPE_MSG, start_date, end_date, where=where)
         last_created_on = None
@@ -1395,11 +1395,6 @@ class ExportMessagesTask(BaseExportTask):
 
                 if group_contacts and record["contact"]["uuid"] not in group_contacts:
                     continue
-
-                if label:
-                    record_labels = [l["uuid"] for l in record["labels"]]
-                    if label and label.uuid not in record_labels:
-                        continue
 
                 matching.append(record)
             yield matching
