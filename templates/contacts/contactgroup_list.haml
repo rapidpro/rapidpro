@@ -2,7 +2,7 @@
 -load i18n humanize smartmin
 
 
--block spa-script
+-block extra-script
   {% if org_perms.contacts.contactgroup_delete %}
   :javascript
     function onDeleteClicked(){
@@ -17,6 +17,7 @@
       });
     }
   {% endif %}
+
   :javascript
     function handleRowClicked(event) {
       if (event.target.tagName == "TEMBA-CHECKBOX") {
@@ -30,7 +31,7 @@
     }
 
 
--block spa-body
+-block content
   -if org_perms.contacts.contactgroup_delete
     // this should be a modax that reports that some flows or campaigns will be affected appropriately
     %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Groups")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')

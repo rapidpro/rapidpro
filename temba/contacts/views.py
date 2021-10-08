@@ -1224,7 +1224,9 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("contacts.contactfield_list"):
+            is_spa = "HTTP_TEMBA_SPA" in self.request.META
+
+            if self.has_org_perm("contacts.contactfield_list") and not is_spa:
                 links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
 
             if self.has_org_perm("contacts.contactgroup_update"):

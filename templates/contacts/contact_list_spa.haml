@@ -1,0 +1,75 @@
+-extends "contacts/contact_list.haml"
+
+-load i18n
+
+-block extra-style
+  {{block.super}}
+  :css
+    tr.contacts th a span.icon {
+      visibility: hidden;
+      text-decoration: none;
+      font-size: 14px;
+      margin-top: -1px;
+    }
+
+    tr.contacts th a {
+      text-decoration: none;
+      font-weight:500;
+      color: #717171;
+      font-size: 0.75rem;
+    }
+
+    tr.contacts th:hover a span.icon {
+      visibility: visible;
+      font-size: 14px;
+    }
+    tr.contacts th a span.icon.visible {
+      visibility: visible;
+    }
+
+    .span9 .contact_list tr.contacts {
+      border-top: none;
+    }
+
+    .span9 .object-list tbody td.value-text {
+      min-width: 30px;
+    }
+
+    .modal .modal-body .control-group .control-label {
+      display:none;
+    }
+
+    .search-error {
+      color: #da4f49;
+    }
+
+    .pagination-notification {
+      background: #ecf0f1;
+      padding: 10px;
+    }
+
+-block content
+  .page-title
+
+  .flex
+    .flex-grow.self-end.items-end
+      .flex.flex-col
+        %form#search-form(method="get")
+          %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+          %input.hide(type="submit")
+    .spa-page-menu
+      -include "spa_page_menu.haml"
+
+
+  %temba-modax#create-group-modal(header='{% trans "Create Group" %}' endpoint="{% url 'contacts.contactgroup_create' %}" -temba-loaded="handleCreateGroupModalLoaded")
+
+  .mt-4.shadow.rounded-lg
+    .overflow-y-auto
+      -include "contacts/contact_list_include.haml"
+
+  .flex.flex-col(class="{%if not is_spa%}mb-16{%endif%}")
+    -include "includes/pagination.haml"
+
+    -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
+      .text-gray-400.text-sm.self-end.mt-2
+        -trans "To view more than 10,000 search results, save it as a group."
