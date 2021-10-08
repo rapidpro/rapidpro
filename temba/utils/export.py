@@ -147,9 +147,6 @@ class BaseExportTask(TembaModel):
         else:
             return clean_string(str(value))
 
-    def get_email_context(self, branding):
-        return {"link": branding["link"] + self.get_download_url()}
-
     def get_download_url(self) -> str:
         asset_store = get_asset_store(model=self.__class__)
         return asset_store.get_asset_url(self.id)

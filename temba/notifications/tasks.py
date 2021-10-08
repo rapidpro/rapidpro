@@ -21,7 +21,7 @@ def send_notification_emails():
     for notification in pending:
         try:
             notification.send_email()
-        except Exception:
+        except Exception:  # pragma: no cover
             logger.error(f"error sending notification email", exc_info=True)
 
     if pending:

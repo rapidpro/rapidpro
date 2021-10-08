@@ -209,7 +209,7 @@ class Notification(models.Model):
                 context,
                 self.org.get_branding(),
             )
-        else:
+        else:  # pragma: no cover
             logger.warning(f"skipping email send for notification type {self.type.slug} not configured for email")
 
         self.email_status = Notification.EMAIL_STATUS_SENT
