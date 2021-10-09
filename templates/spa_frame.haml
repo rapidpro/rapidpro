@@ -360,7 +360,7 @@
         showLoading();
       }
 
-      var a = target.closest("a")
+      var a = target.closest("a");
       if (a && a.href) {
         evt.stopPropagation();
         evt.preventDefault();
@@ -417,11 +417,19 @@
         ele = event.target;
       }
 
+
       event.stopPropagation();
       if (ele.setActive) {
           ele.setActive();
       }
       var href = ele.getAttribute('href');
+
+      if (!href) {
+        if(ele.tagName == "TD") {
+          href = ele.closest("tr").getAttribute("href");
+        }
+      }
+
       if (href) {
           if (event.metaKey) {
               window.open(href, '_blank');
@@ -512,10 +520,23 @@
     function handleNoPath(event) {
       var details = event.detail;
       if (details.item == "contacts") {
-        console.log("No path loading", "/" + details.item + "/" + details.path)
         gotoURL("/contact/" + details.path, "/" + details.item + "/" + details.path);
       }
     }
+
+-block refresh-fn
+  :javascript
+    function refresh(onSuccess, forceReload){
+      var refererPath = window.location.pathname;
+      fetchPJAXContent(window.lastFetch, ".spa-content", { "headers": { 
+        "TEMBA-SPA": "1", 
+        "TEMBA-REFERER-PATH": refererPath,
+        "TEMBA-PATH": refererPath,
+        }, 
+        "onSuccess": onSuccess, "ignoreEvents": false
+      });
+    }
+
 
 -block temba-store
   %temba-store(

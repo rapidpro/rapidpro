@@ -58,7 +58,7 @@ from temba.utils.fields import (
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
-from temba.utils.views import BulkActionMixin
+from temba.utils.views import BulkActionMixin, SpaMixin
 
 from .models import (
     ExportFlowResultsTask,
@@ -961,7 +961,7 @@ class FlowCRUDL(SmartCRUDL):
             # redirect to the editor endpoint
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[self.get_object().uuid]))
 
-    class Editor(OrgObjPermsMixin, SmartReadView):
+    class Editor(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def derive_title(self):

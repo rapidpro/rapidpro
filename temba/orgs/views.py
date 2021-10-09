@@ -1054,10 +1054,10 @@ class OrgCRUDL(SmartCRUDL):
     class Menu(MenuMixin, InferOrgMixin, SmartTemplateView):
         def render_to_response(self, context, **response_kwargs):
             menu = []
-            # self.add_menu(menu, "Messages", "messages", "msgs.msg_menu")
-            self.add_menu(menu, "Contacts", "contact-cal", "contacts.contact_menu")
+            self.add_menu(menu, "Messages", "message-square", "msgs.msg_menu")
+            self.add_menu(menu, "Contacts", "contact", "contacts.contact_menu")
             # self.add_menu(menu, "Flows", "flow", "flows.flow_menu")
-            # self.add_menu(menu, "Campaigns", "campaign", "campaigns.campaigns_menu")
+            self.add_menu(menu, "Campaigns", "campaign", "campaigns.campaigns_menu")
             self.add_menu(menu, "Tickets", "agent", "tickets.ticket_menu", "tickets.ticket_list")
             self.add_menu(menu, "Triggers", "radio", "triggers.trigger_menu")
 
