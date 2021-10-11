@@ -156,18 +156,10 @@ class Archive(models.Model):
 
     @classmethod
     def iter_all_records(
-        cls,
-        org,
-        archive_type: str,
-        after: datetime = None,
-        before: datetime = None,
-        where: dict = None,
-        raw_where: str = None,
+        cls, org, archive_type: str, after: datetime = None, before: datetime = None, where: dict = None
     ):
         """
         Creates a record iterator across archives of the given type for records which match the given criteria
-
-        Expression should be SQL with s prefix for fields, e.g. s.direction = 'in' AND s.type = 'flow'
         """
 
         if not where:
@@ -181,25 +173,25 @@ class Archive(models.Model):
 
         def generator():
             for archive in archives:
-                for record in archive.iter_records(where=where, raw_where=raw_where):
+                for record in archive.iter_records(where=where):
                     yield record
 
         return generator()
 
-    def iter_records(self, *, where: dict = None, raw_where: str = None):
+    def iter_records(self, *, where: dict = None):
         """
         Creates an iterator for the records in this archive, streaming and decompressing on the fly
         """
 
         s3_client = s3.client()
 
-        if where or raw_where:
+        if where:
             bucket, key = self.get_storage_location()
             response = s3_client.select_object_content(
                 Bucket=bucket,
                 Key=key,
                 ExpressionType="SQL",
-                Expression=s3.compile_select(where=where, raw_where=raw_where),
+                Expression=s3.compile_select(where=where),
                 InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
                 OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
             )

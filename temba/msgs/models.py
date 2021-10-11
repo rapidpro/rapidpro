@@ -936,7 +936,7 @@ class SystemLabel:
         return qs.filter(org=org)
 
     @classmethod
-    def get_archive_attributes(cls, label_type):
+    def get_archive_attributes(cls, label_type: str) -> tuple:
         visibility = "visible"
         msg_type = None
         direction = "in"
@@ -1372,7 +1372,18 @@ class ExportMessagesTask(BaseExportTask):
         # firstly get msgs from archives
         from temba.archives.models import Archive
 
-        records = Archive.iter_all_records(self.org, Archive.TYPE_MSG, start_date, end_date)
+        where = {"visibility": "visible"}
+        if system_label:
+            visibility, direction, msg_type, statuses = SystemLabel.get_archive_attributes(system_label)
+            where["direction"] = direction
+            if msg_type:
+                where["type"] = msg_type
+            if statuses:
+                where["status__in"] = statuses
+        elif label:
+            where["__raw__"] = f"'{label.uuid}' IN s.labels[*].uuid[*]"
+
+        records = Archive.iter_all_records(self.org, Archive.TYPE_MSG, start_date, end_date, where=where)
         last_created_on = None
 
         for record_batch in chunk_list(records, 1000):
@@ -1383,27 +1394,6 @@ class ExportMessagesTask(BaseExportTask):
                     last_created_on = created_on
 
                 if group_contacts and record["contact"]["uuid"] not in group_contacts:
-                    continue
-
-                visibility = "visible"
-                if system_label:
-                    visibility, direction, msg_type, statuses = SystemLabel.get_archive_attributes(system_label)
-
-                    if record["direction"] != direction:
-                        continue
-
-                    if msg_type and record["type"] != msg_type:
-                        continue
-
-                    if statuses and record["status"] not in statuses:
-                        continue
-
-                elif label:
-                    record_labels = [l["uuid"] for l in record["labels"]]
-                    if label and label.uuid not in record_labels:
-                        continue
-
-                if record["visibility"] != visibility:
                     continue
 
                 matching.append(record)
