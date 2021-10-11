@@ -23,6 +23,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         def clean(self):
+            super().clean()
+            if self.errors:
+                return self.cleaned_data
+
             cleaned = self.cleaned_data
 
             cleaned["api_endpoint"] = urljoin(cleaned["api_endpoint"], "/")
