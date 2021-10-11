@@ -53,6 +53,8 @@
         -elif event.channel_event_type == 'mo_call'
           -trans "Incoming Phone call"
           ({{ event.duration|format_seconds }})
+        -elif ch_event.event_type == 'stop_conversation'
+          -trans "Contact Opted-Out"
         -else
           -trans "Unknown/Unsupported"
 

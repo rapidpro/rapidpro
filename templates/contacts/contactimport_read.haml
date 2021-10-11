@@ -30,7 +30,6 @@
             -plural
               Duplicated {{ count }} contacts
 
-
         .import-result.text-lg.mt-2
           -if is_finished
             .icon.icon-checkmark.text-success.mr-2
@@ -42,8 +41,24 @@
             -plural
               Updated {{ count }} existing contacts
 
-        -if is_finished and object.group
-          .import-result.text-lg.mt-2
+        -if is_finished
+          -if is_validated
+            .validated-list-report
+              -for mobile_contact in info.validated_urn_carriers.mobile
+                .import-result.text-lg.mt-2
+                .icon.icon-checkmark.text-success.mr-2
+                {% url 'contacts.contact_filter' mobile_contact.uuid as group_url %}
+                -blocktrans trimmed with count=mobile_contact.count group_name=mobile_contact.group
+                  Added {{ count }} contact to the <a href="{{ group_url }}">{{ group_name }}</a> group
+
+              -for landline_contact in info.validated_urn_carriers.landline
+                .import-result.text-lg.mt-2
+                .icon.icon-checkmark.text-success.mr-2
+                {% url 'contacts.contact_filter' landline_contact.uuid as group_url %}
+                -blocktrans trimmed with count=landline_contact.count group_name=landline_contact.group
+                  Added {{ count }} contact to the <a href="{{ group_url }}">{{ group_name }}</a> group
+          -else
+            .import-result.text-lg.mt-2
             .icon.icon-checkmark.text-success.mr-2
 
             {% url 'contacts.contact_filter' object.group.uuid as group_url %}
