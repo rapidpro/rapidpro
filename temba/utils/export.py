@@ -15,7 +15,6 @@ from django.utils.translation import ugettext_lazy as _
 from temba.assets.models import BaseAssetStore, get_asset_store
 
 from . import analytics
-from .email import send_template_email
 from .models import TembaModel
 from .text import clean_string
 
@@ -80,17 +79,6 @@ class BaseExportTask(TembaModel):
             temp_file, extension = self.write_export()
 
             get_asset_store(model=self.__class__).save(self.id, File(temp_file), extension)
-
-            branding = self.org.get_branding()
-
-            # notify user who requested this export
-            send_template_email(
-                self.created_by.username,
-                self.email_subject % self.org.name,
-                self.email_template,
-                self.get_email_context(branding),
-                branding,
-            )
 
             # remove temporary file
             if hasattr(temp_file, "delete"):
@@ -158,9 +146,6 @@ class BaseExportTask(TembaModel):
             return value
         else:
             return clean_string(str(value))
-
-    def get_email_context(self, branding):
-        return {"link": branding["link"] + self.get_download_url()}
 
     def get_download_url(self) -> str:
         asset_store = get_asset_store(model=self.__class__)

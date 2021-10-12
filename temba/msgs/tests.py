@@ -1027,16 +1027,11 @@ class MsgTest(TembaTest):
         # check that notifications were created
         export = ExportMessagesTask.objects.order_by("id").last()
         self.assertEqual(
-            1, self.admin.notifications.filter(notification_type="export:finished", message_export=export).count()
+            1,
+            self.admin.notifications.filter(
+                notification_type="export:finished", message_export=export, email_status="P"
+            ).count(),
         )
-
-        # check email was sent correctly
-        email_args = mock_send_temba_email.call_args[0]  # all positional args
-        self.assertEqual(email_args[0], "Your messages export from %s is ready" % self.org.name)
-        self.assertIn("https://app.rapidpro.io/assets/download/message_export/%d/" % export.id, email_args[1])
-        self.assertNotIn("{{", email_args[1])
-        self.assertIn("https://app.rapidpro.io/assets/download/message_export/%d/" % export.id, email_args[2])
-        self.assertNotIn("{{", email_args[2])
 
         # export just archived messages
         self.assertExcelSheet(
