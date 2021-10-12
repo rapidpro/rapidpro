@@ -4,7 +4,7 @@
 
 {% trans "Your contact export is ready." %}
 
-{% blocktrans with url=target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}
+{% blocktrans with url=branding.link|add:target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}
 
 {% trans "Thanks" %}
 
