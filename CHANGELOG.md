@@ -1,3 +1,10 @@
+v6.5.63
+----------
+ * When a contact is released their tickets should be deleted
+ * Test on PG 12 and 13
+ * Use S3 Select for message exports
+ * Use new notifications system for export emails
+
 v6.5.62
 ----------
  * Use crontab for WA tokens task schedule
