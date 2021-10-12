@@ -1,5 +1,4 @@
 from datetime import date, timedelta
-from django.http.response import JsonResponse
 
 from smartmin.views import (
     SmartCreateView,
@@ -17,6 +16,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
+from django.http.response import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import is_safe_url, urlquote_plus

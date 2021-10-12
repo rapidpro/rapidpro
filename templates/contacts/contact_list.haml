@@ -13,6 +13,52 @@
   %span.title-icon
     .glyph.icon-users
 
+-block extra-style
+   {{block.super}}
+   :css
+    tr.contacts th a span.icon {
+      visibility: hidden;
+      text-decoration: none;
+      font-size: 14px;
+      margin-top: -1px;
+    }
+
+    tr.contacts th a {
+      text-decoration: none;
+      font-weight:500;
+      color: #717171;
+      font-size: 0.75rem;
+    }
+
+    tr.contacts th:hover a span.icon {
+      visibility: visible;
+      font-size: 14px;
+    }
+    tr.contacts th a span.icon.visible {
+      visibility: visible;
+    }
+
+    .span9 .contact_list tr.contacts {
+      border-top: none;
+    }
+
+    .span9 .object-list tbody td.value-text {
+      min-width: 30px;
+    }
+
+    .modal .modal-body .control-group .control-label {
+      display:none;
+    }
+
+    .search-error {
+      color: #da4f49;
+    }
+
+    .pagination-notification {
+      background: #ecf0f1;
+      padding: 10px;
+    }
+
 -block content
   #pjax
     -block pjax
@@ -85,7 +131,7 @@
         .right.overflow-x-hidden.p-2.-mt-1
           -if has_contacts
             -block contacts-list
-              .flex.w-full.items-end.flex-wrap.justify-end
+              .flex.w-full.items-end.flex-wrap.justify-end.mb-4
                 -block action-buttons
                   -if org_perms.contacts.contact_update
                     .list-buttons-container.h-full.mr-2.mt-2.flex-grow

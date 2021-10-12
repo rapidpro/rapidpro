@@ -957,6 +957,9 @@ class FlowCRUDL(SmartCRUDL):
     class EditorNext(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
+        def get_template_names(self):
+            return "flows/flow_editor.haml"
+
         def get(self, request, *args, **kwargs):
             # redirect to the editor endpoint
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[self.get_object().uuid]))
@@ -966,9 +969,6 @@ class FlowCRUDL(SmartCRUDL):
 
         def derive_title(self):
             return self.object.name
-
-        def get_template_names(self):
-            return "flows/flow_editor.haml"
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
