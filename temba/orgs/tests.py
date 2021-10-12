@@ -3307,6 +3307,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         menu = response.json()["results"]
         self.assertEqual(
             [
+                {"endpoint": "/msg/menu/", "icon": "message-square", "id": "messages", "name": "Messages"},
                 {"id": "contacts", "name": "Contacts", "icon": "contact", "endpoint": "/contact/menu/"},
                 {"id": "tickets", "name": "Tickets", "icon": "agent", "href": "/ticket/", "endpoint": "/ticket/menu/"},
                 {
