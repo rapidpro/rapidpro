@@ -1,3 +1,7 @@
+v6.5.64
+----------
+ * Fix export notification email links
+
 v6.5.63
 ----------
  * When a contact is released their tickets should be deleted
