@@ -9,7 +9,7 @@ license = "AGPL-3"
 repository = "http://github.com/rapidpro/rapidpro"
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.9"
 Django = "^3.2.6"
 django-compressor = "^2.4"
 django-countries = "^7.0"

@@ -37,7 +37,7 @@ if __name__ == "__main__":
     cmd("python manage.py makemigrations")
 
     status("Running black")
-    cmd("black --line-length=119 --target-version=py36 temba")
+    cmd("black --line-length=119 temba")
 
     if not args.skip_flake:
         status("Running flake8")
