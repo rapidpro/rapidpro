@@ -1,3 +1,7 @@
+v6.5.65
+----------
+ * Move to Python 3.9
+
 v6.5.64
 ----------
  * Fix export notification email links
