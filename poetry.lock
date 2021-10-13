@@ -1192,8 +1192,8 @@ xlwt = "^1.3.0"
 [package.source]
 type = "git"
 url = "https://github.com/greatnonprofits-nfp/smartmin.git"
-reference = "ccl-v3.1"
-resolved_reference = "9cad3a510876b7cfa1a781d811930981b2df3409"
+reference = "ccl-v4.0"
+resolved_reference = "3921785d08138d5a9f70391704495a843b511a4f"
 
 [[package]]
 name = "sorl-thumbnail"
@@ -1379,7 +1379,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "3db2c8778ef5ff2b871333e4147734e4f83402d168fc039d5d687ecaa42abba5"
+content-hash = "7db5294e0f45e5b32716341b79c8ae1a1faaebb9a10bc258c70cd2950d8cd107"
 
 [metadata.files]
 amqp = [

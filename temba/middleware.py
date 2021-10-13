@@ -179,7 +179,8 @@ class LanguageMiddleware:
         user = request.user
 
         if not user.is_authenticated or user.is_superuser:
-            language = request.branding.get("language", settings.DEFAULT_LANGUAGE)
+            branding = request.branding if request.branding else {"language": settings.DEFAULT_LANGUAGE}
+            language = branding.get("language", settings.DEFAULT_LANGUAGE)
             translation.activate(language)
         else:
             user_settings = user.get_settings()

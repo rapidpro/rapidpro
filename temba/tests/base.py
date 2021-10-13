@@ -290,6 +290,9 @@ class TembaTestMixin:
         if status == SENT and not sent_on:
             sent_on = timezone.now()
 
+        if not attachments:
+            attachments = list()
+
         metadata = {}
         if quick_replies:
             metadata["quick_replies"] = quick_replies
