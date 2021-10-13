@@ -1,4 +1,5 @@
 from django import template
+from django.conf import settings
 
 from temba.contacts.models import ContactURN
 
@@ -18,7 +19,17 @@ def channellog_url(context, log, *args, **kwargs):
 @register.simple_tag(takes_context=True)
 def channellog_request(context, log, *args, **kwargs):
 
-    request = [header for header in log.request.split('\r\n') if not header.startswith('Authorization')]
+    request = []
+    for header in log.request.split('\r\n'):
+        can_add = True
+        for excluded in settings.EXCLUDED_HTTP_HEADERS:
+            if excluded.lower() in header.lower():
+                can_add = False
+
+        if can_add:
+            request.append(header)
+
+
     log.request = '\r\n'.join(request)
 
     return log.get_request_display(context["user"], ContactURN.ANON_MASK)

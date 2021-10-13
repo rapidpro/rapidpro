@@ -379,3 +379,6 @@ CSP_CONNECT_SRC = env.tuple("CSP_CONNECT_SRC", default=CSP_DEFAULT_SRC)
 
 # Removes 'check-channels' task from Beat Schedule (sent_messages query)
 CELERYBEAT_SCHEDULE.pop('check-channels')
+
+# Exclude list of header that should not appear in webhook and channel logs
+EXCLUDED_HTTP_HEADERS = env.list("EXCLUDED_HTTP_HEADERS", default=[])\

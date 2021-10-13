@@ -1,5 +1,6 @@
 from smartmin.views import SmartCRUDL, SmartListView, SmartReadView, SmartView
 
+from django.conf import settings
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
@@ -31,7 +32,17 @@ class WebHookResultCRUDL(SmartCRUDL):
 
         def get(self, request, *args, **kwargs):
             self.object = self.get_object()
-            obj_request = [header for header in self.object.request.split('\r\n') if not header.startswith('Authorization')]
+
+            obj_request = []
+            for header in self.object.request.split('\r\n'):
+                can_add = True
+                for excluded in settings.EXCLUDED_HTTP_HEADERS:
+                    if excluded.lower() in header.lower():
+                        can_add = False
+
+                if can_add:
+                    obj_request.append(header)
+
             self.object.request = '\r\n'.join(obj_request)
             context = self.get_context_data(object=self.object)
             return self.render_to_response(context)
