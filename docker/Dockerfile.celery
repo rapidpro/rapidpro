@@ -11,8 +11,14 @@ RUN ln -sf /usr/local/share/phantomjs-2.1.1-linux-x86_64/bin/phantomjs /usr/loca
 RUN mkdir /rapidpro
 WORKDIR /rapidpro
 
-COPY pip-freeze.txt /rapidpro/pip-freeze.txt
+COPY ./pyproject.toml /rapidpro/pyproject.toml
+COPY ./poetry.lock /rapidpro/poetry.lock
+
 RUN pip3 install --upgrade pip setuptools
+RUN pip3 install -U poetry
+
+RUN poetry export --without-hashes --output pip-freeze.txt
+
 RUN pip3 install -r pip-freeze.txt
 
 COPY . /rapidpro
