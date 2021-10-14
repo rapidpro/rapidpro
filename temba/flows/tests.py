@@ -3090,14 +3090,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual(404, response.status_code)
 
-    def test_editor_next_redirection(self):
-        flow = self.get_flow("favorites_v13")
-
-        self.login(self.admin)
-
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
-        self.assertRedirect(response, reverse("flows.flow_editor", args=[flow.uuid]))
-
     def test_write_protection(self):
         flow = self.get_flow("favorites_v13")
         flow_json = flow.get_definition()

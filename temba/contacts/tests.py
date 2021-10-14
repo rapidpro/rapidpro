@@ -1100,7 +1100,9 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
 
-    def test_list(self):
+    @mock_mailroom
+    def test_list(self, mr_mocks):
+
         list_url = reverse("contacts.contactgroup_list")
         response = self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         self.assertEqual(
@@ -1115,6 +1117,18 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         # let's delete it and make sure it's gone
         self.client.post(list_url, {"action": "delete", "objects": group.id})
         self.assertFalse(ContactGroup.user_groups.filter(id=group.id).exists())
+
+        query = "name ~ Joe"
+        mr_mocks.parse_query(query, fields=[])
+
+        smart_group = ContactGroup.create_dynamic(self.org, self.admin, "Smart Group", "name ~ Joe")
+
+        # fetch only smart groups
+        list_url = f"{reverse('contacts.contactgroup_list')}?type=smart"
+        response = self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+
+        self.assertEqual(1, len(response.context["object_list"]))
+        self.assertContains(response, smart_group.name)
 
         # fetch with spa flag
         response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")

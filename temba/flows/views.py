@@ -199,7 +199,6 @@ class FlowCRUDL(SmartCRUDL):
         "export_results",
         "upload_action_recording",
         "editor",
-        "editor_next",
         "results",
         "run_table",
         "category_counts",
@@ -953,16 +952,6 @@ class FlowCRUDL(SmartCRUDL):
             qs = qs.filter(labels__in=self.get_label_filter(), is_archived=False).distinct()
 
             return qs
-
-    class EditorNext(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
-        slug_url_kwarg = "uuid"
-
-        def get_template_names(self):
-            return "flows/flow_editor.haml"
-
-        def get(self, request, *args, **kwargs):
-            # redirect to the editor endpoint
-            return HttpResponseRedirect(reverse("flows.flow_editor", args=[self.get_object().uuid]))
 
     class Editor(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
