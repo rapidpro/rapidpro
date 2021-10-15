@@ -1060,6 +1060,7 @@ class OrgCRUDL(SmartCRUDL):
             self.add_menu(menu, "Campaigns", "campaign", "campaigns.campaigns_menu")
             self.add_menu(menu, "Tickets", "agent", "tickets.ticket_menu", "tickets.ticket_list")
             self.add_menu(menu, "Triggers", "radio", "triggers.trigger_menu")
+            self.add_menu(menu, "Channels", "zap", "channels.channel_menu")
 
             # menu.append(
             #    {
