@@ -221,7 +221,7 @@ a {
 
 .lbl-group {
   @apply lbl;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   temba-icon {
     --icon-color: rgba(0,0,0,.5);

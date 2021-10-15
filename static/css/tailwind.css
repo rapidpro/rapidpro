@@ -1331,7 +1331,7 @@ a:hover {
   }
 
 .lbl-group {
-  display: flex;
+  display: inline-flex;
   align-items: center;
 }
 

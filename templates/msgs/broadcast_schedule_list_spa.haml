@@ -12,7 +12,7 @@
     %table.list.lined.w-full
       %tbody
         -for object in object_list
-          %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'document.location="{% url "msgs.broadcast_schedule_read" object.id %}"'}
+          %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'goto(event)', href:'{%url "msgs.broadcast_schedule_read" object.id%}'}
 
             %td.value-contacts.field_phone
               -include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all urns=object.raw_urns
@@ -20,9 +20,10 @@
             %td.value-text.field_text
               {{ object.get_text }}
             %td.value-next
-              -if object.schedule.next_fire
-                .glyph.icon-clock
-                {{object.schedule.next_fire|timeuntil}}
+              .whitespace-nowrap.pr-2.pointer-events-none
+                -if object.schedule.next_fire
+                  .glyph.icon-clock
+                  {{object.schedule.next_fire|timeuntil}}
 
           -empty
             %tr
