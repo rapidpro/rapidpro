@@ -1,3 +1,7 @@
+v6.5.68
+----------
+ * Reenable chat monitoring
+
 v6.5.67
 ----------
  * Make ticket views and components in sync
