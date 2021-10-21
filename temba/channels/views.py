@@ -336,7 +336,7 @@ def register(request):
     return JsonResponse(dict(cmds=[cmd]))
 
 
-class ClaimViewMixin(OrgPermsMixin, ComponentFormMixin):
+class ClaimViewMixin(SpaMixin, OrgPermsMixin, ComponentFormMixin):
     permission = "channels.channel_claim"
     channel_type = None
 
@@ -725,6 +725,7 @@ class ChannelCRUDL(SmartCRUDL):
         "list",
         "claim",
         "claim_all",
+        "menu",
         "update",
         "read",
         "delete",
@@ -735,6 +736,37 @@ class ChannelCRUDL(SmartCRUDL):
         "facebook_whitelist",
     )
     permissions = True
+
+    class Menu(OrgPermsMixin, SmartTemplateView):  # pragma: no cover
+        def render_to_response(self, context, **response_kwargs):
+            org = self.request.user.get_org()
+
+            menu = []
+            if self.has_org_perm("channels.channel_read"):
+                from temba.channels.views import get_channel_read_url
+
+                channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
+                for channel in channels:
+                    icon = channel.get_type().icon.replace("icon-", "")
+                    icon = icon.replace("power-cord", "box")
+                    menu.append(
+                        {
+                            "id": channel.uuid,
+                            "name": channel.name,
+                            "href": get_channel_read_url(channel),
+                            "icon": icon,
+                        }
+                    )
+
+            menu.append(
+                {
+                    "id": "claim",
+                    "href": reverse("channels.channel_claim"),
+                    "name": _("Add Channel"),
+                }
+            )
+
+            return JsonResponse({"results": menu})
 
     class Read(SpaMixin, OrgObjPermsMixin, NotificationTargetMixin, SmartReadView):
         slug_url_kwarg = "uuid"
@@ -1211,7 +1243,7 @@ class ChannelCRUDL(SmartCRUDL):
                     channel.save(update_fields=("address", "bod"))
             return obj
 
-    class Claim(OrgPermsMixin, SmartTemplateView):
+    class Claim(SpaMixin, OrgPermsMixin, SmartTemplateView):
         def channel_types_groups(self):
             user = self.request.user
 

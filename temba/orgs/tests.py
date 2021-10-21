@@ -3310,6 +3310,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 {"endpoint": "/msg/menu/", "icon": "message-square", "id": "messages", "name": "Messages"},
                 {"id": "contacts", "name": "Contacts", "icon": "contact", "endpoint": "/contact/menu/"},
                 {"id": "tickets", "name": "Tickets", "icon": "agent", "href": "/ticket/", "endpoint": "/ticket/menu/"},
+                {"endpoint": "/channels/channel/menu/", "icon": "zap", "id": "channels", "name": "Channels"},
                 {
                     "id": "support",
                     "name": "Support",
