@@ -1205,6 +1205,7 @@ class ChannelEvent(models.Model):
     TYPE_CALL_IN = "mo_call"
     TYPE_CALL_IN_MISSED = "mo_miss"
     TYPE_NEW_CONVERSATION = "new_conversation"
+    TYPE_STOP_CONVERSATION = "stop_conversation"
     TYPE_REFERRAL = "referral"
     TYPE_STOP_CONTACT = "stop_contact"
     TYPE_WELCOME_MESSAGE = "welcome_message"
@@ -1218,6 +1219,7 @@ class ChannelEvent(models.Model):
         (TYPE_CALL_IN_MISSED, _("Missed Incoming Call"), "call-in-missed"),
         (TYPE_STOP_CONTACT, _("Stop Contact"), "stop-contact"),
         (TYPE_NEW_CONVERSATION, _("New Conversation"), "new-conversation"),
+        (TYPE_STOP_CONVERSATION, _("Stop Conversation"), "stop-conversation"),
         (TYPE_REFERRAL, _("Referral"), "referral"),
         (TYPE_WELCOME_MESSAGE, _("Welcome Message"), "welcome-message"),
     )

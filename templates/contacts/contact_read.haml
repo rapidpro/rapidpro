@@ -116,6 +116,23 @@
               .contact-field-value
                 {{contact.anon_identifier}}
 
+      -if contact.status == 'S' and opt_out_message and opt_out_datetime
+        %tr
+          %td
+            .whitespace-no-wrap.pr-24.contact-field
+              .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
+                -trans "Opt-Out Message"
+          %td.w-full
+            .contact-field-value
+              {{ opt_out_message }}
+        %tr
+          %td
+            .whitespace-no-wrap.pr-24.contact-field
+              .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
+                -trans "Opt-Out Timestamp"
+          %td.w-full
+            .contact-field-value
+              {% format_datetime opt_out_datetime %}
 
       -for field in all_contact_fields
         %tr
