@@ -1,3 +1,7 @@
+v6.5.67
+----------
+ * Make ticket views and components in sync
+
 v6.5.66
 ----------
  * Add channel menu
