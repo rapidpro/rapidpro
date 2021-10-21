@@ -339,13 +339,13 @@ class TicketFolder(metaclass=ABCMeta):
     name = None
     icon = None
 
-    def get_queryset(self, org, user):
-        return (
-            Ticket.objects.filter(org=org)
-            .order_by("-last_activity_on", "-id")
-            .select_related("topic", "assignee")
-            .prefetch_related("contact")
-        )
+    def get_queryset(self, org, user, ordered):
+        qs = Ticket.objects.filter(org=org)
+
+        if ordered:
+            qs = qs.order_by("-last_activity_on", "-id")
+
+        return qs.select_related("topic", "assignee").prefetch_related("contact")
 
     @classmethod
     def from_slug(cls, slug: str):
@@ -365,8 +365,8 @@ class MineFolder(TicketFolder):
     name = _("My Tickets")
     icon = "coffee"
 
-    def get_queryset(self, org, user):
-        return super().get_queryset(org, user).filter(assignee=user)
+    def get_queryset(self, org, user, ordered):
+        return super().get_queryset(org, user, ordered).filter(assignee=user)
 
 
 class UnassignedFolder(TicketFolder):
@@ -378,8 +378,8 @@ class UnassignedFolder(TicketFolder):
     name = _("Unassigned")
     icon = "mail"
 
-    def get_queryset(self, org, user):
-        return super().get_queryset(org, user).filter(assignee=None)
+    def get_queryset(self, org, user, ordered):
+        return super().get_queryset(org, user, ordered).filter(assignee=None)
 
 
 class AllFolder(TicketFolder):
@@ -391,8 +391,8 @@ class AllFolder(TicketFolder):
     name = _("All")
     icon = "archive"
 
-    def get_queryset(self, org, user):
-        return super().get_queryset(org, user)
+    def get_queryset(self, org, user, ordered):
+        return super().get_queryset(org, user, ordered)
 
 
 FOLDERS = {f.slug: f() for f in TicketFolder.__subclasses__()}
