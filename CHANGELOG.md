@@ -1,3 +1,13 @@
+v6.5.66
+----------
+ * Add channel menu
+ * Add test for dynamic contact group list, remove editor_next redirect
+ * Fix styling on contact list headersa and flow embedding
+ * Add messages to menu, refresh override
+ * Switch contact fields and import to use template inheritance
+ * Use template inheritance for spa work
+ * Add deeplinking support for non-menued destinations
+
 v6.5.65
 ----------
  * Move to Python 3.9
