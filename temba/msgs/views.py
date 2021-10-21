@@ -250,7 +250,7 @@ class BroadcastCRUDL(SmartCRUDL):
     actions = ("send", "update", "schedule_read", "schedule_list")
     model = Broadcast
 
-    class ScheduleRead(FormaxMixin, OrgObjPermsMixin, SmartReadView):
+    class ScheduleRead(SpaMixin, FormaxMixin, OrgObjPermsMixin, SmartReadView):
         title = _("Schedule Message")
 
         def derive_title(self):
