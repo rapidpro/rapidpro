@@ -1,3 +1,7 @@
+v6.5.69
+----------
+ * Remove extra labels on contact fields
+
 v6.5.68
 ----------
  * Reenable chat monitoring
