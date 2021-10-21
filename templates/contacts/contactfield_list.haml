@@ -77,8 +77,6 @@
                         -if org_perms.contacts.contactfield_update
                           .hover-linked.update(onclick="showUpdateContactFieldModal({{obj.id}})")
                             {{ obj.label }}                          
-                              {{ obj.label }}                          
-                            {{ obj.label }}                          
                             .key{ style:"font-family: monospace; font-size: 12px;" }
                               @fields.{{ obj.key }}
                             -if obj.show_in_table
