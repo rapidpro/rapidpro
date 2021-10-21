@@ -3307,7 +3307,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         menu = response.json()["results"]
         self.assertEqual(
             [
-                {"id": "contacts", "name": "Contacts", "icon": "contact-cal", "endpoint": "/contact/menu/"},
+                {"endpoint": "/msg/menu/", "icon": "message-square", "id": "messages", "name": "Messages"},
+                {"id": "contacts", "name": "Contacts", "icon": "contact", "endpoint": "/contact/menu/"},
                 {"id": "tickets", "name": "Tickets", "icon": "agent", "href": "/ticket/", "endpoint": "/ticket/menu/"},
                 {
                     "id": "support",
@@ -3598,9 +3599,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(signup_url)
         self.assertEqual(response.status_code, 200)
         self.assertIn("name", response.context["form"].fields)
-
-        # make sure that we don't embed refresh script if View.refresh is not set
-        self.assertNotContains(response, "function refresh")
 
         # submit with missing fields
         response = self.client.post(signup_url, {})

@@ -7,6 +7,7 @@ from smartmin.views import (
     SmartFormView,
     SmartListView,
     SmartReadView,
+    SmartTemplateView,
     SmartUpdateView,
 )
 
@@ -15,6 +16,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
+from django.http.response import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import is_safe_url, urlquote_plus
@@ -40,7 +42,7 @@ from temba.utils.fields import (
     TembaChoiceField,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import BulkActionMixin, ComponentFormMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin, SpaMixin
 
 from .models import INITIALIZING, QUEUED, Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
@@ -96,7 +98,7 @@ class SendMessageForm(Form):
         return cleaned
 
 
-class InboxView(OrgPermsMixin, BulkActionMixin, SmartListView):
+class InboxView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     """
     Base class for inbox views with message folders and labels listed by the side
     """
@@ -511,7 +513,52 @@ class ExportForm(Form):
 
 class MsgCRUDL(SmartCRUDL):
     model = Msg
-    actions = ("inbox", "flow", "archived", "outbox", "sent", "failed", "filter", "export")
+    actions = ("inbox", "flow", "archived", "menu", "outbox", "sent", "failed", "filter", "export")
+
+    class Menu(OrgPermsMixin, SmartTemplateView):  # pragma: no cover
+        def render_to_response(self, context, **response_kwargs):
+            org = self.request.user.get_org()
+            counts = SystemLabel.get_counts(org)
+
+            menu = [
+                dict(
+                    id="inbox", count=counts[SystemLabel.TYPE_INBOX], name=_("Inbox"), href=reverse("msgs.msg_inbox")
+                ),
+                dict(id="flow", count=counts[SystemLabel.TYPE_FLOWS], name=_("Flows"), href=reverse("msgs.msg_flow")),
+                dict(
+                    id="archived",
+                    count=counts[SystemLabel.TYPE_ARCHIVED],
+                    name=_("Archived"),
+                    href=reverse("msgs.msg_archived"),
+                ),
+                dict(
+                    id="outbox",
+                    count=counts[SystemLabel.TYPE_OUTBOX],
+                    name=_("Outbox"),
+                    href=reverse("msgs.msg_outbox"),
+                ),
+                dict(id="sent", count=counts[SystemLabel.TYPE_SENT], name=_("Sent"), href=reverse("msgs.msg_sent")),
+                dict(
+                    id="calls",
+                    count=counts[SystemLabel.TYPE_CALLS],
+                    name=_("Calls"),
+                    href=reverse("channels.channelevent_calls"),
+                ),
+                dict(
+                    id="schedules",
+                    count=counts[SystemLabel.TYPE_SCHEDULED],
+                    name=_("Schedules"),
+                    href=reverse("msgs.broadcast_schedule_list"),
+                ),
+                dict(
+                    id="failed",
+                    count=counts[SystemLabel.TYPE_FAILED],
+                    name=_("Failed"),
+                    href=reverse("msgs.msg_failed"),
+                ),
+            ]
+
+            return JsonResponse({"results": menu})
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
 

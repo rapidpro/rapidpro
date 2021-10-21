@@ -59,6 +59,8 @@
     }
 
     .spa-content {
+      display: flex;
+      flex-direction: column;
       height:100%;
     }
 
@@ -84,7 +86,8 @@
       padding-top:0em;
       padding-right: 0em;
       padding-left: 0em;
-      
+      flex-grow: 1;
+      overflow-y: auto;
     }
 
     .lp-frame .left { 
@@ -99,8 +102,8 @@
     }
 
     .lp-frame .right { 
-      padding: 1em;
-      margin: -1em;
+      padding: 0em;
+      margin: 0em;
     }
 
     .lp-frame .left .lp-nav .inner-scroll {
@@ -196,8 +199,11 @@
     }
 
     .spa-container {
-      -webkit-box-shadow:  inset 14px -10px 10px -20px #000000;
-      box-shadow: inset 14px -10px 10px -20px #000000;
+    }
+
+    .folders {
+      box-shadow: 3px 0 13px -3px rgba(0, 0, 0, 0.15);
+      z-index:1;
     }
 
     table.list.selectable tbody tr:hover td {
@@ -357,7 +363,7 @@
         showLoading();
       }
 
-      var a = target.closest("a")
+      var a = target.closest("a");
       if (a && a.href) {
         evt.stopPropagation();
         evt.preventDefault();
@@ -410,15 +416,23 @@
 
 
     function goto(event, ele) {
-       if (!ele) {
+      if (!ele) {
         ele = event.target;
       }
+
 
       event.stopPropagation();
       if (ele.setActive) {
           ele.setActive();
       }
       var href = ele.getAttribute('href');
+
+      if (!href) {
+        if(ele.tagName == "TD") {
+          href = ele.closest("tr").getAttribute("href");
+        }
+      }
+
       if (href) {
           if (event.metaKey) {
               window.open(href, '_blank');
@@ -457,23 +471,35 @@
       menu.refresh();
     }
 
+    function gotoURL(urlToGo, urlToShow, ignoreEvents) {
+        var refererPath = window.location.pathname;
+        window.lastFetch = urlToGo;
+        window.history.pushState({ url: urlToGo,  },"", urlToShow);
+        fetchPJAXContent(urlToGo, ".spa-content", { "headers": { 
+            "TEMBA-SPA": "1", 
+            "TEMBA-REFERER-PATH": refererPath,
+            "TEMBA-PATH": urlToShow
+            }, 
+          "onSuccess": hideLoading, "ignoreEvents": ignoreEvents
+        });
+    }
+
     function fetchURL(url, triggerEvents) {
       showLoading();
-
       var refererPath = window.location.pathname;
-      
       window.lastFetch = url;
       var menu = document.querySelector("temba-menu");
       var path = "/" + menu.getSelection().join("/") + "/";
-      window.history.pushState({ url: url,  },"", path);
 
-      fetchPJAXContent(url, ".spa-content", { "headers": { 
-          "TEMBA-SPA": "1", 
-          "TEMBA-REFERER-PATH": refererPath,
-          "TEMBA-PATH": path
-          }, 
-        "onSuccess": hideLoading, "ignoreEvents": !triggerEvents
-      });
+      if (url.indexOf("/contact/read/") == 0) {
+        path = url.replace("/contact/read/", "/contacts/read/");
+      }
+
+      if (url.indexOf("/contact/filter/") == 0) {
+        path = url.replace("/contact/filter/", "/contacts/filter/");
+      }
+
+      gotoURL(url, path, !triggerEvents);
     }
    
     function handleMenuChanged(event) {
@@ -494,6 +520,27 @@
       }
     }
 
+    function handleNoPath(event) {
+      var details = event.detail;
+      if (details.item == "contacts") {
+        gotoURL("/contact/" + details.path, "/" + details.item + "/" + details.path);
+      }
+    }
+
+-block refresh-fn
+  :javascript
+    function refresh(onSuccess, forceReload){
+      var refererPath = window.location.pathname;
+      fetchPJAXContent(window.lastFetch, ".spa-content", { "headers": { 
+        "TEMBA-SPA": "1", 
+        "TEMBA-REFERER-PATH": refererPath,
+        "TEMBA-PATH": refererPath,
+        }, 
+        "onSuccess": onSuccess, "ignoreEvents": false
+      });
+    }
+
+
 -block temba-store
   %temba-store(
     completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
@@ -510,7 +557,7 @@
   .flex-col
     .flex.widget-container(style="height:100vh;")
       .folders       
-        %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true")
+        %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)")
       .flex-grow.text-lg.spa-container.p-5
         .spa-content
   

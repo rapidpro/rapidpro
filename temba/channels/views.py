@@ -45,7 +45,7 @@ from temba.orgs.views import AnonMixin, DependencyDeleteModal, ModalMixin, OrgOb
 from temba.utils import analytics, countries, json
 from temba.utils.fields import SelectWidget
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import ComponentFormMixin
+from temba.utils.views import ComponentFormMixin, SpaMixin
 
 from .models import (
     Alert,
@@ -736,7 +736,7 @@ class ChannelCRUDL(SmartCRUDL):
     )
     permissions = True
 
-    class Read(OrgObjPermsMixin, NotificationTargetMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, NotificationTargetMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
@@ -1534,7 +1534,7 @@ class ChannelLogCRUDL(SmartCRUDL):
                 )
             ]
 
-    class Read(OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
 
         def get_gear_links(self):
