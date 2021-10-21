@@ -113,27 +113,24 @@
     }
 
     function updateTicketList() {
-
       var app = document.location.pathname.indexOf('/ticket/') > -1 ? 'ticket' : 'tickets';
       var url = `/${app}/${folder}/${status}/${ticketUUID || ''}`;
       window.history.pushState({},"", url);
 
-      var contacts = document.querySelector("temba-contacts");
+      var tickets = document.querySelector("temba-ticket-list");
       var chat = document.querySelector("temba-contact-chat");
 
       // if we have auto selecting, don't clear the chat
-      var contactsEndpoint = `/ticket/folder/${folder}/${status}/${initialTicket || ''}`;
-      if (contactsEndpoint != contacts.endpoint) {
-        if (!contacts.nextSelection) {
+      var ticketsEndpoint = `/ticket/folder/${folder}/${status}/${initialTicket || ''}`;
+      if (ticketsEndpoint != tickets.endpoint) {
+        if (!tickets.nextSelection) {
           chat.contact = null;
         }
         
-        contacts.setEndpoint(contactsEndpoint, focusNext);
+        tickets.setEndpoint(ticketsEndpoint, focusNext);
 
         // clear our ticket filter note if we have one
-        var tickets = document.querySelector("temba-contacts");
         tickets.innerHTML = '';
-
         focusNext = null;
         ticketUUID = null;
         initialTicket = null;
@@ -158,25 +155,32 @@
       var contact = event.target.getSelection();
 
       var chat = document.querySelector("temba-contact-chat");
-      chat.contactUUID = contact.uuid;
-      chat.currentTicket = contact.ticket;
-
-      var filterNote = document.querySelector(".filter-note");
-      if (filterNote) {
-        filterNote.classList.remove("hidden");
-      }
-
       if (contact) {
-        ticketUUID = contact.ticket.uuid;
+        chat.contactUUID = contact.uuid;
+        chat.currentTicket = contact.ticket;
+
+        var filterNote = document.querySelector(".filter-note");
+        if (filterNote) {
+          filterNote.classList.remove("hidden");
+        }
+
+        if (contact) {
+          ticketUUID = contact.ticket.uuid;
+        } else {
+          ticketUUID = null;
+        }
       } else {
-        ticketUUID = null;
+        chat.contactUUID = null;
+        chat.currentTicket = null;
+        chat.currentContact = null;
       }
+      
       updateTicketList();
     }
     
     function handleContactHistoryUpdated(event) {
       // tell our list to refresh since we know things happened
-      var tickets = document.querySelector("temba-contacts");
+      var tickets = document.querySelector("temba-ticket-list");
       if (tickets) {
         tickets.refresh();
       }
@@ -201,25 +205,52 @@
 
       menu.refresh();
     }
+
+    function removeTicket(uuid) {
+      var tickets = document.querySelector("temba-ticket-list");
+      var chat = document.querySelector("temba-contact-chat");
+
+      chat.contactUUID = null;
+      chat.currentTicket = null;
+      chat.currentContact = null;
+      tickets.removeItem(uuid);
+    }
     
     function handleTicketUpdated(event) {
       var ticket = event.detail.ticket;
       var menu = document.querySelector('temba-menu');
       var statusSelect = document.querySelector('temba-select[name="ticket-status"]');
-      var contacts = document.querySelector("temba-contacts");
-
+      var tickets = document.querySelector("temba-ticket-list");
+      var chat = document.querySelector("temba-contact-chat");
+      var folder = menu.selection[menu.selection.length - 1];
+      
       // current agent took a ticket
       if (ticket.assigned == 'self') {
-        menu.value = "tickets/mine";
-        statusSelect.setValue("open");
+        menu.clickItem("mine");
         updateTicketList();
       } 
+      // unassigning an assigned ticket
+      else if (ticket.assigned != "self" && folder == "mine") {
+        removeTicket(ticket.uuid);
+      }
+      // assigning an unassigned ticket
+      else if (ticket.assigned && folder == "unassigned") {
+        removeTicket(ticket.uuid);
+      }
+
       // ticket was reopened
       else if (ticket.status == "open") {
+        chat.contactUUID = null;
+        chat.currentTicket = null;
+        chat.currentContact = null;
         focusNext = ticket.uuid;
         statusSelect.setSelection("open");
+      } 
+      // ticket was closed
+      else if (ticket.status == "closed") {
+        removeTicket(ticket.uuid);
       } else {
-        contacts.refresh();
+        tickets.refresh();
       }
 
       menu.refresh();
@@ -241,12 +272,12 @@
 
             .flex.flex-grow(style="max-height:100%;")
               -if uuid
-                %temba-contacts(agent="{{request.user.pk}}" endpoint="{% url 'tickets.ticket_folder' folder status uuid %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+                %temba-ticket-list(agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status uuid %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
                   .filter-note.m-2.hidden(style="text-align:center")
                     .linked(onclick="clearFilter()")
                       -trans "See more tickets"
               -else
-                %temba-contacts(nextselection="{{nextUUID}}" agent="{{request.user.pk}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+                %temba-ticket-list(nextselection="{{nextUUID}}" agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
 
           .flex-grow.flex-col.h-full(style="" class="{% if is_spa %}ml-4{%else%}py-4 pb-4 pr-4{% endif %}")
             .empty
@@ -276,4 +307,4 @@
                     Open Ticket action to open a new ticket.
                       
                       
-            %temba-contact-chat(agent="{{request.user.pk}}" -temba-refreshed="handleContactHistoryUpdated" -temba-content-changed="handleTicketUpdated")
+            %temba-contact-chat(agent="{{request.user.email}}" -temba-refreshed="handleContactHistoryUpdated" -temba-content-changed="handleTicketUpdated")
