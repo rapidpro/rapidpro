@@ -9,7 +9,7 @@ license = "AGPL-3"
 repository = "http://github.com/rapidpro/rapidpro"
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.6.1"
 Django = "^2.2.19"
 django-compressor = "^2.4"
 django-countries = "^7.0"
@@ -70,6 +70,7 @@ supervisor = "^4.2.2"
 ua-parser = "^0.10.0"
 user-agents = "^2.2.0"
 pandas = "0.25.3"
+pre-commit = "2.9.2"
 
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"

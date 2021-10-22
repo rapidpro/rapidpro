@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/ambv/black
+    rev: stable
+    hooks:
+      - id: black
+        language_version: python3.6
+        args: ['--line-length=119', '--target-version=py36']
+        files: 'temba'
+
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.7.9
+    hooks:
+      - id: flake8
+        args: ['--max-line-length=119', '--ignore=E501,F405,T003,E203,W503']
+        files: 'temba'
