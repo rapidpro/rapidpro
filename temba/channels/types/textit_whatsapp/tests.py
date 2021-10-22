@@ -1,12 +1,10 @@
 from unittest.mock import patch
 
-from django.forms import ValidationError
 from django.urls import reverse
 
 from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel
-from .type import TextItWhatsAppType
 
 
 class TextItWhatsappTypeTest(TembaTest):

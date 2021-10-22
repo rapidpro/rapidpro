@@ -10,7 +10,6 @@ import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
-from smartmin.users.models import FailedLogin
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -98,6 +97,7 @@ class OrgContextProcessorTest(TembaTest):
 
         with self.assertRaises(TypeError):
             list(perms)
+
 
 """
 class UserTest(TembaTest):
@@ -745,7 +745,9 @@ class OrgDeleteTest(TembaNonAtomicTest):
         self.mock_s3 = MockS3Client()
 
         # make some exports
-        ExportFlowResultsTask.create(self.parent_org, self.admin, [parent_flow], [parent_field], True, True, (), (), {})
+        ExportFlowResultsTask.create(
+            self.parent_org, self.admin, [parent_flow], [parent_field], True, True, (), (), {}
+        )
         ExportFlowResultsTask.create(self.child_org, self.admin, [child_flow], [child_field], True, True, (), (), {})
 
         ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)
@@ -3194,11 +3196,11 @@ class OrgTest(TembaTest):
         self.assertEqual(len(response.context["sub_orgs"]), 0)
 
     def test_sub_orgs(self):
-        # lets start with two topups
-        oldest_topup = TopUp.objects.filter(org=self.org).first()
-
-        expires = timezone.now() + timedelta(days=400)
-        newer_topup = TopUp.create(self.admin, price=0, credits=1000, org=self.org, expires_on=expires)
+        # # lets start with two topups
+        # oldest_topup = TopUp.objects.filter(org=self.org).first()
+        #
+        # expires = timezone.now() + timedelta(days=400)
+        # newer_topup = TopUp.create(self.admin, price=0, credits=1000, org=self.org, expires_on=expires)
 
         # lower the tier and try again
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)

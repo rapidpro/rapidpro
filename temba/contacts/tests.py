@@ -1,6 +1,4 @@
 import io
-import subprocess
-import time
 import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -13,7 +11,6 @@ from openpyxl import load_workbook
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.validators import ValidationError
-from django.db import connection
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
 from django.db.utils import IntegrityError
@@ -24,7 +21,7 @@ from django.utils import timezone
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.search import SearchException, SearchResults, search_contacts
+from temba.contacts.search import SearchResults
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowStart
 from temba.ivr.models import IVRCall
@@ -37,7 +34,6 @@ from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
-    TembaNonAtomicTest,
     TembaTest,
     matchers,
     mock_mailroom,
@@ -45,7 +41,7 @@ from temba.tests import (
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.utils.dates import datetime_to_str, datetime_to_timestamp
+from temba.utils.dates import datetime_to_timestamp
 
 from .models import (
     URN,
@@ -151,7 +147,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(response.context["search"], "age = 18")
         self.assertEqual(response.context["save_dynamic_search"], True)
         self.assertIsNone(response.context["search_error"])
-        self.assertEqual(list(response.context["contact_fields"].values_list("label", flat=True)), ["Home", "Age", "Opt In"])
+        self.assertEqual(
+            list(response.context["contact_fields"].values_list("label", flat=True)), ["Home", "Age", "Opt In"]
+        )
 
         mr_mocks.contact_search("age = 18", contacts=[frank], total=10020, allow_as_group=True)
 

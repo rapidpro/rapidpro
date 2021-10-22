@@ -41,7 +41,6 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
-from temba.utils.uuid import uuid4
 
 from .tasks import retry_errored_messages, squash_msgcounts
 from .templatetags.sms import as_icon

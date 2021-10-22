@@ -12,25 +12,23 @@ import intercom.errors
 import pytz
 from django_redis import get_redis_connection
 from openpyxl import load_workbook
-from smartmin.tests import SmartminTestMixin
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import checks
-from django.core.management import CommandError, call_command
+from django.core.management import call_command
 from django.db import connection, models
 from django.forms import ValidationError
-from django.test import TestCase, TransactionTestCase, override_settings
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
 
 from celery.app.task import Task
 
 import temba.utils.analytics
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
+from temba.contacts.models import Contact, ExportContactsTask
 from temba.flows.models import FlowRun
-from temba.orgs.models import Org, UserSettings
-from temba.tests import ESMockWithScroll, TembaTest, matchers
+from temba.tests import TembaTest, matchers
 from temba.utils import json, uuid
 from temba.utils.json import TembaJsonAdapter
 

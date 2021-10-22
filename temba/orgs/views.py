@@ -89,10 +89,12 @@ from .models import (
     DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS,
     DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS,
 )
-from .models import BackupToken, Invitation, Org, OrgCache, OrgRole, TopUp, UserSettings, get_stripe_credentials
+from .models import BackupToken, Invitation, Org, OrgCache, OrgRole, TopUp, get_stripe_credentials
 from .tasks import apply_topups_task
 
 # session key for storing a two-factor enabled user's id once we've checked their password
+from ..utils.text import random_string
+
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
 TWO_FACTOR_STARTED_SESSION_KEY = "_two_factor_started_on"
 TWO_FACTOR_LIMIT_SECONDS = 5 * 60

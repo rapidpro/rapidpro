@@ -19,7 +19,7 @@ class LinkTest(TembaTest):
             destination="https://google.com",
             created_by=self.admin,
             modified_by=self.admin,
-            created_on=timezone.now()
+            created_on=timezone.now(),
         )
         self.assertIsNotNone(link)
         self.assertIsInstance(link.as_json(), dict)
@@ -37,13 +37,15 @@ class LinkTest(TembaTest):
         handle_link_task(link.id, contact.id)
         self.assertGreater(LinkContacts.objects.count(), initial_links_count)
 
-        day_before, day_after = timezone.now() - timezone.timedelta(days=1), timezone.now() + timezone.timedelta(days=1)
+        day_before, day_after = timezone.now() - timezone.timedelta(days=1), timezone.now() + timezone.timedelta(
+            days=1
+        )
         link.get_activity(day_before, day_after, contact.name)
 
         links_count = Link.objects.count()
-        Link.import_links(self.org, self.user, [
-            {"name": "Test 2", "destination": "https://twitter.com", "uuid": uuid4()}
-        ])
+        Link.import_links(
+            self.org, self.user, [{"name": "Test 2", "destination": "https://twitter.com", "uuid": uuid4()}]
+        )
         self.assertGreater(Link.objects.count(), links_count)
 
         export = ExportLinksTask.create(self.org, self.admin, link)
@@ -57,10 +59,14 @@ class LinkTest(TembaTest):
         response = self.client.get(reverse("links.link_create"), follow=True)
         self.assertEqual(response.status_code, 200)
 
-        response = self.client.post(reverse("links.link_create"), {
-            "name": "Test Link",
-            "destination": "https://google.com",
-        }, follow=True)
+        response = self.client.post(
+            reverse("links.link_create"),
+            {
+                "name": "Test Link",
+                "destination": "https://google.com",
+            },
+            follow=True,
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Link.objects.count(), 1)
 
@@ -79,10 +85,11 @@ class LinkTest(TembaTest):
 
         yesterday, tomorrow = (
             datetime_to_timestamp(timezone.now() - timezone.timedelta(days=1)),
-            datetime_to_timestamp(timezone.now() + timezone.timedelta(days=1))
+            datetime_to_timestamp(timezone.now() + timezone.timedelta(days=1)),
         )
-        response = self.client.get(f'{reverse("links.link_history", kwargs={"uuid": link.uuid})}'
-                                   f'?after={yesterday}&before={tomorrow}')
+        response = self.client.get(
+            f'{reverse("links.link_history", kwargs={"uuid": link.uuid})}' f"?after={yesterday}&before={tomorrow}"
+        )
         self.assertEqual(response.status_code, 200)
 
         response = self.client.get(reverse("links.link_api"))
