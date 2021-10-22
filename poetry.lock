@@ -1239,7 +1239,7 @@ xlwt = "^1.3.0"
 type = "git"
 url = "https://github.com/greatnonprofits-nfp/smartmin.git"
 reference = "ccl-v4.0"
-resolved_reference = "3921785d08138d5a9f70391704495a843b511a4f"
+resolved_reference = "8cc0da28f38f9a5c06c7ccd3ff11413642b1ea7e"
 
 [[package]]
 name = "sorl-thumbnail"
