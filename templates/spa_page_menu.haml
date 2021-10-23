@@ -39,7 +39,52 @@
 
   .menu-item {
     margin-bottom: 0.4em;
-    font-size: 0.9rem;
+    font-size: 1.1rem;
+  }
+
+  .spa-gear-buttons, .spa-gear-menu {
+    --button-y: 0.2em;
+    --button-x: 0.5em;
+  }
+
+  #gear-container .spa-gear-menu .button-light.dropdown-toggle {
+    padding-top: 0.5em;
+    padding-bottom: 0.4em;
+  }
+
+
+  .header-button {
+    background:rgba(0,0,0,.15);
+    color: #fff;
+  }
+  
+  .header-button:hover {
+    cursor:pointer;
+    background:rgba(0,0,0,.25);
+    box-shadow: inset 4px 4px 57px -28px rgba(0,0,0,0.75);
+
+  }
+
+  .more:hover {
+    background:rgba(0,0,0,.25);
+    box-shadow: inset 4px 4px 57px -28px rgba(0,0,0,0.75);
+  }
+
+  .more .submenu {
+    top:3.5em;
+    right:1em;
+    z-index: 1000;
+    transform: translateY(3em);
+    transition: transform 200ms ease-in-out, opacity 200ms linear, visibility 300ms linear;
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .more:hover .submenu {
+    display: inline-block;
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
   }
 
 :javascript
@@ -65,21 +110,22 @@
   -if gear_links
     %temba-modax#gear-modax
 
-    #gear-container.flex
-      .spa-gear-buttons
-        -with link=gear_links|first
-          .ml-4
-            %temba-button.whitespace-no-wrap.light{'name':"{{link.title|escapejs}}", "v":"2", "onclick":"handleMenuClicked(event)",  class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}'}
+    .flex.h-full
+      -with link=gear_links|first
+        .header-button.flex.flex-column.items-center.px-4{onclick:'handleMenuClicked(event)', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}'}
+          {{link.title|escapejs}}
+ 
+      -if gear_links|length > 1
 
-      .spa-gear-menu
-        -if gear_links|length > 1
-          .btn-group.gear-menu.ml-3
-            .button-light.p-icon.dropdown-toggle.text-center{ data-toggle:"dropdown" }
-              .icon-menu.text-gray-500(style="margin-left:-2px;margin-top:1px")
-            %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3{'role':'menu', 'aria-labelledby':'dlabel'}
+        .more.px-2.flex.flex-column.items-center.cursor-pointer.rounded-br.rounded-tr
+          .submenu.absolute.shadow-xl
+            .card.mb-0
               -for link in gear_links
                 -if not forloop.first
                   .menu-item.hover-linked.font-normal{onclick:'handleMenuClicked(event)', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}'}
                     {{link.title}}
                     %span{class:'gear-flag'}
                       {{link.flag}}
+  
+          %temba-icon(style="--icon-color:#fff" name="menu" size="1.5")
+
