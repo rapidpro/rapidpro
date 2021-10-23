@@ -78,15 +78,15 @@ if __name__ == "__main__":
         status("Running flake8")
         cmd("flake8 temba --ignore=E501,F405,T003,E203,W503")
 
-    status("Running isort")
-    cmd("isort -rc temba")
-
-    status("Updating locale PO files")
-    update_po_files()
-
-    if not args.skip_compilemessages:
-        status("Recompiling locale MO files")
-        cmd("python manage.py compilemessages")
+    # status("Running isort")
+    # cmd("isort -rc temba")
+    #
+    # status("Updating locale PO files")
+    # update_po_files()
+    #
+    # if not args.skip_compilemessages:
+    #     status("Recompiling locale MO files")
+    #     cmd("python manage.py compilemessages")
 
     # if any code changes were made, exit with error
     if cmd("git diff temba locale"):

@@ -18,3 +18,4 @@ DATABASES = {
 }
 
 DATABASES["direct"] = DATABASES["default"]
+DATABASES["read_only_db"] = DATABASES["default"]
