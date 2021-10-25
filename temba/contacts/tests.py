@@ -1775,7 +1775,7 @@ class ContactTest(TembaTest):
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
                 SearchResults(query="", total=0, contact_ids=[]),
             ]
-            with self.assertNumQueries(17):
+            with self.assertNumQueries(16):
                 actual_result = omnibox_request(query="")
                 expected_result = [
                     # all 3 groups A-Z
@@ -2047,7 +2047,7 @@ class ContactTest(TembaTest):
 
         # fetch our contact history
         self.login(self.admin)
-        with self.assertNumQueries(51):
+        with self.assertNumQueries(50):
             response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -3710,7 +3710,7 @@ class ContactFieldTest(TembaTest):
             self.create_contact_import(path)
 
         # no group specified, so will default to 'Active'
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(41):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3766,7 +3766,7 @@ class ContactFieldTest(TembaTest):
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(41):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3827,7 +3827,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(44):
+        with self.assertNumQueries(43):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3917,7 +3917,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(42):
             self.assertExcelSheet(
                 request_export("?g=%s" % group.uuid)[0],
                 [
@@ -3985,7 +3985,7 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(44):
+                    with self.assertNumQueries(43):
                         self.assertExcelSheet(
                             request_export("?s=name+has+adam+or+name+has+deng")[0],
                             [
@@ -4047,7 +4047,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(42):
+            with self.assertNumQueries(41):
                 self.assertExcelSheet(
                     request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [
@@ -5413,6 +5413,8 @@ class ContactImportTest(TembaTest):
                 "time_taken": 0,
                 "num_duplicates": 0,
                 "num_total": 0,
+                "is_validated": False,
+                "validated_urn_carriers": {"landline": [], "mobile": []},
             },
             imp.get_info(),
         )
@@ -5470,6 +5472,8 @@ class ContactImportTest(TembaTest):
                 "time_taken": matchers.Int(),
                 "num_duplicates": 0,
                 "num_total": 0,
+                "is_validated": False,
+                "validated_urn_carriers": {"landline": [], "mobile": []},
             },
             imp.get_info(),
         )
@@ -5490,6 +5494,8 @@ class ContactImportTest(TembaTest):
                 "time_taken": matchers.Int(),
                 "num_duplicates": 0,
                 "num_total": 3,
+                "is_validated": False,
+                "validated_urn_carriers": {"landline": [], "mobile": []},
             },
             imp.get_info(),
         )
@@ -5511,6 +5517,8 @@ class ContactImportTest(TembaTest):
                 "time_taken": matchers.Int(),
                 "num_duplicates": 0,
                 "num_total": 11,
+                "is_validated": False,
+                "validated_urn_carriers": {"landline": [], "mobile": []},
             },
             imp.get_info(),
         )
@@ -5529,6 +5537,8 @@ class ContactImportTest(TembaTest):
                 "time_taken": matchers.Int(),
                 "num_duplicates": 0,
                 "num_total": 11,
+                "is_validated": False,
+                "validated_urn_carriers": {"landline": [], "mobile": []},
             },
             imp.get_info(),
         )
@@ -5770,7 +5780,9 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create_and_preview(self):
         create_url = reverse("contacts.contactimport_create")
 
-        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=["file"])
+        self.assertCreateFetch(
+            create_url, allow_viewers=False, allow_editors=True, form_fields=["file", "validate_carrier"]
+        )
 
         # try posting with nothing
         response = self.client.post(create_url, {})
@@ -5854,10 +5866,6 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "Import"})
         self.assertRedirect(response, read_url)
 
-        new_group = ContactGroup.user_groups.get(name="Import")
-        imp.refresh_from_db()
-        self.assertEqual(new_group, imp.group)
-
     @mock_mailroom
     def test_using_existing_group(self, mr_mocks):
         self.login(self.admin)
@@ -5884,9 +5892,6 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
             preview_url, {"add_to_group": True, "group_mode": "E", "existing_group": doctors.id}
         )
         self.assertRedirect(response, read_url)
-
-        imp.refresh_from_db()
-        self.assertEqual(doctors, imp.group)
 
     def test_preview_with_mappings(self):
         self.create_field("age", "Age", ContactField.TYPE_NUMBER)

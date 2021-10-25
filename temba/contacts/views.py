@@ -2042,7 +2042,7 @@ class ContactImportCRUDL(SmartCRUDL):
 
         def can_validate_upload(self):
             org = self.derive_org()
-            user = org.get_user()
+            user = self.get_user()
             return org.is_connected_to_twilio() and user.is_support()
 
         def get_context_data(self, **kwargs):
