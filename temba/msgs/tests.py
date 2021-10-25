@@ -307,7 +307,7 @@ class MsgTest(TembaTest):
 
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(36):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
         self.assertEqual(1, response.context_data["folders"][3]["count"])  # Outbox
@@ -331,7 +331,7 @@ class MsgTest(TembaTest):
         broadcast4.schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
         broadcast4.save(update_fields=["schedule"])
 
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(38):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
         self.assertEqual(5, response.context_data["folders"][3]["count"])  # Outbox
@@ -382,7 +382,7 @@ class MsgTest(TembaTest):
 
         # visit inbox page as a manager of the organization
         self.login(self.admin)
-        with self.assertNumQueries(34):
+        with self.assertNumQueries(33):
             response = self.client.get(inbox_url + "?refresh=10000")
 
         # make sure that we embed refresh script if View.refresh is set
@@ -467,7 +467,7 @@ class MsgTest(TembaTest):
 
         # visit archived page as a manager of the organization
         self.login(self.admin)
-        with self.assertNumQueries(31):
+        with self.assertNumQueries(30):
             response = self.client.get(archive_url)
 
         self.assertEqual(response.context["object_list"].count(), 1)
@@ -549,7 +549,7 @@ class MsgTest(TembaTest):
         # org viewer can
         self.login(self.admin)
 
-        with self.assertNumQueries(34):
+        with self.assertNumQueries(33):
             response = self.client.get(url)
 
         self.assertEqual(set(response.context["object_list"]), {msg3, msg2, msg1})
@@ -615,7 +615,7 @@ class MsgTest(TembaTest):
 
         # visit failed page as an administrator
         self.login(self.admin)
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(36):
             response = self.client.get(failed_url)
 
         self.assertEqual(response.context["object_list"].count(), 3)
@@ -751,7 +751,7 @@ class MsgTest(TembaTest):
             return load_workbook(filename=filename)
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(30):
+        with self.assertNumQueries(29):
             with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
                 workbook = request_export("?l=I", {"export_all": 1})
 
@@ -1215,7 +1215,7 @@ class MsgTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 5
 
-                with self.assertNumQueries(30):
+                with self.assertNumQueries(29):
                     self.assertExcelSheet(
                         request_export("?l=I", {"export_all": 1}),
                         [
