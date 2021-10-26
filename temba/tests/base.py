@@ -13,7 +13,7 @@ from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 from django.utils import timezone
 
 from temba.archives.models import Archive
@@ -37,6 +37,7 @@ def add_testing_flag_to_context(*args):
 class TembaTestMixin:
     databases = ("default", "direct", "read_only_db")
 
+    @override_settings(CREDITS_EXPIRATION=True)
     def setUpOrgs(self):
         # make sure we start off without any service users
         Group.objects.get(name="Service Users").user_set.clear()

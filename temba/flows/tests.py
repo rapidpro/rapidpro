@@ -3826,7 +3826,7 @@ class ExportFlowResultsTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
-                with self.assertNumQueries(58):
+                with self.assertNumQueries(57):
                     workbook = self._export(flow, group_memberships=[devs])
 
                 self.assertEqual(len(captured_logger.output), 3)
@@ -4072,7 +4072,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(52):
+        with self.assertNumQueries(51):
             workbook = self._export(flow, include_msgs=False, responded_only=True, group_memberships=(devs,))
 
         tz = self.org.timezone
@@ -4141,7 +4141,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(54):
+        with self.assertNumQueries(53):
             workbook = self._export(
                 flow,
                 include_msgs=False,
