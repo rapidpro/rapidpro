@@ -1672,9 +1672,9 @@ class ChannelConnection(models.Model):
     TYPE_VOICE = "V"
     TYPE_CHOICES = ((TYPE_VOICE, "Voice"),)
 
-    DIRECTION_INCOMING = "I"
-    DIRECTION_OUTGOING = "O"
-    DIRECTION_CHOICES = ((DIRECTION_INCOMING, _("Incoming")), (DIRECTION_OUTGOING, _("Outgoing")))
+    DIRECTION_IN = "I"
+    DIRECTION_OUT = "O"
+    DIRECTION_CHOICES = ((DIRECTION_IN, _("Incoming")), (DIRECTION_OUT, _("Outgoing")))
 
     STATUS_PENDING = "P"  # used for initial creation in database
     STATUS_QUEUED = "Q"  # used when we need to throttle requests for new calls

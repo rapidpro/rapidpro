@@ -446,7 +446,7 @@ class TembaTestMixin:
         call = IVRCall.objects.create(
             org=self.org,
             channel=self.channel,
-            direction=IVRCall.DIRECTION_INCOMING,
+            direction=IVRCall.DIRECTION_IN,
             contact=contact,
             contact_urn=contact.get_urn(),
             status=status,
