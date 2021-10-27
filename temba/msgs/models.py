@@ -45,11 +45,6 @@ ERRORED = "E"
 FAILED = "F"
 RESENT = "R"
 
-INBOX = "I"
-FLOW = "F"
-IVR = "V"
-USSD = "U"
-
 # status codes used for both messages and broadcasts (single char constant, human readable, API readable)
 STATUS_CONFIG = (
     # special state for flows used to hold off sending the message until the flow is ready to receive a response
@@ -322,89 +317,78 @@ class Msg(models.Model):
     """
 
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
+    STATUSES_API = extract_constants(STATUS_CONFIG)
 
     VISIBILITY_VISIBLE = "V"
     VISIBILITY_ARCHIVED = "A"
     VISIBILITY_DELETED = "D"
-
-    # single char flag, human readable name, API readable name
-    VISIBILITY_CONFIG = (
-        (VISIBILITY_VISIBLE, "Visible", "visible"),
-        (VISIBILITY_ARCHIVED, "Archived", "archived"),
-        (VISIBILITY_DELETED, "Deleted", "deleted"),
+    VISIBILITY_CHOICES = (
+        (VISIBILITY_VISIBLE, "Visible"),
+        (VISIBILITY_ARCHIVED, "Archived"),
+        (VISIBILITY_DELETED, "Deleted"),
     )
-
-    VISIBILITY_CHOICES = [(s[0], s[1]) for s in VISIBILITY_CONFIG]
+    VISIBILITIES_API = {
+        VISIBILITY_VISIBLE: "visible",
+        VISIBILITY_ARCHIVED: "archived",
+        VISIBILITY_DELETED: "deleted",
+    }
 
     DIRECTION_IN = "I"
     DIRECTION_OUT = "O"
     DIRECTION_CHOICES = ((DIRECTION_IN, "Incoming"), (DIRECTION_OUT, "Outgoing"))
 
-    MSG_TYPES_CHOICES = (
-        (INBOX, "Inbox Message"),
-        (FLOW, "Flow Message"),
-        (IVR, "IVR Message"),
-        (USSD, "USSD Message"),
+    TYPE_INBOX = "I"
+    TYPE_FLOW = "F"
+    TYPE_IVR = "V"
+    TYPE_USSD = "U"
+    TYPE_CHOICES = (
+        (TYPE_INBOX, "Inbox Message"),
+        (TYPE_FLOW, "Flow Message"),
+        (TYPE_IVR, "IVR Message"),
+        (TYPE_USSD, "USSD Message"),
     )
+    TYPES_API = {TYPE_INBOX: "inbox", TYPE_FLOW: "flow", TYPE_IVR: "ivr"}
 
     DELETE_FOR_ARCHIVE = "A"
     DELETE_FOR_USER = "U"
-
     DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
 
     MEDIA_GPS = "geo"
     MEDIA_IMAGE = "image"
     MEDIA_VIDEO = "video"
     MEDIA_AUDIO = "audio"
-
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
-    STATUSES = extract_constants(STATUS_CONFIG)
-    VISIBILITIES = extract_constants(VISIBILITY_CONFIG)
-    DIRECTIONS = {DIRECTION_IN: "in", DIRECTION_OUT: "out"}
-    MSG_TYPES = {INBOX: "inbox", FLOW: "flow", IVR: "ivr"}
-
     id = models.BigAutoField(primary_key=True)
-
     uuid = models.UUIDField(null=True, default=uuid4)
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs")
-
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="msgs")
-
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="msgs", db_index=False)
-
     contact_urn = models.ForeignKey(ContactURN, on_delete=models.PROTECT, null=True, related_name="msgs")
-
     broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, blank=True, related_name="msgs")
 
     text = models.TextField()
+    attachments = ArrayField(models.URLField(max_length=2048), null=True)
 
     high_priority = models.BooleanField(null=True)
 
     created_on = models.DateTimeField(db_index=True)
-
     modified_on = models.DateTimeField(null=True, blank=True, auto_now=True)
-
     sent_on = models.DateTimeField(null=True)
-
     queued_on = models.DateTimeField(null=True)
 
+    msg_type = models.CharField(max_length=1, choices=TYPE_CHOICES, null=True)
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
-
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="P", db_index=True)
+    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE)
 
     response_to = models.ForeignKey(
         "Msg", on_delete=models.PROTECT, null=True, blank=True, related_name="responses", db_index=False
     )
 
     labels = models.ManyToManyField("Label", related_name="msgs")
-
-    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE)
-
-    msg_type = models.CharField(max_length=1, choices=MSG_TYPES_CHOICES, null=True)
 
     # the number of actual messages the channel sent this as (outgoing only)
     msg_count = models.IntegerField(default=1)
@@ -419,8 +403,6 @@ class Msg(models.Model):
     external_id = models.CharField(max_length=255, null=True, blank=True)
 
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
-
-    attachments = ArrayField(models.URLField(max_length=2048), null=True)
 
     # used for IVR sessions on channels
     connection = models.ForeignKey(
@@ -457,7 +439,7 @@ class Msg(models.Model):
                 send_messages = (
                     Msg.objects.filter(id__in=msg_ids)
                     .exclude(channel__channel_type=AndroidType.code)
-                    .exclude(msg_type=IVR)
+                    .exclude(msg_type=Msg.TYPE_IVR)
                     .exclude(status=FAILED)
                 )
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
@@ -474,7 +456,7 @@ class Msg(models.Model):
                         continue
 
                     if (
-                        (msg.msg_type != IVR and msg.channel and not msg.channel.is_android())
+                        (msg.msg_type != Msg.TYPE_IVR and msg.channel and not msg.channel.is_android())
                         and msg.status != FAILED
                         and msg.uuid
                     ):
@@ -549,10 +531,10 @@ class Msg(models.Model):
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "channel": {"uuid": str(self.channel.uuid), "name": self.channel.name} if self.channel else None,
             "urn": self.contact_urn.identity if self.contact_urn else None,
-            "direction": Msg.DIRECTIONS.get(self.direction),
-            "type": Msg.MSG_TYPES.get(self.msg_type),
-            "status": Msg.STATUSES.get(self.status),
-            "visibility": Msg.VISIBILITIES.get(self.visibility),
+            "direction": "in" if self.direction == Msg.DIRECTION_IN else "out",
+            "type": Msg.TYPES_API.get(self.msg_type),
+            "status": Msg.STATUSES_API.get(self.status),
+            "visibility": Msg.VISIBILITIES_API.get(self.visibility),
             "text": self.text,
             "attachments": [attachment.as_json() for attachment in Attachment.parse_all(self.attachments)],
             "labels": [{"uuid": l.uuid, "name": l.name} for l in self.labels.all()],
@@ -910,9 +892,13 @@ class SystemLabel:
         """
         # TODO: (Indexing) Sent and Failed require full message history
         if label_type == cls.TYPE_INBOX:
-            qs = Msg.objects.filter(direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_VISIBLE, msg_type=INBOX)
+            qs = Msg.objects.filter(
+                direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_VISIBLE, msg_type=Msg.TYPE_INBOX
+            )
         elif label_type == cls.TYPE_FLOWS:
-            qs = Msg.objects.filter(direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_VISIBLE, msg_type=FLOW)
+            qs = Msg.objects.filter(
+                direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_VISIBLE, msg_type=Msg.TYPE_FLOW
+            )
         elif label_type == cls.TYPE_ARCHIVED:
             qs = Msg.objects.filter(direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_ARCHIVED)
         elif label_type == cls.TYPE_OUTBOX:

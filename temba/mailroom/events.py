@@ -11,7 +11,7 @@ from temba.campaigns.models import EventFire
 from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowExit, FlowRun
 from temba.ivr.models import IVRCall
-from temba.msgs.models import IVR, Msg
+from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.tickets.models import Ticket, TicketEvent, Topic
 
@@ -104,7 +104,7 @@ class Event:
             }
         else:
             msg_event = {
-                "type": cls.TYPE_IVR_CREATED if obj.msg_type == IVR else cls.TYPE_MSG_CREATED,
+                "type": cls.TYPE_IVR_CREATED if obj.msg_type == Msg.TYPE_IVR else cls.TYPE_MSG_CREATED,
                 "created_on": get_event_time(obj).isoformat(),
                 "msg": _msg_out(obj),
                 # additional properties

@@ -186,7 +186,7 @@ class BroadcastReadSerializer(ReadSerializer):
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_status(self, obj):
-        return Msg.STATUSES.get(self.STATUS_MAP.get(obj.status, SENT))
+        return Msg.STATUSES_API.get(self.STATUS_MAP.get(obj.status, SENT))
 
     def get_urns(self, obj):
         if self.context["org"].is_anon:
@@ -1165,7 +1165,6 @@ class LabelWriteSerializer(WriteSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
-
     broadcast = serializers.SerializerMethodField()
     contact = fields.ContactField()
     urn = fields.URNField(source="contact_urn")
@@ -1186,14 +1185,14 @@ class MsgReadSerializer(ReadSerializer):
         return obj.broadcast_id
 
     def get_direction(self, obj):
-        return Msg.DIRECTIONS.get(obj.direction)
+        return "in" if obj.direction == Msg.DIRECTION_IN else "out"
 
     def get_type(self, obj):
-        return Msg.MSG_TYPES.get(obj.msg_type)
+        return Msg.TYPES_API.get(obj.msg_type)
 
     def get_status(self, obj):
         # PENDING and QUEUED are same as far as users are concerned
-        return Msg.STATUSES.get(QUEUED if obj.status == PENDING else obj.status)
+        return Msg.STATUSES_API.get(QUEUED if obj.status == PENDING else obj.status)
 
     def get_attachments(self, obj):
         return [a.as_json() for a in obj.get_attachments()]
@@ -1205,7 +1204,7 @@ class MsgReadSerializer(ReadSerializer):
         return obj.visibility == Msg.VISIBILITY_ARCHIVED
 
     def get_visibility(self, obj):
-        return Msg.VISIBILITIES.get(obj.visibility)
+        return Msg.VISIBILITIES_API.get(obj.visibility)
 
     class Meta:
         model = Msg

@@ -22,7 +22,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup, Cont
 from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import DELIVERED, HANDLED, INBOX, PENDING, SENT, WIRED, Broadcast, Label, Msg
+from temba.msgs.models import DELIVERED, HANDLED, PENDING, SENT, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole
 from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
@@ -257,7 +257,7 @@ class TembaTestMixin:
         assert not msg_type or status != PENDING, "pending messages don't have a msg type"
 
         if status == HANDLED and not msg_type:
-            msg_type = INBOX
+            msg_type = Msg.TYPE_INBOX
 
         return self._create_msg(
             contact,
@@ -282,7 +282,7 @@ class TembaTestMixin:
         contact,
         text,
         channel=None,
-        msg_type=INBOX,
+        msg_type=Msg.TYPE_INBOX,
         attachments=(),
         quick_replies=(),
         status=SENT,
@@ -396,7 +396,7 @@ class TembaTestMixin:
                 text,
                 Msg.DIRECTION_OUT,
                 channel=None,
-                msg_type=INBOX,
+                msg_type=Msg.TYPE_INBOX,
                 attachments=(),
                 status=msg_status,
                 created_on=timezone.now(),
