@@ -45,9 +45,6 @@ ERRORED = "E"
 FAILED = "F"
 RESENT = "R"
 
-INCOMING = "I"
-OUTGOING = "O"
-
 INBOX = "I"
 FLOW = "F"
 IVR = "V"
@@ -339,7 +336,9 @@ class Msg(models.Model):
 
     VISIBILITY_CHOICES = [(s[0], s[1]) for s in VISIBILITY_CONFIG]
 
-    DIRECTION_CHOICES = ((INCOMING, "Incoming"), (OUTGOING, "Outgoing"))
+    DIRECTION_IN = "I"
+    DIRECTION_OUT = "O"
+    DIRECTION_CHOICES = ((DIRECTION_IN, "Incoming"), (DIRECTION_OUT, "Outgoing"))
 
     MSG_TYPES_CHOICES = (
         (INBOX, "Inbox Message"),
@@ -364,7 +363,7 @@ class Msg(models.Model):
 
     STATUSES = extract_constants(STATUS_CONFIG)
     VISIBILITIES = extract_constants(VISIBILITY_CONFIG)
-    DIRECTIONS = {INCOMING: "in", OUTGOING: "out"}
+    DIRECTIONS = {DIRECTION_IN: "in", DIRECTION_OUT: "out"}
     MSG_TYPES = {INBOX: "inbox", FLOW: "flow", IVR: "ivr"}
 
     id = models.BigAutoField(primary_key=True)
@@ -538,7 +537,7 @@ class Msg(models.Model):
         """
         one_week_ago = timezone.now() - timedelta(days=7)
         failed_messages = Msg.objects.filter(
-            created_on__lte=one_week_ago, direction=OUTGOING, status__in=[QUEUED, PENDING, ERRORED]
+            created_on__lte=one_week_ago, direction=Msg.DIRECTION_OUT, status__in=[QUEUED, PENDING, ERRORED]
         )
 
         # fail our messages
@@ -736,7 +735,7 @@ class Msg(models.Model):
             created_on=now,
             modified_on=now,
             queued_on=now,
-            direction=INCOMING,
+            direction=cls.DIRECTION_IN,
             attachments=attachments,
             status=PENDING,
         )
@@ -750,10 +749,10 @@ class Msg(models.Model):
         """
         Archives this message
         """
-        if self.direction != INCOMING:
+        if self.direction != self.DIRECTION_IN:
             raise ValueError("Can only archive incoming non-test messages")
 
-        self.visibility = Msg.VISIBILITY_ARCHIVED
+        self.visibility = self.VISIBILITY_ARCHIVED
         self.save(update_fields=("visibility", "modified_on"))
 
     @classmethod
@@ -761,22 +760,22 @@ class Msg(models.Model):
         """
         Archives all incoming messages for the given contacts
         """
-        msgs = Msg.objects.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, contact__in=contacts)
+        msgs = Msg.objects.filter(direction=cls.DIRECTION_IN, visibility=cls.VISIBILITY_VISIBLE, contact__in=contacts)
         msg_ids = list(msgs.values_list("pk", flat=True))
 
         # update modified on in small batches to avoid long table lock, and having too many non-unique values for
         # modified_on which is the primary ordering for the API
         for batch in chunk_list(msg_ids, 100):
-            Msg.objects.filter(pk__in=batch).update(visibility=Msg.VISIBILITY_ARCHIVED, modified_on=timezone.now())
+            Msg.objects.filter(pk__in=batch).update(visibility=cls.VISIBILITY_ARCHIVED, modified_on=timezone.now())
 
     def restore(self):
         """
         Restores (i.e. un-archives) this message
         """
-        if self.direction != INCOMING:  # pragma: needs cover
+        if self.direction != self.DIRECTION_IN:  # pragma: needs cover
             raise ValueError("Can only restore incoming non-test messages")
 
-        self.visibility = Msg.VISIBILITY_VISIBLE
+        self.visibility = self.VISIBILITY_VISIBLE
         self.save(update_fields=("visibility", "modified_on"))
 
     def release(self, delete_reason=DELETE_FOR_USER):
@@ -829,7 +828,7 @@ class Msg(models.Model):
             models.Index(
                 name="msgs_next_attempt_out_errored",
                 fields=["next_attempt", "created_on", "id"],
-                condition=Q(direction=OUTGOING, status=ERRORED, next_attempt__isnull=False),
+                condition=Q(direction="O", status=ERRORED, next_attempt__isnull=False),
             ),
             # used for view of sent messages
             models.Index(
@@ -911,21 +910,21 @@ class SystemLabel:
         """
         # TODO: (Indexing) Sent and Failed require full message history
         if label_type == cls.TYPE_INBOX:
-            qs = Msg.objects.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=INBOX)
+            qs = Msg.objects.filter(direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_VISIBLE, msg_type=INBOX)
         elif label_type == cls.TYPE_FLOWS:
-            qs = Msg.objects.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=FLOW)
+            qs = Msg.objects.filter(direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_VISIBLE, msg_type=FLOW)
         elif label_type == cls.TYPE_ARCHIVED:
-            qs = Msg.objects.filter(direction=INCOMING, visibility=Msg.VISIBILITY_ARCHIVED)
+            qs = Msg.objects.filter(direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_ARCHIVED)
         elif label_type == cls.TYPE_OUTBOX:
             qs = Msg.objects.filter(
-                direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(PENDING, QUEUED)
+                direction=Msg.DIRECTION_OUT, visibility=Msg.VISIBILITY_VISIBLE, status__in=(PENDING, QUEUED)
             )
         elif label_type == cls.TYPE_SENT:
             qs = Msg.objects.filter(
-                direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(WIRED, SENT, DELIVERED)
+                direction=Msg.DIRECTION_OUT, visibility=Msg.VISIBILITY_VISIBLE, status__in=(WIRED, SENT, DELIVERED)
             )
         elif label_type == cls.TYPE_FAILED:
-            qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
+            qs = Msg.objects.filter(direction=Msg.DIRECTION_OUT, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None).prefetch_related("groups", "contacts", "urns")
         elif label_type == cls.TYPE_CALLS:
@@ -1135,7 +1134,7 @@ class Label(TembaModel, DependencyMixin):
         changed = set()
 
         for msg in msgs:
-            if msg.direction != INCOMING:
+            if msg.direction != Msg.DIRECTION_IN:
                 raise ValueError("Can only apply labels to incoming messages")
 
             # if we are adding the label and this message doesnt have it, add it

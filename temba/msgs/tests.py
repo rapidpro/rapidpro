@@ -19,8 +19,6 @@ from temba.msgs.models import (
     FLOW,
     HANDLED,
     INBOX,
-    INCOMING,
-    OUTGOING,
     PENDING,
     QUEUED,
     SENT,
@@ -229,7 +227,7 @@ class MsgTest(TembaTest):
         self.assertRaises(ValueError, msg2.archive)
 
     def assertReleaseCount(self, direction, status, visibility, msg_type, label):
-        if direction == OUTGOING:
+        if direction == Msg.DIRECTION_OUT:
             msg = self.create_outgoing_msg(self.joe, "Whattup Joe")
         else:
             msg = self.create_incoming_msg(self.joe, "Hey hey")
@@ -249,14 +247,14 @@ class MsgTest(TembaTest):
 
     def test_release_counts(self):
         # outgoing labels
-        self.assertReleaseCount(OUTGOING, SENT, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_SENT)
-        self.assertReleaseCount(OUTGOING, QUEUED, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_OUTBOX)
-        self.assertReleaseCount(OUTGOING, FAILED, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_FAILED)
+        self.assertReleaseCount("O", SENT, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_SENT)
+        self.assertReleaseCount("O", QUEUED, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_OUTBOX)
+        self.assertReleaseCount("O", FAILED, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_FAILED)
 
         # incoming labels
-        self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_INBOX)
-        self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_ARCHIVED, INBOX, SystemLabel.TYPE_ARCHIVED)
-        self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_VISIBLE, FLOW, SystemLabel.TYPE_FLOWS)
+        self.assertReleaseCount("I", HANDLED, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_INBOX)
+        self.assertReleaseCount("I", HANDLED, Msg.VISIBILITY_ARCHIVED, INBOX, SystemLabel.TYPE_ARCHIVED)
+        self.assertReleaseCount("I", HANDLED, Msg.VISIBILITY_VISIBLE, FLOW, SystemLabel.TYPE_FLOWS)
 
     def test_broadcast_metadata(self):
         self.create_channel("TT", "Twitter", "nyaruka")

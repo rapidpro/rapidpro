@@ -11,7 +11,7 @@ from temba.campaigns.models import EventFire
 from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowExit, FlowRun
 from temba.ivr.models import IVRCall
-from temba.msgs.models import Msg
+from temba.msgs.models import IVR, Msg
 from temba.orgs.models import Org
 from temba.tickets.models import Ticket, TicketEvent, Topic
 
@@ -77,12 +77,11 @@ class Event:
         Reconstructs an engine event from a msg instance. Properties which aren't part of regular events are prefixed
         with an underscore.
         """
-        from temba.msgs.models import INCOMING, IVR
 
         channel_log = obj.get_last_log()
         logs_url = _url_for_user(org, user, "channels.channellog_read", args=[channel_log.id]) if channel_log else None
 
-        if obj.direction == INCOMING:
+        if obj.direction == Msg.DIRECTION_IN:
             return {
                 "type": cls.TYPE_MSG_RECEIVED,
                 "created_on": get_event_time(obj).isoformat(),

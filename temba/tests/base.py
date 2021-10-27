@@ -22,19 +22,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup, Cont
 from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import (
-    DELIVERED,
-    HANDLED,
-    INBOX,
-    INCOMING,
-    OUTGOING,
-    PENDING,
-    SENT,
-    WIRED,
-    Broadcast,
-    Label,
-    Msg,
-)
+from temba.msgs.models import DELIVERED, HANDLED, INBOX, PENDING, SENT, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole
 from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
@@ -274,7 +262,7 @@ class TembaTestMixin:
         return self._create_msg(
             contact,
             text,
-            INCOMING,
+            Msg.DIRECTION_IN,
             channel,
             msg_type,
             attachments,
@@ -315,7 +303,7 @@ class TembaTestMixin:
         return self._create_msg(
             contact,
             text,
-            OUTGOING,
+            Msg.DIRECTION_OUT,
             channel,
             msg_type,
             attachments,
@@ -406,7 +394,7 @@ class TembaTestMixin:
             self._create_msg(
                 contact,
                 text,
-                OUTGOING,
+                Msg.DIRECTION_OUT,
                 channel=None,
                 msg_type=INBOX,
                 attachments=(),

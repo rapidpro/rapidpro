@@ -784,11 +784,11 @@ class Channel(TembaModel, DependencyMixin):
         return self.address
 
     def get_last_sent_message(self):
-        from temba.msgs.models import SENT, DELIVERED, OUTGOING
+        from temba.msgs.models import Msg, SENT, DELIVERED
 
         # find last successfully sent message
         return (
-            self.msgs.filter(status__in=[SENT, DELIVERED], direction=OUTGOING)
+            self.msgs.filter(status__in=[SENT, DELIVERED], direction=Msg.DIRECTION_OUT)
             .exclude(sent_on=None)
             .order_by("-sent_on")
             .first()
@@ -935,9 +935,9 @@ class Channel(TembaModel, DependencyMixin):
         self.save(update_fields=("is_active", "config", "modified_by", "modified_on"))
 
         # mark any messages in sending mode as failed for this channel
-        from temba.msgs.models import OUTGOING, PENDING, QUEUED, ERRORED, FAILED
+        from temba.msgs.models import Msg, PENDING, QUEUED, ERRORED, FAILED
 
-        self.msgs.filter(direction=OUTGOING, status__in=[QUEUED, PENDING, ERRORED]).update(status=FAILED)
+        self.msgs.filter(direction=Msg.DIRECTION_OUT, status__in=[QUEUED, PENDING, ERRORED]).update(status=FAILED)
 
         # trigger the orphaned channel
         if trigger_sync and self.is_android() and registration_id:
@@ -1016,14 +1016,14 @@ class Channel(TembaModel, DependencyMixin):
         """
 
         from temba.channels.types.android import AndroidType
-        from temba.msgs.models import Msg, PENDING, QUEUED, ERRORED, OUTGOING
+        from temba.msgs.models import Msg, PENDING, QUEUED, ERRORED
 
         now = timezone.now()
         hours_ago = now - timedelta(hours=12)
         five_minutes_ago = now - timedelta(minutes=5)
 
         return (
-            Msg.objects.filter(org=org, direction=OUTGOING)
+            Msg.objects.filter(org=org, direction=Msg.DIRECTION_OUT)
             .filter(
                 Q(status=PENDING, created_on__lte=five_minutes_ago)
                 | Q(status=QUEUED, queued_on__lte=hours_ago)
