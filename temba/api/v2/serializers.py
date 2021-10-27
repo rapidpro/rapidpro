@@ -1191,8 +1191,7 @@ class MsgReadSerializer(ReadSerializer):
         return Msg.TYPES_API.get(obj.msg_type)
 
     def get_status(self, obj):
-        # PENDING and QUEUED are same as far as users are concerned
-        return Msg.STATUSES_API.get(QUEUED if obj.status == PENDING else obj.status)
+        return Msg.STATUSES_API.get(obj.status)
 
     def get_attachments(self, obj):
         return [a.as_json() for a in obj.get_attachments()]

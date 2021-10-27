@@ -23,7 +23,7 @@ from django.utils.encoding import force_bytes, force_text
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
-from temba.msgs.models import IVR, PENDING, QUEUED, Msg
+from temba.msgs.models import PENDING, QUEUED, Msg
 from temba.orgs.models import Org
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.triggers.models import Trigger
@@ -696,8 +696,8 @@ class ChannelTest(TembaTest):
         self.tel_channel.save()
 
         # now let's create an ivr interaction
-        self.create_incoming_msg(joe, "incoming ivr", channel=self.tel_channel, msg_type=IVR)
-        self.create_outgoing_msg(joe, "outgoing ivr", channel=self.tel_channel, msg_type=IVR)
+        self.create_incoming_msg(joe, "incoming ivr", channel=self.tel_channel, msg_type=Msg.TYPE_IVR)
+        self.create_outgoing_msg(joe, "outgoing ivr", channel=self.tel_channel, msg_type=Msg.TYPE_IVR)
         response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
 
         self.assertEqual(4, len(response.context["message_stats"]))
@@ -1899,7 +1899,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # incoming IVR
-        msg = self.create_incoming_msg(contact, "Test Message", msg_type=IVR)
+        msg = self.create_incoming_msg(contact, "Test Message", msg_type=Msg.TYPE_IVR)
         self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
         msg.release()
         self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
@@ -1907,7 +1907,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # outgoing ivr
-        msg = self.create_outgoing_msg(contact, "Real Voice", msg_type=IVR)
+        msg = self.create_outgoing_msg(contact, "Real Voice", msg_type=Msg.TYPE_IVR)
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
         msg.release()
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())

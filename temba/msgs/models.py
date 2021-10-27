@@ -26,7 +26,7 @@ from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
-from temba.utils import chunk_list, extract_constants, on_transaction_commit
+from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
 from temba.utils.text import clean_string
@@ -34,32 +34,27 @@ from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
-INITIALIZING = "I"
-PENDING = "P"
+INITIALIZING = "I"  # for flows used to hold off sending the message until the flow is ready to receive a response
+PENDING = "P"  # initial state for all messages
 QUEUED = "Q"
-WIRED = "W"
-SENT = "S"
-DELIVERED = "D"
+WIRED = "W"  # message was handed off to the provider and credits were deducted for it
+SENT = "S"  # we have confirmation that a message was sent
+DELIVERED = "D"  # we have confirmation that a message was delivered
 HANDLED = "H"
-ERRORED = "E"
-FAILED = "F"
-RESENT = "R"
-
-# status codes used for both messages and broadcasts (single char constant, human readable, API readable)
-STATUS_CONFIG = (
-    # special state for flows used to hold off sending the message until the flow is ready to receive a response
-    (INITIALIZING, _("Initializing"), "initializing"),
-    (PENDING, _("Pending"), "pending"),  # initial state for all messages
-    # valid only for outgoing messages
-    (QUEUED, _("Queued"), "queued"),
-    (WIRED, _("Wired"), "wired"),  # message was handed off to the provider and credits were deducted for it
-    (SENT, _("Sent"), "sent"),  # we have confirmation that a message was sent
-    (DELIVERED, _("Delivered"), "delivered"),
-    # valid only for incoming messages
-    (HANDLED, _("Handled"), "handled"),
-    (ERRORED, _("Error Sending"), "errored"),  # there was an error during delivery
-    (FAILED, _("Failed Sending"), "failed"),  # we gave up on sending this message
-    (RESENT, _("Resent message"), "resent"),  # we retried this message
+ERRORED = "E"  # there was an error during delivery
+FAILED = "F"  # we gave up on sending this message
+RESENT = "R"  # we retried this message
+STATUS_CHOICES = (
+    (INITIALIZING, _("Initializing")),
+    (PENDING, _("Pending")),
+    (QUEUED, _("Queued")),
+    (WIRED, _("Wired")),
+    (SENT, _("Sent")),
+    (DELIVERED, _("Delivered")),
+    (HANDLED, _("Handled")),
+    (ERRORED, _("Error Sending")),
+    (FAILED, _("Failed Sending")),
+    (RESENT, _("Resent message")),
 )
 
 
@@ -77,8 +72,6 @@ class Broadcast(models.Model):
     as a ContactGroup or a list of Contacts. It's nothing more than a way to tie
     messages sent from the same bundle together
     """
-
-    STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
@@ -316,8 +309,18 @@ class Msg(models.Model):
     or Flows where they would get set to the HANDLED state once they've been dealt with.
     """
 
-    STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
-    STATUSES_API = extract_constants(STATUS_CONFIG)
+    STATUSES_API = {
+        INITIALIZING: "initializing",
+        PENDING: "queued",  # same as far as users are concerned
+        QUEUED: "queued",
+        WIRED: "wired",
+        SENT: "sent",
+        DELIVERED: "delivered",
+        HANDLED: "handled",
+        ERRORED: "errored",
+        FAILED: "failed",
+        RESENT: "resent",
+    }
 
     VISIBILITY_VISIBLE = "V"
     VISIBILITY_ARCHIVED = "A"
