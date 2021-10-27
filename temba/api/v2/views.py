@@ -5391,6 +5391,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
     * **variables** - List of the fields to be included in the report
+    * **another_format_variables** - List of the fields to be counted by different format
     * **format** - Choice from two options to count by ("category" or "value", default is "category")
     * **top** - To return only top X most common responses
 
@@ -5437,27 +5438,27 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     def request__mixed_query_params(self):
         params = super().request__mixed_query_params()
         # flatten variables parameter
-        params.setlist(
-            "variables",
-            [
-                var
-                for nested in [*params.getlist("variables"), *params.getlist("variables[]")]
-                for var in (nested if isinstance(nested, list) else [nested])
-            ],
-        )
+        for _param in ["variables", "another_format_variables"]:
+            params.setlist(
+                _param,
+                [
+                    var
+                    for nested in [*params.getlist(_param), *params.getlist(f"{_param}[]")]
+                    for var in (nested if isinstance(nested, list) else [nested])
+                ],
+            )
         return params
 
     def _validate_variables_filter(self, **validated_data):
         variable_filters = {}
         variables = validated_data.get("variables")
+        other_variables = validated_data.get("another_format_variables")
         existing_variables = {result.get("key", ""): result for result in validated_data.get("results") or []}
         counts, top_ordering = validated_data.get("counts", {}), validated_data.get("top_ordering", {})
         _top, _format = validated_data.get("top"), validated_data.get("format", "category")
-        if isinstance(variables, list):
-            variables = variables if variables else existing_variables.keys()
-            invalid_variables = set(variables) - set(existing_variables.keys())
-            if invalid_variables:
-                raise ValidationError(_("Variable with name {}, does not exists.").format(invalid_variables))
+
+        if not any([variables, other_variables]):
+            variables = existing_variables.keys()
             if _format == "category":
                 counts.update(
                     {
@@ -5467,8 +5468,40 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 )
             variable_filters.update({var: {"format": _format} for var in variables})
             top_ordering.update({var: _top for var in variables} if _top else {})
-        else:
-            raise ValidationError(_("Filter 'variables' invalid or not provided."))
+            self.applied_filters["variables"] = variable_filters
+            return variable_filters
+
+        if variables and isinstance(variables, list):
+            invalid_variables = set(variables) - set(existing_variables.keys())
+            if invalid_variables:
+                raise ValidationError(_("Variable with name {}, does not exists.").format(invalid_variables))
+            if _format == "category":
+                counts.update(
+                    {
+                        var: Counter({category: 0 for category in results["categories"]})
+                        for var, results in existing_variables.items()
+                        if var in variables
+                    }
+                )
+            variable_filters.update({var: {"format": _format} for var in variables})
+            top_ordering.update({var: _top for var in variables} if _top else {})
+
+        if other_variables and isinstance(other_variables, list):
+            invalid_variables = set(other_variables) - set(existing_variables.keys())
+            _else_format = "value" if _format == "category" else "category"
+            if invalid_variables:
+                raise ValidationError(_("Variable with name {}, does not exists.").format(invalid_variables))
+            if _else_format == "category":
+                counts.update(
+                    {
+                        var: Counter({category: 0 for category in results["categories"]})
+                        for var, results in existing_variables.items()
+                        if var in other_variables
+                    }
+                )
+            variable_filters.update({var: {"format": _else_format} for var in other_variables})
+            top_ordering.update({var: _top for var in other_variables} if _top else {})
+
         self.applied_filters["variables"] = variable_filters
         return variable_filters
 

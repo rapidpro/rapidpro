@@ -1064,6 +1064,7 @@ class FlowStartWriteSerializer(WriteSerializer):
 class FlowVariableQuerySerializer(serializers.Serializer):
     flow = serializers.UUIDField()
     variables = serializers.ListField(child=serializers.CharField(), default=list)
+    another_format_variables = serializers.ListField(child=serializers.CharField(), default=list)
     format = serializers.ChoiceField(choices=["value", "category"], default="category")
     top = serializers.IntegerField(default=0)
 
