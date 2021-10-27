@@ -5,6 +5,7 @@ import pytz
 from openpyxl import load_workbook
 
 from django.conf import settings
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -33,7 +34,6 @@ from temba.msgs.models import (
     SystemLabel,
     SystemLabelCount,
 )
-from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
 from temba.tests.engine import MockSessionWriter
@@ -2490,7 +2490,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try creating a new label after reaching the limit on labels
         current_count = Label.label_objects.filter(org=self.org, is_active=True).count()
-        with patch.object(Org, "LIMIT_DEFAULTS", {"labels": current_count}):
+        with override_settings(ORG_LIMIT_DEFAULTS={"labels": current_count}):
             response = self.client.post(create_label_url, {"name": "CoolStuff"})
             self.assertFormError(
                 response,
