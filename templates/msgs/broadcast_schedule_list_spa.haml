@@ -1,0 +1,54 @@
+-extends "msgs/message_box_spa.html"
+-load smartmin sms temba compress i18n humanize
+
+-block title-icon
+  %span.title-icon
+    .glyph.icon-clock
+
+-block action-buttons
+
+-block page-container
+  .mt-4
+    %table.list.lined.w-full
+      %tbody
+        -for object in object_list
+          %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'goto(event)', href:'{%url "msgs.broadcast_schedule_read" object.id%}'}
+
+            %td.value-contacts.field_phone
+              -include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all urns=object.raw_urns
+
+            %td.value-text.field_text
+              {{ object.get_text }}
+            %td.value-next
+              .whitespace-nowrap.pr-2.pointer-events-none
+                -if object.schedule.next_fire
+                  .glyph.icon-clock
+                  {{object.schedule.next_fire|timeuntil}}
+
+          -empty
+            %tr
+              %td{colspan:3}
+                -trans "No Matching schedules"
+
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        td.value-next {
+          color: @color-font-grey;
+          .glyph {
+            font-size:14px;
+            margin-top:2px;
+            margin-right:2px;
+          }
+          font-size: 14px;
+        }
+
+        td.clickable a:hover {
+          text-decoration: none;
+        }
+        .list-table {
+        margin-top:48px;
+        }
+    {% endlessblock %}
