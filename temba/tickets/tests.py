@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.utils.dates import datetime_to_timestamp
 
 from .models import Ticket, TicketCount, Ticketer, TicketEvent, Topic
 from .tasks import squash_ticketcounts
@@ -380,6 +381,13 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             ]
         }
         self.assertEqual(expected_json, response.json())
+
+        # test before and after windowing
+        response = self.client.get(f"{open_url}?before={datetime_to_timestamp(c2_t1.last_activity_on)}")
+        self.assertEqual(2, len(response.json()["results"]))
+
+        response = self.client.get(f"{open_url}?after={datetime_to_timestamp(c1_t2.last_activity_on)}")
+        self.assertEqual(1, len(response.json()["results"]))
 
         # the two unassigned tickets
         response = self.client.get(unassigned_url)
