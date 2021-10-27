@@ -832,6 +832,9 @@ class OrgDeleteTest(TembaNonAtomicTest):
         ticket = self.create_ticket(ticketer, self.org.contacts.first(), "Help")
         ticket.events.create(org=self.org, contact=ticket.contact, event_type="N", note="spam", created_by=self.admin)
 
+        # make sure we don't have any uncredited topups
+        self.parent_org.apply_topups()
+
     def release_org(self, org, child_org=None, delete=False, expected_files=3):
 
         with patch("temba.utils.s3.client", return_value=self.mock_s3):
@@ -925,7 +928,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
     def test_release_child_and_delete(self):
         # 300 credits were given to our child org and each used one
-        self.assertEqual(696, self.parent_org.get_credits_remaining())
+        self.assertEqual(695, self.parent_org.get_credits_remaining())
         self.assertEqual(299, self.child_org.get_credits_remaining())
 
         # release our child org
@@ -933,7 +936,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # our unused credits are returned to the parent
         self.parent_org.clear_credit_cache()
-        self.assertEqual(995, self.parent_org.get_credits_remaining())
+        self.assertEqual(994, self.parent_org.get_credits_remaining())
 
     def test_delete_task(self):
         # can't delete an unreleased org
