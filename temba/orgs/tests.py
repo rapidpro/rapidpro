@@ -19,6 +19,7 @@ from django.http import HttpRequest, HttpResponse
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
+from smartmin.users.models import FailedLogin
 
 from temba import mailroom
 from temba.airtime.dtone import DTOneClient
@@ -99,7 +100,6 @@ class OrgContextProcessorTest(TembaTest):
             list(perms)
 
 
-"""
 class UserTest(TembaTest):
     def test_login(self):
         login_url = reverse("users.user_login")
@@ -291,134 +291,9 @@ class UserTest(TembaTest):
 
         self.assertFalse(self.admin.get_settings().two_factor_enabled)
 
-    def test_two_factor_views(self):
-        enable_url = reverse("orgs.user_two_factor_enable")
-        tokens_url = reverse("orgs.user_two_factor_tokens")
-        disable_url = reverse("orgs.user_two_factor_disable")
-
-        self.login(self.admin, update_last_auth_on=False)
-
-        # org home page tells us 2FA is disabled, links to page to enable it
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Two-factor authentication is <b>disabled</b>")
-        self.assertContains(response, enable_url)
-
-        # view form to enable 2FA
-        response = self.client.get(enable_url)
-        self.assertEqual(["otp", "password", "loc"], list(response.context["form"].fields.keys()))
-
-        # try to submit with no OTP or password
-        response = self.client.post(enable_url, {})
-        self.assertFormError(response, "form", "otp", "This field is required.")
-        self.assertFormError(response, "form", "password", "This field is required.")
-
-        # try to submit with invalid OTP and password
-        response = self.client.post(enable_url, {"otp": "nope", "password": "wrong"})
-        self.assertFormError(response, "form", "otp", "OTP incorrect. Please try again.")
-        self.assertFormError(response, "form", "password", "Password incorrect.")
-
-        # submit with valid OTP and password
-        with patch("pyotp.TOTP.verify", return_value=True):
-            response = self.client.post(enable_url, {"otp": "123456", "password": "Administrator"})
-        self.assertRedirect(response, tokens_url)
-        self.assertTrue(self.admin.get_settings().two_factor_enabled)
-
-        # org home page now tells us 2FA is enabled, links to page manage tokens
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Two-factor authentication is <b>enabled</b>")
-
-        # view backup tokens page
-        response = self.client.get(tokens_url)
-        self.assertContains(response, "Regenerate Tokens")
-        self.assertContains(response, disable_url)
-
-        tokens = [t.token for t in response.context["backup_tokens"]]
-
-        # posting to that page regenerates tokens
-        response = self.client.post(tokens_url)
-        self.assertContains(response, "Two-factor authentication backup tokens changed.")
-        self.assertNotEqual(tokens, [t.token for t in response.context["backup_tokens"]])
-
-        # view form to disable 2FA
-        response = self.client.get(disable_url)
-        self.assertEqual(["password", "loc"], list(response.context["form"].fields.keys()))
-
-        # try to submit with no password
-        response = self.client.post(disable_url, {})
-        self.assertFormError(response, "form", "password", "This field is required.")
-
-        # try to submit with invalid password
-        response = self.client.post(disable_url, {"password": "wrong"})
-        self.assertFormError(response, "form", "password", "Password incorrect.")
-
-        # submit with valid password
-        response = self.client.post(disable_url, {"password": "Administrator"})
-        self.assertRedirect(response, reverse("orgs.org_home"))
-        self.assertFalse(self.admin.get_settings().two_factor_enabled)
-
-        # trying to view the tokens page now takes us to the enable form
-        response = self.client.get(tokens_url)
-        self.assertRedirect(response, enable_url)
-
-    def test_two_factor_time_limit(self):
-        login_url = reverse("users.user_login")
-        verify_url = reverse("users.two_factor_verify")
-        backup_url = reverse("users.two_factor_backup")
-
-        self.admin.enable_2fa()
-
-        # simulate a login for a 2FA user 10 minutes ago
-        with patch("django.utils.timezone.now", return_value=timezone.now() - timedelta(minutes=10)):
-            response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
-            self.assertRedirect(response, verify_url)
-
-            response = self.client.get(verify_url)
-            self.assertEqual(200, response.status_code)
-
-        # if they access the verify or backup page now, they are redirected back to the login page
-        response = self.client.get(verify_url)
-        self.assertRedirect(response, login_url)
-
-        response = self.client.get(backup_url)
-        self.assertRedirect(response, login_url)
-
-    def test_two_factor_confirm_access(self):
-        tokens_url = reverse("orgs.user_two_factor_tokens")
-
-        self.admin.enable_2fa()
-        self.login(self.admin, update_last_auth_on=False)
-
-        # org home page tells us 2FA is enabled, links to page manage tokens
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Two-factor authentication is <b>enabled</b>")
-        self.assertContains(response, tokens_url)
-
-        # but navigating to tokens page redirects to confirm auth
-        response = self.client.get(tokens_url)
-        self.assertEqual(302, response.status_code)
-        self.assertTrue(response.url.endswith("/users/confirm-access/?next=/user/two_factor_tokens/"))
-
-        confirm_url = response.url
-
-        # view confirm access page
-        response = self.client.get(confirm_url)
-        self.assertEqual(["password"], list(response.context["form"].fields.keys()))
-
-        # try to submit with incorrect password
-        response = self.client.post(confirm_url, {"password": "nope"})
-        self.assertFormError(response, "form", "password", "Password incorrect.")
-
-        # submit with real password
-        response = self.client.post(confirm_url, {"password": "Administrator"})
-        self.assertRedirect(response, tokens_url)
-
-        response = self.client.get(tokens_url)
-        self.assertEqual(200, response.status_code)
-
     @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_confirm_access(self):
         confirm_url = reverse("users.confirm_access") + f"?next=/msg/inbox/"
-        failed_url = reverse("users.user_failed")
 
         # try to access before logging in
         response = self.client.get(confirm_url)
@@ -432,15 +307,6 @@ class UserTest(TembaTest):
         # try to submit with incorrect password
         response = self.client.post(confirm_url, {"password": "nope"})
         self.assertFormError(response, "form", "password", "Password incorrect.")
-
-        # 2 more times..
-        self.client.post(confirm_url, {"password": "nope"})
-        response = self.client.post(confirm_url, {"password": "nope"})
-        self.assertRedirect(response, failed_url)
-
-        # even correct password now redirects to failed page
-        response = self.client.post(confirm_url, {"password": "Administrator"})
-        self.assertRedirect(response, failed_url)
 
         FailedLogin.objects.all().delete()
 
@@ -553,7 +419,6 @@ class UserTest(TembaTest):
         # should contain both orgs
         self.assertContains(response, "Other Brand Org")
         self.assertContains(response, "Temba")
-        self.assertNotContains(response, "Trileet Inc")
 
         # choose it
         response = self.client.post(
@@ -583,7 +448,6 @@ class UserTest(TembaTest):
         # and we take our org with us
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_active)
-"""
 
 
 class OrgDeleteTest(TembaNonAtomicTest):
@@ -4026,7 +3890,6 @@ class OrgCRUDLTest(TembaTest):
             {URN.TEL_SCHEME, URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE)
         )
 
-    @override_settings(TWO_FACTOR_ENABLED=False)
     def test_login_case_not_sensitive(self):
         login_url = reverse("users.user_login")
 
