@@ -221,7 +221,7 @@ class TicketCRUDL(SmartCRUDL):
 
                     # now reapply our before if we have one
                     if before:
-                        qs = qs.filter(last_activity_on__lt=before)
+                        qs = qs.filter(last_activity_on__lt=before)  # pragma: needs cover
 
             if uuid:
                 qs = qs.filter(uuid=uuid)
