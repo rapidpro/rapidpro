@@ -1236,11 +1236,19 @@ FACEBOOK_WEBHOOK_SECRET = os.environ.get("FACEBOOK_WEBHOOK_SECRET", "")
 IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
 
 # -----------------------------------------------------------------------------------
-# Data model field size limits
+# Data model limits
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640  # used for broadcast text and message campaign events
 FLOW_START_PARAMS_SIZE = 256  # used for params passed to flow start API endpoint
 GLOBAL_VALUE_SIZE = 10_000  # max length of global values
+
+ORG_LIMIT_DEFAULTS = {
+    "fields": 250,
+    "globals": 250,
+    "groups": 250,
+    "labels": 250,
+    "topics": 250,
+}
 
 # -----------------------------------------------------------------------------------
 # Data retention periods - tasks trim away data older than these settings
@@ -1270,9 +1278,3 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
-
-
-# Maximum active objects are org can have
-MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 250
-MAX_ACTIVE_CONTACTGROUPS_PER_ORG = 250
-MAX_ACTIVE_GLOBALS_PER_ORG = 250
