@@ -1654,6 +1654,13 @@ class ContactGroup(TembaModel, DependencyMixin):
     @classmethod
     def apply_action_delete(cls, user, groups):
         groups.update(is_active=False, modified_by=user)
+
+        from .tasks import release_group_task
+
+        for group in groups:
+            # release each group in a background task
+            on_transaction_commit(lambda: release_group_task.delay(group.id))
+
         # update flow issues, campaigns, etc
 
     @property

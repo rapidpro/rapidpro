@@ -1,0 +1,57 @@
+-extends "msgs/message_box_spa.html"
+-load smartmin contacts
+-load i18n humanize
+
+-block title-icon
+  %span.title-icon
+    .glyph.icon-phone
+
+-block action-buttons
+
+-block search-details
+  .search-details
+    -if search
+      -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
+        Found {{ results_count }} call in last 90 days for <i>{{search}}</i>.
+        -plural
+          Found {{ results_count }} calls in last 90 days for <i>{{search}}</i>.
+
+-block content
+  %table.list.object-list.lined.selectable
+    %tbody
+      -for object in object_list
+        %tr.select-row{id: 'id-row-{{object.id}}', onclick:'goto(event)', href:'{% url "contacts.contact_read" object.contact.uuid %}'}
+          %td.whitespace-nowrap
+            {{ object.contact|short_name:user_org }}
+          %td
+            - if object.event_type == 'mt_call'
+              %span.glyph.icon-call-outgoing
+            - elif object.event_type == 'mo_call'
+              %span.glyph.icon-call-incoming
+            - else
+              %span.glyph.icon-phone
+          %td.w-full
+            - if object.event_type == 'mt_call'
+              -blocktrans trimmed with duration=object.extra.duration
+                Outgoing Call ({{duration}} seconds)
+            - elif object.event_type == 'mo_call'
+              -blocktrans trimmed with duration=object.extra.duration
+                Incoming Call ({{duration}} seconds)
+            - elif object.event_type == 'mo_miss'
+              -trans "Missed Incoming Call"
+            - elif object.event_type == 'mt_miss'
+              -trans "Missed Outgoing Call"
+            - else
+              - get_value object 'event_type'
+
+          %td
+            .flex.w-full.items-end.justify-end.pr-4
+              .time.whitespace-nowrap
+                {% short_datetime object.occurred_on %}
+
+      -if not object_list
+        %tr.empty_list
+          %td{ colspan:'99' }
+              -trans "No calls"
+
+  -include "includes/pagination.haml"

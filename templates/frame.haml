@@ -69,7 +69,7 @@
     -compress js
       %script{src:"{{ STATIC_URL }}js/temba.js"}
       %script{src:"{{ STATIC_URL }}js/labels.js"}
-      %script{src:"{{ STATIC_URL }}js/formax.js"}
+      
     
     -include "includes/frame_top.html"
 
@@ -312,6 +312,49 @@
       }
 
     -block extra-script
+
+    -block refresh-fn
+      :javascript
+        function refresh(onSuccess, forceReload){  
+          var url = params;
+          {% if page_obj %}
+            url += "page={{page_obj.number}}";
+          {% endif %}
+
+          if (url == '') {
+            url = '?';
+          }
+
+          url += '&ts=' + new Date().getTime() + "&refresh=" + refreshTimeout;
+
+          document.dispatchEvent(new Event("temba-refresh-begin"));  
+          fetchPJAXContent(url, '#pjax', {
+              onSuccess: function() {
+                if (onSuccess) {
+                  onSuccess();
+                }
+                document.dispatchEvent(new Event("temba-refresh-complete"));
+                refreshTimeout = Math.floor(refreshTimeout * 1.1)
+                scheduleRefresh();
+              },
+              shouldIgnore: function() {
+                if (forceReload) {
+                  return false;
+                }
+                var pjax = document.querySelector("#pjax");
+                if (pjax) {
+                  return eval(document.querySelector("#pjax").dataset.noPjax);
+                }
+                return true;
+              },
+              onIgnore: function() {
+                var pjax = document.querySelector("#pjax");
+                if (pjax) {
+                  scheduleRefresh();
+                }
+              }
+          });
+        }
 
     -block full-page-script
       :javascript

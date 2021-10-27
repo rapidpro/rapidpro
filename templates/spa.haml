@@ -1,9 +1,16 @@
--block spa-style
--block spa-script
--block spa-body
+-block extra-style
+-block extra-less
+-block extra-script
+
+-block alert-messages
   -if user_org.is_suspended
     -include "org_suspended_include.haml"
-  -if is_spa and messages
+  -if messages
     -for msg in messages
       %temba-alert.mb-3
         {{ msg }}
+
+-block page-container
+  -block content
+
+
