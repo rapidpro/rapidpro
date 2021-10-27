@@ -180,7 +180,7 @@
                           %td.checkbox.sms.object-row-check
                             %temba-checkbox{onclick:"handleRowSelection(this)"}
                       %td.whitespace-nowrap
-                        {{ object.contact|short_name:user_org }}
+                        {{ object.contact|name_or_urn:user_org|truncatechars:20 }}
                       %td.w-full
                         .flex.flex-wrap.flex-end.items-center.justify-end
                           .flex-grow.inline

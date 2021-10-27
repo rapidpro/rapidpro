@@ -90,11 +90,6 @@ def contact_field(contact, arg):
 
 
 @register.filter
-def short_name(contact, org):
-    return contact.get_display(org, short=True)
-
-
-@register.filter
 def name_or_urn(contact, org):
     return contact.get_display(org)
 

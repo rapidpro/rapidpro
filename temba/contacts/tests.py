@@ -1737,15 +1737,10 @@ class ContactTest(TembaTest):
         )
 
     def test_contact_display(self):
-        mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", phone="8877")
-
         self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
-        self.assertEqual("Joe Blow", self.joe.get_display(short=True))
         self.assertEqual("Joe Blow", self.joe.get_display())
         self.assertEqual("+250768383383", self.voldemort.get_display(org=self.org, formatted=False))
         self.assertEqual("0768 383 383", self.voldemort.get_display())
-        self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", mr_long_name.get_display())
-        self.assertEqual("Wolfeschlegelstei...", mr_long_name.get_display(short=True))
         self.assertEqual("Billy Nophone", self.billy.get_display())
 
         self.assertEqual("0781 111 111", self.joe.get_urn_display(scheme=URN.TEL_SCHEME))
@@ -1757,33 +1752,26 @@ class ContactTest(TembaTest):
         )
         self.assertEqual("+250 768 383 383", self.voldemort.get_urn_display(org=self.org, international=True))
         self.assertEqual("0768 383 383", self.voldemort.get_urn_display())
-        self.assertEqual("8877", mr_long_name.get_urn_display())
         self.assertEqual("", self.billy.get_urn_display())
 
         self.assertEqual("Joe Blow", str(self.joe))
         self.assertEqual("0768 383 383", str(self.voldemort))
-        self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", str(mr_long_name))
         self.assertEqual("Billy Nophone", str(self.billy))
 
         with AnonymousOrg(self.org):
             self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
-            self.assertEqual("Joe Blow", self.joe.get_display(short=True))
             self.assertEqual("Joe Blow", self.joe.get_display())
             self.assertEqual("%010d" % self.voldemort.pk, self.voldemort.get_display())
-            self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", mr_long_name.get_display())
-            self.assertEqual("Wolfeschlegelstei...", mr_long_name.get_display(short=True))
             self.assertEqual("Billy Nophone", self.billy.get_display())
 
             self.assertEqual(ContactURN.ANON_MASK, self.joe.get_urn_display(org=self.org, formatted=False))
             self.assertEqual(ContactURN.ANON_MASK, self.joe.get_urn_display())
             self.assertEqual(ContactURN.ANON_MASK, self.voldemort.get_urn_display())
-            self.assertEqual(ContactURN.ANON_MASK, mr_long_name.get_urn_display())
             self.assertEqual("", self.billy.get_urn_display())
             self.assertEqual("", self.billy.get_urn_display(scheme=URN.TEL_SCHEME))
 
             self.assertEqual("Joe Blow", str(self.joe))
             self.assertEqual("%010d" % self.voldemort.pk, str(self.voldemort))
-            self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", str(mr_long_name))
             self.assertEqual("Billy Nophone", str(self.billy))
 
     def test_bulk_urn_cache_initialize(self):

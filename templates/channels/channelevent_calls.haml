@@ -22,7 +22,7 @@
       -for object in object_list
         %tr.select-row{id: 'id-row-{{object.id}}', onClick:'document.location="{% url "contacts.contact_read" object.contact.uuid %}"'}
           %td.whitespace-nowrap
-            {{ object.contact|short_name:user_org }}
+            {{ object.contact|name_or_urn:user_org|truncatechars:20 }}
           %td
             - if object.event_type == 'mt_call'
               %span.glyph.icon-call-outgoing
