@@ -7,6 +7,44 @@ from django.utils import timezone
 
 from .settings_common import *  # noqa
 
+# -----------------------------------------------------------------------------------
+# Add a custom brand for development
+# -----------------------------------------------------------------------------------
+
+custom = copy.deepcopy(BRANDING["rapidpro.io"])
+custom["aliases"] = ["custom-brand.org"]
+custom["name"] = "Custom Brand"
+custom["slug"] = "custom"
+custom["org"] = "Custom"
+custom["api_link"] = "http://custom-brand.io"
+custom["domain"] = "custom-brand.io"
+custom["email"] = "join@custom-brand.io"
+custom["support_email"] = "support@custom-brand.io"
+custom["allow_signups"] = True
+BRANDING["custom-brand.io"] = custom
+
+# make another copy as an alternate domain for custom-domain
+custom2 = copy.deepcopy(custom)
+custom2["aliases"] = ["custom-brand.io"]
+custom2["api_link"] = "http://custom-brand.org"
+custom2["domain"] = "custom-brand.org"
+custom2["email"] = "join@custom-brand.org"
+custom2["support_email"] = "support@custom-brand.org"
+BRANDING["custom-brand.org"] = custom2
+
+custom3 = copy.deepcopy(BRANDING["rapidpro.io"])
+custom3["aliases"] = ["no-topups.org"]
+custom3["name"] = "No Topups"
+custom3["slug"] = "notopups"
+custom3["org"] = "NoTopups"
+custom3["api_link"] = "http://no-topups.org"
+custom3["domain"] = "no-topups.org"
+custom3["email"] = "join@no-topups.org"
+custom3["support_email"] = "support@no-topups.org"
+custom3["allow_signups"] = True
+custom3["welcome_topup"] = 0
+custom3["default_plan"] = "trial"
+BRANDING["no-topups.org"] = custom3
 
 HOSTNAME = os.environ.get("HOSTNAME", "")
 TEMBA_HOST = os.environ.get("TEMBA_HOST", HOSTNAME)

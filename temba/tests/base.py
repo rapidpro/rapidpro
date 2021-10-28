@@ -1,6 +1,7 @@
 import shutil
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytz
 import redis
@@ -12,7 +13,7 @@ from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 from django.utils import timezone
 
 from temba.archives.models import Archive
@@ -34,8 +35,9 @@ def add_testing_flag_to_context(*args):
 
 
 class TembaTestMixin:
-    databases = ("default", "direct")
+    databases = ("default", "direct", "read_only_db")
 
+    @override_settings(CREDITS_EXPIRATION=True)
     def setUpOrgs(self):
         # make sure we start off without any service users
         Group.objects.get(name="Service Users").user_set.clear()
@@ -288,6 +290,9 @@ class TembaTestMixin:
     ):
         if status == SENT and not sent_on:
             sent_on = timezone.now()
+
+        if not attachments:
+            attachments = list()
 
         metadata = {}
         if quick_replies:
@@ -597,6 +602,9 @@ class TembaTest(TembaTestMixin, SmartminTest):
     def tearDown(self):
         clear_flow_users()
 
+    def mockReadOnly(self, assert_models: set = None):
+        return MockReadOnly(self, assert_models=assert_models)
+
 
 class TembaNonAtomicTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
     """
@@ -621,6 +629,34 @@ class AnonymousOrg(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.org.is_anon = False
         self.org.save(update_fields=("is_anon",))
+
+
+class MockReadOnly:
+    """
+    Context manager which mocks calls to .using("readonly") on querysets and records the model types.
+    """
+
+    def __init__(self, test_class, assert_models: set = None):
+        self.test_class = test_class
+        self.assert_models = assert_models
+        self.actual_models = set()
+
+    def __enter__(self):
+        self.patch_using = patch("django.db.models.query.QuerySet.using", autospec=True)
+        mock_using = self.patch_using.start()
+
+        def using(qs, alias):
+            if alias == "readonly":
+                self.actual_models.add(qs.model)
+            return qs
+
+        mock_using.side_effect = using
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.patch_using.stop()
+
+        if self.assert_models:
+            self.test_class.assertEqual(self.assert_models, self.actual_models)
 
 
 class MigrationTest(TembaTest):

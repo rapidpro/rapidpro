@@ -15,7 +15,7 @@ from urllib.request import urlopen
 import iso8601
 import regex
 import boto3
-from django.db.models.functions import TruncDate
+
 from django_redis import get_redis_connection
 from packaging.version import Version
 from smartmin.models import SmartModel
@@ -37,7 +37,6 @@ from django.utils.translation import ugettext_lazy as _
 from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
-from temba.contacts.models import Contact, ContactField, ContactGroup, URN
 from temba.links.models import LinkContacts
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup

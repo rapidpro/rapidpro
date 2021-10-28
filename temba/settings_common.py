@@ -1006,6 +1006,7 @@ DATABASES = {
 # confused on Python 3.6 with transactional tests otherwise
 if TESTING:
     DATABASES["default"] = _direct_database_config
+    DATABASES["read_only_db"] = _direct_database_config
 
 INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
 
@@ -1197,7 +1198,6 @@ TICKETER_TYPES = [
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
-    "temba.channels.types.textit_whatsapp.TextItWhatsAppType",
     "temba.channels.types.dialog360.Dialog360Type",
     "temba.channels.types.zenvia_whatsapp.ZenviaWhatsAppType",
     "temba.channels.types.twilio.TwilioType",
@@ -1414,6 +1414,7 @@ RECAPTCHA_SITE_KEY = ""
 RECAPTCHA_SECRET_KEY = ""
 
 # Authy configuration
+TWO_FACTOR_ENABLED = os.environ.get("TWO_FACTOR_ENABLED", False)
 AUTHY_API_KEY = os.environ.get("AUTHY_API_KEY", "")
 AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
 

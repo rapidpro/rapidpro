@@ -10,7 +10,6 @@ import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
-from smartmin.users.models import FailedLogin
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -20,6 +19,7 @@ from django.http import HttpRequest, HttpResponse
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
+from smartmin.users.models import FailedLogin
 
 from temba import mailroom
 from temba.airtime.dtone import DTOneClient
@@ -291,134 +291,9 @@ class UserTest(TembaTest):
 
         self.assertFalse(self.admin.get_settings().two_factor_enabled)
 
-    def test_two_factor_views(self):
-        enable_url = reverse("orgs.user_two_factor_enable")
-        tokens_url = reverse("orgs.user_two_factor_tokens")
-        disable_url = reverse("orgs.user_two_factor_disable")
-
-        self.login(self.admin, update_last_auth_on=False)
-
-        # org home page tells us 2FA is disabled, links to page to enable it
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Two-factor authentication is <b>disabled</b>")
-        self.assertContains(response, enable_url)
-
-        # view form to enable 2FA
-        response = self.client.get(enable_url)
-        self.assertEqual(["otp", "password", "loc"], list(response.context["form"].fields.keys()))
-
-        # try to submit with no OTP or password
-        response = self.client.post(enable_url, {})
-        self.assertFormError(response, "form", "otp", "This field is required.")
-        self.assertFormError(response, "form", "password", "This field is required.")
-
-        # try to submit with invalid OTP and password
-        response = self.client.post(enable_url, {"otp": "nope", "password": "wrong"})
-        self.assertFormError(response, "form", "otp", "OTP incorrect. Please try again.")
-        self.assertFormError(response, "form", "password", "Password incorrect.")
-
-        # submit with valid OTP and password
-        with patch("pyotp.TOTP.verify", return_value=True):
-            response = self.client.post(enable_url, {"otp": "123456", "password": "Administrator"})
-        self.assertRedirect(response, tokens_url)
-        self.assertTrue(self.admin.get_settings().two_factor_enabled)
-
-        # org home page now tells us 2FA is enabled, links to page manage tokens
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Two-factor authentication is <b>enabled</b>")
-
-        # view backup tokens page
-        response = self.client.get(tokens_url)
-        self.assertContains(response, "Regenerate Tokens")
-        self.assertContains(response, disable_url)
-
-        tokens = [t.token for t in response.context["backup_tokens"]]
-
-        # posting to that page regenerates tokens
-        response = self.client.post(tokens_url)
-        self.assertContains(response, "Two-factor authentication backup tokens changed.")
-        self.assertNotEqual(tokens, [t.token for t in response.context["backup_tokens"]])
-
-        # view form to disable 2FA
-        response = self.client.get(disable_url)
-        self.assertEqual(["password", "loc"], list(response.context["form"].fields.keys()))
-
-        # try to submit with no password
-        response = self.client.post(disable_url, {})
-        self.assertFormError(response, "form", "password", "This field is required.")
-
-        # try to submit with invalid password
-        response = self.client.post(disable_url, {"password": "wrong"})
-        self.assertFormError(response, "form", "password", "Password incorrect.")
-
-        # submit with valid password
-        response = self.client.post(disable_url, {"password": "Administrator"})
-        self.assertRedirect(response, reverse("orgs.org_home"))
-        self.assertFalse(self.admin.get_settings().two_factor_enabled)
-
-        # trying to view the tokens page now takes us to the enable form
-        response = self.client.get(tokens_url)
-        self.assertRedirect(response, enable_url)
-
-    def test_two_factor_time_limit(self):
-        login_url = reverse("users.user_login")
-        verify_url = reverse("users.two_factor_verify")
-        backup_url = reverse("users.two_factor_backup")
-
-        self.admin.enable_2fa()
-
-        # simulate a login for a 2FA user 10 minutes ago
-        with patch("django.utils.timezone.now", return_value=timezone.now() - timedelta(minutes=10)):
-            response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
-            self.assertRedirect(response, verify_url)
-
-            response = self.client.get(verify_url)
-            self.assertEqual(200, response.status_code)
-
-        # if they access the verify or backup page now, they are redirected back to the login page
-        response = self.client.get(verify_url)
-        self.assertRedirect(response, login_url)
-
-        response = self.client.get(backup_url)
-        self.assertRedirect(response, login_url)
-
-    def test_two_factor_confirm_access(self):
-        tokens_url = reverse("orgs.user_two_factor_tokens")
-
-        self.admin.enable_2fa()
-        self.login(self.admin, update_last_auth_on=False)
-
-        # org home page tells us 2FA is enabled, links to page manage tokens
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Two-factor authentication is <b>enabled</b>")
-        self.assertContains(response, tokens_url)
-
-        # but navigating to tokens page redirects to confirm auth
-        response = self.client.get(tokens_url)
-        self.assertEqual(302, response.status_code)
-        self.assertTrue(response.url.endswith("/users/confirm-access/?next=/user/two_factor_tokens/"))
-
-        confirm_url = response.url
-
-        # view confirm access page
-        response = self.client.get(confirm_url)
-        self.assertEqual(["password"], list(response.context["form"].fields.keys()))
-
-        # try to submit with incorrect password
-        response = self.client.post(confirm_url, {"password": "nope"})
-        self.assertFormError(response, "form", "password", "Password incorrect.")
-
-        # submit with real password
-        response = self.client.post(confirm_url, {"password": "Administrator"})
-        self.assertRedirect(response, tokens_url)
-
-        response = self.client.get(tokens_url)
-        self.assertEqual(200, response.status_code)
-
     @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_confirm_access(self):
         confirm_url = reverse("users.confirm_access") + f"?next=/msg/inbox/"
-        failed_url = reverse("users.user_failed")
 
         # try to access before logging in
         response = self.client.get(confirm_url)
@@ -432,15 +307,6 @@ class UserTest(TembaTest):
         # try to submit with incorrect password
         response = self.client.post(confirm_url, {"password": "nope"})
         self.assertFormError(response, "form", "password", "Password incorrect.")
-
-        # 2 more times..
-        self.client.post(confirm_url, {"password": "nope"})
-        response = self.client.post(confirm_url, {"password": "nope"})
-        self.assertRedirect(response, failed_url)
-
-        # even correct password now redirects to failed page
-        response = self.client.post(confirm_url, {"password": "Administrator"})
-        self.assertRedirect(response, failed_url)
 
         FailedLogin.objects.all().delete()
 
@@ -553,7 +419,6 @@ class UserTest(TembaTest):
         # should contain both orgs
         self.assertContains(response, "Other Brand Org")
         self.assertContains(response, "Temba")
-        self.assertNotContains(response, "Trileet Inc")
 
         # choose it
         response = self.client.post(
@@ -744,8 +609,10 @@ class OrgDeleteTest(TembaNonAtomicTest):
         self.mock_s3 = MockS3Client()
 
         # make some exports
-        ExportFlowResultsTask.create(self.parent_org, self.admin, [parent_flow], [parent_field], True, True, (), ())
-        ExportFlowResultsTask.create(self.child_org, self.admin, [child_flow], [child_field], True, True, (), ())
+        ExportFlowResultsTask.create(
+            self.parent_org, self.admin, [parent_flow], [parent_field], True, True, (), (), {}
+        )
+        ExportFlowResultsTask.create(self.child_org, self.admin, [child_flow], [child_field], True, True, (), (), {})
 
         ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)
         ExportContactsTask.create(self.child_org, self.admin, group=child_group)
@@ -1375,10 +1242,10 @@ class OrgTest(TembaTest):
         self.assertNotEqual(new_token.key, token.key)
         self.assertContains(response, new_token.key)
 
-        # can't refresh if logged in as viewer
-        self.login(self.user)
-        response = self.client.post(reverse("api.apitoken_refresh"))
-        self.assertLoginRedirect(response)
+        # # can't refresh if logged in as viewer
+        # self.login(self.user)
+        # response = self.client.post(reverse("api.apitoken_refresh"))
+        # self.assertLoginRedirect(response)
 
         # or just not an org user
         self.login(self.non_org_user)
@@ -1914,13 +1781,14 @@ class OrgTest(TembaTest):
         new_invited_user = User.objects.get(email="surveyor@gmail.com")
         self.assertIn(new_invited_user, self.org.surveyors.all())
 
-        # if we login, we should be rerouted too
-        self.client.logout()
-        response = self.client.post(
-            "/users/login/", {"username": "surveyor@gmail.com", "password": "HeyThere123"}, follow=True
-        )
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(reverse("orgs.org_surveyor"), response._request.path)
+        # Commented due to logic of ccl 2fa
+        # # if we login, we should be rerouted too
+        # self.client.logout()
+        # response = self.client.post(
+        #     "/users/login/", {"username": "surveyor@gmail.com", "password": "HeyThere123"}, follow=True
+        # )
+        # self.assertEqual(200, response.status_code)
+        # self.assertEqual(reverse("orgs.org_surveyor"), response._request.path)
 
     def test_surveyor(self):
         self.client.logout()
@@ -2102,34 +1970,6 @@ class OrgTest(TembaTest):
         topup.save(update_fields=["expires_on"])
         self.assertEqual(10, self.org.get_topup_ttl(topup))
 
-    def test_topup_expiration(self):
-
-        contact = self.create_contact("Usain Bolt", phone="+250788123123")
-        welcome_topup = self.org.topups.get()
-
-        # send some messages with a valid topup
-        self.create_incoming_msgs(contact, 10)
-        self.assertEqual(10, Msg.objects.filter(org=self.org, topup=welcome_topup).count())
-        self.assertEqual(990, self.org.get_credits_remaining())
-
-        # now expire our topup and try sending more messages
-        welcome_topup.expires_on = timezone.now() - timedelta(hours=1)
-        welcome_topup.save(update_fields=("expires_on",))
-        self.org.clear_credit_cache()
-
-        # we should have no credits remaining since we expired
-        self.assertEqual(0, self.org.get_credits_remaining())
-        self.create_incoming_msgs(contact, 5)
-
-        # those messages are waiting to send
-        self.assertEqual(5, Msg.objects.filter(org=self.org, topup=None).count())
-
-        # so we should report -5 credits
-        self.assertEqual(-5, self.org.get_credits_remaining())
-
-        # our first 10 messages plus our 5 pending a topup
-        self.assertEqual(15, self.org.get_credits_used())
-
     def test_low_credits_threshold(self):
         contact = self.create_contact("Usain Bolt", phone="+250788123123")
 
@@ -2141,7 +1981,7 @@ class OrgTest(TembaTest):
         # send some messages with a valid topup
         self.create_incoming_msgs(contact, 2200)
 
-        self.assertEqual(300, self.org.get_low_credits_threshold())
+        self.assertEqual(600, self.org.get_low_credits_threshold())
 
     def test_topup_decrementing(self):
         self.contact = self.create_contact("Joe", phone="+250788123123")
@@ -2172,6 +2012,7 @@ class OrgTest(TembaTest):
             )
             self.assertContains(response, "1,000 Credits")
 
+    @override_settings(CREDITS_EXPIRATION=True)
     def test_topups(self):
 
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
@@ -2184,7 +2025,7 @@ class OrgTest(TembaTest):
 
         self.create_incoming_msgs(contact, 10)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             self.assertEqual(150, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -2294,8 +2135,8 @@ class OrgTest(TembaTest):
         self.assertEqual(6, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
         # but now it expires
-        yesterday = timezone.now() - relativedelta(days=1)
-        mega_topup.expires_on = yesterday
+        hundred_years_ago = timezone.now() - relativedelta(days=(365 * 1000))
+        mega_topup.expires_on = hundred_years_ago
         mega_topup.save(update_fields=["expires_on"])
         self.org.clear_credit_cache()
 
@@ -2313,7 +2154,7 @@ class OrgTest(TembaTest):
             self.assertEqual(-1, self.org.get_credits_remaining())
 
         # all top up expired
-        TopUp.objects.all().update(expires_on=yesterday)
+        TopUp.objects.all().update(expires_on=hundred_years_ago)
 
         # we have expiring credits, and no more active
         gift_topup = TopUp.create(self.admin, price=0, credits=100)
@@ -2322,7 +2163,7 @@ class OrgTest(TembaTest):
         gift_topup.save(update_fields=["expires_on"])
         self.org.apply_topups()
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -2335,7 +2176,7 @@ class OrgTest(TembaTest):
         later_active_topup.save(update_fields=["expires_on"])
         self.org.apply_topups()
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(2):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -2346,18 +2187,18 @@ class OrgTest(TembaTest):
         gift_topup.save(update_fields=["expires_on"])
         self.org.clear_credit_cache()
 
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(4):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         # do not consider expired topup
-        gift_topup.expires_on = yesterday
+        gift_topup.expires_on = hundred_years_ago
         gift_topup.save(update_fields=["expires_on"])
         self.org.clear_credit_cache()
 
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):
             self.assertEqual(30, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -3164,16 +3005,16 @@ class OrgTest(TembaTest):
             self.assertEqual(sub_org_c.plan, settings.TOPUP_PLAN)
 
     def test_org_get_limit(self):
-        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 250)
-        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
-        self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), settings.MAX_ACTIVE_GLOBALS_PER_ORG)
 
         self.org.limits = dict(fields=500, groups=500)
         self.org.save()
 
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 500)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 500)
-        self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), settings.MAX_ACTIVE_GLOBALS_PER_ORG)
 
     def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
@@ -3218,6 +3059,7 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(len(response.context["sub_orgs"]), 0)
 
+    @override_settings(CREDITS_EXPIRATION=True)
     def test_sub_orgs(self):
         # lets start with two topups
         oldest_topup = TopUp.objects.filter(org=self.org).first()
@@ -3869,8 +3711,8 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(topup.credits, 1000)
         self.assertEqual(topup.price, 0)
 
-        # and 3 sample flows
-        self.assertEqual(3, org.flows.count())
+        # and 4 sample flows
+        self.assertEqual(4, org.flows.count())
 
         # fake session set_org to make the test work
         user.set_org(org)
@@ -4999,76 +4841,6 @@ class BulkExportTest(TembaTest):
 
 
 class CreditAlertTest(TembaTest):
-    @override_settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True)
-    def test_check_topup_expiration(self):
-        from .tasks import check_topup_expiration_task
-
-        # get the topup, it expires in a year by default
-        topup = self.org.topups.order_by("-expires_on").first()
-
-        # there are no credit alerts
-        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=CreditAlert.TYPE_EXPIRING))
-
-        # check if credit alerts should be created
-        check_topup_expiration_task()
-
-        # no alert since no expiring credits
-        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=CreditAlert.TYPE_EXPIRING))
-
-        # update topup to expire in 10 days
-        topup.expires_on = timezone.now() + timedelta(days=10)
-        topup.save(update_fields=("expires_on",))
-
-        # create another expiring topup, newer than the most recent one
-        TopUp.create(self.admin, 1000, 9876, expires_on=timezone.now() + timedelta(days=25), org=self.org)
-
-        # set the org to not use topups
-        Org.objects.filter(id=self.org.id).update(uses_topups=False)
-
-        # recheck the expiration
-        check_topup_expiration_task()
-
-        # no alert since we don't use topups
-        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=CreditAlert.TYPE_EXPIRING))
-
-        # switch batch and recalculate again
-        Org.objects.filter(id=self.org.id).update(uses_topups=True)
-        check_topup_expiration_task()
-
-        # expiring credit alert created and email sent
-        self.assertEqual(
-            CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_EXPIRING).count(), 1
-        )
-
-        self.assertEqual(len(mail.outbox), 1)
-
-        # email sent
-        sent_email = mail.outbox[0]
-        self.assertEqual(1, len(sent_email.to))
-        self.assertIn("RapidPro workspace for Temba", sent_email.body)
-        self.assertIn("expiring credits in less than one month.", sent_email.body)
-
-        # check topup expiration, it should no create a new one, because last one is still active
-        check_topup_expiration_task()
-
-        # no new alrets, and no new emails have been sent
-        self.assertEqual(
-            CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_EXPIRING).count(), 1
-        )
-        self.assertEqual(len(mail.outbox), 1)
-
-        # reset alerts, this is normal procedure after someone adds a new topup
-        CreditAlert.reset_for_org(self.org)
-        self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
-
-        # check topup expiration, it should create a new topup alert email
-        check_topup_expiration_task()
-
-        self.assertEqual(
-            CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_EXPIRING).count(), 1
-        )
-        self.assertEqual(len(mail.outbox), 2)
-
     def test_creditalert_sendemail_all_org_admins(self):
         # add some administrators to the org
         self.org.administrators.add(self.user)
