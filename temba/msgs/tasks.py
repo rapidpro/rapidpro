@@ -9,7 +9,7 @@ from celery import shared_task
 from temba.utils import analytics
 from temba.utils.celery import nonoverlapping_task
 
-from .models import ERRORED, Broadcast, BroadcastMsgCount, ExportMessagesTask, LabelCount, Msg, SystemLabelCount
+from .models import Broadcast, BroadcastMsgCount, ExportMessagesTask, LabelCount, Msg, SystemLabelCount
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +50,10 @@ def collect_message_metrics_task():  # pragma: needs cover
     """
     Collects message metrics and sends them to our analytics.
     """
-    from .models import PENDING, QUEUED, ERRORED, INITIALIZING
-    from temba.utils import analytics
 
     # current # of queued messages (excluding Android)
     count = (
-        Msg.objects.filter(direction=Msg.DIRECTION_OUT, status=QUEUED)
+        Msg.objects.filter(direction=Msg.DIRECTION_OUT, status=Msg.STATUS_QUEUED)
         .exclude(channel=None)
         .exclude(channel__channel_type="A")
         .exclude(next_attempt__gte=timezone.now())
@@ -65,7 +63,7 @@ def collect_message_metrics_task():  # pragma: needs cover
 
     # current # of initializing messages (excluding Android)
     count = (
-        Msg.objects.filter(direction=Msg.DIRECTION_OUT, status=INITIALIZING)
+        Msg.objects.filter(direction=Msg.DIRECTION_OUT, status=Msg.STATUS_INITIALIZING)
         .exclude(channel=None)
         .exclude(channel__channel_type="A")
         .count()
@@ -74,7 +72,7 @@ def collect_message_metrics_task():  # pragma: needs cover
 
     # current # of pending messages (excluding Android)
     count = (
-        Msg.objects.filter(direction=Msg.DIRECTION_OUT, status=PENDING)
+        Msg.objects.filter(direction=Msg.DIRECTION_OUT, status=Msg.STATUS_PENDING)
         .exclude(channel=None)
         .exclude(channel__channel_type="A")
         .count()
@@ -83,7 +81,7 @@ def collect_message_metrics_task():  # pragma: needs cover
 
     # current # of errored messages (excluding Android)
     count = (
-        Msg.objects.filter(direction=Msg.DIRECTION_OUT, status=ERRORED)
+        Msg.objects.filter(direction=Msg.DIRECTION_OUT, status=Msg.STATUS_ERRORED)
         .exclude(channel=None)
         .exclude(channel__channel_type="A")
         .count()
@@ -92,7 +90,9 @@ def collect_message_metrics_task():  # pragma: needs cover
 
     # current # of android outgoing messages waiting to be sent
     count = (
-        Msg.objects.filter(direction=Msg.DIRECTION_OUT, status__in=[PENDING, QUEUED], channel__channel_type="A")
+        Msg.objects.filter(
+            direction=Msg.DIRECTION_OUT, status__in=[Msg.STATUS_PENDING, Msg.STATUS_QUEUED], channel__channel_type="A"
+        )
         .exclude(channel=None)
         .count()
     )
@@ -101,7 +101,7 @@ def collect_message_metrics_task():  # pragma: needs cover
     # current # of pending incoming messages older than a minute that haven't yet been handled
     minute_ago = timezone.now() - timedelta(minutes=1)
     count = (
-        Msg.objects.filter(direction=Msg.DIRECTION_IN, status=PENDING, created_on__lte=minute_ago)
+        Msg.objects.filter(direction=Msg.DIRECTION_IN, status=Msg.STATUS_PENDING, created_on__lte=minute_ago)
         .exclude(channel=None)
         .count()
     )
@@ -125,7 +125,7 @@ def retry_errored_messages():
     Requeues any messages that have errored and have a next attempt in the past
     """
     errored_msgs = (
-        Msg.objects.filter(direction=Msg.DIRECTION_OUT, status=ERRORED, next_attempt__lte=timezone.now())
+        Msg.objects.filter(direction=Msg.DIRECTION_OUT, status=Msg.STATUS_ERRORED, next_attempt__lte=timezone.now())
         .order_by("next_attempt", "created_on")
         .prefetch_related("channel")[:5000]
     )

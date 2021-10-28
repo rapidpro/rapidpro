@@ -22,7 +22,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
-from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
+from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
@@ -176,7 +176,13 @@ class ArchiveReadSerializer(ReadSerializer):
 
 
 class BroadcastReadSerializer(ReadSerializer):
-    STATUS_MAP = {INITIALIZING: QUEUED, PENDING: QUEUED, ERRORED: QUEUED, QUEUED: QUEUED, FAILED: FAILED}
+    STATUS_MAP = {
+        Msg.STATUS_INITIALIZING: Msg.STATUS_QUEUED,
+        Msg.STATUS_PENDING: Msg.STATUS_QUEUED,
+        Msg.STATUS_ERRORED: Msg.STATUS_QUEUED,
+        Msg.STATUS_QUEUED: Msg.STATUS_QUEUED,
+        Msg.STATUS_FAILED: Msg.STATUS_FAILED,
+    }
 
     text = fields.TranslatableField()
     status = serializers.SerializerMethodField()
@@ -186,7 +192,7 @@ class BroadcastReadSerializer(ReadSerializer):
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_status(self, obj):
-        return Msg.STATUSES_API.get(self.STATUS_MAP.get(obj.status, SENT))
+        return MsgReadSerializer.STATUSES.get(self.STATUS_MAP.get(obj.status, Msg.STATUS_SENT))
 
     def get_urns(self, obj):
         if self.context["org"].is_anon:
@@ -1165,6 +1171,18 @@ class LabelWriteSerializer(WriteSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
+    STATUSES = {
+        Msg.STATUS_INITIALIZING: "initializing",
+        Msg.STATUS_PENDING: "queued",  # same as far as users are concerned
+        Msg.STATUS_QUEUED: "queued",
+        Msg.STATUS_WIRED: "wired",
+        Msg.STATUS_SENT: "sent",
+        Msg.STATUS_DELIVERED: "delivered",
+        Msg.STATUS_HANDLED: "handled",
+        Msg.STATUS_ERRORED: "errored",
+        Msg.STATUS_FAILED: "failed",
+        Msg.STATUS_RESENT: "resent",
+    }
     TYPES = {Msg.TYPE_INBOX: "inbox", Msg.TYPE_FLOW: "flow", Msg.TYPE_IVR: "ivr"}
     VISIBILITIES = {
         Msg.VISIBILITY_VISIBLE: "visible",
@@ -1198,7 +1216,7 @@ class MsgReadSerializer(ReadSerializer):
         return self.TYPES.get(obj.msg_type)
 
     def get_status(self, obj):
-        return Msg.STATUSES_API.get(obj.status)
+        return self.STATUSES.get(obj.status)
 
     def get_attachments(self, obj):
         return [a.as_json() for a in obj.get_attachments()]

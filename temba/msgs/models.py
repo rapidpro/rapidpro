@@ -34,28 +34,35 @@ from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
-INITIALIZING = "I"  # for flows used to hold off sending the message until the flow is ready to receive a response
-PENDING = "P"  # initial state for all messages
-QUEUED = "Q"
-WIRED = "W"  # message was handed off to the provider and credits were deducted for it
-SENT = "S"  # we have confirmation that a message was sent
-DELIVERED = "D"  # we have confirmation that a message was delivered
-HANDLED = "H"
-ERRORED = "E"  # there was an error during delivery
-FAILED = "F"  # we gave up on sending this message
-RESENT = "R"  # we retried this message
-STATUS_CHOICES = (
-    (INITIALIZING, _("Initializing")),
-    (PENDING, _("Pending")),
-    (QUEUED, _("Queued")),
-    (WIRED, _("Wired")),
-    (SENT, _("Sent")),
-    (DELIVERED, _("Delivered")),
-    (HANDLED, _("Handled")),
-    (ERRORED, _("Error Sending")),
-    (FAILED, _("Failed Sending")),
-    (RESENT, _("Resent message")),
-)
+
+class StatusMixin:
+    """
+    Msg and Broadcast share the same status constants
+    """
+
+    STATUS_INITIALIZING = "I"  # used to hold off sending the message until the flow is ready to receive a response
+    STATUS_PENDING = "P"  # initial state for all messages
+    STATUS_QUEUED = "Q"
+    STATUS_WIRED = "W"  # message was handed off to the provider and credits were deducted for it
+    STATUS_SENT = "S"  # we have confirmation that a message was sent
+    STATUS_DELIVERED = "D"  # we have confirmation that a message was delivered
+    STATUS_HANDLED = "H"
+    STATUS_ERRORED = "E"  # there was an error during delivery
+    STATUS_FAILED = "F"  # we gave up on sending this message
+    STATUS_RESENT = "R"  # we retried this message (no longer used)
+
+    STATUS_CHOICES = (
+        (STATUS_INITIALIZING, _("Initializing")),
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_QUEUED, _("Queued")),
+        (STATUS_WIRED, _("Wired")),
+        (STATUS_SENT, _("Sent")),
+        (STATUS_DELIVERED, _("Delivered")),
+        (STATUS_HANDLED, _("Handled")),
+        (STATUS_ERRORED, _("Error Sending")),
+        (STATUS_FAILED, _("Failed Sending")),
+        (STATUS_RESENT, _("Resent message")),
+    )
 
 
 class UnreachableException(Exception):
@@ -66,7 +73,7 @@ class UnreachableException(Exception):
     pass
 
 
-class Broadcast(models.Model):
+class Broadcast(models.Model, StatusMixin):
     """
     A broadcast is a message that is sent out to more than one recipient, such
     as a ContactGroup or a list of Contacts. It's nothing more than a way to tie
@@ -101,7 +108,9 @@ class Broadcast(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
     ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, related_name="broadcasts")
 
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=INITIALIZING)
+    status = models.CharField(
+        max_length=1, choices=StatusMixin.STATUS_CHOICES, default=StatusMixin.STATUS_INITIALIZING
+    )
 
     schedule = models.OneToOneField(Schedule, on_delete=models.PROTECT, null=True, related_name="broadcast")
 
@@ -136,7 +145,7 @@ class Broadcast(models.Model):
         send_all: bool = False,
         quick_replies: List[Dict] = None,
         template_state: str = TEMPLATE_STATE_LEGACY,
-        status: str = INITIALIZING,
+        status: str = StatusMixin.STATUS_INITIALIZING,
         **kwargs,
     ):
         # for convenience broadcasts can still be created with single translation and no base_language
@@ -292,7 +301,7 @@ class Attachment(object):
         return self.content_type == other.content_type and self.url == other.url
 
 
-class Msg(models.Model):
+class Msg(models.Model, StatusMixin):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
     these, Triggers and Flows handle them when appropriate.
@@ -308,19 +317,6 @@ class Msg(models.Model):
     Inbound messages are much simpler. They start as PENDING and the can be picked up by Triggers
     or Flows where they would get set to the HANDLED state once they've been dealt with.
     """
-
-    STATUSES_API = {
-        INITIALIZING: "initializing",
-        PENDING: "queued",  # same as far as users are concerned
-        QUEUED: "queued",
-        WIRED: "wired",
-        SENT: "sent",
-        DELIVERED: "delivered",
-        HANDLED: "handled",
-        ERRORED: "errored",
-        FAILED: "failed",
-        RESENT: "resent",
-    }
 
     VISIBILITY_VISIBLE = "V"
     VISIBILITY_ARCHIVED = "A"
@@ -378,7 +374,7 @@ class Msg(models.Model):
 
     msg_type = models.CharField(max_length=1, choices=TYPE_CHOICES, null=True)
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="P", db_index=True)
+    status = models.CharField(max_length=1, choices=StatusMixin.STATUS_CHOICES, default="P", db_index=True)
     visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE)
 
     response_to = models.ForeignKey(
@@ -436,25 +432,25 @@ class Msg(models.Model):
                 send_messages = (
                     Msg.objects.filter(id__in=msg_ids)
                     .exclude(channel__channel_type=AndroidType.code)
-                    .exclude(msg_type=Msg.TYPE_IVR)
-                    .exclude(status=FAILED)
+                    .exclude(msg_type=cls.TYPE_IVR)
+                    .exclude(status=cls.STATUS_FAILED)
                 )
-                send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
+                send_messages.update(status=cls.STATUS_QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
                 for msg in msgs:
 
                     # in development mode, don't actual send any messages
                     if not settings.SEND_MESSAGES:
-                        msg.status = WIRED
+                        msg.status = cls.STATUS_WIRED
                         msg.sent_on = timezone.now()
                         msg.save(update_fields=("status", "sent_on"))
                         logger.debug(f"FAKED SEND for [{msg.id}]")
                         continue
 
                     if (
-                        (msg.msg_type != Msg.TYPE_IVR and msg.channel and not msg.channel.is_android())
-                        and msg.status != FAILED
+                        (msg.msg_type != cls.TYPE_IVR and msg.channel and not msg.channel.is_android())
+                        and msg.status != cls.STATUS_FAILED
                         and msg.uuid
                     ):
                         courier_msgs.append(msg)
@@ -493,7 +489,7 @@ class Msg(models.Model):
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
-        messages = Msg.objects.filter(org=org)
+        messages = cls.objects.filter(org=org)
 
         if is_archived:  # pragma: needs cover
             messages = messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)
@@ -515,12 +511,13 @@ class Msg(models.Model):
         probably be confusing to go out.
         """
         one_week_ago = timezone.now() - timedelta(days=7)
+        statuses = (cls.STATUS_QUEUED, cls.STATUS_PENDING, cls.STATUS_ERRORED)
         failed_messages = Msg.objects.filter(
-            created_on__lte=one_week_ago, direction=Msg.DIRECTION_OUT, status__in=[QUEUED, PENDING, ERRORED]
+            created_on__lte=one_week_ago, direction=Msg.DIRECTION_OUT, status__in=statuses
         )
 
         # fail our messages
-        failed_messages.update(status="F", modified_on=timezone.now())
+        failed_messages.update(status=cls.STATUS_FAILED, modified_on=timezone.now())
 
     def as_archive_json(self):
         """
@@ -535,7 +532,7 @@ class Msg(models.Model):
             "urn": self.contact_urn.identity if self.contact_urn else None,
             "direction": "in" if self.direction == Msg.DIRECTION_IN else "out",
             "type": MsgReadSerializer.TYPES.get(self.msg_type),
-            "status": Msg.STATUSES_API.get(self.status),
+            "status": MsgReadSerializer.STATUSES.get(self.status),
             "visibility": MsgReadSerializer.VISIBILITIES.get(self.visibility),
             "text": self.text,
             "attachments": [attachment.as_json() for attachment in Attachment.parse_all(self.attachments)],
@@ -629,20 +626,20 @@ class Msg(models.Model):
         handled = False
 
         if keyword == "mt_error":
-            self.status = ERRORED
+            self.status = self.STATUS_ERRORED
             handled = True
 
         elif keyword == "mt_fail":
-            self.status = FAILED
+            self.status = self.STATUS_FAILED
             handled = True
 
         elif keyword == "mt_sent":
-            self.status = SENT
+            self.status = self.STATUS_SENT
             self.sent_on = date
             handled = True
 
         elif keyword == "mt_dlvd":
-            self.status = DELIVERED
+            self.status = self.STATUS_DELIVERED
             self.sent_on = self.sent_on or date
             handled = True
 
@@ -721,7 +718,7 @@ class Msg(models.Model):
             queued_on=now,
             direction=cls.DIRECTION_IN,
             attachments=attachments,
-            status=PENDING,
+            status=cls.STATUS_PENDING,
         )
 
         # pass off handling of the message after we commit
@@ -812,7 +809,7 @@ class Msg(models.Model):
             models.Index(
                 name="msgs_next_attempt_out_errored",
                 fields=["next_attempt", "created_on", "id"],
-                condition=Q(direction="O", status=ERRORED, next_attempt__isnull=False),
+                condition=Q(direction="O", status="E", next_attempt__isnull=False),
             ),
             # used for view of sent messages
             models.Index(
@@ -905,14 +902,20 @@ class SystemLabel:
             qs = Msg.objects.filter(direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_ARCHIVED)
         elif label_type == cls.TYPE_OUTBOX:
             qs = Msg.objects.filter(
-                direction=Msg.DIRECTION_OUT, visibility=Msg.VISIBILITY_VISIBLE, status__in=(PENDING, QUEUED)
+                direction=Msg.DIRECTION_OUT,
+                visibility=Msg.VISIBILITY_VISIBLE,
+                status__in=(Msg.STATUS_PENDING, Msg.STATUS_QUEUED),
             )
         elif label_type == cls.TYPE_SENT:
             qs = Msg.objects.filter(
-                direction=Msg.DIRECTION_OUT, visibility=Msg.VISIBILITY_VISIBLE, status__in=(WIRED, SENT, DELIVERED)
+                direction=Msg.DIRECTION_OUT,
+                visibility=Msg.VISIBILITY_VISIBLE,
+                status__in=(Msg.STATUS_WIRED, Msg.STATUS_SENT, Msg.STATUS_DELIVERED),
             )
         elif label_type == cls.TYPE_FAILED:
-            qs = Msg.objects.filter(direction=Msg.DIRECTION_OUT, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
+            qs = Msg.objects.filter(
+                direction=Msg.DIRECTION_OUT, visibility=Msg.VISIBILITY_VISIBLE, status=Msg.STATUS_FAILED
+            )
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None).prefetch_related("groups", "contacts", "urns")
         elif label_type == cls.TYPE_CALLS:

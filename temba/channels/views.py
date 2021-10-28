@@ -37,7 +37,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.contacts.models import URN
-from temba.msgs.models import PENDING, QUEUED, WIRED, Msg, SystemLabel
+from temba.msgs.models import Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.models import Org
@@ -117,7 +117,11 @@ def get_commands(channel, commands, sync_event=None):
     """
     Generates sync commands for all queued messages on the given channel
     """
-    msgs = Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=Msg.DIRECTION_OUT)
+    msgs = Msg.objects.filter(
+        status__in=(Msg.STATUS_PENDING, Msg.STATUS_QUEUED, Msg.STATUS_WIRED),
+        channel=channel,
+        direction=Msg.DIRECTION_OUT,
+    )
 
     if sync_event:
         pending_msgs = sync_event.get_pending_messages()

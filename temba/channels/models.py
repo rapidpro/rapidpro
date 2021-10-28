@@ -784,11 +784,11 @@ class Channel(TembaModel, DependencyMixin):
         return self.address
 
     def get_last_sent_message(self):
-        from temba.msgs.models import Msg, SENT, DELIVERED
+        from temba.msgs.models import Msg
 
         # find last successfully sent message
         return (
-            self.msgs.filter(status__in=[SENT, DELIVERED], direction=Msg.DIRECTION_OUT)
+            self.msgs.filter(status__in=[Msg.STATUS_SENT, Msg.STATUS_DELIVERED], direction=Msg.DIRECTION_OUT)
             .exclude(sent_on=None)
             .order_by("-sent_on")
             .first()
@@ -935,9 +935,11 @@ class Channel(TembaModel, DependencyMixin):
         self.save(update_fields=("is_active", "config", "modified_by", "modified_on"))
 
         # mark any messages in sending mode as failed for this channel
-        from temba.msgs.models import Msg, PENDING, QUEUED, ERRORED, FAILED
+        from temba.msgs.models import Msg
 
-        self.msgs.filter(direction=Msg.DIRECTION_OUT, status__in=[QUEUED, PENDING, ERRORED]).update(status=FAILED)
+        self.msgs.filter(
+            direction=Msg.DIRECTION_OUT, status__in=[Msg.STATUS_QUEUED, Msg.STATUS_PENDING, Msg.STATUS_ERRORED]
+        ).update(status=Msg.STATUS_FAILED)
 
         # trigger the orphaned channel
         if trigger_sync and self.is_android() and registration_id:
@@ -1016,7 +1018,7 @@ class Channel(TembaModel, DependencyMixin):
         """
 
         from temba.channels.types.android import AndroidType
-        from temba.msgs.models import Msg, PENDING, QUEUED, ERRORED
+        from temba.msgs.models import Msg
 
         now = timezone.now()
         hours_ago = now - timedelta(hours=12)
@@ -1025,9 +1027,9 @@ class Channel(TembaModel, DependencyMixin):
         return (
             Msg.objects.filter(org=org, direction=Msg.DIRECTION_OUT)
             .filter(
-                Q(status=PENDING, created_on__lte=five_minutes_ago)
-                | Q(status=QUEUED, queued_on__lte=hours_ago)
-                | Q(status=ERRORED, next_attempt__lte=now)
+                Q(status=Msg.STATUS_PENDING, created_on__lte=five_minutes_ago)
+                | Q(status=Msg.STATUS_QUEUED, queued_on__lte=hours_ago)
+                | Q(status=Msg.STATUS_ERRORED, next_attempt__lte=now)
             )
             .exclude(channel__channel_type=AndroidType.code)
             .order_by("created_on")

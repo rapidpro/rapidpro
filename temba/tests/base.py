@@ -22,7 +22,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup, Cont
 from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import DELIVERED, HANDLED, PENDING, SENT, WIRED, Broadcast, Label, Msg
+from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole
 from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
@@ -248,15 +248,15 @@ class TembaTestMixin:
         channel=None,
         msg_type=None,
         attachments=(),
-        status=HANDLED,
+        status=Msg.STATUS_HANDLED,
         visibility=Msg.VISIBILITY_VISIBLE,
         created_on=None,
         external_id=None,
         surveyor=False,
     ):
-        assert not msg_type or status != PENDING, "pending messages don't have a msg type"
+        assert not msg_type or status != Msg.STATUS_PENDING, "pending messages don't have a msg type"
 
-        if status == HANDLED and not msg_type:
+        if status == Msg.STATUS_HANDLED and not msg_type:
             msg_type = Msg.TYPE_INBOX
 
         return self._create_msg(
@@ -285,7 +285,7 @@ class TembaTestMixin:
         msg_type=Msg.TYPE_INBOX,
         attachments=(),
         quick_replies=(),
-        status=SENT,
+        status=Msg.STATUS_SENT,
         created_on=None,
         sent_on=None,
         high_priority=False,
@@ -293,7 +293,7 @@ class TembaTestMixin:
         surveyor=False,
         next_attempt=None,
     ):
-        if status in (WIRED, SENT, DELIVERED) and not sent_on:
+        if status in (Msg.STATUS_WIRED, Msg.STATUS_SENT, Msg.STATUS_DELIVERED) and not sent_on:
             sent_on = timezone.now()
 
         metadata = {}
@@ -380,10 +380,25 @@ class TembaTestMixin:
         )
 
     def create_broadcast(
-        self, user, text, contacts=(), groups=(), response_to=None, msg_status=SENT, parent=None, schedule=None
+        self,
+        user,
+        text,
+        contacts=(),
+        groups=(),
+        response_to=None,
+        msg_status=Msg.STATUS_SENT,
+        parent=None,
+        schedule=None,
     ):
         bcast = Broadcast.create(
-            self.org, user, text, contacts=contacts, groups=groups, status=SENT, parent=parent, schedule=schedule
+            self.org,
+            user,
+            text,
+            contacts=contacts,
+            groups=groups,
+            status=Msg.STATUS_SENT,
+            parent=parent,
+            schedule=schedule,
         )
 
         contacts = set(bcast.contacts.all())
