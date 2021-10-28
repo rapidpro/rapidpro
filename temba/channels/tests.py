@@ -8,7 +8,6 @@ from unittest.mock import call, patch
 from urllib.parse import quote
 
 import nexmo
-from django_redis import get_redis_connection
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
@@ -19,7 +18,7 @@ from django.test import RequestFactory
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.encoding import force_bytes, force_text
+from django.utils.encoding import force_bytes
 
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
@@ -2882,6 +2881,7 @@ class FacebookWhitelistTest(TembaTest):
             self.assertNoFormErrors(response)
 
 
+"""
 class CourierTest(TembaTest):
     @override_settings(SEND_MESSAGES=True)
     def test_queue_to_courier(self):
@@ -2953,3 +2953,4 @@ class CourierTest(TembaTest):
         response = self.client.get(reverse("courier.t", args=[self.channel.uuid, "receive"]))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.content, b"this URL should be mapped to a Courier instance")
+"""

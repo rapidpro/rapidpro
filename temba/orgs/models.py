@@ -916,6 +916,12 @@ class Org(SmartModel):
 
         normalize_contact_tels_task.delay(self.pk)
 
+    @cached_property
+    def active_contacts_group(self):
+        from temba.contacts.models import ContactGroup
+
+        return self.all_groups(manager="system_groups").get(group_type=ContactGroup.TYPE_ACTIVE)
+
     def get_resthooks(self):
         """
         Returns the resthooks configured on this Org
@@ -1319,7 +1325,7 @@ class Org(SmartModel):
         if settings.CREDITS_EXPIRATION:
             filter_.update(dict(expires_on__gte=now))
 
-        last_topup_credits = self.topups.filter(**filter_).aggregate(Sum("credits")).get("credits__sum")
+        last_topup_credits = self.topups.filter(**filter_).aggregate(Sum("credits")).get("credits__sum") or 0
         return int(last_topup_credits * 0.15), self.get_credit_ttl()
 
     def get_credits_total(self, force_dirty=False):
@@ -2224,18 +2230,19 @@ def release(user, brand):
         org.remove_user(user)
 
 
-def get_user_orgs(user, brands=None):
+def get_user_orgs(user, brands=None, exclude_suspended=True):
     if user.is_superuser:
         return Org.objects.all()
 
     org_sets = [role.get_orgs(user) for role in OrgRole]
     user_orgs = functools.reduce(operator.or_, org_sets)
-    not_suspended_orgs_ids = [org.id for org in user_orgs if not org.is_suspended]
-
-    user_orgs = user_orgs.filter(id__in=not_suspended_orgs_ids)
 
     if brands:
         user_orgs = user_orgs.filter(brand__in=brands)
+
+    if exclude_suspended:
+        not_suspended_orgs_ids = [org.id for org in user_orgs if not org.is_suspended]
+        user_orgs = user_orgs.filter(id__in=not_suspended_orgs_ids)
 
     return user_orgs.filter(is_active=True).distinct().order_by("name")
 

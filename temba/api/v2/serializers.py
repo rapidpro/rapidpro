@@ -1385,8 +1385,9 @@ class WebHookEventReadSerializer(ReadSerializer):
         decoded = obj.data
 
         # decode values and steps
-        decoded["values"] = json.loads(obj.data.get("values", "[]"))
-        decoded["steps"] = json.loads(obj.data.get("steps", "[]"))
+        values, steps = obj.data.get("values", "[]"), obj.data.get("steps", "[]")
+        decoded["values"] = json.loads(values) if isinstance(values, str) else values
+        decoded["steps"] = json.loads(steps) if isinstance(steps, str) else steps
         return decoded
 
     class Meta:

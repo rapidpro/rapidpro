@@ -50,6 +50,11 @@ version of these dependencies you need to run with it.
 % npm install @greatnonprofits-nfp/flow-editor@whatever-version --save
 ```
 
+## Installing pre-commit to lint and format the code
+```bash
+pre-commit install
+```
+
 ### Get Involved
 
 To run RapidPro for development, follow the Quick Start guide at http://rapidpro.github.io/rapidpro/docs/development.

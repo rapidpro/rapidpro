@@ -1950,7 +1950,7 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
                 try:
-                    cleaned_data["extra_queries"] = json.loads(cleaned_data["extra_queries"])
+                    cleaned_data["extra_queries"] = json.loads(cleaned_data.get("extra_queries") or "{}")
                 except JSONDecodeError:
                     cleaned_data["extra_queries"] = {}
 
