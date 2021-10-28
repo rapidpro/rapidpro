@@ -14,17 +14,6 @@ from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLo
 from temba.contacts.models import URN, ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.msgs.models import (
-    DELIVERED,
-    ERRORED,
-    FAILED,
-    FLOW,
-    HANDLED,
-    INBOX,
-    INCOMING,
-    OUTGOING,
-    PENDING,
-    QUEUED,
-    SENT,
     Attachment,
     Broadcast,
     ExportMessagesTask,
@@ -229,7 +218,7 @@ class MsgTest(TembaTest):
         self.assertRaises(ValueError, msg2.archive)
 
     def assertReleaseCount(self, direction, status, visibility, msg_type, label):
-        if direction == OUTGOING:
+        if direction == Msg.DIRECTION_OUT:
             msg = self.create_outgoing_msg(self.joe, "Whattup Joe")
         else:
             msg = self.create_incoming_msg(self.joe, "Hey hey")
@@ -249,14 +238,22 @@ class MsgTest(TembaTest):
 
     def test_release_counts(self):
         # outgoing labels
-        self.assertReleaseCount(OUTGOING, SENT, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_SENT)
-        self.assertReleaseCount(OUTGOING, QUEUED, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_OUTBOX)
-        self.assertReleaseCount(OUTGOING, FAILED, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_FAILED)
+        self.assertReleaseCount("O", Msg.STATUS_SENT, Msg.VISIBILITY_VISIBLE, Msg.TYPE_INBOX, SystemLabel.TYPE_SENT)
+        self.assertReleaseCount(
+            "O", Msg.STATUS_QUEUED, Msg.VISIBILITY_VISIBLE, Msg.TYPE_INBOX, SystemLabel.TYPE_OUTBOX
+        )
+        self.assertReleaseCount(
+            "O", Msg.STATUS_FAILED, Msg.VISIBILITY_VISIBLE, Msg.TYPE_INBOX, SystemLabel.TYPE_FAILED
+        )
 
         # incoming labels
-        self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_INBOX)
-        self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_ARCHIVED, INBOX, SystemLabel.TYPE_ARCHIVED)
-        self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_VISIBLE, FLOW, SystemLabel.TYPE_FLOWS)
+        self.assertReleaseCount(
+            "I", Msg.STATUS_HANDLED, Msg.VISIBILITY_VISIBLE, Msg.TYPE_INBOX, SystemLabel.TYPE_INBOX
+        )
+        self.assertReleaseCount(
+            "I", Msg.STATUS_HANDLED, Msg.VISIBILITY_ARCHIVED, Msg.TYPE_INBOX, SystemLabel.TYPE_ARCHIVED
+        )
+        self.assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_VISIBLE, Msg.TYPE_FLOW, SystemLabel.TYPE_FLOWS)
 
     def test_broadcast_metadata(self):
         self.create_channel("TT", "Twitter", "nyaruka")
@@ -358,16 +355,16 @@ class MsgTest(TembaTest):
 
         # create some outbound messages with different statuses
         msg6 = self.create_outgoing_msg(
-            self.joe, "Hey out 6", status=SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 6", status=Msg.STATUS_SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC)
         )
         msg7 = self.create_outgoing_msg(
-            self.joe, "Hey out 7", status=DELIVERED, created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 7", status=Msg.STATUS_DELIVERED, created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC)
         )
         msg8 = self.create_outgoing_msg(
-            self.joe, "Hey out 8", status=ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 8", status=Msg.STATUS_ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC)
         )
         msg9 = self.create_outgoing_msg(
-            self.joe, "Hey out 9", status=FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 9", status=Msg.STATUS_FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC)
         )
 
         self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])
@@ -838,16 +835,16 @@ class MsgTest(TembaTest):
 
         # create some outbound messages with different statuses
         msg6 = self.create_outgoing_msg(
-            self.joe, "Hey out 6", status=SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 6", status=Msg.STATUS_SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC)
         )
         msg7 = self.create_outgoing_msg(
-            self.joe, "Hey out 7", status=DELIVERED, created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 7", status=Msg.STATUS_DELIVERED, created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC)
         )
         msg8 = self.create_outgoing_msg(
-            self.joe, "Hey out 8", status=ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 8", status=Msg.STATUS_ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC)
         )
         msg9 = self.create_outgoing_msg(
-            self.joe, "Hey out 9", status=FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 9", status=Msg.STATUS_FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC)
         )
 
         self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])
@@ -1372,7 +1369,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg3 = self.create_incoming_msg(contact2, "message number 3")
         msg4 = self.create_incoming_msg(contact2, "message number 4")
         msg5 = self.create_incoming_msg(contact2, "message number 5", visibility="A")
-        self.create_incoming_msg(contact2, "message number 6", status=PENDING)
+        self.create_incoming_msg(contact2, "message number 6", status=Msg.STATUS_PENDING)
         ChannelLog.objects.create(channel=self.channel, msg=msg1, description="Success")
         ChannelLog.objects.create(channel=self.channel, msg=msg2, description="Success")
 
@@ -1468,7 +1465,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg2 = self.create_incoming_msg(contact1, "message number 2", visibility="A")
         msg3 = self.create_incoming_msg(contact2, "message number 3", visibility="A")
         self.create_incoming_msg(contact2, "message number 4", visibility="D")
-        self.create_incoming_msg(contact2, "message number 5", status=PENDING)
+        self.create_incoming_msg(contact2, "message number 5", status=Msg.STATUS_PENDING)
         ChannelLog.objects.create(channel=self.channel, msg=msg1, description="Success")
         ChannelLog.objects.create(channel=self.channel, msg=msg2, description="Success")
 
@@ -1511,7 +1508,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create a single message broadcast and put message back into pending state
         broadcast1 = self.create_broadcast(self.admin, "How is it going?", contacts=[contact1])
-        Msg.objects.filter(broadcast=broadcast1).update(status=PENDING)
+        Msg.objects.filter(broadcast=broadcast1).update(status=Msg.STATUS_PENDING)
         msg1 = broadcast1.msgs.get()
 
         outbox_url = reverse("msgs.msg_outbox")
@@ -1531,14 +1528,14 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         contact4 = self.create_contact("Kevin", phone="+250788000003")
         group = self.create_group("Testers", contacts=[contact2, contact3])
         broadcast2 = self.create_broadcast(self.admin, "kLab is awesome", contacts=[contact4], groups=[group])
-        broadcast2.msgs.update(status=PENDING)
+        broadcast2.msgs.update(status=Msg.STATUS_PENDING)
         msg4, msg3, msg2 = broadcast2.msgs.order_by("-id")
 
         broadcast3 = Broadcast.create(
-            self.channel.org, self.admin, "Pending broadcast", contacts=[contact4], status=QUEUED
+            self.channel.org, self.admin, "Pending broadcast", contacts=[contact4], status=Msg.STATUS_QUEUED
         )
         broadcast4 = Broadcast.create(
-            self.channel.org, self.admin, "Scheduled broadcast", contacts=[contact4], status=QUEUED
+            self.channel.org, self.admin, "Scheduled broadcast", contacts=[contact4], status=Msg.STATUS_QUEUED
         )
 
         broadcast4.schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
@@ -2628,7 +2625,7 @@ class SystemLabelTest(TembaTest):
         msg3 = self.create_incoming_msg(contact1, "Message 3")
         msg4 = self.create_incoming_msg(contact1, "Message 4")
         call1 = self.create_channel_event(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, extra={})
-        Broadcast.create(self.org, self.user, "Broadcast 2", contacts=[contact1, contact2], status=QUEUED)
+        Broadcast.create(self.org, self.user, "Broadcast 2", contacts=[contact1, contact2], status=Msg.STATUS_QUEUED)
         Broadcast.create(
             self.org,
             self.user,
@@ -2654,7 +2651,7 @@ class SystemLabelTest(TembaTest):
         msg3.archive()
 
         bcast1 = self.create_broadcast(self.user, "Broadcast 1", contacts=[contact1, contact2])
-        Msg.objects.filter(broadcast=bcast1).update(status=PENDING)
+        Msg.objects.filter(broadcast=bcast1).update(status=Msg.STATUS_PENDING)
 
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
         self.create_channel_event(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, extra={})
@@ -2797,7 +2794,7 @@ class TagsTest(TembaTest):
         self.assertTrue(text.find(clazz) >= 0)
 
     def test_as_icon(self):
-        msg = self.create_outgoing_msg(self.joe, "How is it going?", status=QUEUED)
+        msg = self.create_outgoing_msg(self.joe, "How is it going?", status=Msg.STATUS_QUEUED)
         now = timezone.now()
         two_hours_ago = now - timedelta(hours=2)
 

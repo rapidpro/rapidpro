@@ -44,7 +44,7 @@ from temba.utils.fields import (
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, SpaMixin
 
-from .models import INITIALIZING, QUEUED, Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
+from .models import Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -413,7 +413,7 @@ class BroadcastCRUDL(SmartCRUDL):
                     contacts=contacts,
                     urns=urns,
                     schedule=schedule,
-                    status=QUEUED,
+                    status=Msg.STATUS_QUEUED,
                     template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
                 )
 
@@ -702,7 +702,9 @@ class MsgCRUDL(SmartCRUDL):
             # stuff in any pending broadcasts
             context["pending_broadcasts"] = (
                 Broadcast.objects.filter(
-                    org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING], schedule=None
+                    org=self.request.user.get_org(),
+                    status__in=[Msg.STATUS_QUEUED, Msg.STATUS_INITIALIZING],
+                    schedule=None,
                 )
                 .select_related("org")
                 .prefetch_related("groups", "contacts", "urns")
