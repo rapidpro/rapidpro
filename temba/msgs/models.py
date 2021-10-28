@@ -308,16 +308,16 @@ class Msg(models.Model):
     STATUS_FAILED = "F"  # we gave up on sending this message
     STATUS_RESENT = "R"  # we retried this message (no longer used)
     STATUS_CHOICES = (
-        (STATUS_INITIALIZING, "Initializing"),
-        (STATUS_PENDING, "Pending"),
-        (STATUS_QUEUED, "Queued"),
-        (STATUS_WIRED, "Wired"),
-        (STATUS_SENT, "Sent"),
-        (STATUS_DELIVERED, "Delivered"),
-        (STATUS_HANDLED, "Handled"),
-        (STATUS_ERRORED, "Error"),
-        (STATUS_FAILED, "Failed"),
-        (STATUS_RESENT, "Resent"),
+        (STATUS_INITIALIZING, _("Initializing")),
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_QUEUED, _("Queued")),
+        (STATUS_WIRED, _("Wired")),
+        (STATUS_SENT, _("Sent")),
+        (STATUS_DELIVERED, _("Delivered")),
+        (STATUS_HANDLED, _("Handled")),
+        (STATUS_ERRORED, _("Error")),
+        (STATUS_FAILED, _("Failed")),
+        (STATUS_RESENT, _("Resent")),
     )
 
     VISIBILITY_VISIBLE = "V"
