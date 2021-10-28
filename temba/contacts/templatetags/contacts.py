@@ -200,5 +200,8 @@ def history_class(event: dict) -> str:
 
 
 @register.filter
-def filter_by_active(qs, is_active: bool):
-    return qs.filter(is_active=is_active)
+def inactive_count(objs) -> int:
+    """
+    Returns the number of items in a queryset or list where is_active=False
+    """
+    return len([o for o in list(objs) if not o.is_active])

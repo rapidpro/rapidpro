@@ -1,12 +1,14 @@
 -load contacts i18n
 
--for group in groups|filter_by_active:True
-  -include "includes/recipients_group.haml" with group=group
+-for group in groups
+  -if group.is_active
+    -include "includes/recipients_group.haml" with group=group
 
--for contact in contacts|filter_by_active:True
-  -include "includes/recipients_contact.haml" with contact=contact
+-for contact in contacts
+  -if contact.is_active
+    -include "includes/recipients_contact.haml" with contact=contact
 
--with groups|filter_by_active:False|length as num_deleted_groups
+-with groups|inactive_count as num_deleted_groups
   -if num_deleted_groups
     .item.deleted-contacts.lbl.mr-2.mb-2
       -blocktrans count count=num_deleted_groups
@@ -14,7 +16,7 @@
       -plural
         {{ count }} deleted groups
 
--with contacts|filter_by_active:False|length as num_deleted_contacts
+-with contacts|inactive_count as num_deleted_contacts
   -if num_deleted_contacts
     .item.deleted-contacts.lbl.mr-2.mb-2
       -blocktrans count count=num_deleted_contacts
