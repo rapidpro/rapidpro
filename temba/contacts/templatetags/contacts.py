@@ -197,3 +197,8 @@ def history_class(event: dict) -> str:
         classes.append("detail-event")
 
     return " ".join(classes)
+
+
+@register.filter
+def filter_by_active(qs, is_active: bool):
+    return qs.filter(is_active=is_active)

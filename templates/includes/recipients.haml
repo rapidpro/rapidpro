@@ -1,17 +1,32 @@
--load contacts
+-load contacts i18n
 
+-for group in groups|filter_by_active:True
+  -include "includes/recipients_group.haml" with group=group
 
-  -for group in groups
-    -include "includes/recipients_group.haml" with group=group
+-for contact in contacts|filter_by_active:True
+  -include "includes/recipients_contact.haml" with contact=contact
 
-  -for contact in contacts
-    -include "includes/recipients_contact.haml" with contact=contact
+-with groups|filter_by_active:False|length as num_deleted_groups
+  -if num_deleted_groups
+    .item.deleted-contacts.lbl.mr-2.mb-2
+      -blocktrans count count=num_deleted_groups
+        {{ count }} deleted group
+      -plural
+        {{ count }} deleted groups
 
-  -for urn in urns
-    .item.urn.lbl.mr-2.mb-2
-      {{ urn|format_urn:user_org }}
+-with contacts|filter_by_active:False|length as num_deleted_contacts
+  -if num_deleted_contacts
+    .item.deleted-contacts.lbl.mr-2.mb-2
+      -blocktrans count count=num_deleted_contacts
+        {{ count }} deleted contact
+      -plural
+        {{ count }} deleted contacts
 
-  -if query
-    .item.query.lbl.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}")
-      .icon.icon-filter.text-dark-alpha-300.-mb-1
-      {{ query }}
+-for urn in urns
+  .item.urn.lbl.mr-2.mb-2
+    {{ urn|format_urn:user_org }}
+
+-if query
+  .item.query.lbl.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}")
+    .icon.icon-filter.text-dark-alpha-300.-mb-1
+    {{ query }}
