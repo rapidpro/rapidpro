@@ -1165,6 +1165,13 @@ class LabelWriteSerializer(WriteSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
+    TYPES = {Msg.TYPE_INBOX: "inbox", Msg.TYPE_FLOW: "flow", Msg.TYPE_IVR: "ivr"}
+    VISIBILITIES = {
+        Msg.VISIBILITY_VISIBLE: "visible",
+        Msg.VISIBILITY_ARCHIVED: "archived",
+        Msg.VISIBILITY_DELETED: "deleted",
+    }
+
     broadcast = serializers.SerializerMethodField()
     contact = fields.ContactField()
     urn = fields.URNField(source="contact_urn")
@@ -1188,7 +1195,7 @@ class MsgReadSerializer(ReadSerializer):
         return "in" if obj.direction == Msg.DIRECTION_IN else "out"
 
     def get_type(self, obj):
-        return Msg.TYPES_API.get(obj.msg_type)
+        return self.TYPES.get(obj.msg_type)
 
     def get_status(self, obj):
         return Msg.STATUSES_API.get(obj.status)
@@ -1203,7 +1210,7 @@ class MsgReadSerializer(ReadSerializer):
         return obj.visibility == Msg.VISIBILITY_ARCHIVED
 
     def get_visibility(self, obj):
-        return Msg.VISIBILITIES_API.get(obj.visibility)
+        return self.VISIBILITIES.get(obj.visibility)
 
     class Meta:
         model = Msg

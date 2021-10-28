@@ -330,11 +330,6 @@ class Msg(models.Model):
         (VISIBILITY_ARCHIVED, "Archived"),
         (VISIBILITY_DELETED, "Deleted"),
     )
-    VISIBILITIES_API = {
-        VISIBILITY_VISIBLE: "visible",
-        VISIBILITY_ARCHIVED: "archived",
-        VISIBILITY_DELETED: "deleted",
-    }
 
     DIRECTION_IN = "I"
     DIRECTION_OUT = "O"
@@ -350,7 +345,6 @@ class Msg(models.Model):
         (TYPE_IVR, "IVR Message"),
         (TYPE_USSD, "USSD Message"),
     )
-    TYPES_API = {TYPE_INBOX: "inbox", TYPE_FLOW: "flow", TYPE_IVR: "ivr"}
 
     DELETE_FOR_ARCHIVE = "A"
     DELETE_FOR_USER = "U"
@@ -529,15 +523,20 @@ class Msg(models.Model):
         failed_messages.update(status="F", modified_on=timezone.now())
 
     def as_archive_json(self):
+        """
+        Returns this message in the same format as archived by rp-archiver which is based on the API format
+        """
+        from temba.api.v2.serializers import MsgReadSerializer
+
         return {
             "id": self.id,
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "channel": {"uuid": str(self.channel.uuid), "name": self.channel.name} if self.channel else None,
             "urn": self.contact_urn.identity if self.contact_urn else None,
             "direction": "in" if self.direction == Msg.DIRECTION_IN else "out",
-            "type": Msg.TYPES_API.get(self.msg_type),
+            "type": MsgReadSerializer.TYPES.get(self.msg_type),
             "status": Msg.STATUSES_API.get(self.status),
-            "visibility": Msg.VISIBILITIES_API.get(self.visibility),
+            "visibility": MsgReadSerializer.VISIBILITIES.get(self.visibility),
             "text": self.text,
             "attachments": [attachment.as_json() for attachment in Attachment.parse_all(self.attachments)],
             "labels": [{"uuid": l.uuid, "name": l.name} for l in self.labels.all()],
