@@ -38,7 +38,8 @@
   }
 
   .menu-item {
-    margin-bottom: 0.4em;
+    margin-top: 0.2em;
+    margin-bottom: 0.2em;
     font-size: 1.1rem;
   }
 
@@ -56,6 +57,7 @@
   .header-button {
     background:rgba(0,0,0,.15);
     color: #fff;
+    transition: all 200ms ease-in-out;
   }
   
   .header-button:hover {
@@ -63,6 +65,10 @@
     background:rgba(0,0,0,.25);
     box-shadow: inset 4px 4px 57px -28px rgba(0,0,0,0.75);
 
+  }
+
+  .more {
+    transition: all 200ms ease-in-out;
   }
 
   .more:hover {
@@ -78,6 +84,21 @@
     transition: transform 200ms ease-in-out, opacity 200ms linear, visibility 300ms linear;
     opacity: 0;
     visibility: hidden;
+    pointer-events: none;
+  }
+
+  .more .submenu:before {
+    content:'';
+    width: 0px; 
+    height: 0;
+    top: 5px;
+    right: 8px;
+    float:right;
+    position: relative;
+    margin-left: 6px;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;              
+    border-bottom: 12px solid white;
   }
 
   .more:hover .submenu {
@@ -85,6 +106,7 @@
     transform: translateY(0);
     opacity: 1;
     visibility: visible;
+    pointer-events: inherit;
   }
 
 :javascript
@@ -118,8 +140,8 @@
       -if gear_links|length > 1
 
         .more.px-2.flex.flex-column.items-center.cursor-pointer.rounded-br.rounded-tr
-          .submenu.absolute.shadow-xl
-            .card.mb-0
+          .submenu.absolute.rounded
+            .card.mb-0.shadow-xl.py-3
               -for link in gear_links
                 -if not forloop.first
                   .menu-item.hover-linked.font-normal{onclick:'handleMenuClicked(event)', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}'}
