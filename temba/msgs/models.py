@@ -35,36 +35,6 @@ from temba.utils.uuid import uuid4
 logger = logging.getLogger(__name__)
 
 
-class StatusMixin:
-    """
-    Msg and Broadcast share the same status constants
-    """
-
-    STATUS_INITIALIZING = "I"  # used to hold off sending the message until the flow is ready to receive a response
-    STATUS_PENDING = "P"  # initial state for all messages
-    STATUS_QUEUED = "Q"
-    STATUS_WIRED = "W"  # message was handed off to the provider and credits were deducted for it
-    STATUS_SENT = "S"  # we have confirmation that a message was sent
-    STATUS_DELIVERED = "D"  # we have confirmation that a message was delivered
-    STATUS_HANDLED = "H"
-    STATUS_ERRORED = "E"  # there was an error during delivery
-    STATUS_FAILED = "F"  # we gave up on sending this message
-    STATUS_RESENT = "R"  # we retried this message (no longer used)
-
-    STATUS_CHOICES = (
-        (STATUS_INITIALIZING, _("Initializing")),
-        (STATUS_PENDING, _("Pending")),
-        (STATUS_QUEUED, _("Queued")),
-        (STATUS_WIRED, _("Wired")),
-        (STATUS_SENT, _("Sent")),
-        (STATUS_DELIVERED, _("Delivered")),
-        (STATUS_HANDLED, _("Handled")),
-        (STATUS_ERRORED, _("Error Sending")),
-        (STATUS_FAILED, _("Failed Sending")),
-        (STATUS_RESENT, _("Resent message")),
-    )
-
-
 class UnreachableException(Exception):
     """
     Exception thrown when a message is being sent to a contact that we don't have a sendable URN for
@@ -73,12 +43,23 @@ class UnreachableException(Exception):
     pass
 
 
-class Broadcast(models.Model, StatusMixin):
+class Broadcast(models.Model):
     """
     A broadcast is a message that is sent out to more than one recipient, such
     as a ContactGroup or a list of Contacts. It's nothing more than a way to tie
     messages sent from the same bundle together
     """
+
+    STATUS_INITIALIZING = "I"
+    STATUS_QUEUED = "Q"
+    STATUS_SENT = "S"
+    STATUS_FAILED = "F"
+    STATUS_CHOICES = (
+        (STATUS_INITIALIZING, "Initializing"),
+        (STATUS_QUEUED, "Queued"),
+        (STATUS_SENT, "Sent"),
+        (STATUS_FAILED, "Failed"),
+    )
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
@@ -108,9 +89,7 @@ class Broadcast(models.Model, StatusMixin):
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
     ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, related_name="broadcasts")
 
-    status = models.CharField(
-        max_length=1, choices=StatusMixin.STATUS_CHOICES, default=StatusMixin.STATUS_INITIALIZING
-    )
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
 
     schedule = models.OneToOneField(Schedule, on_delete=models.PROTECT, null=True, related_name="broadcast")
 
@@ -145,7 +124,7 @@ class Broadcast(models.Model, StatusMixin):
         send_all: bool = False,
         quick_replies: List[Dict] = None,
         template_state: str = TEMPLATE_STATE_LEGACY,
-        status: str = StatusMixin.STATUS_INITIALIZING,
+        status: str = STATUS_INITIALIZING,
         **kwargs,
     ):
         # for convenience broadcasts can still be created with single translation and no base_language
@@ -277,7 +256,7 @@ class Broadcast(models.Model, StatusMixin):
         ]
 
 
-class Attachment(object):
+class Attachment:
     """
     Represents a message attachment stored as type:url
     """
@@ -301,7 +280,7 @@ class Attachment(object):
         return self.content_type == other.content_type and self.url == other.url
 
 
-class Msg(models.Model, StatusMixin):
+class Msg(models.Model):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
     these, Triggers and Flows handle them when appropriate.
@@ -317,6 +296,29 @@ class Msg(models.Model, StatusMixin):
     Inbound messages are much simpler. They start as PENDING and the can be picked up by Triggers
     or Flows where they would get set to the HANDLED state once they've been dealt with.
     """
+
+    STATUS_INITIALIZING = "I"  # used to hold off sending the message until the flow is ready to receive a response
+    STATUS_PENDING = "P"  # initial state for all messages
+    STATUS_QUEUED = "Q"
+    STATUS_WIRED = "W"  # message was handed off to the provider and credits were deducted for it
+    STATUS_SENT = "S"  # we have confirmation that a message was sent
+    STATUS_DELIVERED = "D"  # we have confirmation that a message was delivered
+    STATUS_HANDLED = "H"
+    STATUS_ERRORED = "E"  # there was an error during delivery
+    STATUS_FAILED = "F"  # we gave up on sending this message
+    STATUS_RESENT = "R"  # we retried this message (no longer used)
+    STATUS_CHOICES = (
+        (STATUS_INITIALIZING, "Initializing"),
+        (STATUS_PENDING, "Pending"),
+        (STATUS_QUEUED, "Queued"),
+        (STATUS_WIRED, "Wired"),
+        (STATUS_SENT, "Sent"),
+        (STATUS_DELIVERED, "Delivered"),
+        (STATUS_HANDLED, "Handled"),
+        (STATUS_ERRORED, "Error"),
+        (STATUS_FAILED, "Failed"),
+        (STATUS_RESENT, "Resent"),
+    )
 
     VISIBILITY_VISIBLE = "V"
     VISIBILITY_ARCHIVED = "A"
@@ -374,7 +376,7 @@ class Msg(models.Model, StatusMixin):
 
     msg_type = models.CharField(max_length=1, choices=TYPE_CHOICES, null=True)
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
-    status = models.CharField(max_length=1, choices=StatusMixin.STATUS_CHOICES, default="P", db_index=True)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
     visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE)
 
     response_to = models.ForeignKey(
