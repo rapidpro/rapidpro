@@ -916,6 +916,12 @@ class Org(SmartModel):
 
         normalize_contact_tels_task.delay(self.pk)
 
+    @cached_property
+    def active_contacts_group(self):
+        from temba.contacts.models import ContactGroup
+
+        return self.all_groups(manager="system_groups").get(group_type=ContactGroup.TYPE_ACTIVE)
+
     def get_resthooks(self):
         """
         Returns the resthooks configured on this Org
