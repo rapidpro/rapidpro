@@ -1134,8 +1134,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")
         self.assertEqual(response.context["base_template"], "spa.html")
 
-    @override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=10)
-    @patch.object(Org, "LIMIT_DEFAULTS", dict(groups=10))
+    @override_settings(ORG_LIMIT_DEFAULTS={"groups": 10})
     @mock_mailroom
     def test_create(self, mr_mocks):
         url = reverse("contacts.contactgroup_create")
@@ -1176,7 +1175,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.bulk_release(ContactGroup.user_groups.all())
 
-        for i in range(settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
+        for i in range(10):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
 
         response = self.client.post(url, dict(name="People"))
@@ -1185,10 +1184,10 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.bulk_release(ContactGroup.user_groups.all())
 
-        for i in range(settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
+        for i in range(10):
             ContactGroup.create_static(self.org, self.admin, "group%d" % i)
 
-        self.assertEqual(ContactGroup.user_groups.all().count(), settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG)
+        self.assertEqual(10, ContactGroup.user_groups.all().count())
         response = self.client.post(url, dict(name="People"))
         self.assertFormError(
             response,
@@ -4715,7 +4714,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # simulate an org which has reached the limit for fields
-        with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=2), patch.object(Org, "LIMIT_DEFAULTS", {"fields": 2}):
+        with override_settings(ORG_LIMIT_DEFAULTS={"fields": 2}):
             self.assertCreateSubmit(
                 create_url,
                 {"label": "Sheep", "value_type": "T", "show_in_table": True},
@@ -4772,7 +4771,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(self.age.show_in_table)
 
         # simulate an org which has reached the limit for fields - should still be able to update a field
-        with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=2), patch.object(Org, "LIMIT_DEFAULTS", {"fields": 2}):
+        with override_settings(ORG_LIMIT_DEFAULTS={"fields": 2}):
             self.assertUpdateSubmit(
                 update_url, {"label": "Age 2", "value_type": "T", "show_in_table": True}, success_status=200
             )
@@ -4791,17 +4790,15 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "You have reached the limit")
         self.assertNotContains(response, "You are approaching the limit")
 
-        with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=10):
-            with patch.object(Org, "LIMIT_DEFAULTS", dict(fields=10)):
-                response = self.requestView(list_url, self.admin)
+        with override_settings(ORG_LIMIT_DEFAULTS={"fields": 10}):
+            response = self.requestView(list_url, self.admin)
 
-                self.assertContains(response, "You are approaching the limit")
+            self.assertContains(response, "You are approaching the limit")
 
-        with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=3):
-            with patch.object(Org, "LIMIT_DEFAULTS", dict(fields=3)):
-                response = self.requestView(list_url, self.admin)
+        with override_settings(ORG_LIMIT_DEFAULTS={"fields": 3}):
+            response = self.requestView(list_url, self.admin)
 
-                self.assertContains(response, "You have reached the limit")
+            self.assertContains(response, "You have reached the limit")
 
     @mock_mailroom
     def test_usages(self, mr_mocks):
@@ -5925,7 +5922,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "new_group_name", "Already exists.")
 
         # try creating new group when we've already reached our group limit
-        with patch.object(Org, "LIMIT_DEFAULTS", {"groups": 2}):
+        with override_settings(ORG_LIMIT_DEFAULTS={"groups": 2}):
             response = self.client.post(
                 preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "Import"}
             )
