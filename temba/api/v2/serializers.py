@@ -22,7 +22,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
-from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
+from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
@@ -176,7 +176,12 @@ class ArchiveReadSerializer(ReadSerializer):
 
 
 class BroadcastReadSerializer(ReadSerializer):
-    STATUS_MAP = {INITIALIZING: QUEUED, PENDING: QUEUED, ERRORED: QUEUED, QUEUED: QUEUED, FAILED: FAILED}
+    STATUSES = {
+        Broadcast.STATUS_INITIALIZING: "queued",
+        Broadcast.STATUS_QUEUED: "queued",
+        Broadcast.STATUS_SENT: "sent",
+        Broadcast.STATUS_FAILED: "failed",
+    }
 
     text = fields.TranslatableField()
     status = serializers.SerializerMethodField()
@@ -186,7 +191,7 @@ class BroadcastReadSerializer(ReadSerializer):
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_status(self, obj):
-        return Msg.STATUSES.get(self.STATUS_MAP.get(obj.status, SENT))
+        return self.STATUSES.get(obj.status, "sent")
 
     def get_urns(self, obj):
         if self.context["org"].is_anon:
@@ -1165,6 +1170,24 @@ class LabelWriteSerializer(WriteSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
+    STATUSES = {
+        Msg.STATUS_INITIALIZING: "initializing",
+        Msg.STATUS_PENDING: "queued",  # same as far as users are concerned
+        Msg.STATUS_QUEUED: "queued",
+        Msg.STATUS_WIRED: "wired",
+        Msg.STATUS_SENT: "sent",
+        Msg.STATUS_DELIVERED: "delivered",
+        Msg.STATUS_HANDLED: "handled",
+        Msg.STATUS_ERRORED: "errored",
+        Msg.STATUS_FAILED: "failed",
+        Msg.STATUS_RESENT: "resent",
+    }
+    TYPES = {Msg.TYPE_INBOX: "inbox", Msg.TYPE_FLOW: "flow", Msg.TYPE_IVR: "ivr"}
+    VISIBILITIES = {
+        Msg.VISIBILITY_VISIBLE: "visible",
+        Msg.VISIBILITY_ARCHIVED: "archived",
+        Msg.VISIBILITY_DELETED: "deleted",
+    }
 
     broadcast = serializers.SerializerMethodField()
     contact = fields.ContactField()
@@ -1186,14 +1209,13 @@ class MsgReadSerializer(ReadSerializer):
         return obj.broadcast_id
 
     def get_direction(self, obj):
-        return Msg.DIRECTIONS.get(obj.direction)
+        return "in" if obj.direction == Msg.DIRECTION_IN else "out"
 
     def get_type(self, obj):
-        return Msg.MSG_TYPES.get(obj.msg_type)
+        return self.TYPES.get(obj.msg_type)
 
     def get_status(self, obj):
-        # PENDING and QUEUED are same as far as users are concerned
-        return Msg.STATUSES.get(QUEUED if obj.status == PENDING else obj.status)
+        return self.STATUSES.get(obj.status)
 
     def get_attachments(self, obj):
         return [a.as_json() for a in obj.get_attachments()]
@@ -1205,7 +1227,7 @@ class MsgReadSerializer(ReadSerializer):
         return obj.visibility == Msg.VISIBILITY_ARCHIVED
 
     def get_visibility(self, obj):
-        return Msg.VISIBILITIES.get(obj.visibility)
+        return self.VISIBILITIES.get(obj.visibility)
 
     class Meta:
         model = Msg

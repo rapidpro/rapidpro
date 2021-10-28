@@ -784,11 +784,11 @@ class Channel(TembaModel, DependencyMixin):
         return self.address
 
     def get_last_sent_message(self):
-        from temba.msgs.models import SENT, DELIVERED, OUTGOING
+        from temba.msgs.models import Msg
 
         # find last successfully sent message
         return (
-            self.msgs.filter(status__in=[SENT, DELIVERED], direction=OUTGOING)
+            self.msgs.filter(status__in=[Msg.STATUS_SENT, Msg.STATUS_DELIVERED], direction=Msg.DIRECTION_OUT)
             .exclude(sent_on=None)
             .order_by("-sent_on")
             .first()
@@ -935,9 +935,11 @@ class Channel(TembaModel, DependencyMixin):
         self.save(update_fields=("is_active", "config", "modified_by", "modified_on"))
 
         # mark any messages in sending mode as failed for this channel
-        from temba.msgs.models import OUTGOING, PENDING, QUEUED, ERRORED, FAILED
+        from temba.msgs.models import Msg
 
-        self.msgs.filter(direction=OUTGOING, status__in=[QUEUED, PENDING, ERRORED]).update(status=FAILED)
+        self.msgs.filter(
+            direction=Msg.DIRECTION_OUT, status__in=[Msg.STATUS_QUEUED, Msg.STATUS_PENDING, Msg.STATUS_ERRORED]
+        ).update(status=Msg.STATUS_FAILED)
 
         # trigger the orphaned channel
         if trigger_sync and self.is_android() and registration_id:
@@ -1016,18 +1018,18 @@ class Channel(TembaModel, DependencyMixin):
         """
 
         from temba.channels.types.android import AndroidType
-        from temba.msgs.models import Msg, PENDING, QUEUED, ERRORED, OUTGOING
+        from temba.msgs.models import Msg
 
         now = timezone.now()
         hours_ago = now - timedelta(hours=12)
         five_minutes_ago = now - timedelta(minutes=5)
 
         return (
-            Msg.objects.filter(org=org, direction=OUTGOING)
+            Msg.objects.filter(org=org, direction=Msg.DIRECTION_OUT)
             .filter(
-                Q(status=PENDING, created_on__lte=five_minutes_ago)
-                | Q(status=QUEUED, queued_on__lte=hours_ago)
-                | Q(status=ERRORED, next_attempt__lte=now)
+                Q(status=Msg.STATUS_PENDING, created_on__lte=five_minutes_ago)
+                | Q(status=Msg.STATUS_QUEUED, queued_on__lte=hours_ago)
+                | Q(status=Msg.STATUS_ERRORED, next_attempt__lte=now)
             )
             .exclude(channel__channel_type=AndroidType.code)
             .order_by("created_on")
@@ -1672,9 +1674,9 @@ class ChannelConnection(models.Model):
     TYPE_VOICE = "V"
     TYPE_CHOICES = ((TYPE_VOICE, "Voice"),)
 
-    DIRECTION_INCOMING = "I"
-    DIRECTION_OUTGOING = "O"
-    DIRECTION_CHOICES = ((DIRECTION_INCOMING, _("Incoming")), (DIRECTION_OUTGOING, _("Outgoing")))
+    DIRECTION_IN = "I"
+    DIRECTION_OUT = "O"
+    DIRECTION_CHOICES = ((DIRECTION_IN, _("Incoming")), (DIRECTION_OUT, _("Outgoing")))
 
     STATUS_PENDING = "P"  # used for initial creation in database
     STATUS_QUEUED = "Q"  # used when we need to throttle requests for new calls

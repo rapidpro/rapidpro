@@ -7,7 +7,7 @@ from temba.contacts.models import URN, ContactField, ContactURN
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.mailroom.events import Event
-from temba.msgs.models import DELIVERED, ERRORED, FAILED, IVR
+from temba.msgs.models import Msg
 
 register = template.Library()
 
@@ -140,13 +140,13 @@ def history_icon(event: dict) -> str:
     variant = None
 
     if event_type == Event.TYPE_MSG_CREATED:
-        if event["status"] in (ERRORED, FAILED):
+        if event["status"] in (Msg.STATUS_ERRORED, Msg.STATUS_FAILED):
             variant = "failed"
-        elif event["status"] == DELIVERED:
+        elif event["status"] == Msg.STATUS_DELIVERED:
             variant = "delivered"
 
     elif event_type == Event.TYPE_MSG_RECEIVED:
-        if event["msg_type"] == IVR:
+        if event["msg_type"] == Msg.TYPE_IVR:
             variant = "voice"
 
     elif event_type == Event.TYPE_FLOW_EXITED:
@@ -179,7 +179,7 @@ def history_class(event: dict) -> str:
     if event_type in MSG_EVENTS:
         classes.append("msg")
 
-        if event.get("status") in (ERRORED, FAILED):
+        if event.get("status") in (Msg.STATUS_ERRORED, Msg.STATUS_FAILED):
             classes.append("warning")
     else:
         classes.append("non-msg")
