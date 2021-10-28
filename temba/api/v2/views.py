@@ -5405,6 +5405,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
         {
             "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
             "variables": ["result_1"],
+            "another_format_variables": ["result_2"],
             "format": "value",
             "top": 3
         }
@@ -5414,14 +5415,15 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
         {
             "next": "http://example.com/api/v2/flow_variable_report.json?cursor=cD0yMDIxLTExLTEyKz",
             "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
-            "variables": {"result_1": {"format": "value"}},
+            "variables": {"result_1": {"format": "value"}, "result_2": {"format": "category"}},
             "results": [
                 {
                     "result_1": {
                         "No": 1,
                         "Yes": 1,
                         "Other": 1
-                    }
+                    },
+                    "result_2": {}
                 }
             ]
         }
@@ -5576,6 +5578,11 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                     name="exited_before", required=False, help="Count only runs that were exited before a certain date"
                 ),
                 dict(name="variables", required=False, help="Variables to include in report"),
+                dict(
+                    name="another_format_variables",
+                    required=False,
+                    help="Variables with different format to include in report",
+                ),
                 dict(name="format", required=False, help="Format of variables to count by"),
                 dict(name="top", required=False, help="Top x most common results for each variable"),
             ],
@@ -5585,6 +5592,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                     {
                         "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
                         "variables": ["result_1"],
+                        "another_format_variables": ["result_2"],
                         "format": "value",
                         "top": 3,
                     }
