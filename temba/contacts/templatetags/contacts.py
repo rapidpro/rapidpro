@@ -90,11 +90,6 @@ def contact_field(contact, arg):
 
 
 @register.filter
-def short_name(contact, org):
-    return contact.get_display(org, short=True)
-
-
-@register.filter
 def name_or_urn(contact, org):
     return contact.get_display(org)
 
@@ -202,3 +197,11 @@ def history_class(event: dict) -> str:
         classes.append("detail-event")
 
     return " ".join(classes)
+
+
+@register.filter
+def inactive_count(objs) -> int:
+    """
+    Returns the number of items in a queryset or list where is_active=False
+    """
+    return len([o for o in list(objs) if not o.is_active])
