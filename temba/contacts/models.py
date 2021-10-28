@@ -33,7 +33,7 @@ from temba.orgs.models import DependencyMixin, Org, OrgLock
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
-from temba.utils.text import decode_stream, truncate, unsnakify
+from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
 
@@ -1250,7 +1250,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # otherwise return highest priority of any scheme
             return urns[0] if urns else None
 
-    def get_display(self, org=None, formatted=True, short=False):
+    def get_display(self, org=None, formatted=True):
         """
         Gets a displayable name or URN for the contact. If available, org can be provided to avoid having to fetch it
         again based on the contact.
@@ -1259,13 +1259,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             org = self.org
 
         if self.name:
-            res = self.name
+            return self.name
         elif org.is_anon:
-            res = self.anon_identifier
-        else:
-            res = self.get_urn_display(org=org, formatted=formatted)
+            return self.anon_identifier
 
-        return truncate(res, 20) if short else res
+        return self.get_urn_display(org=org, formatted=formatted)
 
     def get_urn_display(self, org=None, scheme=None, formatted=True, international=False):
         """
@@ -1665,10 +1663,12 @@ class ContactGroup(TembaModel, DependencyMixin):
 
         # update flow issues, campaigns, etc
 
+    @property
+    def icon(self) -> str:
+        return "atom" if self.is_dynamic else "users"
+
     def get_icon(self):
-        if self.is_dynamic:
-            return "atom"
-        return "users"
+        return self.icon
 
     def update_query(self, query, reevaluate=True, parsed=None):
         """
