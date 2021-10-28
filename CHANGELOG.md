@@ -1,3 +1,10 @@
+v6.5.70
+----------
+ * Fix intermittent credit test failure
+ * Tidy up Msg and Broadcast constants
+ * Simplify settings for org limit defaults
+ * Fix rendering of deleted contacts and groups in recipient lists
+
 v6.5.69
 ----------
  * Remove extra labels on contact fields
