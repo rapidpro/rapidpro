@@ -826,8 +826,10 @@ class ContactGroupTest(TembaTest):
 
     @mock_mailroom
     def test_system_group_counts(self, mr_mocks):
-        # start with none
-        self.releaseContacts(delete=True)
+        # start with no contacts
+        for contact in Contact.objects.all():
+            contact.release(self.admin)
+            contact.delete()
 
         counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
@@ -1173,7 +1175,8 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
 
-        self.bulk_release(ContactGroup.user_groups.all())
+        for group in ContactGroup.user_groups.all():
+            group.release(self.admin)
 
         for i in range(10):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
@@ -1182,7 +1185,8 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNoFormErrors(response)
         ContactGroup.user_groups.get(org=self.org, name="People")
 
-        self.bulk_release(ContactGroup.user_groups.all())
+        for group in ContactGroup.user_groups.all():
+            group.release(self.admin)
 
         for i in range(10):
             ContactGroup.create_static(self.org, self.admin, "group%d" % i)

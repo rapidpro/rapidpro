@@ -33,7 +33,6 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
-from temba.contacts.tasks import release_group_task
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -41,7 +40,7 @@ from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
 from temba.orgs.models import OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
-from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
+from temba.utils import splitting_getlist, str_to_bool
 
 from ..models import SSLPermission
 from ..support import InvalidQueryError
@@ -2229,13 +2228,6 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def perform_destroy(self, instance):
-        instance.is_active = False
-        instance.save(update_fields=("is_active",))
-
-        # release the group in a background task
-        on_transaction_commit(lambda: release_group_task.delay(instance.id))
 
     @classmethod
     def get_read_explorer(cls):

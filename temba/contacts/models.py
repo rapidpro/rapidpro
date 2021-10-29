@@ -1731,50 +1731,52 @@ class ContactGroup(TembaModel, DependencyMixin):
         dependents["campaign"] = self.campaigns.filter(is_active=True)
         return dependents
 
-    def release(self):
+    def release(self, user):
         """
-        Releases (i.e. deletes) this group, removing all contacts and marking as inactive
+        Releases this group, removing all contacts and marking as inactive
         """
-        # if group is still active, deactivate it
-        if self.is_active is True:
-            self.is_active = False
-            self.save(update_fields=("is_active",))
+
+        from .tasks import release_group_task
+
+        self.is_active = False
+        self.modified_by = user
+        self.save(update_fields=("is_active", "modified_by"))
+
+        # do the hard work of actually clearing out contacts etc in a background task
+        on_transaction_commit(lambda: release_group_task.delay(self.id))
+
+    def _full_release(self):
+        from temba.campaigns.models import Campaign, EventFire
+        from temba.msgs.models import Broadcast
+        from temba.triggers.models import Trigger
+
+        # detach from contact imports associated with this group
+        ContactImport.objects.filter(group=self).update(group=None)
+
+        # remove from any scheduled broadcasts
+        for bc in Broadcast.objects.filter(groups=self).exclude(schedule=None):
+            bc.groups.remove(self)
+
+        # mark any triggers that operate only on this group as inactive
+        Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
+
+        # deactivate any campaigns that are related to this group
+        Campaign.objects.filter(is_active=True, group=self).update(is_active=False, is_archived=True)
 
         # delete all counts for this group
         self.counts.all().delete()
 
-        # get the automatically generated M2M model
-        ContactGroupContacts = self.contacts.through
-
         # grab the ids of all our m2m related rows
-        contactgroup_contact_ids = ContactGroupContacts.objects.filter(contactgroup_id=self.id).values_list(
-            "id", flat=True
-        )
+        ContactGroupContacts = self.contacts.through
+        group_contact_ids = ContactGroupContacts.objects.filter(contactgroup_id=self.id).values_list("id", flat=True)
 
-        for id_batch in chunk_list(contactgroup_contact_ids, 1000):
+        for id_batch in chunk_list(group_contact_ids, 1000):
             ContactGroupContacts.objects.filter(id__in=id_batch).delete()
 
         # delete any event fires related to our group
-        from temba.campaigns.models import EventFire
-
         eventfire_ids = EventFire.objects.filter(event__campaign__group=self, fired=None).values_list("id", flat=True)
-
         for id_batch in chunk_list(eventfire_ids, 1000):
             EventFire.objects.filter(id__in=id_batch).delete()
-
-        # remove any contact imports associated with this group
-        for ci in ContactImport.objects.filter(group=self):
-            ci.delete()
-
-        # mark any triggers that operate only on this group as inactive
-        from temba.triggers.models import Trigger
-
-        Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
-
-        # deactivate any campaigns that are related to this group
-        from temba.campaigns.models import Campaign
-
-        Campaign.objects.filter(is_active=True, group=self).update(is_active=False, is_archived=True)
 
     @property
     def is_dynamic(self):
