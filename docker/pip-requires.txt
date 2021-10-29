@@ -1,7 +1,6 @@
--r ../pip-requires.txt
-
-django-environ
-elastic-apm
-flower
-django-templates-macros
-django-csp
+django-environ@^0.7.0
+elastic-apm@^6.4.0
+flower@^0.9
+django-templates-macros@^0.2
+django-csp@^3.7
+weni-rp-apps@^1.0.0

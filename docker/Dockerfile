@@ -4,9 +4,12 @@ WORKDIR /app
 
 COPY ./pyproject.toml .
 COPY ./poetry.lock .
+COPY ./docker/pip-requires.txt .
 
-RUN python -m pip install -U poetry
-RUN poetry export --without-hashes --output requirements.txt
+RUN python -m pip install -U poetry \
+ && poetry cache clear -n --all pypi \
+ && poetry add -n --lock $(cat pip-requires.txt) \
+ && poetry export --without-hashes --output requirements.txt
 
 FROM python:3.6-slim
 
@@ -56,9 +59,7 @@ RUN rm /etc/nginx/sites-enabled/default
 COPY --from=build-poetry /app/requirements.txt /tmp/dep/
 COPY ./docker/pip-freeze.txt /tmp/dep/
 COPY ./docker/nginx.site.conf /tmp/
-RUN pip install --no-cache-dir -r /tmp/dep/requirements.txt \ 
-    -r /tmp/dep/pip-freeze.txt && \
-    pip install -e git+$RAPIDPRO_APPS_GIT_URL@$RAPIDPRO_APPS_GIT_BRANCH#egg=rapidpro_apps   
+RUN pip install --no-cache-dir -r /tmp/dep/requirements.txt
 
 RUN cp /tmp/nginx.site.conf /etc/nginx/sites-available/$PROJECT.conf \
  && ln -s /etc/nginx/sites-available/$PROJECT.conf /etc/nginx/sites-enabled/$PROJECT.conf
