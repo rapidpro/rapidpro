@@ -1,3 +1,10 @@
+1.0.1-rapidpro-6.5.15
+----------
+ * RapidPro v6.5.15
+ * Downgrade psycopg2-binary version to 2.8.6 
+ * Removes discontinued elasticapm processor 
+ * Add weni-rp-apps to pip dependencies
+
 1.0.0-rapidpro-6.5.15
 ----------
  * RapidPro v6.5.15
