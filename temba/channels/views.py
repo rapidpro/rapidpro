@@ -1881,12 +1881,12 @@ class ChannelCRUDL(SmartCRUDL):
             ivr_in = []
             ivr_out = []
 
-            message_stats.append(dict(name=_("Incoming Text"), data=msg_in))
-            message_stats.append(dict(name=_("Outgoing Text"), data=msg_out))
+            message_stats.append(dict(name=_("Incoming SMS Segments"), data=msg_in))
+            message_stats.append(dict(name=_("Outgoing SMS Segments"), data=msg_out))
 
             if context["ivr_count"]:
-                message_stats.append(dict(name=_("Incoming IVR"), data=ivr_in))
-                message_stats.append(dict(name=_("Outgoing IVR"), data=ivr_out))
+                message_stats.append(dict(name=_("Incoming Voice Messages"), data=ivr_in))
+                message_stats.append(dict(name=_("Outgoing Voice Messages"), data=ivr_out))
 
             # get all our counts for that period
             daily_counts = list(

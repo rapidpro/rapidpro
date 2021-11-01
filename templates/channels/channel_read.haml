@@ -47,7 +47,7 @@
         .flex.items-center.text-error
           .mr-1
             .icon-warning.text-error.text-lg.mt-1
-          .message             
+          .message
             -if delayed_sync_event
               .inline-block.ml-2
                 -if last_sync
@@ -137,7 +137,7 @@
 
       -if channel.is_delegate_caller
         -trans "Voice calls"
-  
+
     -if object.channel_type == 'A'      
       -if unsent_msgs_count
         .text-error
@@ -166,7 +166,7 @@
                 -for net in network_share
                   -if net.0 == last_sync.network_type
                     {{ net.1 }}%
-              
+
               .t-status.px-2
                 -trans "ON"
                 = last_sync.network_type
@@ -180,7 +180,7 @@
                   .mini-status.icon-battery-half
                 -else
                   .mini-status.icon-battery-full.rotate
-              
+
               .t-status
                 {{last_sync.power_level}}%
 
@@ -194,70 +194,77 @@
                 -if last_sync.power_status == 'FUL'
                   -trans "FULLY CHARGED"
 
+      - if ivr_count
+        .stats-switch
+          .msgs-stats-label.active
+            Segments
+          .stats-sep
+            |
+          .ivr-stats-label
+            IVR
 
+      .msgs-stats.active
+        .card.pt-8
+          %div#channel-msgs-chart
 
-      -else
+        .minutes-disclaimer.mb-4
+          Please note: When you send a SMS message over 160 characters, the message will be split. Large messages are
+          segmented into 153 characters segment and sent individually, then rebuild by the recipient's device. For
+          example, a 161-character message will be sent as two messages, one with 153 characters and the second with 8
+          characters. This is how CCL is billed and therefore how you are billed.
 
-        -if msg_count or ivr_count or channel.get_error_log_count
-          %table.list.lined
-            %thead
-              %tr
-                %th
-                  -trans "Messages"
-                
-                -if ivr_count
-                  %th
-                    -trans "IVR Messages"
-                %th
-                  -trans "Recent Errors"
-                
-            %tbody
-              
+        %table.list.lined
+          %thead
+            %tr
+              %th
+                -trans "Month"
+              %th
+                -trans "Incoming Segments"
+              %th
+                -trans "Outgoing Segments"
+              %th
+                -trans "Total Segmants"
+          %tbody
+            -for month_data in message_stats_table
               %tr
                 %td
-                  {{ msg_count|intcomma }}
-
-                -if ivr_count
-                  %td
-                    {{ ivr_count|intcomma }}
+                  = month_data.month_start|utc|date:"F Y"
                 %td
-                  {{ channel.get_error_log_count|intcomma }}
+                  = month_data.incoming_messages_count|intcomma
+                %td
+                  = month_data.outgoing_messages_count|intcomma
+                %td
+                  = month_data.incoming_messages_count|intcomma|add:month_data.outgoing_messages_count|intcomma
 
-      .card.pt-8
-        %div#channel-chart
+      .ivr-stats
+        .card.pt-8
+          %div#channel-ivr-chart
 
-      -if ivr_count
-        .minutes-disclaimer
+        .minutes-disclaimer.mb-4
           In many cases operators round up to the nearest minute for billing. Minutes shown here are only a usage guideline.
 
-      %table.list.lined
-        %thead
-          %tr
-            %th
-              -trans "Month"
-            %th
-              -trans "Incoming Text Messages"
-            %th
-              -trans "Outgoing Text Messages"
-            -if ivr_count
+        %table.list.lined
+          %thead
+            %tr
+              %th
+                -trans "Month"
               %th
                 -trans "Incoming IVR Messages"
               %th
                 -trans "Outgoing IVR Messages"
-        %tbody
-          -for month_data in message_stats_table
-            %tr
-              %td
-                = month_data.month_start|utc|date:"F Y"
-              %td
-                = month_data.incoming_messages_count|intcomma
-              %td
-                = month_data.outgoing_messages_count|intcomma
-              -if ivr_count
+              %th
+                -trans "Total IVR Messages (Minutes)"
+          %tbody
+            -for month_data in message_stats_table
+              %tr
+                %td
+                  = month_data.month_start|utc|date:"F Y"
                 %td
                   = month_data.incoming_ivr_count|intcomma
                 %td
                   = month_data.outgoing_ivr_count|intcomma
+                %td
+                  = month_data.incoming_ivr_count|intcomma|add:month_data.outgoing_ivr_count|intcomma
 
   -if object.channel_type == 'A'
     %table.list.lined.mt-4
@@ -312,6 +319,35 @@
               -else
                 &nbsp;&nbsp;{{ sync_event.network_type }}
 
+-block extra-style
+  {{ block.super }}
+  :css
+    .msgs-stats, .ivr-stats {
+      display: none;
+    }
+    .msgs-stats.active, .ivr-stats.active {
+      display: block;
+    }
+    .msgs-stats-label, .ivr-stats-label {
+      display: inline;
+      cursor: pointer;
+      color: #569D9B;
+    }
+    .msgs-stats-label:hover, .ivr-stats-label:hover {
+      text-decoration: underline;
+    }
+    .msgs-stats-label.active, .ivr-stats-label.active {
+      cursor: default;
+      pointer-events: none;
+      text-decoration: none;
+      color: #555555;
+    }
+    .stats-sep {
+      display: inline;
+      margin-left: 5px;
+      margin-right: 5px;
+    }
+
 -block extra-script
   {{ block.super }}
 
@@ -319,108 +355,129 @@
     <script src="{{ STATIC_URL }}bower/highcharts/highcharts.js"></script>
 
   :javascript
+    $(document).ready(function() {
+      $(".msgs-stats-label, .ivr-stats-label").click(function () {
+        $(".msgs-stats-label, .ivr-stats-label, .msgs-stats, .ivr-stats").removeClass("active");
+        if ($(this).hasClass("msgs-stats-label")) {
+          $(".msgs-stats-label, .msgs-stats").addClass("active");
+        } else {
+          $(".ivr-stats-label, .ivr-stats").addClass("active");
+        }
+      });
+    });
     {% if start_date %}
 
       $(function () {
-        var chart;
+        var msgsChart, ivrChart;
         $(document).ready(function() {
-            chart = new Highcharts.Chart({
-                credits: {
-                    enabled: false
-                },
-                colors: ['#80b9fb',
-                        '#2980b9',
-                        '#CD76F0',
-                        '#8e44ad',
-                        '#633077'],
-                chart: {
-                    renderTo: 'channel-chart',
-                    zoomType: 'x',
-                    type: 'column'
-                },
-                title: {
-                    text: null
-                },
-                xAxis: {
-                    type: 'datetime',
-                    min: Date.UTC({{start_date|date:'Y'}}, {{start_date|date:'m'|add:-1}}, {{start_date|date:'d'}}),
-                    max: Date.UTC({{end_date|date:'Y'}}, {{end_date|date:'m'|add:-1}}, {{end_date|date:'d'}}),
-                    dateTimeLabelFormats:
-                    {
-                      millisecond: '%H:%M:%S.%L',
-                      second: '%H:%M:%S',
-                      minute: '%H:%M',
-                      hour: '%H:%M',
-                      day: '%b %e',
-                      week: '%e. %b',
-                      month: '%b \'%y',
-                      year: '%Y'
-                    },
+          let generalSettings = {
+            credits: {
+              enabled: false
+            },
+            colors: [
+              '#80b9fb',
+              '#2980b9',
+              '#CD76F0',
+              '#8e44ad',
+              '#633077'
+            ],
+            title: {
+              text: null
+            },
+            xAxis: {
+              type: 'datetime',
+              min: Date.UTC({{start_date|date:'Y'}}, {{start_date|date:'m'|add:-1}}, {{start_date|date:'d'}}),
+              max: Date.UTC({{end_date|date:'Y'}}, {{end_date|date:'m'|add:-1}}, {{end_date|date:'d'}}),
+              dateTimeLabelFormats: {
+                millisecond: '%H:%M:%S.%L',
+                second: '%H:%M:%S',
+                minute: '%H:%M',
+                hour: '%H:%M',
+                day: '%b %e',
+                week: '%e. %b',
+                month: '%b \'%y',
+                year: '%Y'
+              },
+            },
+            plotOptions: {
+              series: {
+                pointPadding: .1,
+                groupPadding: .1,
+              }
+            },
+            tooltip: {
+              formatter: function() {
+                return '<b>'+ this.series.name + '</b>: ' + this.y +'<br/>'+
+                Highcharts.dateFormat('%b %e, %Y', this.x);
+              }
+            },
+          };
 
-                },
-                yAxis: [{
-                    title: {
-                        text: '{{ _("Minutes")|escapejs }}'
-                    },
-                    opposite: false,
-                    min: 0,
-                    allowDecimals: false
-                    {% if not has_messages %}
-                    , max: 10
-                    {% endif %}
-                },{
-                    title: {
-                        text: '{{ _("Messages")|escapejs }}'
-                    },
-                    opposite: true,
-                    min: 0,
-                    allowDecimals: false
-                    {% if not has_messages %}
-                    , max: 10
-                    {% endif %}
-                }],
-                plotOptions: {
-                series: {
-                  pointPadding: .1,
-                  groupPadding: .1,
-                  stacking: 'normal'
-                }
-                },
-                tooltip: {
-                    formatter: function() {
-                            return '<b>'+ this.series.name + '</b>: ' + this.y +'<br/>'+
-                            Highcharts.dateFormat('%b %e, %Y', this.x);
-                    }
-                },
-                series: [
-                  {% for msg_stat in message_stats %}
-                  {
-                    yAxis:1,
-                    name: '{{msg_stat.name|safe}}',
-                    data: [
+          msgsChart = new Highcharts.Chart({
+            ...generalSettings,
+            chart: {
+              renderTo: 'channel-msgs-chart',
+              zoomType: 'x',
+              type: 'column'
+            },
+            yAxis: {
+              title: {
+                text: '{{ _("Messages")|escapejs }}'
+              },
+              min: 0,
+              allowDecimals: false
+              {% if not has_messages %}
+                , max: 10
+              {% endif %}
+            },
+            series: [
+              {% for msg_stat in message_stats %}
+                {
+                  name: '{{msg_stat.name|safe}}',
+                  data: [
                     {% for elt in msg_stat.data %}[Date.UTC({{elt.date|date:'Y'}}, {{elt.date|date:'m'|add:-1}}, {{elt.date|date:'d'}}), {{elt.count}}]{% if not forloop.last %},
                     {% endif %}{% endfor %}
-                    ]
-                  }
-                  {% if not forloop.last %},{% endif %}
-                  {% empty %}
-                    {}
-                  {% endfor %}
-                  {% if ivr_count %}
-                  ,{
-                    type: 'spline',
-                    name: 'Minutes',
-                    yAxis:0,
-                    data: [
-                    {% for point in call_duration %}[Date.UTC({{point.date|date:'Y'}}, {{point.date|date:'m'|add:-1}}, {{point.date|date:'d'}}), Math.floor(100 * ({{point.duration}} / 60)) / 100]{% if not forloop.last %},
-                    {% endif %}{% endfor %}
-                    ]
-                  }
-
-                  {% endif %}
-                ]
-            });
+                  ]
+                }
+                {% if not forloop.last %},{% endif %}
+              {% empty %}
+                {}
+              {% endfor %}
+            ]
           });
 
+          ivrChart = new Highcharts.Chart({
+            ...generalSettings,
+            chart: {
+              renderTo: 'channel-ivr-chart',
+              zoomType: 'x',
+              type: 'column'
+            },
+            yAxis: {
+              title: {
+                text: '{{ _("Minutes")|escapejs }}'
+              },
+              min: 0,
+              allowDecimals: false
+              {% if not has_messages %}
+                , max: 10
+              {% endif %}
+            },
+            series: [
+              {% if ivr_count %}
+                {
+                  type: 'spline',
+                  name: 'Minutes',
+                  data: [
+                    {% for point in call_duration %}[Date.UTC({{point.date|date:'Y'}}, {{point.date|date:'m'|add:-1}}, {{point.date|date:'d'}}), Math.floor(100 * ({{point.duration}} / 60)) / 100]{% if not forloop.last %},
+                    {% endif %}{% endfor %}
+                  ]
+                }
+              {% else %}
+                {}
+              {% endif %}
+            ]
+          });
+        });
       });
     {% endif %}
