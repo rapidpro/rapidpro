@@ -1,3 +1,7 @@
+v7.0.0
+----------
+ * Fix test failing to due bad domain lookup
+
 v6.5.71
 ----------
  * Add migration to remove deleted contacts and groups from scheduled broadcasts
