@@ -1,3 +1,8 @@
+v6.5.71
+----------
+ * Add migration to remove deleted contacts and groups from scheduled broadcasts
+ * Releasing a contact or group should also remove it from scheduled broadcasts
+
 v6.5.70
 ----------
  * Fix intermittent credit test failure
