@@ -24,7 +24,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 
@@ -2842,3 +2842,43 @@ class TagsTest(TembaTest):
         # exception if tag not used correctly
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render with bob %}{% endrender %}")
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render as %}{% endrender %}")
+
+
+class ScheduledBroadcastCleanupTest(MigrationTest):
+    app = "msgs"
+    migrate_from = "0157_auto_20211028_1300"
+    migrate_to = "0158_scheduled_bcast_cleanup"
+
+    def setUpBeforeMigration(self, apps):
+        self.contact1 = self.create_contact("Bob", urns=["tel:+593979111111"])
+        self.contact2 = self.create_contact("Jim", urns=["tel:+593979222222"])
+
+        self.group1 = self.create_group("Testers", contacts=[])
+        self.group2 = self.create_group("Farmers", contacts=[])
+
+        self.bcast1 = self.create_broadcast(
+            self.admin,
+            "Hi 1",
+            contacts=[self.contact1, self.contact2],
+            groups=[self.group1, self.group2],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+        )
+
+        # a regular non-scheduled broadcast
+        self.bcast2 = self.create_broadcast(
+            self.admin, "Hi 1", contacts=[self.contact1, self.contact2], groups=[self.group1, self.group2]
+        )
+
+        # simulate previous releasing code which didn't remove from scheduled broadcasts..
+        self.contact1.is_active = False
+        self.contact1.save(update_fields=("is_active",))
+
+        self.group1.is_active = False
+        self.group1.save(update_fields=("is_active",))
+
+    def test_migration(self):
+        self.assertEqual({self.contact2}, set(self.bcast1.contacts.all()))
+        self.assertEqual({self.group2}, set(self.bcast1.groups.all()))
+
+        self.assertEqual({self.contact1, self.contact2}, set(self.bcast2.contacts.all()))
+        self.assertEqual({self.group1, self.group2}, set(self.bcast2.groups.all()))

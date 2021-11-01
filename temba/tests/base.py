@@ -18,7 +18,7 @@ from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport, ContactURN
+from temba.contacts.models import URN, ContactField, ContactGroup, ContactImport, ContactURN
 from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -405,20 +405,21 @@ class TembaTestMixin:
         for group in bcast.groups.all():
             contacts.update(group.contacts.all())
 
-        for contact in contacts:
-            self._create_msg(
-                contact,
-                text,
-                Msg.DIRECTION_OUT,
-                channel=None,
-                msg_type=Msg.TYPE_INBOX,
-                attachments=(),
-                status=msg_status,
-                created_on=timezone.now(),
-                sent_on=timezone.now(),
-                response_to=response_to,
-                broadcast=bcast,
-            )
+        if not schedule:
+            for contact in contacts:
+                self._create_msg(
+                    contact,
+                    text,
+                    Msg.DIRECTION_OUT,
+                    channel=None,
+                    msg_type=Msg.TYPE_INBOX,
+                    attachments=(),
+                    status=msg_status,
+                    created_on=timezone.now(),
+                    sent_on=timezone.now(),
+                    response_to=response_to,
+                    broadcast=bcast,
+                )
 
         return bcast
 
@@ -633,19 +634,6 @@ class TembaTestMixin:
 
     def set_contact_field(self, contact, key, value):
         update_field_locally(self.admin, contact, key, value)
-
-    def bulk_release(self, objs, delete=False, user=None):
-        for obj in objs:
-            if user:
-                obj.release(user)
-            else:
-                obj.release()
-
-            if obj.id and delete:
-                obj.delete()
-
-    def releaseContacts(self, delete=False):
-        self.bulk_release(Contact.objects.all(), delete=delete, user=self.admin)
 
     def assertOutbox(self, outbox_index, from_email, subject, body, recipients):
         self.assertEqual(len(mail.outbox), outbox_index + 1)

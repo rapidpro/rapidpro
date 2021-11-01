@@ -68,7 +68,7 @@ from .models import (
 )
 from .search import SearchException, parse_query, search_contacts
 from .search.omnibox import omnibox_query, omnibox_results_to_dict
-from .tasks import export_contacts_task, release_group_task
+from .tasks import export_contacts_task
 
 logger = logging.getLogger(__name__)
 
@@ -1705,20 +1705,13 @@ class ContactGroupCRUDL(SmartCRUDL):
             if triggers.count() > 0:
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
-            from temba.flows.models import Flow
-
             if Flow.objects.filter(org=group.org, group_dependencies__in=[group]).exists():
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
             if group.campaigns.filter(is_archived=False).exists():
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
-            # deactivate the group, this makes it 'invisible'
-            group.is_active = False
-            group.save(update_fields=("is_active",))
-
-            # release the group in a background task
-            on_transaction_commit(lambda: release_group_task.delay(group.id))
+            group.release(self.request.user)
 
             # we can't just redirect so as to make our modal do the right thing
             return self.render_modal_response()

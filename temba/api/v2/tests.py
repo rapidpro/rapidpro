@@ -2240,8 +2240,11 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url, fetch_returns=405)
 
+        for contact in Contact.objects.all():
+            contact.release(self.admin)
+            contact.delete()
+
         # create some contacts to act on
-        self.bulk_release([self.joe, self.frank], user=self.admin, delete=True)
         contact1 = self.create_contact("Ann", phone="+250788000001")
         contact2 = self.create_contact("Bob", phone="+250788000002")
         contact3 = self.create_contact("Cat", phone="+250788000003")
@@ -3009,7 +3012,8 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, "uuid=%s" % spammers.uuid)
         self.assert404(response)
 
-        self.bulk_release(ContactGroup.user_groups.all())
+        for group in ContactGroup.user_groups.all():
+            group.release(self.admin)
 
         for i in range(10):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)

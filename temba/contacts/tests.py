@@ -826,8 +826,10 @@ class ContactGroupTest(TembaTest):
 
     @mock_mailroom
     def test_system_group_counts(self, mr_mocks):
-        # start with none
-        self.releaseContacts(delete=True)
+        # start with no contacts
+        for contact in Contact.objects.all():
+            contact.release(self.admin)
+            contact.delete()
 
         counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
@@ -904,11 +906,14 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(all_contacts.get_member_count(), 3)
         self.assertEqual(ContactGroupCount.objects.filter(group=all_contacts).count(), 1)
 
-    def test_release(self):
-        group = self.create_group("one")
-        flow = self.get_flow("favorites")
+    @mock_mailroom
+    def test_release(self, mr_mocks):
+        group1 = self.create_group("Group One")
+        group2 = self.create_group("Group One")
+        flow = self.create_flow()
 
-        campaign = Campaign.create(self.org, self.admin, "Reminders", group)
+        # create a campaign based on group 1
+        campaign = Campaign.create(self.org, self.admin, "Reminders", group1)
         joined = ContactField.get_or_create(
             self.org, self.admin, "joined", "Joined On", value_type=ContactField.TYPE_DATETIME
         )
@@ -917,19 +922,24 @@ class ContactGroupTest(TembaTest):
         campaign.is_archived = True
         campaign.save()
 
+        # create scheduled and regular broadcasts which send to both groups
+        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
+        bcast1 = self.create_broadcast(self.admin, "Hi", groups=[group1, group2], schedule=schedule)
+        bcast2 = self.create_broadcast(self.admin, "Hi", groups=[group1, group2])
+        bcast2.send_async()
+
+        group1.release(self.admin)
+        group1.refresh_from_db()
+
+        self.assertFalse(group1.is_active)
+        self.assertEqual(0, EventFire.objects.count())  # event fires will have been deleted
+        self.assertEqual({group2}, set(bcast1.groups.all()))  # removed from scheduled broadcast
+        self.assertEqual({group1, group2}, set(bcast2.groups.all()))  # regular broadcast unchanged
+
         self.login(self.admin)
 
-        response = self.client.post(reverse("contacts.contactgroup_delete", args=[group.id]), {})
-        self.assertEqual(200, response.status_code)
-
-        self.assertIsNone(ContactGroup.user_groups.filter(pk=group.id).first())
-        self.assertFalse(ContactGroup.all_groups.get(pk=group.id).is_active)
-
-        # event firs will have been deleted
-        self.assertEqual(0, EventFire.objects.count())
-
-        group = self.create_group("one")
-        delete_url = reverse("contacts.contactgroup_delete", args=[group.pk])
+        group = self.create_group("Group One")
+        delete_url = reverse("contacts.contactgroup_delete", args=[group.id])
 
         trigger = Trigger.objects.create(
             org=self.org, flow=flow, keyword="join", created_by=self.admin, modified_by=self.admin
@@ -963,7 +973,8 @@ class ContactGroupTest(TembaTest):
         trigger.is_archived = True
         trigger.save()
 
-        self.client.post(delete_url, dict())
+        self.client.post(delete_url, {})
+
         # group should have is_active = False and all its triggers
         self.assertIsNone(ContactGroup.user_groups.filter(pk=group.pk).first())
         self.assertFalse(ContactGroup.all_groups.get(pk=group.pk).is_active)
@@ -1173,7 +1184,8 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
 
-        self.bulk_release(ContactGroup.user_groups.all())
+        for group in ContactGroup.user_groups.all():
+            group.release(self.admin)
 
         for i in range(10):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
@@ -1182,7 +1194,8 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNoFormErrors(response)
         ContactGroup.user_groups.get(org=self.org, name="People")
 
-        self.bulk_release(ContactGroup.user_groups.all())
+        for group in ContactGroup.user_groups.all():
+            group.release(self.admin)
 
         for i in range(10):
             ContactGroup.create_static(self.org, self.admin, "group%d" % i)
@@ -1470,15 +1483,17 @@ class ContactTest(TembaTest):
         self.create_incoming_call(msg_flow, old_contact)
 
         # steal his urn into a new contact
-        contact = self.create_contact("Joe", urns=["twitter:tweettweet"])
+        contact = self.create_contact("Joe", urns=["twitter:tweettweet"], fields={"gender": "Male", "age": 40})
         urn.contact = contact
         urn.save(update_fields=("contact",))
         group = self.create_group("Test Group", contacts=[contact])
 
-        contact.fields = {"gender": "Male", "age": 40}
-        contact.save(update_fields=("fields",))
+        contact2 = self.create_contact("Billy", urns=["twitter:billy"])
 
-        self.create_broadcast(self.admin, "Test Broadcast", contacts=[contact])
+        # create scheduled and regular broadcasts which send to both contacts
+        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
+        bcast1 = self.create_broadcast(self.admin, "Test", contacts=[contact, contact2], schedule=schedule)
+        bcast2 = self.create_broadcast(self.admin, "Test", contacts=[contact, contact2])
 
         flow_nodes = msg_flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
@@ -1522,7 +1537,7 @@ class ContactTest(TembaTest):
 
         self.assertEqual(1, group.contacts.all().count())
         self.assertEqual(1, contact.connections.all().count())
-        self.assertEqual(1, contact.addressed_broadcasts.all().count())
+        self.assertEqual(2, contact.addressed_broadcasts.all().count())
         self.assertEqual(2, contact.urns.all().count())
         self.assertEqual(2, contact.runs.all().count())
         self.assertEqual(7, contact.msgs.all().count())
@@ -1545,6 +1560,9 @@ class ContactTest(TembaTest):
         # a new contact arrives with those urns
         new_contact = self.create_contact("URN Thief", urns=["tel:+12065552000", "twitter:tweettweet"])
         self.assertEqual(2, new_contact.urns.all().count())
+
+        self.assertEqual({contact2}, set(bcast1.contacts.all()))
+        self.assertEqual({contact, contact2}, set(bcast2.contacts.all()))
 
         # now lets go for a full release
         contact.release(self.admin)
