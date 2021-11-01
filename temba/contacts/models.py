@@ -1134,6 +1134,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # delete any unfired campaign event fires
             self.campaign_fires.filter(fired=None).delete()
 
+            # remove from scheduled broadcasts
+            for bc in self.addressed_broadcasts.exclude(schedule=None):
+                bc.contacts.remove(self)
+
             # now deactivate the contact itself
             self.is_active = False
             self.name = None
@@ -1746,22 +1750,21 @@ class ContactGroup(TembaModel, DependencyMixin):
         on_transaction_commit(lambda: release_group_task.delay(self.id))
 
     def _full_release(self):
-        from temba.campaigns.models import Campaign, EventFire
-        from temba.msgs.models import Broadcast
+        from temba.campaigns.models import EventFire
         from temba.triggers.models import Trigger
 
         # detach from contact imports associated with this group
         ContactImport.objects.filter(group=self).update(group=None)
 
         # remove from any scheduled broadcasts
-        for bc in Broadcast.objects.filter(groups=self).exclude(schedule=None):
+        for bc in self.addressed_broadcasts.exclude(schedule=None):
             bc.groups.remove(self)
 
         # mark any triggers that operate only on this group as inactive
         Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
 
-        # deactivate any campaigns that are related to this group
-        Campaign.objects.filter(is_active=True, group=self).update(is_active=False, is_archived=True)
+        # deactivate any campaigns that are based on this group
+        self.campaigns.filter(is_active=True).update(is_active=False, is_archived=True)
 
         # delete all counts for this group
         self.counts.all().delete()

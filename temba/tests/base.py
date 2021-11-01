@@ -405,20 +405,21 @@ class TembaTestMixin:
         for group in bcast.groups.all():
             contacts.update(group.contacts.all())
 
-        for contact in contacts:
-            self._create_msg(
-                contact,
-                text,
-                Msg.DIRECTION_OUT,
-                channel=None,
-                msg_type=Msg.TYPE_INBOX,
-                attachments=(),
-                status=msg_status,
-                created_on=timezone.now(),
-                sent_on=timezone.now(),
-                response_to=response_to,
-                broadcast=bcast,
-            )
+        if not schedule:
+            for contact in contacts:
+                self._create_msg(
+                    contact,
+                    text,
+                    Msg.DIRECTION_OUT,
+                    channel=None,
+                    msg_type=Msg.TYPE_INBOX,
+                    attachments=(),
+                    status=msg_status,
+                    created_on=timezone.now(),
+                    sent_on=timezone.now(),
+                    response_to=response_to,
+                    broadcast=bcast,
+                )
 
         return bcast
 

@@ -922,11 +922,10 @@ class ContactGroupTest(TembaTest):
         campaign.is_archived = True
         campaign.save()
 
-        # create a scheduled broadcast which sends to both groups
+        # create scheduled and regular broadcasts which send to both groups
         schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
-        bcast1 = Broadcast.create(self.org, self.admin, "Hi", groups=[group1, group2], schedule=schedule)
-
-        bcast2 = Broadcast.create(self.org, self.admin, "Hi", groups=[group1, group2])
+        bcast1 = self.create_broadcast(self.admin, "Hi", groups=[group1, group2], schedule=schedule)
+        bcast2 = self.create_broadcast(self.admin, "Hi", groups=[group1, group2])
         bcast2.send_async()
 
         group1.release(self.admin)
@@ -1484,15 +1483,17 @@ class ContactTest(TembaTest):
         self.create_incoming_call(msg_flow, old_contact)
 
         # steal his urn into a new contact
-        contact = self.create_contact("Joe", urns=["twitter:tweettweet"])
+        contact = self.create_contact("Joe", urns=["twitter:tweettweet"], fields={"gender": "Male", "age": 40})
         urn.contact = contact
         urn.save(update_fields=("contact",))
         group = self.create_group("Test Group", contacts=[contact])
 
-        contact.fields = {"gender": "Male", "age": 40}
-        contact.save(update_fields=("fields",))
+        contact2 = self.create_contact("Billy", urns=["twitter:billy"])
 
-        self.create_broadcast(self.admin, "Test Broadcast", contacts=[contact])
+        # create scheduled and regular broadcasts which send to both contacts
+        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
+        bcast1 = self.create_broadcast(self.admin, "Test", contacts=[contact, contact2], schedule=schedule)
+        bcast2 = self.create_broadcast(self.admin, "Test", contacts=[contact, contact2])
 
         flow_nodes = msg_flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
@@ -1536,7 +1537,7 @@ class ContactTest(TembaTest):
 
         self.assertEqual(1, group.contacts.all().count())
         self.assertEqual(1, contact.connections.all().count())
-        self.assertEqual(1, contact.addressed_broadcasts.all().count())
+        self.assertEqual(2, contact.addressed_broadcasts.all().count())
         self.assertEqual(2, contact.urns.all().count())
         self.assertEqual(2, contact.runs.all().count())
         self.assertEqual(7, contact.msgs.all().count())
@@ -1559,6 +1560,9 @@ class ContactTest(TembaTest):
         # a new contact arrives with those urns
         new_contact = self.create_contact("URN Thief", urns=["tel:+12065552000", "twitter:tweettweet"])
         self.assertEqual(2, new_contact.urns.all().count())
+
+        self.assertEqual({contact2}, set(bcast1.contacts.all()))
+        self.assertEqual({contact, contact2}, set(bcast2.contacts.all()))
 
         # now lets go for a full release
         contact.release(self.admin)
