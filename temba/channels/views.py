@@ -37,7 +37,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.contacts.models import URN
-from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
+from temba.msgs.models import Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.models import Org
@@ -45,7 +45,7 @@ from temba.orgs.views import AnonMixin, DependencyDeleteModal, ModalMixin, OrgOb
 from temba.utils import analytics, countries, json
 from temba.utils.fields import SelectWidget
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import ComponentFormMixin
+from temba.utils.views import ComponentFormMixin, SpaMixin
 
 from .models import (
     Alert,
@@ -117,7 +117,11 @@ def get_commands(channel, commands, sync_event=None):
     """
     Generates sync commands for all queued messages on the given channel
     """
-    msgs = Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING)
+    msgs = Msg.objects.filter(
+        status__in=(Msg.STATUS_PENDING, Msg.STATUS_QUEUED, Msg.STATUS_WIRED),
+        channel=channel,
+        direction=Msg.DIRECTION_OUT,
+    )
 
     if sync_event:
         pending_msgs = sync_event.get_pending_messages()
@@ -215,7 +219,7 @@ def sync(request, channel_id):
 
                 msg = Msg.objects.filter(id=msg_id, org=channel.org).first()
                 if msg:
-                    if msg.direction == OUTGOING:
+                    if msg.direction == Msg.DIRECTION_OUT:
                         handled = msg.update(cmd)
                     else:
                         handled = True
@@ -336,7 +340,7 @@ def register(request):
     return JsonResponse(dict(cmds=[cmd]))
 
 
-class ClaimViewMixin(OrgPermsMixin, ComponentFormMixin):
+class ClaimViewMixin(SpaMixin, OrgPermsMixin, ComponentFormMixin):
     permission = "channels.channel_claim"
     channel_type = None
 
@@ -725,6 +729,7 @@ class ChannelCRUDL(SmartCRUDL):
         "list",
         "claim",
         "claim_all",
+        "menu",
         "update",
         "read",
         "delete",
@@ -736,7 +741,38 @@ class ChannelCRUDL(SmartCRUDL):
     )
     permissions = True
 
-    class Read(OrgObjPermsMixin, NotificationTargetMixin, SmartReadView):
+    class Menu(OrgPermsMixin, SmartTemplateView):  # pragma: no cover
+        def render_to_response(self, context, **response_kwargs):
+            org = self.request.user.get_org()
+
+            menu = []
+            if self.has_org_perm("channels.channel_read"):
+                from temba.channels.views import get_channel_read_url
+
+                channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
+                for channel in channels:
+                    icon = channel.get_type().icon.replace("icon-", "")
+                    icon = icon.replace("power-cord", "box")
+                    menu.append(
+                        {
+                            "id": channel.uuid,
+                            "name": channel.name,
+                            "href": get_channel_read_url(channel),
+                            "icon": icon,
+                        }
+                    )
+
+            menu.append(
+                {
+                    "id": "claim",
+                    "href": reverse("channels.channel_claim"),
+                    "name": _("Add Channel"),
+                }
+            )
+
+            return JsonResponse({"results": menu})
+
+    class Read(SpaMixin, OrgObjPermsMixin, NotificationTargetMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
@@ -1211,7 +1247,7 @@ class ChannelCRUDL(SmartCRUDL):
                     channel.save(update_fields=("address", "bod"))
             return obj
 
-    class Claim(OrgPermsMixin, SmartTemplateView):
+    class Claim(SpaMixin, OrgPermsMixin, SmartTemplateView):
         def channel_types_groups(self):
             user = self.request.user
 
@@ -1534,7 +1570,7 @@ class ChannelLogCRUDL(SmartCRUDL):
                 )
             ]
 
-    class Read(OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
 
         def get_gear_links(self):

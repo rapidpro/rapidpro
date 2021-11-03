@@ -263,14 +263,6 @@ class Org(SmartModel):
     LIMIT_LABELS = "labels"
     LIMIT_TOPICS = "topics"
 
-    LIMIT_DEFAULTS = {
-        LIMIT_FIELDS: settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG,
-        LIMIT_GLOBALS: settings.MAX_ACTIVE_GLOBALS_PER_ORG,
-        LIMIT_GROUPS: settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG,
-        LIMIT_LABELS: 250,
-        LIMIT_TOPICS: 250,
-    }
-
     DELETE_DELAY_DAYS = 7  # how many days after releasing that an org is deleted
 
     BLOCKER_SUSPENDED = _(
@@ -504,7 +496,7 @@ class Org(SmartModel):
         )
 
     def get_limit(self, limit_type):
-        return int(self.limits.get(limit_type, self.LIMIT_DEFAULTS.get(limit_type)))
+        return int(self.limits.get(limit_type, settings.ORG_LIMIT_DEFAULTS.get(limit_type)))
 
     def flag(self):
         self.is_flagged = True
@@ -1750,7 +1742,7 @@ class Org(SmartModel):
 
         # delete our groups
         for group in self.all_groups.all():
-            group.release()
+            group.release(user)
             group.delete()
 
         # delete our channels

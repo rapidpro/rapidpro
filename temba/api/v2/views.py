@@ -33,7 +33,6 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
-from temba.contacts.tasks import release_group_task
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -41,7 +40,7 @@ from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
 from temba.orgs.models import OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
-from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
+from temba.utils import splitting_getlist, str_to_bool
 
 from ..models import SSLPermission
 from ..support import InvalidQueryError
@@ -81,7 +80,6 @@ from .serializers import (
     TicketBulkActionSerializer,
     TicketerReadSerializer,
     TicketReadSerializer,
-    TicketWriteSerializer,
     TopicReadSerializer,
     TopicWriteSerializer,
     UserReadSerializer,
@@ -120,6 +118,9 @@ class RootView(views.APIView):
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
      * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
      * [/api/v2/ticketers](/api/v2/ticketers) - to list ticketing services
+     * [/api/v2/tickets](/api/v2/tickets) - to list tickets
+     * [/api/v2/ticket_actions](/api/v2/ticket_actions) - to perform bulk ticket actions
+     * [/api/v2/topics](/api/v2/topics) - to list and create topics
      * [/api/v2/users](/api/v2/users) - to list user logins
      * [/api/v2/workspace](/api/v2/workspace) - to view your workspace
 
@@ -226,9 +227,9 @@ class RootView(views.APIView):
                 "runs": reverse("api.v2.runs", request=request),
                 "templates": reverse("api.v2.templates", request=request),
                 "ticketers": reverse("api.v2.ticketers", request=request),
-                # "tickets": reverse("api.v2.tickets", request=request),
-                # "ticket_actions": reverse("api.v2.ticket_actions", request=request),
-                # "topics": reverse("api.v2.topics", request=request),
+                "tickets": reverse("api.v2.tickets", request=request),
+                "ticket_actions": reverse("api.v2.ticket_actions", request=request),
+                "topics": reverse("api.v2.topics", request=request),
                 "users": reverse("api.v2.users", request=request),
                 "workspace": reverse("api.v2.workspace", request=request),
             }
@@ -285,11 +286,10 @@ class ExplorerView(SmartTemplateView):
             RunsEndpoint.get_read_explorer(),
             TemplatesEndpoint.get_read_explorer(),
             TicketersEndpoint.get_read_explorer(),
-            # TicketsEndpoint.get_read_explorer(),
-            # TicketsEndpoint.get_write_explorer(),
-            # TicketActionsEndpoint.get_read_explorer(),
-            # TopicsEndpoint.get_read_explorer(),
-            # TopicsEndpoint.get_write_explorer(),
+            TicketsEndpoint.get_read_explorer(),
+            TicketActionsEndpoint.get_write_explorer(),
+            TopicsEndpoint.get_read_explorer(),
+            TopicsEndpoint.get_write_explorer(),
             UsersEndpoint.get_read_explorer(),
             WorkspaceEndpoint.get_read_explorer(),
         ]
@@ -2229,13 +2229,6 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def perform_destroy(self, instance):
-        instance.is_active = False
-        instance.save(update_fields=("is_active",))
-
-        # release the group in a background task
-        on_transaction_commit(lambda: release_group_task.delay(instance.id))
-
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -3521,7 +3514,6 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     permission = "tickets.ticket_api"
     model = Ticket
     serializer_class = TicketReadSerializer
-    write_serializer_class = TicketWriteSerializer
     pagination_class = ModifiedOnCursorPagination
 
     def filter_queryset(self, queryset):
@@ -3539,9 +3531,9 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             else:
                 queryset = queryset.filter(id=-1)
 
-        ticket_uuid = params.get("ticket")
-        if ticket_uuid:
-            queryset = queryset.filter(uuid=ticket_uuid)
+        uuid = params.get("uuid") or params.get("ticket")
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
 
         # filter by ticketer type if provided, unpublished support for agents
         ticketer_type = params.get("ticketer_type")
@@ -3557,21 +3549,21 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         return queryset
 
-    # @classmethod
-    # def get_read_explorer(cls):
-    #     return {
-    #         "method": "GET",
-    #         "title": "List Tickets",
-    #         "url": reverse("api.v2.tickets"),
-    #         "slug": "ticket-list",
-    #         "params": [
-    #             {
-    #                 "name": "contact",
-    #                 "required": False,
-    #                 "help": "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
-    #             },
-    #         ],
-    #     }
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Tickets",
+            "url": reverse("api.v2.tickets"),
+            "slug": "ticket-list",
+            "params": [
+                {
+                    "name": "contact",
+                    "required": False,
+                    "help": "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+                },
+            ],
+        }
 
 
 class TicketActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
@@ -3606,22 +3598,21 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
     permission = "tickets.ticket_api"
     serializer_class = TicketBulkActionSerializer
 
-    # @classmethod
-    # def get_write_explorer(cls):
-    #     actions = cls.serializer_class.ACTION_CHOICES
-    #
-    #     return {
-    #         "method": "POST",
-    #         "title": "Update Multiple Tickets",
-    #         "url": reverse("api.v2.ticket_actions"),
-    #         "slug": "ticket-actions",
-    #         "fields": [
-    #             {"name": "tickets", "required": True, "help": "The UUIDs of the tickets to update"},
-    #             {"name": "action", "required": True, "help": "One of the following strings: " + ", ".join(actions)},
-    #             {"name": "assignee", "required": False, "help": "The email address of a user"},
-    #             {"name": "note", "required": False, "help": "The note text"},
-    #         ],
-    #     }
+    @classmethod
+    def get_write_explorer(cls):
+        actions = cls.serializer_class.ACTION_CHOICES
+        return {
+            "method": "POST",
+            "title": "Update Multiple Tickets",
+            "url": reverse("api.v2.ticket_actions"),
+            "slug": "ticket-actions",
+            "fields": [
+                {"name": "tickets", "required": True, "help": "The UUIDs of the tickets to update"},
+                {"name": "action", "required": True, "help": "One of the following strings: " + ", ".join(actions)},
+                {"name": "assignee", "required": False, "help": "The email address of a user"},
+                {"name": "note", "required": False, "help": "The note text"},
+            ],
+        }
 
 
 class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
@@ -3660,25 +3651,20 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     write_serializer_class = TopicWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
-    # @classmethod
-    # def get_read_explorer(cls):
-    #     return {
-    #         "method": "GET",
-    #         "title": "List Topics",
-    #         "url": reverse("api.v2.topics"),
-    #         "slug": "topic-list",
-    #     }
+    @classmethod
+    def get_read_explorer(cls):
+        return {"method": "GET", "title": "List Topics", "url": reverse("api.v2.topics"), "slug": "topic-list"}
 
-    # @classmethod
-    # def get_write_explorer(cls):
-    #     return {
-    #         "method": "POST",
-    #         "title": "Add or Update Topics",
-    #         "url": reverse("api.v2.topics"),
-    #         "slug": "topic-write",
-    #         "params": [{"name": "uuid", "required": False, "help": "The UUID of the topic to update"}],
-    #         "fields": [{"name": "name", "required": True, "help": "The name of the topic"}],
-    #     }
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            "method": "POST",
+            "title": "Add or Update Topics",
+            "url": reverse("api.v2.topics"),
+            "slug": "topic-write",
+            "params": [{"name": "uuid", "required": False, "help": "The UUID of the topic to update"}],
+            "fields": [{"name": "name", "required": True, "help": "The name of the topic"}],
+        }
 
 
 class UsersEndpoint(ListAPIMixin, BaseAPIView):

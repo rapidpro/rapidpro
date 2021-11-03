@@ -26,49 +26,13 @@ from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
-from temba.utils import chunk_list, extract_constants, on_transaction_commit
+from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
 from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
-
-INITIALIZING = "I"
-PENDING = "P"
-QUEUED = "Q"
-WIRED = "W"
-SENT = "S"
-DELIVERED = "D"
-HANDLED = "H"
-ERRORED = "E"
-FAILED = "F"
-RESENT = "R"
-
-INCOMING = "I"
-OUTGOING = "O"
-
-INBOX = "I"
-FLOW = "F"
-IVR = "V"
-USSD = "U"
-
-# status codes used for both messages and broadcasts (single char constant, human readable, API readable)
-STATUS_CONFIG = (
-    # special state for flows used to hold off sending the message until the flow is ready to receive a response
-    (INITIALIZING, _("Initializing"), "initializing"),
-    (PENDING, _("Pending"), "pending"),  # initial state for all messages
-    # valid only for outgoing messages
-    (QUEUED, _("Queued"), "queued"),
-    (WIRED, _("Wired"), "wired"),  # message was handed off to the provider and credits were deducted for it
-    (SENT, _("Sent"), "sent"),  # we have confirmation that a message was sent
-    (DELIVERED, _("Delivered"), "delivered"),
-    # valid only for incoming messages
-    (HANDLED, _("Handled"), "handled"),
-    (ERRORED, _("Error Sending"), "errored"),  # there was an error during delivery
-    (FAILED, _("Failed Sending"), "failed"),  # we gave up on sending this message
-    (RESENT, _("Resent message"), "resent"),  # we retried this message
-)
 
 
 class UnreachableException(Exception):
@@ -86,7 +50,16 @@ class Broadcast(models.Model):
     messages sent from the same bundle together
     """
 
-    STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
+    STATUS_INITIALIZING = "I"
+    STATUS_QUEUED = "Q"
+    STATUS_SENT = "S"
+    STATUS_FAILED = "F"
+    STATUS_CHOICES = (
+        (STATUS_INITIALIZING, "Initializing"),
+        (STATUS_QUEUED, "Queued"),
+        (STATUS_SENT, "Sent"),
+        (STATUS_FAILED, "Failed"),
+    )
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
@@ -116,7 +89,7 @@ class Broadcast(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
     ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, related_name="broadcasts")
 
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=INITIALIZING)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
 
     schedule = models.OneToOneField(Schedule, on_delete=models.PROTECT, null=True, related_name="broadcast")
 
@@ -151,7 +124,7 @@ class Broadcast(models.Model):
         send_all: bool = False,
         quick_replies: List[Dict] = None,
         template_state: str = TEMPLATE_STATE_LEGACY,
-        status: str = INITIALIZING,
+        status: str = STATUS_INITIALIZING,
         **kwargs,
     ):
         # for convenience broadcasts can still be created with single translation and no base_language
@@ -283,7 +256,7 @@ class Broadcast(models.Model):
         ]
 
 
-class Attachment(object):
+class Attachment:
     """
     Represents a message attachment stored as type:url
     """
@@ -324,88 +297,93 @@ class Msg(models.Model):
     or Flows where they would get set to the HANDLED state once they've been dealt with.
     """
 
-    STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
+    STATUS_INITIALIZING = "I"  # used to hold off sending the message until the flow is ready to receive a response
+    STATUS_PENDING = "P"  # initial state for all messages
+    STATUS_QUEUED = "Q"
+    STATUS_WIRED = "W"  # message was handed off to the provider and credits were deducted for it
+    STATUS_SENT = "S"  # we have confirmation that a message was sent
+    STATUS_DELIVERED = "D"  # we have confirmation that a message was delivered
+    STATUS_HANDLED = "H"
+    STATUS_ERRORED = "E"  # there was an error during delivery
+    STATUS_FAILED = "F"  # we gave up on sending this message
+    STATUS_RESENT = "R"  # we retried this message (no longer used)
+    STATUS_CHOICES = (
+        (STATUS_INITIALIZING, _("Initializing")),
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_QUEUED, _("Queued")),
+        (STATUS_WIRED, _("Wired")),
+        (STATUS_SENT, _("Sent")),
+        (STATUS_DELIVERED, _("Delivered")),
+        (STATUS_HANDLED, _("Handled")),
+        (STATUS_ERRORED, _("Error")),
+        (STATUS_FAILED, _("Failed")),
+        (STATUS_RESENT, _("Resent")),
+    )
 
     VISIBILITY_VISIBLE = "V"
     VISIBILITY_ARCHIVED = "A"
     VISIBILITY_DELETED = "D"
-
-    # single char flag, human readable name, API readable name
-    VISIBILITY_CONFIG = (
-        (VISIBILITY_VISIBLE, "Visible", "visible"),
-        (VISIBILITY_ARCHIVED, "Archived", "archived"),
-        (VISIBILITY_DELETED, "Deleted", "deleted"),
+    VISIBILITY_CHOICES = (
+        (VISIBILITY_VISIBLE, "Visible"),
+        (VISIBILITY_ARCHIVED, "Archived"),
+        (VISIBILITY_DELETED, "Deleted"),
     )
 
-    VISIBILITY_CHOICES = [(s[0], s[1]) for s in VISIBILITY_CONFIG]
+    DIRECTION_IN = "I"
+    DIRECTION_OUT = "O"
+    DIRECTION_CHOICES = ((DIRECTION_IN, "Incoming"), (DIRECTION_OUT, "Outgoing"))
 
-    DIRECTION_CHOICES = ((INCOMING, "Incoming"), (OUTGOING, "Outgoing"))
-
-    MSG_TYPES_CHOICES = (
-        (INBOX, "Inbox Message"),
-        (FLOW, "Flow Message"),
-        (IVR, "IVR Message"),
-        (USSD, "USSD Message"),
+    TYPE_INBOX = "I"
+    TYPE_FLOW = "F"
+    TYPE_IVR = "V"
+    TYPE_USSD = "U"
+    TYPE_CHOICES = (
+        (TYPE_INBOX, "Inbox Message"),
+        (TYPE_FLOW, "Flow Message"),
+        (TYPE_IVR, "IVR Message"),
+        (TYPE_USSD, "USSD Message"),
     )
 
     DELETE_FOR_ARCHIVE = "A"
     DELETE_FOR_USER = "U"
-
     DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
 
     MEDIA_GPS = "geo"
     MEDIA_IMAGE = "image"
     MEDIA_VIDEO = "video"
     MEDIA_AUDIO = "audio"
-
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
-    STATUSES = extract_constants(STATUS_CONFIG)
-    VISIBILITIES = extract_constants(VISIBILITY_CONFIG)
-    DIRECTIONS = {INCOMING: "in", OUTGOING: "out"}
-    MSG_TYPES = {INBOX: "inbox", FLOW: "flow", IVR: "ivr"}
-
     id = models.BigAutoField(primary_key=True)
-
     uuid = models.UUIDField(null=True, default=uuid4)
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs")
-
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="msgs")
-
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="msgs", db_index=False)
-
     contact_urn = models.ForeignKey(ContactURN, on_delete=models.PROTECT, null=True, related_name="msgs")
-
     broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, blank=True, related_name="msgs")
 
     text = models.TextField()
+    attachments = ArrayField(models.URLField(max_length=2048), null=True)
 
     high_priority = models.BooleanField(null=True)
 
     created_on = models.DateTimeField(db_index=True)
-
     modified_on = models.DateTimeField(null=True, blank=True, auto_now=True)
-
     sent_on = models.DateTimeField(null=True)
-
     queued_on = models.DateTimeField(null=True)
 
+    msg_type = models.CharField(max_length=1, choices=TYPE_CHOICES, null=True)
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
-
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="P", db_index=True)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE)
 
     response_to = models.ForeignKey(
         "Msg", on_delete=models.PROTECT, null=True, blank=True, related_name="responses", db_index=False
     )
 
     labels = models.ManyToManyField("Label", related_name="msgs")
-
-    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE)
-
-    msg_type = models.CharField(max_length=1, choices=MSG_TYPES_CHOICES, null=True)
 
     # the number of actual messages the channel sent this as (outgoing only)
     msg_count = models.IntegerField(default=1)
@@ -420,8 +398,6 @@ class Msg(models.Model):
     external_id = models.CharField(max_length=255, null=True, blank=True)
 
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
-
-    attachments = ArrayField(models.URLField(max_length=2048), null=True)
 
     # used for IVR sessions on channels
     connection = models.ForeignKey(
@@ -458,25 +434,25 @@ class Msg(models.Model):
                 send_messages = (
                     Msg.objects.filter(id__in=msg_ids)
                     .exclude(channel__channel_type=AndroidType.code)
-                    .exclude(msg_type=IVR)
-                    .exclude(status=FAILED)
+                    .exclude(msg_type=cls.TYPE_IVR)
+                    .exclude(status=cls.STATUS_FAILED)
                 )
-                send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
+                send_messages.update(status=cls.STATUS_QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
                 for msg in msgs:
 
                     # in development mode, don't actual send any messages
                     if not settings.SEND_MESSAGES:
-                        msg.status = WIRED
+                        msg.status = cls.STATUS_WIRED
                         msg.sent_on = timezone.now()
                         msg.save(update_fields=("status", "sent_on"))
                         logger.debug(f"FAKED SEND for [{msg.id}]")
                         continue
 
                     if (
-                        (msg.msg_type != IVR and msg.channel and not msg.channel.is_android())
-                        and msg.status != FAILED
+                        (msg.msg_type != cls.TYPE_IVR and msg.channel and not msg.channel.is_android())
+                        and msg.status != cls.STATUS_FAILED
                         and msg.uuid
                     ):
                         courier_msgs.append(msg)
@@ -515,7 +491,7 @@ class Msg(models.Model):
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
-        messages = Msg.objects.filter(org=org)
+        messages = cls.objects.filter(org=org)
 
         if is_archived:  # pragma: needs cover
             messages = messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)
@@ -537,23 +513,29 @@ class Msg(models.Model):
         probably be confusing to go out.
         """
         one_week_ago = timezone.now() - timedelta(days=7)
+        statuses = (cls.STATUS_QUEUED, cls.STATUS_PENDING, cls.STATUS_ERRORED)
         failed_messages = Msg.objects.filter(
-            created_on__lte=one_week_ago, direction=OUTGOING, status__in=[QUEUED, PENDING, ERRORED]
+            created_on__lte=one_week_ago, direction=Msg.DIRECTION_OUT, status__in=statuses
         )
 
         # fail our messages
-        failed_messages.update(status="F", modified_on=timezone.now())
+        failed_messages.update(status=cls.STATUS_FAILED, modified_on=timezone.now())
 
     def as_archive_json(self):
+        """
+        Returns this message in the same format as archived by rp-archiver which is based on the API format
+        """
+        from temba.api.v2.serializers import MsgReadSerializer
+
         return {
             "id": self.id,
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "channel": {"uuid": str(self.channel.uuid), "name": self.channel.name} if self.channel else None,
             "urn": self.contact_urn.identity if self.contact_urn else None,
-            "direction": Msg.DIRECTIONS.get(self.direction),
-            "type": Msg.MSG_TYPES.get(self.msg_type),
-            "status": Msg.STATUSES.get(self.status),
-            "visibility": Msg.VISIBILITIES.get(self.visibility),
+            "direction": "in" if self.direction == Msg.DIRECTION_IN else "out",
+            "type": MsgReadSerializer.TYPES.get(self.msg_type),
+            "status": MsgReadSerializer.STATUSES.get(self.status),
+            "visibility": MsgReadSerializer.VISIBILITIES.get(self.visibility),
             "text": self.text,
             "attachments": [attachment.as_json() for attachment in Attachment.parse_all(self.attachments)],
             "labels": [{"uuid": l.uuid, "name": l.name} for l in self.labels.all()],
@@ -646,20 +628,20 @@ class Msg(models.Model):
         handled = False
 
         if keyword == "mt_error":
-            self.status = ERRORED
+            self.status = self.STATUS_ERRORED
             handled = True
 
         elif keyword == "mt_fail":
-            self.status = FAILED
+            self.status = self.STATUS_FAILED
             handled = True
 
         elif keyword == "mt_sent":
-            self.status = SENT
+            self.status = self.STATUS_SENT
             self.sent_on = date
             handled = True
 
         elif keyword == "mt_dlvd":
-            self.status = DELIVERED
+            self.status = self.STATUS_DELIVERED
             self.sent_on = self.sent_on or date
             handled = True
 
@@ -736,9 +718,9 @@ class Msg(models.Model):
             created_on=now,
             modified_on=now,
             queued_on=now,
-            direction=INCOMING,
+            direction=cls.DIRECTION_IN,
             attachments=attachments,
-            status=PENDING,
+            status=cls.STATUS_PENDING,
         )
 
         # pass off handling of the message after we commit
@@ -750,10 +732,10 @@ class Msg(models.Model):
         """
         Archives this message
         """
-        if self.direction != INCOMING:
+        if self.direction != self.DIRECTION_IN:
             raise ValueError("Can only archive incoming non-test messages")
 
-        self.visibility = Msg.VISIBILITY_ARCHIVED
+        self.visibility = self.VISIBILITY_ARCHIVED
         self.save(update_fields=("visibility", "modified_on"))
 
     @classmethod
@@ -761,22 +743,22 @@ class Msg(models.Model):
         """
         Archives all incoming messages for the given contacts
         """
-        msgs = Msg.objects.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, contact__in=contacts)
+        msgs = Msg.objects.filter(direction=cls.DIRECTION_IN, visibility=cls.VISIBILITY_VISIBLE, contact__in=contacts)
         msg_ids = list(msgs.values_list("pk", flat=True))
 
         # update modified on in small batches to avoid long table lock, and having too many non-unique values for
         # modified_on which is the primary ordering for the API
         for batch in chunk_list(msg_ids, 100):
-            Msg.objects.filter(pk__in=batch).update(visibility=Msg.VISIBILITY_ARCHIVED, modified_on=timezone.now())
+            Msg.objects.filter(pk__in=batch).update(visibility=cls.VISIBILITY_ARCHIVED, modified_on=timezone.now())
 
     def restore(self):
         """
         Restores (i.e. un-archives) this message
         """
-        if self.direction != INCOMING:  # pragma: needs cover
+        if self.direction != self.DIRECTION_IN:  # pragma: needs cover
             raise ValueError("Can only restore incoming non-test messages")
 
-        self.visibility = Msg.VISIBILITY_VISIBLE
+        self.visibility = self.VISIBILITY_VISIBLE
         self.save(update_fields=("visibility", "modified_on"))
 
     def release(self, delete_reason=DELETE_FOR_USER):
@@ -829,7 +811,7 @@ class Msg(models.Model):
             models.Index(
                 name="msgs_next_attempt_out_errored",
                 fields=["next_attempt", "created_on", "id"],
-                condition=Q(direction=OUTGOING, status=ERRORED, next_attempt__isnull=False),
+                condition=Q(direction="O", status="E", next_attempt__isnull=False),
             ),
             # used for view of sent messages
             models.Index(
@@ -911,21 +893,31 @@ class SystemLabel:
         """
         # TODO: (Indexing) Sent and Failed require full message history
         if label_type == cls.TYPE_INBOX:
-            qs = Msg.objects.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=INBOX)
+            qs = Msg.objects.filter(
+                direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_VISIBLE, msg_type=Msg.TYPE_INBOX
+            )
         elif label_type == cls.TYPE_FLOWS:
-            qs = Msg.objects.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=FLOW)
+            qs = Msg.objects.filter(
+                direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_VISIBLE, msg_type=Msg.TYPE_FLOW
+            )
         elif label_type == cls.TYPE_ARCHIVED:
-            qs = Msg.objects.filter(direction=INCOMING, visibility=Msg.VISIBILITY_ARCHIVED)
+            qs = Msg.objects.filter(direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_ARCHIVED)
         elif label_type == cls.TYPE_OUTBOX:
             qs = Msg.objects.filter(
-                direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(PENDING, QUEUED)
+                direction=Msg.DIRECTION_OUT,
+                visibility=Msg.VISIBILITY_VISIBLE,
+                status__in=(Msg.STATUS_PENDING, Msg.STATUS_QUEUED),
             )
         elif label_type == cls.TYPE_SENT:
             qs = Msg.objects.filter(
-                direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(WIRED, SENT, DELIVERED)
+                direction=Msg.DIRECTION_OUT,
+                visibility=Msg.VISIBILITY_VISIBLE,
+                status__in=(Msg.STATUS_WIRED, Msg.STATUS_SENT, Msg.STATUS_DELIVERED),
             )
         elif label_type == cls.TYPE_FAILED:
-            qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
+            qs = Msg.objects.filter(
+                direction=Msg.DIRECTION_OUT, visibility=Msg.VISIBILITY_VISIBLE, status=Msg.STATUS_FAILED
+            )
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None).prefetch_related("groups", "contacts", "urns")
         elif label_type == cls.TYPE_CALLS:
@@ -936,7 +928,7 @@ class SystemLabel:
         return qs.filter(org=org)
 
     @classmethod
-    def get_archive_attributes(cls, label_type):
+    def get_archive_attributes(cls, label_type: str) -> tuple:
         visibility = "visible"
         msg_type = None
         direction = "in"
@@ -1135,7 +1127,7 @@ class Label(TembaModel, DependencyMixin):
         changed = set()
 
         for msg in msgs:
-            if msg.direction != INCOMING:
+            if msg.direction != Msg.DIRECTION_IN:
                 raise ValueError("Can only apply labels to incoming messages")
 
             # if we are adding the label and this message doesnt have it, add it
@@ -1267,8 +1259,6 @@ class ExportMessagesTask(BaseExportTask):
     """
 
     analytics_key = "msg_export"
-    email_subject = "Your messages export from %s is ready"
-    email_template = "msgs/email/msg_export_download"
     notification_export_type = "message"
 
     groups = models.ManyToManyField(ContactGroup)
@@ -1372,7 +1362,18 @@ class ExportMessagesTask(BaseExportTask):
         # firstly get msgs from archives
         from temba.archives.models import Archive
 
-        records = Archive.iter_all_records(self.org, Archive.TYPE_MSG, start_date, end_date)
+        where = {"visibility": "visible"}
+        if system_label:
+            visibility, direction, msg_type, statuses = SystemLabel.get_archive_attributes(system_label)
+            where["direction"] = direction
+            if msg_type:
+                where["type"] = msg_type
+            if statuses:
+                where["status__in"] = statuses
+        elif label:
+            where["__raw__"] = f"'{label.uuid}' IN s.labels[*].uuid[*]"
+
+        records = Archive.iter_all_records(self.org, Archive.TYPE_MSG, start_date, end_date, where=where)
         last_created_on = None
 
         for record_batch in chunk_list(records, 1000):
@@ -1383,27 +1384,6 @@ class ExportMessagesTask(BaseExportTask):
                     last_created_on = created_on
 
                 if group_contacts and record["contact"]["uuid"] not in group_contacts:
-                    continue
-
-                visibility = "visible"
-                if system_label:
-                    visibility, direction, msg_type, statuses = SystemLabel.get_archive_attributes(system_label)
-
-                    if record["direction"] != direction:
-                        continue
-
-                    if msg_type and record["type"] != msg_type:
-                        continue
-
-                    if statuses and record["status"] not in statuses:
-                        continue
-
-                elif label:
-                    record_labels = [l["uuid"] for l in record["labels"]]
-                    if label and label.uuid not in record_labels:
-                        continue
-
-                if record["visibility"] != visibility:
                     continue
 
                 matching.append(record)

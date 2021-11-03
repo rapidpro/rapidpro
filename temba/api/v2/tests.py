@@ -2240,8 +2240,11 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url, fetch_returns=405)
 
+        for contact in Contact.objects.all():
+            contact.release(self.admin)
+            contact.delete()
+
         # create some contacts to act on
-        self.bulk_release([self.joe, self.frank], user=self.admin, delete=True)
         contact1 = self.create_contact("Ann", phone="+250788000001")
         contact2 = self.create_contact("Bob", phone="+250788000002")
         contact3 = self.create_contact("Cat", phone="+250788000003")
@@ -2499,8 +2502,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "flow_uuid=%s&campaign_uuid=%s&dependencies=xx" % (flow.uuid, campaign.uuid))
         self.assertResponseError(response, None, "dependencies must be one of none, flows, all")
 
-    @override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=10)
-    @patch.object(Org, "LIMIT_DEFAULTS", dict(fields=10))
+    @override_settings(ORG_LIMIT_DEFAULTS={"fields": 10})
     def test_fields(self):
         url = reverse("api.v2.fields")
 
@@ -2577,7 +2579,7 @@ class APITest(TembaTest):
 
         ContactField.user_fields.all().delete()
 
-        for i in range(settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG):
+        for i in range(10):
             ContactField.get_or_create(self.org, self.admin, "field%d" % i, "Field%d" % i)
 
         response = self.postJSON(url, None, {"label": "Age", "value_type": "numeric"})
@@ -2754,8 +2756,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertResultsByUUID(response, [color, survey])
 
-    @override_settings(MAX_ACTIVE_GLOBALS_PER_ORG=3)
-    @patch.object(Org, "LIMIT_DEFAULTS", dict(globals=3))
+    @override_settings(ORG_LIMIT_DEFAULTS={"globals": 3})
     def test_globals(self):
         url = reverse("api.v2.globals")
         self.assertEndpointAccess(url)
@@ -2894,8 +2895,7 @@ class APITest(TembaTest):
             "You must delete existing ones before you can create new ones.",
         )
 
-    @override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=10)
-    @patch.object(Org, "LIMIT_DEFAULTS", dict(groups=10))
+    @override_settings(ORG_LIMIT_DEFAULTS={"groups": 10})
     @mock_mailroom
     def test_groups(self, mr_mocks):
         url = reverse("api.v2.groups")
@@ -3012,9 +3012,10 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, "uuid=%s" % spammers.uuid)
         self.assert404(response)
 
-        self.bulk_release(ContactGroup.user_groups.all())
+        for group in ContactGroup.user_groups.all():
+            group.release(self.admin)
 
-        for i in range(settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
+        for i in range(10):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
 
         response = self.postJSON(url, None, {"name": "Reporters"})
@@ -3022,7 +3023,7 @@ class APITest(TembaTest):
 
         ContactGroup.user_groups.all().delete()
 
-        for i in range(settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
+        for i in range(10):
             ContactGroup.create_static(self.org, self.admin, "group%d" % i)
 
         response = self.postJSON(url, None, {"name": "Reporters"})
@@ -3195,7 +3196,7 @@ class APITest(TembaTest):
 
         # try creating a new label after reaching the limit on labels
         current_count = Label.all_objects.filter(org=self.org, is_active=True).count()
-        with patch.object(Org, "LIMIT_DEFAULTS", {"labels": current_count}):
+        with override_settings(ORG_LIMIT_DEFAULTS={"labels": current_count}):
             response = self.postJSON(url, None, {"name": "Interesting"})
             self.assertResponseError(
                 response,
@@ -4562,21 +4563,9 @@ class APITest(TembaTest):
         self.assertEqual("Bob", resp_json["results"][0]["contact"]["name"])
 
         # filter further by ticket uuid
-        response = self.fetchJSON(url, f"ticket={ticket3.uuid}")
+        response = self.fetchJSON(url, f"uuid={ticket3.uuid}")
         resp_json = response.json()
         self.assertEqual(1, len(resp_json["results"]))
-
-        # close one of the tickets
-        self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "closed"})
-
-        # check that triggered a call to mailroom
-        mock_ticket_close.assert_called_once_with(self.org.id, self.admin.id, [ticket1.id], force=False)
-
-        # reopen a ticket
-        self.postJSON(url, f"uuid={ticket2.uuid}", {"status": "open"})
-
-        # check that triggered a call to mailroom
-        mock_ticket_reopen.assert_called_once_with(self.org.id, self.admin.id, [ticket2.id])
 
     @mock_mailroom
     def test_ticket_actions(self, mr_mocks):
@@ -4775,7 +4764,7 @@ class APITest(TembaTest):
 
         # try creating a new topic after reaching the limit on labels
         current_count = self.org.topics.filter(is_active=True).count()
-        with patch.object(Org, "LIMIT_DEFAULTS", {"topics": current_count}):
+        with override_settings(ORG_LIMIT_DEFAULTS={"topics": current_count}):
             response = self.postJSON(url, None, {"name": "Interesting"})
             self.assertResponseError(
                 response,

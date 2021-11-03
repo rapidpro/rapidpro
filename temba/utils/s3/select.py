@@ -3,7 +3,7 @@ from datetime import datetime
 LOOKUPS = {"gt": ">", "gte": ">=", "lte": "<=", "lt": "<", "in": "IN"}
 
 
-def compile_select(*, fields=(), alias: str = "s", where: dict = None, raw_where: str = None) -> str:
+def compile_select(*, fields=(), alias: str = "s", where: dict = None) -> str:
     """
     Compiles a S3 select "SQL" query
     """
@@ -13,8 +13,6 @@ def compile_select(*, fields=(), alias: str = "s", where: dict = None, raw_where
     conditions = []
     if where:
         conditions += [_compile_condition(alias, k, v) for k, v in where.items()]
-    if raw_where:
-        conditions.append(raw_where)
     if conditions:
         query += f" WHERE {' AND '.join(conditions)}"
 
@@ -22,6 +20,9 @@ def compile_select(*, fields=(), alias: str = "s", where: dict = None, raw_where
 
 
 def _compile_condition(alias: str, field: str, val) -> str:
+    if field == "__raw__":
+        return val
+
     op = "="
     field_parts = field.split("__")
     if field_parts[-1] in LOOKUPS:

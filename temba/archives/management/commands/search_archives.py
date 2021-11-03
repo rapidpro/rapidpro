@@ -39,7 +39,7 @@ class Command(BaseCommand):  # pragma: no cover
             raise CommandError(f"No such org with id {org_id}")
 
         start = time.perf_counter()
-        records = Archive.iter_all_records(org, archive_type, raw_where=where)
+        records = Archive.iter_all_records(org, archive_type, where={"__raw__": where} if where else None)
 
         num_records = 0
         for record in records:

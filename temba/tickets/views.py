@@ -12,6 +12,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.views import ComponentFormMixin, SpaMixin
 
@@ -117,7 +118,9 @@ class TicketCRUDL(SmartCRUDL):
                 status_code = Ticket.STATUS_OPEN if status == "open" else Ticket.STATUS_CLOSED
                 org = self.request.org
                 user = self.request.user
-                tickets = list(TicketFolder.from_slug(folder).get_queryset(org, user).filter(status=status_code)[:25])
+                tickets = list(
+                    TicketFolder.from_slug(folder).get_queryset(org, user, True).filter(status=status_code)[:25]
+                )
 
                 found = list(filter(lambda t: str(t.uuid) == uuid, tickets))
                 if found:
@@ -135,11 +138,12 @@ class TicketCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
 
             folder, status, uuid, in_page = self.tickets_path
-
             context["folder"] = folder
             context["status"] = status
-            context["nextUUID" if in_page else "uuid"] = uuid
             context["has_tickets"] = self.request.org.tickets.exists()
+            if uuid:
+                context["nextUUID" if in_page else "uuid"] = uuid
+
             return context
 
         def get_queryset(self, **kwargs):
@@ -167,8 +171,9 @@ class TicketCRUDL(SmartCRUDL):
                 )
             return JsonResponse({"results": menu})
 
-    class Folder(OrgPermsMixin, SmartListView):
+    class Folder(OrgPermsMixin, SmartTemplateView):
         permission = "tickets.ticket_list"
+        paginate_by = 25
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -180,11 +185,44 @@ class TicketCRUDL(SmartCRUDL):
             return TicketFolder.from_slug(self.kwargs["folder"])
 
         def get_queryset(self, **kwargs):
+
             user = self.request.user
             status = Ticket.STATUS_OPEN if self.kwargs["status"] == "open" else Ticket.STATUS_CLOSED
-            qs = self.folder.get_queryset(user.get_org(), user).filter(status=status)
-
             uuid = self.kwargs.get("uuid", None)
+            after = int(self.request.GET.get("after", 0))
+            before = int(self.request.GET.get("before", 0))
+
+            # fetching new activity gets a different order later
+            ordered = False if after else True
+            qs = self.folder.get_queryset(user.get_org(), user, ordered).filter(status=status)
+
+            # all new activity
+            after = int(self.request.GET.get("after", 0))
+            if after:
+                after = timestamp_to_datetime(after)
+                qs = qs.filter(last_activity_on__gt=after).order_by("last_activity_on", "id")
+
+            # historical page
+            if before:
+                before = timestamp_to_datetime(before)
+                qs = qs.filter(last_activity_on__lt=before)
+
+            # if we have exactly one historical page, redo our query for anything including the date
+            # of our last ticket to make sure we don't lose items in our paging
+            if not after and not uuid:
+                qs = qs[: self.paginate_by]
+                count = len(qs)
+
+                if count == self.paginate_by:
+                    last_ticket = qs[len(qs) - 1]
+                    qs = self.folder.get_queryset(user.get_org(), user, ordered).filter(
+                        status=status, last_activity_on__gte=last_ticket.last_activity_on
+                    )
+
+                    # now reapply our before if we have one
+                    if before:
+                        qs = qs.filter(last_activity_on__lt=before)  # pragma: needs cover
+
             if uuid:
                 qs = qs.filter(uuid=uuid)
 
@@ -194,8 +232,8 @@ class TicketCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
 
             # convert queryset to list so it can't change later
-            tickets = list(context["object_list"])
-            context["object_list"] = tickets
+            tickets = self.get_queryset()
+            context["tickets"] = tickets
 
             # get the last message for each contact that these tickets belong to
             contact_ids = {t.contact_id for t in tickets}
@@ -249,22 +287,21 @@ class TicketCRUDL(SmartCRUDL):
                         "uuid": str(t.uuid),
                         "assignee": user_as_json(t.assignee) if t.assignee else None,
                         "topic": topic_as_json(t.topic) if t.topic else None,
-                        "subject": t.subject,
                         "body": t.body,
                         "last_activity_on": t.last_activity_on,
                         "closed_on": t.closed_on,
                     },
                 }
 
-            results = {"results": [as_json(t) for t in context["object_list"]]}
+            results = {"results": [as_json(t) for t in context["tickets"]]}
 
             # build up our next link if we have more
-            if context["page_obj"].has_next():
+            if len(context["tickets"]) >= self.paginate_by:
                 folder_url = reverse(
                     "tickets.ticket_folder", kwargs={"folder": self.folder.slug, "status": self.kwargs["status"]}
                 )
-                next_page = context["page_obj"].number + 1
-                results["next"] = f"{folder_url}?page={next_page}"
+                last_time = results["results"][-1]["ticket"]["last_activity_on"]
+                results["next"] = f"{folder_url}?before={datetime_to_timestamp(last_time)}"
 
             return JsonResponse(results)
 

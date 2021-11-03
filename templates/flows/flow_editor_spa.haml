@@ -1,0 +1,72 @@
+-extends "flows/flow_editor.html"
+-load compress temba i18n
+
+-block extra-style
+  {{block.super}}
+  :css
+    .spa-container {
+      padding: 0px;
+    }
+
+
+    #canvas-container > div, #canvas:after {
+      background-color: #eeeeee;
+    }
+
+    #grid {
+      overflow-y: auto;
+      z-index: 0;
+    }
+
+    #simulator-tab {
+      margin-right: 17px;
+    }
+
+    #poptab {
+      margin-left: -17px;
+    }
+
+    .menu {
+      margin-top: 0.5rem;
+    }
+
+
+-block alert-messages
+  -if is_starting or messages or user_org.is_suspended
+    .pt-5.pr-5.pl-5
+      {{block.super}}
+      -if is_starting
+        %temba-alert.mb-3
+          -blocktrans trimmed
+            This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
+
+-block page-container
+
+  %temba-modax#send-message-modal{ header:"Send Message" }
+
+  .flex.flex-col
+    .flex.px-6.pb-2.mt-2
+      .title.flex-grow
+        .flex.page-title
+          -if flow.flow_type == 'V'
+            .icon-phone.mt-2.mr-6
+          -elif flow.flow_type == 'S'
+            .icon-mobile.mt-2.mr-6
+          .ml-0
+            {{title}}
+      .menu
+        -include "spa_page_menu.haml"
+
+
+
+  %temba-dialog.hide#confirm-language(header='{{_("Change Language")|escapejs}}' primaryButtonName='{{_("Update")|escapejs}}')
+    .p-6.body
+      -blocktrans trimmed with language="%LANG%"
+        This will change the default language of the flow to <b>{{ language }}</b>. This means that by default the
+        flow will be appear in that language and can be translated into other languages. Also if a contact is
+        in this flow and no translation exists for their language or the default language of the workspace,
+        communication with that contact will default to <b>{{ language }}</b>.
+
+  #grid
+    <temba-loading units="10" size="8"></temba-loading>
+    #rp-flow-editor

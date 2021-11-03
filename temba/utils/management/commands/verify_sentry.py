@@ -1,9 +1,9 @@
 from django.core.management import BaseCommand
 
-from celery.task import task
+from celery import shared_task
 
 
-@task
+@shared_task
 def failing_task():
     foo = 1 / 0
     print(foo)

@@ -1,3 +1,4 @@
+import logging
 from abc import abstractmethod
 
 from django.contrib.auth.models import User
@@ -5,21 +6,40 @@ from django.db import models
 from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactImport, ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import Org
+from temba.utils.email import send_template_email
 from temba.utils.models import SquashableModel
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationType:
     slug = None
+    email_subject = None
+    email_template = None
 
     @abstractmethod
     def get_target_url(self, notification) -> str:  # pragma: no cover
         pass
+
+    def get_email_template(self, notification) -> tuple:  # pragma: no cover
+        """
+        For types that support sending as email, this should return subject and template name
+        """
+        return ("", "")
+
+    def get_email_context(self, notification):
+        return {
+            "org": notification.org,
+            "user": notification.user,
+            "target_url": self.get_target_url(notification),
+        }
 
     def as_json(self, notification) -> dict:
         return {
@@ -46,18 +66,22 @@ class ExportFinishedNotificationType(NotificationType):
     slug = "export:finished"
 
     def get_target_url(self, notification) -> str:
-        return self._get_export(notification).get_download_url()
+        return notification.export.get_download_url()
+
+    def get_email_template(self, notification) -> tuple:
+        export_type = notification.export.notification_export_type
+        return f"Your {export_type} export is ready", f"notifications/email/export_finished.{export_type}"
+
+    def get_email_context(self, notification):
+        context = super().get_email_context(notification)
+        if notification.results_export:
+            context["flows"] = notification.results_export.flows.order_by("name")
+        return context
 
     def as_json(self, notification) -> dict:
-        export = self._get_export(notification)
-
         json = super().as_json(notification)
-        json["export"] = {"type": export.notification_export_type}
+        json["export"] = {"type": notification.export.notification_export_type}
         return json
-
-    @staticmethod
-    def _get_export(notification):
-        return notification.contact_export or notification.message_export or notification.results_export
 
 
 class ImportFinishedNotificationType(NotificationType):
@@ -68,7 +92,7 @@ class ImportFinishedNotificationType(NotificationType):
 
     def as_json(self, notification) -> dict:
         json = super().as_json(notification)
-        json["import"] = {"num_records": notification.contact_import.num_records}
+        json["import"] = {"type": "contact", "num_records": notification.contact_import.num_records}
         return json
 
 
@@ -94,6 +118,15 @@ class Notification(models.Model):
     A user specific notification
     """
 
+    EMAIL_STATUS_PENDING = "P"
+    EMAIL_STATUS_SENT = "S"
+    EMAIL_STATUS_NONE = "N"
+    EMAIL_STATUS_CHOICES = (
+        (EMAIL_STATUS_PENDING, "Pending"),
+        (EMAIL_STATUS_SENT, "Sent"),
+        (EMAIL_STATUS_NONE, "None"),
+    )
+
     id = models.BigAutoField(primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="notifications")
     notification_type = models.CharField(max_length=16, null=True)
@@ -105,6 +138,7 @@ class Notification(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="notifications")
     is_seen = models.BooleanField(default=False)
+    email_status = models.CharField(choices=EMAIL_STATUS_CHOICES, max_length=1, default=EMAIL_STATUS_NONE)
     created_on = models.DateTimeField(default=timezone.now)
 
     channel = models.ForeignKey(Channel, null=True, on_delete=models.PROTECT, related_name="notifications")
@@ -147,6 +181,7 @@ class Notification(models.Model):
             ExportFinishedNotificationType.slug,
             scope=export.get_notification_scope(),
             users=[export.created_by],
+            email_status=cls.EMAIL_STATUS_PENDING,
             **{export.notification_export_type + "_export": export},
         )
 
@@ -162,6 +197,24 @@ class Notification(models.Model):
                 defaults=kwargs,
             )
 
+    def send_email(self):
+        subject, template = self.type.get_email_template(self)
+        context = self.type.get_email_context(self)
+
+        if subject and template:
+            send_template_email(
+                self.user.email,
+                f"[{self.org.name}] {subject}",
+                template,
+                context,
+                self.org.get_branding(),
+            )
+        else:  # pragma: no cover
+            logger.warning(f"skipping email send for notification type {self.type.slug} not configured for email")
+
+        self.email_status = Notification.EMAIL_STATUS_SENT
+        self.save(update_fields=("email_status",))
+
     @classmethod
     def mark_seen(cls, org, notification_type: str, *, scope: str, user):
         cls.objects.filter(
@@ -171,6 +224,10 @@ class Notification(models.Model):
     @classmethod
     def get_unseen_count(cls, org: Org, user: User) -> int:
         return NotificationCount.get_total(org, user)
+
+    @cached_property
+    def export(self):
+        return self.contact_export or self.message_export or self.results_export
 
     @property
     def type(self):
@@ -183,6 +240,8 @@ class Notification(models.Model):
         indexes = [
             # used to list org specific notifications for a user
             models.Index(fields=["org", "user", "-created_on"]),
+            # used to find notifications with pending email sends
+            models.Index(name="notifications_email_pending", fields=["created_on"], condition=Q(email_status="P")),
         ]
         constraints = [
             # used to check if we already have existing unseen notifications for something or to clear unseen

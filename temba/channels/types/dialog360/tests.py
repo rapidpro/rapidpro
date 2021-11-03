@@ -45,7 +45,7 @@ class Dialog360TypeTest(TembaTest):
         post_data["number"] = "0788123123"
 
         # then success
-        with patch("requests.post") as mock_post:
+        with patch("socket.gethostbyname", return_value="123.123.123.123"), patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(200, '{ "url": "https://ilhasoft.com.br/whatsapp" }')]
 
             response = self.client.post(url, post_data)

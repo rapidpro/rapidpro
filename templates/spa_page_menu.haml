@@ -33,13 +33,13 @@
   }
 
   .dropdown-menu {
-    padding: 1em 1.5em;
+    padding: .9em 1.25em;
     padding-bottom: 0.6em;
   }
 
   .menu-item {
     margin-bottom: 0.4em;
-    font-size: 1.175rem;
+    font-size: 0.9rem;
   }
 
 :javascript
@@ -69,7 +69,7 @@
       .spa-gear-buttons
         -with link=gear_links|first
           .ml-4
-            %temba-button.light{'name':"{{link.title|escapejs}}", "v":"2", "onclick":"handleMenuClicked(event)",  class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}'}
+            %temba-button.whitespace-no-wrap.light{'name':"{{link.title|escapejs}}", "v":"2", "onclick":"handleMenuClicked(event)",  class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}'}
 
       .spa-gear-menu
         -if gear_links|length > 1

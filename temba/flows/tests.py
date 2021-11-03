@@ -3090,14 +3090,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual(404, response.status_code)
 
-    def test_editor_next_redirection(self):
-        flow = self.get_flow("favorites_v13")
-
-        self.login(self.admin)
-
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
-        self.assertRedirect(response, reverse("flows.flow_editor", args=[flow.uuid]))
-
     def test_write_protection(self):
         flow = self.get_flow("favorites_v13")
         flow_json = flow.get_definition()
@@ -3910,7 +3902,7 @@ class ExportFlowResultsTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
-                with self.assertNumQueries(46):
+                with self.assertNumQueries(45):
                     workbook = self._export(flow, group_memberships=[devs])
 
                 self.assertEqual(len(captured_logger.output), 3)
@@ -4156,7 +4148,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(44):
+        with self.assertNumQueries(43):
             workbook = self._export(flow, include_msgs=False, responded_only=True, group_memberships=(devs,))
 
         tz = self.org.timezone
@@ -4222,7 +4214,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(46):
+        with self.assertNumQueries(45):
             workbook = self._export(
                 flow,
                 include_msgs=False,
@@ -4452,7 +4444,7 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(54):
+        with self.assertNumQueries(53):
             workbook = self._export(flow)
 
         tz = self.org.timezone
@@ -4722,7 +4714,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(36):
             workbook = self._export(flow, include_msgs=False, responded_only=True, has_results=False)
 
         tz = self.org.timezone

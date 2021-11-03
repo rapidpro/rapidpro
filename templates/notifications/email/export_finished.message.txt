@@ -1,0 +1,11 @@
+{% load i18n %}
+
+{% trans "Hi there!" %}
+
+{% trans "Your message export is ready." %}
+
+{% blocktrans with url=branding.link|add:target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}
+
+{% trans "Thanks" %}
+
+{% blocktrans with brand=branding.name %}The {{ brand }} Team {% endblocktrans %}
