@@ -16,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-10-04 20:38+0000\n"
+"POT-Creation-Date: 2021-11-03 12:03+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -426,10 +426,8 @@ msgstr ""
 msgid "Complete"
 msgstr "Completo"
 
-#, fuzzy
-#| msgid "Error"
 msgid "Errored"
-msgstr "Erro"
+msgstr ""
 
 msgid "Failed"
 msgstr "Falha"
@@ -1918,10 +1916,8 @@ msgstr "Esse número já está conectado a outra conta - %(org)s (%(user)s)"
 msgid "An error occurred connecting your Twilio number, try removing your Twilio account, reconnecting it and trying again."
 msgstr "Um erro ocorreu ao conectar seu número Twilio, tente remover sua conta Twilio, reconectá-la e tente novamente."
 
-#, fuzzy
-#| msgid "Descriptive label for this channel"
 msgid "Descriptive name for this channel."
-msgstr "Descrição para esse canal"
+msgstr ""
 
 msgid "Allow sending to and calling international numbers."
 msgstr ""
@@ -1931,6 +1927,9 @@ msgstr ""
 
 msgid "Phone number of this channel"
 msgstr "Número de telefone desse canal"
+
+msgid "Add Channel"
+msgstr "Adicione canal"
 
 msgid "Android Channel"
 msgstr "Canal Android"
@@ -2023,10 +2022,8 @@ msgstr "Outras Interações"
 msgid "Errors"
 msgstr "Erros"
 
-#, fuzzy
-#| msgid "More Columns"
 msgid "More Calls"
-msgstr "Mais Colunas"
+msgstr ""
 
 msgid "The name of your bot"
 msgstr "O nome do seu bot"
@@ -2037,23 +2034,17 @@ msgstr "Token de acesso para seu bot, deixe de fora o portador principal"
 msgid "Unable to access bothub with credentials, please check and try again"
 msgstr "Incapaz de acessar o bothub com as credenciais, por favor verifique e tente novamente"
 
-#, fuzzy
-#| msgid "Messaging"
 msgid "Staging"
-msgstr "Mensagens"
+msgstr ""
 
-#, fuzzy
-#| msgid "Direction"
 msgid "Production"
-msgstr "Direção"
+msgstr ""
 
 msgid "The name of your LUIS app"
 msgstr "O nome do seu aplicativo LUIS"
 
-#, fuzzy
-#| msgid "The ID for your LUIS app"
 msgid "The ID of your LUIS app"
-msgstr "O ID para a sua aplicação LUIS"
+msgstr ""
 
 msgid "The authoring resource endpoint URL"
 msgstr ""
@@ -2361,10 +2352,8 @@ msgstr "Incluir participação em grupo apenas para esses grupos. (Deixe em bran
 msgid "Smart Groups"
 msgstr "Grupos Dinâmicos"
 
-#, fuzzy
-#| msgid "field"
 msgid "Fields"
-msgstr "campo"
+msgstr ""
 
 msgid "Import"
 msgstr "Importar"
@@ -2402,10 +2391,8 @@ msgstr "Bloquear"
 msgid "Contacts"
 msgstr "Contatos"
 
-#, fuzzy
-#| msgid "Create Group"
 msgid "Create Smart Group"
-msgstr "Criar Grupo"
+msgstr ""
 
 msgid "Manage Fields"
 msgstr "Gerenciar campos"
@@ -2413,15 +2400,11 @@ msgstr "Gerenciar campos"
 msgid "Export Contacts"
 msgstr "Exportar Contatos"
 
-#, fuzzy
-#| msgid "Contact"
 msgid "New Contact"
-msgstr "Contato"
+msgstr ""
 
-#, fuzzy
-#| msgid "New Group..."
 msgid "New Group"
-msgstr "Novo Grupo..."
+msgstr ""
 
 msgid "Blocked Contacts"
 msgstr "Contatos bloqueados"
@@ -2931,14 +2914,13 @@ msgstr "Entregue"
 msgid "Handled"
 msgstr "Tratado"
 
-msgid "Error Sending"
-msgstr "Erro no Envio"
+msgid "Error"
+msgstr "Erro"
 
-msgid "Failed Sending"
-msgstr "Falha no envio"
-
-msgid "Resent message"
-msgstr "Reenviar a mensagem"
+#, fuzzy
+#| msgid "Reset"
+msgid "Resent"
+msgstr "Reconfigurar"
 
 msgid "The date for the oldest message to export"
 msgstr "A data para a mensagem mais antiga ser exportada"
@@ -2961,10 +2943,8 @@ msgstr "Olá @contact.name!"
 msgid "Schedule for later"
 msgstr "Agendar para mais tarde"
 
-#, fuzzy
-#| msgid "At least one recipient is required"
 msgid "At least one recipient is required."
-msgstr "Pelo menos um destinatário é necessário"
+msgstr ""
 
 msgid "Inbox"
 msgstr "Caixa de entrada"
@@ -3059,10 +3039,9 @@ msgstr "Nome não pode estar em branco ou começar com pontuação"
 msgid "Name must be unique"
 msgstr "Nome precisa ser único"
 
-#, fuzzy, python-format
-#| msgid "This org has %(count)d labels and the limit is %(limit)d. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has %d labels and the limit is %s. You must delete existing ones before you can create new ones."
-msgstr "Esta org tem  %(count)d labels  e o limite é %(limit)d. Você deve deletar labels existentes antes de crear novas labels. "
+msgstr ""
 
 msgid "Folder"
 msgstr "Pasta"
@@ -3124,15 +3103,11 @@ msgstr "Agentes"
 msgid "Surveyors"
 msgstr "Surveyors"
 
-#, fuzzy
-#| msgid "Sorry, your workspace is currently suspended. To enable sending messages, please contact support."
 msgid "Sorry, your workspace is currently suspended. To re-enable starting flows and sending messages, please contact support."
-msgstr "Desculpe, sua área de trabalho está suspensa. Para habilitar o envio de mensagens, entre em contato com o suporte."
+msgstr ""
 
-#, fuzzy
-#| msgid "Sorry, your workspace is currently flagged. To enable sending messages, please contact support."
 msgid "Sorry, your workspace is currently flagged. To re-enable starting flows and sending messages, please contact support."
-msgstr "Desculpe, sua área de trabalho está sinalizada. Para habilitar o envio de mensagens, entre em contato com o suporte."
+msgstr ""
 
 msgid "Plan"
 msgstr "Plano"
@@ -3655,9 +3630,6 @@ msgstr "Evento Novo"
 msgid "Your Account"
 msgstr "Sua conta"
 
-msgid "Add Channel"
-msgstr "Adicione canal"
-
 msgid "Add Classifier"
 msgstr "Adicione Classificador"
 
@@ -3792,10 +3764,8 @@ msgstr "Tokens do WhatsApp sincronizados"
 msgid "WhatsApp Contacts Refreshed"
 msgstr "Contatos do WhatsApp atualizados"
 
-#, fuzzy
-#| msgid "WhatsApp Templates Synced"
 msgid "WhatsApp Health Check"
-msgstr "Templates do WhatsApp sincronizados"
+msgstr ""
 
 msgid "Webhook Calls"
 msgstr "Chamadas Webhook"
@@ -4088,7 +4058,7 @@ msgstr ""
 msgid "Excludes contacts in these groups."
 msgstr ""
 
-msgid "Must be a single word containing only letters and numbers."
+msgid "Must be a single word containing only letters and numbers, or a single emoji character."
 msgstr ""
 
 msgid "Can't include and exclude the same group."
@@ -4150,10 +4120,9 @@ msgstr "Não foi possível resolver o host."
 msgid "Cannot be a local or private host."
 msgstr "Não pode ser um host privado ou local."
 
-#, fuzzy, python-format
-#| msgid "Header '%(header)s' is not a valid URN type."
+#, python-format
 msgid "'%s' is not a valid URN."
-msgstr "Cabeçalho '%(header)s' não um tipo de URN válido."
+msgstr ""
 
 msgid "Unique Identifier"
 msgstr "Identificador único"
@@ -4502,6 +4471,11 @@ msgstr "Chamada recebida  (%(duration)s segundos)"
 msgid "No Matching calls"
 msgstr "Nenhuma chamada correspondente"
 
+#, fuzzy
+#| msgid "Voice calls"
+msgid "No calls"
+msgstr "Chamadas de voz"
+
 msgid "Contact"
 msgstr "Contato"
 
@@ -4543,9 +4517,6 @@ msgstr "Duração"
 
 msgid "Status"
 msgstr "Estado"
-
-msgid "Error"
-msgstr "Erro"
 
 msgid "Change Alert Settings"
 msgstr "Alterar configurações de alerta"
@@ -5443,45 +5414,28 @@ msgid "New Group..."
 msgstr "Novo Grupo..."
 
 #, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
-#| "                    "
-#| msgid_plural ""
-#| "\n"
-#| "                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
-#| "\n"
-#| "                  "
+#| msgid "Found %(results_count)s global matching <i>%(search)s</i>."
+#| msgid_plural "Found %(results_count)s globals matching <i>%(search)s</i>."
 msgid ""
 "\n"
-"                      Found %(results_count)s contact matching <i>%(search)s</i>.\n"
-"                      "
+"                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
+"                    "
 msgid_plural ""
 "\n"
-"                        Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
-"\n"
-"                    "
-msgstr[0] ""
-"\n"
-"                    Encontrado %(results_count)s contato correspondente <i>%(search)s</i>.\n"
-"                    "
-msgstr[1] ""
-"\n"
-"                      Encontrado %(results_count)s contatos correspondentes <i>%(search)s</i>.\n"
+"                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
 "\n"
 "                  "
+msgstr[0] "Encontrada %(results_count)s global correspondente à <i>%(search)s</i>."
+msgstr[1] "Encontrado %(results_count)s globais correspondentes à <i>%(search)s</i>."
+
+msgid "To view more than 10,000 search results, save it as a group."
+msgstr "Para visualizar mais de 10,000 resultados de busca, salve como um grupo."
 
 msgid "Last Seen On"
 msgstr "Última vez visto"
 
 msgid "No matching contacts."
 msgstr "Nenhum contato correspondente"
-
-msgid "To view more than 10,000 search results, save it as a group."
-msgstr "Para visualizar mais de 10,000 resultados de busca, salve como um grupo."
-
-msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
-msgstr "A navegação na pesquisa é limitada a 10 mil resultados. Se você deseja navegar por todos os resultados, salve esta pesquisa como um grupo."
 
 msgid "Details"
 msgstr "Detalhes"
@@ -5584,18 +5538,11 @@ msgstr[1] "campanhas."
 msgid "<div class='mb-2'> You are about to delete <span class='named'> %(object)s. </span> </div> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
 msgstr "<div class='mb-2'> Você está prestes a deletar <span class='named'>%(object)s.</span></div>Nenhum contato será deletado mas o grupo em si, será. Não é desfazer essa operação. Você tem certeza?"
 
-#, fuzzy
-#| msgid "Delete Group"
 msgid "Delete Groups"
-msgstr "Deletar grupo"
+msgstr ""
 
 msgid "Deleting groups will not delete the contacts inside the group. All contacts will remain in your account. Do you want to continue?"
 msgstr ""
-
-#, fuzzy
-#| msgid "Import Contacts"
-msgid "Importing Contacts"
-msgstr "Importar contatos"
 
 msgid "You can import contacts from an Excel spreadsheet or comma separated values file."
 msgstr "Você pode importar contatos de uma planilha do Excel ou arquivo com valores separados por vígula."
@@ -5637,6 +5584,9 @@ msgstr "Escolher arquivo"
 
 msgid "Preview"
 msgstr "Prévia"
+
+msgid "Importing Contacts"
+msgstr ""
 
 msgid "Preview Contact Import"
 msgstr "Prévia da Importação de Contatos"
@@ -5701,31 +5651,6 @@ msgstr[1] "Ignorado %(count)s registros por causa de erros"
 msgid "Row %(row)s: %(message)s"
 msgstr "Linha %(row)s:%(message)s"
 
-msgid "Hi there!"
-msgstr "Olá!"
-
-msgid "Your contacts export is ready."
-msgstr "Sua exportação de contatos está pronta."
-
-msgid "Download your Excel file here:"
-msgstr "Baixe seu arquivo do Excel aqui:"
-
-#, python-format
-msgid "The %(brand)s Team "
-msgstr "O time %(brand)s "
-
-#, python-format
-msgid ""
-"\n"
-"Hi there!\n"
-"\n"
-"You can download your %(brand)s contacts export by clicking on the following link:\n"
-msgstr ""
-"\n"
-"Olá!\n"
-"\n"
-"Você pode baixar seus contatos exportados %(brand)s clicando no seguinte link:\n"
-
 #, python-format
 msgid "Contacts will automatically be added here as you communicate with them using %(name)s. From here you can change a contact's name, organize them into groups and see the communication you've had with each."
 msgstr "Contatos serão automaticamente adicionados aqui, conforme você se comunica com eles usando %(name)s. A partir daí você pode alterar o nome de um contato, organizá-los em grupos e ver a comunicação que você teve com cada um."
@@ -5733,21 +5658,6 @@ msgstr "Contatos serão automaticamente adicionados aqui, conforme você se comu
 #, python-format
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
 msgstr "Para iniciar você pode <a href=\"%(url)s\">importar</a> contatos de um arquivo que você criou no Excel."
-
-msgid "Your export for the following flows is ready."
-msgstr "Está pronta a exportação para os seguintes fluxos"
-
-#, python-format
-msgid ""
-"\n"
-"Hi there!\n"
-"\n"
-"You can download your %(brand)s flow results by clicking on the following link:\n"
-msgstr ""
-"\n"
-"Olá!\n"
-"\n"
-"Você pode baixar seus resultados de fluxo %(brand)s clicando no seguinte link:\n"
 
 msgid "Flows let you easily pose a set of questions to a group of users. When you send people through a flow over SMS, it is natural just like any other conversation."
 msgstr "Fluxos te permitem facilmente representar um conjunto de perguntas a um grupo de usuários. Quando você envia SMS para as pessoas por meio de um fluxo, é tão natural como qualquer outra conversa."
@@ -6082,6 +5992,51 @@ msgstr "Seus créditos ativos irão expirar breviamente, adicione créditos para
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Seu telefone está tendo dificuldade em retransmitir mensagens"
 
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "        flow.\n"
+#| "      "
+#| msgid_plural ""
+#| "\n"
+#| "        flows.\n"
+#| "      "
+msgid ""
+"\n"
+"        %(count)s deleted group\n"
+"      "
+msgid_plural ""
+"\n"
+"        %(count)s deleted groups\n"
+"\n"
+"      "
+msgstr[0] ""
+"\n"
+"        fluxo.\n"
+"      "
+msgstr[1] ""
+"\n"
+"        fluxos.\n"
+"      "
+
+#, python-format
+msgid ""
+"\n"
+"        %(count)s deleted contact\n"
+"      "
+msgid_plural ""
+"\n"
+"        %(count)s deleted contacts\n"
+"\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Deleted"
+msgstr "Deletar"
+
 #, python-format
 msgid "%(count)s result"
 msgid_plural "%(count)s results"
@@ -6112,31 +6067,14 @@ msgid_plural "%(count_comma)s recipients"
 msgstr[0] "%(count_comma)s destinatário"
 msgstr[1] "%(count_comma)s destinatários"
 
-#, fuzzy, python-format
-#| msgid "%(recipients)s recipient currently at this step in the flow"
-#| msgid_plural "%(recipients)s recipients currently at this step in the flow"
+#, python-format
 msgid "<b>%(recipients)s</b> recipient currently at this point in the flow"
 msgid_plural "<b>%(recipients)s</b> recipients currently at this point in the flow"
-msgstr[0] "%(recipients)s destinatário atualmente nesse passo do fluxo"
-msgstr[1] "%(recipients)s destinatários atualmente nesse passo do fluxo"
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Message Details"
 msgstr "Detalhes da Mensagem"
-
-msgid "Your message export is ready."
-msgstr "Sua exportação de mensagem está pronta."
-
-#, python-format
-msgid ""
-"\n"
-"Hi there!\n"
-"\n"
-"You can download your %(brand)s message export by clicking on the following link:\n"
-msgstr ""
-"\n"
-"Olá!\n"
-"\n"
-"Você pode baixar sua mensagem %(brand)s exportada  clicando no seguinte link:\n"
 
 msgid "Your Message Hub"
 msgstr "Seu depósito de mensagens"
@@ -6204,6 +6142,41 @@ msgstr[1] "Utilizado po %(num_flows)s fluxos:"
 
 msgid "No matching messages."
 msgstr "Nenhuma mensagem correspondente."
+
+msgid "Hi there!"
+msgstr "Olá!"
+
+#, fuzzy
+#| msgid "Your contacts export is ready."
+msgid "Your contact export is ready."
+msgstr "Sua exportação de contatos está pronta."
+
+#, fuzzy, python-format
+#| msgid "Download your Excel file here:"
+msgid "Download the Excel file here: %(url)s"
+msgstr "Baixe seu arquivo do Excel aqui:"
+
+#, fuzzy
+#| msgid "Thanks!"
+msgid "Thanks"
+msgstr "Obrigado!"
+
+#, python-format
+msgid "The %(brand)s Team "
+msgstr "O time %(brand)s "
+
+#, fuzzy
+#| msgid "Your message export is ready."
+msgid "Your message export is ready"
+msgstr "Sua exportação de mensagem está pronta."
+
+msgid "Your message export is ready."
+msgstr "Sua exportação de mensagem está pronta."
+
+#, fuzzy
+#| msgid "Your export for the following flows is ready."
+msgid "Your export of results for the following flows is ready."
+msgstr "Está pronta a exportação para os seguintes fluxos"
 
 msgid "Your workspace is suspended and no longer processing messages."
 msgstr "Sua área de trabalho está suspensa e não está mais processando mensagens."
@@ -7514,10 +7487,8 @@ msgstr ""
 msgid "More Videos"
 msgstr "Mais vídeos"
 
-#, fuzzy
-#| msgid "New Event"
 msgid "Flow Event"
-msgstr "Evento Novo"
+msgstr ""
 
 msgid "Classifier Event"
 msgstr "Classificar Evento"
@@ -7634,10 +7605,8 @@ msgstr ""
 "\n"
 "            "
 
-#, fuzzy
-#| msgid "tickets"
 msgid "See more tickets"
-msgstr "tickets"
+msgstr ""
 
 msgid "All done!"
 msgstr ""
@@ -7810,59 +7779,50 @@ msgstr ""
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
 
-#~ msgid "Webhook Log"
-#~ msgstr "Webhook Log"
+#~ msgid "Error Sending"
+#~ msgstr "Erro no Envio"
 
-#~ msgid "Message sending rules"
-#~ msgstr "Regras para envios de mensagens"
+#~ msgid "Failed Sending"
+#~ msgstr "Falha no envio"
 
-#~ msgid "Retry Count"
-#~ msgstr "Contagem de novas tentativas"
+#~ msgid "Resent message"
+#~ msgstr "Reenviar a mensagem"
 
-#~ msgid "Error Count"
-#~ msgstr "Contagem de erros"
+#~ msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
+#~ msgstr "A navegação na pesquisa é limitada a 10 mil resultados. Se você deseja navegar por todos os resultados, salve esta pesquisa como um grupo."
 
-#~ msgid "Next Attempt"
-#~ msgstr "Próxima tentativa"
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "Hi there!\n"
+#~ "\n"
+#~ "You can download your %(brand)s contacts export by clicking on the following link:\n"
+#~ msgstr ""
+#~ "\n"
+#~ "Olá!\n"
+#~ "\n"
+#~ "Você pode baixar seus contatos exportados %(brand)s clicando no seguinte link:\n"
 
-#~ msgid "Allow international sending"
-#~ msgstr "Permitir envio internacional"
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "Hi there!\n"
+#~ "\n"
+#~ "You can download your %(brand)s flow results by clicking on the following link:\n"
+#~ msgstr ""
+#~ "\n"
+#~ "Olá!\n"
+#~ "\n"
+#~ "Você pode baixar seus resultados de fluxo %(brand)s clicando no seguinte link:\n"
 
-#~ msgid "The name of the version of your LUIS app to use"
-#~ msgstr "O nome da versão do seu aplicativo LUIS para uso"
-
-#~ msgid "The primary key for your LUIS app"
-#~ msgstr "A chave primária para o seu aplicativo LUIS"
-
-#~ msgid "The endpoint URL for your LUIS app"
-#~ msgstr "O URL do terminal para seu aplicativo LUIS"
-
-#~ msgid "Unable to get intents for your app, please check credentials and try again"
-#~ msgstr "Não foi possível obter as intenções do seu aplicativo, verifique as credenciais e tente novamente"
-
-#~ msgid "Save as Group"
-#~ msgstr "Salvar como grupo"
-
-#~ msgid "You must add a phone number before sending messages"
-#~ msgstr "Você deve adicionar um número de telefone antes de enviar mensagens"
-
-#~ msgid ", "
-#~ msgstr ", "
-
-#~ msgid "Webhook Event"
-#~ msgstr "Evento Webhook"
-
-#~ msgid "Request Time"
-#~ msgstr "Tempo de requisição"
-
-#~ msgid "phone call"
-#~ msgstr "chamada telefónica"
-
-#~ msgid "complete"
-#~ msgstr "completo"
-
-#~ msgid "Message Error"
-#~ msgstr "Erro de mensagem"
-
-#~ msgid "Show Contacts"
-#~ msgstr "Mostrar contatos"
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "Hi there!\n"
+#~ "\n"
+#~ "You can download your %(brand)s message export by clicking on the following link:\n"
+#~ msgstr ""
+#~ "\n"
+#~ "Olá!\n"
+#~ "\n"
+#~ "Você pode baixar sua mensagem %(brand)s exportada  clicando no seguinte link:\n"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-10-04 20:38+0000\n"
+"POT-Creation-Date: 2021-11-03 12:03+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1917,6 +1917,9 @@ msgstr ""
 msgid "Phone number of this channel"
 msgstr ""
 
+msgid "Add Channel"
+msgstr ""
+
 msgid "Android Channel"
 msgstr ""
 
@@ -2900,13 +2903,10 @@ msgstr ""
 msgid "Handled"
 msgstr ""
 
-msgid "Error Sending"
+msgid "Error"
 msgstr ""
 
-msgid "Failed Sending"
-msgstr ""
-
-msgid "Resent message"
+msgid "Resent"
 msgstr ""
 
 msgid "The date for the oldest message to export"
@@ -3617,9 +3617,6 @@ msgstr ""
 msgid "Your Account"
 msgstr ""
 
-msgid "Add Channel"
-msgstr ""
-
 msgid "Add Classifier"
 msgstr ""
 
@@ -4048,7 +4045,7 @@ msgstr ""
 msgid "Excludes contacts in these groups."
 msgstr ""
 
-msgid "Must be a single word containing only letters and numbers."
+msgid "Must be a single word containing only letters and numbers, or a single emoji character."
 msgstr ""
 
 msgid "Can't include and exclude the same group."
@@ -4461,6 +4458,9 @@ msgstr ""
 msgid "No Matching calls"
 msgstr ""
 
+msgid "No calls"
+msgstr ""
+
 msgid "Contact"
 msgstr ""
 
@@ -4501,9 +4501,6 @@ msgid "Duration"
 msgstr ""
 
 msgid "Status"
-msgstr ""
-
-msgid "Error"
 msgstr ""
 
 msgid "Change Alert Settings"
@@ -5357,26 +5354,23 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"                      Found %(results_count)s contact matching <i>%(search)s</i>.\n"
-"                      "
+"                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
+"                    "
 msgid_plural ""
 "\n"
-"                        Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
+"                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
 "\n"
-"                    "
+"                  "
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "To view more than 10,000 search results, save it as a group."
+msgstr ""
 
 msgid "Last Seen On"
 msgstr ""
 
 msgid "No matching contacts."
-msgstr ""
-
-msgid "To view more than 10,000 search results, save it as a group."
-msgstr ""
-
-msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""
 
 msgid "Details"
@@ -5486,9 +5480,6 @@ msgstr ""
 msgid "Deleting groups will not delete the contacts inside the group. All contacts will remain in your account. Do you want to continue?"
 msgstr ""
 
-msgid "Importing Contacts"
-msgstr ""
-
 msgid "You can import contacts from an Excel spreadsheet or comma separated values file."
 msgstr ""
 
@@ -5528,6 +5519,9 @@ msgid "Choose File"
 msgstr ""
 
 msgid "Preview"
+msgstr ""
+
+msgid "Importing Contacts"
 msgstr ""
 
 msgid "Preview Contact Import"
@@ -5593,44 +5587,12 @@ msgstr[1] ""
 msgid "Row %(row)s: %(message)s"
 msgstr ""
 
-msgid "Hi there!"
-msgstr ""
-
-msgid "Your contacts export is ready."
-msgstr ""
-
-msgid "Download your Excel file here:"
-msgstr ""
-
-#, python-format
-msgid "The %(brand)s Team "
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"Hi there!\n"
-"\n"
-"You can download your %(brand)s contacts export by clicking on the following link:\n"
-msgstr ""
-
 #, python-format
 msgid "Contacts will automatically be added here as you communicate with them using %(name)s. From here you can change a contact's name, organize them into groups and see the communication you've had with each."
 msgstr ""
 
 #, python-format
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
-msgstr ""
-
-msgid "Your export for the following flows is ready."
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"Hi there!\n"
-"\n"
-"You can download your %(brand)s flow results by clicking on the following link:\n"
 msgstr ""
 
 msgid "Flows let you easily pose a set of questions to a group of users. When you send people through a flow over SMS, it is natural just like any other conversation."
@@ -5945,6 +5907,35 @@ msgid "Your phone is having difficulty relaying messages"
 msgstr ""
 
 #, python-format
+msgid ""
+"\n"
+"        %(count)s deleted group\n"
+"      "
+msgid_plural ""
+"\n"
+"        %(count)s deleted groups\n"
+"\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid ""
+"\n"
+"        %(count)s deleted contact\n"
+"      "
+msgid_plural ""
+"\n"
+"        %(count)s deleted contacts\n"
+"\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Deleted"
+msgstr ""
+
+#, python-format
 msgid "%(count)s result"
 msgid_plural "%(count)s results"
 msgstr[0] ""
@@ -5981,17 +5972,6 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "Message Details"
-msgstr ""
-
-msgid "Your message export is ready."
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"Hi there!\n"
-"\n"
-"You can download your %(brand)s message export by clicking on the following link:\n"
 msgstr ""
 
 msgid "Your Message Hub"
@@ -6059,6 +6039,32 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "No matching messages."
+msgstr ""
+
+msgid "Hi there!"
+msgstr ""
+
+msgid "Your contact export is ready."
+msgstr ""
+
+#, python-format
+msgid "Download the Excel file here: %(url)s"
+msgstr ""
+
+msgid "Thanks"
+msgstr ""
+
+#, python-format
+msgid "The %(brand)s Team "
+msgstr ""
+
+msgid "Your message export is ready"
+msgstr ""
+
+msgid "Your message export is ready."
+msgstr ""
+
+msgid "Your export of results for the following flows is ready."
 msgstr ""
 
 msgid "Your workspace is suspended and no longer processing messages."
