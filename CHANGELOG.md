@@ -1,3 +1,8 @@
+v7.0.1
+----------
+ * Add missing JS function to delete messages in the archived folder
+ * Update locale files
+
 v7.0.0
 ----------
  * Fix test failing to due bad domain lookup
