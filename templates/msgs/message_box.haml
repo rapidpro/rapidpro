@@ -28,6 +28,11 @@
 
   #pjax
     -block pjax
+      -if org_perms.msgs.msg_update
+        %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Messages")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+          .p-6
+            -trans "Are you sure you want to delete the selected messages? This cannot be undone."
+
       .lp-frame
         .left
           .flex.flex-col
@@ -269,6 +274,19 @@
     }
 
     {% if org_perms.msgs.msg_update %}
+
+    function onDeleteClicked(){
+        var deleteConfirmation = document.querySelector("#delete-confirmation");
+        deleteConfirmation.classList.remove("hide");
+        deleteConfirmation.open = true;
+
+        deleteConfirmation.addEventListener("temba-button-clicked", function(event){
+          if (!event.detail.button.secondary) {
+            runActionOnObjectRows("delete");
+          }
+          deleteConfirmation.open = false;
+        });
+      }
 
     function handleCreateLabelModalLoaded(event) {
       lastChecked = getCheckedIds();
