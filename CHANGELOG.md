@@ -1,3 +1,9 @@
+v7.0.2
+----------
+ * Update editor to v1.15 with validation fixes
+ * Fix outbox pagination
+ * Add generic title bar with new dropdown on spa
+
 v7.0.1
 ----------
  * Add missing JS function to delete messages in the archived folder
