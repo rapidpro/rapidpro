@@ -2,9 +2,71 @@
 
 from django.db import migrations, models
 
+add_trigger = """
+CREATE OR REPLACE FUNCTION temba_update_channel_segments_count() RETURNS TRIGGER AS $$
+DECLARE
+    segments_count integer;
+BEGIN
+  -- Message being updated
+  IF TG_OP = 'INSERT' THEN
+    -- Return if there is no channel on this message
+    IF NEW.channel_id IS NULL OR NEW.msg_id IS NULL THEN
+      RETURN NULL;
+    END IF;
+
+    SELECT segments INTO segments_count FROM msgs_msg WHERE msgs_msg.id = NEW.msg_id;
+    IF segments_count = 0 OR segments_count IS NULL THEN
+      RETURN NULL;
+    END IF;
+
+    IF NEW.msg_type = 'M' THEN
+      IF NEW.direction = 'I' THEN
+        PERFORM temba_insert_channelcount(NEW.channel_id, 'IMS', NEW.created_on::date, segments_count);
+      ELSIF NEW.direction = 'O' THEN
+        PERFORM temba_insert_channelcount(NEW.channel_id, 'OMS', NEW.created_on::date, segments_count);
+      END IF;
+    END IF;
+
+  -- Clean up counts when we are doing a real delete
+  ELSIF TG_OP = 'DELETE' THEN
+    IF OLD.delete_reason IS NULL THEN
+      IF NEW.channel_id IS NULL OR NEW.msg_id IS NULL THEN
+        RETURN NULL;
+      END IF;
+
+      SELECT segments INTO segments_count FROM msgs_msg WHERE msgs_msg.id = NEW.msg_id;
+      IF segments_count = 0 OR segments_count IS NULL THEN
+        RETURN NULL;
+      END IF;
+
+      IF OLD.msg_type = 'M' THEN
+        IF OLD.direction = 'I' THEN
+          PERFORM temba_insert_channelcount(OLD.channel_id, 'IMS', OLD.created_on::date, segments_count * -1);
+        ELSIF OLD.direction = 'O' THEN
+          PERFORM temba_insert_channelcount(OLD.channel_id, 'OMS', OLD.created_on::date, segments_count * -1);
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER temba_channellog_update_segments_channelcount
+   AFTER INSERT OR DELETE
+   ON channels_channellog
+   FOR EACH ROW
+   EXECUTE PROCEDURE temba_update_channel_segments_count();
+"""
+
+remove_trigger = """
+DROP TRIGGER IF EXISTS temba_channellog_update_segments_channelcount ON channels_channellog;
+DROP FUNCTION IF EXISTS temba_update_channel_segments_count;
+"""
+
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("channels", "0128_auto_20211022_1122"),
     ]
@@ -28,4 +90,5 @@ class Migration(migrations.Migration):
                 max_length=3,
             ),
         ),
+        migrations.RunSQL(add_trigger, remove_trigger),
     ]
