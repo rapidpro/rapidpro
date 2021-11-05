@@ -248,3 +248,5 @@ MAX_ACTIVE_CONTACTGROUPS_PER_ORG = int(os.environ.get("MAX_ORG_CONTACTGROUPS", 2
 GOOGLE_FONT_API_KEY = os.environ.get("GOOGLE_FONT_API_KEY", "")
 
 FCM_API_KEY = os.environ.get("FCM_API_KEY", "")
+
+TWO_FACTOR_ENABLED = os.environ.get("TWO_FACTOR_ENABLED", "false") == "true"
