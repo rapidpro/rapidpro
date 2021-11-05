@@ -17,8 +17,6 @@
         %form#search-form(method="get")
           %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
           %input.hide(type="submit")
-    .spa-page-menu
-      -include "spa_page_menu.haml"
 
   .mt-4.shadow.rounded-lg.overflow-y-auto
     -if has_messages
