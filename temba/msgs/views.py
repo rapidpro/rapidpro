@@ -14,6 +14,7 @@ from smartmin.views import (
 from django import forms
 from django.conf import settings
 from django.contrib import messages
+from django.db.models.functions.text import Upper
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
 from django.http.response import JsonResponse
@@ -44,7 +45,7 @@ from temba.utils.fields import (
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, SpaMixin
 
-from .models import Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
+from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -520,43 +521,88 @@ class MsgCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             counts = SystemLabel.get_counts(org)
 
-            menu = [
-                dict(
-                    id="inbox", count=counts[SystemLabel.TYPE_INBOX], name=_("Inbox"), href=reverse("msgs.msg_inbox")
-                ),
-                dict(id="flow", count=counts[SystemLabel.TYPE_FLOWS], name=_("Flows"), href=reverse("msgs.msg_flow")),
-                dict(
-                    id="archived",
-                    count=counts[SystemLabel.TYPE_ARCHIVED],
-                    name=_("Archived"),
-                    href=reverse("msgs.msg_archived"),
-                ),
-                dict(
-                    id="outbox",
-                    count=counts[SystemLabel.TYPE_OUTBOX],
-                    name=_("Outbox"),
-                    href=reverse("msgs.msg_outbox"),
-                ),
-                dict(id="sent", count=counts[SystemLabel.TYPE_SENT], name=_("Sent"), href=reverse("msgs.msg_sent")),
-                dict(
-                    id="calls",
-                    count=counts[SystemLabel.TYPE_CALLS],
-                    name=_("Calls"),
-                    href=reverse("channels.channelevent_calls"),
-                ),
-                dict(
-                    id="schedules",
-                    count=counts[SystemLabel.TYPE_SCHEDULED],
-                    name=_("Schedules"),
-                    href=reverse("msgs.broadcast_schedule_list"),
-                ),
-                dict(
-                    id="failed",
-                    count=counts[SystemLabel.TYPE_FAILED],
-                    name=_("Failed"),
-                    href=reverse("msgs.msg_failed"),
-                ),
-            ]
+            if self.request.GET.get("labels"):
+                labels = (
+                    Label.all_objects.filter(org=org, is_active=True)
+                    .exclude(label_type=Label.TYPE_FOLDER)
+                    .order_by(Upper("name"))
+                )
+                label_counts = LabelCount.get_totals([l for l in labels])
+                menu = [
+                    {
+                        "id": label.uuid,
+                        "name": label.name,
+                        "count": label_counts[label],
+                        "href": reverse("msgs.msg_filter", args=[label.uuid]),
+                    }
+                    for label in labels
+                ]
+            else:
+                label_count = Label.label_objects.filter(org=org, is_active=True).count()
+                menu = [
+                    dict(
+                        id="inbox",
+                        count=counts[SystemLabel.TYPE_INBOX],
+                        name=_("Inbox"),
+                        href=reverse("msgs.msg_inbox"),
+                        icon="inbox",
+                    ),
+                    dict(
+                        id="scheduled",
+                        count=counts[SystemLabel.TYPE_SCHEDULED],
+                        name=_("Scheduled"),
+                        href=reverse("msgs.broadcast_schedule_list"),
+                        icon="clock",
+                    ),
+                    dict(id="divider"),
+                    dict(
+                        id="labels",
+                        name=_("Labels"),
+                        count=label_count,
+                        icon="tag",
+                        endpoint=f"{reverse('msgs.msg_menu')}?labels=1",
+                    ),
+                    dict(id="divider"),
+                    dict(
+                        id="outbox",
+                        count=counts[SystemLabel.TYPE_OUTBOX],
+                        name=_("Outbox"),
+                        href=reverse("msgs.msg_outbox"),
+                    ),
+                    dict(
+                        id="sent",
+                        count=counts[SystemLabel.TYPE_SENT],
+                        name=_("Sent"),
+                        href=reverse("msgs.msg_sent"),
+                    ),
+                    dict(
+                        id="failed",
+                        count=counts[SystemLabel.TYPE_FAILED],
+                        name=_("Failed"),
+                        href=reverse("msgs.msg_failed"),
+                    ),
+                    dict(id="divider"),
+                    dict(
+                        id="flow",
+                        count=counts[SystemLabel.TYPE_FLOWS],
+                        name=_("Flows"),
+                        href=reverse("msgs.msg_flow"),
+                    ),
+                    dict(
+                        id="calls",
+                        count=counts[SystemLabel.TYPE_CALLS],
+                        name=_("Calls"),
+                        href=reverse("channels.channelevent_calls"),
+                    ),
+                    dict(id="divider"),
+                    dict(
+                        id="archived",
+                        count=counts[SystemLabel.TYPE_ARCHIVED],
+                        name=_("Archived"),
+                        href=reverse("msgs.msg_archived"),
+                        icon="archive",
+                    ),
+                ]
 
             return JsonResponse({"results": menu})
 

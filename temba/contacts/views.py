@@ -572,11 +572,13 @@ class ContactCRUDL(SmartCRUDL):
             counts = ContactGroup.get_system_group_counts(org)
             menu = [
                 dict(
-                    id="active",
+                    id="all",
                     count=counts[ContactGroup.TYPE_ACTIVE],
-                    name=_("Active"),
+                    name=_("All"),
                     href=reverse("contacts.contact_list"),
+                    icon="user",
                 ),
+                dict(id="divider"),
                 dict(
                     id="blocked",
                     count=counts[ContactGroup.TYPE_BLOCKED],
@@ -589,28 +591,16 @@ class ContactCRUDL(SmartCRUDL):
                     name=_("Stopped"),
                     href=reverse("contacts.contact_stopped"),
                 ),
-                dict(
-                    id="archived",
-                    count=counts[ContactGroup.TYPE_ARCHIVED],
-                    name=_("Archived"),
-                    href=reverse("contacts.contact_archived"),
-                ),
+                dict(id="divider"),
             ]
 
             groups = ContactGroup.get_user_groups(org, ready_only=False).select_related("org").order_by(Upper("name"))
             menu += [
                 {
-                    "id": "smart",
-                    "icon": "atom",
-                    "name": _("Smart Groups"),
-                    "href": reverse("contacts.contactgroup_list") + "?type=smart",
-                    "count": len(groups.exclude(query=None)),
-                },
-                {
                     "id": "groups",
                     "icon": "users",
                     "name": _("Groups"),
-                    "href": reverse("contacts.contactgroup_list") + "?type=static",
+                    "endpoint": reverse("contacts.contactgroup_menu"),
                     "count": len(groups.filter(query=None)),
                 },
             ]
@@ -620,14 +610,23 @@ class ContactCRUDL(SmartCRUDL):
                 menu.append(
                     dict(
                         id="fields",
-                        icon="layers",
+                        icon="database",
                         count=count,
                         name=_("Fields"),
                         href=reverse("contacts.contactfield_list"),
                         endpoint=reverse("contacts.contactfield_menu"),
-                        inline=True,
                     )
                 )
+
+            menu.append(
+                dict(
+                    id="archived",
+                    count=counts[ContactGroup.TYPE_ARCHIVED],
+                    name=_("Archived"),
+                    href=reverse("contacts.contact_archived"),
+                    icon="archive",
+                )
+            )
 
             menu.append(
                 {
@@ -635,7 +634,7 @@ class ContactCRUDL(SmartCRUDL):
                     "icon": "upload-cloud",
                     "href": reverse("contacts.contactimport_create"),
                     "name": _("Import"),
-                }
+                },
             )
 
             return JsonResponse({"results": menu})
@@ -1552,18 +1551,30 @@ class ContactGroupCRUDL(SmartCRUDL):
     class Menu(OrgPermsMixin, SmartTemplateView):  # pragma: no cover
         def render_to_response(self, context, **response_kwargs):
             org = self.request.user.get_org()
-            groups = ContactGroup.get_user_groups(org, ready_only=False).select_related("org").order_by(Upper("name"))
-            group_counts = ContactGroupCount.get_totals(groups)
+            dynamic_groups = (
+                ContactGroup.get_user_groups(org, dynamic=True, ready_only=False)
+                .select_related("org")
+                .order_by(Upper("name"))
+            )
+
+            groups = (
+                ContactGroup.get_user_groups(org, dynamic=False, ready_only=False)
+                .select_related("org")
+                .order_by(Upper("name"))
+            )
+
+            all_groups = list(dynamic_groups) + list(groups)
+            group_counts = ContactGroupCount.get_totals(all_groups)
 
             menu = []
-            for g in groups:
+            for g in all_groups:
                 menu.append(
                     {
                         "id": g.uuid,
                         "name": g.name,
                         "count": group_counts[g],
                         "href": reverse("contacts.contact_filter", args=[g.uuid]),
-                        "icon": "loader" if g.status != ContactGroup.STATUS_READY else "",
+                        "icon": "loader" if g.status != ContactGroup.STATUS_READY else "atom" if g.query else "",
                     }
                 )
             return JsonResponse({"results": menu})

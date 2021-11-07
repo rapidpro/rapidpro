@@ -56,12 +56,36 @@
     .spa-container {
       background: #e9e9e9;
       overflow-y:auto;
+      
     }
+
+    .spa-container.loading .spa-content{
+      opacity: .3;
+      pointer-events: none;
+    }
+
+    .spa-container.loading .loader {
+      display: block;
+    }
+
+    temba-loading {
+      z-index: 1000;
+    }
+
+    .title-text {
+      transition: opacity 100ms linear;
+    }
+
+    .loading .title-text {
+      opacity: 0;
+    }
+    
 
     .spa-content {
       display: flex;
       flex-direction: column;
       height:100%;
+      transition: opacity 200ms linear;
     }
 
     .bg-gradient {
@@ -202,7 +226,6 @@
     }
 
     .folders {
-      box-shadow: 3px 0 13px -3px rgba(0, 0, 0, 0.15);
       z-index:1;
     }
 
@@ -361,10 +384,14 @@
       }
 
       var a = target.closest("a");
+      if (!a) {
+        a = evt.path.find(function(ele){ return  ele.tagName == "A" });
+      }
+
       if (a && a.href) {
         evt.stopPropagation();
         evt.preventDefault();
-        fetchURL(a.href);
+        fetchURL(new URL(a.href).pathname);
       } 
     });
 
@@ -445,11 +472,11 @@
     }
 
     function showLoading() {
-      document.getElementById("load-container").classList.remove("hide");
+      document.querySelector(".spa-container").classList.add("loading");
     }
 
     function hideLoading() {
-      document.getElementById("load-container").classList.add("hide");
+      document.querySelector(".spa-container").classList.remove("loading");
     }
 
     function handleUpdateComplete() {
@@ -481,22 +508,56 @@
         });
     }
 
+    var menuPattern = /\/(contacts\/groups|messages)\/.*/
+    function isMenuLink(url, path) {
+      if (url.match(menuPattern)) {
+        return true;
+      }
+      return false;
+    }
+
+    function convertLegacyURL(dest) {
+      const path = dest.path;
+      if (dest.url.indexOf("/contact/read/") == 0) {
+        dest.path = dest.url.replace("/contact/read/", "/contacts/read/");
+      }
+
+      if (dest.url.indexOf("/contact/filter/") == 0) {
+        dest.path = dest.url.replace("/contact/filter/", "/contacts/groups/");
+        dest.isMenu = true;
+      }
+      
+      if (dest.url.indexOf("/msg/filter/") == 0) {
+        dest.path = dest.url.replace("/msg/filter/", "/messages/labels/");
+        dest.isMenu = true;
+      }
+
+      if (dest.url.indexOf("/contacts/groups/") == 0) {
+        dest.path = dest.url;
+        dest.isMenu = true;
+      }
+    }
+
     function fetchURL(url, triggerEvents) {
       showLoading();
       var refererPath = window.location.pathname;
       window.lastFetch = url;
       var menu = document.querySelector("temba-menu");
-      var path = "/" + menu.getSelection().join("/") + "/";
 
-      if (url.indexOf("/contact/read/") == 0) {
-        path = url.replace("/contact/read/", "/contacts/read/");
+      var dest = {
+        url: url,
+        path: "/" + menu.getSelection().join("/") + "/", 
+        isMenu: isMenuLink(url)
       }
 
-      if (url.indexOf("/contact/filter/") == 0) {
-        path = url.replace("/contact/filter/", "/contacts/filter/");
-      }
+      // migrate our old urls
+      convertLegacyURL(dest);
 
-      gotoURL(url, path, !triggerEvents);
+      if (dest.isMenu) {
+        menu.setSelectionPath(dest.path);
+      } else {
+        gotoURL(dest.url, dest.path, !triggerEvents);
+      }
     }
    
     function handleMenuChanged(event) {
@@ -504,7 +565,10 @@
       var menuItem = event.target.getMenuItem();
       var body = document.querySelector(".spa-content");
       if (menuItem && menuItem.href) {
-        fetchURL(menuItem.href)
+        var menu = document.querySelector("temba-menu");
+        var path = "/" + menu.getSelection().join("/") + "/";
+        showLoading();
+        gotoURL(menuItem.href, path);
       }
 
       if (selection.length > 1) {
@@ -546,15 +610,14 @@
     groups="/api/v2/groups.json")
       
 -block page-container
-  #load-container.hide
-    .absolute(style="display:flex;background:rgba(255,255,255,0);z-index:100000;width:100vw;")
-      .wrapper(style="margin: auto; margin-top:10px;border-radius:99999px;")
-        %temba-loading(size=10 units=6)
 
   .flex-col
     .flex.widget-container(style="height:100vh;")
       .folders       
         %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)")
       .flex-grow.text-lg.spa-container.p-5
+        .loader.hide.absolute
+          .wrapper(style="display:flex;z-index:100000;margin-top:2px;")
+            %temba-loading(size=20 units=6)
         .spa-content
   
