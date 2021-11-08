@@ -5,6 +5,7 @@ from django.db import migrations, models
 add_trigger = """
 CREATE OR REPLACE FUNCTION temba_update_channel_segments_count() RETURNS TRIGGER AS $$
 DECLARE
+    msg_direction varchar(1);
     segments_count integer;
 BEGIN
   -- Message being updated
@@ -14,38 +15,34 @@ BEGIN
       RETURN NULL;
     END IF;
 
-    SELECT segments INTO segments_count FROM msgs_msg WHERE msgs_msg.id = NEW.msg_id;
+    SELECT direction, segments INTO msg_direction, segments_count
+    FROM msgs_msg WHERE msgs_msg.id = NEW.msg_id;
     IF segments_count = 0 OR segments_count IS NULL THEN
       RETURN NULL;
     END IF;
 
-    IF NEW.msg_type = 'M' THEN
-      IF NEW.direction = 'I' THEN
-        PERFORM temba_insert_channelcount(NEW.channel_id, 'IMS', NEW.created_on::date, segments_count);
-      ELSIF NEW.direction = 'O' THEN
-        PERFORM temba_insert_channelcount(NEW.channel_id, 'OMS', NEW.created_on::date, segments_count);
-      END IF;
+    IF msg_direction = 'I' THEN
+      PERFORM temba_insert_channelcount(NEW.channel_id, 'IMS', NEW.created_on::date, segments_count);
+    ELSIF msg_direction = 'O' THEN
+      PERFORM temba_insert_channelcount(NEW.channel_id, 'OMS', NEW.created_on::date, segments_count);
     END IF;
 
   -- Clean up counts when we are doing a real delete
   ELSIF TG_OP = 'DELETE' THEN
-    IF OLD.delete_reason IS NULL THEN
-      IF NEW.channel_id IS NULL OR NEW.msg_id IS NULL THEN
-        RETURN NULL;
-      END IF;
+    IF OLD.channel_id IS NULL OR OLD.msg_id IS NULL THEN
+      RETURN NULL;
+    END IF;
 
-      SELECT segments INTO segments_count FROM msgs_msg WHERE msgs_msg.id = NEW.msg_id;
-      IF segments_count = 0 OR segments_count IS NULL THEN
-        RETURN NULL;
-      END IF;
+    SELECT direction, segments INTO msg_direction, segments_count
+    FROM msgs_msg WHERE msgs_msg.id = NEW.msg_id;
+    IF segments_count = 0 OR segments_count IS NULL THEN
+      RETURN NULL;
+    END IF;
 
-      IF OLD.msg_type = 'M' THEN
-        IF OLD.direction = 'I' THEN
-          PERFORM temba_insert_channelcount(OLD.channel_id, 'IMS', OLD.created_on::date, segments_count * -1);
-        ELSIF OLD.direction = 'O' THEN
-          PERFORM temba_insert_channelcount(OLD.channel_id, 'OMS', OLD.created_on::date, segments_count * -1);
-        END IF;
-      END IF;
+    IF msg_direction = 'I' THEN
+      PERFORM temba_insert_channelcount(OLD.channel_id, 'IMS', OLD.created_on::date, segments_count * -1);
+    ELSIF msg_direction = 'O' THEN
+      PERFORM temba_insert_channelcount(OLD.channel_id, 'OMS', OLD.created_on::date, segments_count * -1);
     END IF;
   END IF;
 
