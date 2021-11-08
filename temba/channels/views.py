@@ -1804,6 +1804,7 @@ class ChannelCRUDL(SmartCRUDL):
                 raise Http404("No active channel with that id")
 
             context["msg_count"] = channel.get_msg_count()
+            context["msg_segments_count"] = channel.get_msg_segments_count()
             context["ivr_count"] = channel.get_ivr_count()
 
             # power source stats data
@@ -1876,13 +1877,19 @@ class ChannelCRUDL(SmartCRUDL):
             for sender in Channel.objects.filter(parent=channel):
                 channels.append(sender)
 
+            msg_segments_in = []
+            msg_segments_out = []
             msg_in = []
             msg_out = []
             ivr_in = []
             ivr_out = []
 
-            message_stats.append(dict(name=_("Incoming SMS Segments"), data=msg_in))
-            message_stats.append(dict(name=_("Outgoing SMS Segments"), data=msg_out))
+            if context["msg_segments_count"]:
+                message_stats.append(dict(name=_("Incoming SMS Segments"), data=msg_segments_in))
+                message_stats.append(dict(name=_("Outgoing SMS Segments"), data=msg_segments_out))
+            else:
+                message_stats.append(dict(name=_("Incoming Text"), data=msg_in))
+                message_stats.append(dict(name=_("Outgoing Text"), data=msg_out))
 
             if context["ivr_count"]:
                 message_stats.append(dict(name=_("Incoming Voice Messages"), data=ivr_in))
@@ -1895,6 +1902,8 @@ class ChannelCRUDL(SmartCRUDL):
                     count_type__in=[
                         ChannelCount.INCOMING_MSG_TYPE,
                         ChannelCount.OUTGOING_MSG_TYPE,
+                        ChannelCount.INCOMING_MSG_SEGMENT_TYPE,
+                        ChannelCount.OUTGOING_MSG_SEGMENT_TYPE,
                         ChannelCount.INCOMING_IVR_TYPE,
                         ChannelCount.OUTGOING_IVR_TYPE,
                     ]
@@ -1913,6 +1922,10 @@ class ChannelCRUDL(SmartCRUDL):
                         msg_in.append(dict(date=daily_count["day"], count=daily_count["count_sum"]))
                     elif daily_count["count_type"] == ChannelCount.OUTGOING_MSG_TYPE:
                         msg_out.append(dict(date=daily_count["day"], count=daily_count["count_sum"]))
+                    elif daily_count["count_type"] == ChannelCount.INCOMING_MSG_SEGMENT_TYPE:
+                        msg_segments_in.append(dict(date=daily_count["day"], count=daily_count["count_sum"]))
+                    elif daily_count["count_type"] == ChannelCount.OUTGOING_MSG_SEGMENT_TYPE:
+                        msg_segments_out.append(dict(date=daily_count["day"], count=daily_count["count_sum"]))
                     elif daily_count["count_type"] == ChannelCount.INCOMING_IVR_TYPE:
                         ivr_in.append(dict(date=daily_count["day"], count=daily_count["count_sum"]))
                     elif daily_count["count_type"] == ChannelCount.OUTGOING_IVR_TYPE:
@@ -1935,6 +1948,8 @@ class ChannelCRUDL(SmartCRUDL):
                     count_type__in=[
                         ChannelCount.INCOMING_MSG_TYPE,
                         ChannelCount.OUTGOING_MSG_TYPE,
+                        ChannelCount.INCOMING_MSG_SEGMENT_TYPE,
+                        ChannelCount.OUTGOING_MSG_SEGMENT_TYPE,
                         ChannelCount.INCOMING_IVR_TYPE,
                         ChannelCount.OUTGOING_IVR_TYPE,
                     ]
@@ -1950,6 +1965,8 @@ class ChannelCRUDL(SmartCRUDL):
             while month_start < now:
                 msg_in = 0
                 msg_out = 0
+                msg_segments_in = 0
+                msg_segments_out = 0
                 ivr_in = 0
                 ivr_out = 0
 
@@ -1959,6 +1976,10 @@ class ChannelCRUDL(SmartCRUDL):
                         msg_in = monthly_total["count_sum"]
                     elif monthly_total["count_type"] == ChannelCount.OUTGOING_MSG_TYPE:
                         msg_out = monthly_total["count_sum"]
+                    elif monthly_total["count_type"] == ChannelCount.INCOMING_MSG_SEGMENT_TYPE:
+                        msg_segments_in = monthly_total["count_sum"]
+                    elif monthly_total["count_type"] == ChannelCount.OUTGOING_MSG_SEGMENT_TYPE:
+                        msg_segments_out = monthly_total["count_sum"]
                     elif monthly_total["count_type"] == ChannelCount.INCOMING_IVR_TYPE:
                         ivr_in = monthly_total["count_sum"]
                     elif monthly_total["count_type"] == ChannelCount.OUTGOING_IVR_TYPE:
@@ -1969,6 +1990,8 @@ class ChannelCRUDL(SmartCRUDL):
                         month_start=month_start,
                         incoming_messages_count=msg_in,
                         outgoing_messages_count=msg_out,
+                        incoming_messages_segments_count=msg_segments_in,
+                        outgoing_messages_segments_count=msg_segments_out,
                         incoming_ivr_count=ivr_in,
                         outgoing_ivr_count=ivr_out,
                     )

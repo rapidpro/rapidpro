@@ -207,35 +207,51 @@
         .card.pt-8
           %div#channel-msgs-chart
 
-        .minutes-disclaimer.mb-4
-          Please note: When you send a SMS message over 160 characters, the message will be split. Large messages are
-          segmented into 153 characters segment and sent individually, then rebuild by the recipient's device. For
-          example, a 161-character message will be sent as two messages, one with 153 characters and the second with 8
-          characters. This is how CCL is billed and therefore how you are billed.
+        - if msg_segments_count
+          .minutes-disclaimer.mb-4
+            Please note: When you send a SMS message over 160 characters, the message will be split. Large messages are
+            segmented into 153 characters segment and sent individually, then rebuild by the recipient's device. For
+            example, a 161-character message will be sent as two messages, one with 153 characters and the second with 8
+            characters. This is how CCL is billed and therefore how you are billed.
 
         %table.list.lined
           %thead
             %tr
               %th
                 -trans "Month"
-              %th
-                -trans "Incoming Segments"
-              %th
-                -trans "Outgoing Segments"
-              %th
-                -trans "Total Segmants"
+              - if msg_segments_count
+                %th
+                  -trans "Incoming Segments"
+                %th
+                  -trans "Outgoing Segments"
+                %th
+                  -trans "Total Segmants"
+              - else
+                %th
+                  -trans "Incoming Text Messages"
+                %th
+                  -trans "Outgoing Text Messages"
+                %th
+                  -trans "Total Text Messages"
           %tbody
             -for month_data in message_stats_table
               %tr
                 %td
                   = month_data.month_start|utc|date:"F Y"
-                %td
-                  = month_data.incoming_messages_count|intcomma
-                %td
-                  = month_data.outgoing_messages_count|intcomma
-                %td
-                  = month_data.incoming_messages_count|intcomma|add:month_data.outgoing_messages_count|intcomma
-
+                - if msg_segments_count
+                  %td
+                    = month_data.incoming_messages_segments_count|intcomma
+                  %td
+                    = month_data.outgoing_messages_segments_count|intcomma
+                  %td
+                    = month_data.incoming_messages_segments_count|intcomma|add:month_data.outgoing_messages_segments_count|intcomma
+                - else
+                  %td
+                    = month_data.incoming_messages_count|intcomma
+                  %td
+                    = month_data.outgoing_messages_count|intcomma
+                  %td
+                    = month_data.incoming_messages_count|intcomma|add:month_data.outgoing_messages_count|intcomma
       .ivr-stats
         .card.pt-8
           %div#channel-ivr-chart

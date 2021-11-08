@@ -34,7 +34,7 @@ BEGIN
     END IF;
 
     SELECT direction, segments INTO msg_direction, segments_count
-    FROM msgs_msg WHERE msgs_msg.id = NEW.msg_id;
+    FROM msgs_msg WHERE msgs_msg.id = OLD.msg_id;
     IF segments_count = 0 OR segments_count IS NULL THEN
       RETURN NULL;
     END IF;
