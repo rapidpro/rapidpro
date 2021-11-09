@@ -269,7 +269,7 @@
               %th
                 -trans "Outgoing IVR Messages"
               %th
-                -trans "Total IVR Messages (Minutes)"
+                -trans "Total IVR Messages"
           %tbody
             -for month_data in message_stats_table
               %tr
@@ -447,7 +447,7 @@
               {% endif %}
             },
             series: [
-              {% for msg_stat in message_stats %}
+              {% for msg_stat in message_stats|slice:":2" %}
                 {
                   name: '{{msg_stat.name|safe}}',
                   data: [
@@ -469,28 +469,51 @@
               zoomType: 'x',
               type: 'column'
             },
-            yAxis: {
+            yAxis: [
+            {
               title: {
                 text: '{{ _("Minutes")|escapejs }}'
               },
+              opposite: false,
               min: 0,
               allowDecimals: false
-              {% if not has_messages %}
+              {% if not ivr_count %}
                 , max: 10
               {% endif %}
-            },
+            }, {
+              title: {
+                text: '{{_("Messages")|escapejs }}'
+              },
+              opposite: true,
+              min: 0,
+              allowDecimals: false
+              {% if not ivr_count %}
+                , max: 10
+              {% endif %}
+            }],
             series: [
-              {% if ivr_count %}
+              {% for msg_stat in message_stats|slice:"2:" %}
                 {
+                  name: '{{msg_stat.name|safe}}',
+                  data: [
+                    {% for elt in msg_stat.data %}[Date.UTC({{elt.date|date:'Y'}}, {{elt.date|date:'m'|add:-1}}, {{elt.date|date:'d'}}), {{elt.count}}]{% if not forloop.last %},
+                    {% endif %}{% endfor %}
+                  ]
+                }
+                {% if not forloop.last %},{% endif %}
+              {% empty %}
+                {}
+              {% endfor %}
+              {% if ivr_count %}
+                ,{
                   type: 'spline',
                   name: 'Minutes',
+                  yAxis:0,
                   data: [
                     {% for point in call_duration %}[Date.UTC({{point.date|date:'Y'}}, {{point.date|date:'m'|add:-1}}, {{point.date|date:'d'}}), Math.floor(100 * ({{point.duration}} / 60)) / 100]{% if not forloop.last %},
                     {% endif %}{% endfor %}
                   ]
                 }
-              {% else %}
-                {}
               {% endif %}
             ]
           });
