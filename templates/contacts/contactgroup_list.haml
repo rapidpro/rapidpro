@@ -1,7 +1,6 @@
 -extends "smartmin/list.html"
 -load i18n humanize smartmin
 
-
 -block extra-script
   {% if org_perms.contacts.contactgroup_delete %}
   :javascript
@@ -50,15 +49,7 @@
                 .-mt-1.mr-2.glyph.icon-user-delete
                 -trans "Delete"
     
-      .page-title
-      .flex-grow.mb-4
-        .flex
-          .flex-grow.self-end.items-end
-          .spa-page-menu
-            -include "spa_page_menu.haml"
-
       -block table
-
         %table.list.lined.selectable{ class:'{% get_list_class object_list %}', cellspacing:'0'}
           %thead
           %tbody
