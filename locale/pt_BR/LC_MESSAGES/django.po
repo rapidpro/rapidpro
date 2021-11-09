@@ -16,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-11-09 21:21+0000\n"
+"POT-Creation-Date: 2021-11-09 21:32+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3830,14 +3830,20 @@ msgstr ""
 msgid "English"
 msgstr "Inglês"
 
-msgid "Portuguese"
-msgstr "Português"
+msgid "Czech"
+msgstr ""
+
+msgid "Spanish"
+msgstr "Espanhol"
 
 msgid "French"
 msgstr "Francês"
 
-msgid "Spanish"
-msgstr "Espanhol"
+msgid "Mongolian"
+msgstr ""
+
+msgid "Portuguese"
+msgstr "Português"
 
 msgid "Russian"
 msgstr "Russo"
