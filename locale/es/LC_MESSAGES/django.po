@@ -4,18 +4,18 @@
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 # Translators:
-# Nyaruka <info@textit.in>, 2021
 # Rowan Seymour <rowanseymour@gmail.com>, 2021
 # Moy Moussan <moymoussan@gmail.com>, 2021
+# Nyaruka <info@textit.in>, 2021
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-11-09 21:06+0000\n"
+"POT-Creation-Date: 2021-11-09 21:21+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
-"Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
+"Last-Translator: Nyaruka <info@textit.in>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
 "Language: es\n"
 "MIME-Version: 1.0\n"
@@ -430,16 +430,16 @@ msgid "Failed"
 msgstr "Error"
 
 msgid "Provider"
-msgstr ""
+msgstr "Proveedor"
 
 msgid "Busy"
-msgstr ""
+msgstr "Ocupado"
 
 msgid "No Answer"
-msgstr ""
+msgstr "Sin Respuesta"
 
 msgid "Answering Machine"
-msgstr ""
+msgstr "Contestador Automático"
 
 #, python-format
 msgid "You can purchase a short code from %(link)s and connect it in a few simple steps."
@@ -1912,10 +1912,10 @@ msgid "An error occurred connecting your Twilio number, try removing your Twilio
 msgstr "Se produjo un error al conectar su número de Twilio, intente eliminar su cuenta de Twilio, vuelva a conectarla y vuelva a intentarlo."
 
 msgid "Descriptive name for this channel."
-msgstr ""
+msgstr "Nombre descriptivo para este canal."
 
 msgid "Allow sending to and calling international numbers."
-msgstr ""
+msgstr "Permitir enviar y llamar a números internacionales."
 
 msgid "Perform answering machine detection and hangup if machine detected."
 msgstr ""
@@ -2018,7 +2018,7 @@ msgid "Errors"
 msgstr "Errores"
 
 msgid "More Calls"
-msgstr ""
+msgstr "Mas Llamadas"
 
 msgid "The name of your bot"
 msgstr "El nombre de tu bot"
@@ -2033,7 +2033,7 @@ msgid "Staging"
 msgstr ""
 
 msgid "Production"
-msgstr ""
+msgstr "Producción"
 
 msgid "The name of your LUIS app"
 msgstr "El nombre de su aplicación LUIS"
@@ -2348,7 +2348,7 @@ msgid "Smart Groups"
 msgstr "Grupos inteligentes"
 
 msgid "Fields"
-msgstr ""
+msgstr "Campos"
 
 msgid "Import"
 msgstr "Importar"
@@ -2387,7 +2387,7 @@ msgid "Contacts"
 msgstr "Contactos"
 
 msgid "Create Smart Group"
-msgstr ""
+msgstr "Crear Grupo Inteligente"
 
 msgid "Manage Fields"
 msgstr "Manejar Campos"
@@ -2396,10 +2396,10 @@ msgid "Export Contacts"
 msgstr "Exportar Contactos"
 
 msgid "New Contact"
-msgstr ""
+msgstr "Nuevo Contacto"
 
 msgid "New Group"
-msgstr ""
+msgstr "Nuevo Grupo"
 
 msgid "Blocked Contacts"
 msgstr "Contactos Bloqueados"
@@ -5528,7 +5528,7 @@ msgid "<div class='mb-2'> You are about to delete <span class='named'> %(object)
 msgstr " <div class='mb-2'> Está a punto de eliminar <span class='named'> %(object)s. </span> </div> No se eliminará ningún contacto, pero se eliminará el grupo en sí. No hay forma de deshacer esto. ¿Estás seguro?"
 
 msgid "Delete Groups"
-msgstr ""
+msgstr "Eliminar Grupos"
 
 msgid "Deleting groups will not delete the contacts inside the group. All contacts will remain in your account. Do you want to continue?"
 msgstr ""
@@ -6008,7 +6008,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "Deleted"
-msgstr ""
+msgstr "Borrado"
 
 #, python-format
 msgid "%(count)s result"
@@ -6071,15 +6071,11 @@ msgstr "<b>%(name)s</b> no se puede eliminar porque todavía contiene etiquetas.
 msgid "Numeric Value:"
 msgstr "Valor numérico:"
 
-#, fuzzy
-#| msgid "Delete Selected Contacts"
 msgid "Delete Selected Messages"
-msgstr "Eliminar contactos seleccionados"
+msgstr "Eliminar Mensajes Seleccionados"
 
-#, fuzzy
-#| msgid "Are you sure you want to delete the selected contacts? This cannot be undone."
 msgid "Are you sure you want to delete the selected messages? This cannot be undone."
-msgstr "¿Está seguro de que desea eliminar los contactos seleccionados? Esto no se puede deshacer."
+msgstr "¿Está seguro de que desea eliminar los mensajes seleccionados? Esto no se puede deshacer."
 
 msgid "Create Folder"
 msgstr "Crear Carpeta"
@@ -6130,27 +6126,27 @@ msgid "Hi there!"
 msgstr "¡Hola!"
 
 msgid "Your contact export is ready."
-msgstr ""
+msgstr "Su exportación de contactos está lista."
 
 #, python-format
 msgid "Download the Excel file here: %(url)s"
-msgstr ""
+msgstr "Descargue el archivo Excel aquí: %(url)s"
 
 msgid "Thanks"
-msgstr ""
+msgstr "Gracias"
 
 #, python-format
 msgid "The %(brand)s Team "
 msgstr "El Equipo %(brand)s "
 
 msgid "Your message export is ready"
-msgstr ""
+msgstr "Su exportación de mensajes está lista."
 
 msgid "Your message export is ready."
 msgstr "Su exportación de mensajes está lista."
 
 msgid "Your export of results for the following flows is ready."
-msgstr ""
+msgstr "Su exportación de resultados de los siguientes flujos está lista."
 
 msgid "Your workspace is suspended and no longer processing messages."
 msgstr "Su workspace está suspendido y ya no procesa mensajes."
@@ -7523,7 +7519,7 @@ msgid "More Videos"
 msgstr "Más videos"
 
 msgid "Flow Event"
-msgstr ""
+msgstr "Evento De Flujo"
 
 msgid "Classifier Event"
 msgstr "Evento clasificador"
@@ -7641,7 +7637,7 @@ msgstr ""
 "            "
 
 msgid "See more tickets"
-msgstr ""
+msgstr "Ver más tickets"
 
 msgid "All done!"
 msgstr "¡Todo listo!"

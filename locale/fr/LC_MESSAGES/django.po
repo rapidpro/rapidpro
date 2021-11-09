@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-11-09 21:06+0000\n"
+"POT-Creation-Date: 2021-11-09 21:21+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2021\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -6091,15 +6091,11 @@ msgstr "<b>%(name)s</b> ne peut pas être supprimé car il contient encore des �
 msgid "Numeric Value:"
 msgstr "Valeur numérique:"
 
-#, fuzzy
-#| msgid "Delete Selected Contacts"
 msgid "Delete Selected Messages"
-msgstr "Supprimer les contacts sélectionnés"
+msgstr ""
 
-#, fuzzy
-#| msgid "Are you sure you want to delete the selected contacts? This cannot be undone."
 msgid "Are you sure you want to delete the selected messages? This cannot be undone."
-msgstr "Voulez-vous vraiment supprimer les contacts sélectionnés? Ça ne peut pas être annulé."
+msgstr ""
 
 msgid "Create Folder"
 msgstr "Créer le dossier"
