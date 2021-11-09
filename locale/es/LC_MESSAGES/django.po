@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-11-03 12:03+0000\n"
+"POT-Creation-Date: 2021-11-09 21:06+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -418,13 +418,13 @@ msgid "Wired"
 msgstr "Wired"
 
 msgid "In Progress"
-msgstr ""
+msgstr "En Progreso"
 
 msgid "Complete"
 msgstr "Completar"
 
 msgid "Errored"
-msgstr ""
+msgstr "Errado"
 
 msgid "Failed"
 msgstr "Error"
@@ -2912,10 +2912,8 @@ msgstr "Manejado"
 msgid "Error"
 msgstr "Error"
 
-#, fuzzy
-#| msgid "Reset"
 msgid "Resent"
-msgstr "Reiniciar"
+msgstr ""
 
 msgid "The date for the oldest message to export"
 msgstr "La fecha para el mensaje más antiguo para exportar"
@@ -4053,10 +4051,8 @@ msgstr "Grupos para Excluir"
 msgid "Excludes contacts in these groups."
 msgstr "Excluye contactos en estos grupos."
 
-#, fuzzy
-#| msgid "Must be a single word containing only letters and numbers."
 msgid "Must be a single word containing only letters and numbers, or a single emoji character."
-msgstr "Debe ser una sola palabra que contenga solo letras y números."
+msgstr ""
 
 msgid "Can't include and exclude the same group."
 msgstr "No se puede incluir y excluir el mismo grupo."
@@ -4468,10 +4464,8 @@ msgstr "Llamada entrante (%(duration)s segundos)"
 msgid "No Matching calls"
 msgstr "Las llamadas no corresponden"
 
-#, fuzzy
-#| msgid "Voice calls"
 msgid "No calls"
-msgstr "Llamadas de voz"
+msgstr ""
 
 msgid "Contact"
 msgstr "Contacto"
@@ -5410,9 +5404,7 @@ msgstr "Sacar del grupo"
 msgid "New Group..."
 msgstr "Nuevo grupo..."
 
-#, fuzzy, python-format
-#| msgid "Found %(results_count)s global matching <i>%(search)s</i>."
-#| msgid_plural "Found %(results_count)s globals matching <i>%(search)s</i>."
+#, python-format
 msgid ""
 "\n"
 "                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
@@ -5422,8 +5414,8 @@ msgid_plural ""
 "                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
 "\n"
 "                  "
-msgstr[0] "Se encontró %(results_count)s coincidencia global <i> %(search)s </i>."
-msgstr[1] "Se encontró %(results_count)s globales que coinciden con <i> %(search)s </i>."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "To view more than 10,000 search results, save it as a group."
 msgstr "Para ver más de 10,000 resultados de búsqueda, guárdelo como un grupo."
@@ -5989,15 +5981,7 @@ msgstr "Sus créditos activos vencerán pronto, agregue créditos para evitar in
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Su teléfono no puede enviar mensajes"
 
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "        flow.\n"
-#| "      "
-#| msgid_plural ""
-#| "\n"
-#| "        flows.\n"
-#| "      "
+#, python-format
 msgid ""
 "\n"
 "        %(count)s deleted group\n"
@@ -6008,13 +5992,7 @@ msgid_plural ""
 "\n"
 "      "
 msgstr[0] ""
-"\n"
-"        fluir.\n"
-"      "
 msgstr[1] ""
-"\n"
-"        fluye.\n"
-"      "
 
 #, python-format
 msgid ""
@@ -6029,10 +6007,8 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#, fuzzy
-#| msgid "Delete"
 msgid "Deleted"
-msgstr "Eliminar"
+msgstr ""
 
 #, python-format
 msgid "%(count)s result"
@@ -6095,6 +6071,16 @@ msgstr "<b>%(name)s</b> no se puede eliminar porque todavía contiene etiquetas.
 msgid "Numeric Value:"
 msgstr "Valor numérico:"
 
+#, fuzzy
+#| msgid "Delete Selected Contacts"
+msgid "Delete Selected Messages"
+msgstr "Eliminar contactos seleccionados"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete the selected contacts? This cannot be undone."
+msgid "Are you sure you want to delete the selected messages? This cannot be undone."
+msgstr "¿Está seguro de que desea eliminar los contactos seleccionados? Esto no se puede deshacer."
+
 msgid "Create Folder"
 msgstr "Crear Carpeta"
 
@@ -6143,37 +6129,28 @@ msgstr "Ningún mensaje corresponde."
 msgid "Hi there!"
 msgstr "¡Hola!"
 
-#, fuzzy
-#| msgid "Your contacts export is ready."
 msgid "Your contact export is ready."
-msgstr "Sus contactos han sido exportados exitosamente."
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Download your Excel file here:"
+#, python-format
 msgid "Download the Excel file here: %(url)s"
-msgstr "Descargue su archivo Excel aquí:"
+msgstr ""
 
-#, fuzzy
-#| msgid "Thanks!"
 msgid "Thanks"
-msgstr "¡Gracias!"
+msgstr ""
 
 #, python-format
 msgid "The %(brand)s Team "
 msgstr "El Equipo %(brand)s "
 
-#, fuzzy
-#| msgid "Your message export is ready."
 msgid "Your message export is ready"
-msgstr "Su exportación de mensajes está lista."
+msgstr ""
 
 msgid "Your message export is ready."
 msgstr "Su exportación de mensajes está lista."
 
-#, fuzzy
-#| msgid "Your export for the following flows is ready."
 msgid "Your export of results for the following flows is ready."
-msgstr "Su exportación para los siguientes flujos está lista."
+msgstr ""
 
 msgid "Your workspace is suspended and no longer processing messages."
 msgstr "Su workspace está suspendido y ya no procesa mensajes."
@@ -7836,51 +7813,3 @@ msgstr "Las plantillas se sincronizan desde su cuenta cada 15 minutos."
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
-
-#~ msgid "Error Sending"
-#~ msgstr "Error de envío"
-
-#~ msgid "Failed Sending"
-#~ msgstr "Envío no realizado"
-
-#~ msgid "Resent message"
-#~ msgstr "Mensaje reenviado"
-
-#~ msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
-#~ msgstr "La navegación de búsqueda está limitada a 10k resultados. Si desea examinar todos los resultados, guarde esta búsqueda como un grupo."
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "Hi there!\n"
-#~ "\n"
-#~ "You can download your %(brand)s contacts export by clicking on the following link:\n"
-#~ msgstr ""
-#~ "\n"
-#~ "¡Hola!\n"
-#~ "\n"
-#~ "Puede descargar su exportación de contactos %(brand)s haciendo clic en el siguiente enlace:\n"
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "Hi there!\n"
-#~ "\n"
-#~ "You can download your %(brand)s flow results by clicking on the following link:\n"
-#~ msgstr ""
-#~ "\n"
-#~ "¡Hola!\n"
-#~ "\n"
-#~ "Puede descargar los resultados de su flujo %(brand)s haciendo clic en el siguiente enlace:\n"
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "Hi there!\n"
-#~ "\n"
-#~ "You can download your %(brand)s message export by clicking on the following link:\n"
-#~ msgstr ""
-#~ "\n"
-#~ "¡Hola!\n"
-#~ "\n"
-#~ "Puede descargar la exportación de su mensaje %(brand)s haciendo clic en el siguiente enlace:\n"

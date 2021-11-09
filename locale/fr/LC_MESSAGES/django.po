@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-11-03 12:03+0000\n"
+"POT-Creation-Date: 2021-11-09 21:06+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2021\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -417,28 +417,28 @@ msgid "Wired"
 msgstr "Câblé "
 
 msgid "In Progress"
-msgstr ""
+msgstr "En cours"
 
 msgid "Complete"
 msgstr "Terminé"
 
 msgid "Errored"
-msgstr ""
+msgstr "Erroné"
 
 msgid "Failed"
 msgstr "manqué"
 
 msgid "Provider"
-msgstr ""
+msgstr "Fournisseur"
 
 msgid "Busy"
-msgstr ""
+msgstr "Occupé"
 
 msgid "No Answer"
-msgstr ""
+msgstr "Pas de réponse"
 
 msgid "Answering Machine"
-msgstr ""
+msgstr "Répondeur automatique"
 
 #, python-format
 msgid "You can purchase a short code from %(link)s and connect it in a few simple steps."
@@ -1911,13 +1911,13 @@ msgid "An error occurred connecting your Twilio number, try removing your Twilio
 msgstr "Une erreur s'est produite lors de la connexion de votre numéro Twilio. Essayez de supprimer votre compte Twilio, de le reconnecter, puis réessayer."
 
 msgid "Descriptive name for this channel."
-msgstr ""
+msgstr "Nom descriptif de ce canal."
 
 msgid "Allow sending to and calling international numbers."
-msgstr ""
+msgstr "Permet l'envoi à et l'appel de numéros internationaux."
 
 msgid "Perform answering machine detection and hangup if machine detected."
-msgstr ""
+msgstr "Effectuer la détection du répondeur et raccrocher si le répondeur est détecté."
 
 msgid "Phone number of this channel"
 msgstr "Numéro de téléphone de cette chaîne"
@@ -2017,7 +2017,7 @@ msgid "Errors"
 msgstr "Erreurs"
 
 msgid "More Calls"
-msgstr ""
+msgstr "Plus d'appels"
 
 msgid "The name of your bot"
 msgstr "Le nom de votre bot"
@@ -2029,43 +2029,43 @@ msgid "Unable to access bothub with credentials, please check and try again"
 msgstr "Impossible d'accéder à bothub avec les informations d'identification, veuillez vérifier et réessayer"
 
 msgid "Staging"
-msgstr ""
+msgstr "Mise en scène"
 
 msgid "Production"
-msgstr ""
+msgstr "Production"
 
 msgid "The name of your LUIS app"
 msgstr "Le nom de votre application LUIS"
 
 msgid "The ID of your LUIS app"
-msgstr ""
+msgstr "L'ID de votre application LUIS"
 
 msgid "The authoring resource endpoint URL"
-msgstr ""
+msgstr "L'URL du point de terminaison de la ressource auteur"
 
 msgid "The authoring resource access key"
-msgstr ""
+msgstr "La clé d'accès à la ressource auteur"
 
 msgid "The prediction resource endpoint URL"
-msgstr ""
+msgstr "L'URL du point de terminaison de la ressource de prédiction"
 
 msgid "The prediction resource access key"
-msgstr ""
+msgstr "La clé d'accès à la ressource de prédiction"
 
 msgid "The slot where the prediction resource has been published"
-msgstr ""
+msgstr "Le créneau où la ressource de prédiction a été publiée"
 
 #, python-format
 msgid "App has not yet been published to %s slot."
-msgstr ""
+msgstr "L'application n'a pas encore été publiée sur le créneau %s ."
 
 #, python-format
 msgid "Check authoring credentials: %s"
-msgstr ""
+msgstr "Vérifier les informations d'identification de l'auteur: %s"
 
 #, python-format
 msgid "Check prediction credentials: %s"
-msgstr ""
+msgstr "Vérifiez les accréditations de prédiction: %s"
 
 msgid "Your app's name"
 msgstr "Le nom de votre application"
@@ -2347,7 +2347,7 @@ msgid "Smart Groups"
 msgstr "Groupes intelligents"
 
 msgid "Fields"
-msgstr ""
+msgstr "Champs"
 
 msgid "Import"
 msgstr "Importer"
@@ -2386,7 +2386,7 @@ msgid "Contacts"
 msgstr "Contacts"
 
 msgid "Create Smart Group"
-msgstr ""
+msgstr "Créer un groupe intelligent"
 
 msgid "Manage Fields"
 msgstr "Gérer les champs"
@@ -2395,10 +2395,10 @@ msgid "Export Contacts"
 msgstr "Exporter des contacts"
 
 msgid "New Contact"
-msgstr ""
+msgstr "Nouveau contact"
 
 msgid "New Group"
-msgstr ""
+msgstr "Nouveau groupe"
 
 msgid "Blocked Contacts"
 msgstr "Contacts Bloqués"
@@ -2832,7 +2832,7 @@ msgid "This flow does not use message templates. You may still start this flow b
 msgstr "Ce flux n'utilise pas de modèles de message. Vous pouvez toujours démarrer ce flux, mais les contacts WhatsApp qui n'ont pas envoyé de message entrant au cours des dernières 24 heures peuvent ne pas le recevoir."
 
 msgid "Please read the options below carefully as they have changed recently."
-msgstr ""
+msgstr "Veuillez lire attentivement les options ci-dessous, car elles ont été modifiées récemment."
 
 msgid "The message template {ref['name']} does not exist on your account and cannot be sent."
 msgstr "Le modèle de message {ref['name']} n'existe pas sur votre compte et ne peut pas être envoyé."
@@ -2911,10 +2911,8 @@ msgstr "manipulés"
 msgid "Error"
 msgstr "Erreur"
 
-#, fuzzy
-#| msgid "Reset"
 msgid "Resent"
-msgstr "Réinitialiser"
+msgstr "Renvoyer"
 
 msgid "The date for the oldest message to export"
 msgstr "La date du message le plus ancien à exporter"
@@ -2938,7 +2936,7 @@ msgid "Schedule for later"
 msgstr "Planifier pour plus tard"
 
 msgid "At least one recipient is required."
-msgstr ""
+msgstr "Il faut au moins un destinataire."
 
 msgid "Inbox"
 msgstr "Boîte de Réception"
@@ -3035,7 +3033,7 @@ msgstr "Le nom doit être unique"
 
 #, python-format
 msgid "This workspace has %d labels and the limit is %s. You must delete existing ones before you can create new ones."
-msgstr ""
+msgstr "Cet espace de travail comporte %d étiquettes et la limite est de %s. Vous devez supprimer les étiquettes existantes avant de pouvoir en créer de nouvelles."
 
 msgid "Folder"
 msgstr "Dossier"
@@ -3098,10 +3096,10 @@ msgid "Surveyors"
 msgstr "Enquêteur"
 
 msgid "Sorry, your workspace is currently suspended. To re-enable starting flows and sending messages, please contact support."
-msgstr ""
+msgstr "Désolé, votre espace de travail est actuellement suspendu. Pour réactiver le lancement de flux et l'envoi de messages, veuillez contacter le support."
 
 msgid "Sorry, your workspace is currently flagged. To re-enable starting flows and sending messages, please contact support."
-msgstr ""
+msgstr "Désolé, votre espace de travail est actuellement signalé. Pour réactiver le lancement de flux et l'envoi de messages, veuillez contacter le support."
 
 msgid "Plan"
 msgstr "Plan"
@@ -3759,7 +3757,7 @@ msgid "WhatsApp Contacts Refreshed"
 msgstr "Actualisation des contacts WhatsApp"
 
 msgid "WhatsApp Health Check"
-msgstr ""
+msgstr "Bilan de santé de WhatsApp"
 
 msgid "Webhook Calls"
 msgstr "Appels Webhook"
@@ -4052,10 +4050,8 @@ msgstr "Groupes à exclure"
 msgid "Excludes contacts in these groups."
 msgstr "Ne pas considérer les contacts dans ces groupes."
 
-#, fuzzy
-#| msgid "Must be a single word containing only letters and numbers."
 msgid "Must be a single word containing only letters and numbers, or a single emoji character."
-msgstr "Doit être un mot unique contenant uniquement des lettres et des chiffres."
+msgstr "Doit être un mot unique contenant uniquement des lettres et des chiffres, ou un seul caractère emoji."
 
 msgid "Can't include and exclude the same group."
 msgstr "On ne peut pas inclure et exclure le même groupe."
@@ -4118,7 +4114,7 @@ msgstr "Il ne peut s'agir d'un hôte local ou privé"
 
 #, python-format
 msgid "'%s' is not a valid URN."
-msgstr ""
+msgstr "'%s' is not a valid URN."
 
 msgid "Unique Identifier"
 msgstr "Identifiant unique"
@@ -4467,10 +4463,8 @@ msgstr "Appel entrant (%(duration)s secondes)"
 msgid "No Matching calls"
 msgstr "Pas d'appels correspondants"
 
-#, fuzzy
-#| msgid "Voice calls"
 msgid "No calls"
-msgstr "Appels vocaux"
+msgstr "Aucun appel"
 
 msgid "Contact"
 msgstr "Contact"
@@ -5409,9 +5403,7 @@ msgstr "Supprimer du groupe"
 msgid "New Group..."
 msgstr "Nouveau groupe..."
 
-#, fuzzy, python-format
-#| msgid "Found %(results_count)s global matching <i>%(search)s</i>."
-#| msgid_plural "Found %(results_count)s globals matching <i>%(search)s</i>."
+#, python-format
 msgid ""
 "\n"
 "                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
@@ -5421,8 +5413,15 @@ msgid_plural ""
 "                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
 "\n"
 "                  "
-msgstr[0] "Trouvé %(results_count)s correspondance globale <i>%(search)s</i>."
-msgstr[1] "Trouvé %(results_count)s correspondants locaux <i>%(search)s</i>."
+msgstr[0] ""
+"\n"
+"                    Trouvé %(results_count)s contact correspondant  <i>%(search)s</i>.\n"
+"                    "
+msgstr[1] ""
+"\n"
+"                      Trouvé %(results_count)s contacts correspondants <i>%(search)s</i>.\n"
+"\n"
+"                  "
 
 msgid "To view more than 10,000 search results, save it as a group."
 msgstr "Pour afficher plus de 10 000 résultats de recherche, enregistrez-le en tant que groupe."
@@ -5535,10 +5534,10 @@ msgid "<div class='mb-2'> You are about to delete <span class='named'> %(object)
 msgstr "<div class='mb-2'> Vous êtes sur le point de supprimer <span class='named'> %(object)s. </span> </div> Aucun contact ne sera supprimé mais le groupe lui-même sera supprimé. Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
 
 msgid "Delete Groups"
-msgstr ""
+msgstr "Supprimer les groupes"
 
 msgid "Deleting groups will not delete the contacts inside the group. All contacts will remain in your account. Do you want to continue?"
-msgstr ""
+msgstr "La suppression d'un groupe ne supprime pas les contacts qu'il contient. Tous les contacts resteront dans votre compte. Voulez-vous continuer ?"
 
 msgid "You can import contacts from an Excel spreadsheet or comma separated values file."
 msgstr "Vous pouvez importer des contacts à partir d'une feuille de calcul Excel ou d'un fichier de valeurs séparées par des virgules."
@@ -5582,7 +5581,7 @@ msgid "Preview"
 msgstr "Aperçu"
 
 msgid "Importing Contacts"
-msgstr ""
+msgstr "Importation de contacts"
 
 msgid "Preview Contact Import"
 msgstr "Aperçu de l'importation de contacts"
@@ -5988,15 +5987,7 @@ msgstr "Vos crédits actifs expireront bientôt, ajoutez des crédits pour évit
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Votre téléphone a du mal à channel des messages"
 
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "        flow.\n"
-#| "      "
-#| msgid_plural ""
-#| "\n"
-#| "        flows.\n"
-#| "      "
+#, python-format
 msgid ""
 "\n"
 "        %(count)s deleted group\n"
@@ -6008,11 +5999,12 @@ msgid_plural ""
 "      "
 msgstr[0] ""
 "\n"
-"        flux.\n"
+"        %(count)s groupe supprimé\n"
 "      "
 msgstr[1] ""
 "\n"
-"        flux.\n"
+"        %(count)s groupes supprimés\n"
+"\n"
 "      "
 
 #, python-format
@@ -6026,12 +6018,17 @@ msgid_plural ""
 "\n"
 "      "
 msgstr[0] ""
+"\n"
+"        %(count)s contact supprimé\n"
+"      "
 msgstr[1] ""
+"\n"
+"        %(count)s contacts supprimés\n"
+"\n"
+"      "
 
-#, fuzzy
-#| msgid "Delete"
 msgid "Deleted"
-msgstr "Effacer"
+msgstr "Supprimé"
 
 #, python-format
 msgid "%(count)s result"
@@ -6066,8 +6063,8 @@ msgstr[1] "%(count_comma)s destinataires"
 #, python-format
 msgid "<b>%(recipients)s</b> recipient currently at this point in the flow"
 msgid_plural "<b>%(recipients)s</b> recipients currently at this point in the flow"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "<b>%(recipients)s</b> récipiendaire actuel à ce stade du flux"
+msgstr[1] "<b>%(recipients)s</b> récipiendaires actuels à ce stade du flux"
 
 msgid "Message Details"
 msgstr "Détails du message"
@@ -6093,6 +6090,16 @@ msgstr "<b>%(name)s</b> ne peut pas être supprimé car il contient encore des �
 
 msgid "Numeric Value:"
 msgstr "Valeur numérique:"
+
+#, fuzzy
+#| msgid "Delete Selected Contacts"
+msgid "Delete Selected Messages"
+msgstr "Supprimer les contacts sélectionnés"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete the selected contacts? This cannot be undone."
+msgid "Are you sure you want to delete the selected messages? This cannot be undone."
+msgstr "Voulez-vous vraiment supprimer les contacts sélectionnés? Ça ne peut pas être annulé."
 
 msgid "Create Folder"
 msgstr "Créer le dossier"
@@ -6142,37 +6149,28 @@ msgstr "Aucun message correspondant."
 msgid "Hi there!"
 msgstr "Salut à tous!"
 
-#, fuzzy
-#| msgid "Your contacts export is ready."
 msgid "Your contact export is ready."
-msgstr "L'exportation de vos contacts est prêt."
+msgstr "Votre exportation de contacts est prête."
 
-#, fuzzy, python-format
-#| msgid "Download your Excel file here:"
+#, python-format
 msgid "Download the Excel file here: %(url)s"
-msgstr "Téléchargez votre fichier Excel :"
+msgstr "Téléchargez le fichier Excel ici : %(url)s"
 
-#, fuzzy
-#| msgid "Thanks!"
 msgid "Thanks"
-msgstr "Merci!"
+msgstr "Merci"
 
 #, python-format
 msgid "The %(brand)s Team "
 msgstr "L'équipe %(brand)s"
 
-#, fuzzy
-#| msgid "Your message export is ready."
 msgid "Your message export is ready"
-msgstr "L'exportation de vos messages est prête."
+msgstr "L'exportation de votre message est prête"
 
 msgid "Your message export is ready."
 msgstr "L'exportation de vos messages est prête."
 
-#, fuzzy
-#| msgid "Your export for the following flows is ready."
 msgid "Your export of results for the following flows is ready."
-msgstr "Votre exportation pour les flux suivants est prêt."
+msgstr "Votre exportation de résultats pour les flux suivants est prête."
 
 msgid "Your workspace is suspended and no longer processing messages."
 msgstr "Votre espace de travail est suspendu et ne traite plus les messages."
@@ -7537,7 +7535,7 @@ msgid "More Videos"
 msgstr "Plus de vidéos"
 
 msgid "Flow Event"
-msgstr ""
+msgstr "Événement de flux"
 
 msgid "Classifier Event"
 msgstr "Événement classificateur"
@@ -7655,7 +7653,7 @@ msgstr ""
 "            "
 
 msgid "See more tickets"
-msgstr ""
+msgstr "Voir plus de billets"
 
 msgid "All done!"
 msgstr "C'est fait !"
@@ -7827,51 +7825,3 @@ msgstr "Les modèles sont synchronisés à partir de votre compte toutes les 15 
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
-
-#~ msgid "Error Sending"
-#~ msgstr "Erreur d'envoi"
-
-#~ msgid "Failed Sending"
-#~ msgstr "Envoi échoué"
-
-#~ msgid "Resent message"
-#~ msgstr "Renvoyer un message"
-
-#~ msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
-#~ msgstr "La navigation dans les recherches est limitée à 10 000 résultats. Si vous souhaitez parcourir tous les résultats, veuillez enregistrer cette recherche en tant que groupe."
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "Hi there!\n"
-#~ "\n"
-#~ "You can download your %(brand)s contacts export by clicking on the following link:\n"
-#~ msgstr ""
-#~ "\n"
-#~ "Salut !\n"
-#~ "\n"
-#~ "Vous pouvez télécharger votre exportation de contacts %(brand)s en cliquant sur le lien suivant:\n"
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "Hi there!\n"
-#~ "\n"
-#~ "You can download your %(brand)s flow results by clicking on the following link:\n"
-#~ msgstr ""
-#~ "\n"
-#~ "Salut!\n"
-#~ "\n"
-#~ "Vous pouvez télécharger vos résultats de flux %(brand)s en cliquant sur le lien suivant:\n"
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "Hi there!\n"
-#~ "\n"
-#~ "You can download your %(brand)s message export by clicking on the following link:\n"
-#~ msgstr ""
-#~ "\n"
-#~ "Salut!\n"
-#~ "\n"
-#~ "Vous pouvez télécharger votre exportation de message %(brand)s en cliquant sur le lien suivant:\n"

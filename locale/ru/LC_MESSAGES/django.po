@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-11-03 12:03+0000\n"
+"POT-Creation-Date: 2021-11-09 21:06+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2927,10 +2927,8 @@ msgstr "Обработано"
 msgid "Error"
 msgstr "Ошибка "
 
-#, fuzzy
-#| msgid "Resend"
 msgid "Resent"
-msgstr "Отправить повторно"
+msgstr ""
 
 msgid "The date for the oldest message to export"
 msgstr "Дата самого старого сообщения для экспорта"
@@ -4505,10 +4503,8 @@ msgstr "Входящий Звонок (%(duration)s seconds)"
 msgid "No Matching calls"
 msgstr "Нет Соответствующих вызовов"
 
-#, fuzzy
-#| msgid "No Matching calls"
 msgid "No calls"
-msgstr "Нет Соответствующих вызовов"
+msgstr ""
 
 msgid "Contact"
 msgstr "Контакт"
@@ -5436,9 +5432,7 @@ msgstr ""
 msgid "New Group..."
 msgstr "Новая Группа..."
 
-#, fuzzy, python-format
-#| msgid "Found %(results_count)s message in last 90 days matching <i>%(search)s</i>."
-#| msgid_plural "Found %(results_count)s messages in last 90 days matching <i>%(search)s</i>."
+#, python-format
 msgid ""
 "\n"
 "                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
@@ -5448,10 +5442,10 @@ msgid_plural ""
 "                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
 "\n"
 "                  "
-msgstr[0] "Найдено %(results_count)s сообщение за последние 90 дней, соответствующее <i>%(search)s</i>."
-msgstr[1] "Найдено %(results_count)s сообщений за последние 90 дней, соответствующих <i>%(search)s</i>."
-msgstr[2] "Найдено %(results_count)s сообщений за последние 90 дней, соответствующих <i>%(search)s</i>."
-msgstr[3] "Найдено %(results_count)s сообщений за последние 90 дней, соответствующих <i>%(search)s</i>."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
 
 msgid "To view more than 10,000 search results, save it as a group."
 msgstr ""
@@ -6057,10 +6051,8 @@ msgstr[1] ""
 msgstr[2] ""
 msgstr[3] ""
 
-#, fuzzy
-#| msgid "Delete"
 msgid "Deleted"
-msgstr "Удалить"
+msgstr ""
 
 #, python-format
 msgid "%(count)s result"
@@ -6129,6 +6121,16 @@ msgstr ""
 msgid "Numeric Value:"
 msgstr "Числовое значение:"
 
+#, fuzzy
+#| msgid "Scheduled Messages"
+msgid "Delete Selected Messages"
+msgstr "Запланированные сообщения"
+
+#, fuzzy
+#| msgid "Are you sure you want to remove this label?"
+msgid "Are you sure you want to delete the selected messages? This cannot be undone."
+msgstr "Вы действительно хотите удалить эту метку?"
+
 msgid "Create Folder"
 msgstr "Создать папку"
 
@@ -6183,37 +6185,28 @@ msgstr "Нет соответствующих сообщений."
 msgid "Hi there!"
 msgstr "Приветствую!"
 
-#, fuzzy
-#| msgid "Your contacts export is ready."
 msgid "Your contact export is ready."
-msgstr "Ваш экспорт контактов готов."
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Download your Excel file here:"
+#, python-format
 msgid "Download the Excel file here: %(url)s"
-msgstr "Скачайте свой файл Excel отсюда:"
+msgstr ""
 
-#, fuzzy
-#| msgid "Thanks!"
 msgid "Thanks"
-msgstr "Спасибо!"
+msgstr ""
 
 #, python-format
 msgid "The %(brand)s Team "
 msgstr "Команда %(brand)s"
 
-#, fuzzy
-#| msgid "Your message export is ready."
 msgid "Your message export is ready"
-msgstr "Ваш экспорт сообщений готов."
+msgstr ""
 
 msgid "Your message export is ready."
 msgstr "Ваш экспорт сообщений готов."
 
-#, fuzzy
-#| msgid "Your export for the following flows is ready."
 msgid "Your export of results for the following flows is ready."
-msgstr "Ваш экспорт по следующим потокам готов."
+msgstr ""
 
 msgid "Your workspace is suspended and no longer processing messages."
 msgstr ""
@@ -7648,51 +7641,3 @@ msgstr ""
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
-
-#~ msgid "Error Sending"
-#~ msgstr "Ошибка при отправке"
-
-#~ msgid "Failed Sending"
-#~ msgstr "Не удалось отправить"
-
-#~ msgid "Resent message"
-#~ msgstr "Повторно отправленное сообщение"
-
-#~ msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
-#~ msgstr "Просмотр результатов поиска ограничен 10 тысячами результатов. Если Вы хотите просмотреть все результаты, пожалуйста, сохраните этот поиск как группу."
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "Hi there!\n"
-#~ "\n"
-#~ "You can download your %(brand)s contacts export by clicking on the following link:\n"
-#~ msgstr ""
-#~ "\n"
-#~ "Приветствую!\n"
-#~ "\n"
-#~ "Вы можете скачать свой экспорт контактов %(brand)s, нажав на следующую ссылку:\n"
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "Hi there!\n"
-#~ "\n"
-#~ "You can download your %(brand)s flow results by clicking on the following link:\n"
-#~ msgstr ""
-#~ "\n"
-#~ "Приветствую!\n"
-#~ "\n"
-#~ "Вы можете скачать свои результаты потоков %(brand)s, нажав на следующую ссылку:\n"
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "Hi there!\n"
-#~ "\n"
-#~ "You can download your %(brand)s message export by clicking on the following link:\n"
-#~ msgstr ""
-#~ "\n"
-#~ "Приветствую!\n"
-#~ "\n"
-#~ "Вы можете скачать свой экспорт сообщений %(brand)s, нажав на следующую ссылку:\n"
