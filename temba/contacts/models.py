@@ -2217,8 +2217,7 @@ class ContactImport(SmartModel):
 
             if header_prefix == "":
                 attribute = header_name.lower()
-                if attribute.startswith("contact "):  # header "Contact UUID" -> uuid etc
-                    attribute = attribute[8:]
+                attribute = attribute.removeprefix("contact ")  # header "Contact UUID" -> uuid etc
 
                 if attribute in ("uuid", "name", "language"):
                     mapping = {"type": "attribute", "name": attribute}
