@@ -24,7 +24,7 @@ class MockTwilioClient(Client):
     def validate(self, request):
         return True
 
-    class MockInstanceResource(object):
+    class MockInstanceResource:
         def __init__(self, *args, **kwargs):
             pass
 
@@ -42,7 +42,7 @@ class MockTwilioClient(Client):
             if len(objs) > 0:
                 return objs[0]
 
-    class MockAPI(object):
+    class MockAPI:
         def __init__(self, *args, **kwargs):
             self.base_url = "base_url"
             pass

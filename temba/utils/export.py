@@ -158,7 +158,7 @@ class BaseExportTask(TembaModel):
         abstract = True
 
 
-class TableExporter(object):
+class TableExporter:
     """
     Class that abstracts out writing a table of data to a CSV or Excel file. This only works for exports that
     have a single sheet (as CSV's don't have sheets) but takes care of writing to a CSV in the case

@@ -5228,14 +5228,14 @@ class StripeCreditsTest(TembaTest):
         self.org.stripe_customer = "stripe-cust-1"
         self.org.save()
 
-        class MockCard(object):
+        class MockCard:
             def __init__(self):
                 self.id = "stripe-card-1"
 
             def delete(self):
                 pass
 
-        class MockCards(object):
+        class MockCards:
             def __init__(self):
                 self.throw = False
 
@@ -5248,7 +5248,7 @@ class StripeCreditsTest(TembaTest):
                 else:
                     return MockCard()
 
-        class MockCustomer(object):
+        class MockCustomer:
             def __init__(self, id, email):
                 self.id = id
                 self.email = email
