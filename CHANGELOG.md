@@ -1,3 +1,8 @@
+v7.0.3
+----------
+ * Update to latest editor v1.15.1
+ * Update locale files which adds cs and mn
+
 v7.0.2
 ----------
  * Update editor to v1.15 with validation fixes
