@@ -41,7 +41,14 @@ from temba.flows.models import Flow, FlowStart
 from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.models import Org
-from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import (
+    DependencyDeleteModal,
+    DependencyUsagesModal,
+    MenuMixin,
+    ModalMixin,
+    OrgObjPermsMixin,
+    OrgPermsMixin,
+)
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
@@ -749,6 +756,9 @@ class ContactCRUDL(SmartCRUDL):
     class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         fields = ("name",)
+
+        def derive_menu_path(self):
+            return "/contacts/"
 
         def derive_title(self):
             return self.object.get_display()
@@ -1548,8 +1558,8 @@ class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
     actions = ("list", "create", "update", "usages", "delete", "menu")
 
-    class Menu(OrgPermsMixin, SmartTemplateView):  # pragma: no cover
-        def render_to_response(self, context, **response_kwargs):
+    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):  # pragma: no cover
+        def derive_menu(self):
             org = self.request.user.get_org()
             dynamic_groups = (
                 ContactGroup.get_user_groups(org, dynamic=True, ready_only=False)
@@ -1569,15 +1579,15 @@ class ContactGroupCRUDL(SmartCRUDL):
             menu = []
             for g in all_groups:
                 menu.append(
-                    {
-                        "id": g.uuid,
-                        "name": g.name,
-                        "count": group_counts[g],
-                        "href": reverse("contacts.contact_filter", args=[g.uuid]),
-                        "icon": "loader" if g.status != ContactGroup.STATUS_READY else "atom" if g.query else "",
-                    }
+                    self.create_menu_item(
+                        menu_id=g.uuid,
+                        name=g.name,
+                        icon="loader" if g.status != ContactGroup.STATUS_READY else "atom" if g.query else "",
+                        count=group_counts[g],
+                        href=reverse("contacts.contact_filter", args=[g.uuid]),
+                    )
                 )
-            return JsonResponse({"results": menu})
+            return menu
 
     class List(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         fields = ("name", "query", "count", "created_on")

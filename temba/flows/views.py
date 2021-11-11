@@ -34,6 +34,7 @@ from django.views.generic import FormView
 
 from temba import mailroom
 from temba.archives.models import Archive
+from temba.campaigns.models import CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.contacts.search import SearchException, parse_query
@@ -43,7 +44,7 @@ from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import IntegrationType, Org
-from temba.orgs.views import ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import MenuMixin, ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
 from temba.utils.fields import (
@@ -191,6 +192,7 @@ class FlowCRUDL(SmartCRUDL):
         "create",
         "delete",
         "update",
+        "menu",
         "simulate",
         "change_language",
         "export_translation",
@@ -219,6 +221,71 @@ class FlowCRUDL(SmartCRUDL):
         def get_queryset(self):
             initial_queryset = super().get_queryset()
             return initial_queryset.filter(is_active=True)
+
+    class Menu(MenuMixin, SmartTemplateView):
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
+
+        def derive_menu(self):
+
+            labels = FlowLabel.objects.filter(org=self.request.user.get_org(), parent=None)
+            submenu = self.kwargs.get("submenu")
+
+            if submenu == "labels":
+                menu = []
+                for label in labels:
+                    menu.append(
+                        self.create_menu_item(
+                            menu_id=label.uuid, name=label.name, href=reverse("flows.flow_filter", args=[label.uuid])
+                        )
+                    )
+                return menu
+
+            elif submenu == "campaigns":  # pragma: no cover
+                org = self.request.user.get_org()
+                menu = []
+
+                events = CampaignEvent.objects.filter(
+                    campaign__org=org,
+                    is_active=True,
+                    campaign__is_active=True,
+                    flow__is_archived=False,
+                    flow__is_active=True,
+                    flow__is_system=False,
+                )
+
+                for campaign in (
+                    events.values("campaign__name", "campaign__id")
+                    .annotate(count=Count("id"))
+                    .order_by("campaign__name")
+                ):
+                    menu.append(
+                        self.create_menu_item(
+                            name=campaign["campaign__name"],
+                            href=reverse("flows.flow_campaign", args=[campaign["campaign__id"]]),
+                        )
+                    )
+                return menu
+
+            else:
+                return [
+                    self.create_menu_item(name=_("Active"), icon="flow", href="flows.flow_list"),
+                    # for completeness with old ui, but this feels backwards, we likely should instead have
+                    # a list of flows used on the campaign read pages if we want this filter at all
+                    # self.create_menu_item(
+                    #    name=_("Campaigns"),
+                    #    icon="clock",
+                    #    endpoint=f"{reverse('flows.flow_menu')}campaigns",
+                    # ),
+                    self.create_menu_item(
+                        name=_("Labels"),
+                        icon="tag",
+                        endpoint=f"{reverse('flows.flow_menu')}labels",
+                        count=len(labels),
+                    ),
+                    self.create_menu_item(name=_("Archived"), icon="archive", href="flows.flow_archived"),
+                ]
 
     class RecentMessages(OrgObjPermsMixin, SmartReadView):
         """
@@ -735,7 +802,7 @@ class FlowCRUDL(SmartCRUDL):
             )
             return {"type": file.content_type, "url": f"{settings.STORAGE_URL}/{url}"}
 
-    class BaseList(OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+    class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         title = _("Flows")
         refresh = 10000
         fields = ("name", "modified_on")
@@ -796,7 +863,13 @@ class FlowCRUDL(SmartCRUDL):
             labels = []
             for label in FlowLabel.objects.filter(org=self.request.user.get_org(), parent=None):
                 labels.append(
-                    dict(pk=label.pk, label=label.name, count=label.get_flows_count(), children=label.children.all())
+                    dict(
+                        pk=label.pk,
+                        uuid=label.uuid,
+                        label=label.name,
+                        count=label.get_flows_count(),
+                        children=label.children.all(),
+                    )
                 )
             return labels
 
@@ -889,11 +962,12 @@ class FlowCRUDL(SmartCRUDL):
     class Filter(BaseList, OrgObjPermsMixin):
         add_button = True
         bulk_actions = ("label",)
+        slug_url_kwarg = "uuid"
 
         def get_gear_links(self):
             links = []
 
-            label = FlowLabel.objects.get(pk=self.kwargs["label_id"])
+            label = FlowLabel.objects.get(uuid=self.kwargs["uuid"])
 
             if self.has_org_perm("flows.flow_update"):
                 # links.append(dict(title=_("Edit"), href="#", js_class="label-update-btn"))
@@ -927,19 +1001,19 @@ class FlowCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<label_id>\d+)/$" % (path, action)
+            return r"^%s/%s/(?P<uuid>[0-9a-f-]+)/$" % (path, action)
 
         def derive_title(self, *args, **kwargs):
             return self.derive_label().name
 
         def get_object_org(self):
-            return FlowLabel.objects.get(pk=self.kwargs["label_id"]).org
+            return FlowLabel.objects.get(uuid=self.kwargs["uuid"]).org
 
         def derive_label(self):
-            return FlowLabel.objects.get(pk=self.kwargs["label_id"], org=self.request.user.get_org())
+            return FlowLabel.objects.get(uuid=self.kwargs["uuid"], org=self.request.user.get_org())
 
         def get_label_filter(self):
-            label = FlowLabel.objects.get(pk=self.kwargs["label_id"])
+            label = FlowLabel.objects.get(uuid=self.kwargs["uuid"])
             children = label.children.all()
             if children:  # pragma: needs cover
                 return [l for l in FlowLabel.objects.filter(parent=label)] + [label]

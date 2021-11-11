@@ -508,18 +508,19 @@
         });
     }
 
-    var menuPattern = /\/(contacts\/groups|messages)\/.*/
+    var menuPattern = /\/(contacts\/groups|messages|flows\/labels)\/.*/
     function isMenuLink(url, path) {
-      if (url.match(menuPattern)) {
-        return true;
-      }
-      return false;
+      return url.match(menuPattern);
     }
 
     function convertLegacyURL(dest) {
       const path = dest.path;
       if (dest.url.indexOf("/contact/read/") == 0) {
         dest.path = dest.url.replace("/contact/read/", "/contacts/read/");
+      }
+
+      if (dest.url.indexOf("/flow/editor/") == 0) {
+        dest.path = dest.url.replace("/flow/editor/", "/flows/editor/");
       }
 
       if (dest.url.indexOf("/contact/filter/") == 0) {
@@ -529,6 +530,11 @@
       
       if (dest.url.indexOf("/msg/filter/") == 0) {
         dest.path = dest.url.replace("/msg/filter/", "/messages/labels/");
+        dest.isMenu = true;
+      }
+
+      if (dest.url.indexOf("/flow/filter/") == 0) {
+        dest.path = dest.url.replace("/flow/filter/", "/flows/labels/");
         dest.isMenu = true;
       }
 
@@ -546,7 +552,7 @@
 
       var dest = {
         url: url,
-        path: "/" + menu.getSelection().join("/") + "/", 
+        path: url,
         isMenu: isMenuLink(url)
       }
 
@@ -557,6 +563,7 @@
         menu.setSelectionPath(dest.path);
       } else {
         gotoURL(dest.url, dest.path, !triggerEvents);
+        menu.setFocusedItem(dest.path);
       }
     }
    
@@ -583,9 +590,17 @@
 
     function handleNoPath(event) {
       var details = event.detail;
+      var menu = document.querySelector("temba-menu");
+
       if (details.item == "contacts") {
         gotoURL("/contact/" + details.path, "/" + details.item + "/" + details.path);
+      } 
+      
+      if (details.item == "flows") {
+        gotoURL("/flow/" + details.path, "/" + details.item + "/" + details.path);        
       }
+
+      menu.setFocusedItem("/" + details.item + "/" + details.path);
     }
 
 -block refresh-fn

@@ -994,19 +994,47 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
 
 
 class MenuMixin(OrgPermsMixin):
-    def add_menu(self, menu, name, icon, reverse_name, href=None):
-        if self.has_org_perm(reverse_name):
-            menu_item = {
-                "id": slugify(name),
-                "name": name,
-                "icon": icon,
-                "endpoint": reverse(reverse_name),
-            }
+    def derive_menu(self):
+        return []
 
-            if href and self.has_org_perm(href):
+    def create_divider(self):
+        return {"id": "divider"}
+
+    def create_menu_item(self, menu_id=None, name=None, icon=None, endpoint=None, href=None, count=None, perm=None):
+
+        if perm and not self.has_org_perm(perm):
+            return
+
+        menu_item = {"name": name}
+        menu_item["id"] = menu_id if menu_id else slugify(name)
+
+        if icon:
+            menu_item["icon"] = icon
+
+        if count:
+            menu_item["count"] = count
+
+        if endpoint:
+            if endpoint[0] == "/":
+                menu_item["endpoint"] = endpoint
+            elif self.has_org_perm(endpoint):
+                menu_item["endpoint"] = reverse(endpoint)
+
+        if href:
+            if href[0] == "/":
+                menu_item["href"] = href
+            elif self.has_org_perm(href):
                 menu_item["href"] = reverse(href)
 
-            menu.append(menu_item)
+        # only include the menu item if we have somewhere to go
+        if "href" not in menu_item and "endpoint" not in menu_item:
+            return None
+
+        return menu_item
+
+    def render_to_response(self, context, **response_kwargs):
+        menu = [item for item in self.derive_menu() if item is not None]
+        return JsonResponse({"results": menu})
 
 
 class OrgCRUDL(SmartCRUDL):
@@ -1052,37 +1080,25 @@ class OrgCRUDL(SmartCRUDL):
     model = Org
 
     class Menu(MenuMixin, InferOrgMixin, SmartTemplateView):
-        def render_to_response(self, context, **response_kwargs):
-            menu = []
-            self.add_menu(menu, "Messages", "message-square", "msgs.msg_menu")
-            self.add_menu(menu, "Contacts", "contact", "contacts.contact_menu")
-            # self.add_menu(menu, "Flows", "flow", "flows.flow_menu")
-            self.add_menu(menu, "Campaigns", "campaign", "campaigns.campaigns_menu")
-            self.add_menu(menu, "Tickets", "agent", "tickets.ticket_menu", "tickets.ticket_list")
-            self.add_menu(menu, "Triggers", "radio", "triggers.trigger_menu")
-            self.add_menu(menu, "Channels", "zap", "channels.channel_menu")
-
-            # menu.append(
-            #    {
-            #        "id": "settings",
-            #        "name": "Settings",
-            #        "icon": "settings",
-            #        "bottom": True,
-            #        "href": reverse("orgs.org_home"),
-            #    }
-            # )
-
-            menu.append(
+        def derive_menu(self):
+            return [
+                self.create_menu_item(name=_("Messages"), icon="message-square", endpoint="msgs.msg_menu"),
+                self.create_menu_item(name=_("Contacts"), icon="contact", endpoint="contacts.contact_menu"),
+                self.create_menu_item(name=_("Flows"), icon="flow", endpoint="flows.flow_menu"),
+                self.create_menu_item(name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaigns_menu"),
+                self.create_menu_item(
+                    name=_("Tickets"), icon="agent", endpoint="tickets.ticket_menu", href="tickets.ticket_list"
+                ),
+                self.create_menu_item(name=_("Triggers"), icon="radio", endpoint="triggers.trigger_menu"),
+                self.create_menu_item(name=_("Channels"), icon="zap", endpoint="channels.channel_menu"),
                 {
                     "id": "support",
-                    "name": "Support",
+                    "name": _("Support"),
                     "icon": "help-circle",
                     "bottom": True,
                     "trigger": "showSupportWidget",
-                }
-            )
-
-            return JsonResponse({"results": menu})
+                },
+            ]
 
     class Import(NonAtomicMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class FlowImportForm(Form):

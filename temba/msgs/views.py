@@ -17,7 +17,6 @@ from django.contrib import messages
 from django.db.models.functions.text import Upper
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
-from django.http.response import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import is_safe_url, urlquote_plus
@@ -29,7 +28,14 @@ from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.formax import FormaxMixin
 from temba.orgs.models import Org
-from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import (
+    DependencyDeleteModal,
+    DependencyUsagesModal,
+    MenuMixin,
+    ModalMixin,
+    OrgObjPermsMixin,
+    OrgPermsMixin,
+)
 from temba.utils import analytics, json, on_transaction_commit
 from temba.utils.fields import (
     CheckboxWidget,
@@ -516,8 +522,8 @@ class MsgCRUDL(SmartCRUDL):
     model = Msg
     actions = ("inbox", "flow", "archived", "menu", "outbox", "sent", "failed", "filter", "export")
 
-    class Menu(OrgPermsMixin, SmartTemplateView):  # pragma: no cover
-        def render_to_response(self, context, **response_kwargs):
+    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):  # pragma: no cover
+        def derive_menu(self):
             org = self.request.user.get_org()
             counts = SystemLabel.get_counts(org)
 
@@ -528,83 +534,76 @@ class MsgCRUDL(SmartCRUDL):
                     .order_by(Upper("name"))
                 )
                 label_counts = LabelCount.get_totals([l for l in labels])
-                menu = [
-                    {
-                        "id": label.uuid,
-                        "name": label.name,
-                        "count": label_counts[label],
-                        "href": reverse("msgs.msg_filter", args=[label.uuid]),
-                    }
-                    for label in labels
-                ]
+
+                menu = []
+                for label in labels:
+                    menu.append(
+                        self.create_menu_item(
+                            menu_id=label.uuid,
+                            name=label.name,
+                            href=reverse("msgs.msg_filter", args=[label.uuid]),
+                            count=label_counts[label],
+                        )
+                    )
+                return menu
             else:
                 label_count = Label.label_objects.filter(org=org, is_active=True).count()
-                menu = [
-                    dict(
-                        id="inbox",
-                        count=counts[SystemLabel.TYPE_INBOX],
+
+                return [
+                    self.create_menu_item(
                         name=_("Inbox"),
                         href=reverse("msgs.msg_inbox"),
+                        count=counts[SystemLabel.TYPE_INBOX],
                         icon="inbox",
                     ),
-                    dict(
-                        id="scheduled",
-                        count=counts[SystemLabel.TYPE_SCHEDULED],
+                    self.create_menu_item(
                         name=_("Scheduled"),
                         href=reverse("msgs.broadcast_schedule_list"),
+                        count=counts[SystemLabel.TYPE_SCHEDULED],
                         icon="clock",
                     ),
-                    dict(id="divider"),
-                    dict(
-                        id="labels",
+                    self.create_divider(),
+                    self.create_menu_item(
                         name=_("Labels"),
+                        endpoint=f"{reverse('msgs.msg_menu')}?labels=1",
                         count=label_count,
                         icon="tag",
-                        endpoint=f"{reverse('msgs.msg_menu')}?labels=1",
                     ),
-                    dict(id="divider"),
-                    dict(
-                        id="outbox",
-                        count=counts[SystemLabel.TYPE_OUTBOX],
+                    self.create_divider(),
+                    self.create_menu_item(
                         name=_("Outbox"),
                         href=reverse("msgs.msg_outbox"),
+                        count=counts[SystemLabel.TYPE_OUTBOX],
                     ),
-                    dict(
-                        id="sent",
-                        count=counts[SystemLabel.TYPE_SENT],
+                    self.create_menu_item(
                         name=_("Sent"),
                         href=reverse("msgs.msg_sent"),
+                        count=counts[SystemLabel.TYPE_SENT],
                     ),
-                    dict(
-                        id="failed",
-                        count=counts[SystemLabel.TYPE_FAILED],
+                    self.create_menu_item(
                         name=_("Failed"),
                         href=reverse("msgs.msg_failed"),
+                        count=counts[SystemLabel.TYPE_FAILED],
                     ),
-                    dict(id="divider"),
-                    dict(
-                        id="flow",
-                        count=counts[SystemLabel.TYPE_FLOWS],
+                    self.create_divider(),
+                    self.create_menu_item(
                         name=_("Flows"),
                         href=reverse("msgs.msg_flow"),
+                        count=counts[SystemLabel.TYPE_FLOWS],
                     ),
-                    dict(
-                        id="calls",
-                        count=counts[SystemLabel.TYPE_CALLS],
+                    self.create_menu_item(
                         name=_("Calls"),
                         href=reverse("channels.channelevent_calls"),
+                        count=counts[SystemLabel.TYPE_CALLS],
                     ),
-                    dict(id="divider"),
-                    dict(
-                        id="archived",
-                        count=counts[SystemLabel.TYPE_ARCHIVED],
+                    self.create_divider(),
+                    self.create_menu_item(
                         name=_("Archived"),
                         href=reverse("msgs.msg_archived"),
+                        count=counts[SystemLabel.TYPE_ARCHIVED],
                         icon="archive",
                     ),
                 ]
-
-            return JsonResponse({"results": menu})
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
 

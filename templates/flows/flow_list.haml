@@ -51,30 +51,30 @@
 
                 -for label in labels
                   -if label.children
-                    .lp-nav-item{ class:'{% if current_label.pk == label.pk %}font-normal{% endif %}' }
-                      .name{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.pk %}'}
+                    .lp-nav-item{ class:'{% if current_label.uuid == label.uuid %}font-normal{% endif %}' }
+                      .name{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.uuid %}'}
                         {{ label.label }}
                       .count.-mr-1.text-gray-400
                         -if current_label.pk == label.pk or current_label.parent_id == label.pk
-                          .glyph.icon-arrow-down-2{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.pk %}'}
+                          .glyph.icon-arrow-down-2{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.uuid %}'}
                         -else
-                          .glyph.icon-arrow-right-8{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.pk %}'}
+                          .glyph.icon-arrow-right-8{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.uuid %}'}
 
                     -if current_label.pk == label.pk or current_label.parent_id == label.pk
                       .pl-2.mt-1.level2.font-light
                         -for child in label.children
                           .lp-nav-item{ class:'{% if current_label.pk == child.pk %}font-normal{% endif %}' }
-                            .name{onclick:"goto(event)",  href:"{% url 'flows.flow_filter' child.pk %}" }
+                            .name{onclick:"goto(event)",  href:"{% url 'flows.flow_filter' child.uuid %}" }
                               {{ child.name }}
-                            .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' child.pk %}" }
+                            .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' child.uuid %}" }
                               {{ child.get_flows_count | intcomma }}
 
                 -for label in labels
                   -if not label.children
                     .lp-nav-item{ class:'{% if current_label.pk == label.pk %}font-normal{% endif %}' }
-                      .name{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.pk %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
+                      .name{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.uuid %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
                         {{ label.label }}
-                      .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.pk %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
+                      .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.uuid %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
                         {{ label.count | intcomma }}
 
           .flex-grow
@@ -200,7 +200,7 @@
                       %td
                         .whitespace-no-break.flex.items-center.ml-2.justify-end
                           -for label in object.labels.all
-                            .lbl.linked.ml-2{ onclick:"goto(event)", data-id: '{{label.pk}}', href:"{% url 'flows.flow_filter' label.pk%}"}
+                            .lbl.linked.ml-2{ onclick:"goto(event)", data-id: '{{label.pk}}', href:"{% url 'flows.flow_filter' label.uuid%}"}
                               {{label.name}}
 
                       %td
