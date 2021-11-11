@@ -134,7 +134,7 @@
               .flex.w-full.items-end.flex-wrap.justify-end.mb-4
                 -block action-buttons
                   -if org_perms.contacts.contact_update
-                    .list-buttons-container.h-full.mr-2.mt-2.flex-grow
+                    .list-buttons-container.h-full.mr-2.flex-grow
                       .list-buttons.flex.items-center.-mx-2.h-full
 
                         -if 'restore' in actions
@@ -198,10 +198,12 @@
                             {{current_group.name}}
                           -else
                             {{title}}
-                      .subtitle
-                        -block subtitle
-                  .gear-links
-                    -include "gear_links_include.haml"
+                  -if view.get_gear_links
+                    .gear-links
+                      -include "gear_links_include.haml"
+                .subtitle.ml-1.w-full
+                  -block subtitle
+
 
               %form#search-form.mb-4(method="get")
                 %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
