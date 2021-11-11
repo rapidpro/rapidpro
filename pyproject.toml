@@ -61,7 +61,7 @@ chardet = "^4.0.0"
 openpyxl = "3.0.7"  # https://foss.heptapod.net/openpyxl/openpyxl/-/issues/1740
 
 [tool.poetry.dev-dependencies]
-black = "^20.8b1"
+black = "^21.10b0"
 coverage = "^5.5"
 flake8 = "3.7.7"
 isort = "^4.3.16"
