@@ -1170,7 +1170,6 @@ class ContactCRUDL(SmartCRUDL):
 
     class Blocked(ContactListView):
         title = _("Blocked Contacts")
-        template_name = "contacts/contact_list.haml"
         system_group = ContactGroup.TYPE_BLOCKED
 
         def get_bulk_actions(self):
