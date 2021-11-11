@@ -1,3 +1,9 @@
+v7.0.4
+----------
+ * Fix contact stop list page 
+ * Update to latest black to fix errors on Python 3.9.8
+ * Add missing migration
+
 v7.0.3
 ----------
  * Update to latest editor v1.15.1
