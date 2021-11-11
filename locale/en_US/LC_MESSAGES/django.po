@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-11-03 12:03+0000\n"
+"POT-Creation-Date: 2021-11-09 21:32+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3819,13 +3819,19 @@ msgstr ""
 msgid "English"
 msgstr ""
 
-msgid "Portuguese"
+msgid "Czech"
+msgstr ""
+
+msgid "Spanish"
 msgstr ""
 
 msgid "French"
 msgstr ""
 
-msgid "Spanish"
+msgid "Mongolian"
+msgstr ""
+
+msgid "Portuguese"
 msgstr ""
 
 msgid "Russian"
@@ -5994,6 +6000,12 @@ msgid "<b>%(name)s</b> cannot be deleted as it still contains labels."
 msgstr ""
 
 msgid "Numeric Value:"
+msgstr ""
+
+msgid "Delete Selected Messages"
+msgstr ""
+
+msgid "Are you sure you want to delete the selected messages? This cannot be undone."
 msgstr ""
 
 msgid "Create Folder"
