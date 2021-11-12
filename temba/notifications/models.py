@@ -42,7 +42,7 @@ class FlowWebhooksIncidentType(IncidentType):
     slug = "flow:webhooks"
 
     def get_target_url(self, incident) -> str:
-        return reverse("request_logs.httplog_flow", kwargs={"uuid": incident.flow.uuid})
+        return reverse("flows.flow_editor", kwargs={"uuid": incident.flow.uuid})
 
     def as_json(self, incident) -> dict:
         json = super().as_json(incident)

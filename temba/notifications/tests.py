@@ -73,7 +73,7 @@ class IncidentTest(TembaTest):
             flow=flow,
         )
 
-        self.assertEqual(f"/httplog/flow/{flow.uuid}/", incident.target_url)
+        self.assertEqual(f"/flow/editor/{flow.uuid}/", incident.target_url)
         self.assertEqual(
             {
                 "type": "flow:webhooks",

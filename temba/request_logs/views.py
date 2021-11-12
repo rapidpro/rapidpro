@@ -6,8 +6,6 @@ from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
 from temba.classifiers.models import Classifier
-from temba.flows.models import Flow
-from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticketer
 
@@ -55,10 +53,9 @@ class BaseObjLogsView(OrgObjPermsMixin, SmartListView):
 
 class HTTPLogCRUDL(SmartCRUDL):
     model = HTTPLog
-    actions = ("webhooks", "classifier", "flow", "ticketer", "read")
+    actions = ("webhooks", "classifier", "ticketer", "read")
 
     class Webhooks(OrgPermsMixin, SmartListView):
-
         title = _("Webhook Calls")
         default_order = ("-created_on",)
         select_related = ("flow",)
@@ -78,17 +75,6 @@ class HTTPLogCRUDL(SmartCRUDL):
 
         def get_source(self, uuid):
             return Classifier.objects.filter(uuid=uuid, is_active=True)
-
-    class Flow(BaseObjLogsView, NotificationTargetMixin):
-        source_field = "flow"
-        source_url = "uuid@flows.flow_editor"
-        title = _("Webhook Calls")
-
-        def get_notification_scope(self) -> tuple[str, str]:
-            return "flow:webhooks", self.kwargs["uuid"]
-
-        def get_source(self, uuid):
-            return Flow.objects.filter(uuid=uuid, is_active=True)
 
     class Ticketer(BaseObjLogsView):
         source_field = "ticketer"
