@@ -427,14 +427,20 @@
 .icon-menu:before {
   content: "\e092";
 }
+.icon-menu-1:before {
+  content: "\e069";
+}
+.icon-menu-2:before {
+  content: "\e091";
+}
+.icon-menu-3:before {
+  content: "\e092";
+}
 .icon-menu-4:before {
   content: "\e0c1";
 }
 .icon-menu-5:before {
   content: "\e0c3";
-}
-.icon-menu1:before {
-  content: "\e069";
 }
 .icon-meter-medium:before {
   content: "\e029";
