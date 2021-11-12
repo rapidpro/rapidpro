@@ -18,11 +18,57 @@ from .tasks import send_notification_emails, squash_notificationcounts
 
 
 class IncidentTest(TembaTest):
+    def test_uniqueness(self):
+        # we use a unique constraint to enforce uniqueness on org+type+scope for ongoing incidents which allows use of
+        # INSERT .. ON CONFLICT DO NOTHING
+        incident1, created1 = Incident.objects.get_or_create(
+            org=self.org,
+            incident_type="incident:test",
+            scope="scope1",
+            ended_on=None,
+            defaults=dict(started_on=datetime(2021, 11, 12, 14, 1, 30, 123456, tzinfo=pytz.UTC)),
+        )
+        incident2, created2 = Incident.objects.get_or_create(  # try to create another for the same scope
+            org=self.org,
+            incident_type="incident:test",
+            scope="scope1",
+            ended_on=None,
+            defaults=dict(started_on=datetime(2021, 11, 12, 14, 2, 30, 123456, tzinfo=pytz.UTC)),
+        )
+        incident3, created3 = Incident.objects.get_or_create(  # different scope
+            org=self.org,
+            incident_type="incident:test",
+            scope="scope2",
+            ended_on=None,
+            defaults=dict(started_on=datetime(2021, 11, 12, 14, 3, 30, 123456, tzinfo=pytz.UTC)),
+        )
+
+        self.assertTrue(created1)
+        self.assertFalse(created2)
+        self.assertTrue(created3)
+        self.assertEqual(incident1, incident2)
+        self.assertNotEqual(incident1, incident3)
+
+        # check that once incident 1 ends, new incidents can be created for same scope
+        incident1.end()
+
+        incident4, created4 = Incident.objects.get_or_create(
+            org=self.org,
+            incident_type="incident:test",
+            scope="scope1",
+            ended_on=None,
+            defaults=dict(started_on=datetime(2021, 11, 12, 14, 4, 30, 123456, tzinfo=pytz.UTC)),
+        )
+
+        self.assertTrue(created4)
+        self.assertNotEqual(incident1, incident4)
+
     def test_flow_webhooks(self):
         flow = self.create_flow("Test Flow")
         incident = Incident.objects.create(
             org=self.org,
             incident_type="flow:webhooks",
+            scope=str(flow.uuid),
             started_on=datetime(2021, 11, 12, 14, 23, 30, 123456, tzinfo=pytz.UTC),
             flow=flow,
         )

@@ -63,10 +63,18 @@ class Incident(models.Model):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="incidents")
     incident_type = models.CharField(max_length=16)
 
+    # The scope is what we maintain uniqueness of ongoing incidents for within an org. For incident types with an
+    # associated object, this will be the UUID of the object.
+    scope = models.CharField(max_length=36)
+
     started_on = models.DateTimeField(default=timezone.now)
     ended_on = models.DateTimeField(null=True)
 
     flow = models.ForeignKey(Flow, null=True, on_delete=models.PROTECT, related_name="incidents")
+
+    def end(self):
+        self.ended_on = timezone.now()
+        self.save(update_fields=("ended_on",))
 
     @property
     def target_url(self) -> str:
@@ -78,6 +86,15 @@ class Incident(models.Model):
 
     def as_json(self) -> dict:
         return self.type.as_json(self)
+
+    class Meta:
+        constraints = [
+            # used to check if we already have an existing ongoing incident for something or to clear unseen
+            # notifications when visiting their target URL
+            models.UniqueConstraint(
+                name="incidents_ongoing_of_type", fields=["org", "incident_type", "scope"], condition=Q(ended_on=None)
+            ),
+        ]
 
 
 class NotificationType:
