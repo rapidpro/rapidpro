@@ -10,13 +10,74 @@ from django.utils.functional import cached_property
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactImport, ExportContactsTask
-from temba.flows.models import ExportFlowResultsTask
+from temba.flows.models import ExportFlowResultsTask, Flow
 from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import Org
 from temba.utils.email import send_template_email
 from temba.utils.models import SquashableModel
 
 logger = logging.getLogger(__name__)
+
+
+class IncidentType:
+    slug = None
+
+    @abstractmethod
+    def get_target_url(self, incident) -> str:  # pragma: no cover
+        pass
+
+    def as_json(self, incident) -> dict:
+        return {
+            "type": incident.incident_type,
+            "started_on": incident.started_on.isoformat(),
+            "ended_on": incident.ended_on.isoformat() if incident.ended_on else None,
+        }
+
+
+class FlowWebhooksIncidentType(IncidentType):
+    """
+    Webhooks in a flow have been taking too long to respond for a period of time.
+    """
+
+    slug = "flow:webhooks"
+
+    def get_target_url(self, incident) -> str:
+        return reverse("request_logs.httplog_flow", kwargs={"uuid": incident.flow.uuid})
+
+    def as_json(self, incident) -> dict:
+        json = super().as_json(incident)
+        json["flow"] = {"uuid": str(incident.flow.uuid), "name": incident.flow.name}
+        return json
+
+
+INCIDENT_TYPES_BY_SLUG = {t.slug: t() for t in IncidentType.__subclasses__()}
+
+
+class Incident(models.Model):
+    """
+    Models a problem with something in a workspace - e.g. a channel experiencing high error rates, webhooks in a flow
+    experiencing poor response times.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="incidents")
+    incident_type = models.CharField(max_length=16)
+
+    started_on = models.DateTimeField(default=timezone.now)
+    ended_on = models.DateTimeField(null=True)
+
+    flow = models.ForeignKey(Flow, null=True, on_delete=models.PROTECT, related_name="incidents")
+
+    @property
+    def target_url(self) -> str:
+        return self.type.get_target_url(self)
+
+    @property
+    def type(self):
+        return INCIDENT_TYPES_BY_SLUG[self.incident_type]
+
+    def as_json(self) -> dict:
+        return self.type.as_json(self)
 
 
 class NotificationType:
@@ -96,6 +157,18 @@ class ImportFinishedNotificationType(NotificationType):
         return json
 
 
+class IncidentStartedNotificationType(NotificationType):
+    slug = "incident:started"
+
+    def get_target_url(self, notification) -> str:
+        return reverse("request_logs.httplog_flow", kwargs={"uuid": notification.flow.uuid})
+
+    def as_json(self, notification) -> dict:
+        json = super().as_json(notification)
+        json["incident"] = notification.incident.as_json()
+        return json
+
+
 class TicketsOpenedNotificationType(NotificationType):
     slug = "tickets:opened"
 
@@ -110,7 +183,7 @@ class TicketActivityNotificationType(NotificationType):
         return "/ticket/mine/"
 
 
-TYPES_BY_SLUG = {lt.slug: lt() for lt in NotificationType.__subclasses__()}
+NOTIFICATION_TYPES_BY_SLUG = {lt.slug: lt() for lt in NotificationType.__subclasses__()}
 
 
 class Notification(models.Model):
@@ -129,7 +202,7 @@ class Notification(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="notifications")
-    notification_type = models.CharField(max_length=16, null=True)
+    notification_type = models.CharField(max_length=16)
 
     # The scope is what we maintain uniqueness of unseen notifications for within an org. For some notification types,
     # user can only have one unseen of that type per org, and so this will be an empty string. For other notification
@@ -154,6 +227,7 @@ class Notification(models.Model):
     contact_import = models.ForeignKey(
         ContactImport, null=True, on_delete=models.PROTECT, related_name="notifications"
     )
+    incident = models.ForeignKey(Incident, null=True, on_delete=models.PROTECT, related_name="notifications")
 
     @classmethod
     def channel_alert(cls, alert):
@@ -231,7 +305,7 @@ class Notification(models.Model):
 
     @property
     def type(self):
-        return TYPES_BY_SLUG[self.notification_type]
+        return NOTIFICATION_TYPES_BY_SLUG[self.notification_type]
 
     def as_json(self) -> dict:
         return self.type.as_json(self)

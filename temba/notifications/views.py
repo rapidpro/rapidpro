@@ -15,7 +15,7 @@ class NotificationTargetMixin:
     notification_type = None
     notification_scope = ""
 
-    def get_notification_scope(self) -> tuple:  # pragma: no cover
+    def get_notification_scope(self) -> tuple[str, str]:  # pragma: no cover
         return self.notification_type, self.notification_scope
 
     def get(self, request, *args, **kwargs):

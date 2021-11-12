@@ -86,7 +86,7 @@ class TicketCRUDL(SmartCRUDL):
             folders = "|".join(TicketFolder.all().keys())
             return rf"^ticket/((?P<folder>{folders})/((?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+)/)?)?)?$"
 
-        def get_notification_scope(self) -> tuple:
+        def get_notification_scope(self) -> tuple[str, str]:
             folder, status, _, _ = self.tickets_path
             if folder == UnassignedFolder.slug and status == "open":
                 return "tickets:opened", ""

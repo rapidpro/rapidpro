@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import pytz
+
 from django.core import mail
 from django.test import override_settings
 from django.urls import reverse
@@ -11,8 +13,30 @@ from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import OrgRole
 from temba.tests import TembaTest, matchers
 
-from .models import Notification
+from .models import Incident, Notification
 from .tasks import send_notification_emails, squash_notificationcounts
+
+
+class IncidentTest(TembaTest):
+    def test_flow_webhooks(self):
+        flow = self.create_flow("Test Flow")
+        incident = Incident.objects.create(
+            org=self.org,
+            incident_type="flow:webhooks",
+            started_on=datetime(2021, 11, 12, 14, 23, 30, 123456, tzinfo=pytz.UTC),
+            flow=flow,
+        )
+
+        self.assertEqual(f"/httplog/flow/{flow.uuid}/", incident.target_url)
+        self.assertEqual(
+            {
+                "type": "flow:webhooks",
+                "started_on": "2021-11-12T14:23:30.123456+00:00",
+                "ended_on": None,
+                "flow": {"name": "Test Flow", "uuid": str(flow.uuid)},
+            },
+            incident.as_json(),
+        )
 
 
 @override_settings(SEND_EMAILS=True)

@@ -776,7 +776,7 @@ class ChannelCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
-        def get_notification_scope(self) -> tuple:
+        def get_notification_scope(self) -> tuple[str, str]:
             return "channel:alert", str(self.object.uuid)
 
         def get_queryset(self):

@@ -2225,7 +2225,7 @@ class ContactImportCRUDL(SmartCRUDL):
             return obj
 
     class Read(OrgObjPermsMixin, NotificationTargetMixin, SmartReadView):
-        def get_notification_scope(self) -> tuple:
+        def get_notification_scope(self) -> tuple[str, str]:
             return "import:finished", f"contact:{self.object.id}"
 
         def get_context_data(self, **kwargs):

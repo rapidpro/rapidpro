@@ -151,9 +151,17 @@ class HTTPLog(models.Model):
     class Meta:
         indexes = (
             # for classifier specific log view
-            Index(fields=("classifier", "-created_on")),
-            # for webhook log view
-            Index(name="httplog_org_flows_only", fields=("org", "-created_on"), condition=Q(flow__isnull=False)),
+            Index(
+                name="httplog_for_classifier",
+                fields=("classifier", "-created_on"),
+                condition=Q(classifier__isnull=False),
+            ),
+            # for flow specific log view
+            Index(name="httplog_for_flow", fields=("flow", "-created_on"), condition=Q(flow__isnull=False)),
             # for ticketer specific log view
-            Index(fields=("ticketer", "-created_on")),
+            Index(
+                name="httplog_for_ticketer", fields=("ticketer", "-created_on"), condition=Q(ticketer__isnull=False)
+            ),
+            # for webhooks log view (i.e. all flows)
+            Index(name="httplog_org_flows_only", fields=("org", "-created_on"), condition=Q(flow__isnull=False)),
         )

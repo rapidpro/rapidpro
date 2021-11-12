@@ -46,7 +46,7 @@ class AssetDownloadView(NotificationTargetMixin, SmartTemplateView):
     def has_permission(self, request, *args, **kwargs):
         return self.request.user.is_authenticated
 
-    def get_notification_scope(self) -> tuple:
+    def get_notification_scope(self) -> tuple[str, str]:
         try:
             scope = self.get_asset().get_notification_scope()
         except Exception:
