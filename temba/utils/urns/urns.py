@@ -12,7 +12,7 @@ ESCAPES = {
 }
 
 
-class ParsedURN(object):
+class ParsedURN:
     def __init__(self, scheme, path, query="", fragment=""):
         self.scheme = scheme
         self.path = path

@@ -3,7 +3,6 @@ import time
 from array import array
 from collections import defaultdict
 from datetime import timedelta
-from typing import Dict
 
 import iso8601
 import regex
@@ -709,11 +708,11 @@ class Flow(TembaModel):
         """
         return Version(self.version_number) < Version(Flow.INITIAL_GOFLOW_VERSION)
 
-    def as_export_ref(self) -> Dict:
+    def as_export_ref(self) -> dict:
         return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
 
     @classmethod
-    def get_metadata(cls, flow_info) -> Dict:
+    def get_metadata(cls, flow_info) -> dict:
         return {
             Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
             Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
@@ -737,7 +736,7 @@ class Flow(TembaModel):
             self.save_revision(user=None, definition=flow_def)
             self.refresh_from_db()
 
-    def get_definition(self) -> Dict:
+    def get_definition(self) -> dict:
         """
         Returns the current definition of this flow
         """
@@ -1404,7 +1403,7 @@ class FlowRevision(SmartModel):
             for rule in ruleset["rules"]:
                 validate_localization(rule["category"])
 
-    def get_migrated_definition(self, to_version: str = Flow.CURRENT_SPEC_VERSION) -> Dict:
+    def get_migrated_definition(self, to_version: str = Flow.CURRENT_SPEC_VERSION) -> dict:
         definition = self.definition
 
         # if it's previous to version 6, wrap the definition to
