@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class IncidentType:
-    slug = None
+    slug: str = None
 
     @abstractmethod
     def get_target_url(self, incident) -> str:  # pragma: no cover
@@ -32,6 +32,17 @@ class IncidentType:
             "started_on": incident.started_on.isoformat(),
             "ended_on": incident.ended_on.isoformat() if incident.ended_on else None,
         }
+
+
+class OrgFlaggedIncidentType(IncidentType):
+    """
+    Org has been flagged due to suspicious activity
+    """
+
+    slug = "org:flagged"
+
+    def get_target_url(self, incident) -> str:
+        return reverse("orgs.org_home")
 
 
 class FlowWebhooksIncidentType(IncidentType):
@@ -72,13 +83,40 @@ class Incident(models.Model):
 
     flow = models.ForeignKey(Flow, null=True, on_delete=models.PROTECT, related_name="incidents")
 
+    @classmethod
+    def flagged(cls, org):
+        """
+        Creates a flagged incident if one is not already ongoing
+        """
+        return cls._create(org, OrgFlaggedIncidentType.slug, scope="")
+
+    @classmethod
+    def _create(cls, org, incident_type: str, *, scope: str, **kwargs):
+        incident, created = cls.objects.get_or_create(
+            org=org,
+            incident_type=incident_type,
+            scope=scope,
+            ended_on=None,
+            defaults=kwargs,
+        )
+        if created:
+            Notification.incident_started(incident)
+        return incident
+
     def end(self):
+        """
+        Ends this incident
+        """
         self.ended_on = timezone.now()
         self.save(update_fields=("ended_on",))
 
     @property
     def target_url(self) -> str:
         return self.type.get_target_url(self)
+
+    @property
+    def template(self):
+        return f"notifications/incidents/{self.incident_type.replace(':', '_')}.haml"
 
     @property
     def type(self):
@@ -88,11 +126,17 @@ class Incident(models.Model):
         return self.type.as_json(self)
 
     class Meta:
+        indexes = [
+            # used to list an org's ongoing and ended incidents in the UI
+            models.Index(name="incidents_org_ongoing", fields=("org", "-started_on"), condition=Q(ended_on=None)),
+            models.Index(
+                name="incidents_org_ended", fields=("org", "-started_on"), condition=Q(ended_on__isnull=False)
+            ),
+        ]
         constraints = [
-            # used to check if we already have an existing ongoing incident for something or to clear unseen
-            # notifications when visiting their target URL
+            # used to check if we already have an existing ongoing incident for something
             models.UniqueConstraint(
-                name="incidents_ongoing_of_type", fields=["org", "incident_type", "scope"], condition=Q(ended_on=None)
+                name="incidents_ongoing_scoped", fields=["org", "incident_type", "scope"], condition=Q(ended_on=None)
             ),
         ]
 
@@ -178,7 +222,7 @@ class IncidentStartedNotificationType(NotificationType):
     slug = "incident:started"
 
     def get_target_url(self, notification) -> str:
-        return reverse("request_logs.httplog_flow", kwargs={"uuid": notification.flow.uuid})
+        return reverse("notifications.incident_list")
 
     def as_json(self, notification) -> dict:
         json = super().as_json(notification)
@@ -277,6 +321,21 @@ class Notification(models.Model):
         )
 
     @classmethod
+    def incident_started(cls, incident):
+        """
+        Creates an incident started notification for all admins in the workspace.
+        """
+
+        cls._create_all(
+            incident.org,
+            IncidentStartedNotificationType.slug,
+            scope=str(incident.id),
+            users=incident.org.get_admins(),
+            email_status=cls.EMAIL_STATUS_NONE,  # TODO add email support
+            incident=incident,
+        )
+
+    @classmethod
     def _create_all(cls, org, notification_type: str, *, scope: str, users, **kwargs):
         for user in users:
             cls.objects.get_or_create(
@@ -308,9 +367,14 @@ class Notification(models.Model):
 
     @classmethod
     def mark_seen(cls, org, notification_type: str, *, scope: str, user):
-        cls.objects.filter(
-            org_id=org.id, notification_type=notification_type, scope=scope, user=user, is_seen=False
-        ).update(is_seen=True)
+        notifications = cls.objects.filter(
+            org_id=org.id, notification_type=notification_type, user=user, is_seen=False
+        )
+
+        if scope is not None:
+            notifications = notifications.filter(scope=scope)
+
+        notifications.update(is_seen=True)
 
     @classmethod
     def get_unseen_count(cls, org: Org, user: User) -> int:

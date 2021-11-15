@@ -1,10 +1,11 @@
 from smartmin.views import SmartCRUDL, SmartListView
 
 from django.http import JsonResponse
+from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import OrgPermsMixin
 
-from .models import Notification
+from .models import Incident, Notification
 
 
 class NotificationTargetMixin:
@@ -35,7 +36,14 @@ class NotificationCRUDL(SmartCRUDL):
     class List(OrgPermsMixin, SmartListView):
         default_order = "-id"
         select_related = ("org",)
-        prefetch_related = ("channel", "contact_import", "contact_export", "message_export", "results_export")
+        prefetch_related = (
+            "channel",
+            "contact_import",
+            "contact_export",
+            "message_export",
+            "results_export",
+            "incident",
+        )
 
         def get_queryset(self, **kwargs):
             return (
@@ -49,3 +57,29 @@ class NotificationCRUDL(SmartCRUDL):
             return JsonResponse(
                 {"results": [n.as_json() for n in context["object_list"]]}, json_dumps_params={"indent": 2}
             )
+
+
+class IncidentCRUDL(SmartCRUDL):
+    model = Incident
+    actions = ("list",)
+
+    class List(OrgPermsMixin, NotificationTargetMixin, SmartListView):
+        default_order = "-started_on"
+        title = _("Incidents")
+        fields = ("incident_type", "started_on", "ended_on")
+        select_related = ("flow",)
+
+        def get_notification_scope(self) -> tuple[str, str]:
+            return "incident:started", None  # clear all incident started notifications
+
+        def get_queryset(self, **kwargs):
+            return super().get_queryset(**kwargs).filter(org=self.request.org).exclude(ended_on=None)
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["ongoing"] = (
+                Incident.objects.filter(org=self.request.org, ended_on=None)
+                .select_related(*self.select_related)
+                .order_by("-started_on")
+            )
+            return context

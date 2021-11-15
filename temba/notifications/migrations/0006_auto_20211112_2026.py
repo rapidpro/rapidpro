@@ -54,12 +54,26 @@ class Migration(migrations.Migration):
                 to="notifications.incident",
             ),
         ),
+        migrations.AddIndex(
+            model_name="incident",
+            index=models.Index(
+                condition=models.Q(("ended_on", None)), fields=["org", "-started_on"], name="incidents_org_ongoing"
+            ),
+        ),
+        migrations.AddIndex(
+            model_name="incident",
+            index=models.Index(
+                condition=models.Q(("ended_on__isnull", False)),
+                fields=["org", "-started_on"],
+                name="incidents_org_ended",
+            ),
+        ),
         migrations.AddConstraint(
             model_name="incident",
             constraint=models.UniqueConstraint(
                 condition=models.Q(("ended_on", None)),
                 fields=("org", "incident_type", "scope"),
-                name="incidents_ongoing_of_type",
+                name="incidents_ongoing_scoped",
             ),
         ),
     ]

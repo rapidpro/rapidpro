@@ -5,67 +5,69 @@ import pytz
 from django.core import mail
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from temba.channels.models import Alert
 from temba.contacts.models import ContactImport, ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import OrgRole
-from temba.tests import TembaTest, matchers
+from temba.tests import CRUDLTestMixin, TembaTest, matchers
 
 from .models import Incident, Notification
 from .tasks import send_notification_emails, squash_notificationcounts
 
 
 class IncidentTest(TembaTest):
-    def test_uniqueness(self):
+    def test_create(self):
         # we use a unique constraint to enforce uniqueness on org+type+scope for ongoing incidents which allows use of
         # INSERT .. ON CONFLICT DO NOTHING
-        incident1, created1 = Incident.objects.get_or_create(
-            org=self.org,
-            incident_type="incident:test",
-            scope="scope1",
-            ended_on=None,
-            defaults=dict(started_on=datetime(2021, 11, 12, 14, 1, 30, 123456, tzinfo=pytz.UTC)),
-        )
-        incident2, created2 = Incident.objects.get_or_create(  # try to create another for the same scope
-            org=self.org,
-            incident_type="incident:test",
-            scope="scope1",
-            ended_on=None,
-            defaults=dict(started_on=datetime(2021, 11, 12, 14, 2, 30, 123456, tzinfo=pytz.UTC)),
-        )
-        incident3, created3 = Incident.objects.get_or_create(  # different scope
-            org=self.org,
-            incident_type="incident:test",
-            scope="scope2",
-            ended_on=None,
-            defaults=dict(started_on=datetime(2021, 11, 12, 14, 3, 30, 123456, tzinfo=pytz.UTC)),
-        )
+        incident1 = Incident._create(self.org, "incident:test", scope="scope1")
 
-        self.assertTrue(created1)
-        self.assertFalse(created2)
-        self.assertTrue(created3)
+        # try to create another for the same scope
+        incident2 = Incident._create(self.org, "incident:test", scope="scope1")
+
+        # different scope
+        incident3 = Incident._create(self.org, "incident:test", scope="scope2")
+
         self.assertEqual(incident1, incident2)
         self.assertNotEqual(incident1, incident3)
+
+        # each created incident creates a notification for the workspace admin
+        self.assertEqual(2, Notification.objects.count())
+        self.assertEqual(1, incident1.notifications.count())
+        self.assertEqual(1, incident2.notifications.count())
 
         # check that once incident 1 ends, new incidents can be created for same scope
         incident1.end()
 
-        incident4, created4 = Incident.objects.get_or_create(
-            org=self.org,
-            incident_type="incident:test",
-            scope="scope1",
-            ended_on=None,
-            defaults=dict(started_on=datetime(2021, 11, 12, 14, 4, 30, 123456, tzinfo=pytz.UTC)),
+        incident4 = Incident._create(self.org, "incident:test", scope="scope1")
+
+        self.assertNotEqual(incident1, incident4)
+        self.assertEqual(3, Notification.objects.count())
+        self.assertEqual(1, incident4.notifications.count())
+
+    def test_flagged(self):
+        self.org.flag()
+
+        incident = Incident.objects.get()
+        self.assertEqual("org:flagged", incident.incident_type)
+        self.assertEqual({self.admin}, set(n.user for n in incident.notifications.all()))
+
+        self.assertEqual("/org/home/", incident.target_url)
+        self.assertEqual(
+            {"type": "org:flagged", "started_on": matchers.ISODate(), "ended_on": None}, incident.as_json()
         )
 
-        self.assertTrue(created4)
-        self.assertNotEqual(incident1, incident4)
+        self.org.unflag()
+
+        incident = Incident.objects.get()  # still only have 1 incident, but now it has ended
+        self.assertEqual("org:flagged", incident.incident_type)
+        self.assertIsNotNone(incident.ended_on)
 
     def test_flow_webhooks(self):
         flow = self.create_flow("Test Flow")
-        incident = Incident.objects.create(
+        incident = Incident.objects.create(  # mailroom will create these
             org=self.org,
             incident_type="flow:webhooks",
             scope=str(flow.uuid),
@@ -83,6 +85,38 @@ class IncidentTest(TembaTest):
             },
             incident.as_json(),
         )
+
+
+class IncidentCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_list(self):
+        list_url = reverse("notifications.incident_list")
+
+        # create 2 org flagged incidents (1 ended, 1 ongoing)
+        incident1 = Incident.flagged(self.org)
+        Incident.flagged(self.org).end()
+        incident2 = Incident.flagged(self.org)
+
+        # create 2 flow webhook incidents (1 ended, 1 ongoing)
+        flow = self.create_flow()
+        incident3 = Incident.objects.create(
+            org=self.org,
+            incident_type="flow:webhooks",
+            scope=str(flow.uuid),
+            started_on=timezone.now(),
+            ended_on=timezone.now(),
+            flow=flow,
+        )
+        incident4 = Incident.objects.create(
+            org=self.org, incident_type="flow:webhooks", scope=str(flow.uuid), flow=flow
+        )
+
+        # main list items are the ended incidents
+        response = self.assertListFetch(
+            list_url, allow_viewers=False, allow_editors=False, context_objects=[incident3, incident1]
+        )
+
+        # with ongoing ones in separate list
+        self.assertEqual({incident4, incident2}, set(response.context["ongoing"]))
 
 
 @override_settings(SEND_EMAILS=True)
@@ -351,6 +385,36 @@ class NotificationTest(TembaTest):
 
         self.assertTrue(self.agent.notifications.get().is_seen)
         self.assertFalse(self.editor.notifications.get().is_seen)
+
+    def test_incident_started(self):
+        self.org.add_user(self.editor, OrgRole.ADMINISTRATOR)  # upgrade editor to administrator
+        flow = self.create_flow()
+
+        Incident._create(self.org, "flow:webhooks", scope=str(flow.uuid), flow=flow)
+
+        self.assert_notifications(
+            expected_json={
+                "type": "incident:started",
+                "created_on": matchers.ISODate(),
+                "target_url": "/incident/",
+                "is_seen": False,
+                "incident": {
+                    "type": "flow:webhooks",
+                    "started_on": matchers.ISODate(),
+                    "ended_on": None,
+                    "flow": {"uuid": str(flow.uuid), "name": "Test Flow"},
+                },
+            },
+            expected_users={self.editor, self.admin},
+            email=False,
+        )
+
+        # if a user visits the incident page, all incident notifications are now read
+        self.login(self.editor)
+        self.client.get(f"/incident/")
+
+        self.assertTrue(self.editor.notifications.get().is_seen)
+        self.assertFalse(self.admin.notifications.get().is_seen)
 
     def test_get_unseen_count(self):
         imp = ContactImport.objects.create(
