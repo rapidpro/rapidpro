@@ -705,7 +705,7 @@ class Command(BaseCommand):
         self.stdout.flush()
 
 
-class DisableTriggersOn(object):
+class DisableTriggersOn:
     """
     Helper context manager for temporarily disabling database triggers for a given model
     """
