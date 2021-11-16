@@ -10,7 +10,7 @@ from django.utils.functional import cached_property
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactImport, ExportContactsTask
-from temba.flows.models import ExportFlowResultsTask, Flow
+from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import Org
 from temba.utils.email import send_template_email
@@ -38,17 +38,12 @@ class OrgFlaggedIncidentType(IncidentType):
     slug = "org:flagged"
 
 
-class FlowWebhooksIncidentType(IncidentType):
+class WebhooksUnhealthyIncidentType(IncidentType):
     """
-    Webhooks in a flow have been taking too long to respond for a period of time.
+    Webhook calls from flows have been taking too long to respond for a period of time.
     """
 
-    slug = "flow:webhooks"
-
-    def as_json(self, incident) -> dict:
-        json = super().as_json(incident)
-        json["flow"] = {"uuid": str(incident.flow.uuid), "name": incident.flow.name}
-        return json
+    slug = "webhooks:unhealthy"
 
 
 INCIDENT_TYPES_BY_SLUG = {t.slug: t() for t in IncidentType.__subclasses__()}
@@ -62,7 +57,7 @@ class Incident(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="incidents")
-    incident_type = models.CharField(max_length=16)
+    incident_type = models.CharField(max_length=20)
 
     # The scope is what we maintain uniqueness of ongoing incidents for within an org. For incident types with an
     # associated object, this will be the UUID of the object.
@@ -71,7 +66,7 @@ class Incident(models.Model):
     started_on = models.DateTimeField(default=timezone.now)
     ended_on = models.DateTimeField(null=True)
 
-    flow = models.ForeignKey(Flow, null=True, on_delete=models.PROTECT, related_name="incidents")
+    channel = models.ForeignKey(Channel, null=True, on_delete=models.PROTECT, related_name="incidents")
 
     @classmethod
     def flagged(cls, org):

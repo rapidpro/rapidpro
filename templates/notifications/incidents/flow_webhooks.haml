@@ -1,9 +1,0 @@
--load i18n
-
--url 'flows.flow_editor' incident.flow.uuid as flow_url
--url 'request_log.httplog_webhooks' as logs_url
-
--blocktrans with flow_url=flow_url flow_name=incident.flow.name logs_url=logs_url
-  Webhook calls in the <a href="{{ flow_url }}">{{ flow_name }}</a> flow are taking too long to respond and will be
-  disabled if this continues. You can check the <a href="{{ logs_url }}">webhook call log</a> to see which calls are
-  taking too long.

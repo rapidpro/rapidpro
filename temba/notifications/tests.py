@@ -47,7 +47,7 @@ class IncidentTest(TembaTest):
         self.assertEqual(3, Notification.objects.count())
         self.assertEqual(1, incident4.notifications.count())
 
-    def test_flagged(self):
+    def test_org_flagged(self):
         self.org.flag()
 
         incident = Incident.objects.get()
@@ -64,22 +64,19 @@ class IncidentTest(TembaTest):
         self.assertEqual("org:flagged", incident.incident_type)
         self.assertIsNotNone(incident.ended_on)
 
-    def test_flow_webhooks(self):
-        flow = self.create_flow("Test Flow")
+    def test_webhooks_unhealthy(self):
         incident = Incident.objects.create(  # mailroom will create these
             org=self.org,
-            incident_type="flow:webhooks",
-            scope=str(flow.uuid),
+            incident_type="webhooks:unhealthy",
+            scope="",
             started_on=datetime(2021, 11, 12, 14, 23, 30, 123456, tzinfo=pytz.UTC),
-            flow=flow,
         )
 
         self.assertEqual(
             {
-                "type": "flow:webhooks",
+                "type": "webhooks:unhealthy",
                 "started_on": "2021-11-12T14:23:30.123456+00:00",
                 "ended_on": None,
-                "flow": {"name": "Test Flow", "uuid": str(flow.uuid)},
             },
             incident.as_json(),
         )
@@ -95,18 +92,14 @@ class IncidentCRUDLTest(TembaTest, CRUDLTestMixin):
         incident2 = Incident.flagged(self.org)
 
         # create 2 flow webhook incidents (1 ended, 1 ongoing)
-        flow = self.create_flow()
         incident3 = Incident.objects.create(
             org=self.org,
-            incident_type="flow:webhooks",
-            scope=str(flow.uuid),
+            incident_type="webhooks:unhealthy",
+            scope="",
             started_on=timezone.now(),
             ended_on=timezone.now(),
-            flow=flow,
         )
-        incident4 = Incident.objects.create(
-            org=self.org, incident_type="flow:webhooks", scope=str(flow.uuid), flow=flow
-        )
+        incident4 = Incident.objects.create(org=self.org, incident_type="webhooks:unhealthy", scope="")
 
         # main list items are the ended incidents
         response = self.assertListFetch(
@@ -386,9 +379,8 @@ class NotificationTest(TembaTest):
 
     def test_incident_started(self):
         self.org.add_user(self.editor, OrgRole.ADMINISTRATOR)  # upgrade editor to administrator
-        flow = self.create_flow()
 
-        Incident._create(self.org, "flow:webhooks", scope=str(flow.uuid), flow=flow)
+        Incident.flagged(self.org)
 
         self.assert_notifications(
             expected_json={
@@ -397,10 +389,9 @@ class NotificationTest(TembaTest):
                 "target_url": "/incident/",
                 "is_seen": False,
                 "incident": {
-                    "type": "flow:webhooks",
+                    "type": "org:flagged",
                     "started_on": matchers.ISODate(),
                     "ended_on": None,
-                    "flow": {"uuid": str(flow.uuid), "name": "Test Flow"},
                 },
             },
             expected_users={self.editor, self.admin},
