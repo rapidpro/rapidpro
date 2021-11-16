@@ -22,10 +22,6 @@ logger = logging.getLogger(__name__)
 class IncidentType:
     slug: str = None
 
-    @abstractmethod
-    def get_target_url(self, incident) -> str:  # pragma: no cover
-        pass
-
     def as_json(self, incident) -> dict:
         return {
             "type": incident.incident_type,
@@ -41,9 +37,6 @@ class OrgFlaggedIncidentType(IncidentType):
 
     slug = "org:flagged"
 
-    def get_target_url(self, incident) -> str:
-        return reverse("orgs.org_home")
-
 
 class FlowWebhooksIncidentType(IncidentType):
     """
@@ -51,9 +44,6 @@ class FlowWebhooksIncidentType(IncidentType):
     """
 
     slug = "flow:webhooks"
-
-    def get_target_url(self, incident) -> str:
-        return reverse("flows.flow_editor", kwargs={"uuid": incident.flow.uuid})
 
     def as_json(self, incident) -> dict:
         json = super().as_json(incident)
@@ -109,10 +99,6 @@ class Incident(models.Model):
         """
         self.ended_on = timezone.now()
         self.save(update_fields=("ended_on",))
-
-    @property
-    def target_url(self) -> str:
-        return self.type.get_target_url(self)
 
     @property
     def template(self):

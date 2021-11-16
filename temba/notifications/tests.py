@@ -54,7 +54,6 @@ class IncidentTest(TembaTest):
         self.assertEqual("org:flagged", incident.incident_type)
         self.assertEqual({self.admin}, set(n.user for n in incident.notifications.all()))
 
-        self.assertEqual("/org/home/", incident.target_url)
         self.assertEqual(
             {"type": "org:flagged", "started_on": matchers.ISODate(), "ended_on": None}, incident.as_json()
         )
@@ -75,7 +74,6 @@ class IncidentTest(TembaTest):
             flow=flow,
         )
 
-        self.assertEqual(f"/flow/editor/{flow.uuid}/", incident.target_url)
         self.assertEqual(
             {
                 "type": "flow:webhooks",

@@ -66,7 +66,6 @@ class IncidentCRUDL(SmartCRUDL):
     class List(OrgPermsMixin, NotificationTargetMixin, SmartListView):
         default_order = "-started_on"
         title = _("Incidents")
-        fields = ("incident_type", "started_on", "ended_on")
         select_related = ("flow",)
         notification_type = "incident:started"
         notification_scope = None  # clear all incident started notifications

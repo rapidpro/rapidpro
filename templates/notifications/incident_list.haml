@@ -21,11 +21,15 @@
               -trans "Ongoing"
         %tbody
           -for obj in ongoing
-            %tr.hover-linked(onclick="goto(event)" href="{{ obj.target_url }}")
+            %tr
               %td
                 -include obj.template with incident=obj
               %td.text-right.whitespace-nowrap
-                {% format_datetime obj.started_on %}
+                -format_datetime obj.started_on
+          -empty
+            %tr
+              %td(colspan='2')
+                -trans "None"
       %table.list.lined
         %thead
           %tr
@@ -33,10 +37,14 @@
               -trans "Previous"
         %tbody
           -for obj in object_list
-            %tr.hover-linked(onclick="goto(event)" href="{{ obj.target_url }}")
+            %tr
               %td
                 -include obj.template with incident=obj
               %td.text-right.whitespace-nowrap
-                {% format_datetime obj.started_on %}
+                -format_datetime obj.started_on
+          -empty
+            %tr
+              %td(colspan='2')
+                -trans "None"
 
       -include "includes/pagination.haml"
