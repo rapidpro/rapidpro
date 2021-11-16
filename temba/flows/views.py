@@ -1418,6 +1418,8 @@ class FlowCRUDL(SmartCRUDL):
             context["feature_filters"] = json.dumps(feature_filters)
 
             context["mergeable_flows"] = self.get_mergeable_flows()
+            context["google_translate"] = getattr(settings, "GOOGLE_TRANSLATE_API_KEY", None) or None
+            context["deepl_translate"] = getattr(settings, "DEEPL_TRANSLATE_API_KEY", None) or None
 
             # check if there is no other users that edititing current flow
             # then make this user as main editor and set expiration time of editing to this user
