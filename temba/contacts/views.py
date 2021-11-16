@@ -1,7 +1,6 @@
 import logging
 from collections import OrderedDict
 from datetime import timedelta
-from typing import Dict, List
 
 import iso8601
 from smartmin.views import (
@@ -1160,7 +1159,6 @@ class ContactCRUDL(SmartCRUDL):
 
     class Blocked(ContactListView):
         title = _("Blocked Contacts")
-        template_name = "contacts/contact_list.haml"
         system_group = ContactGroup.TYPE_BLOCKED
 
         def get_bulk_actions(self):
@@ -2104,7 +2102,7 @@ class ContactImportCRUDL(SmartCRUDL):
                         "name"
                     )
 
-            def get_form_values(self) -> List[Dict]:
+            def get_form_values(self) -> list[dict]:
                 """
                 Gather form data into a list the same size as the mappings
                 """

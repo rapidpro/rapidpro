@@ -1,5 +1,3 @@
-from typing import List
-
 from django.db import models
 from django.db.models import Model
 from django.utils import timezone
@@ -69,7 +67,7 @@ class Campaign(TembaModel):
             event.schedule_async()
 
     @classmethod
-    def import_campaigns(cls, org, user, campaign_defs, same_site=False) -> List:
+    def import_campaigns(cls, org, user, campaign_defs, same_site=False) -> list:
         """
         Import campaigns from a list of exported campaigns
         """

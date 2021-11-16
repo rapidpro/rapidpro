@@ -1,4 +1,4 @@
-from typing import Dict, Iterable
+from typing import Iterable
 from urllib.parse import urlparse
 
 import boto3
@@ -65,7 +65,7 @@ class EventStreamReader:
         self.event_stream = event_stream
         self.buffer = bytearray()
 
-    def __iter__(self) -> Iterable[Dict]:
+    def __iter__(self) -> Iterable[dict]:
         for event in self.event_stream:
             if "Records" in event:
                 self.buffer.extend(event["Records"]["Payload"])

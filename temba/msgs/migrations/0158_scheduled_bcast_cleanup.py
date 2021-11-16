@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def cleanup_scheduled_broadcast(apps, schema_editor):
+def cleanup_scheduled_broadcast(apps, schema_editor):  # pragma: no cover
     Broadcast = apps.get_model("msgs", "Broadcast")
     num_contacts, num_groups = 0, 0
 
@@ -19,7 +19,7 @@ def cleanup_scheduled_broadcast(apps, schema_editor):
         print(f"Removed {num_contacts} deleted contacts and {num_groups} deleted groups from scheduled broadcasts")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, NamedTuple
+from typing import NamedTuple
 
 import requests
 
@@ -47,9 +47,9 @@ class ContactSpec(NamedTuple):
 
     name: str
     language: str
-    urns: List[str]
-    fields: Dict[str, str]
-    groups: List[str]
+    urns: list[str]
+    fields: dict[str, str]
+    groups: list[str]
 
 
 class MailroomClient:
@@ -147,7 +147,7 @@ class MailroomClient:
 
         return self._request("contact/create", payload)
 
-    def contact_modify(self, org_id, user_id, contact_ids, modifiers: List[Modifier]):
+    def contact_modify(self, org_id, user_id, contact_ids, modifiers: list[Modifier]):
         payload = {
             "org_id": org_id,
             "user_id": user_id,

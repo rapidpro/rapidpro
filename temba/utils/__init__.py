@@ -62,7 +62,7 @@ def get_dict_from_cursor(cursor):
     return [dict(zip([col[0] for col in desc], row)) for row in cursor.fetchall()]
 
 
-class DictStruct(object):
+class DictStruct:
     """
     Wraps a dictionary turning it into a structure looking object. This is useful to 'mock' dictionaries
     coming from Redis to look like normal objects
