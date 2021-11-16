@@ -7,7 +7,6 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.channels.models import Alert
 from temba.contacts.models import ContactImport, ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
@@ -128,71 +127,6 @@ class NotificationTest(TembaTest):
 
         # check who was notified
         self.assertEqual(expected_users, actual_users)
-
-    def test_channel_alert(self):
-        self.org.add_user(self.editor, OrgRole.ADMINISTRATOR)  # upgrade editor to administrator
-
-        alert1 = Alert.create_and_send(self.channel, Alert.TYPE_POWER)
-
-        self.assert_notifications(
-            after=alert1.created_on,
-            expected_json={
-                "type": "channel:alert",
-                "created_on": matchers.ISODate(),
-                "target_url": f"/channels/channel/read/{self.channel.uuid}/",
-                "is_seen": False,
-                "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
-            },
-            expected_users={self.admin, self.editor},
-            email=False,
-        )
-
-        # creating another alert for the same channel won't create any new notifications
-        alert2 = Alert.create_and_send(self.channel, Alert.TYPE_POWER)
-
-        self.assert_notifications(after=alert2.created_on, expected_json={}, expected_users=set(), email=False)
-
-        # if a user clears their notifications however, they will get new ones for this channel
-        self.admin.notifications.update(is_seen=True)
-
-        alert3 = Alert.create_and_send(self.channel, Alert.TYPE_POWER)
-
-        self.assert_notifications(
-            after=alert3.created_on,
-            expected_json={
-                "type": "channel:alert",
-                "created_on": matchers.ISODate(),
-                "target_url": f"/channels/channel/read/{self.channel.uuid}/",
-                "is_seen": False,
-                "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
-            },
-            expected_users={self.admin},
-            email=False,
-        )
-
-        # an alert for a different channel will also create new notifications
-        vonage = self.create_channel("NX", "Vonage", "1234")
-        alert4 = Alert.create_and_send(vonage, Alert.TYPE_POWER)
-
-        self.assert_notifications(
-            after=alert4.created_on,
-            expected_json={
-                "type": "channel:alert",
-                "created_on": matchers.ISODate(),
-                "target_url": f"/channels/channel/read/{vonage.uuid}/",
-                "is_seen": False,
-                "channel": {"uuid": str(vonage.uuid), "name": "Vonage"},
-            },
-            expected_users={self.admin, self.editor},
-            email=False,
-        )
-
-        # if a user visits the channel read page, their notification for that channel is now read
-        self.login(self.admin)
-        self.client.get(reverse("channels.channel_read", kwargs={"uuid": vonage.uuid}))
-
-        self.assertTrue(self.admin.notifications.get(channel=vonage).is_seen)
-        self.assertFalse(self.editor.notifications.get(channel=vonage).is_seen)
 
     def test_contact_export_finished(self):
         export = ExportContactsTask.create(self.org, self.editor)

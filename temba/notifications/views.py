@@ -37,7 +37,6 @@ class NotificationCRUDL(SmartCRUDL):
         default_order = "-id"
         select_related = ("org",)
         prefetch_related = (
-            "channel",
             "contact_import",
             "contact_export",
             "message_export",

@@ -990,7 +990,6 @@ class Flow(TembaModel):
         self.node_counts.all().delete()
         self.exit_counts.all().delete()
         self.labels.clear()
-        self.incidents.clear()
 
         super().delete()
 

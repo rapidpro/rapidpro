@@ -153,18 +153,6 @@ class NotificationType:
         }
 
 
-class ChannelAlertNotificationType(NotificationType):
-    slug = "channel:alert"
-
-    def get_target_url(self, notification) -> str:
-        return reverse("channels.channel_read", kwargs={"uuid": notification.channel.uuid})
-
-    def as_json(self, notification) -> dict:
-        json = super().as_json(notification)
-        json["channel"] = {"uuid": str(notification.channel.uuid), "name": notification.channel.name}
-        return json
-
-
 class ExportFinishedNotificationType(NotificationType):
     slug = "export:finished"
 
@@ -256,7 +244,6 @@ class Notification(models.Model):
     email_status = models.CharField(choices=EMAIL_STATUS_CHOICES, max_length=1, default=EMAIL_STATUS_NONE)
     created_on = models.DateTimeField(default=timezone.now)
 
-    channel = models.ForeignKey(Channel, null=True, on_delete=models.PROTECT, related_name="notifications")
     contact_export = models.ForeignKey(
         ExportContactsTask, null=True, on_delete=models.PROTECT, related_name="notifications"
     )
@@ -270,21 +257,6 @@ class Notification(models.Model):
         ContactImport, null=True, on_delete=models.PROTECT, related_name="notifications"
     )
     incident = models.ForeignKey(Incident, null=True, on_delete=models.PROTECT, related_name="notifications")
-
-    @classmethod
-    def channel_alert(cls, alert):
-        """
-        Creates a new channel alert notification for each org admin if there they don't already have an unread one for
-        the channel.
-        """
-        org = alert.channel.org
-        cls._create_all(
-            org,
-            ChannelAlertNotificationType.slug,
-            scope=str(alert.channel.uuid),
-            users=org.get_admins(),
-            channel=alert.channel,
-        )
 
     @classmethod
     def export_finished(cls, export):
