@@ -1,3 +1,9 @@
+v7.1.0
+----------
+ * Drop no longer used index on msg UUID
+ * Re-run collect_sql
+ * Use std collection types for typing hints and drop use of object in classes
+
 v7.0.4
 ----------
  * Fix contact stop list page 
