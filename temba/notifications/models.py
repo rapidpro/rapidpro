@@ -108,6 +108,8 @@ class Incident(models.Model):
 
     class Meta:
         indexes = [
+            # used to find ongoing incidents which may be ended
+            models.Index(name="incidents_ongoing", fields=("incident_type",), condition=Q(ended_on=None)),
             # used to list an org's ongoing and ended incidents in the UI
             models.Index(name="incidents_org_ongoing", fields=("org", "-started_on"), condition=Q(ended_on=None)),
             models.Index(
