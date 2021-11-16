@@ -397,12 +397,18 @@ class Notification(models.Model):
             models.Index(fields=["org", "user", "-created_on"]),
             # used to find notifications with pending email sends
             models.Index(name="notifications_email_pending", fields=["created_on"], condition=Q(email_status="P")),
+            # used for notification types where the target URL clears all of that type (e.g. incident_started)
+            models.Index(
+                name="notifications_unseen_of_type",
+                fields=["org", "notification_type", "user"],
+                condition=Q(is_seen=False),
+            ),
         ]
         constraints = [
             # used to check if we already have existing unseen notifications for something or to clear unseen
             # notifications when visiting their target URL
             models.UniqueConstraint(
-                name="notifications_unseen_of_type",
+                name="notifications_unseen_scoped",
                 fields=["org", "notification_type", "scope", "user"],
                 condition=Q(is_seen=False),
             ),

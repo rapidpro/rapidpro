@@ -68,9 +68,8 @@ class IncidentCRUDL(SmartCRUDL):
         title = _("Incidents")
         fields = ("incident_type", "started_on", "ended_on")
         select_related = ("flow",)
-
-        def get_notification_scope(self) -> tuple[str, str]:
-            return "incident:started", None  # clear all incident started notifications
+        notification_type = "incident:started"
+        notification_scope = None  # clear all incident started notifications
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).filter(org=self.request.org).exclude(ended_on=None)
