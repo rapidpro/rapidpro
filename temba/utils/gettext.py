@@ -1,5 +1,5 @@
 import os
-from typing import NamedTuple
+from dataclasses import dataclass
 
 import polib
 import pycountry
@@ -25,7 +25,8 @@ def po_load(org, uuid):
     return file.read().decode()
 
 
-class POInfo(NamedTuple):
+@dataclass
+class POInfo:
     language_name: str
     language_code: str
     num_entries: int

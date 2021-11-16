@@ -1,4 +1,4 @@
-from typing import NamedTuple
+from dataclasses import dataclass, field
 
 from django.utils.encoding import force_text
 from django.utils.translation import ugettext_lazy as _
@@ -42,18 +42,20 @@ class SearchException(Exception):
         return force_text(self.message)
 
 
-class Metadata(NamedTuple):
-    attributes: list = []
-    schemes: list = []
-    fields: list = []
-    groups: list = []
+@dataclass(frozen=True)
+class Metadata:
+    attributes: list = field(default_factory=list)
+    schemes: list = field(default_factory=list)
+    fields: list = field(default_factory=list)
+    groups: list = field(default_factory=list)
     allow_as_group: bool = False
 
 
-class ParsedQuery(NamedTuple):
+@dataclass(frozen=True)
+class ParsedQuery:
     query: str
     elastic_query: dict
-    metadata: Metadata = Metadata()
+    metadata: Metadata
 
 
 def parse_query(org, query: str, *, parse_only: bool = False, group=None) -> ParsedQuery:
@@ -70,11 +72,12 @@ def parse_query(org, query: str, *, parse_only: bool = False, group=None) -> Par
         raise SearchException.from_mailroom_exception(e)
 
 
-class SearchResults(NamedTuple):
+@dataclass(frozen=True)
+class SearchResults:
     total: int
     query: str
     contact_ids: list
-    metadata: Metadata = Metadata()
+    metadata: Metadata
 
 
 def search_contacts(
