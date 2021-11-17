@@ -39,7 +39,6 @@ from django.views.decorators.csrf import csrf_exempt
 from temba.contacts.models import URN
 from temba.msgs.models import Msg, SystemLabel
 from temba.msgs.views import InboxView
-from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.models import Org
 from temba.orgs.views import AnonMixin, DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, countries, json
@@ -772,12 +771,9 @@ class ChannelCRUDL(SmartCRUDL):
 
             return JsonResponse({"results": menu})
 
-    class Read(SpaMixin, OrgObjPermsMixin, NotificationTargetMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
-
-        def get_notification_scope(self) -> tuple:
-            return "channel:alert", str(self.object.uuid)
 
         def get_queryset(self):
             return Channel.objects.filter(is_active=True)

@@ -914,9 +914,8 @@ class Channel(TembaModel, DependencyMixin):
         # disassociate them
         Channel.objects.filter(parent=self).update(parent=None)
 
-        # delete any alerts or notifications
+        # delete any alerts
         self.alerts.all().delete()
-        self.notifications.all().delete()
 
         # any related sync events
         for sync_event in self.sync_events.all():
@@ -1476,8 +1475,6 @@ class Alert(SmartModel):
 
     @classmethod
     def create_and_send(cls, channel, alert_type: str, *, sync_event=None):
-        from temba.notifications.models import Notification
-
         user = get_alert_user()
         alert = cls.objects.create(
             channel=channel,
@@ -1487,8 +1484,6 @@ class Alert(SmartModel):
             modified_by=user,
         )
         alert.send_alert()
-
-        Notification.channel_alert(alert)
 
         return alert
 
