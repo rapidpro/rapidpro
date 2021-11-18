@@ -1,3 +1,7 @@
+v7.1.4
+----------
+ * Remove task to retry errored messages which now handled in mailroom
+
 v7.1.2
 ----------
  * Update poetry dependencies
