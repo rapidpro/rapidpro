@@ -1,3 +1,8 @@
+v7.1.1
+----------
+ * Remove channel alert notifications as these will become incidents
+ * Add Incident model as well as OrgFlagged and WebhooksUnhealthy types
+
 v7.1.0
 ----------
  * Drop no longer used index on msg UUID

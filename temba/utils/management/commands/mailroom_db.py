@@ -37,6 +37,7 @@ RESET_SEQUENCES = (
     "contacts_contacturn_id_seq",
     "contacts_contactgroup_id_seq",
     "flows_flow_id_seq",
+    "flows_flowrevision_id_seq",
     "channels_channel_id_seq",
     "campaigns_campaign_id_seq",
     "campaigns_campaignevent_id_seq",
