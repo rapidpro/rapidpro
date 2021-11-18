@@ -1079,11 +1079,6 @@ for brand in BRANDING.values():
 
 ######
 # DANGER: only turn this on if you know what you are doing!
-#         could cause messages to be sent to live customer aggregators
-SEND_MESSAGES = False
-
-######
-# DANGER: only turn this on if you know what you are doing!
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
 
