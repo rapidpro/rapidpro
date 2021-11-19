@@ -119,19 +119,6 @@ def export_messages_task(export_id):
     ExportMessagesTask.objects.select_related("org", "created_by").get(id=export_id).perform()
 
 
-@nonoverlapping_task(track_started=True, name="retry_errored_messages", lock_timeout=300)
-def retry_errored_messages():
-    """
-    Requeues any messages that have errored and have a next attempt in the past
-    """
-    errored_msgs = (
-        Msg.objects.filter(direction=Msg.DIRECTION_OUT, status=Msg.STATUS_ERRORED, next_attempt__lte=timezone.now())
-        .order_by("next_attempt", "created_on")
-        .prefetch_related("channel")[:5000]
-    )
-    Msg.send_messages(errored_msgs)
-
-
 @nonoverlapping_task(track_started=True, name="squash_msgcounts", lock_timeout=7200)
 def squash_msgcounts():
     SystemLabelCount.squash()

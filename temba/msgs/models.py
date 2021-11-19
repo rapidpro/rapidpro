@@ -440,15 +440,6 @@ class Msg(models.Model):
 
                 # now push each onto our queue
                 for msg in msgs:
-
-                    # in development mode, don't actual send any messages
-                    if not settings.SEND_MESSAGES:
-                        msg.status = cls.STATUS_WIRED
-                        msg.sent_on = timezone.now()
-                        msg.save(update_fields=("status", "sent_on"))
-                        logger.debug(f"FAKED SEND for [{msg.id}]")
-                        continue
-
                     if (
                         (msg.msg_type != cls.TYPE_IVR and msg.channel and not msg.channel.is_android())
                         and msg.status != cls.STATUS_FAILED

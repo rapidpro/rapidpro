@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.archives.models import Archive
-from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
+from temba.channels.models import ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.msgs.models import (
@@ -28,7 +28,7 @@ from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 
-from .tasks import retry_errored_messages, squash_msgcounts
+from .tasks import squash_msgcounts
 from .templatetags.sms import as_icon
 
 
@@ -286,40 +286,6 @@ class MsgTest(TembaTest):
             broadcast.metadata,
             {"quick_replies": [{"eng": "Yes", "fra": "Oui"}, {"eng": "No"}], "template_state": "legacy"},
         )
-
-    def test_retry_errored(self):
-        # change our default channel to external
-        self.channel.channel_type = "EX"
-        self.channel.save()
-
-        android_channel = self.create_channel(
-            "A",
-            "Android Channel",
-            "+250785551414",
-            country="RW",
-            secret="12345678",
-            config={Channel.CONFIG_FCM_ID: "123"},
-        )
-
-        msg1 = self.create_outgoing_msg(self.joe, "errored", status="E", channel=self.channel)
-        msg1.next_attempt = timezone.now()
-        msg1.save(update_fields=["next_attempt"])
-
-        msg2 = self.create_outgoing_msg(self.joe, "android", status="E", channel=android_channel)
-        msg2.next_attempt = None
-        msg2.save(update_fields=["next_attempt"])
-
-        msg3 = self.create_outgoing_msg(self.joe, "failed", status="F", channel=self.channel)
-
-        retry_errored_messages()
-
-        msg1.refresh_from_db()
-        msg2.refresh_from_db()
-        msg3.refresh_from_db()
-
-        self.assertEqual("W", msg1.status)
-        self.assertEqual("E", msg2.status)
-        self.assertEqual("F", msg3.status)
 
     @patch("temba.utils.email.send_temba_email")
     def test_message_export_from_archives(self, mock_send_temba_email):

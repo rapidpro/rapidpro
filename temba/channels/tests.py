@@ -2721,7 +2721,6 @@ class FacebookWhitelistTest(TembaTest):
 
 
 class CourierTest(TembaTest):
-    @override_settings(SEND_MESSAGES=True)
     def test_queue_to_courier(self):
         self.channel.channel_type = "T"
         self.channel.save()
