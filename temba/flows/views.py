@@ -237,7 +237,9 @@ class FlowCRUDL(SmartCRUDL):
                 for label in labels:
                     menu.append(
                         self.create_menu_item(
-                            menu_id=label.uuid, name=label.name, href=reverse("flows.flow_filter", args=[label.uuid])
+                            menu_id=label.uuid,
+                            name=label.name,
+                            href=reverse("flows.flow_filter", args=[label.uuid]),
                         )
                     )
                 return menu

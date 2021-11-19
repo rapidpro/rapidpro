@@ -518,8 +518,9 @@
         ele = event.target;
       }
 
-
       event.stopPropagation();
+      event.preventDefault();
+
       if (ele.setActive) {
           ele.setActive();
       }
@@ -631,6 +632,10 @@
         dest.path = dest.url.replace("/flow/filter/", "/flows/labels/");
       }
 
+      if (dest.url.indexOf("/ticket/") == 0) {
+        dest.path = dest.url.replace("/ticket/", "/tickets/");
+      }
+
       if (dest.url.indexOf("/channels/channel/read/") == 0) {
         dest.path = dest.url.replace("/channels/channel/read/", "/settings/channels/");
       } else {
@@ -688,13 +693,8 @@
 
       // migrate our old urls
       convertLegacyURL(dest);
-
-      if (dest.isMenu) {
-        menu.setSelectionPath(dest.path);
-      } else {
-        gotoURL(dest.url, dest.path, !triggerEvents);
-        menu.setFocusedItem(dest.path);
-      }
+      gotoURL(dest.url, dest.path, !triggerEvents);
+      menu.setFocusedItem(dest.path);
     }
    
     function handleMenuChanged(event) {
