@@ -499,20 +499,36 @@ class Org(SmartModel):
         return int(self.limits.get(limit_type, settings.ORG_LIMIT_DEFAULTS.get(limit_type)))
 
     def flag(self):
+        """
+        Flags this org for suspicious activity
+        """
+        from temba.notifications.models import Incident
+
         self.is_flagged = True
         self.save(update_fields=("is_flagged", "modified_on"))
 
+        Incident.flagged(self)  # create incident which will notify admins
+
     def unflag(self):
-        self.is_flagged = False
-        self.save(update_fields=("is_flagged", "modified_on"))
+        """
+        Unflags this org if they previously were flagged
+        """
+
+        from temba.notifications.models import Incident
+
+        if self.is_flagged:
+            self.is_flagged = False
+            self.save(update_fields=("is_flagged", "modified_on"))
+
+            Incident.flagged(self).end()
 
     def verify(self):
         """
         Unflags org and marks as verified so it won't be flagged automatically in future
         """
-        self.is_flagged = False
+        self.unflag()
         self.config[Org.CONFIG_VERIFIED] = True
-        self.save(update_fields=("is_flagged", "config", "modified_on"))
+        self.save(update_fields=("config", "modified_on"))
 
     def is_verified(self):
         """
@@ -1686,6 +1702,7 @@ class Org(SmartModel):
         user = self.modified_by
 
         # delete notifications and exports
+        self.incidents.all().delete()
         self.notifications.all().delete()
         self.exportcontactstasks.all().delete()
         self.exportmessagestasks.all().delete()

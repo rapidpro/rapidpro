@@ -1,7 +1,6 @@
 import logging
 from collections import OrderedDict
 from datetime import timedelta
-from typing import Dict, List
 
 import iso8601
 from smartmin.views import (
@@ -2114,7 +2113,7 @@ class ContactImportCRUDL(SmartCRUDL):
                         "name"
                     )
 
-            def get_form_values(self) -> List[Dict]:
+            def get_form_values(self) -> list[dict]:
                 """
                 Gather form data into a list the same size as the mappings
                 """

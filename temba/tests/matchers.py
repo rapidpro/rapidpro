@@ -10,7 +10,7 @@ UUID4_REGEX = regex.compile(
 )
 
 
-class MatcherMixin(object):
+class MatcherMixin:
     def __ne__(self, other):
         return not self.__eq__(other)
 

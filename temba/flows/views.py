@@ -217,7 +217,7 @@ class FlowCRUDL(SmartCRUDL):
 
     model = Flow
 
-    class AllowOnlyActiveFlowMixin(object):
+    class AllowOnlyActiveFlowMixin:
         def get_queryset(self):
             initial_queryset = super().get_queryset()
             return initial_queryset.filter(is_active=True)

@@ -84,7 +84,7 @@ TEST_URLS = (
 )
 
 
-class URLResult(object):
+class URLResult:
     def __init__(self, url, times, allowed_max, prev_times):
         self.url = url
         self.times = times

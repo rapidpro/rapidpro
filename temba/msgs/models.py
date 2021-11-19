@@ -2,7 +2,6 @@ import logging
 import time
 from array import array
 from datetime import datetime, timedelta
-from typing import Dict, List
 
 import iso8601
 import pytz
@@ -115,14 +114,14 @@ class Broadcast(models.Model):
         *,
         groups=None,
         contacts=None,
-        urns: List[str] = None,
-        contact_ids: List[int] = None,
+        urns: list[str] = None,
+        contact_ids: list[int] = None,
         base_language: str = None,
         channel: Channel = None,
         ticket=None,
-        media: Dict = None,
+        media: dict = None,
         send_all: bool = False,
-        quick_replies: List[Dict] = None,
+        quick_replies: list[dict] = None,
         template_state: str = TEMPLATE_STATE_LEGACY,
         status: str = STATUS_INITIALIZING,
         **kwargs,
@@ -212,7 +211,7 @@ class Broadcast(models.Model):
         if self.schedule:
             self.schedule.delete()
 
-    def update_recipients(self, *, groups=None, contacts=None, urns: List[str] = None):
+    def update_recipients(self, *, groups=None, contacts=None, urns: list[str] = None):
         """
         Only used to update recipients for scheduled / repeating broadcasts
         """
@@ -222,7 +221,7 @@ class Broadcast(models.Model):
 
         self._set_recipients(groups=groups, contacts=contacts, urns=urns)
 
-    def _set_recipients(self, *, groups=None, contacts=None, urns: List[str] = None, contact_ids=None):
+    def _set_recipients(self, *, groups=None, contacts=None, urns: list[str] = None, contact_ids=None):
         """
         Sets the recipients which may be contact groups, contacts or contact URNs.
         """
