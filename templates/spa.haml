@@ -4,6 +4,18 @@
 
   }
 
+  .text-container {
+    min-height:2.5em;
+  }
+
+  .modax-body .text-container {
+    min-height: 0em;
+  }
+
+  .modax-body temba-alert {
+    display: none;
+  }
+
 
 -block extra-style
 -block extra-less
@@ -23,11 +35,13 @@
     // menu.setFocusedItem(menuPath, collapsed);
   }
 
+
 -block page-header
   .spa-title.rounded.bg-gray-600.mb-5.shadow
     .flex.flex-row
-      .text-2xl.text-white.flex-grow.px-5.py-2.title-text(style="min-height:2em")
-        -block page-title
+      .text-white.flex-grow.px-5.py-2.title-text.flex.flex-col.text-container
+        .text-2xl
+          -block page-title
       .spa-page-menu
         -include "spa_page_menu.haml"
 
@@ -38,9 +52,6 @@
     -for msg in messages
       %temba-alert.mb-3
         {{ msg }}
-    
 
 -block page-container
   -block content
-
-

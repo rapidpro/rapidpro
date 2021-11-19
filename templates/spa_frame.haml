@@ -251,6 +251,67 @@
   %script{src:"{{ STATIC_URL }}js/labels.js?4"}
 
   :javascript
+
+    var pendingRequests = [];
+    function fetchAjax(url, container, options) {
+
+      if (options["cancel"]) {
+        pendingRequests.forEach(function(controller){
+          controller.abort();
+        });
+        pendingRequests = [];
+      }
+
+      options = options || {};
+
+      // hijack any pjax requests made from spa pages and route the content there instead
+      if (container == "#pjax" && document.querySelector(".spa-content")) {
+        container = ".spa-content";
+        options["headers"] = (options["headers"] || {})
+        options["headers"]["TEMBA-SPA"] = 1;
+        options["headers"]["X-PJAX"] = 1;
+      }
+
+      var controller = new AbortController();
+      pendingRequests.push(controller);
+      options["signal"] = controller.signal;
+      fetch(url, options).then(function(response) {
+
+        // remove our controller
+        pendingRequests = pendingRequests.filter(
+          function (controller) {
+            return response.controller === controller;
+          }
+        );
+
+        response.text().then(function (body){
+          var containerEle = document.querySelector(container);
+          var scriptsEle = document.querySelector(".ajax-scripts");
+
+          // remove any existing children
+          while (containerEle.firstChild) {
+            containerEle.removeChild(containerEle.firstChild);
+          }
+
+          while (scriptsEle.firstChild) {
+            scriptsEle.removeChild(scriptsEle.firstChild);
+          }
+
+          // TODO: Replace this with non-jquery replacement
+          $(containerEle).html(body);
+
+          if (options) {
+            if ('onSuccess' in options) {
+              options['onSuccess']();
+            }
+          }
+          
+        });
+      }).catch(function(e) {
+        // canceled
+      })
+    }
+
     function fetchPJAXContent(url, container, options) {
 
       options = options || {};
@@ -323,8 +384,8 @@
           if ('followRedirects' in options && options['followRedirects'] == true) {
               var redirect = jqXHR.getResponseHeader('REDIRECT');
               if (redirect) {
-                  window.document.location.href = redirect;
-                  return;
+                window.document.location.href = redirect;
+                return;
               }
           }
 
@@ -374,7 +435,7 @@
     })
 
     document.querySelector(".spa-content").addEventListener("click", function(evt) {
-      var target = evt.target
+      var target = evt.target;
       if (target.href && target.href.indexOf("xlsx") > -1) {
         return;
       }
@@ -391,12 +452,19 @@
       if (a && a.href) {
         evt.stopPropagation();
         evt.preventDefault();
-        fetchURL(new URL(a.href).pathname);
+
+        const url = new URL(a.href);
+        fetchURL(url.pathname + url.search)
       } 
     });
 
     document.querySelector(".spa-content").addEventListener("submit", function(evt) {
       var formEle = evt.target;
+
+      if(formEle.closest(".formax-section")) {
+        return;
+      }
+
       if (formEle.method.toLowerCase() !== "post") {
         evt.stopPropagation();
         evt.preventDefault();
@@ -426,13 +494,19 @@
       if (state) {
         showLoading();
 
-        fetchPJAXContent(state.url, ".spa-content", { "headers": { 
+        gotoURL(state.url, state.show);
+        var menu = document.querySelector("temba-menu");
+        menu.setFocusedItem(state.show);
+
+        // fetchURL(state.url);
+
+        /* fetchAjax(state.url, ".spa-content", { "headers": { 
           "TEMBA-SPA": "1", 
           "TEMBA-REFERER-PATH": state.path,
           "TEMBA-PATH": state.path
           }, 
-        "onSuccess": hideLoading, "ignoreEvents": false
-        });
+        "onSuccess": hideLoading, "ignoreEvents": false, "cancel": true
+        });*/
 
       }
     });
@@ -475,8 +549,35 @@
       document.querySelector(".spa-container").classList.add("loading");
     }
 
+    function updatePageTitle() {
+      var spaTitle = document.querySelector(".spa-title .title-text");
+      if (spaTitle) {
+        spaTitle = spaTitle.innerText;
+      }
+      
+      if (!spaTitle) {
+        var menu = document.querySelector("temba-menu");
+        if (menu) {
+          var item = menu.getMenuItem();
+
+          if (item) {
+            spaTitle = item.name;
+          }
+        }
+      }
+
+      document.title = spaTitle || "";
+    }
+
     function hideLoading() {
-      document.querySelector(".spa-container").classList.remove("loading");
+      var container = document.querySelector(".spa-container");
+      if (container) {
+        container.classList.remove("loading");
+      }
+      
+      updatePageTitle();
+      var menu = document.querySelector("temba-menu");
+      menu.refresh();
     }
 
     function handleUpdateComplete() {
@@ -496,21 +597,16 @@
     }
 
     function gotoURL(urlToGo, urlToShow, ignoreEvents) {
-        var refererPath = window.location.pathname;
-        window.lastFetch = urlToGo;
-        window.history.pushState({ url: urlToGo,  },"", urlToShow);
-        fetchPJAXContent(urlToGo, ".spa-content", { "headers": { 
-            "TEMBA-SPA": "1", 
-            "TEMBA-REFERER-PATH": refererPath,
-            "TEMBA-PATH": urlToShow
-            }, 
-          "onSuccess": hideLoading, "ignoreEvents": ignoreEvents
-        });
-    }
-
-    var menuPattern = /\/(contacts\/groups|messages|flows\/labels)\/.*/
-    function isMenuLink(url, path) {
-      return url.match(menuPattern);
+      var refererPath = window.location.pathname;
+      window.lastFetch = urlToGo;
+      window.history.pushState({ url: urlToGo, show: urlToShow }, "", urlToShow);
+      fetchAjax(urlToGo, ".spa-content", { "headers": { 
+          "TEMBA-SPA": "1", 
+          "TEMBA-REFERER-PATH": refererPath,
+          "TEMBA-PATH": urlToShow
+          }, 
+        "onSuccess": hideLoading, "ignoreEvents": ignoreEvents, "cancel": true
+      });
     }
 
     function convertLegacyURL(dest) {
@@ -525,22 +621,57 @@
 
       if (dest.url.indexOf("/contact/filter/") == 0) {
         dest.path = dest.url.replace("/contact/filter/", "/contacts/groups/");
-        dest.isMenu = true;
       }
       
       if (dest.url.indexOf("/msg/filter/") == 0) {
         dest.path = dest.url.replace("/msg/filter/", "/messages/labels/");
-        dest.isMenu = true;
       }
 
       if (dest.url.indexOf("/flow/filter/") == 0) {
         dest.path = dest.url.replace("/flow/filter/", "/flows/labels/");
-        dest.isMenu = true;
+      }
+
+      if (dest.url.indexOf("/channels/channel/read/") == 0) {
+        dest.path = dest.url.replace("/channels/channel/read/", "/settings/channels/");
+      } else {
+
+        if (dest.url.indexOf("/channels/channellog/read") == 0) {
+          var match = dest.url.match(/\/channels\/channellog\/read\/(.*)\/(.*)\//);
+          if (match.length > 2) {
+            dest.path = "/settings/channels/" + match[1] + "/log/" + match[2];
+          }
+        } else {
+          if (dest.url.indexOf("/channels/channellog/") == 0) {
+            var match = dest.url.match(/\/channels\/channellog\/(.*)\//);
+            if (match.length > 1) {
+              dest.path = "/settings/channels/" + match[1] + "/log";
+            }
+          } else {
+            if (dest.url.indexOf("/channels/") == 0) {
+              dest.path = dest.url.replace("/channels/", "/settings/channels/");
+            }
+          }
+        }
       }
 
       if (dest.url.indexOf("/contacts/groups/") == 0) {
         dest.path = dest.url;
-        dest.isMenu = true;
+      }
+
+      if (dest.url.indexOf("/org/manage_accounts/") == 0) {
+        dest.path = dest.url.replace("/org/manage_accounts/", "logins")
+      } else {
+
+        if (dest.url.indexOf("/org/manage_accounts_sub_org") == 0) {
+          var match = dest.url.match(/\/org\/manage_accounts_sub_org\/\?org=(.*)/);
+          if (match.length > 1) {
+            dest.path = "/settings/workspace/" + match[1] + "/";
+          }
+        } else {
+          if (dest.url.indexOf("/org/") == 0) {
+            dest.path = dest.url.replace("/org/", "/settings/org/")
+          }
+        }
       }
     }
 
@@ -553,7 +684,6 @@
       var dest = {
         url: url,
         path: url,
-        isMenu: isMenuLink(url)
       }
 
       // migrate our old urls
@@ -592,6 +722,10 @@
       var details = event.detail;
       var menu = document.querySelector("temba-menu");
 
+      if (details.selection.indexOf("/settings/channels/") == 0) {
+        gotoURL("/channels/channellog/" + details.item, "/settings/channels/" + details.item + "/log");
+      }
+
       if (details.item == "contacts") {
         gotoURL("/contact/" + details.path, "/" + details.item + "/" + details.path);
       } 
@@ -600,7 +734,16 @@
         gotoURL("/flow/" + details.path, "/" + details.item + "/" + details.path);        
       }
 
-      menu.setFocusedItem("/" + details.item + "/" + details.path);
+      if (details.item == "settings") {
+        gotoURL("/" + details.path, "/settings/" + details.path);
+      }
+
+      if (details.item == "workspace") {
+        // gotoURL("/settings/workspace/" + details.path, "/" + details.item + "/" + details.path);
+      }
+
+
+      menu.setFocusedItem(details.selection + "/" + details.path);
     }
 
 -block refresh-fn
@@ -625,6 +768,8 @@
     groups="/api/v2/groups.json")
       
 -block page-container
+
+  .ajax-scripts
 
   .flex-col
     .flex.widget-container(style="height:100vh;")

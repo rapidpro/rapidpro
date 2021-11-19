@@ -32,11 +32,15 @@ class SpaMixin(View):
     def derive_menu_path(self):
         return None
 
+    def is_spa(self):
+        is_spa = "HTTP_TEMBA_SPA" in self.request.META
+        return is_spa
+
     def get_template_names(self):
         templates = super().get_template_names()
         spa_templates = []
 
-        if "HTTP_TEMBA_SPA" in self.request.META:
+        if self.is_spa():
             for template in templates:
                 original = template.split(".")
                 if len(original) == 2:
@@ -48,7 +52,7 @@ class SpaMixin(View):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        if "HTTP_TEMBA_SPA" in self.request.META:
+        if self.is_spa():
             context["menu_path"] = self.derive_menu_path()
             context["base_template"] = "spa.html"
             context["is_spa"] = True

@@ -59,6 +59,7 @@ from django.views.generic import View
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
+from temba.classifiers.models import Classifier
 from temba.contacts.models import ContactGroupCount
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
@@ -74,7 +75,7 @@ from temba.utils.fields import (
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
-from temba.utils.views import ComponentFormMixin, NonAtomicMixin, RequireRecentAuthMixin
+from temba.utils.views import ComponentFormMixin, NonAtomicMixin, RequireRecentAuthMixin, SpaMixin
 
 from .models import BackupToken, IntegrationType, Invitation, Org, OrgCache, OrgRole, TopUp, get_stripe_credentials
 from .tasks import apply_topups_task
@@ -1000,12 +1001,26 @@ class MenuMixin(OrgPermsMixin):
     def create_divider(self):
         return {"id": "divider"}
 
-    def create_menu_item(self, menu_id=None, name=None, icon=None, endpoint=None, href=None, count=None, perm=None):
+    def create_section(self, name):
+        return {"id": "section", "name": name}
+
+    def create_menu_item(
+        self,
+        menu_id=None,
+        name=None,
+        icon=None,
+        endpoint=None,
+        href=None,
+        count=None,
+        perm=None,
+        items=[],
+        inline=False,
+    ):
 
         if perm and not self.has_org_perm(perm):
             return
 
-        menu_item = {"name": name}
+        menu_item = {"name": name, "inline": inline}
         menu_item["id"] = menu_id if menu_id else slugify(name)
 
         if icon:
@@ -1025,6 +1040,9 @@ class MenuMixin(OrgPermsMixin):
                 menu_item["href"] = href
             elif self.has_org_perm(href):
                 menu_item["href"] = reverse(href)
+
+        if items:
+            menu_item["items"] = items
 
         # only include the menu item if we have somewhere to go
         if "href" not in menu_item and "endpoint" not in menu_item:
@@ -1075,30 +1093,134 @@ class OrgCRUDL(SmartCRUDL):
         "surveyor",
         "transfer_credits",
         "smtp_server",
+        "workspace",
     )
 
     model = Org
 
     class Menu(MenuMixin, InferOrgMixin, SmartTemplateView):
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
+
         def derive_menu(self):
-            return [
-                self.create_menu_item(name=_("Messages"), icon="message-square", endpoint="msgs.msg_menu"),
-                self.create_menu_item(name=_("Contacts"), icon="contact", endpoint="contacts.contact_menu"),
-                self.create_menu_item(name=_("Flows"), icon="flow", endpoint="flows.flow_menu"),
-                self.create_menu_item(name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaigns_menu"),
-                self.create_menu_item(
-                    name=_("Tickets"), icon="agent", endpoint="tickets.ticket_menu", href="tickets.ticket_list"
-                ),
-                self.create_menu_item(name=_("Triggers"), icon="radio", endpoint="triggers.trigger_menu"),
-                self.create_menu_item(name=_("Channels"), icon="zap", endpoint="channels.channel_menu"),
-                {
-                    "id": "support",
-                    "name": _("Support"),
-                    "icon": "help-circle",
-                    "bottom": True,
-                    "trigger": "showSupportWidget",
-                },
-            ]
+
+            submenu = self.kwargs.get("submenu")
+
+            org = self.request.user.get_org()
+
+            if submenu == "plugins":
+                has_classifiers = Classifier.objects.filter(org=org, is_active=True).exists()
+
+                menu = []
+
+                if has_classifiers:
+                    menu.append(
+                        self.create_menu_item(
+                            name=_("Classifiers"), icon="git-pull-request", endpoint="classifiers.classifier_menu"
+                        )
+                    )
+                else:
+                    menu.append(
+                        self.create_menu_item(
+                            name=_("Classifiers"), icon="git-pull-request", href="classifiers.classifier_connect"
+                        )
+                    )
+
+                # TODO: Proper icon for Zapier
+                menu.append(
+                    self.create_menu_item(menu_id="zapier", name=_("Zapier"), icon="zapier", href="orgs.org_resthooks")
+                )
+
+                return menu
+
+            elif submenu == "workspaces":
+                menu = []
+
+                menu.append(self.create_menu_item(name=org.name, href="orgs.org_workspace"))
+                for child in Org.objects.filter(parent=org, is_active=True).order_by("name"):
+                    menu.append(
+                        self.create_menu_item(
+                            name=child.name,
+                            menu_id=child.pk,
+                            href=f"{reverse('orgs.org_manage_accounts_sub_org')}?org={child.pk}",
+                        )
+                    )
+                return menu
+
+            elif submenu == "settings":
+
+                has_children = Org.objects.filter(parent=org, is_active=True).exists()
+                has_channels = Channel.objects.filter(org=org, is_active=True).exists()
+
+                menu = []
+
+                if has_children:
+                    menu.append(
+                        self.create_menu_item(
+                            menu_id="workspace",
+                            name=_("Workspaces"),
+                            icon="layers",
+                            endpoint=f"{reverse('orgs.org_menu')}workspaces/",
+                        )
+                    )
+                else:
+                    menu.append(
+                        self.create_menu_item(
+                            menu_id="workspace", icon="layers", name=_("Workspace"), href="orgs.org_workspace"
+                        )
+                    )
+
+                if has_channels:
+                    menu.append(
+                        self.create_menu_item(name=_("Channels"), icon="channel", endpoint="channels.channel_menu")
+                    )
+                else:
+                    menu.append(
+                        self.create_menu_item(name=_("Channels"), icon="channel", href="channels.channel_claim")
+                    )
+
+                menu.append(
+                    self.create_menu_item(
+                        name=_("Plugins"),
+                        icon="cord",
+                        endpoint=f"{reverse('orgs.org_menu')}plugins/",
+                        # TODO: replace this with a generic plugins intro page
+                        href="channels.channel_claim",
+                    )
+                )
+
+                return menu
+
+            else:
+
+                return [
+                    self.create_menu_item(name=_("Messages"), icon="message-square", endpoint="msgs.msg_menu"),
+                    self.create_menu_item(name=_("Contacts"), icon="contact", endpoint="contacts.contact_menu"),
+                    self.create_menu_item(name=_("Flows"), icon="flow", endpoint="flows.flow_menu"),
+                    self.create_menu_item(name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaigns_menu"),
+                    self.create_menu_item(
+                        name=_("Tickets"), icon="agent", endpoint="tickets.ticket_menu", href="tickets.ticket_list"
+                    ),
+                    self.create_menu_item(name=_("Triggers"), icon="radio", endpoint="triggers.trigger_menu"),
+                    {
+                        "id": "settings",
+                        "name": _("Settings"),
+                        "icon": "settings",
+                        "endpoint": f"{reverse('orgs.org_menu')}settings/",
+                        "bottom": True,
+                    },
+                    {
+                        "id": "support",
+                        "name": _("Support"),
+                        "icon": "help-circle",
+                        "bottom": True,
+                        "trigger": "showSupportWidget",
+                    },
+                ]
+
+                # Other Plugins:
+                # Wit.ai, Luis, Bothub, ZenDesk, DT One, Chatbase, Prometheus, Zapier/Resthooks
 
     class Import(NonAtomicMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class FlowImportForm(Form):
@@ -1907,7 +2029,7 @@ class OrgCRUDL(SmartCRUDL):
             context["role_summary"] = role_summary
             return context
 
-    class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class ManageAccounts(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
             invite_emails = forms.CharField(
                 required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")})
@@ -2051,10 +2173,20 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
-            if self.request.user.get_org().id != self.get_object().id:
-                links.append(dict(title=_("Workspaces"), style="button-light", href=reverse("orgs.org_sub_orgs")))
+            if self.is_spa():
+                if self.request.user.get_org().id != self.get_object().id:
+                    links.append(
+                        dict(
+                            title=_("Edit"),
+                            modax=_("Edit Workspace"),
+                            href=f"{reverse('orgs.org_edit_sub_org')}?org={self.object.pk}",
+                        )
+                    )
 
-            links.append(dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home")))
+            else:
+                if self.request.user.get_org().id != self.get_object().id:
+                    links.append(dict(title=_("Workspaces"), style="button-light", href=reverse("orgs.org_sub_orgs")))
+                links.append(dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home")))
             return links
 
         def get_form_kwargs(self):
@@ -2148,7 +2280,7 @@ class OrgCRUDL(SmartCRUDL):
             self.request.session["org_id"] = None
             return HttpResponseRedirect(reverse("orgs.org_manage"))
 
-    class SubOrgs(MultiOrgMixin, InferOrgMixin, SmartListView):
+    class SubOrgs(SpaMixin, MultiOrgMixin, InferOrgMixin, SmartListView):
         link_fields = ()
         title = _("Workspaces")
 
@@ -2776,7 +2908,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return obj
 
-    class Resthooks(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class Resthooks(SpaMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ResthookForm(forms.ModelForm):
             new_slug = forms.SlugField(
                 required=False,
@@ -2886,7 +3018,63 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
-    class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
+    class Workspace(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
+        title = _("Workspace")
+
+        def get_gear_links(self):
+            links = []
+            org = self.get_object()
+
+            if (
+                self.has_org_perm("orgs.org_transfer_credits")
+                and org.uses_topups
+                and Org.objects.filter(parent=org, is_active=True).exists()
+            ):
+                links.append(
+                    dict(
+                        title=_("Transfer Credits"),
+                        href=reverse("orgs.org_transfer_credits"),
+                        modax=_("Transfer Credits"),
+                        id="transfer-credits",
+                    )
+                )
+            return links
+
+        def derive_formax_sections(self, formax, context):
+
+            # add the channel option if we have one
+            user = self.request.user
+            org = user.get_org()
+
+            # if we are on the topups plan, show our usual credits view
+            if org.plan == settings.TOPUP_PLAN:
+                if self.has_org_perm("orgs.topup_list"):
+                    formax.add_section("topups", reverse("orgs.topup_list"), icon="icon-coins", action="link")
+
+            else:
+                if self.has_org_perm("orgs.org_plan"):  # pragma: needs cover
+                    formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
+
+            if self.has_org_perm("orgs.org_edit"):
+                formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
+
+            # only pro orgs get multiple users
+            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user:
+                formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users")
+
+            if self.has_org_perm("orgs.org_languages"):
+                formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
+
+            if self.has_org_perm("orgs.org_country") and org.get_branding().get("location_support"):
+                formax.add_section("country", reverse("orgs.org_country"), icon="icon-location2")
+
+            if self.has_org_perm("orgs.org_smtp_server"):
+                formax.add_section("email", reverse("orgs.org_smtp_server"), icon="icon-envelop")
+
+            if self.has_org_perm("orgs.org_token"):
+                formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)
+
+    class Home(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
 
         def get_gear_links(self):
@@ -3150,10 +3338,19 @@ class OrgCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             sub_orgs = Org.objects.filter(is_active=True, parent=self.get_object())
             context["sub_orgs"] = sub_orgs
+            context["is_spa"] = "HTTP_TEMBA_SPA" in self.request.META
             return context
 
-    class EditSubOrg(ModalMixin, Edit):
+    class EditSubOrg(SpaMixin, ModalMixin, Edit):
         success_url = "@orgs.org_sub_orgs"
+
+        def get_success_url(self):
+
+            if self.is_spa():
+                org_id = self.request.GET.get("org")
+                return f"{reverse('orgs.org_manage_accounts_sub_org')}?org={org_id}"
+
+            return super().get_success_url()
 
         def get_object(self, *args, **kwargs):
             org_id = self.request.GET.get("org")

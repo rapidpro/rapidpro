@@ -579,9 +579,9 @@ class ContactCRUDL(SmartCRUDL):
             counts = ContactGroup.get_system_group_counts(org)
             menu = [
                 dict(
-                    id="all",
+                    id="active",
                     count=counts[ContactGroup.TYPE_ACTIVE],
-                    name=_("All"),
+                    name=_("Active"),
                     href=reverse("contacts.contact_list"),
                     icon="user",
                 ),
@@ -597,6 +597,12 @@ class ContactCRUDL(SmartCRUDL):
                     count=counts[ContactGroup.TYPE_STOPPED],
                     name=_("Stopped"),
                     href=reverse("contacts.contact_stopped"),
+                ),
+                dict(
+                    id="archived",
+                    count=counts[ContactGroup.TYPE_ARCHIVED],
+                    name=_("Archived"),
+                    href=reverse("contacts.contact_archived"),
                 ),
                 dict(id="divider"),
             ]
@@ -617,23 +623,12 @@ class ContactCRUDL(SmartCRUDL):
                 menu.append(
                     dict(
                         id="fields",
-                        icon="database",
+                        icon="list",
                         count=count,
                         name=_("Fields"),
-                        href=reverse("contacts.contactfield_list"),
                         endpoint=reverse("contacts.contactfield_menu"),
                     )
                 )
-
-            menu.append(
-                dict(
-                    id="archived",
-                    count=counts[ContactGroup.TYPE_ARCHIVED],
-                    name=_("Archived"),
-                    href=reverse("contacts.contact_archived"),
-                    icon="archive",
-                )
-            )
 
             menu.append(
                 {
@@ -1849,12 +1844,18 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                 menu = [
                     {
+                        "id": "all",
+                        "name": _("All"),
+                        "count": len(active_user_fields),
+                        "href": reverse("contacts.contactfield_list"),
+                    },
+                    {
                         "icon": "bookmark",
                         "id": "featured",
                         "name": _("Featured"),
                         "count": featured_count,
                         "href": reverse("contacts.contactfield_featured"),
-                    }
+                    },
                 ]
 
             return JsonResponse({"results": menu})
