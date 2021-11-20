@@ -924,6 +924,7 @@ class OrgCRUDL(SmartCRUDL):
         "parse_data_view",
         "parse_data_import",
         "send_invite",
+        "translations",
     )
 
     model = Org
@@ -1340,7 +1341,6 @@ class OrgCRUDL(SmartCRUDL):
         success_message = "Plivo credentials verified. You can now add a Plivo channel."
 
         def form_valid(self, form):
-
             auth_id = form.cleaned_data["auth_id"]
             auth_token = form.cleaned_data["auth_token"]
 
@@ -3538,6 +3538,7 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
+                formax.add_section("translations", reverse("orgs.org_translations"), icon="icon-language")
 
             if self.has_org_perm("orgs.org_smtp_server"):
                 formax.add_section("email", reverse("orgs.org_smtp_server"), icon="icon-envelop")
@@ -3955,6 +3956,68 @@ class OrgCRUDL(SmartCRUDL):
         def has_permission(self, request, *args, **kwargs):
             self.org = self.derive_org()
             return self.request.user.has_perm("orgs.org_country") or self.has_org_perm("orgs.org_country")
+
+    class Translations(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+        class TranslationsForm(forms.ModelForm):
+            provider = forms.ChoiceField(
+                choices=[
+                    ("google", "Google Translate"),
+                    ("deepl", "DeepL Translate"),
+                ],
+                widget=SelectWidget(attrs={"searchable": True}),
+                label=_("Translation Service"),
+                help_text=_("The service that can be used to provide an approximate translation."),
+                initial="US",
+            )
+
+            api_key = forms.CharField(
+                required=False,
+                label=_("API Key"),
+                widget=InputWidget,
+            )
+
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs["org"]
+                del kwargs["org"]
+                super().__init__(*args, **kwargs)
+
+            class Meta:
+                model = Org
+                fields = ("provider", "api_key")
+
+        success_message = ""
+        form_class = TranslationsForm
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.user.get_org()
+            return kwargs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            org = self.request.user.get_org()
+            services = {
+                "google": "Google Translate",
+                "deepl": "DeepL Translate",
+            }
+            context["translator_service"] = (org.config or {}).get("translator_service", {}).get("provider", "")
+            context["translator_service"] = services.get(context["translator_service"], "")
+            return context
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+            current_config = org.config or {}
+            current_config.update(
+                {
+                    "translator_service": {
+                        "provider": form.cleaned_data["provider"],
+                        "api_key": form.cleaned_data["api_key"],
+                    }
+                }
+            )
+            org.config = current_config
+            org.save(update_fields=["config"])
+            return super().form_valid(form)
 
     class ClearCache(SmartUpdateView):  # pragma: no cover
         fields = ("id",)
