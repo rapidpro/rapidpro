@@ -3982,6 +3982,17 @@ class OrgCRUDL(SmartCRUDL):
                 del kwargs["org"]
                 super().__init__(*args, **kwargs)
 
+            def clean(self):
+                cleaned_data = super().clean()
+                provider = cleaned_data.get("provider")
+                api_key = cleaned_data.get("api_key")
+                if not api_key:
+                    return cleaned_data
+
+                _, r_status = self.org.get_translation("validation text", "spa", provider, api_key, use_config=False)
+                if r_status != 200:
+                    self.add_error("api_key", "API Key is wrong or invalid.")
+
             class Meta:
                 model = Org
                 fields = ("provider", "api_key")
