@@ -4002,6 +4002,13 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ""
         form_class = TranslationsForm
 
+        def derive_initial(self):
+            initial = super().derive_initial()
+            org = self.derive_org()
+            initial["provider"] = (org.config or {}).get("translator_service", {}).get("provider", "")
+            initial["api_key"] = (org.config or {}).get("translator_service", {}).get("api_key", "")
+            return initial
+
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.request.user.get_org()
