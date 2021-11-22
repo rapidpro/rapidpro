@@ -3965,8 +3965,8 @@ class OrgCRUDL(SmartCRUDL):
                     ("deepl", "DeepL Translate"),
                 ],
                 widget=SelectWidget(attrs={"searchable": True}),
-                label=_("Translation Service"),
-                help_text=_("The service that can be used to provide an approximate translation."),
+                label=_("Live Translation System"),
+                help_text=_("The system that can be used to provide an approximate translation."),
                 initial="US",
             )
 
@@ -3974,6 +3974,7 @@ class OrgCRUDL(SmartCRUDL):
                 required=False,
                 label=_("API Key"),
                 widget=InputWidget,
+                help_text=_("You can find your API Key on the system website."),
             )
 
             def __init__(self, *args, **kwargs):
@@ -4007,14 +4008,20 @@ class OrgCRUDL(SmartCRUDL):
         def form_valid(self, form):
             org = self.request.user.get_org()
             current_config = org.config or {}
-            current_config.update(
-                {
-                    "translator_service": {
-                        "provider": form.cleaned_data["provider"],
-                        "api_key": form.cleaned_data["api_key"],
+            if form.cleaned_data.get("provider") and form.cleaned_data.get("api_key"):
+                current_config.update(
+                    {
+                        "translator_service": {
+                            "provider": form.cleaned_data["provider"],
+                            "api_key": form.cleaned_data["api_key"],
+                        }
                     }
-                }
-            )
+                )
+            else:
+                try:
+                    current_config.pop("translator_service")
+                except KeyError:
+                    pass
             org.config = current_config
             org.save(update_fields=["config"])
             return super().form_valid(form)
