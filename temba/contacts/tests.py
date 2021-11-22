@@ -84,27 +84,21 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         menu = response.json()["results"]
         self.assertEqual(
             [
-                {"id": "active", "count": 0, "name": "Active", "href": "/contact/"},
+                {"id": "all", "count": 0, "name": "All", "href": "/contact/", "icon": "user"},
+                {"id": "divider"},
                 {"id": "blocked", "count": 0, "name": "Blocked", "href": "/contact/blocked/"},
                 {"id": "stopped", "count": 0, "name": "Stopped", "href": "/contact/stopped/"},
-                {"id": "archived", "count": 0, "name": "Archived", "href": "/contact/archived/"},
-                {
-                    "id": "smart",
-                    "icon": "atom",
-                    "name": "Smart Groups",
-                    "href": "/contactgroup/?type=smart",
-                    "count": 0,
-                },
-                {"id": "groups", "icon": "users", "name": "Groups", "href": "/contactgroup/?type=static", "count": 2},
+                {"id": "divider"},
+                {"id": "groups", "icon": "users", "name": "Groups", "endpoint": "/contactgroup/menu/", "count": 2},
                 {
                     "id": "fields",
-                    "icon": "layers",
+                    "icon": "database",
                     "count": 2,
                     "name": "Fields",
                     "href": "/contactfield/",
                     "endpoint": "/contactfield/menu/",
-                    "inline": True,
                 },
+                {"id": "archived", "icon": "archive", "count": 0, "name": "Archived", "href": "/contact/archived/"},
                 {"id": "import", "icon": "upload-cloud", "href": "/contactimport/create/", "name": "Import"},
             ],
             menu,
