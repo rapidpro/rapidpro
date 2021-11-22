@@ -143,6 +143,7 @@ class NotificationType:
         return {
             "org": notification.org,
             "user": notification.user,
+            "now": timezone.now(),
             "target_url": self.get_target_url(notification),
         }
 
