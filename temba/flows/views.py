@@ -1937,7 +1937,7 @@ class FlowCRUDL(SmartCRUDL):
             return blockers
 
         def get_warnings(self, flow) -> list:
-            warnings = [_("Please read the options below carefully as they have changed recently.")]
+            warnings = []
 
             # facebook channels need to warn if no topic is set
             facebook_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
