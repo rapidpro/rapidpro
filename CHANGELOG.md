@@ -1,3 +1,9 @@
+v7.1.8
+----------
+ * Remove chatbase as an integration as it no longer exists
+ * Clear keyword triggers when switching to flow type that doesn't support them
+ * Use branded emails for export notifications
+
 v7.1.5
 ----------
  * Remove warning on flow start modal about settings changes
