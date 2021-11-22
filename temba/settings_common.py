@@ -1087,7 +1087,6 @@ SEND_RECEIPTS = True
 
 INTEGRATION_TYPES = [
     "temba.orgs.integrations.dtone.DTOneType",
-    "temba.orgs.integrations.chatbase.ChatbaseType",
 ]
 
 CLASSIFIER_TYPES = [
