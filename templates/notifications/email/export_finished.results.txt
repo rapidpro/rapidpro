@@ -1,5 +1,7 @@
-{% load i18n %}{% trans "Hi there!" %}
+{% extends "notifications/email/base.txt" %}
+{% load i18n %}
 
+{% block notification-body %}
 {% trans "Your export of results for the following flows is ready." %}
 
 {% for flow in flows %}
@@ -7,7 +9,4 @@
 {% endfor %}
 
 {% blocktrans with url=branding.link|add:target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}
-
-{% trans "Thanks" %}
-
-{% blocktrans with brand=branding.name %}The {{ brand }} Team {% endblocktrans %}
+{% endblock notification-body %}
