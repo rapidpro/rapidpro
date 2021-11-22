@@ -1,3 +1,10 @@
+v7.1.5
+----------
+ * Remove warning on flow start modal about settings changes
+ * Add privacy policy link
+ * Test with Redis 3.2.4
+ * Updates for label sub menu and internal menu navigation
+
 v7.1.4
 ----------
  * Remove task to retry errored messages which now handled in mailroom
