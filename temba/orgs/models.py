@@ -2204,6 +2204,9 @@ class Org(SmartModel):
     def get_optin_flow(self):
         return self.config.get(Org.OPTIN_FLOW)
 
+    def has_translation_service(self):
+        return bool(self.config.get("translator_service", {}).get("provider"))
+
     def get_translation(self, text, target_lang, provider=None, api_key=None, use_config=True):
         import requests
 

@@ -17,6 +17,7 @@ import requests
 from django.core.paginator import Paginator
 from django.utils.functional import cached_property
 from packaging.version import Version
+from rest_framework.views import APIView
 from smartmin.users.models import FailedLogin
 from smartmin.users.views import Login
 from smartmin.views import (
@@ -925,6 +926,7 @@ class OrgCRUDL(SmartCRUDL):
         "parse_data_import",
         "send_invite",
         "translations",
+        "translate",
     )
 
     model = Org
@@ -4036,6 +4038,16 @@ class OrgCRUDL(SmartCRUDL):
             org.config = current_config
             org.save(update_fields=["config"])
             return super().form_valid(form)
+
+    class Translate(OrgPermsMixin, APIView):
+        def post(self, request, *args, **kwargs):
+            text = request.data.get("text")
+            target = request.data.get("target")
+            if not all((text, target)):
+                return JsonResponse({"error": "Fields, 'text' or 'target', are not provided."}, status=400)
+            org = self.derive_org()
+            translated_text, status_code = org.get_translation(text, target)
+            return JsonResponse({"translated": translated_text}, status=status_code)
 
     class ClearCache(SmartUpdateView):  # pragma: no cover
         fields = ("id",)

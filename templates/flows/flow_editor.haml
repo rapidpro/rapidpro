@@ -359,38 +359,6 @@
       confirmation.open = true;      
     }
 
-    {% if google_translate %}
-      async function handleSystemTranslate(code, text) {
-        const response = await fetch("https://translation.googleapis.com/language/translate/v2?key={{google_translate}}", {
-          method: 'POST',
-          body: JSON.stringify({
-            q: text,
-            target: code
-          })
-        });
-        if (response.ok) {
-          const response_json = await response.json();
-          return response_json.data.translations[0].translatedText;
-        }
-        return "Failed to translate!"
-      }
-    {% elif deepl_translate %}
-      async function handleSystemTranslate(code, text) {
-        const response = await fetch("https://api.deepl.com/v2/translate?auth_key={{deepl_translate}}", {
-          method: 'POST',
-          body: JSON.stringify({
-            text: text,
-            target_lang: code
-          })
-        });
-        if (response.ok) {
-          const response_json = await response.json();
-          return response_json.translations[0].text;
-        }
-        return "Failed to translate!"
-      }
-    {% endif %}
-
     const config = {
       flow: '{{object.uuid}}',
       flowType: flowType,
@@ -438,11 +406,11 @@
         lookups: '/flow/lookups_api/',
         giftcard: '/flow/giftcards_api/',
         link: '/link/api/',
+        {% if has_translator %}
+          translation: '/org/translate',
+        {% endif %}
       },
 
-      {% if google_translate or deepl_translate %}
-        onSystemTranslate: handleSystemTranslate,
-      {% endif %}
     };
 
     showFlowEditor(document.getElementById('rp-flow-editor'), config);
