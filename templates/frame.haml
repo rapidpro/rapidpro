@@ -230,6 +230,10 @@
     -block footer
       .footer.text-center.py-12.bg-gray-200.text-gray-500
         {{ request.branding.credits|safe }}
+        %div
+          %a.p-1.text-gray-500.underline(href="/policy/")
+            Privacy
+
 
   -trans 'Delete' as title
   %temba-dialog#general-delete-confirmation.hidden{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}
