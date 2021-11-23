@@ -4049,11 +4049,12 @@ class OrgCRUDL(SmartCRUDL):
     class Translate(OrgPermsMixin, APIView):
         def post(self, request, *args, **kwargs):
             text = request.data.get("text")
+            source = request.data.get("source")
             target = request.data.get("target")
             if not all((text, target)):
                 return JsonResponse({"error": "Fields, 'text' or 'target', are not provided."}, status=400)
             org = self.derive_org()
-            translated_text, status_code = org.get_translation(text, target)
+            translated_text, status_code = org.get_translation(text, target, source)
             return JsonResponse({"translated": translated_text}, status=status_code)
 
     class ClearCache(SmartUpdateView):  # pragma: no cover

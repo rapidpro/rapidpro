@@ -2207,14 +2207,13 @@ class Org(SmartModel):
     def has_translation_service(self):
         return bool(self.config.get("translator_service", {}).get("provider"))
 
-    def get_translation(self, text, target_lang, provider=None, api_key=None, use_config=True):
+    def get_translation(self, text, target_lang, source_lang=None, provider=None, api_key=None, use_config=True):
         import requests
 
-        def google_translate(_text, _target_lang, _api_key):
-            response = requests.post(
-                f"https://translation.googleapis.com/language/translate/v2?key={_api_key}",
-                {"q": _text, "target": _target_lang},
-            )
+        def google_translate(_text, _target_lang, _source_lang, _api_key):
+            body = {"q": _text, "target": _target_lang}
+            body.update({"source": _source_lang} if _source_lang else {})
+            response = requests.post(f"https://translation.googleapis.com/language/translate/v2?key={_api_key}", body)
             if response.ok:
                 try:
                     return response.json()["data"]["translations"][0]["translatedText"], 200
@@ -2222,10 +2221,10 @@ class Org(SmartModel):
                     pass
             return None, 404
 
-        def deepl_translate(_text, _target_lang, _api_key):
-            response = requests.post(
-                f"https://api.deepl.com/v2/translate?auth_key={_api_key}", {"text": _text, "target_lang": _target_lang}
-            )
+        def deepl_translate(_text, _target_lang, _source_lang, _api_key):
+            body = {"text": _text, "target_lang": _target_lang}
+            body.update({"source_lang": _source_lang} if _source_lang else {})
+            response = requests.post(f"https://api.deepl.com/v2/translate?auth_key={_api_key}", body)
             if response.ok:
                 try:
                     return response.json()["translations"][0]["text"], 200
@@ -2241,7 +2240,7 @@ class Org(SmartModel):
         saved_provider = translator_service.get("provider", provider) if use_config else provider
         saved_api_key = translator_service.get("api_key", api_key) if use_config else api_key
         if all((saved_provider, saved_api_key)) and saved_provider in providers.keys():
-            return providers.get(saved_provider, lambda _: (None, 404))(text, target_lang, saved_api_key)
+            return providers.get(saved_provider, lambda _: (None, 404))(text, target_lang, source_lang, saved_api_key)
         return None, 404
 
 
