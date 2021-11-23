@@ -1,3 +1,7 @@
+v7.1.9
+----------
+ * Fix email template for password forgets
+
 v7.1.8
 ----------
  * Remove chatbase as an integration as it no longer exists
