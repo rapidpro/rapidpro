@@ -6,6 +6,6 @@
 
 {% trans "If you have any questions we are always here to help." %}
 
-{% trans "Thanks!" %}
+{% trans "Thanks" %}
 {% blocktrans with brand=branding.name %}The {{ brand }} Team{% endblocktrans %}
 {% endblock body %}

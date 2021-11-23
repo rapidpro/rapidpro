@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives, get_connection as get_smtp_connection, send_mail
 from django.core.validators import EmailValidator
 from django.template import loader
+from django.utils import timezone
 
 
 class TembaEmailValidator(EmailValidator):
@@ -108,6 +109,7 @@ def send_template_email(recipients, subject, template, context, branding):
 
     context["subject"] = subject
     context["branding"] = branding
+    context["now"] = timezone.now()
 
     html = html_template.render(context)
     text = text_template.render(context)
