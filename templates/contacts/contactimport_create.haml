@@ -1,11 +1,12 @@
 -extends "smartmin/form.html"
--load smartmin i18n humanize
+-load smartmin i18n humanize sms
 
 -block title
   -trans "Import Contacts"
 
+
 -block content
-  .flex.mb-4.flex-col(style="min-height:41px")
+  .flex.mb-4.flex-col(style="min-height:41px")  
     -blocktrans trimmed
       You can import contacts from an Excel spreadsheet or comma separated values file.
 
@@ -109,15 +110,15 @@
 
 -block extra-script
   {{ block.super }}
-  :javascript
-    function onFileChange() {
-      var file = $('#import-file').val();
-      while (file.indexOf('\\') >= 0) {
-        file = file.substring(file.indexOf('\\') + 1, file.length);
+  -block spa-script
+    :javascript
+      function onFileChange() {
+        var file = $('#import-file').val();
+        while (file.indexOf('\\') >= 0) {
+          file = file.substring(file.indexOf('\\') + 1, file.length);
+        }
+        $('#file-field').val(file);
       }
-      $('#file-field').val(file);
-    }
-
 
 -block extra-style
   :css

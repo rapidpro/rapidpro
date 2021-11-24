@@ -1,4 +1,4 @@
--if success_url
+-if success_url and success_url != 'hide'
   .success-script
     -block success-script
       -if success_script
@@ -13,10 +13,6 @@
   -block modal-script
 
   -block modal-extra-style
-    :css
-      .select2-container {
-        width: 300px;
-      }
 
   -if form
     {{ form.media }}

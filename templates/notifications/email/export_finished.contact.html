@@ -1,0 +1,7 @@
+{% load i18n %}
+
+<p>{% trans "Hi there!" %}</p>
+<p>{% trans "Your contact export is ready." %}</p>
+<p>{% blocktrans with url=branding.link|add:target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}</p>
+<p>{% trans "Thanks" %}</p>
+<p>{% blocktrans with brand=branding.name %}The {{ brand }} Team {% endblocktrans %}</p>

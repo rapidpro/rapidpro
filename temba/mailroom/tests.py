@@ -10,6 +10,7 @@ from django.utils import timezone
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun, FlowStart
+from temba.ivr.models import IVRCall
 from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
@@ -333,28 +334,40 @@ class MailroomClientTest(TembaTest):
                 json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "assignee_id": 4, "note": "please handle"},
             )
 
-    def test_ticket_note(self):
+    def test_ticket_add_note(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
-            response = get_client().ticket_note(1, 12, [123, 345], "please handle")
+            response = get_client().ticket_add_note(1, 12, [123, 345], "please handle")
 
             self.assertEqual({"changed_ids": [123]}, response)
             mock_post.assert_called_once_with(
-                "http://localhost:8090/mr/ticket/note",
+                "http://localhost:8090/mr/ticket/add_note",
                 headers={"User-Agent": "Temba"},
                 json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "note": "please handle"},
+            )
+
+    def test_ticket_change_topic(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
+            response = get_client().ticket_change_topic(1, 12, [123, 345], 67)
+
+            self.assertEqual({"changed_ids": [123]}, response)
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/ticket/change_topic",
+                headers={"User-Agent": "Temba"},
+                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "topic_id": 67},
             )
 
     def test_ticket_close(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
-            response = get_client().ticket_close(1, 12, [123, 345])
+            response = get_client().ticket_close(1, 12, [123, 345], force=True)
 
             self.assertEqual({"changed_ids": [123]}, response)
             mock_post.assert_called_once_with(
                 "http://localhost:8090/mr/ticket/close",
                 headers={"User-Agent": "Temba"},
-                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345]},
+                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "force": True},
             )
 
     def test_ticket_reopen(self):
@@ -540,7 +553,6 @@ class MailroomQueueTest(TembaTest):
                     "start_id": start.id,
                     "start_type": "M",
                     "org_id": self.org.id,
-                    "created_by": self.admin.username,
                     "created_by_id": self.admin.id,
                     "flow_id": flow.id,
                     "flow_type": "M",
@@ -861,14 +873,14 @@ class EventTest(TembaTest):
     def test_from_ticket_event(self):
         ticketer = Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
         contact = self.create_contact("Jim", phone="0979111111")
-        ticket = self.create_ticket(ticketer, contact, "Problem", body="Where my shoes?")
+        ticket = self.create_ticket(ticketer, contact, "Where my shoes?")
 
         # event with a user
         event1 = TicketEvent.objects.create(
             org=self.org,
             contact=contact,
             ticket=ticket,
-            event_type=TicketEvent.TYPE_NOTE,
+            event_type=TicketEvent.TYPE_NOTE_ADDED,
             created_by=self.agent,
             note="this is important",
         )
@@ -877,13 +889,14 @@ class EventTest(TembaTest):
             {
                 "type": "ticket_note_added",
                 "note": "this is important",
+                "topic": None,
                 "assignee": None,
                 "ticket": {
                     "uuid": str(ticket.uuid),
                     "opened_on": matchers.ISODate(),
                     "closed_on": None,
                     "status": "O",
-                    "subject": "Problem",
+                    "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Where my shoes?",
                     "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
                 },
@@ -902,13 +915,14 @@ class EventTest(TembaTest):
             {
                 "type": "ticket_closed",
                 "note": None,
+                "topic": None,
                 "assignee": None,
                 "ticket": {
                     "uuid": str(ticket.uuid),
                     "opened_on": matchers.ISODate(),
                     "closed_on": None,
                     "status": "O",
-                    "subject": "Problem",
+                    "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Where my shoes?",
                     "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
                 },
@@ -916,4 +930,47 @@ class EventTest(TembaTest):
                 "created_by": None,
             },
             Event.from_ticket_event(self.org, self.user, event2),
+        )
+
+    def test_from_ivr_call(self):
+        contact = self.create_contact("Jim", phone="0979111111")
+
+        call1 = IVRCall.objects.create(
+            org=self.org,
+            contact=contact,
+            status=IVRCall.STATUS_IN_PROGRESS,
+            channel=self.channel,
+            contact_urn=contact.urns.all().first(),
+            error_count=0,
+        )
+        call2 = IVRCall.objects.create(
+            org=self.org,
+            contact=contact,
+            status=IVRCall.STATUS_ERRORED,
+            error_reason=IVRCall.ERROR_BUSY,
+            channel=self.channel,
+            contact_urn=contact.urns.all().first(),
+            error_count=0,
+        )
+
+        self.assertEqual(
+            {
+                "type": "call_started",
+                "status": "I",
+                "status_display": "In Progress",
+                "created_on": matchers.ISODate(),
+                "logs_url": None,
+            },
+            Event.from_ivr_call(self.org, self.user, call1),
+        )
+
+        self.assertEqual(
+            {
+                "type": "call_started",
+                "status": "E",
+                "status_display": "Errored (Busy)",
+                "created_on": matchers.ISODate(),
+                "logs_url": None,
+            },
+            Event.from_ivr_call(self.org, self.user, call2),
         )

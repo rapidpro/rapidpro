@@ -1,0 +1,26 @@
+-extends "contacts/contact_list.haml"
+
+-load i18n
+
+-block content
+  .page-title
+
+  .flex
+    .flex-grow.self-end.items-end
+      .flex.flex-col
+        %form#search-form(method="get")
+          %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+          %input.hide(type="submit")
+
+
+  %temba-modax#create-group-modal(header='{% trans "Create Group" %}' endpoint="{% url 'contacts.contactgroup_create' %}" -temba-loaded="handleCreateGroupModalLoaded")
+
+  .mt-4.shadow.rounded-lg.overflow-y-auto
+    -include "contacts/contact_list_include.haml"
+
+  .flex.flex-col(class="{%if not is_spa%}mb-16{%endif%}")
+    -include "includes/pagination.haml"
+
+    -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
+      .text-gray-400.text-sm.self-end.mt-2
+        -trans "To view more than 10,000 search results, save it as a group."

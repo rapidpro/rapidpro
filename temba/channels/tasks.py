@@ -4,12 +4,13 @@ from datetime import timedelta
 import pytz
 
 from django.conf import settings
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.utils import timezone
 
-from celery.task import task
+from celery import shared_task
 
 from temba.orgs.models import Org
+from temba.utils import chunk_list
 from temba.utils.analytics import track
 from temba.utils.celery import nonoverlapping_task
 
@@ -18,7 +19,7 @@ from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
 logger = logging.getLogger(__name__)
 
 
-@task(track_started=True, name="sync_channel_fcm_task")
+@shared_task(track_started=True, name="sync_channel_fcm_task")
 def sync_channel_fcm_task(cloud_registration_id, channel_id=None):  # pragma: no cover
     channel = Channel.objects.filter(pk=channel_id).first()
     Channel.sync_channel_fcm(cloud_registration_id, channel)
@@ -47,39 +48,45 @@ def sync_old_seen_channels_task():
         channel.trigger_sync()
 
 
-@task(track_started=True, name="send_alert_task")
+@shared_task(track_started=True, name="send_alert_task")
 def send_alert_task(alert_id, resolved):
     alert = Alert.objects.get(pk=alert_id)
     alert.send_email(resolved)
 
 
 @nonoverlapping_task(track_started=True, name="trim_sync_events_task")
-def trim_sync_events_task():  # pragma: needs cover
+def trim_sync_events_task():
     """
-    Runs daily and clears any channel sync events that are older than 7 days
+    Trims old sync events
     """
-    SyncEvent.trim()
+
+    trim_before = timezone.now() - settings.RETENTION_PERIODS["syncevent"]
+
+    channels_with_sync_events = (
+        SyncEvent.objects.filter(created_on__lte=trim_before)
+        .values("channel")
+        .annotate(Count("id"))
+        .filter(id__count__gt=1)
+    )
+    for channel_sync_events in channels_with_sync_events:
+        sync_events = SyncEvent.objects.filter(
+            created_on__lte=trim_before, channel_id=channel_sync_events["channel"]
+        ).order_by("-created_on")[1:]
+        for event in sync_events:
+            event.release()
 
 
 @nonoverlapping_task(track_started=True, name="trim_channel_log_task")
-def trim_channel_log_task():  # pragma: needs cover
+def trim_channel_log_task():
     """
-    Runs daily and clears any channel log items older than 48 hours.
+    Trims old channel logs
     """
 
-    # keep success messages for only SUCCESS_LOGS_TRIM_TIME hours
-    success_logs_trim_time = settings.SUCCESS_LOGS_TRIM_TIME
+    trim_before = timezone.now() - settings.RETENTION_PERIODS["channellog"]
 
-    # keep all errors for ALL_LOGS_TRIM_TIME days
-    all_logs_trim_time = settings.ALL_LOGS_TRIM_TIME
-
-    if success_logs_trim_time:
-        success_log_later = timezone.now() - timedelta(hours=success_logs_trim_time)
-        ChannelLog.objects.filter(created_on__lte=success_log_later, is_error=False).delete()
-
-    if all_logs_trim_time:
-        all_log_later = timezone.now() - timedelta(hours=all_logs_trim_time)
-        ChannelLog.objects.filter(created_on__lte=all_log_later).delete()
+    ids = ChannelLog.objects.filter(created_on__lte=trim_before).values_list("id", flat=True)
+    for chunk in chunk_list(ids, 1000):
+        ChannelLog.objects.filter(id__in=chunk).delete()
 
 
 @nonoverlapping_task(

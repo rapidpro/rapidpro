@@ -130,7 +130,6 @@ def queue_flow_start(start):
         "start_id": start.id,
         "start_type": start.start_type,
         "org_id": org_id,
-        "created_by": start.created_by.username,  # TODO deprecated
         "created_by_id": start.created_by_id,
         "flow_id": start.flow_id,
         "flow_type": start.flow.flow_type,

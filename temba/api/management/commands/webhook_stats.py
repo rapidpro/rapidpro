@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from django.core.management.base import BaseCommand, CommandParser
 from django.utils import timezone
 
-from temba.api.models import WebHookResult
+from temba.request_logs.models import HTTPLog
 
 
 class Command(BaseCommand):  # pragma: no cover
@@ -76,7 +76,7 @@ class Command(BaseCommand):  # pragma: no cover
             self.handle_slowest(kwargs["max_age"])
 
     def handle_summary(self, max_age, key_by, sort_by):
-        results = WebHookResult.objects.all()
+        results = HTTPLog.objects.exclude(flow=None)
 
         if max_age > 0:
             created_after = timezone.now() - timedelta(minutes=max_age)
@@ -136,7 +136,7 @@ class Command(BaseCommand):  # pragma: no cover
         self._print_summary(items)
 
     def handle_slowest(self, max_age):
-        results = WebHookResult.objects.only("url", "request_time").order_by("-request_time")
+        results = HTTPLog.objects.only("url", "request_time").exclude(flow=None).order_by("-request_time")
 
         if max_age > 0:
             created_after = timezone.now() - timedelta(minutes=max_age)

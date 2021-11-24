@@ -1,0 +1,560 @@
+-extends "frame.haml"
+-load smartmin i18n contacts compress
+
+-block page-top
+-block header
+-block footer
+
+-block extra-style
+  {{block.super}}
+
+  :css
+    html {
+      --color-text-dark: #555;
+      --temba-textinput-font-size: 1.125rem;
+      --temba-textinput-padding: 0.6em .8em;
+      --widget-box-shadow: rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+      --widget-box-shadow-focused: 0 0 0 3px rgba(164, 202, 254, .45), rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+
+      --button-y: 0.39em;
+      --button-x: 1.5em;
+      
+      --temba-select-selected-font-size: 1em;
+      --temba-select-selected-padding: .6em .8em;
+      --temba-select-selected-line-height: 1.2em;
+
+    }
+
+    temba-button {
+      --button-shadow: rgba(0, 0, 0, 0.15) 0px 3px 14px 0px, rgba(0, 0, 0, 0.25) 0px 1px 2px 0px;
+    }
+
+    temba-button.light {
+      --button-shadow: rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.07) 0px 1px 1px 1px;
+    }
+
+
+    .list-buttons-container {
+      position: fixed;
+      z-index: 1000;
+      height: inherit;
+      padding: 0.5em;
+      padding-top:1em;
+      background: rgba(0,0,0,.2);
+      border-radius: var(--curvature);
+      right: 20px;
+      transition: top 300ms var(--bounce);
+      top: -5em;
+      display: block;
+      box-shadow: var(--shadow);
+    }
+
+    .list-buttons-container.visible {
+      top: -1em;
+    }
+    
+    .spa-container {
+      background: #e9e9e9;
+      overflow-y:auto;
+    }
+
+    .spa-content {
+      display: flex;
+      flex-direction: column;
+      height:100%;
+    }
+
+    .bg-gradient {
+      background-repeat: no-repeat;
+      background-image: linear-gradient(rgb(255, 255, 255) 0%, rgb(236, 236, 236) 75%);
+    }
+
+
+    .lp-frame .lp-nav-item {
+      padding: 5px 10px !important;
+      border-radius: var(--curvature);
+    }
+
+    .lp-frame .lp-nav-item.selected {
+      background: var(--color-selection);
+      color: var(--color-primary-dark) !important;
+      font-weight: 300;
+    }
+
+    .lp-frame {
+      margin-top: 0px;
+      padding-top:0em;
+      padding-right: 0em;
+      padding-left: 0em;
+      flex-grow: 1;
+      overflow-y: auto;
+    }
+
+    .lp-frame .left { 
+      padding-top:1em;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 1em;
+      padding-left: 0.1em;
+      margin-right: 0em;
+      width: 18em;
+      padding-bottom:1em;
+    }
+
+    .lp-frame .right { 
+      padding: 0em;
+      margin: 0em;
+    }
+
+    .lp-frame .left .lp-nav .inner-scroll {
+      overflow: inherit;
+      height: inherit;
+      max-height: inherit;
+    }
+
+    .object-list {
+      -webkit-transform: translate3d(0,0,0)
+    }
+
+    temba-contact-chat {
+      transition: all 200ms ease-in-out;
+      transition-delay: 200ms;
+    }
+
+
+    .empty {
+      position: absolute;
+      transition: all 200ms ease-in-out;
+      transition-delay: 200ms;
+      opacity: 0;
+      padding: 3px 40px;
+    }
+
+    .empty h2 {
+      font-size: 36px;
+      margin-top: 16px;
+    }
+
+    .popper {
+      font-size: 48px;
+      display: inline;
+    }
+
+    .ticket-list {
+      flex-basis: 300px; 
+      flex-grow: 0; 
+      flex-shrink: 0;
+      transition: all 200ms ease-in;
+    }
+
+    temba-alert {
+      
+    }
+
+    .button-action {
+      background: #fff;
+    }
+
+    
+    .button-action:hover, #gear-container .button-light:hover, #gear-container .button-light.dropdown-toggle:hover, #gear-container .button-light.dropdown-toggle:hover .icon-menu {
+      background: var(--color-primary-dark);
+      color: #fff !important;
+    }
+
+    
+    #gear-container .button-light {
+      padding-top: 0.62em;
+      padding-bottom: 0.62em;
+      margin-top: 4px;
+      background: #fff;
+    }
+
+    #gear-container .button-light.dropdown-toggle {
+      padding-top: 0.58em;
+      padding-bottom: 0.58em;
+      margin-top: 4px;
+      background: #fff;
+    }
+
+
+
+
+    @media only screen and (max-width: 850px) {
+      .ticket-list {
+        flex-basis: 200px; 
+      }
+    }
+
+    @media only screen and (max-width: 768px) {
+      .ticket-list {
+        flex-basis: 125px; 
+      }
+
+      .widget-container {
+        margin-top:0px !important;
+        padding-top:0px !important;
+        margin-bottom:0px;
+        padding-bottom:0px;
+      }
+    }
+
+    .spa-container {
+    }
+
+    .folders {
+      box-shadow: 3px 0 13px -3px rgba(0, 0, 0, 0.15);
+      z-index:1;
+    }
+
+    table.list.selectable tbody tr:hover td {
+      background-color: var(--color-row-hover);
+      cursor: pointer;
+    }
+
+    .page-title {
+      font-size: 1.5em;
+    }
+
+    temba-menu {
+      background: #fff;
+    }
+    
+    .formax .formax-section.open {
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+    }
+     
+-block full-page-script
+  %script{src:"{{ STATIC_URL }}js/labels.js?4"}
+
+  :javascript
+    function fetchPJAXContent(url, container, options) {
+
+      options = options || {};
+
+      // hijack any pjax requests made from spa pages and route the content there instead
+      if (container == "#pjax" && document.querySelector(".spa-content")) {
+        container = ".spa-content";
+        options["headers"] = (options["headers"] || {})
+        options["headers"]["TEMBA-SPA"] = 1;
+      }
+
+      var triggerEvents = true;
+      if (!!options["ignoreEvents"]) {
+        triggerEvents = false;
+      }
+
+      var type = 'GET';
+      var data = undefined;
+      var processData = true;
+      var contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
+
+      if (options) {
+        if ('postData' in options) {
+          type = 'POST';
+          data = options['postData'];
+        }
+        
+        if('formData' in options) {
+          type = 'POST';
+          processData = false;
+          data = options['formData'];
+          contentType = false;
+        }
+      }
+
+      var headers = { 'X-PJAX': true };
+      if (options && 'headers' in options) {
+        for (key in options['headers']) {
+          headers[key] = options['headers'][key];
+        }
+      }
+
+      if (triggerEvents) {
+        document.dispatchEvent(new Event("temba-pjax-begin"));
+      }
+
+      // see if we should skip our fetch
+      if (options) {
+        if ('shouldIgnore' in options && options['shouldIgnore']()) {
+          if ('onIgnore' in options) {
+            options['onIgnore']();
+          }
+          return;
+        }
+      }
+
+      const request = {
+        headers: headers,
+        type: type,
+        url: url,
+        contentType: contentType,
+        processData: processData,
+        data: data,
+        success: function(response, status, jqXHR) {
+          var toast = jqXHR.getResponseHeader('Temba-Toast');
+          if (toast) {
+            toastr.info(toast, '', {"positionClass": "toast-bottom-full-width"});
+          }
+
+          if ('followRedirects' in options && options['followRedirects'] == true) {
+              var redirect = jqXHR.getResponseHeader('REDIRECT');
+              if (redirect) {
+                  window.document.location.href = redirect;
+                  return;
+              }
+          }
+
+          // double check before replacing content
+          if (options) {
+            if (('shouldIgnore' in options && options['shouldIgnore'](response))) {
+              if ('onIgnore' in options) {
+                  options['onIgnore'](jqXHR);
+              }
+
+              return;
+            }
+          }
+
+          $(container).html(response);
+
+          if (triggerEvents) {
+            document.dispatchEvent(new Event("temba-pjax-complete"));
+          }
+
+          if (options) {
+            if ('onSuccess' in options) {
+              options['onSuccess']();
+            }
+          }
+        }
+      }
+      $.ajax(request);
+    }
+
+  :javascript
+    document.addEventListener("temba-redirected", function(event){
+      fetchURL(event.detail.url, true);
+    });
+  
+  :javascript
+
+    document.addEventListener("DOMContentLoaded", function() {
+      var selection = window.location.pathname.split("/").filter(function(path){ return !!path});
+      var menu = document.querySelector("temba-menu");
+      menu.setSelection(selection);
+    });
+
+    document.addEventListener("temba-pjax-complete", function() {
+      hideLoading();
+      handleUpdateComplete();
+    })
+
+    document.querySelector(".spa-content").addEventListener("click", function(evt) {
+      var target = evt.target
+      if (target.href && target.href.indexOf("xlsx") > -1) {
+        return;
+      }
+
+      if((target.classList.contains("label-checkbox") || target.classList.contains("button-action")) && !target.classList.contains("no-loading")) {
+        showLoading();
+      }
+
+      var a = target.closest("a");
+      if (a && a.href) {
+        evt.stopPropagation();
+        evt.preventDefault();
+        fetchURL(a.href);
+      } 
+    });
+
+    document.querySelector(".spa-content").addEventListener("submit", function(evt) {
+      var formEle = evt.target;
+      if (formEle.method.toLowerCase() !== "post") {
+        evt.stopPropagation();
+        evt.preventDefault();
+        var formData = new FormData(formEle);
+        let queryString = new URLSearchParams(formData).toString();
+        showLoading();
+        fetchPJAXContent(window.lastFetch + "?" + queryString, ".spa-content", { 
+            "headers": { "TEMBA-SPA": "1"}, 
+            "onSuccess": hideLoading,  
+        });
+      } else {
+        evt.stopPropagation();
+        evt.preventDefault();
+        var formData = new FormData(formEle);
+        showLoading();
+        fetchPJAXContent(window.lastFetch, ".spa-content", { 
+            "headers": { "TEMBA-SPA": "1"},
+            "formData": formData,
+            "onSuccess": hideLoading,  
+        });
+      }
+    });
+
+    
+    window.addEventListener("popstate", function (event){
+      let state = event.state;
+      if (state) {
+        showLoading();
+
+        fetchPJAXContent(state.url, ".spa-content", { "headers": { 
+          "TEMBA-SPA": "1", 
+          "TEMBA-REFERER-PATH": state.path,
+          "TEMBA-PATH": state.path
+          }, 
+        "onSuccess": hideLoading, "ignoreEvents": false
+        });
+
+      }
+    });
+
+
+
+    function goto(event, ele) {
+      if (!ele) {
+        ele = event.target;
+      }
+
+
+      event.stopPropagation();
+      if (ele.setActive) {
+          ele.setActive();
+      }
+      var href = ele.getAttribute('href');
+
+      if (!href) {
+        if(ele.tagName == "TD") {
+          href = ele.closest("tr").getAttribute("href");
+        }
+      }
+
+      if (href) {
+          if (event.metaKey) {
+              window.open(href, '_blank');
+          } else {
+              fetchURL(href);
+          }
+      }
+    
+    }
+
+    function showSupportWidget() {
+        Intercom("show")
+    }
+
+    function showLoading() {
+      document.getElementById("load-container").classList.remove("hide");
+    }
+
+    function hideLoading() {
+      document.getElementById("load-container").classList.add("hide");
+    }
+
+    function handleUpdateComplete() {
+      // scroll to the top
+      var content = document.querySelector(".spa-container");
+      if (content) {
+        content.scrollTo({ 
+          top: 0,
+          left: 0,
+          behavior: 'smooth'}
+        );
+      }
+
+      // refresh our menu  
+      var menu = document.querySelector("temba-menu");
+      menu.refresh();
+    }
+
+    function gotoURL(urlToGo, urlToShow, ignoreEvents) {
+        var refererPath = window.location.pathname;
+        window.lastFetch = urlToGo;
+        window.history.pushState({ url: urlToGo,  },"", urlToShow);
+        fetchPJAXContent(urlToGo, ".spa-content", { "headers": { 
+            "TEMBA-SPA": "1", 
+            "TEMBA-REFERER-PATH": refererPath,
+            "TEMBA-PATH": urlToShow
+            }, 
+          "onSuccess": hideLoading, "ignoreEvents": ignoreEvents
+        });
+    }
+
+    function fetchURL(url, triggerEvents) {
+      showLoading();
+      var refererPath = window.location.pathname;
+      window.lastFetch = url;
+      var menu = document.querySelector("temba-menu");
+      var path = "/" + menu.getSelection().join("/") + "/";
+
+      if (url.indexOf("/contact/read/") == 0) {
+        path = url.replace("/contact/read/", "/contacts/read/");
+      }
+
+      if (url.indexOf("/contact/filter/") == 0) {
+        path = url.replace("/contact/filter/", "/contacts/filter/");
+      }
+
+      gotoURL(url, path, !triggerEvents);
+    }
+   
+    function handleMenuChanged(event) {
+      var selection = event.target.getSelection();
+      var menuItem = event.target.getMenuItem();
+      var body = document.querySelector(".spa-content");
+      if (menuItem && menuItem.href) {
+        fetchURL(menuItem.href)
+      }
+
+      if (selection.length > 1) {
+        var section = selection[0];
+        var name = `handle${section.charAt(0).toUpperCase()}${section.slice(1)}MenuChanged`;
+        var fn = window[name];
+        if (fn) {
+          fn(event);
+        }
+      }
+    }
+
+    function handleNoPath(event) {
+      var details = event.detail;
+      if (details.item == "contacts") {
+        gotoURL("/contact/" + details.path, "/" + details.item + "/" + details.path);
+      }
+    }
+
+-block refresh-fn
+  :javascript
+    function refresh(onSuccess, forceReload){
+      var refererPath = window.location.pathname;
+      fetchPJAXContent(window.lastFetch, ".spa-content", { "headers": { 
+        "TEMBA-SPA": "1", 
+        "TEMBA-REFERER-PATH": refererPath,
+        "TEMBA-PATH": refererPath,
+        }, 
+        "onSuccess": onSuccess, "ignoreEvents": false
+      });
+    }
+
+
+-block temba-store
+  %temba-store(
+    completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
+    fields="/api/v2/fields.json"
+    globals="/api/v2/globals.json"
+    groups="/api/v2/groups.json")
+      
+-block page-container
+  #load-container.hide
+    .absolute(style="display:flex;background:rgba(255,255,255,0);z-index:100000;width:100vw;")
+      .wrapper(style="margin: auto; margin-top:10px;border-radius:99999px;")
+        %temba-loading(size=10 units=6)
+
+  .flex-col
+    .flex.widget-container(style="height:100vh;")
+      .folders       
+        %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)")
+      .flex-grow.text-lg.spa-container.p-5
+        .spa-content
+  

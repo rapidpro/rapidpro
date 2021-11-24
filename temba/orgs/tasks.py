@@ -3,7 +3,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from celery.task import task
+from celery import shared_task
 
 from temba.contacts.models import URN, ContactURN, ExportContactsTask
 from temba.contacts.tasks import export_contacts_task
@@ -16,36 +16,36 @@ from temba.utils.celery import nonoverlapping_task
 from .models import CreditAlert, Invitation, Org, OrgActivity, TopUpCredits
 
 
-@task(track_started=True, name="send_invitation_email_task")
+@shared_task(track_started=True, name="send_invitation_email_task")
 def send_invitation_email_task(invitation_id):
     invitation = Invitation.objects.get(pk=invitation_id)
     invitation.send_email()
 
 
-@task(track_started=True, name="send_alert_email_task")
+@shared_task(track_started=True, name="send_alert_email_task")
 def send_alert_email_task(alert_id):
     alert = CreditAlert.objects.get(pk=alert_id)
     alert.send_email()
 
 
-@task(track_started=True, name="check_credits_task")
+@shared_task(track_started=True, name="check_credits_task")
 def check_credits_task():  # pragma: needs cover
     CreditAlert.check_org_credits()
 
 
-@task(track_started=True, name="check_topup_expiration_task")
+@shared_task(track_started=True, name="check_topup_expiration_task")
 def check_topup_expiration_task():
     CreditAlert.check_topup_expiration()
 
 
-@task(track_started=True, name="apply_topups_task")
+@shared_task(track_started=True, name="apply_topups_task")
 def apply_topups_task(org_id):
     org = Org.objects.get(id=org_id)
     org.apply_topups()
     org.trigger_send()
 
 
-@task(track_started=True, name="normalize_contact_tels_task")
+@shared_task(track_started=True, name="normalize_contact_tels_task")
 def normalize_contact_tels_task(org_id):
     org = Org.objects.get(id=org_id)
 

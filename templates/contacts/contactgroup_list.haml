@@ -1,14 +1,77 @@
 -extends "smartmin/list.html"
--load i18n
+-load i18n humanize smartmin
 
--block table-buttons
-  = block.super
+-block extra-script
+  {% if org_perms.contacts.contactgroup_delete %}
+  :javascript
+    function onDeleteClicked(){
+      var deleteConfirmation = document.querySelector("#delete-confirmation");
+      deleteConfirmation.classList.remove("hide");
+      deleteConfirmation.open = true;
+      deleteConfirmation.addEventListener("temba-button-clicked", function(event){
+        if (!event.detail.button.secondary) {
+          runActionOnObjectRows("delete");
+        }
+        deleteConfirmation.open = false;
+      });
+    }
+  {% endif %}
 
-  -if perms.contacts.contactgroup_list
-    %a.btn.btn-secondary{href:"{% url 'contacts.contact_list' %}", style:"margin-right:10px"}
-      .glyph.icon-user
-      -trans "Show Contacts"
+  :javascript
+    function handleRowClicked(event) {
+      if (event.target.tagName == "TEMBA-CHECKBOX") {
+        return;
+      }
 
-  -if perms.contacts.contactimport_create
-    %a.btn.btn-secondary.pull-right{href:"{% url 'contacts.contactimport_create' %}", style:"margin-right:10px"}
-      -trans "Import"
+      var row = event.target.closest("tr");
+      var uuid = row.getAttribute("data-uuid");
+
+      fetchURL("/contact/filter/" + uuid + "/");
+    }
+
+
+-block content
+  -if org_perms.contacts.contactgroup_delete
+    // this should be a modax that reports that some flows or campaigns will be affected appropriately
+    %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Groups")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6
+        -trans "Deleting groups will not delete the contacts inside the group. All contacts will remain in your account. Do you want to continue?"
+
+  .page-title
+
+  .lp-frame
+    .right
+      -if org_perms.contacts.contactgroup_delete
+        .list-buttons-container.mr-2.mt-2.flex-grow.mb-4
+          .list-buttons.flex.items-center.-mx-2
+            -if 'delete' in actions
+              .button-action.no-loading(onclick='onDeleteClicked()')
+                .-mt-1.mr-2.glyph.icon-user-delete
+                -trans "Delete"
+    
+      -block table
+        %table.list.lined.selectable{ class:'{% get_list_class object_list %}', cellspacing:'0'}
+          %thead
+          %tbody
+            - for obj in object_list
+              %tr.select-row.object-row(onclick='handleRowClicked(event)' data-uuid="{{obj.uuid}}" data-object-id="{{obj.id}}")
+                -if org_perms.contacts.contactgroup_update
+                  %td.checkbox.object-row-checkbox(style="width:0px")
+                    %temba-checkbox(onclick="handleRowSelection(this)")
+
+                %td.pl-2(style="{%if not org_perms.contacts.contactgroup_update %}padding-left:0px;{%endif%}")
+                  -if org_perms.contacts.contactfield_update
+                    .overflow-ellipsis.overflow-hidden.whitespace-nowrap.update.pr-4(style="max-width:64rem" onclick="")
+                      {{ obj.name }}                          
+                  -else
+                    .w-128
+                      {{ obj.name }}                          
+
+                %td
+                  -if obj.query
+                    {{obj.query}}
+                
+                %td.text-right
+                  .pr-2
+                    -filter intcomma
+                      {% get_value obj 'count' %}

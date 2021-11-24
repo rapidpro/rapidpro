@@ -959,7 +959,6 @@ a.org-choose {
   background: rgba(0, 0, 0, .15);
   padding-top: 6px;
   font-size: 11px;
-  max-width: 180px;
   .rounded-corners(3px);
 
   cursor: pointer;
@@ -982,12 +981,15 @@ a.org-choose {
 
   .org {
     line-height: 14px;
-    padding: 3px 10px 5px;
-    width: 160px;
+    padding: 3px 0px 5px 8px;
+    overflow-x: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 180px;
   }
 
   .other-orgs {
-    width: 178px;
+    width: 210px;
     position:absolute;
     right:40px;
     .account-details {
@@ -1014,7 +1016,9 @@ a.org-choose {
           color: @color-navbar - #222;
         }
       }
-
+      overflow-x: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       max-width: 200px;
     }
 

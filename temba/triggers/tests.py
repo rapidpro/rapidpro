@@ -14,6 +14,7 @@ from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, TembaTest
 
 from .models import Trigger
+from .types import KeywordTriggerType
 
 
 class TriggerTest(TembaTest):
@@ -367,6 +368,22 @@ class TriggerTest(TembaTest):
             },
         )
 
+    def test_is_valid_keyword(self):
+        self.assertFalse(KeywordTriggerType.is_valid_keyword(""))
+        self.assertFalse(KeywordTriggerType.is_valid_keyword(" x "))
+        self.assertFalse(KeywordTriggerType.is_valid_keyword("a b"))
+        self.assertFalse(KeywordTriggerType.is_valid_keyword("thisistoolongokplease"))
+        self.assertFalse(KeywordTriggerType.is_valid_keyword("🎺🦆"))
+        self.assertFalse(KeywordTriggerType.is_valid_keyword("👋👋"))
+        self.assertFalse(KeywordTriggerType.is_valid_keyword("👋🏾"))  # is actually 👋 + 🏾
+
+        self.assertTrue(KeywordTriggerType.is_valid_keyword("a"))
+        self.assertTrue(KeywordTriggerType.is_valid_keyword("7"))
+        self.assertTrue(KeywordTriggerType.is_valid_keyword("heyjoinnowplease"))
+        self.assertTrue(KeywordTriggerType.is_valid_keyword("١٠٠"))
+        self.assertTrue(KeywordTriggerType.is_valid_keyword("मिलाए"))
+        self.assertTrue(KeywordTriggerType.is_valid_keyword("👋"))
+
     @patch("temba.channels.types.facebook.FacebookType.deactivate_trigger")
     def test_release(self, mock_deactivate_trigger):
         channel = self.create_channel("FB", "Facebook", "234567")
@@ -469,14 +486,18 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"keyword": "with spaces", "flow": flow1.id, "match_type": "F"},
-            form_errors={"keyword": "Must be a single word containing only letters and numbers."},
+            form_errors={
+                "keyword": "Must be a single word containing only letters and numbers, or a single emoji character."
+            },
         )
 
         # try a keyword with special characters
         self.assertCreateSubmit(
             create_url,
             {"keyword": "keyw!o^rd__", "flow": flow1.id, "match_type": "F"},
-            form_errors={"keyword": "Must be a single word containing only letters and numbers."},
+            form_errors={
+                "keyword": "Must be a single word containing only letters and numbers, or a single emoji character."
+            },
         )
 
         # try with group as both inclusion and exclusion
@@ -649,6 +670,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={
                 "__all__": "Must provide at least one group or contact to include.",
                 "start_datetime": "This field is required.",
+                "repeat_period": "This field is required.",
                 "flow": "This field is required.",
             },
         )
@@ -657,7 +679,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"start_datetime": "2021-06-24 12:00", "repeat_period": "W", "flow": flow1.id, "groups": [group1.id]},
-            form_errors={"__all__": "Must specify at least one day of the week."},
+            form_errors={"repeat_days_of_week": "Must specify at least one day of the week."},
         )
 
         # try to create a weekly repeating schedule with an invalid day of the week (UI doesn't actually allow this)
@@ -1059,7 +1081,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(
             update_url,
             {"keyword": "", "flow": flow.id, "match_type": "F"},
-            form_errors={"keyword": "Must be a single word containing only letters and numbers."},
+            form_errors={
+                "keyword": "Must be a single word containing only letters and numbers, or a single emoji character."
+            },
             object_unchanged=trigger,
         )
 
@@ -1113,7 +1137,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(
             update_url,
             {"start_datetime": "2021-06-24 12:00", "repeat_period": "W", "flow": flow1.id, "groups": [group1.id]},
-            form_errors={"__all__": "Must specify at least one day of the week."},
+            form_errors={"repeat_days_of_week": "Must specify at least one day of the week."},
             object_unchanged=trigger,
         )
 

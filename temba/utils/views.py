@@ -5,6 +5,7 @@ from django.db import transaction
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.http import urlquote
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
@@ -13,6 +14,43 @@ from django.views.decorators.csrf import csrf_exempt
 from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 
 logger = logging.getLogger(__name__)
+
+
+class SpaMixin(View):
+    """
+    Uses SPA base template if the header is set appropriately
+    """
+
+    @cached_property
+    def spa_path(self) -> tuple:
+        return tuple(s for s in self.request.META.get("HTTP_TEMBA_PATH", "").split("/") if s)
+
+    @cached_property
+    def spa_referrer_path(self) -> tuple:
+        return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
+
+    def get_template_names(self):
+        templates = super().get_template_names()
+
+        if "HTTP_TEMBA_SPA" in self.request.META:
+            original = templates[0].split(".")
+            if len(original) == 2:
+                spa_template = original[0] + "_spa." + original[1]
+
+            if spa_template:
+                templates.insert(0, spa_template)
+        return templates
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        if "HTTP_TEMBA_SPA" in self.request.META:
+            context["base_template"] = "spa.html"
+            context["is_spa"] = True
+            context["temba_path"] = self.spa_path
+            context["temba_referer"] = self.spa_referrer_path
+
+        return context
 
 
 class ComponentFormMixin(View):
