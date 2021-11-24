@@ -1,3 +1,7 @@
+v7.1.10
+----------
+ * Make forgot password email look a little nicer and be easier to localize
+
 v7.1.9
 ----------
  * Fix email template for password forgets
