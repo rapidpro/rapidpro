@@ -279,11 +279,11 @@ ELASTIC_APM = {
 # -----------------------------------------------------------------------------------
 # Crontab Settings ..
 # -----------------------------------------------------------------------------------
-CELERYBEAT_SCHEDULE["retry-errored-messages"] = {
+CELERY_BEAT_SCHEDULE["retry-errored-messages"] = {
     "task": "retry_errored_messages",
     "schedule": crontab(hour=1, minute=0),
 }
-CELERYBEAT_SCHEDULE["refresh-whatsapp-tokens"] = {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=12)}
+CELERY_BEAT_SCHEDULE["refresh-whatsapp-tokens"] = {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=12)}
 
 
 # -----------------------------------------------------------------------------------
@@ -377,7 +377,7 @@ CSP_CONNECT_SRC = env.tuple("CSP_CONNECT_SRC", default=CSP_DEFAULT_SRC)
 
 
 # Removes 'check-channels' task from Beat Schedule (sent_messages query)
-CELERYBEAT_SCHEDULE.pop('check-channels')
+CELERY_BEAT_SCHEDULE.pop('check-channels')
 
 # Exclude list of header that should not appear in webhook and channel logs
 EXCLUDED_HTTP_HEADERS = env.list("EXCLUDED_HTTP_HEADERS", default=[])
