@@ -572,7 +572,7 @@ class ContactCRUDL(SmartCRUDL):
         "start",
     )
 
-    class Menu(OrgPermsMixin, SmartTemplateView):
+    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
         def render_to_response(self, context, **response_kwargs):
             org = self.request.user.get_org()
             counts = ContactGroup.get_system_group_counts(org)
@@ -584,7 +584,7 @@ class ContactCRUDL(SmartCRUDL):
                     href=reverse("contacts.contact_list"),
                     icon="user",
                 ),
-                dict(id="divider"),
+                self.create_divider(),
                 dict(
                     id="blocked",
                     count=counts[ContactGroup.TYPE_BLOCKED],
@@ -603,7 +603,7 @@ class ContactCRUDL(SmartCRUDL):
                     name=_("Archived"),
                     href=reverse("contacts.contact_archived"),
                 ),
-                dict(id="divider"),
+                self.create_divider(),
             ]
 
             groups = ContactGroup.get_user_groups(org, ready_only=False).select_related("org").order_by(Upper("name"))

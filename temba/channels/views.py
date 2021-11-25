@@ -1382,7 +1382,7 @@ class ChannelCRUDL(SmartCRUDL):
             channel = self.form.cleaned_data["channel"]
             return reverse("channels.channel_read", args=[channel.uuid])
 
-    class Configuration(OrgObjPermsMixin, SmartReadView):
+    class Configuration(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def get_context_data(self, **kwargs):

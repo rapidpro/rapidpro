@@ -618,7 +618,7 @@ class TwoFactorBackupView(BaseTwoFactorView):
     template_name = "orgs/login/two_factor_backup.haml"
 
 
-class ConfirmAccessView(Login):
+class ConfirmAccessView(SpaMixin, Login):
     """
     Overrides the smartmin login view to provide a view for an already logged in user to re-authenticate.
     """
@@ -861,7 +861,7 @@ class UserCRUDL(SmartCRUDL):
 
             return False  # pragma: needs cover
 
-    class TwoFactorEnable(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class TwoFactorEnable(SpaMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class Form(forms.Form):
             otp = forms.CharField(
                 label="The generated OTP",
@@ -920,7 +920,7 @@ class UserCRUDL(SmartCRUDL):
 
             return super().form_valid(form)
 
-    class TwoFactorDisable(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class TwoFactorDisable(SpaMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class Form(forms.Form):
             password = forms.CharField(
                 label=" ",
@@ -957,7 +957,7 @@ class UserCRUDL(SmartCRUDL):
 
             return super().form_valid(form)
 
-    class TwoFactorTokens(RequireRecentAuthMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+    class TwoFactorTokens(SpaMixin, RequireRecentAuthMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         permission = "orgs.org_two_factor"
         title = _("Two-factor Authentication")
 
@@ -975,10 +975,9 @@ class UserCRUDL(SmartCRUDL):
             return super().get(request, *args, **kwargs)
 
         def get_gear_links(self):
-            return [
-                dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home")),
-                dict(title=_("Disable"), style="button-light", href=reverse("orgs.user_two_factor_disable")),
-            ]
+            if self.is_spa():
+                return []
+            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"))]
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -999,10 +998,10 @@ class MenuMixin(OrgPermsMixin):
         return []
 
     def create_divider(self):
-        return {"id": "divider"}
+        return {"type": "divider"}
 
     def create_section(self, name):
-        return {"id": "section", "name": name}
+        return {"id": slugify(name), "name": name, "type": "section"}
 
     def create_menu_item(
         self,
@@ -1057,6 +1056,7 @@ class MenuMixin(OrgPermsMixin):
 
 class OrgCRUDL(SmartCRUDL):
     actions = (
+        "account",
         "signup",
         "home",
         "token",
@@ -1106,13 +1106,32 @@ class OrgCRUDL(SmartCRUDL):
         def derive_menu(self):
 
             submenu = self.kwargs.get("submenu")
-
             org = self.request.user.get_org()
 
-            if submenu == "plugins":
+            if submenu == "settings":
                 has_classifiers = Classifier.objects.filter(org=org, is_active=True).exists()
-
                 menu = []
+                menu.append(self.create_menu_item(name=_("Account"), icon="user", href="orgs.org_account"))
+
+                if self.request.user.get_settings().two_factor_enabled:
+                    menu.append(
+                        self.create_menu_item(
+                            name=_("Security"), icon="shield", href=reverse("orgs.user_two_factor_tokens")
+                        )
+                    )
+                else:
+                    menu.append(
+                        self.create_menu_item(
+                            menu_id="authentication",
+                            name=_("Enable 2FA"),
+                            icon="shield",
+                            href=reverse("orgs.user_two_factor_enable"),
+                        )
+                    )
+
+                menu.append(self.create_section(_("Workspace")))
+                menu.append(self.create_menu_item(name=org.name, icon="layers", href="orgs.org_workspace"))
+                menu.append(self.create_menu_item(name=_("Logins"), icon="users", href="orgs.org_manage_accounts"))
 
                 if has_classifiers:
                     menu.append(
@@ -1127,66 +1146,87 @@ class OrgCRUDL(SmartCRUDL):
                         )
                     )
 
-                # TODO: Proper icon for Zapier
+                menu.append(self.create_menu_item(name=_("Zapier"), icon="zapier", href="orgs.org_resthooks"))
+
                 menu.append(
-                    self.create_menu_item(menu_id="zapier", name=_("Zapier"), icon="zapier", href="orgs.org_resthooks")
+                    self.create_menu_item(
+                        name=_("Integrations"),
+                        icon="cord",
+                        href="channels.channel_claim",
+                    )
                 )
 
-                return menu
+                menu.append(self.create_section(_("Channels")))
 
-            elif submenu == "workspaces":
-                menu = []
+                if self.has_org_perm("channels.channel_read"):
+                    from temba.channels.views import get_channel_read_url
 
-                menu.append(self.create_menu_item(name=org.name, href="orgs.org_workspace"))
-                for child in Org.objects.filter(parent=org, is_active=True).order_by("name"):
+                    channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
+                    for channel in channels:
+                        icon = channel.get_type().icon.replace("icon-", "")
+                        icon = icon.replace("power-cord", "box")
+                        menu.append(
+                            self.create_menu_item(
+                                menu_id=f"ch-{channel.uuid}",
+                                name=channel.name,
+                                href=get_channel_read_url(channel),
+                                icon=icon,
+                            )
+                        )
+
+                    menu.append(
+                        self.create_menu_item(
+                            menu_id="channel", name=_("Add Channel"), icon="channel", href="channels.channel_claim"
+                        )
+                    )
+
+                if self.has_org_perm("archives.archive_message"):
+                    menu.append(self.create_section(_("Archives")))
+                    menu.append(
+                        self.create_menu_item(
+                            name=_("Messages"),
+                            icon="message-square",
+                            href=reverse("archives.archive_message"),
+                        )
+                    )
+                    menu.append(
+                        self.create_menu_item(
+                            name=_("Flow Runs"),
+                            icon="flow",
+                            href=reverse("archives.archive_run"),
+                        )
+                    )
+
+                child_orgs = Org.objects.filter(parent=org, is_active=True).order_by("name")
+
+                if child_orgs:
+                    menu.append(self.create_section(_("Child Workspaces")))
+
+                for child in child_orgs:
                     menu.append(
                         self.create_menu_item(
                             name=child.name,
                             menu_id=child.pk,
+                            icon="layers",
                             href=f"{reverse('orgs.org_manage_accounts_sub_org')}?org={child.pk}",
                         )
                     )
+
                 return menu
 
-            elif submenu == "settings":
+            elif submenu == "settings-old":
 
-                has_children = Org.objects.filter(parent=org, is_active=True).exists()
-                has_channels = Channel.objects.filter(org=org, is_active=True).exists()
+                # has_children = Org.objects.filter(parent=org, is_active=True).exists()
+                # has_channels = Channel.objects.filter(org=org, is_active=True).exists()
+                # has_classifiers = Classifier.objects.filter(org=org, is_active=True).exists()
 
                 menu = []
-
-                if has_children:
-                    menu.append(
-                        self.create_menu_item(
-                            menu_id="workspace",
-                            name=_("Workspaces"),
-                            icon="layers",
-                            endpoint=f"{reverse('orgs.org_menu')}workspaces/",
-                        )
-                    )
-                else:
-                    menu.append(
-                        self.create_menu_item(
-                            menu_id="workspace", icon="layers", name=_("Workspace"), href="orgs.org_workspace"
-                        )
-                    )
-
-                if has_channels:
-                    menu.append(
-                        self.create_menu_item(name=_("Channels"), icon="channel", endpoint="channels.channel_menu")
-                    )
-                else:
-                    menu.append(
-                        self.create_menu_item(name=_("Channels"), icon="channel", href="channels.channel_claim")
-                    )
-
                 menu.append(
                     self.create_menu_item(
-                        name=_("Plugins"),
-                        icon="cord",
-                        endpoint=f"{reverse('orgs.org_menu')}plugins/",
-                        # TODO: replace this with a generic plugins intro page
-                        href="channels.channel_claim",
+                        menu_id="workspace",
+                        icon="layers",
+                        name=_("Workspace"),
+                        endpoint=f"{reverse('orgs.org_menu')}workspace/",
                     )
                 )
 
@@ -1272,7 +1312,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return super().form_valid(form)  # pragma: needs cover
 
-    class Export(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+    class Export(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         def post(self, request, *args, **kwargs):
             org = self.get_object()
 
@@ -3018,6 +3058,18 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
+    class Account(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
+        title = _("Account")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["two_factor_enabled"] = self.request.user.get_settings().two_factor_enabled
+            return context
+
+        def derive_formax_sections(self, formax, context):
+            if self.has_org_perm("orgs.org_profile"):
+                formax.add_section("org", reverse("orgs.user_edit"), icon="icon-user")
+
     class Workspace(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Workspace")
 
@@ -3046,15 +3098,6 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            # if we are on the topups plan, show our usual credits view
-            if org.plan == settings.TOPUP_PLAN:
-                if self.has_org_perm("orgs.topup_list"):
-                    formax.add_section("topups", reverse("orgs.topup_list"), icon="icon-coins", action="link")
-
-            else:
-                if self.has_org_perm("orgs.org_plan"):  # pragma: needs cover
-                    formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
-
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
 
@@ -3073,6 +3116,15 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_token"):
                 formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)
+
+            # if we are on the topups plan, show our usual credits view
+            if org.plan == settings.TOPUP_PLAN:
+                if self.has_org_perm("orgs.topup_list"):
+                    formax.add_section("topups", reverse("orgs.topup_list"), icon="icon-coins", action="link")
+
+            else:
+                if self.has_org_perm("orgs.org_plan"):  # pragma: needs cover
+                    formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 
     class Home(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
@@ -3193,16 +3245,6 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")
 
-            if self.has_org_perm("orgs.org_two_factor"):
-                if user.get_settings().two_factor_enabled:
-                    formax.add_section(
-                        "two_factor", reverse("orgs.user_two_factor_tokens"), icon="icon-two-factor", action="link"
-                    )
-                else:
-                    formax.add_section(
-                        "two_factor", reverse("orgs.user_two_factor_enable"), icon="icon-two-factor", action="link"
-                    )
-
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
 
@@ -3237,6 +3279,16 @@ class OrgCRUDL(SmartCRUDL):
                     icon="icon-cloud-lightning",
                     wide="true",
                 )
+
+            if self.has_org_perm("orgs.org_two_factor"):
+                if user.get_settings().two_factor_enabled:
+                    formax.add_section(
+                        "two_factor", reverse("orgs.user_two_factor_tokens"), icon="icon-two-factor", action="link"
+                    )
+                else:
+                    formax.add_section(
+                        "two_factor", reverse("orgs.user_two_factor_enable"), icon="icon-two-factor", action="link"
+                    )
 
             # show globals and archives
             formax.add_section("globals", reverse("globals.global_list"), icon="icon-global", action="link")

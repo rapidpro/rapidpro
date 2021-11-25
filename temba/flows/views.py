@@ -34,7 +34,6 @@ from django.views.generic import FormView
 
 from temba import mailroom
 from temba.archives.models import Archive
-from temba.campaigns.models import CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.contacts.search import SearchException, parse_query
@@ -230,64 +229,23 @@ class FlowCRUDL(SmartCRUDL):
         def derive_menu(self):
 
             labels = FlowLabel.objects.filter(org=self.request.user.get_org(), parent=None)
-            submenu = self.kwargs.get("submenu")
 
-            if submenu == "labels":
-                menu = []
-                for label in labels:
-                    menu.append(
-                        self.create_menu_item(
-                            menu_id=label.uuid,
-                            name=label.name,
-                            href=reverse("flows.flow_filter", args=[label.uuid]),
-                        )
+            menu = []
+            menu.append(self.create_menu_item(name=_("Active"), icon="flow", href="flows.flow_list"))
+            self.create_menu_item(name=_("Active"), icon="flow", href="flows.flow_list"),
+
+            for label in labels:
+                menu.append(
+                    self.create_menu_item(
+                        icon="tag",
+                        menu_id=label.uuid,
+                        name=label.name,
+                        href=reverse("flows.flow_filter", args=[label.uuid]),
                     )
-                return menu
-
-            elif submenu == "campaigns":  # pragma: no cover
-                org = self.request.user.get_org()
-                menu = []
-
-                events = CampaignEvent.objects.filter(
-                    campaign__org=org,
-                    is_active=True,
-                    campaign__is_active=True,
-                    flow__is_archived=False,
-                    flow__is_active=True,
-                    flow__is_system=False,
                 )
 
-                for campaign in (
-                    events.values("campaign__name", "campaign__id")
-                    .annotate(count=Count("id"))
-                    .order_by("campaign__name")
-                ):
-                    menu.append(
-                        self.create_menu_item(
-                            name=campaign["campaign__name"],
-                            href=reverse("flows.flow_campaign", args=[campaign["campaign__id"]]),
-                        )
-                    )
-                return menu
-
-            else:
-                return [
-                    self.create_menu_item(name=_("Active"), icon="flow", href="flows.flow_list"),
-                    # for completeness with old ui, but this feels backwards, we likely should instead have
-                    # a list of flows used on the campaign read pages if we want this filter at all
-                    # self.create_menu_item(
-                    #    name=_("Campaigns"),
-                    #    icon="clock",
-                    #    endpoint=f"{reverse('flows.flow_menu')}campaigns",
-                    # ),
-                    self.create_menu_item(
-                        name=_("Labels"),
-                        icon="tag",
-                        endpoint=f"{reverse('flows.flow_menu')}labels",
-                        count=len(labels),
-                    ),
-                    self.create_menu_item(name=_("Archived"), icon="archive", href="flows.flow_archived"),
-                ]
+            menu.append(self.create_menu_item(name=_("Archived"), icon="archive", href="flows.flow_archived"))
+            return menu
 
     class RecentMessages(OrgObjPermsMixin, SmartReadView):
         """
@@ -1734,7 +1692,7 @@ class FlowCRUDL(SmartCRUDL):
         def render_to_response(self, context, **response_kwargs):
             return JsonResponse(self.get_object().get_category_counts())
 
-    class Results(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+    class Results(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def get_gear_links(self):

@@ -45,7 +45,7 @@ urlpatterns += [
     # for spa
     url(r"^(?P<level_0>contacts|tickets|messages|channels|flows|plugins|settings)/$", spa, name="spa"),
     url(
-        r"^(?P<level_0>contacts|tickets|messages|channels|flows|plugins|settings)/(?P<level_1>\w+)/$",
+        r"^(?P<level_0>contacts|tickets|messages|channels|flows|plugins|settings)/(?P<level_1>.+)/$",
         spa,
         name="spa.level_1",
     ),
