@@ -1006,7 +1006,6 @@ CELERY_BEAT_SCHEDULE = {
     "delete-orgs": {"task": "delete_orgs_task", "schedule": crontab(hour=4, minute=0)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
     "resolve-twitter-ids-task": {"task": "resolve_twitter_ids_task", "schedule": timedelta(seconds=900)},
-    "retry-errored-messages": {"task": "retry_errored_messages", "schedule": timedelta(seconds=60)},
     "refresh-jiochat-access-tokens": {"task": "refresh_jiochat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": crontab(hour=6, minute=0)},
@@ -1089,11 +1088,6 @@ for brand in BRANDING.values():
 
 ######
 # DANGER: only turn this on if you know what you are doing!
-#         could cause messages to be sent to live customer aggregators
-SEND_MESSAGES = False
-
-######
-# DANGER: only turn this on if you know what you are doing!
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
 
@@ -1102,7 +1096,6 @@ SEND_RECEIPTS = True
 
 INTEGRATION_TYPES = [
     "temba.orgs.integrations.dtone.DTOneType",
-    "temba.orgs.integrations.chatbase.ChatbaseType",
 ]
 
 CLASSIFIER_TYPES = [

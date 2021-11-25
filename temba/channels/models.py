@@ -1641,7 +1641,6 @@ class Alert(SmartModel):
         context = dict(
             org=self.channel.org,
             channel=self.channel,
-            now=timezone.now(),
             last_seen=self.channel.last_seen,
             sync=self.sync_event,
         )

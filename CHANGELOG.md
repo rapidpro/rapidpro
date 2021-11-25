@@ -1,3 +1,33 @@
+v7.1.10
+----------
+ * Make forgot password email look a little nicer and be easier to localize
+
+v7.1.9
+----------
+ * Fix email template for password forgets
+
+v7.1.8
+----------
+ * Remove chatbase as an integration as it no longer exists
+ * Clear keyword triggers when switching to flow type that doesn't support them
+ * Use branded emails for export notifications
+
+v7.1.5
+----------
+ * Remove warning on flow start modal about settings changes
+ * Add privacy policy link
+ * Test with Redis 3.2.4
+ * Updates for label sub menu and internal menu navigation
+
+v7.1.4
+----------
+ * Remove task to retry errored messages which now handled in mailroom
+
+v7.1.2
+----------
+ * Update poetry dependencies
+ * Update to latest editor
+
 v7.1.1
 ----------
  * Remove channel alert notifications as these will become incidents
