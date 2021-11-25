@@ -32,9 +32,8 @@
       }
 
     // ==== JQUERY ====
-    :javascript
-      conditionalLoad('bower/jquery/jquery.js', '//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.js');
-      conditionalLoad('bower/jquery-migrate/jquery-migrate.min.js', null);
+    <script type="text/javascript" src="{{ STATIC_URL }}bower/jquery/jquery.js"></script>
+    <script type="text/javascript" src="{{ STATIC_URL }}bower/jquery-migrate/jquery-migrate.min.js"></script>
 
     -# this view make it possible to process translations from javascript land
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
