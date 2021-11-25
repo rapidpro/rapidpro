@@ -380,4 +380,4 @@ CSP_CONNECT_SRC = env.tuple("CSP_CONNECT_SRC", default=CSP_DEFAULT_SRC)
 CELERYBEAT_SCHEDULE.pop('check-channels')
 
 # Exclude list of header that should not appear in webhook and channel logs
-EXCLUDED_HTTP_HEADERS = env.list("EXCLUDED_HTTP_HEADERS", default=[])\
+EXCLUDED_HTTP_HEADERS = env.list("EXCLUDED_HTTP_HEADERS", default=[])
