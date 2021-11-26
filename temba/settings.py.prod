@@ -289,8 +289,10 @@ CELERY_BEAT_SCHEDULE["refresh-whatsapp-tokens"] = {"task": "refresh_whatsapp_tok
 # -----------------------------------------------------------------------------------
 # APPLICATION LOGS
 # -----------------------------------------------------------------------------------
-FLOW_SESSION_TRIM_DAYS = env.int("FLOW_SESSION_TRIM_DAYS", default=7)
-
+RETENTION_PERIODS.update(
+    channellog=timedelta(hours=env.int("RETENTION_PERIODS_CHANNELLOG", default=48)),
+    flowsession=timedelta(days=env.int("RETENTION_PERIODS_FLOWSESSION", default=7))
+)
 
 # Adds gRPC services
 GRPC_FRAMEWORK = {
@@ -346,10 +348,6 @@ ANNOUNCEMENT_BUTTON = env("ANNOUNCEMENT_BUTTON")
 
 # Hotjar
 HOTJAR_IDS = env.dict('HOTJAR_IDS')
-
-SUCCESS_LOGS_TRIM_TIME = env("SUCCESS_LOGS_TRIM_TIME", default=48)
-ALL_LOGS_TRIM_TIME = env("ALL_LOGS_TRIM_TIME", default=24*30)  # 30 days
-
 
 # ------------------------------------------------------------------------------------------
 # Production-only: Adjust depending on your proxy
