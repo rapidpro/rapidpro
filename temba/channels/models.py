@@ -1076,6 +1076,9 @@ class Channel(TembaModel):
     def get_msg_count(self):
         return self.get_count([ChannelCount.INCOMING_MSG_TYPE, ChannelCount.OUTGOING_MSG_TYPE])
 
+    def get_msg_segments_count(self):
+        return self.get_count([ChannelCount.INCOMING_MSG_SEGMENT_TYPE, ChannelCount.OUTGOING_MSG_SEGMENT_TYPE])
+
     def get_ivr_count(self):
         return self.get_count([ChannelCount.INCOMING_IVR_TYPE, ChannelCount.OUTGOING_IVR_TYPE])
 
@@ -1125,6 +1128,8 @@ class ChannelCount(SquashableModel):
 
     INCOMING_MSG_TYPE = "IM"  # Incoming message
     OUTGOING_MSG_TYPE = "OM"  # Outgoing message
+    INCOMING_MSG_SEGMENT_TYPE = "IMS"  # Incoming message
+    OUTGOING_MSG_SEGMENT_TYPE = "OMS"  # Outgoing message
     INCOMING_IVR_TYPE = "IV"  # Incoming IVR step
     OUTGOING_IVR_TYPE = "OV"  # Outgoing IVR step
     SUCCESS_LOG_TYPE = "LS"  # ChannelLog record
@@ -1133,6 +1138,8 @@ class ChannelCount(SquashableModel):
     COUNT_TYPE_CHOICES = (
         (INCOMING_MSG_TYPE, _("Incoming Message")),
         (OUTGOING_MSG_TYPE, _("Outgoing Message")),
+        (INCOMING_MSG_SEGMENT_TYPE, _("Incoming Message Segments")),
+        (OUTGOING_MSG_SEGMENT_TYPE, _("Outgoing Message Segments")),
         (INCOMING_IVR_TYPE, _("Incoming Voice")),
         (OUTGOING_IVR_TYPE, _("Outgoing Voice")),
         (SUCCESS_LOG_TYPE, _("Success Log Record")),
@@ -1146,7 +1153,7 @@ class ChannelCount(SquashableModel):
         help_text=_("The channel this is a daily summary count for"),
     )
     count_type = models.CharField(
-        choices=COUNT_TYPE_CHOICES, max_length=2, help_text=_("What type of message this row is counting")
+        choices=COUNT_TYPE_CHOICES, max_length=3, help_text=_("What type of message this row is counting")
     )
     day = models.DateField(null=True, help_text=_("The day this count is for"))
     count = models.IntegerField(default=0, help_text=_("The count of messages on this day and type"))
