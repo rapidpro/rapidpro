@@ -424,6 +424,35 @@
       immutableAlertModal.open = true;
     {% endif %}
 
+  :javascript
+    {% if org_perms.msgs.broadcast_send %}
+    let sendModal = document.querySelector("#launch-flow");
+    let doNotContactDialog = document.createElement("temba-dialog");
+    let dialogBody = document.createElement("div");
+    doNotContactDialog.id = "do-not-contact-dialog";
+    doNotContactDialog.header = gettext("Out of Business Hours Warning");
+    doNotContactDialog.primaryButtonName = "Confirm";
+    doNotContactDialog.destructive = true;
+    dialogBody.className = "body";
+    dialogBody.innerHTML = `<p style="margin: 20px;">${gettext("You are trying to send a message out of compliance hours (8AM - 9PM). Are you sure you want to continue?")}</p>`;
+    doNotContactDialog.body = dialogBody;
+    document.body.append(doNotContactDialog);
+    // todo: actual do not contact
+    let doNotContact = true;
+    if (doNotContact) {
+      let sendModalSubmit = sendModal.submit.bind(sendModal);
+      sendModal.submit = () => {
+        doNotContactDialog.open = true;
+        doNotContactDialog.addEventListener("temba-button-clicked", function(event) {
+          if (!event.detail.button.secondary) {
+            doNotContactDialog.open = false;
+            sendModalSubmit();
+          }
+        });
+      }
+    }
+    {% endif %}
+
 -block page-container
 
   %temba-modax#send-message-modal{ header:"Send Message" }
