@@ -1,8 +1,6 @@
 -extends "contacts/contact_list.haml"
 -load i18n
 
--block title-text
-  .title.leading-tight
-    -trans "Stopped Contacts"
+-block subtitle
   .text-base.mt-1
-    -trans "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
+    -trans "These contacts have opted out and you can no longer send them messages, but inbound messages will unstop them. They have also been removed from all groups."

@@ -8,15 +8,11 @@
 
 {% block extra-script %}
 
-<script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
-
 <script>
   $("td.clickable").hover(function(){
     this.style.cursor='pointer'
   },
   function(){});
-
-
 
   $("td.clickable").click(function(){
     document.location = $(this).children("a").attr("href");
@@ -24,6 +20,21 @@
 
 
   function fetchPJAXContent(url, container, options) {
+
+    options = options || {};
+
+    // hijack an pjax requests made from spa pages and route the content there instead
+    if (container == "#pjax" && document.querySelector(".spa-content")) {
+      container = ".spa-content";
+      options["headers"] = (options["headers"] || {})
+      options["headers"]["TEMBA-SPA"] = 1;
+    }
+
+    var triggerEvents = true;
+    if (!!options["ignoreEvents"]) {
+      triggerEvents = false;
+    }
+
     var type = 'GET';
     var data = undefined;
     var processData = true;
@@ -36,10 +47,10 @@
       }
       
       if('formData' in options) {
-         type = 'POST';
-         processData = false;
-         data = options['formData'];
-         contentType = false;
+        type = 'POST';
+        processData = false;
+        data = options['formData'];
+        contentType = false;
       }
     }
 
@@ -50,7 +61,9 @@
       }
     }
 
-    document.dispatchEvent(new Event("temba-pjax-begin"));
+    if (triggerEvents) {
+      document.dispatchEvent(new Event("temba-pjax-begin"));
+    }
 
     // see if we should skip our fetch
     if (options) {
@@ -75,7 +88,6 @@
           toastr.info(toast, '', {"positionClass": "toast-bottom-full-width"});
         }
 
-
         if ('followRedirects' in options && options['followRedirects'] == true) {
             var redirect = jqXHR.getResponseHeader('REDIRECT');
             if (redirect) {
@@ -96,7 +108,10 @@
         }
 
         $(container).html(response);
-        document.dispatchEvent(new Event("temba-pjax-complete"));
+
+        if (triggerEvents) {
+          document.dispatchEvent(new Event("temba-pjax-complete"));
+        }
 
         if (options) {
           if ('onSuccess' in options) {
@@ -116,49 +131,13 @@
 {% if refresh %}
 <script>
 var refreshTimeout = 10000;
-function refresh(onSuccess, forceReload){
 
-  var url = "{{url_params|safe}}"
-  {% if page_obj %}
-    url += "page={{page_obj.number}}";
-  {% endif %}
-
-  if (url == '') {
-    url = '?';
-  }
-
-  url += '&ts=' + new Date().getTime() + "&refresh=" + refreshTimeout;
-
-  document.dispatchEvent(new Event("temba-refresh-begin"));  
-  fetchPJAXContent(url, '#pjax', {
-      onSuccess: function() {
-        if (onSuccess) {
-          onSuccess();
-        }
-        document.dispatchEvent(new Event("temba-refresh-complete"));
-        refreshTimeout = Math.floor(refreshTimeout * 1.1)
-        scheduleRefresh();
-      },
-      shouldIgnore: function() {
-        if (forceReload) {
-          return false;
-        }
-        return eval(document.querySelector("#pjax").dataset.noPjax);
-      },
-      onIgnore: function() {
-        scheduleRefresh();
-      }
-  });
-}
 
 refreshTimeout = {{ refresh }};
 function scheduleRefresh() {
-    window.setTimeout(refresh, refreshTimeout);
+  window.setTimeout(refresh, refreshTimeout);
 }
 
-$(document).ready(function(){
-  scheduleRefresh();
-});
 </script>
 {% endif %}
 {% endblock %}

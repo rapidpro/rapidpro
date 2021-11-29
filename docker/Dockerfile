@@ -1,4 +1,4 @@
-FROM python:3.6-slim as build-poetry
+FROM python:3.9-slim as build-poetry
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ RUN python -m pip install -U poetry \
  && poetry add -n --lock $(cat pip-requires.txt) \
  && poetry export --without-hashes --output requirements.txt
 
-FROM python:3.6-slim
+FROM python:3.9-slim
 
 ARG COMPRESS_ENABLED
 ARG BRANDING_ENABLED

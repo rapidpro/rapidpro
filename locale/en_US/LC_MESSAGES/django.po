@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-13 16:47+0000\n"
+"POT-Creation-Date: 2021-11-11 19:13+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -44,12 +44,6 @@ msgstr ""
 msgid "Surveyor"
 msgstr ""
 
-msgid "Webhook Log"
-msgstr ""
-
-msgid "Flows"
-msgstr ""
-
 msgid "Relayer Application APK"
 msgstr ""
 
@@ -65,10 +59,22 @@ msgstr ""
 msgid "Archive"
 msgstr ""
 
+msgid "Run Archives"
+msgstr ""
+
+msgid "Message Archives"
+msgstr ""
+
 msgid "File not found"
 msgstr ""
 
 msgid "You do not have permission to access this file"
+msgstr ""
+
+msgid "Campaign"
+msgstr ""
+
+msgid "Campaigns"
 msgstr ""
 
 msgid "Minutes"
@@ -132,6 +138,12 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "on"
+msgstr ""
+
+msgid "Campaign Event"
+msgstr ""
+
+msgid "Campaign Events"
 msgstr ""
 
 msgid "Select group"
@@ -200,15 +212,15 @@ msgstr ""
 msgid "Send the message"
 msgstr ""
 
-msgid "Message sending rules"
-msgstr ""
-
 #, python-format
 msgid "A message is required for '%s'"
 msgstr ""
 
 #, python-format
 msgid "Translation for '%(language)s' exceeds the %(limit)d character limit."
+msgstr ""
+
+msgid "This field is required."
 msgstr ""
 
 msgid "Hi @contact.name! This is just a friendly reminder to apply your fertilizer."
@@ -242,9 +254,6 @@ msgid "JSON - application/json"
 msgstr ""
 
 msgid "XML - text/xml; charset=utf-8"
-msgstr ""
-
-msgid "Descriptive label for this channel"
 msgstr ""
 
 msgid "Address"
@@ -326,18 +335,6 @@ msgstr ""
 msgid "Error Log Record"
 msgstr ""
 
-msgid "The channel this is a daily summary count for"
-msgstr ""
-
-msgid "What type of message this row is counting"
-msgstr ""
-
-msgid "The day this count is for"
-msgstr ""
-
-msgid "The count of messages on this day and type"
-msgstr ""
-
 msgid "Unknown Call Type"
 msgstr ""
 
@@ -399,13 +396,43 @@ msgstr ""
 msgid "Unknown alert type: %(alert)s"
 msgstr ""
 
-msgid "Retry Count"
+msgid "Incoming"
 msgstr ""
 
-msgid "Error Count"
+msgid "Outgoing"
 msgstr ""
 
-msgid "Next Attempt"
+msgid "Pending"
+msgstr ""
+
+msgid "Queued"
+msgstr ""
+
+msgid "Wired"
+msgstr ""
+
+msgid "In Progress"
+msgstr ""
+
+msgid "Complete"
+msgstr ""
+
+msgid "Errored"
+msgstr ""
+
+msgid "Failed"
+msgstr ""
+
+msgid "Provider"
+msgstr ""
+
+msgid "Busy"
+msgstr ""
+
+msgid "No Answer"
+msgstr ""
+
+msgid "Answering Machine"
 msgstr ""
 
 #, python-format
@@ -497,7 +524,7 @@ msgstr ""
 msgid "If you have an %(link)s number, you can quickly connect it using their APIs."
 msgstr ""
 
-msgid "To finish connecting your channel, you need to have ArabiaCell configure the URL below for your shortcode."
+msgid "To finish connecting your channel, you need to have ArabiaCell configure the URL below for your short code."
 msgstr ""
 
 msgid "Receive URL"
@@ -561,7 +588,7 @@ msgstr ""
 msgid "This endpoint should be called by Blackmyna when the message status changes. (delivery reports)"
 msgstr ""
 
-msgid "To finish connecting your channel, you need to have Bongo Live configure the URLs below for your shortcode."
+msgid "To finish connecting your channel, you need to have Bongo Live configure the URLs below for your short code."
 msgstr ""
 
 msgid "This URL should be called by Bongo Live when new messages are received or to report DLR status."
@@ -616,7 +643,7 @@ msgstr ""
 msgid "This URL should be called by BurstSMS when messages are replied to.You can set it on your settings page."
 msgstr ""
 
-msgid "If you are based in the Phillipines, you can integrate with Chikka to send and receive messages on your shortcode."
+msgid "If you are based in the Phillipines, you can integrate with Chikka to send and receive messages on your short code."
 msgstr ""
 
 msgid "To finish configuring your Chikka connection you need to set the following URLs in your Chikka account API settings."
@@ -869,9 +896,6 @@ msgstr ""
 msgid "The content that must be in the response to consider the request successful"
 msgstr ""
 
-msgid "This field is required."
-msgstr ""
-
 msgid "The URL we will POST to when sending messages, with variable substitutions"
 msgstr ""
 
@@ -977,7 +1001,7 @@ msgstr ""
 msgid "The API auth token- leave out the bearer"
 msgstr ""
 
-msgid "If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send and receive messages on your shortcode."
+msgid "If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send and receive messages on your short code."
 msgstr ""
 
 msgid "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your application configuration page."
@@ -986,7 +1010,7 @@ msgstr ""
 msgid "Notify URI"
 msgstr ""
 
-msgid "The shortcode you have been assigned by Globe Labs ex: 15543"
+msgid "The short code you have been assigned by Globe Labs ex: 15543"
 msgstr ""
 
 msgid "Application Id"
@@ -1034,7 +1058,7 @@ msgid "This endpoint should be called by Hub9 when a message has been to the fin
 msgstr ""
 
 #, python-format
-msgid "If you have a long number or shortcode with %(link)s you can connect it in a few easy steps."
+msgid "If you have a long number or short code with %(link)s you can connect it in a few easy steps."
 msgstr ""
 
 msgid "To finish configuring your I2SMS channel you'll need to set the message URL for the `DEFAULT` keyword as below."
@@ -1268,7 +1292,7 @@ msgstr ""
 msgid "Carrier Id"
 msgstr ""
 
-msgid "The carrier id for the Shortcode"
+msgid "The carrier id for the short code"
 msgstr ""
 
 msgid "Public Key"
@@ -1408,7 +1432,7 @@ msgstr ""
 msgid "Configuration has failed"
 msgstr ""
 
-msgid "If you are based in Somalia, you can integrate with Shaqodoon to send and receive messages on your shortcode."
+msgid "If you are based in Somalia, you can integrate with Shaqodoon to send and receive messages on your short code."
 msgstr ""
 
 msgid "To finish configuring your Shaqodoon connection you'll need to provide Shaqodoon with the following delivery URL for incoming messages to {{ channel.address }}."
@@ -1417,7 +1441,7 @@ msgstr ""
 msgid "The short code you are connecting with."
 msgstr ""
 
-msgid "The url provided to deliver messages"
+msgid "The URL provided to deliver messages"
 msgstr ""
 
 msgid "The username provided to use their API"
@@ -1479,26 +1503,16 @@ msgstr ""
 msgid "Your authentication token is invalid, please check and try again"
 msgstr ""
 
-msgid "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."
+msgid "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your short code."
 msgstr ""
 
 msgid "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL for incoming messages to {{ channel.address }}."
 msgstr ""
 
+msgid "The url provided to deliver messages"
+msgstr ""
+
 msgid "The private key provided to use their API"
-msgstr ""
-
-#, python-format
-msgid "Easily use your own Enterprise WhatsApp account using %(link)s to communicate with your contacts. "
-msgstr ""
-
-msgid "API Endpoint"
-msgstr ""
-
-msgid "The API endpoint for your TextIt WhatsApp number"
-msgstr ""
-
-msgid "The access token for your TextIt WhatsApp number"
 msgstr ""
 
 #, python-format
@@ -1797,7 +1811,7 @@ msgid "Unable to access Facebook templates, please check user id and access toke
 msgstr ""
 
 #, python-format
-msgid "If you are based in Uganda, you can integrate with %(link)s to send and receive messages on your shortcode."
+msgid "If you are based in Uganda, you can integrate with %(link)s to send and receive messages on your short code."
 msgstr ""
 
 msgid "To finish configuring your Yo! connection you'll need to notify Yo! of the following inbound SMS URL."
@@ -1806,7 +1820,7 @@ msgstr ""
 msgid "Inbound SMS URL"
 msgstr ""
 
-msgid "This URL should be called with a GET by Yo! when new incoming messages are received on your shortcode."
+msgid "This URL should be called with a GET by Yo! when new incoming messages are received on your short code."
 msgstr ""
 
 msgid "Account Number"
@@ -1891,10 +1905,19 @@ msgstr ""
 msgid "An error occurred connecting your Twilio number, try removing your Twilio account, reconnecting it and trying again."
 msgstr ""
 
-msgid "Allow international sending"
+msgid "Descriptive name for this channel."
+msgstr ""
+
+msgid "Allow sending to and calling international numbers."
+msgstr ""
+
+msgid "Perform answering machine detection and hangup if machine detected."
 msgstr ""
 
 msgid "Phone number of this channel"
+msgstr ""
+
+msgid "Add Channel"
 msgstr ""
 
 msgid "Android Channel"
@@ -1985,6 +2008,12 @@ msgstr ""
 msgid "Other Interactions"
 msgstr ""
 
+msgid "Errors"
+msgstr ""
+
+msgid "More Calls"
+msgstr ""
+
 msgid "The name of your bot"
 msgstr ""
 
@@ -1994,22 +2023,43 @@ msgstr ""
 msgid "Unable to access bothub with credentials, please check and try again"
 msgstr ""
 
+msgid "Staging"
+msgstr ""
+
+msgid "Production"
+msgstr ""
+
 msgid "The name of your LUIS app"
 msgstr ""
 
-msgid "The ID for your LUIS app"
+msgid "The ID of your LUIS app"
 msgstr ""
 
-msgid "The name of the version of your LUIS app to use"
+msgid "The authoring resource endpoint URL"
 msgstr ""
 
-msgid "The primary key for your LUIS app"
+msgid "The authoring resource access key"
 msgstr ""
 
-msgid "The endpoint URL for your LUIS app"
+msgid "The prediction resource endpoint URL"
 msgstr ""
 
-msgid "Unable to get intents for your app, please check credentials and try again"
+msgid "The prediction resource access key"
+msgstr ""
+
+msgid "The slot where the prediction resource has been published"
+msgstr ""
+
+#, python-format
+msgid "App has not yet been published to %s slot."
+msgstr ""
+
+#, python-format
+msgid "Check authoring credentials: %s"
+msgstr ""
+
+#, python-format
+msgid "Check prediction credentials: %s"
 msgstr ""
 
 msgid "Your app's name"
@@ -2127,6 +2177,9 @@ msgid "Evaluating"
 msgstr ""
 
 msgid "Ready"
+msgstr ""
+
+msgid "Groups"
 msgstr ""
 
 msgid "The unique group to export"
@@ -2266,9 +2319,6 @@ msgstr ""
 msgid "Invalid input"
 msgstr ""
 
-msgid "Groups"
-msgstr ""
-
 msgid "Select groups for this contact"
 msgstr ""
 
@@ -2286,6 +2336,15 @@ msgid "Optional: Choose groups to show in your export"
 msgstr ""
 
 msgid "Include group membership only for these groups. (Leave blank to ignore group memberships)."
+msgstr ""
+
+msgid "Smart Groups"
+msgstr ""
+
+msgid "Fields"
+msgstr ""
+
+msgid "Import"
 msgstr ""
 
 #, python-format
@@ -2321,13 +2380,19 @@ msgstr ""
 msgid "Contacts"
 msgstr ""
 
-msgid "Save as Group"
+msgid "Create Smart Group"
 msgstr ""
 
 msgid "Manage Fields"
 msgstr ""
 
 msgid "Export Contacts"
+msgstr ""
+
+msgid "New Contact"
+msgstr ""
+
+msgid "New Group"
 msgstr ""
 
 msgid "Blocked Contacts"
@@ -2343,6 +2408,9 @@ msgid "Delete All"
 msgstr ""
 
 msgid "Edit Group"
+msgstr ""
+
+msgid "Usages"
 msgstr ""
 
 msgid "Delete Group"
@@ -2386,9 +2454,6 @@ msgid "Cannot create a new field as limit is %(limit)s."
 msgstr ""
 
 msgid "Update"
-msgstr ""
-
-msgid "Contact field uses"
 msgstr ""
 
 msgid "new group"
@@ -2447,6 +2512,12 @@ msgstr ""
 msgid "The authoring language, additional languages can be added later"
 msgstr ""
 
+msgid "Flow"
+msgstr ""
+
+msgid "Flows"
+msgstr ""
+
 msgid "Archive delete"
 msgstr ""
 
@@ -2468,16 +2539,7 @@ msgstr ""
 msgid "Any configuration options for this flow export"
 msgstr ""
 
-msgid "Pending"
-msgstr ""
-
 msgid "Starting"
-msgstr ""
-
-msgid "Complete"
-msgstr ""
-
-msgid "Failed"
 msgstr ""
 
 msgid "After 5 minutes"
@@ -2602,9 +2664,6 @@ msgstr ""
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
 
-msgid "Import"
-msgstr ""
-
 msgid "Edit Label"
 msgstr ""
 
@@ -2723,58 +2782,51 @@ msgstr ""
 msgid "Download"
 msgstr ""
 
-msgid "Contacts & Groups"
-msgstr ""
-
-msgid "These contacts will be added to the flow, sending the first message if appropriate."
-msgstr ""
-
-msgid "Recipients, enter contacts or groups"
-msgstr ""
-
-msgid "Restart Participants"
-msgstr ""
-
-msgid "Restart any contacts already participating in this flow"
-msgstr ""
-
-msgid "Include Active Contacts"
-msgstr ""
-
-msgid "Include contacts currently active in a flow"
-msgstr ""
-
-msgid "Select contacts or groups to start in the flow"
-msgstr ""
-
 msgid "Enter contacts and groups to start below"
 msgstr ""
 
 msgid "Search for contacts to start"
 msgstr ""
 
+msgid "Select contacts or groups to start in the flow"
+msgstr ""
+
+msgid "Select contact and groups"
+msgstr ""
+
 msgid "Enter contact query"
 msgstr ""
 
-msgid "Contact query is required"
+msgid "Exclude contacts currently in a flow"
 msgstr ""
 
-msgid "You must specify at least one contact or one group to start a flow."
+msgid "Any contacts currently in a flow will not be interrupted and not started in this flow."
 msgstr ""
 
-msgid "This flow is already being started, please wait until that process is complete before starting more contacts."
+msgid "Exclude contacts previously in this flow"
 msgstr ""
 
-msgid "Sorry, your workspace is currently suspended. To enable starting flows, please contact support."
+msgid "Any contacts who have gone through this flow in the last 90 days will not be started again."
 msgstr ""
 
-msgid "Sorry, your workspace is currently flagged. To enable starting flows, please contact support."
+msgid "This flow is already being started - please wait until that process completes before starting more contacts."
+msgstr ""
+
+#, python-format
+msgid "To get started you need to <a href=\"%(link)s\">add a channel</a> to your workspace which will allow you to send messages to your contacts."
+msgstr ""
+
+#, python-format
+msgid "To get started you need to <a href=\"%(link)s\">add a voice channel</a> to your workspace which will allow you to make and receive calls."
 msgstr ""
 
 msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr ""
 
 msgid "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
+msgstr ""
+
+msgid "Please read the options below carefully as they have changed recently."
 msgstr ""
 
 msgid "The message template {ref['name']} does not exist on your account and cannot be sent."
@@ -2833,16 +2885,13 @@ msgstr ""
 msgid "After 4 minutes"
 msgstr ""
 
+msgid "Never"
+msgstr ""
+
 msgid "Home"
 msgstr ""
 
 msgid "You must select a country for your workspace."
-msgstr ""
-
-msgid "Queued"
-msgstr ""
-
-msgid "Wired"
 msgstr ""
 
 msgid "Sent"
@@ -2854,19 +2903,10 @@ msgstr ""
 msgid "Handled"
 msgstr ""
 
-msgid "Error Sending"
+msgid "Error"
 msgstr ""
 
-msgid "Failed Sending"
-msgstr ""
-
-msgid "Resent message"
-msgstr ""
-
-msgid "Whether this count is for archived messages"
-msgstr ""
-
-msgid "Number of items with this system label"
+msgid "Resent"
 msgstr ""
 
 msgid "The date for the oldest message to export"
@@ -2881,19 +2921,16 @@ msgstr ""
 msgid "The contacts to send the message to"
 msgstr ""
 
+msgid "Recipients, enter contacts or groups"
+msgstr ""
+
 msgid "Hi @contact.name!"
 msgstr ""
 
 msgid "Schedule for later"
 msgstr ""
 
-msgid "At least one recipient is required"
-msgstr ""
-
-msgid "Sorry, your workspace is currently suspended. To enable sending messages, please contact support."
-msgstr ""
-
-msgid "Sorry, your workspace is currently flagged. To enable sending messages, please contact support."
+msgid "At least one recipient is required."
 msgstr ""
 
 msgid "Inbox"
@@ -2908,6 +2945,9 @@ msgstr ""
 msgid "Download Messages"
 msgstr ""
 
+msgid "At least one recipient is required"
+msgstr ""
+
 msgid "Schedule Message"
 msgstr ""
 
@@ -2915,9 +2955,6 @@ msgid "Scheduled Message"
 msgstr ""
 
 msgid "Scheduled Messages"
-msgstr ""
-
-msgid "You must add a phone number before sending messages"
 msgstr ""
 
 msgid "Which channel will deliver the message"
@@ -2990,7 +3027,7 @@ msgid "Name must be unique"
 msgstr ""
 
 #, python-format
-msgid "This org has %(count)d labels and the limit is %(limit)d. You must delete existing ones before you can create new ones."
+msgid "This workspace has %d labels and the limit is %s. You must delete existing ones before you can create new ones."
 msgstr ""
 
 msgid "Folder"
@@ -3051,6 +3088,12 @@ msgid "Agents"
 msgstr ""
 
 msgid "Surveyors"
+msgstr ""
+
+msgid "Sorry, your workspace is currently suspended. To re-enable starting flows and sending messages, please contact support."
+msgstr ""
+
+msgid "Sorry, your workspace is currently flagged. To re-enable starting flows and sending messages, please contact support."
 msgstr ""
 
 msgid "Plan"
@@ -3199,12 +3242,6 @@ msgstr ""
 msgid "What caused this debit"
 msgstr ""
 
-msgid "The topup these credits are being used against"
-msgstr ""
-
-msgid "How many credits were used, can be negative"
-msgstr ""
-
 msgid "Credits Over"
 msgstr ""
 
@@ -3216,6 +3253,12 @@ msgstr ""
 
 #, python-format
 msgid "%(name)s Credits Alert"
+msgstr ""
+
+msgid "these may not work as expected"
+msgstr ""
+
+msgid "these will be removed"
 msgstr ""
 
 msgid "First name"
@@ -3574,9 +3617,6 @@ msgstr ""
 msgid "Your Account"
 msgstr ""
 
-msgid "Add Channel"
-msgstr ""
-
 msgid "Add Classifier"
 msgstr ""
 
@@ -3711,6 +3751,12 @@ msgstr ""
 msgid "WhatsApp Contacts Refreshed"
 msgstr ""
 
+msgid "WhatsApp Health Check"
+msgstr ""
+
+msgid "Webhook Calls"
+msgstr ""
+
 msgid "Recent Classifier Events"
 msgstr ""
 
@@ -3718,9 +3764,6 @@ msgid "Recent Ticketing Service Events"
 msgstr ""
 
 msgid "Classifier Log"
-msgstr ""
-
-msgid "Never"
 msgstr ""
 
 msgid "Daily"
@@ -3776,13 +3819,19 @@ msgstr ""
 msgid "English"
 msgstr ""
 
-msgid "Portuguese"
+msgid "Czech"
+msgstr ""
+
+msgid "Spanish"
 msgstr ""
 
 msgid "French"
 msgstr ""
 
-msgid "Spanish"
+msgid "Mongolian"
+msgstr ""
+
+msgid "Portuguese"
 msgstr ""
 
 msgid "Russian"
@@ -3807,13 +3856,6 @@ msgid "My Tickets"
 msgstr ""
 
 msgid "Unassigned"
-msgstr ""
-
-msgid "Enabling this will allow you to handle tickets within {{brand.name}}."
-msgstr ""
-
-#, python-format
-msgid "This will enable handling tickets internally in %(brand)s."
 msgstr ""
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
@@ -3901,33 +3943,6 @@ msgstr ""
 msgid "Your ticketing service has been deleted."
 msgstr ""
 
-msgid "Keyword Triggers"
-msgstr ""
-
-msgid "Scheduled"
-msgstr ""
-
-msgid "Scheduled Triggers"
-msgstr ""
-
-msgid "Call Triggers"
-msgstr ""
-
-msgid "Social Media"
-msgstr ""
-
-msgid "Social Media Triggers"
-msgstr ""
-
-msgid "Ticket Triggers"
-msgstr ""
-
-msgid "Catch All"
-msgstr ""
-
-msgid "Catch All Triggers"
-msgstr ""
-
 msgid "Message starts with the keyword"
 msgstr ""
 
@@ -3938,9 +3953,6 @@ msgid "Keyword"
 msgstr ""
 
 msgid "Word to match in the message text."
-msgstr ""
-
-msgid "Flow"
 msgstr ""
 
 msgid "Which flow will be started."
@@ -3955,13 +3967,22 @@ msgstr ""
 msgid "The associated channel."
 msgstr ""
 
+msgid "Keyword Triggers"
+msgstr ""
+
+msgid "Catch All"
+msgstr ""
+
+msgid "Catch All Triggers"
+msgstr ""
+
 msgid "Contacts To Include"
 msgstr ""
 
 msgid "Additional specific contacts that will be started in the flow."
 msgstr ""
 
-msgid "Optional: Select contacts"
+msgid "Optional: Search for contacts"
 msgstr ""
 
 msgid "Must provide at least one group or contact to include."
@@ -3973,6 +3994,27 @@ msgstr ""
 msgid "Any contacts in these groups will not be started in the flow."
 msgstr ""
 
+msgid "Schedule"
+msgstr ""
+
+msgid "Schedule Triggers"
+msgstr ""
+
+msgid "Inbound Call"
+msgstr ""
+
+msgid "Inbound Call Triggers"
+msgstr ""
+
+msgid "Missed Call"
+msgstr ""
+
+msgid "Missed Call Triggers"
+msgstr ""
+
+msgid "New Conversation Triggers"
+msgstr ""
+
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr ""
 
@@ -3980,6 +4022,15 @@ msgid "Referrer Id"
 msgstr ""
 
 msgid "The referrer id that will trigger us"
+msgstr ""
+
+msgid "Referral Triggers"
+msgstr ""
+
+msgid "Closed Ticket"
+msgstr ""
+
+msgid "Closed Ticket Triggers"
 msgstr ""
 
 msgid "Select a flow"
@@ -4000,7 +4051,7 @@ msgstr ""
 msgid "Excludes contacts in these groups."
 msgstr ""
 
-msgid "Must be a single word containing only letters and numbers."
+msgid "Must be a single word containing only letters and numbers, or a single emoji character."
 msgstr ""
 
 msgid "Can't include and exclude the same group."
@@ -4062,13 +4113,14 @@ msgstr ""
 msgid "Cannot be a local or private host."
 msgstr ""
 
+#, python-format
+msgid "'%s' is not a valid URN."
+msgstr ""
+
 msgid "Unique Identifier"
 msgstr ""
 
 msgid "The unique identifier for this object"
-msgstr ""
-
-msgid "Whether this row was created by squashing"
 msgstr ""
 
 #, python-format
@@ -4116,9 +4168,6 @@ msgstr[1] ""
 msgid "0 seconds"
 msgstr ""
 
-msgid ", "
-msgstr ""
-
 msgid "An error occurred while making your changes. Please try again."
 msgstr ""
 
@@ -4162,33 +4211,6 @@ msgstr ""
 msgid "Log in to use the Explorer"
 msgstr ""
 
-msgid "Webhook Calls"
-msgstr ""
-
-msgid "Status"
-msgstr ""
-
-msgid "Elapsed"
-msgstr ""
-
-msgid "Time"
-msgstr ""
-
-msgid "Webhook Event"
-msgstr ""
-
-msgid "Request Time"
-msgstr ""
-
-msgid "Contact"
-msgstr ""
-
-msgid "Took"
-msgstr ""
-
-msgid "Archives"
-msgstr ""
-
 #, python-format
 msgid "You have %(counter)s archive"
 msgid_plural "You have %(counter)s archives"
@@ -4223,9 +4245,6 @@ msgid "Your download should start automatically. If it doesn't start in a few se
 msgstr ""
 
 msgid "Download Now"
-msgstr ""
-
-msgid "Campaigns"
 msgstr ""
 
 msgid "Create Campaign"
@@ -4413,12 +4432,6 @@ msgstr ""
 msgid "Synced on"
 msgstr ""
 
-msgid "Incoming"
-msgstr ""
-
-msgid "Outgoing"
-msgstr ""
-
 msgid "Retry"
 msgstr ""
 
@@ -4451,25 +4464,31 @@ msgstr ""
 msgid "No Matching calls"
 msgstr ""
 
+msgid "No calls"
+msgstr ""
+
+msgid "Contact"
+msgstr ""
+
+msgid "Elapsed"
+msgstr ""
+
+msgid "Time"
+msgstr ""
+
 msgid "Channel Events"
 msgstr ""
 
 msgid "Interactions"
 msgstr ""
 
-msgid "phone call"
-msgstr ""
-
-msgid "complete"
-msgstr ""
-
 msgid "Channel interaction"
 msgstr ""
 
-msgid "Channel Event"
+msgid "Took"
 msgstr ""
 
-msgid "Message Error"
+msgid "Channel Event"
 msgstr ""
 
 msgid "Message Log"
@@ -4487,7 +4506,7 @@ msgstr ""
 msgid "Duration"
 msgstr ""
 
-msgid "Error"
+msgid "Status"
 msgstr ""
 
 msgid "Change Alert Settings"
@@ -5185,22 +5204,6 @@ msgstr ""
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
 
-msgid "Delete Selected Contacts"
-msgstr ""
-
-msgid "Are you sure you want to delete the selected contacts? This cannot be undone."
-msgstr ""
-
-msgid "Delete All Contacts"
-msgstr ""
-
-#, python-format
-msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
-msgstr ""
-
-msgid "This operation can take a while to complete. Contacts may remain in this view during the process."
-msgstr ""
-
 #, python-format
 msgid "You are about to delete <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr ""
@@ -5299,14 +5302,6 @@ msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%
 msgstr ""
 
 #, python-format
-msgid "<b>%(assigner)s</b> took <b>%(subject)s</b>"
-msgstr ""
-
-#, python-format
-msgid "<b>%(assigner)s</b> assigned <b>%(subject)s</b> to <b>%(assignee)s</b>"
-msgstr ""
-
-#, python-format
 msgid "Opened ticket <b>%(subject)s</b>"
 msgstr ""
 
@@ -5331,10 +5326,23 @@ msgstr ""
 msgid "archive"
 msgstr ""
 
-msgid "Import Contacts"
+msgid "Delete Selected Contacts"
 msgstr ""
 
-msgid "Smart Groups"
+msgid "Are you sure you want to delete the selected contacts? This cannot be undone."
+msgstr ""
+
+msgid "Delete All Contacts"
+msgstr ""
+
+#, python-format
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
+msgstr ""
+
+msgid "This operation can take a while to complete. Contacts may remain in this view during the process."
+msgstr ""
+
+msgid "Import Contacts"
 msgstr ""
 
 msgid "Create Contact"
@@ -5362,16 +5370,13 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "To view more than 10,000 search results, save it as a group."
+msgstr ""
+
 msgid "Last Seen On"
 msgstr ""
 
 msgid "No matching contacts."
-msgstr ""
-
-msgid "To view more than 10,000 search results, save it as a group."
-msgstr ""
-
-msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""
 
 msgid "Details"
@@ -5407,28 +5412,8 @@ msgstr ""
 msgid "Add a new way connect with this contact"
 msgstr ""
 
-#, python-format
-msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
+msgid "Create Field"
 msgstr ""
-
-#, python-format
-msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
-msgstr ""
-
-msgid "Used in the flow"
-msgid_plural "Used in the flows"
-msgstr[0] ""
-msgstr[1] ""
-
-msgid "Used in the campaign event"
-msgid_plural "Used in the campaign events"
-msgstr[0] ""
-msgstr[1] ""
-
-msgid "Used in the group"
-msgid_plural "Used in the groups"
-msgstr[0] ""
-msgstr[1] ""
 
 #, python-format
 msgid "You have reached the limit of %(limit)s fields per workspace. Please remove fields that you are no longer using."
@@ -5436,9 +5421,6 @@ msgstr ""
 
 #, python-format
 msgid "You are approaching the limit of %(limit)s fields per workspace. You should remove fields that you are no longer using."
-msgstr ""
-
-msgid "Create Field"
 msgstr ""
 
 msgid "Featured Fields"
@@ -5451,9 +5433,6 @@ msgid "Update Field"
 msgstr ""
 
 msgid "Delete Field"
-msgstr ""
-
-msgid "Field Details"
 msgstr ""
 
 #, python-format
@@ -5501,7 +5480,10 @@ msgstr[1] ""
 msgid "<div class='mb-2'> You are about to delete <span class='named'> %(object)s. </span> </div> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
 msgstr ""
 
-msgid "Show Contacts"
+msgid "Delete Groups"
+msgstr ""
+
+msgid "Deleting groups will not delete the contacts inside the group. All contacts will remain in your account. Do you want to continue?"
 msgstr ""
 
 msgid "You can import contacts from an Excel spreadsheet or comma separated values file."
@@ -5543,6 +5525,9 @@ msgid "Choose File"
 msgstr ""
 
 msgid "Preview"
+msgstr ""
+
+msgid "Importing Contacts"
 msgstr ""
 
 msgid "Preview Contact Import"
@@ -5604,32 +5589,8 @@ msgid_plural "Ignored %(count)s records because of errors"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "Errors"
-msgstr ""
-
 #, python-format
 msgid "Row %(row)s: %(message)s"
-msgstr ""
-
-msgid "Hi there!"
-msgstr ""
-
-msgid "Your contacts export is ready."
-msgstr ""
-
-msgid "Download your Excel file here:"
-msgstr ""
-
-#, python-format
-msgid "The %(brand)s Team "
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"Hi there!\n"
-"\n"
-"You can download your %(brand)s contacts export by clicking on the following link:\n"
 msgstr ""
 
 #, python-format
@@ -5638,17 +5599,6 @@ msgstr ""
 
 #, python-format
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
-msgstr ""
-
-msgid "Your export for the following flows is ready."
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"Hi there!\n"
-"\n"
-"You can download your %(brand)s flow results by clicking on the following link:\n"
 msgstr ""
 
 msgid "Flows let you easily pose a set of questions to a group of users. When you send people through a flow over SMS, it is natural just like any other conversation."
@@ -5673,24 +5623,7 @@ msgstr ""
 msgid "Interrupted, Expired and Failed"
 msgstr ""
 
-#, python-format
-msgid ""
-"\n"
-"      To get started you need to add a channel to your workspace. A channel is a phone number or social network\n"
-"      account which %(name)s can use to send and receive messages on your behalf. You can choose to use an\n"
-"      Android phone and your own cell phone plan, or we can connect you with a service provider in your country\n"
-"      directly.\n"
-"    "
-msgstr ""
-
-msgid "You can always test your flow using the simulator, click"
-msgstr ""
-
-msgid "on the right to open it."
-msgstr ""
-
-#, python-format
-msgid "To get started you need to add a voice-enabled channel to your workspace. A voice-enabled channel is a phone number which %(name)s can use to make and receive phone calls on your behalf. For example, Twilio is a service which provides voice-enabled numbers which you can add as channels in your %(name)s workspace."
+msgid "You can still test your flow using the simulator by clicking the phone icon on the right."
 msgstr ""
 
 #, python-format
@@ -5844,6 +5777,10 @@ msgstr ""
 msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
 msgstr ""
 
+#, python-format
+msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
+msgstr ""
+
 msgid "Manual"
 msgstr ""
 
@@ -5908,10 +5845,11 @@ msgstr ""
 msgid "Delete Global"
 msgstr ""
 
-msgid "Global Details"
+msgid "No globals"
 msgstr ""
 
-msgid "No globals"
+#, python-format
+msgid "and %(count)s more"
 msgstr ""
 
 msgid "messages"
@@ -5975,6 +5913,35 @@ msgid "Your phone is having difficulty relaying messages"
 msgstr ""
 
 #, python-format
+msgid ""
+"\n"
+"        %(count)s deleted group\n"
+"      "
+msgid_plural ""
+"\n"
+"        %(count)s deleted groups\n"
+"\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid ""
+"\n"
+"        %(count)s deleted contact\n"
+"      "
+msgid_plural ""
+"\n"
+"        %(count)s deleted contacts\n"
+"\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Deleted"
+msgstr ""
+
+#, python-format
 msgid "%(count)s result"
 msgid_plural "%(count)s results"
 msgstr[0] ""
@@ -6005,23 +5972,12 @@ msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid "%(recipients)s recipient currently at this step in the flow"
-msgid_plural "%(recipients)s recipients currently at this step in the flow"
+msgid "<b>%(recipients)s</b> recipient currently at this point in the flow"
+msgid_plural "<b>%(recipients)s</b> recipients currently at this point in the flow"
 msgstr[0] ""
 msgstr[1] ""
 
 msgid "Message Details"
-msgstr ""
-
-msgid "Your message export is ready."
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"Hi there!\n"
-"\n"
-"You can download your %(brand)s message export by clicking on the following link:\n"
 msgstr ""
 
 msgid "Your Message Hub"
@@ -6044,6 +6000,12 @@ msgid "<b>%(name)s</b> cannot be deleted as it still contains labels."
 msgstr ""
 
 msgid "Numeric Value:"
+msgstr ""
+
+msgid "Delete Selected Messages"
+msgstr ""
+
+msgid "Are you sure you want to delete the selected messages? This cannot be undone."
 msgstr ""
 
 msgid "Create Folder"
@@ -6091,20 +6053,48 @@ msgstr[1] ""
 msgid "No matching messages."
 msgstr ""
 
-msgid "Your workspace is suspended and no longer processing messages."
+msgid "Hi there!"
 msgstr ""
 
-msgid "is used by the following flows which may not work as expected if you delete it:"
+msgid "Your contact export is ready."
 msgstr ""
 
 #, python-format
-msgid "and %(count)s more"
+msgid "Download the Excel file here: %(url)s"
+msgstr ""
+
+msgid "Thanks"
+msgstr ""
+
+#, python-format
+msgid "The %(brand)s Team "
+msgstr ""
+
+msgid "Your message export is ready"
+msgstr ""
+
+msgid "Your message export is ready."
+msgstr ""
+
+msgid "Your export of results for the following flows is ready."
+msgstr ""
+
+msgid "Your workspace is suspended and no longer processing messages."
+msgstr ""
+
+msgid "can't be deleted as it is still used by the following items:"
+msgstr ""
+
+msgid "is used by the following items but can still be deleted:"
 msgstr ""
 
 msgid "You are about to delete"
 msgstr ""
 
 msgid "There is no way to undo this. Are you sure?"
+msgstr ""
+
+msgid "None"
 msgstr ""
 
 #, python-format
@@ -7142,13 +7132,13 @@ msgstr ""
 msgid "More Videos"
 msgstr ""
 
+msgid "Flow Event"
+msgstr ""
+
 msgid "Classifier Event"
 msgstr ""
 
 msgid "Connection Error"
-msgstr ""
-
-msgid "Schedule"
 msgstr ""
 
 msgid "Select when you would like the message to be sent"
@@ -7242,6 +7232,9 @@ msgid ""
 "              Are you sure you want to delete the login %(name)s?\n"
 "\n"
 "            "
+msgstr ""
+
+msgid "See more tickets"
 msgstr ""
 
 msgid "All done!"

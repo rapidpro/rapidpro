@@ -40,6 +40,7 @@ class ClaimView(AuthenticatedExternalClaimView):
             data["number"],
             self.channel_type,
             dict(send_url=data["url"], username=data["username"], password=data["password"]),
+            tps=5,
         )
 
         return super(AuthenticatedExternalClaimView, self).form_valid(form)

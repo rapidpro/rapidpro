@@ -1,0 +1,59 @@
+-extends "msgs/message_box_spa.html"
+-load smartmin sms temba contacts i18n humanize
+
+-block search-details
+  .search-details
+
+-block message-list
+  %table.object-list.list.lined
+    %tbody
+      -for broadcast in pending_broadcasts
+        %tr
+          %td.value-icon(style="width: 20px")
+            %span.glyph.icon-bullhorn.text-gray-500
+          %td.value-recipient
+            .pt-1.inline-block
+              -include "includes/recipients.haml" with groups=broadcast.groups.all contacts=broadcast.contacts.all urns=broadcast.raw_urns
+          %td.value-text.w-full
+            {{ broadcast.get_text }}
+          %td.created_on
+            %span.time
+              {% short_datetime broadcast.created_on %}
+
+      -for object in object_list
+        %tr
+          %td.value-recipient(colspan="2")
+            .pt-1.inline-block
+              -include "includes/recipients_contact.haml" with contact=object.contact
+          %td.value-text.w-full
+            {% get_value object 'text' %}
+
+            - if 'label' in actions
+              .value-labels
+                - for label in object.labels.all
+                  %span.label.label-info.lbl{ data-id: '{{label.id}}' }
+                    %a{href:"{% url 'msgs.msg_filter' label.uuid %}"}
+                      {{label.name}}
+
+            -if object.attachments
+              .value-attachments{ style:"margin-top: 5px" }
+                - for attachment in object.attachments
+                  {% attachment_button attachment %}
+
+          %td.created_on
+            %span.time
+              {% short_datetime object.created_on %}
+
+            -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
+              .inline-block.text-gray-400.linked
+                {% channel_log_link object %}
+
+      -if not object_list and not pending_broadcasts
+        %tr.empty_list
+          %td{ colspan:'99' }
+            -trans "No matching messages."
+
+-block paginator
+  -if object_list.count
+    .paginator
+      -include "smartmin/sidebar_pagination.haml"

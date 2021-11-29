@@ -1,0 +1,32 @@
+
+:css
+  .spa-title {
+
+  }
+
+
+-block extra-style
+-block extra-less
+-block extra-script
+
+-block page-header
+  .spa-title.rounded.bg-gray-600.mb-5.shadow
+    .flex.flex-row
+      .text-2xl.text-white.flex-grow.px-5.py-2(style="min-height:2em")
+        -block page-title
+      .spa-page-menu
+        -include "spa_page_menu.haml"
+
+-block alert-messages
+  -if user_org.is_suspended
+    -include "org_suspended_include.haml"
+  -if messages
+    -for msg in messages
+      %temba-alert.mb-3
+        {{ msg }}
+    
+
+-block page-container
+  -block content
+
+

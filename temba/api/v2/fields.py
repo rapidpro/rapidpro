@@ -8,7 +8,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField as ContactFieldModel, ContactGroup, ContactURN
 from temba.flows.models import Flow
 from temba.msgs.models import Label, Msg
-from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.models import Ticket, Ticketer, Topic
 
 # default maximum number of items in a posted list or dict
 DEFAULT_MAX_LIST_ITEMS = 100
@@ -163,7 +163,7 @@ class TembaModelField(serializers.RelatedField):
         return self.get_queryset().filter(query).first()
 
     def to_representation(self, obj):
-        return {"uuid": obj.uuid, "name": obj.name}
+        return {"uuid": str(obj.uuid), "name": obj.name}
 
     def to_internal_value(self, data):
         if not (isinstance(data, str) or isinstance(data, int)):
@@ -285,6 +285,10 @@ class TicketerField(TembaModelField):
 
 class TicketField(TembaModelField):
     model = Ticket
+
+
+class TopicField(TembaModelField):
+    model = Topic
 
 
 class UserField(TembaModelField):

@@ -252,7 +252,7 @@ class CampaignTest(TembaTest):
             self.org, self.admin, campaign, relative_to=self.planting_date, offset=5, unit="D", flow=self.reminder_flow
         )
 
-        trim_date = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
+        trim_date = timezone.now() - (settings.RETENTION_PERIODS["eventfire"] + timedelta(days=1))
 
         # manually create two event fires
         EventFire.objects.create(event=event, contact=self.farmer1, scheduled=trim_date, fired=trim_date)
@@ -394,10 +394,8 @@ class CampaignTest(TembaTest):
             reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
         )
 
-        self.assertTrue(response.context["form"].errors)
-        self.assertTrue(
-            "Translation for &#39;Default&#39; exceeds the %d character limit." % Msg.MAX_TEXT_LEN
-            in str(response.context["form"].errors["__all__"])
+        self.assertFormError(
+            response, "form", "__all__", f"Translation for 'Default' exceeds the {Msg.MAX_TEXT_LEN} character limit."
         )
 
         post_data = dict(
@@ -414,8 +412,7 @@ class CampaignTest(TembaTest):
             reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
         )
 
-        self.assertTrue(response.context["form"].errors)
-        self.assertIn("Please select a flow", response.context["form"].errors["flow_to_start"])
+        self.assertFormError(response, "form", "flow_to_start", "This field is required.")
 
         post_data = dict(
             relative_to=self.planting_date.pk,
@@ -859,7 +856,7 @@ class CampaignTest(TembaTest):
         )
         self.set_contact_field(self.farmer1, "planting_date", self.org.format_datetime(timezone.now()))
 
-        trim_date = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
+        trim_date = timezone.now() - (settings.RETENTION_PERIODS["eventfire"] + timedelta(days=1))
         ev = EventFire.objects.create(event=event, contact=self.farmer1, scheduled=trim_date, fired=trim_date)
         self.assertIsNotNone(ev.get_relative_to_value())
 
@@ -868,7 +865,7 @@ class CampaignTest(TembaTest):
             self.org, self.admin, campaign, relative_to=created_on, offset=3, unit="D", flow=self.reminder_flow
         )
 
-        trim_date = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
+        trim_date = timezone.now() - (settings.RETENTION_PERIODS["eventfire"] + timedelta(days=1))
         ev2 = EventFire.objects.create(event=event2, contact=self.farmer1, scheduled=trim_date, fired=trim_date)
         self.assertIsNotNone(ev2.get_relative_to_value())
 
@@ -877,7 +874,7 @@ class CampaignTest(TembaTest):
             self.org, self.admin, campaign, relative_to=last_seen_on, offset=3, unit="D", flow=self.reminder_flow
         )
 
-        trim_date = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
+        trim_date = timezone.now() - (settings.RETENTION_PERIODS["eventfire"] + timedelta(days=1))
         ev3 = EventFire.objects.create(event=event3, contact=self.farmer1, scheduled=trim_date, fired=trim_date)
         self.assertIsNone(ev3.get_relative_to_value())
 
@@ -1422,8 +1419,33 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual(3, len(response.context["form"].fields["message_start_mode"].choices))
 
+        # try to submit with missing fields
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "event_type": "M",
+                "base": "This is my message",
+                "direction": "A",
+                "offset": 1,
+                "unit": "W",
+                "delivery_hour": 13,
+            },
+            form_errors={"message_start_mode": "This field is required."},
+        )
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "event_type": "F",
+                "direction": "A",
+                "offset": 1,
+                "unit": "W",
+                "delivery_hour": 13,
+            },
+            form_errors={"flow_start_mode": "This field is required.", "flow_to_start": "This field is required."},
+        )
+
         # can create an event with just a base translation
-        response = self.assertCreateSubmit(
+        self.assertCreateSubmit(
             create_url,
             {
                 "relative_to": planting_date.id,
@@ -1575,7 +1597,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(contact_fields, ["created_on", "last_seen_on", "planting_date", "registered"])
 
         # translation in new language is optional
-        response = self.assertUpdateSubmit(
+        self.assertUpdateSubmit(
             update_url,
             {
                 "relative_to": planting_date.id,
@@ -1588,6 +1610,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
                 "unit": "W",
                 "flow_to_start": "",
                 "delivery_hour": 13,
+                "message_start_mode": "I",
             },
         )
 
@@ -1659,6 +1682,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
                 "unit": "D",
                 "flow_to_start": "",
                 "delivery_hour": 11,
+                "message_start_mode": "I",
             },
         )
         self.assertEqual(302, response.status_code)
@@ -1712,6 +1736,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
                 "unit": "W",
                 "flow_to_start": "",
                 "delivery_hour": 13,
+                "message_start_mode": "I",
             },
         )
 

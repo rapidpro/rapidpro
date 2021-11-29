@@ -58,10 +58,10 @@ class BaseAssetStore(object):
     permission = None
     extensions = None
 
-    def resolve(self, user, pk):
+    def resolve(self, user, pk) -> tuple:
         """
-        Returns a tuple of the org, location and download filename of the identified asset. If user does not have access
-        to the asset, an exception is raised.
+        Returns a tuple of the asset object, location and download filename of the identified asset. If user does not
+        have access to the asset, an exception is raised.
         """
         asset = self.derive_asset(pk)
 
@@ -90,7 +90,7 @@ class BaseAssetStore(object):
         else:
             url = default_storage.url(path)
 
-        return asset.org, url, filename
+        return asset, url, filename
 
     def save(self, pk, _file, extension):
         """

@@ -279,18 +279,20 @@ ELASTIC_APM = {
 # -----------------------------------------------------------------------------------
 # Crontab Settings ..
 # -----------------------------------------------------------------------------------
-CELERYBEAT_SCHEDULE["retry-errored-messages"] = {
+CELERY_BEAT_SCHEDULE["retry-errored-messages"] = {
     "task": "retry_errored_messages",
     "schedule": crontab(hour=1, minute=0),
 }
-CELERYBEAT_SCHEDULE["refresh-whatsapp-tokens"] = {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=12)}
+CELERY_BEAT_SCHEDULE["refresh-whatsapp-tokens"] = {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=12)}
 
 
 # -----------------------------------------------------------------------------------
 # APPLICATION LOGS
 # -----------------------------------------------------------------------------------
-FLOW_SESSION_TRIM_DAYS = env.int("FLOW_SESSION_TRIM_DAYS", default=7)
-
+RETENTION_PERIODS.update(
+    channellog=timedelta(hours=env.int("RETENTION_PERIODS_CHANNELLOG", default=48)),
+    flowsession=timedelta(days=env.int("RETENTION_PERIODS_FLOWSESSION", default=7))
+)
 
 # Adds gRPC services
 GRPC_FRAMEWORK = {
@@ -347,10 +349,6 @@ ANNOUNCEMENT_BUTTON = env("ANNOUNCEMENT_BUTTON")
 # Hotjar
 HOTJAR_IDS = env.dict('HOTJAR_IDS')
 
-SUCCESS_LOGS_TRIM_TIME = env("SUCCESS_LOGS_TRIM_TIME", default=48)
-ALL_LOGS_TRIM_TIME = env("ALL_LOGS_TRIM_TIME", default=24*30)  # 30 days
-
-
 # ------------------------------------------------------------------------------------------
 # Production-only: Adjust depending on your proxy
 #   https://docs.djangoproject.com/en/2.2/ref/settings/#use-x-forwarded-host
@@ -377,7 +375,7 @@ CSP_CONNECT_SRC = env.tuple("CSP_CONNECT_SRC", default=CSP_DEFAULT_SRC)
 
 
 # Removes 'check-channels' task from Beat Schedule (sent_messages query)
-CELERYBEAT_SCHEDULE.pop('check-channels')
+CELERY_BEAT_SCHEDULE.pop('check-channels')
 
 # Exclude list of header that should not appear in webhook and channel logs
-EXCLUDED_HTTP_HEADERS = env.list("EXCLUDED_HTTP_HEADERS", default=[])\
+EXCLUDED_HTTP_HEADERS = env.list("EXCLUDED_HTTP_HEADERS", default=[])

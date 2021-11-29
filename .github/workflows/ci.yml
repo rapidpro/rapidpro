@@ -4,17 +4,17 @@ jobs:
   test:
     name: Test
     env:
-      python_version: '3.6.x'
-      postgis_version: '2.5'
+      python_version: '3.9.x'
+      postgis_version: '3.1'
       redis_version: '5'
       node_version: '10'
       elastic_version: '7.10.1'
       rpindexer_version: '6.4.0'
-      mailroom_version: '6.4.0'
+      mailroom_version: '6.5.36'
       DJANGO_SETTINGS_MODULE: temba.settings_ci
     strategy:
       matrix:
-        pg_version: ['11', '12']
+        pg_version: ['12', '13']
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code

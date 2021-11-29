@@ -18,7 +18,7 @@ from .type import Dialog360Type
 class Dialog360TypeTest(TembaTest):
     @patch("temba.channels.types.dialog360.Dialog360Type.check_health")
     def test_claim(self, mock_health):
-        mock_health.return_value = {"meta": {"api_status": "stable", "version": "2.35.4"}}
+        mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "2.35.4"}}')
         Channel.objects.all().delete()
 
         url = reverse("channels.types.dialog360.claim")
@@ -45,7 +45,7 @@ class Dialog360TypeTest(TembaTest):
         post_data["number"] = "0788123123"
 
         # then success
-        with patch("requests.post") as mock_post:
+        with patch("socket.gethostbyname", return_value="123.123.123.123"), patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(200, '{ "url": "https://ilhasoft.com.br/whatsapp" }')]
 
             response = self.client.post(url, post_data)
@@ -153,7 +153,7 @@ class Dialog360TypeTest(TembaTest):
 
         update_local_templates_mock.return_value = None
 
-        mock_health.return_value = {"meta": {"api_status": "stable", "version": "2.35.4"}}
+        mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "2.35.4"}}')
 
         # should skip if locked
         r = get_redis_connection()

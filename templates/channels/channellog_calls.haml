@@ -1,0 +1,52 @@
+-extends "smartmin/list.html"
+-load i18n temba
+
+-block page-title
+  -trans "Call Log"
+
+-block title
+  %a(href="{% url 'channels.channel_read' channel.uuid %}")
+    {{ channel }}
+
+-block subtitle
+  {{ channel.get_channel_type_display }}
+  -trans "Calls"
+
+-block content
+  #pjax
+    -block pjax
+      .lp-frame
+        .right
+          %table.list.object-list.lined.mt-4
+            %thead
+              %tr
+                %th
+                  -trans "Contact"
+                %th
+                %th(style="text-align: right")
+                  -trans "Elapsed"
+                %th(style="text-align: right")
+                  -trans "Time"
+            %tbody
+              -for obj in object_list
+                %tr(class="{% if obj.status == 'E' or obj.status == 'F' %}warning{%endif%}")
+                  %td.clickable
+                    -if obj.contact_urn
+                      %a(href='{% url "contacts.contact_read" obj.contact.uuid %}')
+                        {{ obj.contact_urn.get_display }}
+                  %td.clickable
+                    %a(href='{% url "channels.channellog_connection" obj.id %}')><
+                      {{ obj.get_direction_display }}
+
+                  %td.clickable.whitespace-nowrap(style="text-align: right")
+                    %a(href='{% url "channels.channellog_connection" obj.id %}')><
+                      -if obj.get_duration
+                        {{ obj.get_duration|delta }}
+                      -else
+                        {{ obj.status_display }}
+
+                  %td.whitespace-nowrap(style="text-align: right")
+                    {% format_datetime obj.created_on seconds=True %}
+
+          .flex.flex-col.mb-16
+            -include "includes/pagination.haml"

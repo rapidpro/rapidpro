@@ -15,7 +15,6 @@ from django.utils.translation import ugettext_lazy as _
 from temba.assets.models import BaseAssetStore, get_asset_store
 
 from . import analytics
-from .email import send_template_email
 from .models import TembaModel
 from .text import clean_string
 
@@ -34,6 +33,7 @@ class BaseExportTask(TembaModel):
 
     analytics_key = None
     asset_type = None
+    notification_export_type = None
 
     MAX_EXCEL_ROWS = 1_048_576
     MAX_EXCEL_COLS = 16384
@@ -67,8 +67,11 @@ class BaseExportTask(TembaModel):
         Performs the actual export. If export generation throws an exception it's caught here and the task is marked
         as failed.
         """
+        from temba.notifications.models import Notification
+
         try:
             self.update_status(self.STATUS_PROCESSING)
+
             print(f"Started perfoming {self.analytics_key} with ID {self.id}")
 
             start = time.time()
@@ -76,17 +79,6 @@ class BaseExportTask(TembaModel):
             temp_file, extension = self.write_export()
 
             get_asset_store(model=self.__class__).save(self.id, File(temp_file), extension)
-
-            branding = self.org.get_branding()
-
-            # notify user who requested this export
-            send_template_email(
-                self.created_by.username,
-                self.email_subject % self.org.name,
-                self.email_template,
-                self.get_email_context(branding),
-                branding,
-            )
 
             # remove temporary file
             if hasattr(temp_file, "delete"):
@@ -106,6 +98,8 @@ class BaseExportTask(TembaModel):
             elapsed = time.time() - start
             print(f"Completed {self.analytics_key} with ID {self.id} in {elapsed:.1f} seconds")
             analytics.track(self.created_by, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed))
+
+            Notification.export_finished(self)
         finally:
             gc.collect()  # force garbage collection
 
@@ -153,10 +147,12 @@ class BaseExportTask(TembaModel):
         else:
             return clean_string(str(value))
 
-    def get_email_context(self, branding):
+    def get_download_url(self) -> str:
         asset_store = get_asset_store(model=self.__class__)
+        return asset_store.get_asset_url(self.id)
 
-        return {"link": branding["link"] + asset_store.get_asset_url(self.id)}
+    def get_notification_scope(self) -> str:
+        return f"{self.notification_export_type}:{self.id}"
 
     class Meta:
         abstract = True

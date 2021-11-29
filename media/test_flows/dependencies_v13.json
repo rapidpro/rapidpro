@@ -657,7 +657,7 @@
                 "uuid": "6ceb51cd-1d19-4f28-a9c3-2e244a9e2959",
                 "name": "Zendesk"
               },
-              "subject": "@run.flow.name",
+              "topic": {"uuid": "4d7a8306-acab-41e8-957b-cba523e60fa5", "name": "Support"},
               "body": "@results",
               "result_name": "Result"
             }

@@ -1,0 +1,29 @@
+-extends "msgs/message_box.haml"
+-load smartmin sms temba compress contacts i18n humanize
+
+-block content
+
+  %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
+
+  .spa-actions
+    -block action-buttons
+      {{block.super}}
+
+  .page-title
+
+  .flex
+    .flex-grow.self-end.items-end
+      .flex.flex-col
+        %form#search-form(method="get")
+          %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+          %input.hide(type="submit")
+
+  .mt-4.shadow.rounded-lg.overflow-y-auto
+    -if has_messages
+      -block message-list
+        {{block.super}}
+    -else
+      -include "msgs/empty_include.html"
+
+  -block paginator
+    {{block.super}}

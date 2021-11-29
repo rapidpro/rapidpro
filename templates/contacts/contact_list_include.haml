@@ -1,0 +1,185 @@
+-load i18n humanize smartmin sms contacts temba
+
+
+-if has_contacts
+
+  -block action-buttons
+    -if org_perms.contacts.contact_update
+      .list-buttons-container.h-full.mr-2.mt-2.flex-grow
+        .list-buttons.flex.items-center.-mx-2.h-full
+
+          -if 'restore' in actions
+            .button-action(onclick='runActionOnObjectRows("restore")')
+              .-mt-1.mr-2.glyph.icon-checkmark
+              -trans "Activate"
+
+          -if 'block' in actions
+            .button-action(onclick='runActionOnObjectRows("block")')
+              .-mt-1.mr-2.glyph.icon-user-block
+              -trans "Block"
+
+          -if 'archive' in actions
+            .button-action(onclick='runActionOnObjectRows("archive")')
+              .-mt-1.mr-2.glyph.icon-box
+              -trans "Archive"
+
+          -if 'delete' in actions
+            .button-action(onclick='onDeleteClicked()')
+              .-mt-1.mr-2.glyph.icon-user-delete
+              -trans "Delete"
+
+          -if 'unlabel' in actions
+            .button-action(onclick="unlabelObjectRows({{current_group.pk}});")
+              .-mt-1.mr-2.glyph.icon-user-remove
+              -trans "Remove From Group"
+
+          -if 'label' in actions
+            .btn-group
+              .button-action.dropdown-toggle(data-toggle="dropdown" data-delay="800")
+                .-mt-1.mr-2.glyph.icon-users-2(style="width:16px")
+                -trans "Groups"
+
+              %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
+                -for group in groups
+                  -if not group.is_dynamic
+                    %li
+                      .lbl-menu(href='#' onclick='addContactToGroup({{group.pk}})' data-id='{{group.pk}}')
+                        .flex.items-center.py-1.hover-linked
+                          .glyph.message-label.label-checkbox
+                          .name.px-2
+                            {{ group.label }}
+                - if org_perms.contacts.contactgroup_create
+                  - if groups
+                    %li.separator.-mx-4.border-b.my-3
+                  %li
+                    .lbl-menu.add-group.hover-linked(onclick="handleAddGroupClicked()")
+                      - trans "New Group..."
+
+          -if org_perms.msgs.broadcast_send and not reply_disabled
+            %temba-modax#send-message-modal(header='{{_("Send Message")|escapejs}}' endpoint="{% url 'msgs.broadcast_send' %}")
+              .button-action.no-loading(onclick="handleSendMessageClicked()")
+                .mr-2.glyph.icon-bubble-3(style="font-size:14px")
+                -trans "Send"
+
+  -block contacts-list
+    .table-scroll.overflow-x-auto
+      %table.list.object-list.lined.selectable
+        - if object_list
+          %thead
+            %tr.contacts
+              -if org_perms.contacts.contact_update
+                %th
+              %th
+              %th
+              -for field in contact_fields
+                -if field.show_in_table
+                  %th
+                    -if sort_field == field.key
+                      -if sort_direction == 'desc'
+                        %a(href="{{request.path}}?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
+                          %div
+                            {{ field.label }}
+                            %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                      -else
+                        %a(href="{{request.path}}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
+                          %div
+                            {{ field.label }}
+                            %span.sort.icon.icon-arrow-up51.sort-desc.visible
+                    -else
+                      %a(href="{{request.path}}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
+                        %div
+                          {{ field.label }}
+                          %span.sort.icon.icon-arrow-down-2.sort-desc
+              %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+                - if object_list
+                  -if sort_field == 'last_seen_on'
+                    -if sort_direction == 'desc'
+                      %a(href="{{request.path}}?sort_on=last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
+                        %div
+                          -trans "Last Seen On"
+                          %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                    -else
+                      %a(href="{{request.path}}?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
+                        %div
+                          -trans "Last Seen On"
+                          %span.sort.icon.icon-arrow-up51.sort-desc.visible
+                  -else
+                    %a(href="{{request.path}}?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
+                      %div
+                        -trans "Last Seen On"
+                        %span.sort.icon.icon-arrow-down-2.sort-desc
+
+              %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+                -if object_list
+                  -if sort_field == 'created_on'
+                    -if sort_direction == 'desc'
+                      %a(href="{{request.path}}?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}")
+                        %div
+                          -trans "Created On"
+                          %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                    -else
+                      %a(href="{{request.path}}?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}")
+                        %div
+                          -trans "Created On"
+                          %span.sort.icon.icon-arrow-up51.sort-desc.visible
+                  -else
+                    %a(href="{{request.path}}?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}")
+                      %div
+                        -trans "Created On"
+                        %span.sort.icon.icon-arrow-down-2.sort-desc
+
+        %tbody
+          -for object in contacts
+            %tr.contact.select-row.object-row(onclick='handleRowClicked(event)' data-uuid="{{object.uuid}}" data-object-id="{{object.id}}")
+
+              -if org_perms.contacts.contact_update or org_perms.msgs.broadcast_send
+                %td.contact.checkbox.object-row-checkbox
+                  %temba-checkbox(onclick="handleRowSelection(this)")
+
+              %td
+                .whitespace-nowrap
+                  {{ object|name:user_org }}
+
+              %td.w-full
+                .whitespace-nowrap
+                  {{ object|urn:user_org }}
+
+              -for field in contact_fields
+                -if field.show_in_table
+                  %td.field.truncate(style="max-width:240px")
+                    {{ object|contact_field:field.key }}
+
+              %td.value-received.field_received
+                .whitespace-nowrap
+                  -if object.last_seen_on
+                    {% format_datetime object.last_seen_on %}
+                  -else
+                    {{ "--" }}
+              %td.value-received.field_received
+                .whitespace-nowrap
+                  {% format_datetime object.created_on %}
+
+              // This is needed for action buttons
+              %td.hide
+                .value-labels
+                  %nobr
+                    -for group in object.all_groups.all
+                      -if group.group_type == 'U'
+                        %span.label.label-info.lbl(data-id="{{group.id}}")
+                          %a(href="{% url 'contacts.contact_filter' group.uuid %}")
+                            {{group.name}}
+
+          -empty
+            %tr.empty_list
+              %td(colspan="99")
+                -trans "No matching contacts."
+
+              -for field in contact_fields
+                -if field.show_in_table
+                  %td.field
+              %td
+
+
+      
+-else
+  -include "contacts/empty_include.haml"

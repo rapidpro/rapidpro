@@ -28,11 +28,11 @@ from celery.app.task import Task
 
 import temba.utils.analytics
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
-from temba.flows.models import FlowRun
+from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import Org
 from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json, uuid
-from temba.utils.json import TembaJsonAdapter
+from temba.utils.templatetags.temba import format_datetime
 
 from . import (
     chunk_list,
@@ -283,19 +283,18 @@ class TemplateTagTest(TembaTest):
         self.assertEqual("", icon(None))
 
     def test_format_datetime(self):
-        import pytz
-        from temba.utils.templatetags.temba import format_datetime
-
         with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
             self.org.date_format = "D"
             self.org.save()
 
             # date without timezone and no user org in context
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 30, 0)
             self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
+            self.assertEqual("20-07-2012 17:05:30", format_datetime(dict(), test_date, seconds=True))
 
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 30, 0).replace(tzinfo=pytz.utc)
             self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
+            self.assertEqual("20-07-2012 17:05:30", format_datetime(dict(), test_date, seconds=True))
 
             context = dict(user_org=self.org)
 
@@ -999,7 +998,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         )
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual("7a7ab82c-9fff-49f3-a390-a2957fd60834", ContactGroup.user_groups.order_by("id").first().uuid)
+        self.assertEqual("f2a3f8c5-e831-4df3-b046-8d8cdb90f178", ContactGroup.user_groups.order_by("id").first().uuid)
 
         # check if contact fields are serialized
         self.assertIsNotNone(Contact.objects.first().fields)
@@ -1115,11 +1114,7 @@ class TestJSONAsTextField(TestCase):
         model.field = {"foo": "bar\u0000"}
         model.save()
 
-        with connection.cursor() as cur:
-            cur.execute("select field::jsonb from utils_jsonmodeltestdefault")
-            data = cur.fetchall()
-
-        self.assertEqual(data[0][0], {"foo": "bar"})
+        self.assertEqual({"foo": "bar"}, JsonModelTestDefault.objects.first().field)
 
     def test_write_None_value(self):
         model = JsonModelTestDefault()
@@ -1180,36 +1175,21 @@ class TestJSONField(TembaTest):
     def test_jsonfield_decimal_encoding(self):
         contact = self.create_contact("Xavier", phone="+5939790990001")
 
-        with connection.cursor() as cur:
-            cur.execute(
-                "UPDATE contacts_contact SET fields = %s where id = %s",
-                (
-                    TembaJsonAdapter({"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": Decimal("123.45")}}),
-                    contact.id,
-                ),
-            )
+        contact.fields = {"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": Decimal("123.4567890")}}
+        contact.save(update_fields=("fields",))
 
-            cur.execute("SELECT cast(fields as text) from contacts_contact where id = %s", (contact.id,))
-
-            raw_fields = cur.fetchone()[0]
-
-            self.assertEqual(raw_fields, '{"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": 123.45}}')
-
-            cur.execute("SELECT fields from contacts_contact where id = %s", (contact.id,))
-
-            dict_fields = cur.fetchone()[0]
-            number_field = dict_fields.get("1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722", {}).get("number")
-
-            self.assertEqual(number_field, Decimal("123.45"))
+        contact.refresh_from_db()
+        self.assertEqual(contact.fields, {"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": Decimal("123.4567890")}})
 
 
 class LanguagesTest(TembaTest):
     def test_get_name(self):
-        with override_settings(NON_ISO6391_LANGUAGES={"acx", "frc"}):
+        with override_settings(NON_ISO6391_LANGUAGES={"acx", "frc", "kir"}):
             languages.reload()
             self.assertEqual("French", languages.get_name("fra"))
             self.assertEqual("Arabic (Omani, ISO-639-3)", languages.get_name("acx"))  # name is overridden
             self.assertEqual("Cajun French", languages.get_name("frc"))  # non ISO-639-1 lang explicitly included
+            self.assertEqual("Kyrgyz", languages.get_name("kir"))
 
             self.assertEqual("", languages.get_name("cpi"))  # not in our allowed languages
             self.assertEqual("", languages.get_name("xyz"))
@@ -1561,11 +1541,38 @@ class AnalyticsTest(SmartminTest):
 
 
 class IDSliceQuerySetTest(TembaTest):
+    def test_fields(self):
+        # if we don't specify fields, we fetch *
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id], offset=0, total=3)
+
+        self.assertEqual(
+            f"""SELECT t.* FROM auth_user t JOIN (VALUES (1, {self.user.id}), (2, {self.editor.id})) tmp_resultset (seq, model_id) ON t.id = tmp_resultset.model_id ORDER BY tmp_resultset.seq""",
+            users.raw_query,
+        )
+
+        with self.assertNumQueries(1):
+            users = list(users)
+        with self.assertNumQueries(0):  # already fetched
+            users[0].email
+
+        # if we do specify fields, it's like only on a regular queryset
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id], only=("id", "first_name"), offset=0, total=3)
+
+        self.assertEqual(
+            f"""SELECT t.id, t.first_name FROM auth_user t JOIN (VALUES (1, {self.user.id}), (2, {self.editor.id})) tmp_resultset (seq, model_id) ON t.id = tmp_resultset.model_id ORDER BY tmp_resultset.seq""",
+            users.raw_query,
+        )
+
+        with self.assertNumQueries(1):
+            users = list(users)
+        with self.assertNumQueries(1):  # requires fetch
+            users[0].email
+
     def test_slicing(self):
-        empty = IDSliceQuerySet(User, [], 0, 0)
+        empty = IDSliceQuerySet(User, [], offset=0, total=0)
         self.assertEqual(0, len(empty))
 
-        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], 0, 3)
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], offset=0, total=3)
         self.assertEqual(self.user.id, users[0].id)
         self.assertEqual(self.editor.id, users[0:3][1].id)
         self.assertEqual(0, users.offset)
@@ -1583,7 +1590,7 @@ class IDSliceQuerySetTest(TembaTest):
         with self.assertRaises(TypeError):
             users["foo"]
 
-        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], 10, 100)
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], offset=10, total=100)
         self.assertEqual(self.user.id, users[10].id)
         self.assertEqual(self.user.id, users[10:11][0].id)
 
@@ -1594,7 +1601,7 @@ class IDSliceQuerySetTest(TembaTest):
             users[11:15]
 
     def test_filter(self):
-        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], 10, 100)
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], offset=10, total=100)
 
         filtered = users.filter(pk=self.user.id)
         self.assertEqual(User, filtered.model)
@@ -1617,10 +1624,18 @@ class IDSliceQuerySetTest(TembaTest):
             users.filter(name="Bob")
 
     def test_none(self):
-        users = IDSliceQuerySet(User, [self.user.id, self.editor.id], 0, 2)
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id], offset=0, total=2)
         empty = users.none()
         self.assertEqual([], empty.ids)
         self.assertEqual(0, empty.total)
+
+    def test_prefetch_related(self):
+        flow1 = self.create_flow()
+        flow2 = self.create_flow()
+        with self.assertNumQueries(2):
+            flows = list(IDSliceQuerySet(Flow, [flow1.id, flow2.id], offset=0, total=2).prefetch_related("org"))
+            self.assertEqual(self.org, flows[0].org)
+            self.assertEqual(self.org, flows[1].org)
 
 
 class RedactTest(TestCase):

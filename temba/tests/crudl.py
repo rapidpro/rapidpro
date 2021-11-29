@@ -63,6 +63,7 @@ class CRUDLTestMixin:
         allow_viewers,
         allow_editors,
         allow_agents=False,
+        allow_org2=True,  # by default list view URLs are not org specific
         context_objects=None,
         context_object_count=None,
         status=200,
@@ -86,7 +87,7 @@ class CRUDLTestMixin:
         as_user(viewer, allowed=allow_viewers)
         as_user(editor, allowed=allow_editors)
         as_user(agent, allowed=allow_agents)
-        as_user(org2_admin, allowed=True)
+        as_user(org2_admin, allowed=allow_org2)
         return as_user(admin, allowed=True)
 
     def assertCreateFetch(self, url, *, allow_viewers, allow_editors, allow_agents=False, form_fields=(), status=200):
@@ -131,7 +132,7 @@ class CRUDLTestMixin:
         return as_user(admin, allowed=True)
 
     def assertUpdateFetch(
-        self, url, *, allow_viewers, allow_editors, allow_agents=False, object_url=True, form_fields=(), status=200
+        self, url, *, allow_viewers, allow_editors, allow_agents=False, allow_org2=False, form_fields=(), status=200
     ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
@@ -149,16 +150,10 @@ class CRUDLTestMixin:
         as_user(viewer, allowed=allow_viewers)
         as_user(editor, allowed=allow_editors)
         as_user(agent, allowed=allow_agents)
-
-        # if the URL references a specific object, need to check users from other orgs can't access it
-        if object_url:
-            as_user(org2_admin, allowed=False)
-
+        as_user(org2_admin, allowed=allow_org2)
         return as_user(admin, allowed=True)
 
-    def assertUpdateSubmit(
-        self, url, data, *, object_url=True, form_errors=None, object_unchanged=None, success_status=302
-    ):
+    def assertUpdateSubmit(self, url, data, *, form_errors=None, object_unchanged=None, success_status=302):
         assert not form_errors or object_unchanged, "if form_errors specified, must also specify object_unchanged"
 
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
@@ -175,11 +170,6 @@ class CRUDLTestMixin:
             return self.requestView(url, user, post_data=data, checks=checks)
 
         as_user(None, allowed=False)
-
-        # if the URL references a specific object, need to check users from other orgs can't access it
-        if object_url:
-            as_user(org2_admin, allowed=False)
-
         return as_user(admin, allowed=True)
 
     def assertDeleteFetch(self, url, *, allow_viewers=False, allow_editors=False, allow_agents=False, status=200):
@@ -345,8 +335,11 @@ class FormInitialValues(BaseCheck):
     def check(self, test_cls, response, msg_prefix):
         form = self.get_context_item(test_cls, response, "form", msg_prefix)
         for field_key, value in self.fields.items():
+            actual = form.initial[field_key] if field_key in form.initial else form.fields[field_key].initial
             test_cls.assertEqual(
-                form.initial.get(field_key), value, msg=f"{msg_prefix}: form field initial value mismatch"
+                actual,
+                value,
+                msg=f"{msg_prefix}: form field '{field_key}' initial value mismatch",
             )
 
 
@@ -355,8 +348,11 @@ class FormErrors(BaseCheck):
         self.form_errors = form_errors
 
     def check(self, test_cls, response, msg_prefix):
-        for field_key, message in self.form_errors.items():
-            test_cls.assertFormError(response, "form", field_key, message, msg_prefix=msg_prefix)
+        actual = {}
+        for field_key, errors in response.context["form"].errors.items():
+            actual[field_key] = errors[0] if len(errors) == 1 else errors
+
+        test_cls.assertEqual(actual, self.form_errors, msg=f"{msg_prefix}: form errors mismatch")
 
 
 class NoFormErrors(BaseCheck):

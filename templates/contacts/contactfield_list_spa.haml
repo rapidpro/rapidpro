@@ -1,0 +1,143 @@
+-extends "contacts/contactfield_list.html"
+-load smartmin i18n humanize
+
+-block content
+  #pjax
+    -block pjax
+        -if total_count >= total_limit
+          .mb-4
+            %temba-alert(level="warning")
+              -blocktrans trimmed with limit=total_limit
+                You have reached the limit of {{ limit }} fields per workspace. Please remove fields that you are no longer using.
+        -elif total_count >= total_limit|add:-10
+          .mb-4
+            %temba-alert(level="warning")
+              -blocktrans trimmed with limit=total_limit
+                You are approaching the limit of {{ limit }} fields per workspace. You should remove fields that you are no longer using.
+
+        -if view.search_fields
+          %form#search-form.mb-4(method="get")
+            %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+            %input(type="submit" class="hide")
+        -else
+          -if not is_spa
+            .title
+              -trans "Featured Fields"
+          .my-4
+            -blocktrans trimmed
+              Featured fields are shown prominently on contact pages. Drag to reorder the fields that you would most like to see at glance.
+
+        -block pre-table
+          %temba-modax(id='update-field' header='{{_("Update Field")|escapejs}}')
+          %temba-modax(id='delete-modal' header='{{_("Delete Field")|escapejs}}')
+          %temba-modax(id='usages-modal' header='{{_("Usages")|escapejs}}')
+        
+        - block table
+          %table.list.lined{ class:'{% get_list_class object_list %}', cellspacing:'0'}
+            %thead
+              %tbody#draggable-tbody
+                - for obj in object_list
+                  %tr{ data-cfid:'{{ obj.id }}', data-priority:'{{ obj.priority }}', class:'{% if org_perms.contacts.contactfield_update_priority and is_featured_category%}draggable-row{%endif%}'}
+                    - if org_perms.contacts.contactfield_update_priority and is_featured_category
+                      %td.drag-icon.pl-2(style="padding:0px;padding-left:5px;padding-right:5px")
+                        .drag-handle.icon.icon-menu
+
+                    %td.w-full(style="{%if org_perms.contacts.contactfield_update_priority and is_featured_category%}padding-left:0px;{%endif%}")
+                      -if org_perms.contacts.contactfield_update
+                        .hover-linked.update(onclick="showUpdateContactFieldModal({{obj.id}})")
+                          {{ obj.label }}                          
+                          .key{ style:"font-family: monospace; font-size: 12px;" }
+                            @fields.{{ obj.key }}
+                          -if obj.show_in_table
+                            .inline.text-xs.py-1.px-2.font-medium.tracking-wide.p-1.bg-gray-200.rounded-lg
+                              -trans "Featured"
+                      -else
+                        {{ obj.label }}                          
+                        .key{ style:"font-family: monospace; font-size: 12px;" }
+                          @fields.{{ obj.key }}
+
+                        -if obj.show_in_table
+                          .inline.text-xs.py-1.px-2.font-medium.tracking-wide.p-1.bg-gray-200.rounded-lg
+                            -trans "Featured"
+
+                    %td.w-12
+                      .flex.text-center
+                        -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
+                          .uses(onclick='event.stopPropagation(); showFieldUsagesModal("{{ obj.uuid }}");')
+                            .lbl.linked
+                              {% blocktrans trimmed count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
+                                {{counter}} Use
+                              {% plural %}
+                                {{counter}} Uses
+                              {% endblocktrans %}
+                    %td.w-32
+                      .text-right
+                        {{ obj.get_value_type_display }}
+                    
+                    %td.w-10
+                      -if org_perms.contacts.contactfield_delete
+                        .pl-2.pt-1.delete-link.linked.text-gray-400(style="visibility:hidden" onclick='showFieldDeleteModal("{{ obj.uuid }}")')
+                          %temba-icon(name="x")                          
+                - empty
+                  %tr.empty_list
+                    %td{ colspan:'99' }
+                      -trans "No fields"
+
+-block extra-style
+  {{block.super}}
+    :css
+      .page-content {
+        align-self: auto;
+        max-width: 100%;
+      }
+
+      .drag-handle {
+        cursor: move;
+        display: block;
+      }
+
+      .drag-icon {
+        width: 15px;
+      }
+
+      .drag-icon:before {
+        content: '';
+        display: block;
+        width: 15px;
+      }
+
+      .sortable-drag {
+        background-color: #f5f9fa;;
+      }
+
+      .sortable-ghost {
+        background-color: #f5f9ff;
+      }
+
+      .draggable-row .icon {
+        display: none;
+      }
+
+      .draggable-row > td {
+        cursor: move;
+      }
+
+      .draggable-row > td * {
+        user-select: none;
+        -webkit-user-select: none;
+        pointer-events: none;
+      }
+
+      .draggable-row > td:nth-child(2) > div {
+        padding-left: 0rem;
+        cursor: move !important;
+      }
+
+      .draggable-row:hover .icon {
+        display: inline-block;
+        color: #cccccc;
+      }
+
+      tr:hover .delete-link {
+        visibility: visible !important;
+      }

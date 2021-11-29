@@ -23,7 +23,7 @@ from django.utils.encoding import force_bytes, force_text
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
-from temba.msgs.models import IVR, PENDING, QUEUED, Msg
+from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.triggers.models import Trigger
@@ -36,6 +36,7 @@ from .tasks import (
     squash_channelcounts,
     sync_old_seen_channels_task,
     track_org_channel_counts,
+    trim_channel_log_task,
     trim_sync_events_task,
 )
 
@@ -215,6 +216,17 @@ class ChannelTest(TembaTest):
         self.assertEqual(self.tel_channel.get_channel_type_name(), "Android Phone")
         self.assertEqual(self.twitter_channel.get_channel_type_name(), "Twitter Channel")
         self.assertEqual(self.unclaimed_channel.get_channel_type_name(), "Vonage Channel")
+
+    def test_get_address_display(self):
+        self.assertEqual("+250 785 551 212", self.tel_channel.get_address_display())
+        self.assertEqual("+250785551212", self.tel_channel.get_address_display(e164=True))
+
+        self.assertEqual("@billy_bob", self.twitter_channel.get_address_display())
+
+        # make sure it works with alphanumeric numbers
+        self.tel_channel.address = "EATRIGHT"
+        self.assertEqual("EATRIGHT", self.tel_channel.get_address_display())
+        self.assertEqual("EATRIGHT", self.tel_channel.get_address_display(e164=True))
 
     def test_ensure_normalization(self):
         self.tel_channel.country = "RW"
@@ -497,7 +509,7 @@ class ChannelTest(TembaTest):
         # but put it in the past
         msg.delete()
         with patch("django.utils.timezone.now", return_value=timezone.now() - timedelta(hours=3)):
-            self.create_outgoing_msg(contact, "test", channel=channel, status=QUEUED)
+            self.create_outgoing_msg(contact, "test", channel=channel, status=Msg.STATUS_QUEUED)
 
         response = self.client.get("/", Follow=True)
         self.assertIn("delayed_syncevents", response.context)
@@ -557,96 +569,6 @@ class ChannelTest(TembaTest):
             content_type="application/json",
             data=post_data,
         )
-
-    def test_update(self):
-        update_url = reverse("channels.channel_update", args=[self.tel_channel.id])
-
-        # only user of the org can view the update page of a channel
-        self.client.logout()
-        self.login(self.user)
-        response = self.client.get(update_url)
-        self.assertEqual(302, response.status_code)
-
-        # visit the channel's update page as an admin
-        self.login(self.admin)
-
-        response = self.fetch_protected(update_url, self.admin)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], update_url)
-
-        self.client.post(update_url, {"name": "Test Channel Update1"})
-
-        self.tel_channel.refresh_from_db()
-        self.assertEqual("Test Channel Update1", self.tel_channel.name)
-        self.assertEqual("+250785551212", self.tel_channel.address)
-        self.assertFalse(self.tel_channel.config.get("allow_international"))
-
-        # if we change the channel to a twilio type, shouldn't be able to edit our address
-        self.tel_channel.channel_type = "T"
-        self.tel_channel.save(update_fields=("channel_type",))
-
-        response = self.client.get(update_url)
-        self.assertNotIn("address", response.context["form"].fields)
-
-        # bring it back to android
-        self.tel_channel.channel_type = "A"
-        self.tel_channel.save(update_fields=("channel_type",))
-
-        # visit the update page again as an administrator
-        response = self.fetch_protected(update_url, self.admin)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], update_url)
-
-        self.fetch_protected(update_url, self.admin, {"name": "Test Channel Update2", "allow_international": True})
-
-        self.tel_channel.refresh_from_db()
-        self.assertEqual("Test Channel Update2", self.tel_channel.name)
-        self.assertEqual("+250785551212", self.tel_channel.address)
-        self.assertTrue(self.tel_channel.config.get("allow_international"))
-
-        # visit the channel's update page as superuser
-        self.superuser.set_org(self.org)
-        response = self.fetch_protected(update_url, self.superuser)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], update_url)
-
-        self.fetch_protected(update_url, self.superuser, {"name": "Test Channel Update3"})
-
-        self.tel_channel.refresh_from_db()
-        self.assertEqual("Test Channel Update3", self.tel_channel.name)
-        self.assertEqual("+250785551212", self.tel_channel.address)
-
-        # make sure channel works with alphanumeric numbers
-        self.tel_channel.address = "EATRIGHT"
-        self.assertEqual("EATRIGHT", self.tel_channel.get_address_display())
-        self.assertEqual("EATRIGHT", self.tel_channel.get_address_display(e164=True))
-
-        # change channel type to Twitter
-        self.tel_channel.channel_type = "TWT"
-        self.tel_channel.schemes = [URN.TWITTER_SCHEME]
-        self.tel_channel.address = "billy_bob"
-        self.tel_channel.scheme = "twitter"
-        self.tel_channel.config = {"handle_id": 12345, "oauth_token": "abcdef", "oauth_token_secret": "23456"}
-        self.tel_channel.save()
-
-        self.assertEqual("@billy_bob", self.tel_channel.get_address_display())
-        self.assertEqual("@billy_bob", self.tel_channel.get_address_display(e164=True))
-
-        response = self.fetch_protected(update_url, self.admin)
-        self.assertEqual(200, response.status_code)
-        self.assertIn("name", response.context["fields"])
-        self.assertIn("alert_email", response.context["fields"])
-        self.assertIn("address", response.context["fields"])
-        self.assertNotIn("country", response.context["fields"])
-
-        postdata = {"name": "Twitter2", "alert_email": "bob@example.com", "address": "billy_bob"}
-
-        self.fetch_protected(update_url, self.admin, postdata)
-
-        self.tel_channel.refresh_from_db()
-        self.assertEqual("Twitter2", self.tel_channel.name)
-        self.assertEqual("bob@example.com", self.tel_channel.alert_email)
-        self.assertEqual("billy_bob", self.tel_channel.address)
 
     def test_read(self):
         # now send the channel's updates
@@ -722,7 +644,7 @@ class ChannelTest(TembaTest):
 
         # add a message, just sent so shouldn't be delayed
         with patch("django.utils.timezone.now", return_value=two_hours_ago):
-            self.create_outgoing_msg(bob, "delayed message", status=QUEUED, channel=self.tel_channel)
+            self.create_outgoing_msg(bob, "delayed message", status=Msg.STATUS_QUEUED, channel=self.tel_channel)
 
         response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
         self.assertIn("delayed_sync_event", response.context_data.keys())
@@ -774,8 +696,8 @@ class ChannelTest(TembaTest):
         self.tel_channel.save()
 
         # now let's create an ivr interaction
-        self.create_incoming_msg(joe, "incoming ivr", channel=self.tel_channel, msg_type=IVR)
-        self.create_outgoing_msg(joe, "outgoing ivr", channel=self.tel_channel, msg_type=IVR)
+        self.create_incoming_msg(joe, "incoming ivr", channel=self.tel_channel, msg_type=Msg.TYPE_IVR)
+        self.create_outgoing_msg(joe, "outgoing ivr", channel=self.tel_channel, msg_type=Msg.TYPE_IVR)
         response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
 
         self.assertEqual(4, len(response.context["message_stats"]))
@@ -1089,7 +1011,9 @@ class ChannelTest(TembaTest):
         msg6 = self.send_message(["250788382382"], "from when?")
 
         # an incoming message that should not be included even if it is still pending
-        incoming_message = self.create_incoming_msg(contact, "hey", channel=self.tel_channel, status=PENDING)
+        incoming_message = self.create_incoming_msg(
+            contact, "hey", channel=self.tel_channel, status=Msg.STATUS_PENDING
+        )
 
         self.org.administrators.add(self.user)
         self.user.set_org(self.org)
@@ -1120,7 +1044,9 @@ class ChannelTest(TembaTest):
         )
 
         # a pending outgoing message should be included
-        self.create_outgoing_msg(msg6.contact, "Hello, we heard from you.", channel=self.tel_channel, status=QUEUED)
+        self.create_outgoing_msg(
+            msg6.contact, "Hello, we heard from you.", channel=self.tel_channel, status=Msg.STATUS_QUEUED
+        )
 
         six_mins_ago = timezone.now() - timedelta(minutes=6)
         self.tel_channel.last_seen = six_mins_ago
@@ -1504,6 +1430,80 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("channels.channel_configuration", args=[self.other_org_channel.uuid]))
         self.assertLoginRedirect(response)
 
+    def test_update(self):
+        android_channel = self.create_channel(
+            "A", "My Android", "+250785551212", country="RW", secret="sesame", config={"FCM_ID": "123"}
+        )
+        vonage_channel = self.create_channel("NX", "My Vonage", "+1234567890", country="US", config={}, role="CASR")
+        telegram_channel = self.create_channel("TG", "My Telegram", "75474745", config={})
+
+        android_url = reverse("channels.channel_update", args=[android_channel.id])
+        vonage_url = reverse("channels.channel_update", args=[vonage_channel.id])
+        telegram_url = reverse("channels.channel_update", args=[telegram_channel.id])
+
+        # fields shown depend on scheme and role
+        self.assertUpdateFetch(
+            android_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={"name": "My Android", "alert_email": None, "allow_international": False},
+        )
+        self.assertUpdateFetch(
+            vonage_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "name": "My Vonage",
+                "alert_email": None,
+                "allow_international": False,
+                "machine_detection": False,
+            },
+        )
+        self.assertUpdateFetch(
+            telegram_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={"name": "My Telegram", "alert_email": None},
+        )
+
+        # name can't be empty
+        self.assertUpdateSubmit(
+            android_url,
+            {"name": ""},
+            form_errors={"name": "This field is required."},
+            object_unchanged=android_channel,
+        )
+
+        # make some changes
+        self.assertUpdateSubmit(
+            vonage_url,
+            {
+                "name": "Updated Name",
+                "alert_email": "bob@nyaruka.com",
+                "allow_international": True,
+                "machine_detection": True,
+            },
+        )
+
+        vonage_channel.refresh_from_db()
+        self.assertEqual("Updated Name", vonage_channel.name)
+        self.assertEqual("+1234567890", vonage_channel.address)
+        self.assertEqual("bob@nyaruka.com", vonage_channel.alert_email)
+        self.assertTrue(vonage_channel.config.get("allow_international"))
+        self.assertTrue(vonage_channel.config.get("machine_detection"))
+
+        self.assertUpdateFetch(
+            vonage_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "name": "Updated Name",
+                "alert_email": "bob@nyaruka.com",
+                "allow_international": True,
+                "machine_detection": True,
+            },
+        )
+
     def test_delete(self):
         delete_url = reverse("channels.channel_delete", args=[self.ex_channel.uuid])
 
@@ -1820,7 +1820,7 @@ class ChannelClaimTest(TembaTest):
         )
 
         # run again, nothing should change
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(9):
             check_channels_task()
 
         self.assertEqual(2, Alert.objects.filter(channel=self.channel, ended_on=None).count())
@@ -1903,7 +1903,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # incoming IVR
-        msg = self.create_incoming_msg(contact, "Test Message", msg_type=IVR)
+        msg = self.create_incoming_msg(contact, "Test Message", msg_type=Msg.TYPE_IVR)
         self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
         msg.release()
         self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
@@ -1911,7 +1911,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # outgoing ivr
-        msg = self.create_outgoing_msg(contact, "Real Voice", msg_type=IVR)
+        msg = self.create_outgoing_msg(contact, "Real Voice", msg_type=Msg.TYPE_IVR)
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
         msg.release()
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
@@ -1927,6 +1927,9 @@ class ChannelCountTest(TembaTest):
 
 class ChannelLogTest(TembaTest):
     def test_views(self):
+        self.channel.role = "CASR"
+        self.channel.save(update_fields=("role",))
+
         other_org_channel = Channel.create(
             self.org2,
             self.admin2,
@@ -1967,7 +1970,7 @@ class ChannelLogTest(TembaTest):
         call = self.create_incoming_call(ivr_flow, contact)
 
         # create failed call with an interaction log
-        self.create_incoming_call(ivr_flow, contact, status=IVRCall.FAILED)
+        self.create_incoming_call(ivr_flow, contact, status=IVRCall.STATUS_FAILED)
 
         # create log for other org
         other_org_contact = self.create_contact("Hans", phone="+593979123456")
@@ -2010,6 +2013,11 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "Successfully Sent")
         self.assertContains(response, "Error Sending")
 
+        # check error logs only
+        response = self.client.get(list_url + "?errors=1")
+        self.assertNotContains(response, "Successfully Sent")
+        self.assertContains(response, "Error Sending")
+
         # view failed alone
         response = self.client.get(read_url)
         self.assertContains(response, "failed+message")
@@ -2044,7 +2052,7 @@ class ChannelLogTest(TembaTest):
 
         # if duration isn't set explicitly, it can be calculated
         call.started_on = datetime(2019, 8, 12, 11, 4, 0, 0, timezone.utc)
-        call.status = IVRCall.IN_PROGRESS
+        call.status = IVRCall.STATUS_IN_PROGRESS
         call.duration = None
         call.save(update_fields=("started_on", "status", "duration"))
 
@@ -2053,13 +2061,6 @@ class ChannelLogTest(TembaTest):
                 reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1"
             )
             self.assertContains(response, "30 seconds")
-
-        # show only IVR calls with errors
-        response = self.client.get(
-            reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1&errors=1"
-        )
-        self.assertContains(response, "warning")
-        self.assertContains(response, "1 result")
 
     def test_channellog_connection_anonymous(self):
         url = reverse("channels.channellog_connection", args=(1,))
@@ -2636,6 +2637,41 @@ Error: missing request signature""",
             # when we can't identify the contact, url, request and response objects are completely masked
             self.assertContains(response, ContactURN.ANON_MASK, count=3)
 
+    def test_trim_task(self):
+        contact = self.create_contact("Fred Jones", phone="12345")
+        msg = self.create_incoming_msg(contact, "incoming msg", channel=self.channel)
+
+        ChannelLog.objects.create(
+            channel=self.channel,
+            msg=msg,
+            description="Successfully Sent",
+            is_error=False,
+            url="htpp://example.com",
+            method="POST",
+            request='{"json": "ok"}',
+            response='{"json": "ok"}',
+            response_status=200,
+            created_on=timezone.now() - timedelta(days=7),
+        )
+        l2 = ChannelLog.objects.create(
+            channel=self.channel,
+            msg=msg,
+            description="Successfully Sent",
+            is_error=False,
+            url="htpp://example.com",
+            method="POST",
+            request='{"json": "ok"}',
+            response='{"json": "ok"}',
+            response_status=200,
+            created_on=timezone.now() - timedelta(days=2),
+        )
+
+        trim_channel_log_task()
+
+        # should only have one log remaining and should be l2
+        self.assertEqual(1, ChannelLog.objects.all().count())
+        self.assertTrue(ChannelLog.objects.filter(id=l2.id))
+
 
 class FacebookWhitelistTest(TembaTest):
     def setUp(self):
@@ -2713,7 +2749,7 @@ class CourierTest(TembaTest):
         # we should have been queued to our courier queues and our msgs should be marked as such
         for msg in all_msgs:
             msg.refresh_from_db()
-            self.assertEqual(msg.status, QUEUED)
+            self.assertEqual(msg.status, Msg.STATUS_QUEUED)
 
         self.assertFalse(msg1.high_priority)
 
