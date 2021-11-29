@@ -72,7 +72,7 @@ def get_existing_messages_segments(apps, schema_editor):
     ChannelCount = apps.get_model("channels", "ChannelCount")
     msgs_to_update = dict()
     channel_counts = list()
-    for log in (
+    logs = (
         ChannelLog.objects.using(db_alias)
         .filter(
             channel__channel_type__in=("T", "TW", "TMA", "TMS", "SW"),
@@ -80,7 +80,10 @@ def get_existing_messages_segments(apps, schema_editor):
             msg__isnull=False,
         )
         .exclude(Q(response__isnull=True) | Q(response=""))
-    ):
+    )
+    logs_count = len(logs)
+    for index, log in enumerate(logs):
+        print(f"Getting segments count from Twilio logs - {round(index / logs_count, 2)}%")
         try:
             response_str = log.response.split("\r\n\r\n")[-1]
             response_json = json.loads(response_str)
