@@ -1543,7 +1543,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(40):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
@@ -1570,7 +1570,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(39):
             self.client.get(failed_url)
 
         response = self.assertListFetch(
@@ -1578,12 +1578,12 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertEqual(("resend",), response.context["actions"])
-        self.assertContains(response, reverse("channels.channellog_read", args=[log.id]))
+        self.assertContains(response, reverse("channels.channellog_read", args=[log.channel.uuid, log.id]))
 
         # make the org anonymous
         with AnonymousOrg(self.org):
             response = self.requestView(failed_url, self.admin)
-            self.assertNotContains(response, reverse("channels.channellog_read", args=[log.id]))
+            self.assertNotContains(response, reverse("channels.channellog_read", args=[log.channel.uuid, log.id]))
 
         # resend some messages
         self.client.post(failed_url, {"action": "resend", "objects": [msg2.id]})
