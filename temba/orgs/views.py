@@ -17,6 +17,7 @@ import requests
 from django.core.paginator import Paginator
 from django.utils.functional import cached_property
 from packaging.version import Version
+from rest_framework.views import APIView
 from smartmin.users.models import FailedLogin
 from smartmin.users.views import Login
 from smartmin.views import (
@@ -924,6 +925,8 @@ class OrgCRUDL(SmartCRUDL):
         "parse_data_view",
         "parse_data_import",
         "send_invite",
+        "translations",
+        "translate",
     )
 
     model = Org
@@ -1340,7 +1343,6 @@ class OrgCRUDL(SmartCRUDL):
         success_message = "Plivo credentials verified. You can now add a Plivo channel."
 
         def form_valid(self, form):
-
             auth_id = form.cleaned_data["auth_id"]
             auth_token = form.cleaned_data["auth_token"]
 
@@ -3538,6 +3540,7 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
+                formax.add_section("translations", reverse("orgs.org_translations"), icon="icon-language")
 
             if self.has_org_perm("orgs.org_smtp_server"):
                 formax.add_section("email", reverse("orgs.org_smtp_server"), icon="icon-envelop")
@@ -3955,6 +3958,104 @@ class OrgCRUDL(SmartCRUDL):
         def has_permission(self, request, *args, **kwargs):
             self.org = self.derive_org()
             return self.request.user.has_perm("orgs.org_country") or self.has_org_perm("orgs.org_country")
+
+    class Translations(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+        class TranslationsForm(forms.ModelForm):
+            provider = forms.ChoiceField(
+                choices=[
+                    ("google", "Google Translate"),
+                    ("deepl", "DeepL Translate"),
+                ],
+                widget=SelectWidget(attrs={"searchable": True}),
+                label=_("Live Translation System"),
+                help_text=_("The system that can be used to provide an approximate translation."),
+                initial="US",
+            )
+
+            api_key = forms.CharField(
+                required=False,
+                label=_("API Key"),
+                widget=InputWidget,
+                help_text=_("You can find your API Key on the system website."),
+            )
+
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs["org"]
+                del kwargs["org"]
+                super().__init__(*args, **kwargs)
+
+            def clean(self):
+                cleaned_data = super().clean()
+                provider = cleaned_data.get("provider")
+                api_key = cleaned_data.get("api_key")
+                if not api_key:
+                    return cleaned_data
+
+                _, r_status = self.org.get_translation("validation text", "spa", provider, api_key, use_config=False)
+                if r_status != 200:
+                    self.add_error("api_key", "API Key is wrong or invalid.")
+
+            class Meta:
+                model = Org
+                fields = ("provider", "api_key")
+
+        success_message = ""
+        form_class = TranslationsForm
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+            org = self.derive_org()
+            initial["provider"] = (org.config or {}).get("translator_service", {}).get("provider", "")
+            initial["api_key"] = (org.config or {}).get("translator_service", {}).get("api_key", "")
+            return initial
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.user.get_org()
+            return kwargs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            org = self.request.user.get_org()
+            services = {
+                "google": "Google Translate",
+                "deepl": "DeepL Translate",
+            }
+            context["translator_service"] = (org.config or {}).get("translator_service", {}).get("provider", "")
+            context["translator_service"] = services.get(context["translator_service"], "")
+            return context
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+            current_config = org.config or {}
+            if form.cleaned_data.get("provider") and form.cleaned_data.get("api_key"):
+                current_config.update(
+                    {
+                        "translator_service": {
+                            "provider": form.cleaned_data["provider"],
+                            "api_key": form.cleaned_data["api_key"],
+                        }
+                    }
+                )
+            else:
+                try:
+                    current_config.pop("translator_service")
+                except KeyError:
+                    pass
+            org.config = current_config
+            org.save(update_fields=["config"])
+            return super().form_valid(form)
+
+    class Translate(OrgPermsMixin, APIView):
+        def post(self, request, *args, **kwargs):
+            text = request.data.get("text")
+            source = request.data.get("source")
+            target = request.data.get("target")
+            if not all((text, target)):
+                return JsonResponse({"error": "Fields, 'text' or 'target', are not provided."}, status=400)
+            org = self.derive_org()
+            translated_text, status_code = org.get_translation(text, target, source)
+            return JsonResponse({"translated": translated_text}, status=status_code)
 
     class ClearCache(SmartUpdateView):  # pragma: no cover
         fields = ("id",)

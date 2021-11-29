@@ -406,7 +406,11 @@
         lookups: '/flow/lookups_api/',
         giftcard: '/flow/giftcards_api/',
         link: '/link/api/',
-      }
+        {% if has_translator %}
+          translation: '/org/translate/',
+        {% endif %}
+      },
+
     };
 
     showFlowEditor(document.getElementById('rp-flow-editor'), config);

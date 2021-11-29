@@ -452,6 +452,7 @@ PERMISSIONS = {
         "twilio_connect",
         "two_factor",
         "token",
+        "translations",
     ),
     "channels.channel": (
         "api",
@@ -685,6 +686,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_token",
         "orgs.topup_list",
         "orgs.topup_read",
+        "orgs.org_translations",
         "channels.channel_api",
         "channels.channel_bulk_sender_options",
         "channels.channel_claim",
