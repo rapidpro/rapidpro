@@ -3308,25 +3308,13 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         menu_url = reverse("orgs.org_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=True)
         menu = response.json()["results"]
-        self.assertEqual(5, len(menu))
+        self.assertEqual(6, len(menu))
 
-        # agents should only see tickets and support
+        # agents should only see tickets, settings, and support
         self.login(self.agent)
         response = self.client.get(menu_url)
         menu = response.json()["results"]
-        self.assertEqual(
-            [
-                {"id": "tickets", "name": "Tickets", "icon": "agent", "href": "/ticket/", "endpoint": "/ticket/menu/"},
-                {
-                    "id": "support",
-                    "name": "Support",
-                    "icon": "help-circle",
-                    "bottom": True,
-                    "trigger": "showSupportWidget",
-                },
-            ],
-            menu,
-        )
+        self.assertEqual(3, len(menu))
 
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
