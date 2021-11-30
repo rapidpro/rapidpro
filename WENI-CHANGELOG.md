@@ -1,3 +1,7 @@
+1.0.3-rapidpro-7.0.4
+----------
+ * DATABASES["readonly"] setting fixed
+
 1.0.2-rapidpro-7.0.4
 ----------
  * Removed old two-factor authentication
