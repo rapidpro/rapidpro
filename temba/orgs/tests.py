@@ -291,6 +291,11 @@ class UserTest(TembaTest):
         response = self.client.post(backup_url, {"token": self.admin.backup_tokens.first()})
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
+    def test_account(self):
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.user_account"))
+        self.assertEqual(1, len(response.context["formax"].sections))
+
     def test_two_factor(self):
         self.assertFalse(self.admin.get_settings().two_factor_enabled)
 
@@ -3365,14 +3370,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # should have an extra menu option for our child (and section header)
         self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 16)
-
-    def test_account(self):
-        response = self.assertListFetch(
-            reverse("orgs.org_account"), allow_viewers=True, allow_editors=True, allow_agents=False
-        )
-
-        # make sure we have the appropriate number of sections
-        self.assertEqual(7, len(response.context["formax"].sections))
 
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
