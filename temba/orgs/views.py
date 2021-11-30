@@ -1618,6 +1618,7 @@ class OrgCRUDL(SmartCRUDL):
         class Form(forms.ModelForm):
             parent = forms.IntegerField(required=False)
             plan_end = forms.DateTimeField(required=False)
+            non_contact_hours = forms.BooleanField(required=False)
 
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -1771,7 +1772,15 @@ class OrgCRUDL(SmartCRUDL):
             cleaned_data = self.form.cleaned_data
 
             obj.limits = cleaned_data["limits"]
+            obj.config = obj.config or {}
+            obj.config["non_contact_hours"] = cleaned_data["non_contact_hours"]
             return obj
+
+        def derive_initial(self):
+            org = self.get_object()
+            initial = super().derive_initial()
+            initial["non_contact_hours"] = (org.config or {}).get("non_contact_hours", False)
+            return initial
 
     class Delete(ModalMixin, SmartDeleteView):
         cancel_url = "id@orgs.org_update"

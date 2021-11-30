@@ -641,8 +641,7 @@
     dialogBody.innerHTML = `<p style="margin: 20px;">${gettext("You are trying to send a message out of compliance hours (8AM - 9PM). Are you sure you want to continue?")}</p>`;
     doNotContactDialog.body = dialogBody;
     document.body.append(doNotContactDialog);
-    // todo: actual do not contact
-    let doNotContact = true;
+    let doNotContact = "{{ user_org.do_not_contact }}" === "True";
     if (doNotContact) {
       let sendModalSubmit = sendModal.submit.bind(sendModal);
       sendModal.submit = () => {

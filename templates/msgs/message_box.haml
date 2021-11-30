@@ -295,8 +295,7 @@
       } else {
         sendModal.setAttribute("endpoint", sendEndpoint);
       }
-      // todo: actual do not contact
-      let doNotContact = true;
+      let doNotContact = "{{ user_org.do_not_contact }}" === "True";
       if (doNotContact) {
         let sendModalSubmit = sendModal.submit.bind(sendModal);
         sendModal.submit = () => {

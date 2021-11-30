@@ -2204,6 +2204,19 @@ class Org(SmartModel):
     def get_optin_flow(self):
         return self.config.get(Org.OPTIN_FLOW)
 
+    def do_not_contact(self):
+        do_not_contact = (self.config or {}).get("non_contact_hours", False)
+        if not do_not_contact:
+            return False
+
+        timezone.activate(pytz.timezone(str(self.timezone)))
+        start = timezone.localtime(timezone.now()).replace(hour=8, minute=0, second=0, microsecond=0)
+        end = timezone.localtime(timezone.now()).replace(hour=21, minute=0, second=0, microsecond=0)
+        now = timezone.localtime(timezone.now())
+        in_do_not_contact_times = now < start or now > end
+        timezone.deactivate()
+        return in_do_not_contact_times
+
 
 # ===================== monkey patch User class with a few extra functions ========================
 
