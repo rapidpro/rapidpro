@@ -325,6 +325,20 @@ class UserTest(TembaTest):
 
         self.assertFalse(self.admin.get_settings().two_factor_enabled)
 
+    def test_two_factor_spa(self):
+        enable_url = reverse("orgs.user_two_factor_enable")
+        tokens_url = reverse("orgs.user_two_factor_tokens")
+        self.login(self.admin)
+
+        # submit with valid OTP and password
+        with patch("pyotp.TOTP.verify", return_value=True):
+            response = self.client.post(enable_url, {"otp": "123456", "password": "Administrator"})
+
+        header = {"HTTP_TEMBA_SPA": 1}
+        response = self.client.get(tokens_url, **header)
+        self.assertContains(response, "Regenerate Tokens")
+        self.assertNotContains(response, "gear-container")
+
     def test_two_factor_views(self):
         enable_url = reverse("orgs.user_two_factor_enable")
         tokens_url = reverse("orgs.user_two_factor_tokens")
@@ -3304,7 +3318,16 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(deep_link)
         self.assertEqual(200, response.status_code)
 
+    def assertMenu(self, url, count):
+        response = self.assertListFetch(url, allow_viewers=True, allow_editors=True, allow_agents=True)
+        menu = response.json()["results"]
+        self.assertEqual(count, len(menu))
+
     def test_menu(self):
+        self.login(self.admin)
+        self.assertMenu(reverse("orgs.org_menu"), 6)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 14)
+
         menu_url = reverse("orgs.org_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=True)
         menu = response.json()["results"]
@@ -3315,6 +3338,41 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(menu_url)
         menu = response.json()["results"]
         self.assertEqual(3, len(menu))
+
+    def test_workspace(self):
+        response = self.assertListFetch(
+            reverse("orgs.org_workspace"), allow_viewers=True, allow_editors=True, allow_agents=False
+        )
+
+        # make sure we have the appropriate number of sections
+        self.assertEqual(7, len(response.context["formax"].sections))
+
+        # create a child org
+        self.child_org = Org.objects.create(
+            name="Child Org",
+            timezone=pytz.timezone("Africa/Kigali"),
+            country=self.org.country,
+            brand=settings.DEFAULT_BRAND,
+            created_by=self.user,
+            modified_by=self.user,
+            parent=self.org,
+        )
+
+        response = self.client.get(reverse("orgs.org_workspace"))
+
+        # make sure we have the appropriate number of sections
+        self.assertContains(response, "Transfer Credits")
+
+        # should have an extra menu option for our child (and section header)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 16)
+
+    def test_account(self):
+        response = self.assertListFetch(
+            reverse("orgs.org_account"), allow_viewers=True, allow_editors=True, allow_agents=False
+        )
+
+        # make sure we have the appropriate number of sections
+        self.assertEqual(7, len(response.context["formax"].sections))
 
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
