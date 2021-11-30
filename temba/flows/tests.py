@@ -1800,6 +1800,15 @@ class FlowTest(TembaTest):
 
 
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
+
+    def test_menu(self):
+        menu_url = reverse("flows.flow_menu")
+        FlowLabel.create(self.org, "Important")
+
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+        self.assertEqual(3, len(menu))
+
     def test_create(self):
         create_url = reverse("flows.flow_create")
 

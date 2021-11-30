@@ -232,7 +232,6 @@ class FlowCRUDL(SmartCRUDL):
 
             menu = []
             menu.append(self.create_menu_item(name=_("Active"), icon="flow", href="flows.flow_list"))
-            self.create_menu_item(name=_("Active"), icon="flow", href="flows.flow_list"),
 
             for label in labels:
                 menu.append(

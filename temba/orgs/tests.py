@@ -1360,10 +1360,7 @@ class OrgTest(TembaTest):
         self.assertLoginRedirect(response)
 
         # can access as admin
-        self.login(self.admin)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-
+        self.login(self.admin)        
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
@@ -3171,6 +3168,10 @@ class OrgTest(TembaTest):
         # we can reach the manage accounts page too now
         response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id))
         self.assertEqual(200, response.status_code)
+
+        headers = {"HTTP_TEMBA_SPA":1}
+        response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id), **headers)
+        self.assertContains(response, "Edit Workspace")
 
         # edit our sub org's details
         response = self.client.post(
