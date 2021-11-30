@@ -671,7 +671,16 @@ class InferOrgMixin:
 
 class UserCRUDL(SmartCRUDL):
     model = User
-    actions = ("list", "edit", "delete", "forget", "two_factor_enable", "two_factor_disable", "two_factor_tokens", "account")
+    actions = (
+        "list",
+        "edit",
+        "delete",
+        "forget",
+        "two_factor_enable",
+        "two_factor_disable",
+        "two_factor_tokens",
+        "account",
+    )
 
     class List(SmartListView):
         fields = ("username", "orgs", "date_joined")
@@ -997,6 +1006,7 @@ class UserCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("org", reverse("orgs.user_edit"), icon="icon-user")
 
+
 class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
     permission = "orgs.org_home"
     template_name = "spa_frame.haml"
@@ -1124,9 +1134,11 @@ class OrgCRUDL(SmartCRUDL):
             if submenu == "settings":  # pragma: no cover
                 has_classifiers = Classifier.objects.filter(org=org, is_active=True).exists()
                 menu = []
-                
+
                 if self.has_org_perm("orgs.org_account"):
-                    menu.append(self.create_menu_item(name=_("Account"), icon="user", href=reverse("orgs.user_account")))
+                    menu.append(
+                        self.create_menu_item(name=_("Account"), icon="user", href=reverse("orgs.user_account"))
+                    )
 
                 if self.request.user.get_settings().two_factor_enabled:
                     menu.append(
@@ -3054,7 +3066,6 @@ class OrgCRUDL(SmartCRUDL):
                 context["prometheus_url"] = f"https://{org.get_branding()['domain']}/mr/org/{org.uuid}/metrics"
 
             return context
-
 
     class Workspace(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Workspace")

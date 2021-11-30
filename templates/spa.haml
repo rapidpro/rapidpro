@@ -26,19 +26,6 @@
 -block extra-script
 
 
-:javascript
-  var menuPath = '{{menu_path}}';
-  if (menuPath != "None") {
-    collapsed = false;
-    if (menuPath.indexOf("@") == 0) {
-      menuPath = menuPath.substring(1);
-      collapsed = true;
-    }
-
-    var menu = document.querySelector("temba-menu");
-    // menu.setFocusedItem(menuPath, collapsed);
-  }
-
 -block page-header
   -with gear_links=view.get_gear_links
 
