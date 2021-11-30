@@ -1,3 +1,7 @@
+1.0.4-rapidpro-7.0.4
+----------
+ * fixed CELERY_BROKER_URL
+
 1.0.3-rapidpro-7.0.4
 ----------
  * DATABASES["readonly"] setting fixed
