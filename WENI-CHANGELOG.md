@@ -1,3 +1,7 @@
+1.0.5-rapidpro-7.0.4
+----------
+ * set NON_ISO6391_LANGUAGES on temba/settings.py.prod
+
 1.0.4-rapidpro-7.0.4
 ----------
  * fixed CELERY_BROKER_URL
