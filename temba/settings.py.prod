@@ -65,10 +65,12 @@ BRANDING = {
         "splash": "brands/{}/splash.jpg".format(brand_info.get("folder")),
         "logo": "brands/{}/logo.png".format(brand_info.get("folder")),
         "allow_signups": bool(brand_info.get("allow_signups")),
-        "flow_types": ["M", "V", "S"],
+        "flow_types": ["M", "V", "B", "S"],  # see Flow.FLOW_TYPES
+        "location_support": True,
         "tiers": dict(import_flows=0, multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=1000000, name="Normal Account")],
+        "title": _(brand_info.get("title")),
         "description": _(brand_info.get("description")),
         "credits": _(brand_info.get("credits")),
     }

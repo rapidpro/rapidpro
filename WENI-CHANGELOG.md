@@ -1,3 +1,7 @@
+1.0.6-rapidpro-7.0.4
+----------
+ * Add background flow type, location support and title variables in branding info.
+
 1.0.5-rapidpro-7.0.4
 ----------
  * set NON_ISO6391_LANGUAGES on temba/settings.py.prod
