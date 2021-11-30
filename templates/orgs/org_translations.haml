@@ -1,0 +1,9 @@
+-extends "smartmin/update.html"
+-load i18n
+
+-block summary
+  -if translator_service
+    -blocktrans trimmed with tr_service=translator_service
+      Connected to <b>{{ tr_service }}</b>.
+  -else
+    -trans "Connect your live translation system."
