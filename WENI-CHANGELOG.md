@@ -1,3 +1,7 @@
+1.0.2-rapidpro-7.0.4
+----------
+ * Removed old two-factor authentication
+
 1.0.1-rapidpro-7.0.4
 ----------
 * RapidPro updated to v7.0.4
