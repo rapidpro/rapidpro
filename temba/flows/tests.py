@@ -1800,7 +1800,6 @@ class FlowTest(TembaTest):
 
 
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
-
     def test_menu(self):
         menu_url = reverse("flows.flow_menu")
         FlowLabel.create(self.org, "Important")
