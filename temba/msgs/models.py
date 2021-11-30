@@ -12,7 +12,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction
+from django.db import models
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
@@ -20,7 +20,6 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
-from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org, TopUp
@@ -407,77 +406,6 @@ class Msg(models.Model):
 
     # why this message is being deleted - determines what happens with counts
     delete_reason = models.CharField(null=True, max_length=1, choices=DELETE_CHOICES)
-
-    @classmethod
-    def send_messages(cls, all_msgs):
-        """
-        Adds the passed in messages to our sending queue, this will also update the status of the message to
-        queued.
-        :return:
-        """
-
-        from temba.channels.types.android import AndroidType
-
-        courier_batches = []
-
-        # we send in chunks of 1,000 to help with contention
-        for msgs in chunk_list(all_msgs, 1000):
-            # build our id list
-            msg_ids = set([m.id for m in msgs])
-
-            with transaction.atomic():
-                queued_on = timezone.now()
-                courier_msgs = []
-
-                # update them to queued
-                send_messages = (
-                    Msg.objects.filter(id__in=msg_ids)
-                    .exclude(channel__channel_type=AndroidType.code)
-                    .exclude(msg_type=cls.TYPE_IVR)
-                    .exclude(status=cls.STATUS_FAILED)
-                )
-                send_messages.update(status=cls.STATUS_QUEUED, queued_on=queued_on, modified_on=queued_on)
-
-                # now push each onto our queue
-                for msg in msgs:
-                    if (
-                        (msg.msg_type != cls.TYPE_IVR and msg.channel and not msg.channel.is_android())
-                        and msg.status != cls.STATUS_FAILED
-                        and msg.uuid
-                    ):
-                        courier_msgs.append(msg)
-                        continue
-
-                # ok, now batch up our courier msgs
-                last_contact = None
-                last_channel = None
-                task_msgs = []
-                for msg in courier_msgs:
-                    if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
-                        courier_batches.append(
-                            dict(
-                                channel=task_msgs[0].channel, msgs=task_msgs, high_priority=task_msgs[0].high_priority
-                            )
-                        )
-                        task_msgs = []
-
-                    last_contact = msg.contact_id
-                    last_channel = msg.channel_id
-                    task_msgs.append(msg)
-
-                # push any remaining courier msgs
-                if task_msgs:
-                    courier_batches.append(
-                        dict(channel=task_msgs[0].channel, msgs=task_msgs, high_priority=task_msgs[0].high_priority)
-                    )
-
-        # send our batches
-        on_transaction_commit(lambda: cls._send_courier_msg_batches(courier_batches))
-
-    @classmethod
-    def _send_courier_msg_batches(cls, batches):
-        for batch in batches:
-            push_courier_msgs(batch["channel"], batch["msgs"], batch["high_priority"])
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
