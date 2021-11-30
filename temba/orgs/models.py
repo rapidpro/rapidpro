@@ -2217,6 +2217,12 @@ class Org(SmartModel):
         timezone.deactivate()
         return in_do_not_contact_times
 
+    def do_not_contact_property(self):
+        do_not_contact = (self.config or {}).get("non_contact_hours", False)
+        if not do_not_contact:
+            return False
+        return True
+
 
 # ===================== monkey patch User class with a few extra functions ========================
 

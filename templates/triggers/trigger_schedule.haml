@@ -36,6 +36,49 @@
         successFunc: onScheduleSuccess
       };
       initForm(options);
+
+      if ("{{ user_org.do_not_contact_property }}" === "True") {
+        const section =  $('#id-trigger-schedule');
+        const form = section.find('form');
+        const confirmationBox = document.querySelector("#confirm-schedule-trigger");
+
+        let doNotContactDialog = document.querySelector("#do-not-contact-dialog");
+        doNotContactDialog.addEventListener("temba-button-clicked", function(event) {
+          if (!event.detail.button.secondary) {
+            doNotContactDialog.open = false;
+            confirmationBox.classList.remove("hide");
+            confirmationBox.open = true;
+          }
+        });
+
+        form.off("submit").on("submit", function(e) {
+          e.preventDefault();
+          const formDataByName = buildFormData(form);
+
+          const flowName = getFLowName('#id_schedule_flow');
+          const modalMessage = $('#confirm-schedule-trigger').find('div.p-6');
+          modalMessage.text(getMessageTemplate().replace('{flowName}', flowName));
+          if (formDataByName.start_datetime && formDataByName.start_datetime.length) {
+            let time = parseInt(formDataByName.start_datetime.split(" ")[1].split(":")[0]);
+            if (time < 8 || time > 21) {
+              doNotContactDialog.open = true;
+              return;
+            }
+          }
+          confirmationBox.classList.remove('hide');
+          confirmationBox.open = true;
+        });
+
+        confirmationBox.addEventListener('temba-button-clicked', function(event) {
+          const container = formContainerId + ' > .formax-container';
+          const groupIds = (buildFormData(form)['omnibox'] || []).map(row => JSON.parse(row).id);
+          const appendToForm = '&group_order=' + encodeURIComponent(JSON.stringify(groupIds));
+          const options = { form, container, onScheduleSuccess, appendToForm, postUrl: '/trigger/schedule/' };
+          if (!event.detail.button.secondary) submitFormData(options);
+          confirmationBox.classList.add('hide');
+          confirmationBox.open = false;
+        });
+      }
     });
 -block fields
   #trigger_flow
@@ -56,6 +99,10 @@
 
   %temba-dialog#confirm-schedule-trigger.hide(header='{{ _("Trigger Confirmation")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
     .p-6
+
+  %temba-dialog#do-not-contact-dialog(header='{{ _("Out of Business Hours Warning")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
+    .p-6
+      {{ _("You are trying to send a message out of compliance hours (8AM - 9PM). Are you sure you want to continue?") }}
 
 
 -block summary
