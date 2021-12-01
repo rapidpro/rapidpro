@@ -1,3 +1,8 @@
+v7.1.12
+----------
+ * Remove last of msg sending code
+ * Fix link to webhook log
+
 v7.1.11
 ----------
  * Remove unnecessary conditional load of jquery
