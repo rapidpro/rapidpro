@@ -3177,7 +3177,10 @@ class OrgTest(TembaTest):
         response = self.client.post(
             f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
             {"name": "New Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+            **headers,
         )
+
+        self.assertEqual(response.url, f"/org/manage_accounts_sub_org/?org={sub_org.id}")
 
         sub_org.refresh_from_db()
         self.assertEqual("New Sub Org Name", sub_org.name)

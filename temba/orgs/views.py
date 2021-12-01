@@ -1016,9 +1016,6 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
 
 
 class MenuMixin(OrgPermsMixin):
-    def derive_menu(self):
-        return []
-
     def create_divider(self):
         return {"type": "divider"}
 
@@ -1038,7 +1035,7 @@ class MenuMixin(OrgPermsMixin):
         inline=False,
     ):
 
-        if perm and not self.has_org_perm(perm):
+        if perm and not self.has_org_perm(perm):  # pragma: no cover
             return
 
         menu_item = {"name": name, "inline": inline}
@@ -1047,11 +1044,11 @@ class MenuMixin(OrgPermsMixin):
         if icon:
             menu_item["icon"] = icon
 
-        if count:
+        if count:  # pragma: no cover
             menu_item["count"] = count
 
         if endpoint:
-            if endpoint[0] == "/":
+            if endpoint[0] == "/":  # pragma: cover
                 menu_item["endpoint"] = endpoint
             elif self.has_org_perm(endpoint):
                 menu_item["endpoint"] = reverse(endpoint)
@@ -1062,7 +1059,7 @@ class MenuMixin(OrgPermsMixin):
             elif self.has_org_perm(href):
                 menu_item["href"] = reverse(href)
 
-        if items:
+        if items:  # pragma: no cover
             menu_item["items"] = items
 
         # only include the menu item if we have somewhere to go
