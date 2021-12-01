@@ -23,6 +23,8 @@ class HTTPLog(models.Model):
     HTTPLog is used to log HTTP requests and responses.
     """
 
+    HEALTHY_TIME_LIMIT = 10_000  # a call that takes longer than 10 seconds is considered unhealthy
+
     # used for dumping traces
     REQUEST_DELIM = ">!>!>! "
     RESPONSE_DELIM = "<!<!<! "
@@ -147,6 +149,10 @@ class HTTPLog(models.Model):
             classifier=classifier,
             ticketer=ticketer,
         )
+
+    @property
+    def is_healthy(self):
+        return self.request_time <= self.HEALTHY_TIME_LIMIT
 
     class Meta:
         indexes = (
