@@ -26,7 +26,7 @@ from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.triggers.models import Trigger
-from temba.utils import dict_to_struct, json
+from temba.utils import json
 from temba.utils.models import generate_uuid
 
 from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
@@ -1958,11 +1958,14 @@ class ChannelLogTest(TembaTest):
 
         # create failed outgoing message with error channel log
         failed_msg = self.create_outgoing_msg(contact, "failed message")
-        failed_log = ChannelLog.log_error(dict_to_struct("MockMsg", failed_msg.as_task_json()), "Error Sending")
-
-        failed_log.response = json.dumps(dict(error="invalid credentials"))
-        failed_log.request = "POST https://foo.bar/send?msg=failed+message"
-        failed_log.save(update_fields=["request", "response"])
+        failed_log = ChannelLog.objects.create(
+            channel=failed_msg.channel,
+            msg=failed_msg,
+            is_error=True,
+            description="Error Sending",
+            request="POST https://foo.bar/send?msg=failed+message",
+            response=json.dumps(dict(error="invalid credentials")),
+        )
 
         # create call with an interaction log
         ivr_flow = self.get_flow("ivr")

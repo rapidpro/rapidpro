@@ -342,9 +342,16 @@ class Msg(models.Model):
         (TYPE_USSD, "USSD Message"),
     )
 
-    DELETE_FOR_ARCHIVE = "A"
-    DELETE_FOR_USER = "U"
-    DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
+    FAILED_SUSPENDED = "S"  # org was suspended
+    FAILED_LOOPING = "L"  # message looks like it's part of a loop
+    FAILED_ERROR_LIMIT = "E"  # courier tried to send the message but we reached error limit
+    FAILED_TOO_OLD = "O"  # message has been queued for too long and too late to send message
+    FAILED_CHOICES = (
+        (FAILED_SUSPENDED, "Suspended"),
+        (FAILED_LOOPING, "Looping"),
+        (FAILED_ERROR_LIMIT, "Error Limit"),
+        (FAILED_TOO_OLD, "Too Old"),
+    )
 
     MEDIA_GPS = "geo"
     MEDIA_IMAGE = "image"
@@ -377,23 +384,18 @@ class Msg(models.Model):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
     visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE)
 
-    response_to = models.ForeignKey(
-        "Msg", on_delete=models.PROTECT, null=True, blank=True, related_name="responses", db_index=False
-    )
-
     labels = models.ManyToManyField("Label", related_name="msgs")
 
     # the number of actual messages the channel sent this as (outgoing only)
     msg_count = models.IntegerField(default=1)
 
-    # the number of times this message has errored (outgoing only)
-    error_count = models.IntegerField(default=0)
-
-    # when we'll next try to send this message (only set for retries after an error)
-    next_attempt = models.DateTimeField(null=True)
+    # sending issues (outgoing only)
+    error_count = models.IntegerField(default=0)  # number of times this message has errored
+    next_attempt = models.DateTimeField(null=True)  # when we'll next retry
+    failed_reason = models.CharField(null=True, max_length=1, choices=FAILED_CHOICES)  # why we've failed
 
     # the id of this message on the other side of its channel
-    external_id = models.CharField(max_length=255, null=True, blank=True)
+    external_id = models.CharField(max_length=255, null=True)
 
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
 
@@ -404,8 +406,19 @@ class Msg(models.Model):
 
     metadata = JSONAsTextField(null=True, default=dict)
 
-    # why this message is being deleted - determines what happens with counts
+    # can be set before deletion to indicate deletion by a user which should decrement from counts
+    delete_from_counts = models.BooleanField(null=True, default=False)
+
+    # TODO deprecated in favor of delete_from_counts
+    DELETE_FOR_ARCHIVE = "A"
+    DELETE_FOR_USER = "U"
+    DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, "Archive delete"), (DELETE_FOR_USER, "User delete"))
     delete_reason = models.CharField(null=True, max_length=1, choices=DELETE_CHOICES)
+
+    # TODO deprecated and to be removed once mailroom stops writing it
+    response_to = models.ForeignKey(
+        "Msg", on_delete=models.PROTECT, null=True, blank=True, related_name="responses", db_index=False
+    )
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
@@ -572,41 +585,6 @@ class Msg(models.Model):
         """
 
         mailroom.queue_msg_handling(self)
-
-    def as_task_json(self):
-        """
-        Used internally to serialize to JSON when queueing messages in Redis
-        """
-        data = dict(
-            id=self.id,
-            org=self.org_id,
-            channel=self.channel_id,
-            broadcast=self.broadcast_id,
-            text=self.text,
-            urn_path=self.contact_urn.path,
-            urn=str(self.contact_urn),
-            contact=self.contact_id,
-            contact_urn=self.contact_urn_id,
-            error_count=self.error_count,
-            next_attempt=self.next_attempt,
-            status=self.status,
-            direction=self.direction,
-            attachments=self.attachments,
-            external_id=self.external_id,
-            response_to_id=self.response_to_id,
-            sent_on=self.sent_on,
-            queued_on=self.queued_on,
-            created_on=self.created_on,
-            modified_on=self.modified_on,
-            high_priority=self.high_priority,
-            metadata=self.metadata,
-            connection_id=self.connection_id,
-        )
-
-        if self.contact_urn.auth:  # pragma: no cover
-            data.update(dict(auth=self.contact_urn.auth))
-
-        return data
 
     def __str__(self):  # pragma: needs cover
         return self.text
