@@ -60,7 +60,7 @@
           modalMessage.text(getMessageTemplate().replace('{flowName}', flowName));
           if (formDataByName.start_datetime && formDataByName.start_datetime.length) {
             let time = parseInt(formDataByName.start_datetime.split(" ")[1].split(":")[0]);
-            if (time < 8 || time > 21) {
+            if (time < 8 || time > 20) {
               doNotContactDialog.open = true;
               return;
             }
