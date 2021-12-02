@@ -450,7 +450,7 @@ class Msg(models.Model):
         )
 
         # fail our messages
-        failed_messages.update(status=cls.STATUS_FAILED, modified_on=timezone.now())
+        failed_messages.update(status=cls.STATUS_FAILED, failed_reason=Msg.FAILED_TOO_OLD, modified_on=timezone.now())
 
     def as_archive_json(self):
         """
