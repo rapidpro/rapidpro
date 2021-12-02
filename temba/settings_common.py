@@ -1109,6 +1109,7 @@ TICKETER_TYPES = [
 ]
 
 CHANNEL_TYPES = [
+    "temba.channels.types.instagram.InstagramType",
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
     "temba.channels.types.dialog360.Dialog360Type",
