@@ -666,9 +666,9 @@ class Msg(models.Model):
         for log in ChannelLog.objects.filter(msg=self):
             log.release()
 
-        if delete_reason:
-            self.delete_reason = delete_reason
-            self.save(update_fields=["delete_reason"])
+        self.delete_reason = delete_reason
+        self.delete_from_counts = delete_reason == self.DELETE_FOR_USER
+        self.save(update_fields=("delete_reason", "delete_from_counts"))
 
         # delete this object
         self.delete()
