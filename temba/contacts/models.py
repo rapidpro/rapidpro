@@ -70,10 +70,12 @@ class URN:
     FRESHCHAT_SCHEME = "freshchat"
     ROCKETCHAT_SCHEME = "rocketchat"
     DISCORD_SCHEME = "discord"
+    INSTAGRAM_SCHEME = "instagram"
 
     SCHEME_CHOICES = (
         (TEL_SCHEME, _("Phone number")),
         (FACEBOOK_SCHEME, _("Facebook identifier")),
+        (INSTAGRAM_SCHEME, _("Instagram identifier")),
         (TWITTER_SCHEME, _("Twitter handle")),
         (TWITTERID_SCHEME, _("Twitter ID")),
         (VIBER_SCHEME, _("Viber identifier")),
@@ -188,7 +190,7 @@ class URN:
                 return False
 
         # facebook uses integer ids or temp ref ids
-        elif scheme == cls.FACEBOOK_SCHEME:
+        elif scheme in [cls.FACEBOOK_SCHEME]:
             # we don't validate facebook refs since they come from the outside
             if URN.is_path_fb_ref(path):
                 return True
@@ -1299,7 +1301,7 @@ class ContactURN(models.Model):
     """
 
     # schemes that support "new conversation" triggers
-    SCHEMES_SUPPORTING_NEW_CONVERSATION = {URN.FACEBOOK_SCHEME, URN.VIBER_SCHEME, URN.TELEGRAM_SCHEME}
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {URN.FACEBOOK_SCHEME, URN.VIBER_SCHEME, URN.TELEGRAM_SCHEME, URN.INSTAGRAM_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {URN.FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     # mailroom sets priorites like 1000, 999, ...
