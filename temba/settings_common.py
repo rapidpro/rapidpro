@@ -1222,13 +1222,16 @@ ZENDESK_CLIENT_SECRET = os.environ.get("ZENDESK_CLIENT_SECRET", "")
 #
 #    3. From Settings > Basic, show and copy the Facebook Application Secret
 #
-#    4. Generate a Random Secret to use as Facebook Webhook Secret as described
+#    4. Generate a Random Secret to use as Facebook Webhook Secret or Instagram Webhook Secret as described
 #       on https://developers.facebook.com/docs/messenger-platform/webhook#setup
 #
 # -----------------------------------------------------------------------------------
 FACEBOOK_APPLICATION_ID = os.environ.get("FACEBOOK_APPLICATION_ID", "")
 FACEBOOK_APPLICATION_SECRET = os.environ.get("FACEBOOK_APPLICATION_SECRET", "")
 FACEBOOK_WEBHOOK_SECRET = os.environ.get("FACEBOOK_WEBHOOK_SECRET", "")
+INSTAGRAM_APPLICATION_ID = os.environ.get("INSTAGRAM_APPLICATION_ID", "")
+INSTAGRAM_APPLICATION_SECRET = os.environ.get("INSTAGRAM_APPLICATION_SECRET", "")
+INSTAGRAM_WEBHOOK_SECRET = os.environ.get("INSTAGRAM_WEBHOOK_SECRET", "")
 
 
 # -----------------------------------------------------------------------------------

@@ -14,7 +14,7 @@ class InstagramType(ChannelType):
     A Instagram channel
     """
 
-    extra_links = [dict(name=_("Reconnect Facebook Page"), link="channels.types.facebookapp.refresh_token")]
+    extra_links = [dict(name=_("Reconnect Facebook Page"), link="channels.types.instagram.refresh_token")]
 
     code = "IG"
     category = ChannelType.Category.SOCIAL_MEDIA

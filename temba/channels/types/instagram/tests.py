@@ -27,7 +27,7 @@ class InstagramTypeTest(TembaTest):
             config={"auth_token": "09876543", "page_id": "123456"},
         )
 
-    @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
+    @override_settings(INSTAGRAM_APPLICATION_ID="IG_APP_ID", INSTAGRAM_APPLICATION_SECRET="IG_APP_SECRET")
     @patch("requests.post")
     @patch("requests.get")
     def test_claim(self, mock_get, mock_post):
@@ -56,7 +56,7 @@ class InstagramTypeTest(TembaTest):
         # can fetch the claim page
         response = self.client.get(url)
         self.assertContains(response, "Connect Instagram")
-        self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
+        self.assertEqual(response.context["facebook_app_id"], "IG_APP_ID")
         self.assertEqual(response.context["claim_url"], url)
 
         post_data = response.context["form"].initial
@@ -79,8 +79,8 @@ class InstagramTypeTest(TembaTest):
             "https://graph.facebook.com/oauth/access_token",
             params={
                 "grant_type": "fb_exchange_token",
-                "client_id": "FB_APP_ID",
-                "client_secret": "FB_APP_SECRET",
+                "client_id": "IG_APP_ID",
+                "client_secret": "IG_APP_SECRET",
                 "fb_exchange_token": self.token,
             },
         )
@@ -109,7 +109,7 @@ class InstagramTypeTest(TembaTest):
 
         response = self.client.get(url)
         self.assertContains(response, "Connect Instagram")
-        self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
+        self.assertEqual(response.context["facebook_app_id"], "IG_APP_ID")
         self.assertEqual(response.context["claim_url"], url)
 
         post_data = response.context["form"].initial
@@ -133,7 +133,7 @@ class InstagramTypeTest(TembaTest):
             "https://graph.facebook.com/v12.0/019283/subscribed_apps", params={"access_token": "09876543"}
         )
 
-    @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
+    @override_settings(INSTAGRAM_APPLICATION_ID="IG_APP_ID", INSTAGRAM_APPLICATION_SECRET="IG_APP_SECRET")
     @patch("requests.post")
     @patch("requests.get")
     def test_refresh_token(self, mock_get, mock_post):
@@ -151,7 +151,7 @@ class InstagramTypeTest(TembaTest):
 
         response = self.client.get(url)
         self.assertContains(response, "Reconnect Facebook Page")
-        self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
+        self.assertEqual(response.context["facebook_app_id"], "IG_APP_ID")
         self.assertEqual(response.context["refresh_url"], url)
         self.assertTrue(response.context["error_connect"])
 
@@ -166,7 +166,7 @@ class InstagramTypeTest(TembaTest):
 
         response = self.client.get(url)
         self.assertContains(response, "Reconnect Facebook Page")
-        self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
+        self.assertEqual(response.context["facebook_app_id"], "IG_APP_ID")
         self.assertEqual(response.context["refresh_url"], url)
         self.assertFalse(response.context["error_connect"])
 
@@ -188,8 +188,8 @@ class InstagramTypeTest(TembaTest):
             "https://graph.facebook.com/oauth/access_token",
             params={
                 "grant_type": "fb_exchange_token",
-                "client_id": "FB_APP_ID",
-                "client_secret": "FB_APP_SECRET",
+                "client_id": "IG_APP_ID",
+                "client_secret": "IG_APP_SECRET",
                 "fb_exchange_token": self.token,
             },
         )
