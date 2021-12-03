@@ -8,6 +8,7 @@ from unittest.mock import call
 import iso8601
 import regex
 
+from temba.archives.models import FileAndHash, jsonlgz_iterate
 from temba.utils import chunk_list, json
 
 
@@ -42,26 +43,23 @@ class MockS3Client:
         self.objects = {}
         self.calls = defaultdict(list)
 
-    def put_jsonl(self, bucket: str, key: str, records: List[Dict]):
-        stream = io.BytesIO()
-        gz = gzip.GzipFile(fileobj=stream, mode="wb")
+    def put_object(self, Bucket: str, Key: str, Body, **kwargs):
+        self.calls["put_object"].append(call(Bucket=Bucket, Key=Key, Body=Body, **kwargs))
 
-        for record in records:
-            gz.write(json.dumps(record).encode("utf-8"))
-            gz.write(b"\n")
-        gz.close()
-
-        self.objects[(bucket, key)] = stream
+        self.objects[(Bucket, Key)] = Body
 
     def get_object(self, Bucket, Key, **kwargs):
         self.calls["get_object"].append(call(Bucket=Bucket, Key=Key, **kwargs))
 
-        stream = self.objects[(Bucket, Key)]
-        stream.seek(0)
-        return {"Bucket": Bucket, "Key": Key, "Body": stream}
+        body = self.objects[(Bucket, Key)]
+        body.seek(0)
+        return {"Bucket": Bucket, "Key": Key, "Body": body}
 
     def delete_object(self, Bucket, Key, **kwargs):
+        self.calls["delete_object"].append(call(Bucket=Bucket, Key=Key, **kwargs))
+
         del self.objects[(Bucket, Key)]
+
         return {"DeleteMarker": False, "VersionId": "versionId", "RequestCharged": "requester"}
 
     def list_objects_v2(self, Bucket, Prefix, **kwargs):
@@ -77,20 +75,26 @@ class MockS3Client:
 
         stream = self.objects[(Bucket, Key)]
         stream.seek(0)
-        zstream = gzip.GzipFile(fileobj=stream)
-
         records = []
-        while True:
-            line = zstream.readline()
-            if not line:
-                break
 
-            record = json.loads(line.decode("utf-8"))
-
-            if not Expression or select_matches(Expression, record):
+        for record in jsonlgz_iterate(stream):
+            if select_matches(Expression, record):
                 records.append(record)
 
         return {"Payload": MockEventStream(records)}
+
+
+def jsonlgz_encode(records: list) -> tuple:
+    stream = io.BytesIO()
+    wrapper = FileAndHash(stream)
+    gz = gzip.GzipFile(fileobj=wrapper, mode="wb")
+
+    for record in records:
+        gz.write(json.dumps(record).encode("utf-8"))
+        gz.write(b"\n")
+    gz.close()
+
+    return stream, wrapper.hash.hexdigest(), wrapper.size
 
 
 def select_matches(expression: str, record: dict) -> bool:
@@ -98,33 +102,50 @@ def select_matches(expression: str, record: dict) -> bool:
     Our greatly simplified version of S3 select matching
     """
     conditions = _parse_expression(expression)
-    for field, op, val in conditions:
-        if not _condition_matches(field, op, val, record):
+    for lh, op, rh in conditions:
+        if not _condition_matches(lh, op, rh, record):
             return False
     return True
 
 
-def _condition_matches(field, op, val, record: dict) -> bool:
-    # find the value in the record
-    actual = record
-    for key in field.split("."):
-        actual = actual[key]
+def _condition_matches(lh, op, rh, record: dict) -> bool:
+    def _resolve(ref):
+        ref = ref[2:]
+        val = record
+        for key in ref.split("."):
+            return_all = False
+            if key.endswith("[*]"):
+                return_all = True
+                key = key[:-3]
 
-    if isinstance(val, datetime):
-        actual = iso8601.parse_date(actual)
+            if isinstance(val, list) and return_all:
+                val = [o[key] for o in val]
+            else:
+                val = val[key]
+        return val
+
+    if isinstance(lh, str) and lh.startswith("s."):
+        lh = _resolve(lh)
+    if isinstance(rh, str) and rh.startswith("s."):
+        rh = _resolve(rh)
+
+    if isinstance(lh, datetime):
+        rh = iso8601.parse_date(rh)
+    elif isinstance(rh, datetime):
+        lh = iso8601.parse_date(lh)
 
     if op == "=":
-        return actual == val
+        return lh == rh
     elif op == ">=":
-        return actual >= val
+        return lh >= rh
     elif op == ">":
-        return actual > val
+        return lh > rh
     elif op == "<=":
-        return actual <= val
+        return lh <= rh
     elif op == "<":
-        return actual < val
+        return lh < rh
     elif op == "IN":
-        return actual in val
+        return lh in rh
 
 
 def _parse_expression(exp: str) -> list:
@@ -135,20 +156,22 @@ def _parse_expression(exp: str) -> list:
     parsed = []
     for con in conditions:
         match = regex.match(r"(.*)\s(=|!=|>|>=|<|<=|IN)\s(.+)", con)
-        col, op, val = match.group(1), match.group(2), match.group(3)
+        lh, op, rh = match.group(1), match.group(2), match.group(3)
 
-        if col.startswith("CAST("):
-            col = regex.match(r"CAST\((.+) AS .+\)", col).group(1)
-
-        col = col[2:]  # remove alias prefix
-        parsed.append((col, op, _parse_value(val)))
+        parsed.append((_parse_value(lh), op, _parse_value(rh)))
 
     return parsed
 
 
 def _parse_value(val: str):
-    if val.startswith("CAST('") and val.endswith("' AS TIMESTAMP)"):
-        return iso8601.parse_date(val[6:31])
+    if val.startswith("s."):  # field reference
+        return val
+    elif val.startswith("CAST(") and val.endswith(" AS TIMESTAMP)"):
+        val = regex.match(r"CAST\((.+) AS .+\)", val).group(1)
+        if val.startswith("s."):
+            return val
+        else:
+            return iso8601.parse_date(val[1:-1])
     elif val.startswith("("):
         return [_parse_value(v) for v in val[1:-1].split(", ")]
     elif val.startswith("'"):

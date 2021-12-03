@@ -76,8 +76,12 @@ class SelectTest(TembaTest):
             compile_select(where={"flow__uuid__in": ("1234", "2345")}),
         )
 
-        # where can also be a string (used by search_archives command)
+        # a where clause can also be raw S3-select-SQL (used by search_archives command)
         self.assertEqual(
             "SELECT s.* FROM s3object s WHERE s.uuid = '2345' AND s.contact.uuid = '1234'",
-            compile_select(where={"uuid": "2345"}, raw_where="s.contact.uuid = '1234'"),
+            compile_select(where={"uuid": "2345", "__raw__": "s.contact.uuid = '1234'"}),
+        )
+        self.assertEqual(
+            "SELECT s.* FROM s3object s WHERE '1ccf09f6-3fe8-4c0d-a073-981632be5a30' IN s.labels[*].uuid[*]",
+            compile_select(where={"__raw__": "'1ccf09f6-3fe8-4c0d-a073-981632be5a30' IN s.labels[*].uuid[*]"}),
         )

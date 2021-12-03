@@ -1,5 +1,11 @@
--load contacts
+-load contacts i18n
 
-.lbl-group.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_read' contact.uuid %}")
-  %temba-icon(name="user")
-  {{ contact|name_or_urn:user_org }}
+-if contact.is_active
+  .lbl-group.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_read' contact.uuid %}")
+    %temba-icon(name="user")
+    {{ contact|name_or_urn:user_org }}
+-else
+  .lbl-group.mr-2.mb-2
+    %temba-icon(name="user")
+    .line-through
+      -trans "Deleted"

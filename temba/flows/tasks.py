@@ -9,7 +9,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.timesince import timesince
 
-from celery.task import task
+from celery import shared_task
 
 from temba.utils import chunk_list
 from temba.utils.celery import nonoverlapping_task
@@ -32,7 +32,7 @@ FLOW_TIMEOUT_KEY = "flow_timeouts_%y_%m_%d"
 logger = logging.getLogger(__name__)
 
 
-@task(track_started=True, name="update_run_expirations_task")
+@shared_task(track_started=True, name="update_run_expirations_task")
 def update_run_expirations_task(flow_id):
     """
     Update all of our current run expirations according to our new expiration period
@@ -43,7 +43,7 @@ def update_run_expirations_task(flow_id):
             run.update_expiration(last_arrived_on)
 
 
-@task(track_started=True, name="export_flow_results_task")
+@shared_task(track_started=True, name="export_flow_results_task")
 def export_flow_results_task(export_id):
     """
     Export a flow to a file and e-mail a link to the user

@@ -68,7 +68,7 @@ from .models import (
 )
 from .search import SearchException, parse_query, search_contacts
 from .search.omnibox import omnibox_query, omnibox_results_to_dict
-from .tasks import export_contacts_task, release_group_task
+from .tasks import export_contacts_task
 
 logger = logging.getLogger(__name__)
 
@@ -702,7 +702,7 @@ class ContactCRUDL(SmartCRUDL):
                 # schedule the export job
                 on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
 
-                if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: no cover
+                if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: no cover
                     messages.info(
                         self.request,
                         _("We are preparing your export. We will e-mail you at %s when it is ready.")
@@ -747,7 +747,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return HttpResponse(json.dumps(json_result), content_type="application/json")
 
-    class Read(OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         fields = ("name",)
 
@@ -1161,7 +1161,6 @@ class ContactCRUDL(SmartCRUDL):
 
     class Blocked(ContactListView):
         title = _("Blocked Contacts")
-        template_name = "contacts/contact_list.haml"
         system_group = ContactGroup.TYPE_BLOCKED
 
         def get_bulk_actions(self):
@@ -1224,7 +1223,9 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("contacts.contactfield_list"):
+            is_spa = "HTTP_TEMBA_SPA" in self.request.META
+
+            if self.has_org_perm("contacts.contactfield_list") and not is_spa:
                 links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
 
             if self.has_org_perm("contacts.contactgroup_update"):
@@ -1397,7 +1398,11 @@ class ContactCRUDL(SmartCRUDL):
                     attrs={"widget_only": True, "searchable": True, "placeholder": _("Select a field to update")}
                 ),
             )
-            field_value = forms.CharField(required=False)
+
+            field_value = forms.CharField(
+                required=False,
+                widget=InputWidget({"hide_label": True, "textarea": True}),
+            )
 
             def __init__(self, user, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -1541,7 +1546,26 @@ class ContactCRUDL(SmartCRUDL):
 
 class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
-    actions = ("list", "create", "update", "usages", "delete")
+    actions = ("list", "create", "update", "usages", "delete", "menu")
+
+    class Menu(OrgPermsMixin, SmartTemplateView):  # pragma: no cover
+        def render_to_response(self, context, **response_kwargs):
+            org = self.request.user.get_org()
+            groups = ContactGroup.get_user_groups(org, ready_only=False).select_related("org").order_by(Upper("name"))
+            group_counts = ContactGroupCount.get_totals(groups)
+
+            menu = []
+            for g in groups:
+                menu.append(
+                    {
+                        "id": g.uuid,
+                        "name": g.name,
+                        "count": group_counts[g],
+                        "href": reverse("contacts.contact_filter", args=[g.uuid]),
+                        "icon": "loader" if g.status != ContactGroup.STATUS_READY else "",
+                    }
+                )
+            return JsonResponse({"results": menu})
 
     class List(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         fields = ("name", "query", "count", "created_on")
@@ -1575,9 +1599,16 @@ class ContactGroupCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             self.group_counts = {}
+            group_type = self.request.GET.get("type", "")
             org = self.request.user.get_org()
             qs = super().get_queryset(**kwargs)
             qs = qs.filter(group_type=ContactGroup.TYPE_USER_DEFINED, org=org, is_active=True)
+
+            if group_type == "smart":
+                qs = qs.exclude(query=None)
+            else:
+                qs = qs.filter(query=None)
+
             return qs
 
     class Create(ComponentFormMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
@@ -1673,20 +1704,13 @@ class ContactGroupCRUDL(SmartCRUDL):
             if triggers.count() > 0:
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
-            from temba.flows.models import Flow
-
             if Flow.objects.filter(org=group.org, group_dependencies__in=[group]).exists():
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
             if group.campaigns.filter(is_archived=False).exists():
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
-            # deactivate the group, this makes it 'invisible'
-            group.is_active = False
-            group.save(update_fields=("is_active",))
-
-            # release the group in a background task
-            on_transaction_commit(lambda: release_group_task.delay(group.id))
+            group.release(self.request.user)
 
             # we can't just redirect so as to make our modal do the right thing
             return self.render_modal_response()
@@ -1801,31 +1825,16 @@ class ContactFieldCRUDL(SmartCRUDL):
                 qs = ContactField.user_fields
                 active_user_fields = qs.filter(org=org, is_active=True)
                 featured_count = active_user_fields.filter(show_in_table=True).count()
-                type_counts = (
-                    active_user_fields.values("value_type")
-                    .annotate(type_count=Count("value_type"))
-                    .order_by("-type_count", "value_type")
-                )
-                value_type_map = {vt[0]: vt[1] for vt in ContactField.TYPE_CHOICES}
 
                 menu = [
                     {
-                        "name": value_type_map[type_cnt["value_type"]],
-                        "count": type_cnt["type_count"],
-                        "href": reverse("contacts.contactfield_filter_by_type", args=type_cnt["value_type"]),
-                        "id": ContactField.ENGINE_TYPES[type_cnt["value_type"]],
-                    }
-                    for type_cnt in type_counts
-                ]
-
-                menu.append(
-                    {
+                        "icon": "bookmark",
                         "id": "featured",
                         "name": _("Featured"),
                         "count": featured_count,
                         "href": reverse("contacts.contactfield_featured"),
                     }
-                )
+                ]
 
             return JsonResponse({"results": menu})
 

@@ -77,12 +77,11 @@ class Event:
         Reconstructs an engine event from a msg instance. Properties which aren't part of regular events are prefixed
         with an underscore.
         """
-        from temba.msgs.models import INCOMING, IVR
 
         channel_log = obj.get_last_log()
         logs_url = _url_for_user(org, user, "channels.channellog_read", args=[channel_log.id]) if channel_log else None
 
-        if obj.direction == INCOMING:
+        if obj.direction == Msg.DIRECTION_IN:
             return {
                 "type": cls.TYPE_MSG_RECEIVED,
                 "created_on": get_event_time(obj).isoformat(),
@@ -105,7 +104,7 @@ class Event:
             }
         else:
             msg_event = {
-                "type": cls.TYPE_IVR_CREATED if obj.msg_type == IVR else cls.TYPE_MSG_CREATED,
+                "type": cls.TYPE_IVR_CREATED if obj.msg_type == Msg.TYPE_IVR else cls.TYPE_MSG_CREATED,
                 "created_on": get_event_time(obj).isoformat(),
                 "msg": _msg_out(obj),
                 # additional properties
@@ -190,7 +189,6 @@ class Event:
                 "closed_on": ticket.closed_on.isoformat() if ticket.closed_on else None,
                 "topic": _topic(ticket.topic) if ticket.topic else None,
                 "status": ticket.status,
-                "subject": ticket.subject,
                 "body": ticket.body,
                 "ticketer": {"uuid": str(ticket.ticketer.uuid), "name": ticket.ticketer.name},
             },

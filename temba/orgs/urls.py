@@ -43,8 +43,9 @@ urlpatterns += [
     # for backwards compatibility
     url(r"^api/v1/stripe/$", StripeHandler.as_view()),
     # for spa
-    url(r"^(?P<level_0>contacts|tickets)/$", spa, name="spa"),
-    url(r"^(?P<level_0>contacts|tickets)/(?P<level_1>\w+)/$", spa, name="spa.level_1"),
-    url(r"^(?P<level_0>contacts|tickets|)/(?P<level_1>\w+)/(?P<level_2>\w+)/$", spa, name="spa.level_2"),
-    url(r"^(?P<level_0>contacts|tickets|)/(?P<level_1>\w+)/(?P<level_2>\w+)/(?P<id>.*)$", spa, name="spa.level_3"),
+    url(r"^(?P<level_0>contacts|tickets|messages|channels)/$", spa, name="spa"),
+    url(r"^(?P<level_0>contacts|tickets|messages|channels)/(?P<level_1>\w+)/$", spa, name="spa.level_1"),
+    url(
+        r"^(?P<level_0>contacts|tickets|messages|channels)/(?P<level_1>\w+)/(?P<level_2>.+)/$", spa, name="spa.level_2"
+    ),
 ]

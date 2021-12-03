@@ -1541,6 +1541,33 @@ class AnalyticsTest(SmartminTest):
 
 
 class IDSliceQuerySetTest(TembaTest):
+    def test_fields(self):
+        # if we don't specify fields, we fetch *
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id], offset=0, total=3)
+
+        self.assertEqual(
+            f"""SELECT t.* FROM auth_user t JOIN (VALUES (1, {self.user.id}), (2, {self.editor.id})) tmp_resultset (seq, model_id) ON t.id = tmp_resultset.model_id ORDER BY tmp_resultset.seq""",
+            users.raw_query,
+        )
+
+        with self.assertNumQueries(1):
+            users = list(users)
+        with self.assertNumQueries(0):  # already fetched
+            users[0].email
+
+        # if we do specify fields, it's like only on a regular queryset
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id], only=("id", "first_name"), offset=0, total=3)
+
+        self.assertEqual(
+            f"""SELECT t.id, t.first_name FROM auth_user t JOIN (VALUES (1, {self.user.id}), (2, {self.editor.id})) tmp_resultset (seq, model_id) ON t.id = tmp_resultset.model_id ORDER BY tmp_resultset.seq""",
+            users.raw_query,
+        )
+
+        with self.assertNumQueries(1):
+            users = list(users)
+        with self.assertNumQueries(1):  # requires fetch
+            users[0].email
+
     def test_slicing(self):
         empty = IDSliceQuerySet(User, [], offset=0, total=0)
         self.assertEqual(0, len(empty))

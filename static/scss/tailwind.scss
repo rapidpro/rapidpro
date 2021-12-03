@@ -221,7 +221,7 @@ a {
 
 .lbl-group {
   @apply lbl;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   temba-icon {
     --icon-color: rgba(0,0,0,.5);
@@ -313,7 +313,8 @@ a {
 }
 
 .page-title {
-  @apply text-3xl text-gray-700
+  @apply text-3xl text-gray-700;
+  --icon-color: rgb(77,77,77);
 }
 
 .page-subtitle {
@@ -674,6 +675,10 @@ code {
   &:hover {
     box-shadow: var(--widget-box-shadow-focused);
   }
+}
+
+.safari-scroll-clip {
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 
 .formax {

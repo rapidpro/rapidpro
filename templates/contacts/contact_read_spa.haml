@@ -1,0 +1,21 @@
+-extends "contacts/contact_read.html" 
+
+-load smartmin sms contacts compress temba channels
+-load i18n humanize
+
+-block page-title
+  {{contact|name_or_urn:user_org|default:"Contact Details"}}
+
+-block title
+  .flex.flex-wrap.flex-row.items-center
+    .mr-3
+      {{contact|name_or_urn:user_org|default:"Contact Details"}}
+    -for urn in contact_urns
+      -if not user_org.is_anon
+        -if urn.sendable
+          %temba-modax.text-base{ header:'Send Message', endpoint:"{% url 'msgs.broadcast_send' %}?u={{urn.id}}"}
+            .mr-3.hover-linked{class:"glyph {{urn|urn_icon}}", style:"margin-top:0px"}
+
+-block content
+  .flex.flex-col(style="height:100%")
+    %temba-contact-chat(contact="{{object.uuid}}" monitor="true")

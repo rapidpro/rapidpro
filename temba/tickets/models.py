@@ -239,9 +239,6 @@ class Ticket(models.Model):
     # when this ticket last had activity which includes messages being sent and received, and is used for ordering
     last_activity_on = models.DateTimeField(default=timezone.now)
 
-    # TODO deprecated, remove
-    subject = models.TextField(null=True)
-
     def assign(self, user: User, *, assignee: User, note: str):
         self.bulk_assign(self.org, user, [self], assignee=assignee, note=note)
 
@@ -342,13 +339,13 @@ class TicketFolder(metaclass=ABCMeta):
     name = None
     icon = None
 
-    def get_queryset(self, org, user):
-        return (
-            Ticket.objects.filter(org=org)
-            .order_by("-last_activity_on", "-id")
-            .select_related("topic", "assignee")
-            .prefetch_related("contact")
-        )
+    def get_queryset(self, org, user, ordered):
+        qs = Ticket.objects.filter(org=org)
+
+        if ordered:
+            qs = qs.order_by("-last_activity_on", "-id")
+
+        return qs.select_related("topic", "assignee").prefetch_related("contact")
 
     @classmethod
     def from_slug(cls, slug: str):
@@ -368,8 +365,8 @@ class MineFolder(TicketFolder):
     name = _("My Tickets")
     icon = "coffee"
 
-    def get_queryset(self, org, user):
-        return super().get_queryset(org, user).filter(assignee=user)
+    def get_queryset(self, org, user, ordered):
+        return super().get_queryset(org, user, ordered).filter(assignee=user)
 
 
 class UnassignedFolder(TicketFolder):
@@ -381,8 +378,8 @@ class UnassignedFolder(TicketFolder):
     name = _("Unassigned")
     icon = "mail"
 
-    def get_queryset(self, org, user):
-        return super().get_queryset(org, user).filter(assignee=None)
+    def get_queryset(self, org, user, ordered):
+        return super().get_queryset(org, user, ordered).filter(assignee=None)
 
 
 class AllFolder(TicketFolder):
@@ -394,8 +391,8 @@ class AllFolder(TicketFolder):
     name = _("All")
     icon = "archive"
 
-    def get_queryset(self, org, user):
-        return super().get_queryset(org, user)
+    def get_queryset(self, org, user, ordered):
+        return super().get_queryset(org, user, ordered)
 
 
 FOLDERS = {f.slug: f() for f in TicketFolder.__subclasses__()}

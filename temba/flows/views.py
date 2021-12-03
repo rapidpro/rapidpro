@@ -58,7 +58,7 @@ from temba.utils.fields import (
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
-from temba.utils.views import BulkActionMixin
+from temba.utils.views import BulkActionMixin, SpaMixin
 
 from .models import (
     ExportFlowResultsTask,
@@ -199,7 +199,6 @@ class FlowCRUDL(SmartCRUDL):
         "export_results",
         "upload_action_recording",
         "editor",
-        "editor_next",
         "results",
         "run_table",
         "category_counts",
@@ -954,21 +953,11 @@ class FlowCRUDL(SmartCRUDL):
 
             return qs
 
-    class EditorNext(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
-        slug_url_kwarg = "uuid"
-
-        def get(self, request, *args, **kwargs):
-            # redirect to the editor endpoint
-            return HttpResponseRedirect(reverse("flows.flow_editor", args=[self.get_object().uuid]))
-
-    class Editor(OrgObjPermsMixin, SmartReadView):
+    class Editor(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def derive_title(self):
             return self.object.name
-
-        def get_template_names(self):
-            return "flows/flow_editor.haml"
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1481,7 +1470,7 @@ class FlowCRUDL(SmartCRUDL):
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 
-                if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: needs cover
+                if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: needs cover
                     messages.info(
                         self.request,
                         _("We are preparing your export. We will e-mail you at %s when it is ready.")

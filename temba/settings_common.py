@@ -107,9 +107,11 @@ LANGUAGE_CODE = "en-us"
 # -----------------------------------------------------------------------------------
 LANGUAGES = (
     ("en-us", _("English")),
-    ("pt-br", _("Portuguese")),
-    ("fr", _("French")),
+    ("cs", _("Czech")),
     ("es", _("Spanish")),
+    ("fr", _("French")),
+    ("mn", _("Mongolian")),
+    ("pt-br", _("Portuguese")),
     ("ru", _("Russian")),
 )
 DEFAULT_LANGUAGE = "en-us"
@@ -394,7 +396,7 @@ PERMISSIONS = {
         "update_fields_input",
     ),
     "contacts.contactfield": ("api", "json", "menu", "update_priority", "featured", "filter_by_type"),
-    "contacts.contactgroup": ("api",),
+    "contacts.contactgroup": ("api", "menu"),
     "contacts.contactimport": ("preview",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
@@ -452,6 +454,7 @@ PERMISSIONS = {
         "create_caller",
         "errors",
         "facebook_whitelist",
+        "menu",
     ),
     "channels.channellog": ("connection",),
     "channels.channelevent": ("api", "calls"),
@@ -469,7 +472,6 @@ PERMISSIONS = {
         "change_language",
         "copy",
         "editor",
-        "editor_next",
         "export",
         "export_translation",
         "download_translation",
@@ -495,6 +497,7 @@ PERMISSIONS = {
         "flow",
         "inbox",
         "label",
+        "menu",
         "outbox",
         "sent",
         "update",
@@ -545,7 +548,6 @@ GROUP_PERMISSIONS = {
         "flows.flow_editor",
         "flows.flow_revisions",
         "flows.flowrun_delete",
-        "flows.flow_editor_next",
         "flows.flowsession_json",
         "notifications.log_list",
         "orgs.org_dashboard",
@@ -655,6 +657,7 @@ GROUP_PERMISSIONS = {
         "channels.channel_facebook_whitelist",
         "channels.channel_delete",
         "channels.channel_list",
+        "channels.channel_menu",
         "channels.channel_read",
         "channels.channel_update",
         "channels.channelevent.*",
@@ -680,6 +683,7 @@ GROUP_PERMISSIONS = {
         "msgs.msg_flow",
         "msgs.msg_inbox",
         "msgs.msg_label",
+        "msgs.msg_menu",
         "msgs.msg_outbox",
         "msgs.msg_sent",
         "msgs.msg_update",
@@ -765,6 +769,7 @@ GROUP_PERMISSIONS = {
         "channels.channel_create_caller",
         "channels.channel_delete",
         "channels.channel_list",
+        "channels.channel_menu",
         "channels.channel_read",
         "channels.channel_update",
         "channels.channelevent.*",
@@ -787,6 +792,7 @@ GROUP_PERMISSIONS = {
         "msgs.msg_flow",
         "msgs.msg_inbox",
         "msgs.msg_label",
+        "msgs.msg_menu",
         "msgs.msg_outbox",
         "msgs.msg_sent",
         "msgs.msg_update",
@@ -833,12 +839,14 @@ GROUP_PERMISSIONS = {
         "orgs.org_download",
         "orgs.org_export",
         "orgs.org_home",
+        "orgs.org_menu",
         "orgs.org_profile",
         "orgs.org_spa",
         "orgs.org_two_factor",
         "orgs.topup_list",
         "orgs.topup_read",
         "channels.channel_list",
+        "channels.channel_menu",
         "channels.channel_read",
         "channels.channelevent_calls",
         "flows.flow_activity",
@@ -852,7 +860,6 @@ GROUP_PERMISSIONS = {
         "flows.flow_filter",
         "flows.flow_list",
         "flows.flow_editor",
-        "flows.flow_editor_next",
         "flows.flow_recent_messages",
         "flows.flow_results",
         "flows.flow_revisions",
@@ -869,6 +876,7 @@ GROUP_PERMISSIONS = {
         "msgs.msg_filter",
         "msgs.msg_flow",
         "msgs.msg_inbox",
+        "msgs.msg_menu",
         "msgs.msg_outbox",
         "msgs.msg_sent",
         "orgs.org_menu",
@@ -951,10 +959,36 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
 
+HOSTNAME = "localhost"
+
+# The URL and port of the proxy server to use when needed (if any, in requests format)
+OUTGOING_PROXIES = {}
+
 # -----------------------------------------------------------------------------------
-# Crontab Settings ..
+# Caching using Redis
 # -----------------------------------------------------------------------------------
-CELERYBEAT_SCHEDULE = {
+REDIS_HOST = "localhost"
+REDIS_PORT = 6379
+REDIS_DB = 10 if TESTING else 15  # we use a redis db of 10 for testing so that we maintain caches for dev
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://%s:%s/%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB),
+        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+    }
+}
+
+# -----------------------------------------------------------------------------------
+# Async tasks using Celery
+# -----------------------------------------------------------------------------------
+CELERY_RESULT_BACKEND = None
+CELERY_BROKER_URL = "redis://%s:%d/%d" % (REDIS_HOST, REDIS_PORT, REDIS_DB)
+
+# by default, celery doesn't have any timeout on our redis connections, this fixes that
+CELERY_BROKER_TRANSPORT_OPTIONS = {"socket_timeout": 5}
+
+CELERY_BEAT_SCHEDULE = {
     "check-channels": {"task": "check_channels_task", "schedule": timedelta(seconds=300)},
     "check-credits": {"task": "check_credits_task", "schedule": timedelta(seconds=900)},
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
@@ -965,8 +999,9 @@ CELERYBEAT_SCHEDULE = {
     "retry-errored-messages": {"task": "retry_errored_messages", "schedule": timedelta(seconds=60)},
     "refresh-jiochat-access-tokens": {"task": "refresh_jiochat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
-    "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=24)},
+    "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": crontab(hour=6, minute=0)},
     "refresh-whatsapp-templates": {"task": "refresh_whatsapp_templates", "schedule": timedelta(seconds=900)},
+    "send-notification-emails": {"task": "send_notification_emails", "schedule": timedelta(seconds=60)},
     "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=60)},
     "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=60)},
     "squash-flowcounts": {"task": "squash_flowcounts", "schedule": timedelta(seconds=60)},
@@ -986,43 +1021,6 @@ CELERYBEAT_SCHEDULE = {
     "trim-sync-events": {"task": "trim_sync_events_task", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
     "update-org-activity": {"task": "update_org_activity_task", "schedule": crontab(hour=3, minute=5)},
-}
-
-# Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
-CELERY_TASK_MAP = {"send_msg_task": "temba.channels.tasks.send_msg_task"}
-
-# -----------------------------------------------------------------------------------
-# Async tasks with celery
-# -----------------------------------------------------------------------------------
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
-
-# we use a redis db of 10 for testing so that we maintain caches for dev
-REDIS_DB = 10 if TESTING else 15
-
-BROKER_URL = "redis://%s:%d/%d" % (REDIS_HOST, REDIS_PORT, REDIS_DB)
-
-# by default, celery doesn't have any timeout on our redis connections, this fixes that
-BROKER_TRANSPORT_OPTIONS = {"socket_timeout": 5}
-
-CELERY_RESULT_BACKEND = None
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-
-HOSTNAME = "localhost"
-
-# The URL and port of the proxy server to use when needed (if any, in requests format)
-OUTGOING_PROXIES = {}
-
-# -----------------------------------------------------------------------------------
-# Cache to Redis
-# -----------------------------------------------------------------------------------
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://%s:%s/%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB),
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
-    }
 }
 
 # -----------------------------------------------------------------------------------
@@ -1244,11 +1242,19 @@ INSTAGRAM_WEBHOOK_SECRET = os.environ.get("INSTAGRAM_WEBHOOK_SECRET", "")
 IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
 
 # -----------------------------------------------------------------------------------
-# Data model field size limits
+# Data model limits
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640  # used for broadcast text and message campaign events
 FLOW_START_PARAMS_SIZE = 256  # used for params passed to flow start API endpoint
 GLOBAL_VALUE_SIZE = 10_000  # max length of global values
+
+ORG_LIMIT_DEFAULTS = {
+    "fields": 250,
+    "globals": 250,
+    "groups": 250,
+    "labels": 250,
+    "topics": 250,
+}
 
 # -----------------------------------------------------------------------------------
 # Data retention periods - tasks trim away data older than these settings
@@ -1278,9 +1284,3 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
-
-
-# Maximum active objects are org can have
-MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 250
-MAX_ACTIVE_CONTACTGROUPS_PER_ORG = 250
-MAX_ACTIVE_GLOBALS_PER_ORG = 250

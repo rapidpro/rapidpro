@@ -1,3 +1,114 @@
+v7.0.4
+----------
+ * Fix contact stop list page 
+ * Update to latest black to fix errors on Python 3.9.8
+ * Add missing migration
+
+v7.0.3
+----------
+ * Update to latest editor v1.15.1
+ * Update locale files which adds cs and mn
+
+v7.0.2
+----------
+ * Update editor to v1.15 with validation fixes
+ * Fix outbox pagination
+ * Add generic title bar with new dropdown on spa
+
+v7.0.1
+----------
+ * Add missing JS function to delete messages in the archived folder
+ * Update locale files
+
+v7.0.0
+----------
+ * Fix test failing to due bad domain lookup
+
+v6.5.71
+----------
+ * Add migration to remove deleted contacts and groups from scheduled broadcasts
+ * Releasing a contact or group should also remove it from scheduled broadcasts
+
+v6.5.70
+----------
+ * Fix intermittent credit test failure
+ * Tidy up Msg and Broadcast constants
+ * Simplify settings for org limit defaults
+ * Fix rendering of deleted contacts and groups in recipient lists
+
+v6.5.69
+----------
+ * Remove extra labels on contact fields
+
+v6.5.68
+----------
+ * Reenable chat monitoring
+
+v6.5.67
+----------
+ * Make ticket views and components in sync
+
+v6.5.66
+----------
+ * Add channel menu
+ * Add test for dynamic contact group list, remove editor_next redirect
+ * Fix styling on contact list headersa and flow embedding
+ * Add messages to menu, refresh override
+ * Switch contact fields and import to use template inheritance
+ * Use template inheritance for spa work
+ * Add deeplinking support for non-menued destinations
+
+v6.5.65
+----------
+ * Move to Python 3.9
+
+v6.5.64
+----------
+ * Fix export notification email links
+
+v6.5.63
+----------
+ * When a contact is released their tickets should be deleted
+ * Test on PG 12 and 13
+ * Use S3 Select for message exports
+ * Use new notifications system for export emails
+
+v6.5.62
+----------
+ * Use crontab for WA tokens task schedule
+ * Allow keyword triggers to be single emojis
+ * Celery 5.x
+
+v6.5.60
+----------
+ * Add option to audit_archives to check flow run counts
+ * Drop no longer used ticket subject column
+ * Add contact read page based on contact chat component
+
+v6.5.59
+----------
+ * Less progress updates in audit_archives
+ * Tweak tickets API endpoint to accept a uuid URL param
+
+v6.5.58
+----------
+ * Add progress feedback to audit_archives
+ * Update locale files
+
+v6.5.57
+----------
+ * Fix Archive.rewrite
+
+v6.5.56
+----------
+ * Encode content hashes sent to S3 using Base64
+
+v6.5.55
+----------
+ * Trim mailgun ticketer names to <= 64 chars when creating
+ * Management command to audit archives
+ * Use field limiting on omnibox searches
+
 v6.5.54
 ----------
  * Fix S3 select query generation for date fields
