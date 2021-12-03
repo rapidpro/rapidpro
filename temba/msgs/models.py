@@ -399,11 +399,6 @@ class Msg(models.Model):
 
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
 
-    # used for IVR sessions on channels
-    connection = models.ForeignKey(
-        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="msgs", null=True
-    )
-
     metadata = JSONAsTextField(null=True, default=dict)
 
     # can be set before deletion to indicate deletion by a user which should decrement from counts
