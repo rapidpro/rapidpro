@@ -3986,6 +3986,32 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.get(reverse("msgs.msg_inbox"))
         self.assertRedirect(response, "/users/login/")
 
+    def test_back_translations(self):
+        org = self.org
+        self.login(self.admin)
+        org_translations = reverse("orgs.org_translations")
+        org_translate = reverse("orgs.org_translate")
+
+        with patch("requests.post") as post_mock:
+            post_mock.return_value = MockResponse(403, '{"error": "Invalid API key."}')
+            response = self.client.post(org_translations, dict(provider="google", api_key="test_key"))
+            self.assertContains(response, "API Key is wrong or invalid.")
+            org.refresh_from_db()
+            self.assertFalse(org.has_translation_service())
+
+        with patch("requests.post") as post_mock:
+            post_mock.return_value = MockResponse(
+                200, '{"data": {"translations": [{"translatedText": "Hola Mundo"}]}}'
+            )
+            response = self.client.post(org_translations, dict(provider="google", api_key="test_key"))
+            self.assertNoFormErrors(response)
+
+            org.refresh_from_db()
+            self.assertTrue(org.has_translation_service())
+
+            response = self.client.post(org_translate, dict(text="Hello World", target="spa"))
+            self.assertContains(response, "Hola Mundo")
+
 
 class LanguageTest(TembaTest):
     def test_languages(self):
