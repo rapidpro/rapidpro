@@ -3986,6 +3986,56 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.get(reverse("msgs.msg_inbox"))
         self.assertRedirect(response, "/users/login/")
 
+    def test__do_not_contact(self):
+        org = self.org
+        self.login(self.superuser)
+
+        self.assertFalse(org.do_not_contact())
+        self.assertFalse(org.do_not_contact_enabled)
+
+        org_update_url = reverse("orgs.org_update", kwargs={"pk": org.id})
+        response = self.client.post(
+            org_update_url, dict(name=org.name, plan=org.plan, brand=org.brand, non_contact_hours=True)
+        )
+        self.assertNoFormErrors(response)
+        self.assertEqual(response.status_code, 302)
+        org.refresh_from_db()
+
+        with patch(
+            "django.utils.timezone.now",
+            return_value=timezone.localtime(timezone.now()).replace(hour=12, minute=0, second=0, microsecond=0),
+        ):
+            self.assertTrue(org.do_not_contact_enabled)
+            self.assertFalse(org.do_not_contact())
+
+        with patch(
+            "django.utils.timezone.now",
+            return_value=timezone.localtime(timezone.now()).replace(hour=23, minute=0, second=0, microsecond=0),
+        ):
+            self.assertTrue(org.do_not_contact_enabled)
+            self.assertTrue(org.do_not_contact())
+
+        response = self.client.post(
+            org_update_url, dict(name=org.name, plan=org.plan, brand=org.brand, non_contact_hours=False)
+        )
+        self.assertNoFormErrors(response)
+        self.assertEqual(response.status_code, 302)
+        org.refresh_from_db()
+
+        with patch(
+            "django.utils.timezone.now",
+            return_value=timezone.localtime(timezone.now()).replace(hour=12, minute=0, second=0, microsecond=0),
+        ):
+            self.assertFalse(org.do_not_contact_enabled)
+            self.assertFalse(org.do_not_contact())
+
+        with patch(
+            "django.utils.timezone.now",
+            return_value=timezone.localtime(timezone.now()).replace(hour=23, minute=0, second=0, microsecond=0),
+        ):
+            self.assertFalse(org.do_not_contact_enabled)
+            self.assertFalse(org.do_not_contact())
+
 
 class LanguageTest(TembaTest):
     def test_languages(self):

@@ -37,7 +37,7 @@
       };
       initForm(options);
 
-      if ("{{ user_org.do_not_contact_property }}" === "True") {
+      if ("{{ user_org.do_not_contact_enabled }}" === "True") {
         const section =  $('#id-trigger-schedule');
         const form = section.find('form');
         const confirmationBox = document.querySelector("#confirm-schedule-trigger");
