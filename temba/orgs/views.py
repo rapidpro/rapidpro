@@ -1048,7 +1048,7 @@ class MenuMixin(OrgPermsMixin):
             menu_item["count"] = count
 
         if endpoint:
-            if endpoint[0] == "/":  # pragma: cover
+            if endpoint[0] == "/":  # pragma: no cover
                 menu_item["endpoint"] = endpoint
             elif self.has_org_perm(endpoint):
                 menu_item["endpoint"] = reverse(endpoint)
