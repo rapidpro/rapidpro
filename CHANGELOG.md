@@ -1,3 +1,17 @@
+v7.1.13
+----------
+ * Add management command to dewire messages based on a file of ids
+ * Render webhook calls which are too slow as errors
+
+v7.1.12
+----------
+ * Remove last of msg sending code
+ * Fix link to webhook log
+
+v7.1.11
+----------
+ * Remove unnecessary conditional load of jquery
+
 v7.1.10
 ----------
  * Make forgot password email look a little nicer and be easier to localize

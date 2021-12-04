@@ -51,7 +51,6 @@ from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
 from .fields import validate_external_url
-from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
@@ -736,55 +735,6 @@ class CeleryTest(TembaTest):
         mock_redis_get.assert_called_once_with("celery-task-lock:test_task1")
         self.assertEqual(mock_redis_lock.call_count, 0)
         self.assertEqual(task_calls, ["1-11-12", "2-21-22", "3-31-32"])
-
-
-class GSM7Test(TembaTest):
-    def test_is_gsm7(self):
-        self.assertTrue(is_gsm7("Hello World! {} <>"))
-        self.assertFalse(is_gsm7("No capital accented È!"))
-        self.assertFalse(is_gsm7("No unicode. ☺"))
-
-        replaced = replace_non_gsm7_accents("No capital accented È!")
-        self.assertEqual("No capital accented E!", replaced)
-        self.assertTrue(is_gsm7(replaced))
-
-        replaced = replace_non_gsm7_accents("No crazy “word” quotes.")
-        self.assertEqual('No crazy "word" quotes.', replaced)
-        self.assertTrue(is_gsm7(replaced))
-
-        # non breaking space
-        replaced = replace_non_gsm7_accents("Pour chercher du boulot, comment fais-tu ?")
-        self.assertEqual("Pour chercher du boulot, comment fais-tu ?", replaced)
-        self.assertTrue(is_gsm7(replaced))
-
-        # no tabs
-        replaced = replace_non_gsm7_accents("I am followed by a\x09tab")
-        self.assertEqual("I am followed by a tab", replaced)
-        self.assertTrue(is_gsm7(replaced))
-
-    def test_num_segments(self):
-        ten_chars = "1234567890"
-
-        self.assertEqual(1, calculate_num_segments(ten_chars * 16))
-        self.assertEqual(1, calculate_num_segments(ten_chars * 6 + "“word”7890"))
-
-        # 161 should be two segments
-        self.assertEqual(2, calculate_num_segments(ten_chars * 16 + "1"))
-
-        # 306 is exactly two gsm7 segments
-        self.assertEqual(2, calculate_num_segments(ten_chars * 30 + "123456"))
-
-        # 159 but with extended as last should be two as well
-        self.assertEqual(2, calculate_num_segments(ten_chars * 15 + "123456789{"))
-
-        # 355 should be three segments
-        self.assertEqual(3, calculate_num_segments(ten_chars * 35 + "12345"))
-
-        # 134 is exactly two ucs2 segments
-        self.assertEqual(2, calculate_num_segments(ten_chars * 12 + "“word”12345678"))
-
-        # 136 characters with quotes should be three segments
-        self.assertEqual(3, calculate_num_segments(ten_chars * 13 + "“word”"))
 
 
 class ModelsTest(TembaTest):
