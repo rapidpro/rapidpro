@@ -29,9 +29,6 @@ class SpaMixin(View):
     def spa_referrer_path(self) -> tuple:
         return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
 
-    def derive_menu_path(self):
-        return None
-
     def is_spa(self):
         is_spa = "HTTP_TEMBA_SPA" in self.request.META
         return is_spa
@@ -53,7 +50,6 @@ class SpaMixin(View):
         context = super().get_context_data(**kwargs)
 
         if self.is_spa():
-            context["menu_path"] = self.derive_menu_path()
             context["base_template"] = "spa.html"
             context["is_spa"] = True
             context["temba_path"] = self.spa_path

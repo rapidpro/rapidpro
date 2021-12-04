@@ -671,7 +671,16 @@ class InferOrgMixin:
 
 class UserCRUDL(SmartCRUDL):
     model = User
-    actions = ("list", "edit", "delete", "forget", "two_factor_enable", "two_factor_disable", "two_factor_tokens")
+    actions = (
+        "list",
+        "edit",
+        "delete",
+        "forget",
+        "two_factor_enable",
+        "two_factor_disable",
+        "two_factor_tokens",
+        "account",
+    )
 
     class List(SmartListView):
         fields = ("username", "orgs", "date_joined")
@@ -984,6 +993,19 @@ class UserCRUDL(SmartCRUDL):
             context["backup_tokens"] = self.get_user().backup_tokens.order_by("id")
             return context
 
+    class Account(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
+        title = _("Account")
+        permission = "orgs.org_account"
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["two_factor_enabled"] = self.request.user.get_settings().two_factor_enabled
+            return context
+
+        def derive_formax_sections(self, formax, context):
+            if self.has_org_perm("orgs.org_profile"):
+                formax.add_section("org", reverse("orgs.user_edit"), icon="icon-user")
+
 
 class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
     permission = "orgs.org_home"
@@ -994,9 +1016,6 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
 
 
 class MenuMixin(OrgPermsMixin):
-    def derive_menu(self):
-        return []
-
     def create_divider(self):
         return {"type": "divider"}
 
@@ -1016,7 +1035,7 @@ class MenuMixin(OrgPermsMixin):
         inline=False,
     ):
 
-        if perm and not self.has_org_perm(perm):
+        if perm and not self.has_org_perm(perm):  # pragma: no cover
             return
 
         menu_item = {"name": name, "inline": inline}
@@ -1025,11 +1044,11 @@ class MenuMixin(OrgPermsMixin):
         if icon:
             menu_item["icon"] = icon
 
-        if count:
+        if count:  # pragma: no cover
             menu_item["count"] = count
 
         if endpoint:
-            if endpoint[0] == "/":
+            if endpoint[0] == "/":  # pragma: no cover
                 menu_item["endpoint"] = endpoint
             elif self.has_org_perm(endpoint):
                 menu_item["endpoint"] = reverse(endpoint)
@@ -1040,7 +1059,7 @@ class MenuMixin(OrgPermsMixin):
             elif self.has_org_perm(href):
                 menu_item["href"] = reverse(href)
 
-        if items:
+        if items:  # pragma: no cover
             menu_item["items"] = items
 
         # only include the menu item if we have somewhere to go
@@ -1056,7 +1075,6 @@ class MenuMixin(OrgPermsMixin):
 
 class OrgCRUDL(SmartCRUDL):
     actions = (
-        "account",
         "signup",
         "home",
         "token",
@@ -1108,10 +1126,16 @@ class OrgCRUDL(SmartCRUDL):
             submenu = self.kwargs.get("submenu")
             org = self.request.user.get_org()
 
-            if submenu == "settings":
+            # how this menu is made up is a wip
+            # TODO: remove pragma
+            if submenu == "settings":  # pragma: no cover
                 has_classifiers = Classifier.objects.filter(org=org, is_active=True).exists()
                 menu = []
-                menu.append(self.create_menu_item(name=_("Account"), icon="user", href="orgs.org_account"))
+
+                if self.has_org_perm("orgs.org_account"):
+                    menu.append(
+                        self.create_menu_item(name=_("Account"), icon="user", href=reverse("orgs.user_account"))
+                    )
 
                 if self.request.user.get_settings().two_factor_enabled:
                     menu.append(
@@ -1211,24 +1235,6 @@ class OrgCRUDL(SmartCRUDL):
                             href=f"{reverse('orgs.org_manage_accounts_sub_org')}?org={child.pk}",
                         )
                     )
-
-                return menu
-
-            elif submenu == "settings-old":
-
-                # has_children = Org.objects.filter(parent=org, is_active=True).exists()
-                # has_channels = Channel.objects.filter(org=org, is_active=True).exists()
-                # has_classifiers = Classifier.objects.filter(org=org, is_active=True).exists()
-
-                menu = []
-                menu.append(
-                    self.create_menu_item(
-                        menu_id="workspace",
-                        icon="layers",
-                        name=_("Workspace"),
-                        endpoint=f"{reverse('orgs.org_menu')}workspace/",
-                    )
-                )
 
                 return menu
 
@@ -3057,18 +3063,6 @@ class OrgCRUDL(SmartCRUDL):
                 context["prometheus_url"] = f"https://{org.get_branding()['domain']}/mr/org/{org.uuid}/metrics"
 
             return context
-
-    class Account(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
-        title = _("Account")
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["two_factor_enabled"] = self.request.user.get_settings().two_factor_enabled
-            return context
-
-        def derive_formax_sections(self, formax, context):
-            if self.has_org_perm("orgs.org_profile"):
-                formax.add_section("org", reverse("orgs.user_edit"), icon="icon-user")
 
     class Workspace(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Workspace")

@@ -751,9 +751,6 @@ class ContactCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
         fields = ("name",)
 
-        def derive_menu_path(self):
-            return "/contacts/"
-
         def derive_title(self):
             return self.object.get_display()
 
