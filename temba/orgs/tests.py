@@ -3177,13 +3177,24 @@ class OrgTest(TembaTest):
         response = self.client.post(
             f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
             {"name": "New Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+        )
+
+        sub_org.refresh_from_db()
+        self.assertEqual("New Sub Org Name", sub_org.name)
+
+        self.assertEqual(response.url, f"/org/sub_orgs/")
+
+        # edit our sub org's details in a spa view
+        response = self.client.post(
+            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
+            {"name": "Spa Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
             **headers,
         )
 
         self.assertEqual(response.url, f"/org/manage_accounts_sub_org/?org={sub_org.id}")
 
         sub_org.refresh_from_db()
-        self.assertEqual("New Sub Org Name", sub_org.name)
+        self.assertEqual("Spa Sub Org Name", sub_org.name)
         self.assertEqual("Africa/Nairobi", str(sub_org.timezone))
         self.assertEqual("Y", sub_org.date_format)
         self.assertEqual("es", sub_org.language)
