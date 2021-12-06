@@ -57,12 +57,13 @@ from temba.tests import (
     mock_mailroom,
 )
 from temba.tests.engine import MockSessionWriter
+from temba.tests.requests import mock_object
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
-from temba.utils import dict_to_struct, json, languages
+from temba.utils import json, languages
 
 from .context_processors import GroupPermWrapper
 from .models import CreditAlert, Invitation, Org, OrgRole, TopUp, TopUpCredits
@@ -5121,10 +5122,11 @@ class StripeCreditsTest(TembaTest):
     @patch("stripe.Charge.create")
     @override_settings(SEND_EMAILS=True)
     def test_add_credits(self, charge_create, customer_create):
-        customer_create.return_value = dict_to_struct("Customer", dict(id="stripe-cust-1"))
-        charge_create.return_value = dict_to_struct(
+        customer_create.return_value = mock_object("Customer", id="stripe-cust-1")
+        charge_create.return_value = mock_object(
             "Charge",
-            dict(id="stripe-charge-1", card=dict_to_struct("Card", dict(last4="1234", type="Visa", name="Rudolph"))),
+            id="stripe-charge-1",
+            card=mock_object("Card", last4="1234", type="Visa", name="Rudolph"),
         )
 
         settings.BRANDING[settings.DEFAULT_BRAND]["bundles"] = (dict(cents="2000", credits=1000, feature=""),)
@@ -5160,14 +5162,12 @@ class StripeCreditsTest(TembaTest):
     @patch("stripe.Charge.create")
     @override_settings(SEND_EMAILS=True)
     def test_add_btc_credits(self, charge_create, customer_create):
-        customer_create.return_value = dict_to_struct("Customer", dict(id="stripe-cust-1"))
-        charge_create.return_value = dict_to_struct(
+        customer_create.return_value = mock_object("Customer", id="stripe-cust-1")
+        charge_create.return_value = mock_object(
             "Charge",
-            dict(
-                id="stripe-charge-1",
-                card=None,
-                source=dict_to_struct("Source", dict(bitcoin=dict_to_struct("Bitcoin", dict(address="abcde")))),
-            ),
+            id="stripe-charge-1",
+            card=None,
+            source=mock_object("Source", bitcoin=mock_object("Bitcoin", address="abcde")),
         )
 
         settings.BRANDING[settings.DEFAULT_BRAND]["bundles"] = (dict(cents="2000", credits=1000, feature=""),)
@@ -5240,7 +5240,7 @@ class StripeCreditsTest(TembaTest):
                 self.throw = False
 
             def list(self):
-                return dict_to_struct("MockCardData", dict(data=[MockCard(), MockCard()]))
+                return mock_object("MockCardData", data=[MockCard(), MockCard()])
 
             def create(self, card):
                 if self.throw:
@@ -5260,9 +5260,10 @@ class StripeCreditsTest(TembaTest):
         customer_retrieve.return_value = MockCustomer(id="stripe-cust-1", email=self.admin.email)
         customer_create.return_value = MockCustomer(id="stripe-cust-2", email=self.admin2.email)
 
-        charge_create.return_value = dict_to_struct(
+        charge_create.return_value = mock_object(
             "Charge",
-            dict(id="stripe-charge-1", card=dict_to_struct("Card", dict(last4="1234", type="Visa", name="Rudolph"))),
+            id="stripe-charge-1",
+            card=mock_object("Card", last4="1234", type="Visa", name="Rudolph"),
         )
 
         settings.BRANDING[settings.DEFAULT_BRAND]["bundles"] = (dict(cents="2000", credits=1000, feature=""),)

@@ -34,17 +34,7 @@ from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json, uuid
 from temba.utils.templatetags.temba import format_datetime
 
-from . import (
-    chunk_list,
-    countries,
-    dict_to_struct,
-    format_number,
-    languages,
-    percentage,
-    redact,
-    sizeof_fmt,
-    str_to_bool,
-)
+from . import chunk_list, countries, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
 from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
@@ -664,19 +654,11 @@ class JsonTest(TembaTest):
             json.loads(encoded), {"name": "Date Test", "age": Decimal("10"), "now": json.encode_datetime(now)}
         )
 
-        # test the same using our object mocking
-        mock = dict_to_struct("Mock", json.loads(encoded), ["now"])
-        self.assertEqual(mock.now, source["now"])
-
         # try it with a microsecond of 0 instead
         source["now"] = timezone.now().replace(microsecond=0)
 
         # encode it
         encoded = json.dumps(source)
-
-        # test the same using our object mocking
-        mock = dict_to_struct("Mock", json.loads(encoded), ["now"])
-        self.assertEqual(mock.now, source["now"])
 
         # test that we throw with unknown types
         with self.assertRaises(TypeError):
