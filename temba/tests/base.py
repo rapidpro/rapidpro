@@ -473,7 +473,6 @@ class TembaTestMixin:
         Msg.objects.create(
             org=self.org,
             channel=self.channel,
-            connection=call,
             direction="O",
             contact=contact,
             contact_urn=contact.get_urn(),

@@ -1727,9 +1727,6 @@ class ChannelConnection(models.Model):
         if session:
             session.release()
 
-        for msg in self.msgs.all():
-            msg.release()
-
         self.delete()
 
     class Meta:
