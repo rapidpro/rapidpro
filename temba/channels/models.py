@@ -1199,13 +1199,6 @@ class ChannelLog(models.Model):
     request_time = models.IntegerField(null=True)
 
     @classmethod
-    def log_error(cls, msg, description):
-        print("[%d] ERROR - %s" % (msg.id, description))
-        return ChannelLog.objects.create(
-            channel_id=msg.channel, msg_id=msg.id, is_error=True, description=description[:255]
-        )
-
-    @classmethod
     def log_channel_request(cls, channel_id, description, event, start, is_error=False):
         request_time = 0 if not start else time.time() - start
         request_time_ms = request_time * 1000

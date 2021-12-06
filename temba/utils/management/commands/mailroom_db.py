@@ -58,11 +58,11 @@ class Command(BaseCommand):
 
         result = subprocess.run(["pg_dump", "--version"], stdout=subprocess.PIPE)
         version = result.stdout.decode("utf8")
-        if version.split(" ")[-1].find("11.") == 0:
+        if version.split(" ")[-1].find("12.") == 0:
             self._log(self.style.SUCCESS("OK") + "\n")
         else:
             self._log(
-                "\n" + self.style.ERROR("Incorrect pg_dump version, needs version 11.*, found: " + version) + "\n"
+                "\n" + self.style.ERROR("Incorrect pg_dump version, needs version 12.*, found: " + version) + "\n"
             )
             sys.exit(1)
 

@@ -1,3 +1,11 @@
+v7.1.14
+----------
+ * Fix wrap for recipients list on flow start log
+ * Set Msg.delete_from_counts when releasing a msg
+ * Msg.fail_old_messages should set failed_reason
+ * Add new fields to Msg: delete_from_counts, failed_reason, response_to_external_id
+ * Tweak msg_dewire command to only fetch messages which have never errored
+
 v7.1.13
 ----------
  * Add management command to dewire messages based on a file of ids
