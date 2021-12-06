@@ -1800,6 +1800,14 @@ class FlowTest(TembaTest):
 
 
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_menu(self):
+        menu_url = reverse("flows.flow_menu")
+        FlowLabel.create(self.org, "Important")
+
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+        self.assertEqual(3, len(menu))
+
     def test_create(self):
         create_url = reverse("flows.flow_create")
 
@@ -5436,7 +5444,7 @@ class FlowLabelTest(TembaTest):
         self.login(self.admin)
         favorites = self.get_flow("favorites")
         label.toggle_label([favorites], True)
-        response = self.client.get(reverse("flows.flow_filter", args=[label.pk]))
+        response = self.client.get(reverse("flows.flow_filter", args=[label.uuid]))
         self.assertEqual([favorites], list(response.context["object_list"]))
         # our child label
         self.assertContains(response, "child")
@@ -5447,12 +5455,12 @@ class FlowLabelTest(TembaTest):
         favorites.is_active = False
         favorites.save()
 
-        response = self.client.get(reverse("flows.flow_filter", args=[label.pk]))
+        response = self.client.get(reverse("flows.flow_filter", args=[label.uuid]))
         self.assertFalse(response.context["object_list"])
 
         # try to view our cat label in our other org
         cat = FlowLabel.create(self.org2, "cat")
-        response = self.client.get(reverse("flows.flow_filter", args=[cat.pk]))
+        response = self.client.get(reverse("flows.flow_filter", args=[cat.uuid]))
         self.assertLoginRedirect(response)
 
     def test_toggle_label(self):

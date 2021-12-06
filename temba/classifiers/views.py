@@ -5,8 +5,8 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from temba.orgs.views import DependencyDeleteModal, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.views import ComponentFormMixin
+from temba.orgs.views import DependencyDeleteModal, MenuMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.views import ComponentFormMixin, SpaMixin
 
 from .models import Classifier
 
@@ -39,14 +39,41 @@ class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
 
 class ClassifierCRUDL(SmartCRUDL):
     model = Classifier
-    actions = ("read", "connect", "delete", "sync")
+    actions = ("read", "connect", "delete", "sync", "menu")
+
+    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
+        def derive_menu(self):
+            org = self.request.user.get_org()
+
+            menu = []
+            if self.has_org_perm("classifiers.classifier_read"):
+                classifiers = Classifier.objects.filter(org=org, is_active=True).order_by("-created_on")
+                for classifier in classifiers:
+                    menu.append(
+                        self.create_menu_item(
+                            menu_id=classifier.uuid,
+                            name=classifier.name,
+                            href=reverse("classifiers.classifier_read", args=[classifier.uuid]),
+                            icon=classifier.get_type().icon.replace("icon-", ""),
+                        )
+                    )
+
+            menu.append(
+                {
+                    "id": "connect",
+                    "href": reverse("classifiers.classifier_connect"),
+                    "name": _("Add Classifier"),
+                }
+            )
+
+            return menu
 
     class Delete(DependencyDeleteModal):
         cancel_url = "uuid@classifiers.classifier_read"
         success_url = "@orgs.org_home"
         success_message = _("Your classifier has been deleted.")
 
-    class Read(OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
@@ -94,7 +121,7 @@ class ClassifierCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class Connect(OrgPermsMixin, SmartTemplateView):
+    class Connect(SpaMixin, OrgPermsMixin, SmartTemplateView):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["classifier_types"] = Classifier.get_types()

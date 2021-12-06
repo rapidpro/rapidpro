@@ -54,7 +54,7 @@
     }
     
     .spa-container {
-      background: #e9e9e9;
+      background: #f7f7f7;
       overflow-y:auto;
       
     }
@@ -251,6 +251,72 @@
   %script{src:"{{ STATIC_URL }}js/labels.js?4"}
 
   :javascript
+
+    var pendingRequests = [];
+    function fetchAjax(url, container, options) {
+
+      if (options["cancel"]) {
+        pendingRequests.forEach(function(controller){
+          controller.abort();
+        });
+        pendingRequests = [];
+      }
+
+      options = options || {};
+
+      // hijack any pjax requests made from spa pages and route the content there instead
+      if (container == "#pjax" && document.querySelector(".spa-content")) {
+        container = ".spa-content";
+        options["headers"] = (options["headers"] || {})
+        options["headers"]["TEMBA-SPA"] = 1;
+        options["headers"]["X-PJAX"] = 1;
+      }
+
+      var controller = new AbortController();
+      pendingRequests.push(controller);
+      options["signal"] = controller.signal;
+      fetch(url, options).then(function(response) {
+
+        // remove our controller
+        pendingRequests = pendingRequests.filter(
+          function (controller) {
+            return response.controller === controller;
+          }
+        );
+
+        // we may have redirected
+        if (response.url) {
+          window.lastFetch = response.url;
+        }
+
+        response.text().then(function (body){
+          var containerEle = document.querySelector(container);
+          var scriptsEle = document.querySelector(".ajax-scripts");
+
+          // remove any existing children
+          while (containerEle.firstChild) {
+            containerEle.removeChild(containerEle.firstChild);
+          }
+
+          while (scriptsEle.firstChild) {
+            scriptsEle.removeChild(scriptsEle.firstChild);
+          }
+
+          // TODO: Replace this with non-jquery replacement
+          $(containerEle).html(body);
+
+          if (options) {
+            if ('onSuccess' in options) {
+              options['onSuccess']();
+            }
+          }
+          
+        });
+      }).catch(function(e) {
+        // canceled
+      })
+    }
+
     function fetchPJAXContent(url, container, options) {
 
       options = options || {};
@@ -323,8 +389,8 @@
           if ('followRedirects' in options && options['followRedirects'] == true) {
               var redirect = jqXHR.getResponseHeader('REDIRECT');
               if (redirect) {
-                  window.document.location.href = redirect;
-                  return;
+                window.document.location.href = redirect;
+                return;
               }
           }
 
@@ -374,7 +440,11 @@
     })
 
     document.querySelector(".spa-content").addEventListener("click", function(evt) {
-      var target = evt.target
+      if (true) {
+        return;
+      }
+      
+      var target = evt.target;
       if (target.href && target.href.indexOf("xlsx") > -1) {
         return;
       }
@@ -391,12 +461,19 @@
       if (a && a.href) {
         evt.stopPropagation();
         evt.preventDefault();
-        fetchURL(new URL(a.href).pathname);
+
+        const url = new URL(a.href);
+        fetchURL(url.pathname + url.search)
       } 
     });
 
     document.querySelector(".spa-content").addEventListener("submit", function(evt) {
       var formEle = evt.target;
+
+      if(formEle.closest(".formax-section")) {
+        return;
+      }
+
       if (formEle.method.toLowerCase() !== "post") {
         evt.stopPropagation();
         evt.preventDefault();
@@ -408,6 +485,8 @@
             "onSuccess": hideLoading,  
         });
       } else {
+
+        console.log("POSTING", window.lastFetch);
         evt.stopPropagation();
         evt.preventDefault();
         var formData = new FormData(formEle);
@@ -426,26 +505,20 @@
       if (state) {
         showLoading();
 
-        fetchPJAXContent(state.url, ".spa-content", { "headers": { 
-          "TEMBA-SPA": "1", 
-          "TEMBA-REFERER-PATH": state.path,
-          "TEMBA-PATH": state.path
-          }, 
-        "onSuccess": hideLoading, "ignoreEvents": false
-        });
-
+        gotoURL(state.url, state.show);
+        var menu = document.querySelector("temba-menu");
+        menu.setFocusedItem(state.show);
       }
     });
-
-
 
     function goto(event, ele) {
       if (!ele) {
         ele = event.target;
       }
 
-
       event.stopPropagation();
+      event.preventDefault();
+
       if (ele.setActive) {
           ele.setActive();
       }
@@ -475,8 +548,41 @@
       document.querySelector(".spa-container").classList.add("loading");
     }
 
+    function updatePageTitle() {
+      var spaTitle = document.querySelector(".spa-title .title-text");
+      if (spaTitle) {
+        spaTitle = spaTitle.innerText;
+      }
+      
+      if (!spaTitle) {
+        var menu = document.querySelector("temba-menu");
+        if (menu) {
+          var item = menu.getMenuItem();
+
+          if (item) {
+            spaTitle = item.name;
+          }
+        }
+      }
+
+      document.title = spaTitle || "";
+    }
+
     function hideLoading() {
-      document.querySelector(".spa-container").classList.remove("loading");
+      var container = document.querySelector(".spa-container");
+      if (container) {
+        container.classList.remove("loading");
+      }
+      
+      updatePageTitle();
+      var menu = document.querySelector("temba-menu");
+      menu.refresh();
+
+      document.querySelectorAll(".posterize").forEach(function(ele){
+        ele.addEventListener("click", function(){ 
+          handlePosterize(ele);
+          });
+      });
     }
 
     function handleUpdateComplete() {
@@ -496,45 +602,68 @@
     }
 
     function gotoURL(urlToGo, urlToShow, ignoreEvents) {
-        var refererPath = window.location.pathname;
-        window.lastFetch = urlToGo;
-        window.history.pushState({ url: urlToGo,  },"", urlToShow);
-        fetchPJAXContent(urlToGo, ".spa-content", { "headers": { 
-            "TEMBA-SPA": "1", 
-            "TEMBA-REFERER-PATH": refererPath,
-            "TEMBA-PATH": urlToShow
-            }, 
-          "onSuccess": hideLoading, "ignoreEvents": ignoreEvents
-        });
+      var refererPath = window.location.pathname;
+      window.lastFetch = urlToGo;
+      window.history.pushState({ url: urlToGo, show: urlToShow }, "", urlToShow);
+      fetchAjax(urlToGo, ".spa-content", { "headers": { 
+          "TEMBA-SPA": "1", 
+          "TEMBA-REFERER-PATH": refererPath,
+          "TEMBA-PATH": urlToShow
+          }, 
+        "onSuccess": hideLoading, "ignoreEvents": ignoreEvents, "cancel": true
+      });
     }
 
-    var menuPattern = /\/(contacts\/groups|messages)\/.*/
-    function isMenuLink(url, path) {
-      if (url.match(menuPattern)) {
-        return true;
+    var legacyURLs = [
+      { old: /\/msg\/filter\/(.*)/,                        new: /\/messages\/labels\/(.*)\// },
+      { old: /\/contact\/read\/(.*)/,                      new: /\/contacts\/read\/(.*)/ },
+      { old: /\/contact\/filter\/(.*)/,                    new: /\/contacts\/groups\/(.*)\// },
+      { old: /\/flow\/editor\/(.*)\//,                     new: /\/flows\/editor\/(.*)/ },
+      { old: /\/flow\/filter\/(.*)\//,                     new: /\/flows\/(.*)\// },
+      { old: /\/ticket\/(.*)/,                             new: /\/tickets\/(.*)\// },
+      { old: /\/channels\/channellog\/read\/(.*)\/(.*)\//, new: /\/settings\/ch-(.*)\/log\/(.*)/ },
+      { old: /\/channels\/channellog\/(.*)\//,             new: /\/settings\/ch-(.*)\/log/ },
+      { old: /\/channels\/channel\/configuration\/(.*)\//, new: /\/settings\/ch-(.*)\/config/ },
+      { old: /\/channels\/channel\/read\/(.*)/,            new: /\/settings\/ch-(.*)\// },
+      { old: /\/channels\/types\/(.*)\/claim/,             new: /\/settings\/channel\/(.*)\// },
+      { old: /\/org\/manage_accounts\/(.*)/,               new: /\/settings\/logins/ },
+      { old: /\/user\/two_factor_disable\//,               new: /\/settings\/authentication\/2fa-disable\// }
+    ]
+
+    var toMap = /(msg|contact|flow|ticket|channels|org|user).*/;
+
+    function replaceMapping(path, reverse) {
+      var findDirection = reverse ? "new" : "old";
+      var replaceDirection = reverse ? "old" : "new";
+      for (var mapping of legacyURLs) {
+        var match = path.match(mapping[findDirection]);
+        console.log(path, mapping[findDirection], !!match);
+        if (match) {
+          
+          path = mapping[replaceDirection].source.replaceAll("\\/", "/");
+          for (var i=1; i<match.length; i++) {
+            path = path.replace("(.*)", match[i]);
+          }
+          path = path.replaceAll("(.*)", "");
+          console.log("=>", path);
+          return path;
+        }
       }
-      return false;
+      return path;
     }
 
-    function convertLegacyURL(dest) {
-      const path = dest.path;
-      if (dest.url.indexOf("/contact/read/") == 0) {
-        dest.path = dest.url.replace("/contact/read/", "/contacts/read/");
-      }
+    function handleNoPath(event) {
+      var details = event.detail;
+      var menu = document.querySelector("temba-menu");
 
-      if (dest.url.indexOf("/contact/filter/") == 0) {
-        dest.path = dest.url.replace("/contact/filter/", "/contacts/groups/");
-        dest.isMenu = true;
-      }
-      
-      if (dest.url.indexOf("/msg/filter/") == 0) {
-        dest.path = dest.url.replace("/msg/filter/", "/messages/labels/");
-        dest.isMenu = true;
-      }
+      var path = details.selection + "/" + details.path;
+      var mapped = replaceMapping(path, true);
 
-      if (dest.url.indexOf("/contacts/groups/") == 0) {
-        dest.path = dest.url;
-        dest.isMenu = true;
+      if (path != mapped){
+        gotoURL(mapped, path);
+      } else {
+        // set our menu to the proper focus, pruning the extras
+        menu.setFocusedItem(details.selection + "/" + details.path);
       }
     }
 
@@ -546,18 +675,15 @@
 
       var dest = {
         url: url,
-        path: "/" + menu.getSelection().join("/") + "/", 
-        isMenu: isMenuLink(url)
+        path: url,
       }
 
       // migrate our old urls
-      convertLegacyURL(dest);
-
-      if (dest.isMenu) {
-        menu.setSelectionPath(dest.path);
-      } else {
-        gotoURL(dest.url, dest.path, !triggerEvents);
+      if (dest.path.match(toMap)) {
+        dest.path = replaceMapping(dest.path);
       }
+      gotoURL(dest.url, dest.path, !triggerEvents);
+      menu.setFocusedItem(dest.path);
     }
    
     function handleMenuChanged(event) {
@@ -581,12 +707,6 @@
       }
     }
 
-    function handleNoPath(event) {
-      var details = event.detail;
-      if (details.item == "contacts") {
-        gotoURL("/contact/" + details.path, "/" + details.item + "/" + details.path);
-      }
-    }
 
 -block refresh-fn
   :javascript
@@ -610,6 +730,8 @@
     groups="/api/v2/groups.json")
       
 -block page-container
+
+  .ajax-scripts
 
   .flex-col
     .flex.widget-container(style="height:100vh;")

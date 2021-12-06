@@ -757,7 +757,7 @@ class EventTest(TembaTest):
                     "quick_replies": ["yes", "no"],
                 },
                 "status": "E",
-                "logs_url": f"/channels/channellog/read/{log.id}/",
+                "logs_url": f"/channels/channellog/read/{log.channel.uuid}/{log.id}/",
             },
             Event.from_msg(self.org, self.admin, msg_out),
         )

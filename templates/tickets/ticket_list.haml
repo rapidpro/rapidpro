@@ -114,6 +114,8 @@
           updateTicketList();
         }                    
       }     
+
+      updatePageTitle();
     }
 
     function updateTicketList() {
@@ -124,7 +126,7 @@
       var tickets = document.querySelector("temba-ticket-list");
       var chat = document.querySelector("temba-contact-chat");
 
-      // if we have auto selecting, don't clear the chat
+      // if we have auto selecting, dont clear the chat
       var ticketsEndpoint = `/ticket/folder/${folder}/${status}/${initialTicket || ''}`;
       if (ticketsEndpoint != tickets.endpoint) {
         if (!tickets.nextSelection) {
