@@ -1875,7 +1875,6 @@ code {
   --tw-bg-opacity: 1;
   background-color: rgba(255, 255, 255, var(--tw-bg-opacity));
   border-radius: 0.5rem;
-  flex-shrink: 0;
   margin-top: 1rem;
   margin-bottom: 1rem;
   overflow: hidden;

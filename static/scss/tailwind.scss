@@ -624,7 +624,7 @@ code {
 }
 
 .card {
-  @apply rounded-lg py-6 px-6 shadow my-4 bg-white overflow-hidden transition duration-200 flex-shrink-0;
+  @apply rounded-lg py-6 px-6 shadow my-4 bg-white overflow-hidden transition duration-200;
 
   .bleed-t {
     @apply -mt-6 mb-6;
