@@ -410,11 +410,6 @@ class Msg(models.Model):
     DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, "Archive delete"), (DELETE_FOR_USER, "User delete"))
     delete_reason = models.CharField(null=True, max_length=1, choices=DELETE_CHOICES)
 
-    # TODO deprecated and to be removed once mailroom stops writing it
-    response_to = models.ForeignKey(
-        "Msg", on_delete=models.PROTECT, null=True, blank=True, related_name="responses", db_index=False
-    )
-
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
         messages = cls.objects.filter(org=org)
@@ -656,7 +651,6 @@ class Msg(models.Model):
         """
         Releases (i.e. deletes) this message
         """
-        Msg.objects.filter(response_to=self).update(response_to=None)
 
         for log in ChannelLog.objects.filter(msg=self):
             log.release()
