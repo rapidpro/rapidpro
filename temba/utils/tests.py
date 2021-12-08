@@ -1275,7 +1275,7 @@ class AnalyticsTest(SmartminTest):
 
     def test_identify(self):
 
-        self.crisp_mock.website.get_people_profile.return_value = None
+        self.crisp_mock.website.get_people_profile.side_effect = Exception("No Profile")
         temba.utils.analytics.identify(self.admin, {"slug": "test", "host": "rapidpro.io"}, self.org)
 
         # assert mocks
@@ -1349,6 +1349,14 @@ class AnalyticsTest(SmartminTest):
             self.crisp_mock.website_id,
             self.admin.username,
             {"color": "blue", "text": "Flow created", "data": {"name": "My Flow"}},
+        )
+
+        # different events get different colors in crisp
+        temba.utils.analytics.track(self.admin, "temba.user_signup")
+        self.crisp_mock.website.add_people_event.assert_called_with(
+            self.crisp_mock.website_id,
+            self.admin.username,
+            {"color": "green", "text": "User signup", "data": {}},
         )
 
     def test_track_not_anon_user(self):
