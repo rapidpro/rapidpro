@@ -213,7 +213,7 @@ class Flow(TembaModel):
                 },
             )
 
-        analytics.track(user, "temba.flow_created", dict(name=name))
+        analytics.track(user, "temba.flow_created", dict(name=name, uuid=flow.uuid))
         return flow
 
     @classmethod

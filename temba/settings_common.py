@@ -1206,6 +1206,11 @@ SEGMENT_IO_KEY = os.environ.get("SEGMENT_IO_KEY", "")
 INTERCOM_APP_ID = os.environ.get("INTERCOM_APP_ID" "")
 INTERCOM_TOKEN = os.environ.get("INTERCOM_TOKEN", "")
 
+# Crisp id and key support option
+CRISP_IDENTIFIER = os.environ.get("CRISP_IDENTIFIER" "")
+CRISP_KEY = os.environ.get("CRISP_KEY" "")
+CRISP_WEBSITE_ID = os.environ.get("CRISP_WEBSITE_ID" "")
+
 # Google analytics tracking ID
 GOOGLE_TRACKING_ID = os.environ.get("GOOGLE_TRACKING_ID", "")
 

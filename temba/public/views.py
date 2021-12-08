@@ -75,7 +75,7 @@ class Welcome(SmartTemplateView):
 
         user = self.request.user
         org = user.get_org()
-        brand = self.request.branding["slug"]
+        brand = self.request.branding
 
         if org:
             analytics.identify(user, brand, org=org)
