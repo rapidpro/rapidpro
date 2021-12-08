@@ -155,40 +155,6 @@
           overflow-x: auto;
         }
 
-        .responded-checkbox {
-          padding-bottom: 10px;
-          padding-left: 15px;
-
-          .input-group {
-            display: inline;
-            margin-left: 15px;
-            margin-right: 15px;
-          }
-
-          .runs-show-sep {
-            display: inline;
-            margin-left: 5px;
-            margin-right: 5px;
-          }
-
-          .runs-show {
-            display: inline;
-            cursor: pointer;
-            color: @color-primary;
-
-            &:hover{
-              text-decoration: underline;
-            }
-
-            &.active {
-              cursor: default;
-              pointer-events: none;
-              text-decoration: none;
-              color: #555555;
-            }
-          }
-        }
-
         .add-columns {
           display: inline;
           margin-left: 8px;
@@ -295,7 +261,7 @@
       dialog.open = true;
     }
 
-    function updateCols() {      
+    function updateCols() {
       var hidden = false;
       for (var idx=0; idx < columns.length; idx++) {
         var col = columns[idx];
@@ -426,7 +392,7 @@
       var dialog = document.getElementById("confirm-run-delete");
       dialog.addEventListener("temba-button-clicked", function(event){
         var id = dialog.run;
-        $("#run_" + id).fadeOut();        
+        $("#run_" + id).fadeOut();
         if (!event.detail.button.secondary) {
           $.post('/flowrun/delete/' + id + '/').fail(function() {
             $("#run_" + id).fadeIn();
@@ -578,73 +544,45 @@
 
     $(document).ready(function() {
       updateCharts();
-      localStorage.setItem("responded", "true");
     });
 
     $(function(){
       $(document).on('beforeAjaxSend.ic', function(event, ajaxSetup, elt){
-        responded = localStorage.getItem("responded");
-        ajaxSetup.data = ajaxSetup.data + "&responded=" + responded;
+        ajaxSetup.data = ajaxSetup.data + "&responded=true";
       });
     });
-
-    $(function() {
-        $(".responded-checkbox .runs-show").on('click', function(){
-          $(this).siblings().not($(this)).removeClass("active");
-          $(this).addClass("active");
-        });
-      });
 
 -block content
 
   %temba-dialog#confirm-run-delete(header='{{ _("Delete Run")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
     .p-6
       -trans "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
-    
+
   .bg-white.p-4.rounded-lg
     %ul.nav.nav-tabs.mb-0
       %li.active
-        %a{href: '#overview', data-toggle:'tab'}
+        %a(href="#overview" data-toggle="tab")
           -trans "Overview"
 
       %li
-        %a{href: '#analytics', data-toggle:'tab'}
+        %a(href="#analytics" data-toggle="tab")
           -trans "Analytics"
 
       %li
-        %a{href: '#runs', data-toggle:'tab', onclick:"updateColumnSelect();"}
-          -trans "Runs"
+        %a(href="#runs" data-toggle="tab" onclick="updateColumnSelect();")
+          -trans "Responses"
 
     .tab-content
       #overview.tab-pane.active.py-4
         .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
           %i.fa.fa-spinner.fa-spin.fa-2x
-      
+
       #analytics.tab-pane
         #category-charts
 
       #runs.tab-pane
         .scroll-x
           .responded-checkbox.flex.items-center.py-3.w-full
-            .runs-show#show-all-runs{
-                                        ic-get-from:"/flow/run_table/{{object.id}}/",
-                                        ic-on-beforeSend:'$("#results_run_table").empty();',
-                                        ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
-                                        ic-trigger-on:"click",
-                                        ic-target:"#results_run_table",
-                                        ic-indicator:"#indicator"}
-              -trans "All"
-            .runs-show-sep
-              |
-            .runs-show.active{
-                                        ic-get-from:"/flow/run_table/{{object.id}}/",
-                                        ic-on-beforeSend:'$("#results_run_table").empty();',
-                                        ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
-                                        ic-trigger-on:"click",
-                                        ic-target:"#results_run_table",
-                                        ic-indicator:"#indicator"}
-              -trans "Responded"
-              
             .flex-grow
             .add-columns.select.flex-grow.pl-12.pr-4
               .selection
@@ -671,8 +609,8 @@
                       {{result_field.name}}
                     .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
 
-            %tbody{id:"results_run_table"}
-              %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+            %tbody(id="results_run_table")
+              %tr(ic-append-from="/flow/run_table/{{object.id}}/" ic-trigger-on="load" ic-target="#results_run_table" ic-indicator="#indicator")
 
   #indicator{style:"display:none"}
     .loader
