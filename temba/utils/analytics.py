@@ -184,7 +184,7 @@ def identify(user, brand, org):
                 data["segments"] = [attributes["brand"], f"random-{attributes['segment']}"]
                 data["email"] = user.username
                 _crisp.website.add_new_people_profile(_crisp.website_id, data)
-        except Exception:
+        except Exception:  # pragma: no cover
             logger.error("error posting to crisp", exc_info=True)
 
 
@@ -272,7 +272,7 @@ def change_consent(email, consent):
             else:
                 _crisp.website.add_people_event(_crisp.website_id, email, {"color": "red", "text": f"Consent revoked"})
 
-        except Exception:
+        except Exception:  # pragma: no cover
             logger.error("error accessing crisp", exc_info=True)
 
 
@@ -342,5 +342,5 @@ def track(user, event_name, properties=None, context=None):
                 email,
                 {"color": color, "text": event_name, "data": properties if properties else {}},
             )
-        except Exception:
+        except Exception:  # pragma: no cover
             logger.error("error posting to crisp", exc_info=True)
