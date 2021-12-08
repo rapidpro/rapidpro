@@ -1455,7 +1455,7 @@ class FlowCRUDL(SmartCRUDL):
                 return cleaned_data
 
         form_class = ExportForm
-        submit_button_name = _("Download Results")
+        submit_button_name = _("Download")
         success_url = "@flows.flow_list"
 
         def get_form_kwargs(self):
