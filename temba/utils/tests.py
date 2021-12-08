@@ -1269,7 +1269,7 @@ class AnalyticsTest(SmartminTest):
         self.intercom_mock.users.create.side_effect = Exception("Kimi says bwoah...")
 
         with patch("temba.utils.analytics.logger") as mocked_logging:
-            temba.utils.analytics.identify(self.admin, {"slug": "test"}, self.org)
+            temba.utils.analytics.identify(self.admin, {"slug": "test", "host": "rapidpro.io"}, self.org)
 
         mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
 
