@@ -4,7 +4,6 @@ from random import randint
 
 import analytics as segment_analytics
 from crisp_api import Crisp
-
 from intercom.client import Client as IntercomClient
 from intercom.errors import ResourceNotFound
 from librato_bg import Client as LibratoClient
