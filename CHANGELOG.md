@@ -1,3 +1,12 @@
+v7.1.15
+----------
+ * Remove path field from API runs endpoint docs
+ * Hide options to include non-responded runs on results download modal and results page
+ * Fix welcome page widths
+ * Update mailroom_db to require pg_dump version 12.*
+ * Update temba-components
+ * Add workspace page to new UI
+
 v7.1.14
 ----------
  * Fix wrap for recipients list on flow start log
