@@ -197,7 +197,10 @@
       - if ivr_count
         .stats-switch
           .msgs-stats-label.active
-            Segments
+            - if msg_segments_count
+              Segments
+            - else
+              Messages
           .stats-sep
             |
           .ivr-stats-label
@@ -438,7 +441,11 @@
             },
             yAxis: {
               title: {
+                {% if msg_segments_count %}
                 text: '{{ _("Segments")|escapejs }}'
+                {% else %}
+                text: '{{ _("Messages")|escapejs }}'
+                {% endif %}
               },
               opposite: true,
               min: 0,
