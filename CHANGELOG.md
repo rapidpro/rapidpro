@@ -1,3 +1,8 @@
+v7.1.16
+----------
+ * Drop Msg.response_to
+ * Drop Msg.connection_id
+
 v7.1.15
 ----------
  * Remove path field from API runs endpoint docs
