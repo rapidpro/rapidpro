@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('orgs', '0089_auto_20211111_1917'),
+        ("orgs", "0089_auto_20211111_1917"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='usersettings',
-            name='external_id',
+            model_name="usersettings",
+            name="external_id",
             field=models.CharField(max_length=128, null=True),
         ),
         migrations.AddField(
-            model_name='usersettings',
-            name='verification_token',
+            model_name="usersettings",
+            name="verification_token",
             field=models.CharField(max_length=64, null=True),
         ),
     ]
