@@ -1253,9 +1253,13 @@ class AnalyticsTest(SmartminTest):
         self.org = SimpleNamespace(
             id=1000, name="Some Org", brand="Some Brand", created_on=timezone.now(), account_value=lambda: 1000
         )
-        self.admin = SimpleNamespace(
-            username="admin@example.com", first_name="", last_name="", email="admin@example.com", is_authenticated=True
-        )
+
+        self.admin = MagicMock()
+        self.admin.username = "admin@example.com"
+        self.admin.first_name = ""
+        self.admin.last_name = ""
+        self.admin.email = "admin@example.com"
+        self.admin.is_authenticated = True
 
         self.intercom_mock = MagicMock()
         temba.utils.analytics._intercom = self.intercom_mock
@@ -1286,9 +1290,10 @@ class AnalyticsTest(SmartminTest):
                 "org": self.org.name,
                 "paid": self.org.account_value(),
             },
-            email=self.admin.username,
+            email=self.admin.email,
             name=" ",
         )
+
         self.assertListEqual(
             self.intercom_mock.users.create.return_value.companies,
             [
@@ -1324,7 +1329,7 @@ class AnalyticsTest(SmartminTest):
 
         self.crisp_mock.website.update_people_profile.assert_called_with(
             self.crisp_mock.website_id,
-            self.admin.username,
+            self.admin.email,
             {
                 "person": {"nickname": " "},
                 "company": {
@@ -1332,6 +1337,7 @@ class AnalyticsTest(SmartminTest):
                     "url": "https://rapidpro.io/org/update/1000/",
                     "domain": "rapidpro.io/org/update/1000",
                 },
+                "segments": mock.ANY,
             },
         )
 
