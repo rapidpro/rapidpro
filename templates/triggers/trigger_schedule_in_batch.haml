@@ -51,7 +51,7 @@
         flowById[node.getAttribute('value').toString()] = node.getAttribute('name');
       });
 
-      let doNotContactDialog = document.querySelector("#do-not-contact-dialog");
+      let doNotContactDialog = document.querySelector("#do-not-contact-batch-dialog");
       doNotContactDialog.addEventListener("temba-button-clicked", function(event) {
         if (!event.detail.button.secondary) {
           doNotContactDialog.open = false;
@@ -121,7 +121,7 @@
   %temba-dialog#bulk-schedule-confirmation.hide(header='{{ _("Bulk Schedule Confirmation")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
     .p-6
 
-  %temba-dialog#do-not-contact-dialog(header='{{ _("Out of Business Hours Warning")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
+  %temba-dialog#do-not-contact-batch-dialog(header='{{ _("Out of Business Hours Warning")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
     .p-6
       {{ _("You are trying to send a message out of compliance hours (8AM - 9PM). Are you sure you want to continue?") }}
 
