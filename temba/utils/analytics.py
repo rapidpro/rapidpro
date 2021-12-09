@@ -160,15 +160,26 @@ def identify(user, brand, org):
 
     if _crisp:
 
+        user_settings = user.get_settings()
+
         existing_profile = None
+        external_id = user_settings.external_id
+        segments = [attributes["brand"], f"random-{attributes['segment']}"]
+
         try:
-            existing_profile = _crisp.website.get_people_profile(_crisp.website_id, user.username)
+            existing_profile = _crisp.website.get_people_profile(_crisp.website_id, user.email)
+            segments = existing_profile["segments"]
+            external_id = existing_profile["people_id"]
+
+            segments.push(attributes["brand"])
+            randoms = [seg for seg in segments if seg.startswith("random-")]
+            if not randoms:
+                segments.append(f"random-{attributes['segment']}")
+
         except Exception:
             pass
 
-        data = {
-            "person": {"nickname": user_name},
-        }
+        data = {"person": {"nickname": user_name}, "segments": segments}
 
         if org and brand:
             data["company"] = {
@@ -179,11 +190,28 @@ def identify(user, brand, org):
 
         try:
             if existing_profile:
-                _crisp.website.update_people_profile(_crisp.website_id, user.username, data)
+                _crisp.website.update_people_profile(_crisp.website_id, user.email, data)
             else:
-                data["segments"] = [attributes["brand"], f"random-{attributes['segment']}"]
                 data["email"] = user.username
-                _crisp.website.add_new_people_profile(_crisp.website_id, data)
+                response = _crisp.website.add_new_people_profile(_crisp.website_id, data)
+                external_id = response["data"]["people_id"]
+
+            import hashlib
+            import hmac
+            from django.conf import settings
+
+            signature = hmac.new(
+                bytes(settings.SUPPORT_SECRET, "latin-1"),
+                msg=bytes(user.email, "latin-1"),
+                digestmod=hashlib.sha256,
+            ).hexdigest()
+
+            settings = user.get_settings()
+            settings.verification_token = signature
+            if external_id:
+                settings.external_id = external_id
+            settings.save()
+
         except Exception:  # pragma: no cover
             logger.error("error posting to crisp", exc_info=True)
 

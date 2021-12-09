@@ -5,6 +5,11 @@
   -trans "Welcome Back"
       
 -block login-content        
+
+  -if crisp_website_id
+    :javascript
+      $crisp.push(["do", "session:reset"])
+
   -blocktrans trimmed
     Please sign in with your email address and password.
 

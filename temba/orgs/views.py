@@ -2492,6 +2492,8 @@ class OrgCRUDL(SmartCRUDL):
                     self.request.session["org_id"] = org.id
                     self.request.org = org
 
+                    analytics.identify(user, self.request.branding, org)
+
                     return HttpResponseRedirect(self.get_success_url())
 
                 elif user_orgs.count() == 0:
@@ -2522,6 +2524,7 @@ class OrgCRUDL(SmartCRUDL):
 
             self.request.session["org_id"] = org.id
             self.request.org = org
+            analytics.identify(self.request.user, self.request.branding, org)
             return HttpResponseRedirect(self.get_success_url())
 
     class CreateLogin(SmartUpdateView):
