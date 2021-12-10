@@ -1489,12 +1489,13 @@ class FlowCRUDL(SmartCRUDL):
                     ),
                 )
             else:
+                flows = form.cleaned_data[ExportFlowResultsTask.FLOWS]
                 responded_only = form.cleaned_data[ExportFlowResultsTask.RESPONDED_ONLY]
 
                 export = ExportFlowResultsTask.create(
                     org,
                     user,
-                    form.cleaned_data[ExportFlowResultsTask.FLOWS],
+                    flows,
                     contact_fields=form.cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS],
                     include_msgs=form.cleaned_data[ExportFlowResultsTask.INCLUDE_MSGS],
                     responded_only=responded_only,
@@ -1503,7 +1504,11 @@ class FlowCRUDL(SmartCRUDL):
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 
-                analytics.track(self.request.user, "temba.results_export_started", dict(responded_only=responded_only))
+                analytics.track(
+                    self.request.user,
+                    "temba.responses_export_started" if responded_only else "temba.results_export_started",
+                    dict(flows=[f.uuid for f in flows]),
+                )
 
                 if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: needs cover
                     messages.info(
