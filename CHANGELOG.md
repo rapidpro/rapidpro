@@ -1,3 +1,8 @@
+v7.1.17
+----------
+ * Tweak event tracking for results exports
+ * Revert change to hide non-responded runs in UI
+
 v7.1.16
 ----------
  * Drop Msg.response_to
