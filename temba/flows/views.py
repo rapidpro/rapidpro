@@ -1503,7 +1503,6 @@ class FlowCRUDL(SmartCRUDL):
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 
-
                 analytics.track(
                     self.request.user,
                     "temba.responses_export_started" if responded_only else "temba.results_export_started",
