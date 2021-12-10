@@ -1506,7 +1506,7 @@ class FlowCRUDL(SmartCRUDL):
                 analytics.track(
                     self.request.user,
                     "temba.responses_export_started" if responded_only else "temba.results_export_started",
-                    dict(flows=[f.uuid for f in flows].join(", ")),
+                    dict(flows=", ".join([f.uuid for f in flows].join(", ")))
                 )
 
                 if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: needs cover
