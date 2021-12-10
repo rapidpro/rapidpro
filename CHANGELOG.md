@@ -1,3 +1,7 @@
+v7.1.18
+----------
+ * Implement crisp as an analytics integration
+
 v7.1.17
 ----------
  * Tweak event tracking for results exports
