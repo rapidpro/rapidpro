@@ -1503,10 +1503,11 @@ class FlowCRUDL(SmartCRUDL):
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 
+
                 analytics.track(
                     self.request.user,
                     "temba.responses_export_started" if responded_only else "temba.results_export_started",
-                    dict(flows=[f.uuid for f in flows]),
+                    dict(flows=[f.uuid for f in flows].join(", ")),
                 )
 
                 if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: needs cover

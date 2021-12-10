@@ -1203,14 +1203,14 @@ TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET", "MISSING_TWITTER_API_S
 SEGMENT_IO_KEY = os.environ.get("SEGMENT_IO_KEY", "")
 
 # Intercom token and app_id for support
-INTERCOM_APP_ID = os.environ.get("INTERCOM_APP_ID" "")
+INTERCOM_APP_ID = os.environ.get("INTERCOM_APP_ID", "")
 INTERCOM_TOKEN = os.environ.get("INTERCOM_TOKEN", "")
 
 # Crisp id and key support option
-SUPPORT_SECRET = os.environ.get("SUPPORT_SECRET" "")
-CRISP_IDENTIFIER = os.environ.get("CRISP_IDENTIFIER" "")
-CRISP_KEY = os.environ.get("CRISP_KEY" "")
-CRISP_WEBSITE_ID = os.environ.get("CRISP_WEBSITE_ID" "")
+SUPPORT_SECRET = os.environ.get("SUPPORT_SECRET", "")
+CRISP_IDENTIFIER = os.environ.get("CRISP_IDENTIFIER", "")
+CRISP_KEY = os.environ.get("CRISP_KEY", "")
+CRISP_WEBSITE_ID = os.environ.get("CRISP_WEBSITE_ID", "")
 
 # Google analytics tracking ID
 GOOGLE_TRACKING_ID = os.environ.get("GOOGLE_TRACKING_ID", "")
