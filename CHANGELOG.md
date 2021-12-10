@@ -1,3 +1,7 @@
+v7.1.21
+----------
+ * Fix join syntax, argh
+
 v7.1.20
 ----------
  * Arrays not allowed on track events
