@@ -1,3 +1,7 @@
+v7.1.22
+----------
+ * Fix join syntax
+
 v7.1.21
 ----------
  * Fix join syntax, argh
