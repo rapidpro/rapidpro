@@ -8,6 +8,7 @@ from unittest.mock import PropertyMock, patch
 
 import iso8601
 import pytz
+from django_redis import get_redis_connection
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -2826,6 +2827,36 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.get(recent_messages_url + blue_params)
         assert_recent(response, ["blue"])
+
+    def test_recent_operands(self):
+        flow = self.create_flow()
+        node1_exit1_uuid = "805f5073-ce96-4b6a-ab9f-e77dd412f83b"
+        node2_uuid = "fcc47dc4-306b-4b2f-ad72-7e53f045c3c4"
+
+        seg1_url = reverse("flows.flow_recent_operands", args=[flow.uuid, node1_exit1_uuid, node2_uuid])
+
+        response = self.assertReadFetch(seg1_url, allow_viewers=True, allow_editors=True)
+        self.assertEqual([], response.json())
+
+        def add_recent_operand(exit_uuid: str, dest_uuid: str, text: str, ts: float):
+            r = get_redis_connection()
+            member = f"{uuid4()}|{text}"  # text is prefixed with a UUID to keep it unique
+            score = ts * 1000  # scores are millisecond timestamps
+            r.zadd(f"recent_operands:{exit_uuid}:{dest_uuid}", mapping={member: score})
+
+        add_recent_operand(node1_exit1_uuid, node2_uuid, "Hi there", 1639338554.969)
+        add_recent_operand(node1_exit1_uuid, node2_uuid, "|x|", 1639338555.234)
+        add_recent_operand(node1_exit1_uuid, node2_uuid, "Sounds good", 1639338561.345)
+
+        response = self.assertReadFetch(seg1_url, allow_viewers=True, allow_editors=True)
+        self.assertEqual(
+            [
+                {"text": "Sounds good", "time": "2021-12-12T19:49:21.345Z"},
+                {"text": "|x|", "time": "2021-12-12T19:49:15.234Z"},
+                {"text": "Hi there", "time": "2021-12-12T19:49:14.969Z"},
+            ],
+            response.json(),
+        )
 
     def test_results(self):
         flow = self.get_flow("favorites_v13")

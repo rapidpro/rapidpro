@@ -33,6 +33,7 @@ from temba.orgs.models import Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
+from temba.utils.dates import timestamp_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import (
     JSONAsTextField,
@@ -660,6 +661,23 @@ class Flow(TembaModel):
             "failed": totals_by_exit.get(FlowRun.EXIT_TYPE_FAILED, 0),
             "completion": int(completed * 100 // total_runs) if total_runs else 0,
         }
+
+    def get_recent_operands(self, exit_uuid: str, dest_uuid: str) -> list:
+        r = get_redis_connection()
+        key = f"recent_operands:{exit_uuid}:{dest_uuid}"
+
+        operands = []
+        for member, score in r.zrange(key, start=0, end=-1, desc=True, withscores=True):
+            operands.append(
+                {
+                    "text": member.decode().split("|", maxsplit=1)[
+                        1
+                    ],  # trim off UUID prefix used to make values unique
+                    "time": timestamp_to_datetime(score * 1000),  # convert from millis
+                }
+            )
+
+        return operands
 
     def async_start(self, user, groups, contacts, query=None, restart_participants=False, include_active=True):
         """

@@ -210,6 +210,7 @@ class FlowCRUDL(SmartCRUDL):
         "campaign",
         "revisions",
         "recent_messages",
+        "recent_operands",
         "assets",
         "upload_media_action",
     )
@@ -266,6 +267,22 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
             return JsonResponse(recent_messages, safe=False)
+
+    class RecentOperands(OrgObjPermsMixin, SmartReadView):
+        """
+        Used by the editor for the rollover of recent operands coming from split exits
+        """
+
+        slug_url_kwarg = "uuid"
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return rf"^{path}/{action}/(?P<uuid>[0-9a-f-]+)/(?P<exit_uuid>[0-9a-f-]+)/(?P<dest_uuid>[0-9a-f-]+)/$"
+
+        def render_to_response(self, context, **response_kwargs):
+            exit_uuid, dest_uuid = self.kwargs["exit_uuid"], self.kwargs["dest_uuid"]
+
+            return JsonResponse(self.object.get_recent_operands(exit_uuid, dest_uuid), safe=False)
 
     class Revisions(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         """
