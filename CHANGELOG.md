@@ -1,3 +1,7 @@
+v7.1.20
+----------
+ * Arrays not allowed on track events
+
 v7.1.19
 ----------
  * Add missing env to settings_common
