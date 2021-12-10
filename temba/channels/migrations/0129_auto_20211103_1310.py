@@ -87,12 +87,15 @@ def get_existing_messages_segments(apps, schema_editor):
     )
     logs_count = len(logs)
     for index, log in enumerate(logs):
-        logger.warning(f"Getting segments count from Twilio logs - {round(index / logs_count, 2)}%")
+        logger.info(f"Getting segments count from Twilio logs - {round(index / logs_count, 2)}%")
         if log.msg.direction == "O":
             try:
                 response_str = log.response.split("\r\n\r\n")[-1]
                 response_json = json.loads(response_str)
-                num_segments = int(response_json["num_segments"])
+                num_segments = int(response_json.get("num_segments", "0"))
+                if not num_segments:
+                    # skip if it's an status update log and don't contain num of segments
+                    continue
                 msg = msgs_to_update[log.msg.id] if log.msg.id in msgs_to_update.keys() else log.msg
                 msg.segments = num_segments + (msg.segments if msg.segments else 0)
                 msgs_to_update[msg.id] = msg
@@ -105,13 +108,14 @@ def get_existing_messages_segments(apps, schema_editor):
                     )
                 )
             except (IndexError, KeyError, json.JSONDecodeError) as e:
-                logger.error(str(e))
+                logger.error("Failed writing OMS channel log record:", e)
         else:
             try:
                 response_str = log.request.split("\r\n\r\n")[-1]
                 response_qs = parse_qs(response_str)
                 num_segments = response_qs.get("NumSegments")
                 if not num_segments:
+                    # skip if it's an status update log and don't contain num of segments
                     continue
                 num_segments = int(num_segments[0])
                 msg = msgs_to_update[log.msg.id] if log.msg.id in msgs_to_update.keys() else log.msg
@@ -126,7 +130,7 @@ def get_existing_messages_segments(apps, schema_editor):
                     )
                 )
             except (IndexError, KeyError, ValueError) as e:
-                logger.error(str(e))
+                logger.error("Failed writing IMS channel log record:", e)
 
     Msg.objects.using(db_alias).bulk_update(msgs_to_update.values(), ["segments"])
     ChannelCount.objects.using(db_alias).bulk_create(channel_counts)
