@@ -1,3 +1,7 @@
+v7.1.19
+----------
+ * Add missing env to settings_common
+
 v7.1.18
 ----------
  * Implement crisp as an analytics integration
