@@ -2,6 +2,7 @@ import copy
 import datetime
 import io
 import os
+import random
 from collections import OrderedDict
 from decimal import Decimal
 from types import SimpleNamespace
@@ -1246,28 +1247,40 @@ class AnalyticsTest(SmartminTest):
     def setUp(self):
         super().setUp()
 
+        random.seed(1)
+
         # create org and user stubs
         self.org = SimpleNamespace(
             id=1000, name="Some Org", brand="Some Brand", created_on=timezone.now(), account_value=lambda: 1000
         )
-        self.admin = SimpleNamespace(
-            username="admin@example.com", first_name="", last_name="", email="admin@example.com", is_authenticated=True
-        )
+
+        self.admin = MagicMock()
+        self.admin.username = "admin@example.com"
+        self.admin.first_name = ""
+        self.admin.last_name = ""
+        self.admin.email = "admin@example.com"
+        self.admin.is_authenticated = True
 
         self.intercom_mock = MagicMock()
         temba.utils.analytics._intercom = self.intercom_mock
+
+        self.crisp_mock = MagicMock()
+        temba.utils.analytics._crisp = self.crisp_mock
+
         temba.utils.analytics.init_analytics()
 
     def test_identify_intercom_exception(self):
         self.intercom_mock.users.create.side_effect = Exception("Kimi says bwoah...")
 
         with patch("temba.utils.analytics.logger") as mocked_logging:
-            temba.utils.analytics.identify(self.admin, "test", self.org)
+            temba.utils.analytics.identify(self.admin, {"slug": "test", "host": "rapidpro.io"}, self.org)
 
         mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
 
-    def test_identify_intercom(self):
-        temba.utils.analytics.identify(self.admin, "test", self.org)
+    def test_identify(self):
+
+        self.crisp_mock.website.get_people_profile.side_effect = Exception("No Profile")
+        temba.utils.analytics.identify(self.admin, {"slug": "test", "host": "rapidpro.io"}, self.org)
 
         # assert mocks
         self.intercom_mock.users.create.assert_called_with(
@@ -1277,9 +1290,10 @@ class AnalyticsTest(SmartminTest):
                 "org": self.org.name,
                 "paid": self.org.account_value(),
             },
-            email=self.admin.username,
+            email=self.admin.email,
             name=" ",
         )
+
         self.assertListEqual(
             self.intercom_mock.users.create.return_value.companies,
             [
@@ -1291,14 +1305,64 @@ class AnalyticsTest(SmartminTest):
                 }
             ],
         )
+
         # did we actually call save?
         self.intercom_mock.users.save.assert_called_once()
+        self.crisp_mock.website.add_new_people_profile.assert_called_with(
+            self.crisp_mock.website_id,
+            {
+                "person": {"nickname": " "},
+                "company": {
+                    "name": "Some Org",
+                    "url": "https://rapidpro.io/org/update/1000/",
+                    "domain": "rapidpro.io/org/update/1000",
+                },
+                "segments": ["test", "random-3"],
+                "email": "admin@example.com",
+            },
+        )
 
-    def test_track_intercom(self):
-        temba.utils.analytics.track(self.admin, "test event", properties={"plan": "free"})
+        # now identify when there is an existing profile
+        self.crisp_mock = MagicMock()
+        temba.utils.analytics._crisp = self.crisp_mock
+        temba.utils.analytics.identify(self.admin, {"slug": "test", "host": "rapidpro.io"}, self.org)
+
+        self.crisp_mock.website.update_people_profile.assert_called_with(
+            self.crisp_mock.website_id,
+            self.admin.email,
+            {
+                "person": {"nickname": " "},
+                "company": {
+                    "name": "Some Org",
+                    "url": "https://rapidpro.io/org/update/1000/",
+                    "domain": "rapidpro.io/org/update/1000",
+                },
+                "segments": mock.ANY,
+            },
+        )
+
+    def test_track(self):
+        temba.utils.analytics.track(self.admin, "temba.flow_created", properties={"name": "My Flow"})
 
         self.intercom_mock.events.create.assert_called_with(
-            event_name="test event", created_at=mock.ANY, email=self.admin.username, metadata={"plan": "free"}
+            event_name="temba.flow_created",
+            created_at=mock.ANY,
+            email=self.admin.username,
+            metadata={"name": "My Flow"},
+        )
+
+        self.crisp_mock.website.add_people_event.assert_called_with(
+            self.crisp_mock.website_id,
+            self.admin.username,
+            {"color": "blue", "text": "Flow created", "data": {"name": "My Flow"}},
+        )
+
+        # different events get different colors in crisp
+        temba.utils.analytics.track(self.admin, "temba.user_signup")
+        self.crisp_mock.website.add_people_event.assert_called_with(
+            self.crisp_mock.website_id,
+            self.admin.username,
+            {"color": "green", "text": "User signup", "data": {}},
         )
 
     def test_track_not_anon_user(self):
@@ -1336,11 +1400,18 @@ class AnalyticsTest(SmartminTest):
 
         # valid user which did not consent
         self.intercom_mock.users.find.return_value = MagicMock(custom_attributes={"consent": False})
+        self.crisp_mock.website.get_people_profile.return_value = {"segments": []}
 
         temba.utils.analytics.change_consent(self.admin.email, consent=True)
 
         self.intercom_mock.users.create.assert_called_with(
             email=self.admin.email, custom_attributes=dict(consent=True, consent_changed=mock.ANY)
+        )
+
+        self.crisp_mock.website.update_people_profile.assert_called_with(
+            self.crisp_mock.website_id,
+            "admin@example.com",
+            {"segments": ["consented"]},
         )
 
     def test_consent_valid_user_already_consented(self):
@@ -1355,6 +1426,8 @@ class AnalyticsTest(SmartminTest):
 
         # valid user which did not consent
         self.intercom_mock.users.find.return_value = MagicMock(custom_attributes={"consent": False})
+        self.crisp_mock.website.get_people_profile.return_value = {"segments": ["random-3", "consented"]}
+        self.crisp_mock.website.get_people_data.return_value = {"data": {}}
 
         temba.utils.analytics.change_consent(self.admin.email, consent=False)
 
@@ -1362,6 +1435,10 @@ class AnalyticsTest(SmartminTest):
             email=self.admin.email, custom_attributes=dict(consent=False, consent_changed=mock.ANY)
         )
         self.intercom_mock.users.delete.assert_called_with(mock.ANY)
+
+        self.crisp_mock.website.save_people_data.assert_called_with(
+            self.crisp_mock.website_id, self.admin.email, {"data": {"consent_changed": mock.ANY}}
+        )
 
     def test_consent_exception(self):
         self.intercom_mock.users.find.side_effect = Exception("Kimi says bwoah...")

@@ -59,6 +59,7 @@ packaging = "^20.9"
 requests-toolbelt = "^0.9.1"
 chardet = "^4.0.0"
 openpyxl = "^3.0.9"
+crisp-api = "1.1.10"
 
 [tool.poetry.dev-dependencies]
 black = "^21.11b1"

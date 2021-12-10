@@ -2492,6 +2492,8 @@ class OrgCRUDL(SmartCRUDL):
                     self.request.session["org_id"] = org.id
                     self.request.org = org
 
+                    analytics.identify(user, self.request.branding, org)
+
                     return HttpResponseRedirect(self.get_success_url())
 
                 elif user_orgs.count() == 0:
@@ -2522,6 +2524,7 @@ class OrgCRUDL(SmartCRUDL):
 
             self.request.session["org_id"] = org.id
             self.request.org = org
+            analytics.identify(self.request.user, self.request.branding, org)
             return HttpResponseRedirect(self.get_success_url())
 
     class CreateLogin(SmartUpdateView):
@@ -2943,7 +2946,7 @@ class OrgCRUDL(SmartCRUDL):
             user = authenticate(username=self.user.username, password=self.form.cleaned_data["password"])
 
             # setup user tracking before creating Org in super().post_save
-            analytics.identify(user, brand=self.request.branding["slug"], org=obj)
+            analytics.identify(user, brand=self.request.branding, org=obj)
             analytics.track(user=user, event_name="temba.org_signup", properties=dict(org=obj.name))
 
             obj = super().post_save(obj)

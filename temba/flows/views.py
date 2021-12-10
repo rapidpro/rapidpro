@@ -455,7 +455,6 @@ class FlowCRUDL(SmartCRUDL):
             return context
 
         def save(self, obj):
-            analytics.track(self.request.user, "temba.flow_created", dict(name=obj.name))
             org = self.request.user.get_org()
 
             # default expiration is a week
@@ -1769,10 +1768,10 @@ class FlowCRUDL(SmartCRUDL):
                     dict(status="error", description="mailroom not configured, cannot simulate"), status=500
                 )
 
-            analytics.track(request.user, "temba.flow_simulated")
-
             flow = self.get_object()
             client = mailroom.get_client()
+
+            analytics.track(request.user, "temba.flow_simulated", dict(flow=flow.name, uuid=flow.uuid))
 
             channel_uuid = "440099cf-200c-4d45-a8e7-4a564f4a0e8b"
             channel_name = "Test Channel"

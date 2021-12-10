@@ -1,8 +1,11 @@
+import hashlib
+import hmac
 import logging
 import time
 from random import randint
 
 import analytics as segment_analytics
+from crisp_api import Crisp
 from intercom.client import Client as IntercomClient
 from intercom.errors import ResourceNotFound
 from librato_bg import Client as LibratoClient
@@ -19,6 +22,9 @@ _librato = None
 
 # our intercom client
 _intercom = None
+
+# our crisp client if configured
+_crisp = None
 
 # whether segment is active
 _segment = False
@@ -49,6 +55,16 @@ def init_analytics():  # pragma: no cover
     if librato_user and librato_token:
         global _librato
         _librato = LibratoClient(librato_user, librato_token)
+
+    crisp_identifier = getattr(settings, "CRISP_IDENTIFIER", None)
+    crisp_key = getattr(settings, "CRISP_KEY", None)
+    crisp_website_id = getattr(settings, "CRISP_WEBSITE_ID", None)
+    if crisp_identifier and crisp_key and crisp_website_id:
+        global _crisp
+        _crisp = Crisp()
+        _crisp.website_id = crisp_website_id
+        _crisp.set_tier("plugin")
+        _crisp.authenticate(crisp_identifier, crisp_key)
 
 
 def get_intercom_user(email):
@@ -107,7 +123,11 @@ def identify(user, brand, org):
     """
 
     attributes = dict(
-        email=user.username, first_name=user.first_name, segment=randint(1, 10), last_name=user.last_name, brand=brand
+        email=user.username,
+        first_name=user.first_name,
+        segment=randint(1, 10),
+        last_name=user.last_name,
+        brand=brand["slug"] if brand else None,
     )
     user_name = f"{user.first_name} {user.last_name}"
     if org:
@@ -116,7 +136,7 @@ def identify(user, brand, org):
 
     # post to segment if configured
     if _segment:  # pragma: no cover
-        segment_analytics.identify(user.username, attributes)
+        segment_analytics.identify(user.email, attributes)
 
     # post to intercom if configured
     if _intercom:
@@ -125,8 +145,7 @@ def identify(user, brand, org):
             for key in ("first_name", "last_name", "email"):
                 attributes.pop(key, None)
 
-            intercom_user = _intercom.users.create(email=user.username, name=user_name, custom_attributes=attributes)
-
+            intercom_user = _intercom.users.create(email=user.email, name=user_name, custom_attributes=attributes)
             intercom_user.companies = [
                 dict(
                     company_id=org.id,
@@ -139,6 +158,59 @@ def identify(user, brand, org):
             _intercom.users.save(intercom_user)
         except Exception:
             logger.error("error posting to intercom", exc_info=True)
+
+    if _crisp:
+
+        user_settings = user.get_settings()
+        existing_profile = None
+        external_id = user_settings.external_id
+        segments = [attributes["brand"], f"random-{attributes['segment']}"]
+
+        try:
+            existing_profile = _crisp.website.get_people_profile(_crisp.website_id, user.email)
+            segments = existing_profile["segments"]
+            external_id = existing_profile["people_id"]
+
+            segments.push(attributes["brand"])
+            randoms = [seg for seg in segments if seg.startswith("random-")]
+            if not randoms:
+                segments.append(f"random-{attributes['segment']}")
+
+        except Exception:
+            pass
+
+        data = {"person": {"nickname": user_name}, "segments": segments}
+
+        if org and brand:
+            data["company"] = {
+                "name": org.name,
+                "url": f"https://{brand['host']}/org/update/{org.id}/",
+                "domain": f"{brand['host']}/org/update/{org.id}",
+            }
+
+        try:
+            if existing_profile:
+                _crisp.website.update_people_profile(_crisp.website_id, user.email, data)
+            else:
+                data["email"] = user.email
+                response = _crisp.website.add_new_people_profile(_crisp.website_id, data)
+                external_id = response["data"]["people_id"]
+
+            support_secret = getattr(settings, "SUPPORT_SECRET", "")
+            signature = hmac.new(
+                bytes(support_secret, "latin-1"),
+                msg=bytes(user.email, "latin-1"),
+                digestmod=hashlib.sha256,
+            ).hexdigest()
+
+            user_settings = user.get_settings()
+            user_settings.verification_token = signature
+            if external_id:
+                user_settings.external_id = external_id
+            user_settings.save()
+
+        except Exception:  # pragma: no cover
+            logger.error("error posting to crisp", exc_info=True)
 
 
 def set_orgs(email, all_orgs):
@@ -165,10 +237,10 @@ def change_consent(email, consent):
     """
     Notifies analytics backends of a user's consent status.
     """
+    change_date = json.encode_datetime(timezone.now())
 
     if _intercom:
         try:
-            change_date = json.encode_datetime(timezone.now())
 
             user = get_intercom_user(email)
 
@@ -188,6 +260,45 @@ def change_consent(email, consent):
 
         except Exception:
             logger.error("error posting to intercom", exc_info=True)
+
+    if _crisp:
+
+        consented_segment = "consented"
+
+        try:
+            profile = _crisp.website.get_people_profile(_crisp.website_id, email)
+            segments = profile["segments"]
+
+            previous_segment_count = len(segments)
+            previously_consented = "consented" in segments
+
+            # we need to remove an existing consent
+            if not consent and previously_consented:
+                segments = [seg for seg in segments if seg != consented_segment]
+
+            # we need to add a new consent
+            if consent and not previously_consented:
+                segments.append(consented_segment)
+
+            # update our segment data if necessary
+            if len(segments) != previous_segment_count:
+                _crisp.website.update_people_profile(_crisp.website_id, email, {"segments": segments})
+
+            # this would be better as an update which merges, but v1.10 of the python client doesn't support that yet
+            data = _crisp.website.get_people_data(_crisp.website_id, email)["data"]
+            data[f"consent_changed"] = change_date
+            _crisp.website.save_people_data(_crisp.website_id, email, {"data": data})
+
+            # add an event for acting on this, not that events are ephemeral
+            if consent:
+                _crisp.website.add_people_event(
+                    _crisp.website_id, email, {"color": "green", "text": f"Consent granted"}
+                )
+            else:
+                _crisp.website.add_people_event(_crisp.website_id, email, {"color": "red", "text": f"Consent revoked"})
+
+        except Exception:  # pragma: no cover
+            logger.error("error accessing crisp", exc_info=True)
 
 
 def track(user, event_name, properties=None, context=None):
@@ -232,3 +343,29 @@ def track(user, event_name, properties=None, context=None):
             )
         except Exception:
             logger.error("error posting to intercom", exc_info=True)
+
+    if _crisp:
+
+        color = "grey"
+
+        if "signup" in event_name:
+            color = "green"
+
+        if "created" in event_name:
+            color = "blue"
+
+        if "export" in event_name or "import" in event_name:
+            color = "purple"
+
+        # Crisp prefers human readable events
+        event_name = event_name.replace("temba.", "")
+        event_name = " ".join(event_name.split("_")).capitalize()
+
+        try:
+            _crisp.website.add_people_event(
+                _crisp.website_id,
+                email,
+                {"color": color, "text": event_name, "data": properties if properties else {}},
+            )
+        except Exception:  # pragma: no cover
+            logger.error("error posting to crisp", exc_info=True)
