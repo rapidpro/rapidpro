@@ -155,6 +155,40 @@
           overflow-x: auto;
         }
 
+        .responded-checkbox {
+          padding-bottom: 10px;
+          padding-left: 15px;
+
+          .input-group {
+            display: inline;
+            margin-left: 15px;
+            margin-right: 15px;
+          }
+
+          .runs-show-sep {
+            display: inline;
+            margin-left: 5px;
+            margin-right: 5px;
+          }
+
+          .runs-show {
+            display: inline;
+            cursor: pointer;
+            color: @color-primary;
+
+            &:hover{
+              text-decoration: underline;
+            }
+
+            &.active {
+              cursor: default;
+              pointer-events: none;
+              text-decoration: none;
+              color: #555555;
+            }
+          }
+        }
+
         .add-columns {
           display: inline;
           margin-left: 8px;
@@ -544,13 +578,22 @@
 
     $(document).ready(function() {
       updateCharts();
+      localStorage.setItem("responded", "true");
     });
 
     $(function(){
       $(document).on('beforeAjaxSend.ic', function(event, ajaxSetup, elt){
-        ajaxSetup.data = ajaxSetup.data + "&responded=true";
+        responded = localStorage.getItem("responded");
+        ajaxSetup.data = ajaxSetup.data + "&responded=" + responded;
       });
     });
+
+    $(function() {
+        $(".responded-checkbox .runs-show").on('click', function(){
+          $(this).siblings().not($(this)).removeClass("active");
+          $(this).addClass("active");
+        });
+      });
 
 -block content
 
@@ -570,7 +613,7 @@
 
       %li
         %a(href="#runs" data-toggle="tab" onclick="updateColumnSelect();")
-          -trans "Responses"
+          -trans "Runs"
 
     .tab-content
       #overview.tab-pane.active.py-4
@@ -583,6 +626,25 @@
       #runs.tab-pane
         .scroll-x
           .responded-checkbox.flex.items-center.py-3.w-full
+            .runs-show#show-all-runs{
+                                        ic-get-from:"/flow/run_table/{{object.id}}/",
+                                        ic-on-beforeSend:'$("#results_run_table").empty();',
+                                        ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
+                                        ic-trigger-on:"click",
+                                        ic-target:"#results_run_table",
+                                        ic-indicator:"#indicator"}
+              -trans "All"
+            .runs-show-sep
+              |
+            .runs-show.active{
+                                        ic-get-from:"/flow/run_table/{{object.id}}/",
+                                        ic-on-beforeSend:'$("#results_run_table").empty();',
+                                        ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
+                                        ic-trigger-on:"click",
+                                        ic-target:"#results_run_table",
+                                        ic-indicator:"#indicator"}
+              -trans "Responded"
+              
             .flex-grow
             .add-columns.select.flex-grow.pl-12.pr-4
               .selection
