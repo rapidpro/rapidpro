@@ -62,10 +62,29 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 response_json = response.json()
 
                 page_access_token = ""
-                for elt in response_json["data"]:
-                    if elt["id"] == str(page_id):
-                        page_access_token = elt["access_token"]
-                        name = elt["name"]
+
+                while True:
+                    response = requests.get(url, params=params)
+                    response_json = response.json()
+
+                    if response.status_code != 200:  # pragma: no cover
+                        raise Exception("Failed to get a page long lived token")
+
+                    for page in response_json.get("data", []):
+                        if page["id"] == str(page_id):
+                            page_access_token = page["access_token"]
+                            name = page["name"]
+                            break
+
+                    if page_access_token != "":
+                        break
+
+                    next_ = response_json["paging"].get("next", None)
+
+                    if next_ is not None:
+                        url = next_
+
+                    else:
                         break
 
                 if page_access_token == "":  # pragma: no cover
@@ -205,13 +224,29 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         response_json = response.json()
 
         page_access_token = ""
-        for elt in response_json["data"]:
-            if elt["id"] == str(page_id):
-                page_access_token = elt["access_token"]
-                name = elt["name"]
+        while True:
+            response = requests.get(url, params=params)
+            response_json = response.json()
+
+            if response.status_code != 200:  # pragma: no cover
+                raise Exception("Failed to get a page long lived token")
+
+            for page in response_json.get("data", []):
+                if page["id"] == str(page_id):
+                    page_access_token = page["access_token"]
+                    name = page["name"]
+                    break
+
+            if page_access_token != "":
                 break
-        if page_access_token == "":  # pragma: no cover
-            raise Exception("Empty page access token!")
+
+            next_ = response_json["paging"].get("next", None)
+
+            if next_ is not None:
+                url = next_
+
+            else:
+                break
 
         url = f"https://graph.facebook.com/v12.0/{page_id}/subscribed_apps"
         params = {"access_token": page_access_token}
