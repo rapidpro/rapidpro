@@ -1475,8 +1475,6 @@ class FlowCRUDL(SmartCRUDL):
                 return dict()
 
         def form_valid(self, form):
-            analytics.track(self.request.user, "temba.flow_exported")
-
             user = self.request.user
             org = user.get_org()
 
@@ -1491,17 +1489,21 @@ class FlowCRUDL(SmartCRUDL):
                     ),
                 )
             else:
+                responded_only = form.cleaned_data[ExportFlowResultsTask.RESPONDED_ONLY]
+
                 export = ExportFlowResultsTask.create(
                     org,
                     user,
                     form.cleaned_data[ExportFlowResultsTask.FLOWS],
                     contact_fields=form.cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS],
                     include_msgs=form.cleaned_data[ExportFlowResultsTask.INCLUDE_MSGS],
-                    responded_only=form.cleaned_data[ExportFlowResultsTask.RESPONDED_ONLY],
+                    responded_only=responded_only,
                     extra_urns=form.cleaned_data[ExportFlowResultsTask.EXTRA_URNS],
                     group_memberships=form.cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS],
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
+
+                analytics.track(self.request.user, "temba.results_export_started", dict(responded_only=responded_only))
 
                 if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: needs cover
                     messages.info(
