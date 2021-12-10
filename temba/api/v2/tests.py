@@ -44,6 +44,7 @@ from temba.utils import json
 
 from . import fields
 from .serializers import format_datetime, normalize_extra
+from .validators import is_uuid_valid
 
 NUM_BASE_REQUEST_QUERIES = 6  # number of db queries required for any API request
 
@@ -4422,3 +4423,10 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(1, len(resp_json["results"]))
         self.assertEqual("Bob", resp_json["results"][0]["contact"]["name"])
+
+    def test_is_uuid_valid(self):
+        valid = is_uuid_valid("1234-123-123")
+        self.assertFalse(valid)
+
+        valid = is_uuid_valid("6df7f177-6d1b-4493-8cea-086de5dcff5e")
+        self.assertTrue(valid)
