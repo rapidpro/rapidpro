@@ -22,7 +22,7 @@ class InstagramType(ChannelType):
     courier_url = r"^ig/receive"
 
     name = "Instagram"
-    icon = "icon-facebook-official"
+    icon = "icon-instagram"
 
     show_config_page = False
 
