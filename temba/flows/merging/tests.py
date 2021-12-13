@@ -1,6 +1,7 @@
 import pickle
 
 from temba.flows.merging import Node, Graph
+from temba.flows.merging.helpers import get_flow_step_name, actions_names, get_flow_step_type
 from temba.flows.merging.merging import GraphDifferenceNode
 from temba.tests import TembaTest
 
@@ -183,6 +184,20 @@ class TestMergingFlows(TembaTest):
             ]
         }
 
+        self.sample_nodes = [
+            {"actions": [{"type": "call_classifier"}]},
+            {"actions": [{"type": "set_contact"}]},
+            {"router": {"type": "random"}},
+            {"router": {"wait": {"type": "msg"}}},
+            {"router": {}, "actions": [{"type": "call_classifier"}]},
+            {"router": {"operand": "@input.name"}},
+            {"router": {"operand": "@input.result"}},
+            {"router": {"operand": "@input.text"}},
+            {"router": {"operand": "@input.groups"}},
+            {"router": {"operand": "scheme"}},
+            {"router": {}},
+        ]
+
     def test_node(self):
         def copy(obj):
             return pickle.loads(pickle.dumps(obj))
@@ -288,3 +303,36 @@ class TestMergingFlows(TembaTest):
         self.assertEqual(len(graph_node.origin_exits_map), 0)
         graph_node.match_exits()
         self.assertEqual(len(graph_node.origin_exits_map), 2)
+
+    def test_get_flow_step_name(self):
+        flow_json = self.flow1_json
+
+        flow_name = get_flow_step_name(flow_json["nodes"][0])
+        self.assertEqual(flow_name, "Split by Group Membership")
+
+        nodes = self.sample_nodes
+        self.assertEqual(get_flow_step_name(nodes[0]), "")
+        self.assertEqual(get_flow_step_name(nodes[1]), actions_names.get("set_contact_field").get("name", ""))
+        self.assertEqual(get_flow_step_name(nodes[2]), actions_names.get("split_by_random").get("name", ""))
+        self.assertEqual(get_flow_step_name(nodes[3]), actions_names.get("wait_for_response").get("name", ""))
+        self.assertEqual(get_flow_step_name(nodes[4]), "")
+        self.assertEqual(get_flow_step_name(nodes[5]), actions_names.get("split_by_name").get("name", ""))
+        self.assertEqual(get_flow_step_name(nodes[6]), actions_names.get("split_by_run_result").get("name", ""))
+        self.assertEqual(get_flow_step_name(nodes[7]), actions_names.get("split_by_expression").get("name", ""))
+        self.assertEqual(get_flow_step_name(nodes[8]), actions_names.get("split_by_groups").get("name", ""))
+        self.assertEqual(get_flow_step_name(nodes[9]), actions_names.get("split_by_scheme").get("name", ""))
+        self.assertEqual(get_flow_step_name(nodes[10], "Test Flow"), "Test Flow")
+
+    def test_get_flow_step_type(self):
+        nodes = self.sample_nodes
+        self.assertEqual(get_flow_step_type(nodes[0]), "call_classifier")
+        self.assertEqual(get_flow_step_type(nodes[1]), "set_contact_field")
+        self.assertEqual(get_flow_step_type(nodes[2]), "split_by_random")
+        self.assertEqual(get_flow_step_type(nodes[3]), "wait_for_response")
+        self.assertEqual(get_flow_step_type(nodes[4]), "call_classifier")
+        self.assertEqual(get_flow_step_type(nodes[5]), "split_by_name")
+        self.assertEqual(get_flow_step_type(nodes[6]), "split_by_run_result")
+        self.assertEqual(get_flow_step_type(nodes[7]), "split_by_expression")
+        self.assertEqual(get_flow_step_type(nodes[8]), "split_by_groups")
+        self.assertEqual(get_flow_step_type(nodes[9]), "split_by_scheme")
+        self.assertEqual(get_flow_step_type(nodes[10], "sample-name"), "sample-name")
