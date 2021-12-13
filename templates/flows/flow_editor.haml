@@ -444,14 +444,14 @@
     let doNotContact = "{{ user_org.do_not_contact }}" === "True";
     if (doNotContact) {
       let sendModalSubmit = sendModal.submit.bind(sendModal);
+      doNotContactDialog.addEventListener("temba-button-clicked", function(event) {
+        if (!event.detail.button.secondary) {
+          doNotContactDialog.open = false;
+          sendModalSubmit();
+        }
+      });
       sendModal.submit = () => {
         doNotContactDialog.open = true;
-        doNotContactDialog.addEventListener("temba-button-clicked", function(event) {
-          if (!event.detail.button.secondary) {
-            doNotContactDialog.open = false;
-            sendModalSubmit();
-          }
-        });
       }
     }
     {% endif %}
