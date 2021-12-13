@@ -2828,32 +2828,46 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(recent_messages_url + blue_params)
         assert_recent(response, ["blue"])
 
-    def test_recent_operands(self):
+    def test_recent_contacts(self):
         flow = self.create_flow()
+        contact1 = self.create_contact("Bob", phone="0979111111")
+        contact2 = self.create_contact("", phone="0979222222")
         node1_exit1_uuid = "805f5073-ce96-4b6a-ab9f-e77dd412f83b"
         node2_uuid = "fcc47dc4-306b-4b2f-ad72-7e53f045c3c4"
 
-        seg1_url = reverse("flows.flow_recent_operands", args=[flow.uuid, node1_exit1_uuid, node2_uuid])
+        seg1_url = reverse("flows.flow_recent_contacts", args=[flow.uuid, node1_exit1_uuid, node2_uuid])
 
+        # nothing set in redis just means empty list
         response = self.assertReadFetch(seg1_url, allow_viewers=True, allow_editors=True)
         self.assertEqual([], response.json())
 
-        def add_recent_operand(exit_uuid: str, dest_uuid: str, text: str, ts: float):
+        def add_recent_contact(exit_uuid: str, dest_uuid: str, contact, text: str, ts: float):
             r = get_redis_connection()
-            member = f"{uuid4()}|{text}"  # text is prefixed with a UUID to keep it unique
-            score = ts * 1000  # scores are millisecond timestamps
-            r.zadd(f"recent_operands:{exit_uuid}:{dest_uuid}", mapping={member: score})
+            member = f"{uuid4()}|{contact.id}|{text}"  # text is prefixed with a random value to keep it unique
+            r.zadd(f"recent_contacts:{exit_uuid}:{dest_uuid}", mapping={member: ts})
 
-        add_recent_operand(node1_exit1_uuid, node2_uuid, "Hi there", 1639338554.969)
-        add_recent_operand(node1_exit1_uuid, node2_uuid, "|x|", 1639338555.234)
-        add_recent_operand(node1_exit1_uuid, node2_uuid, "Sounds good", 1639338561.345)
+        add_recent_contact(node1_exit1_uuid, node2_uuid, contact1, "Hi there", 1639338554.969123)
+        add_recent_contact(node1_exit1_uuid, node2_uuid, contact2, "|x|", 1639338555.234567)
+        add_recent_contact(node1_exit1_uuid, node2_uuid, contact1, "Sounds good", 1639338561.345678)
 
         response = self.assertReadFetch(seg1_url, allow_viewers=True, allow_editors=True)
         self.assertEqual(
             [
-                {"text": "Sounds good", "time": "2021-12-12T19:49:21.345Z"},
-                {"text": "|x|", "time": "2021-12-12T19:49:15.234Z"},
-                {"text": "Hi there", "time": "2021-12-12T19:49:14.969Z"},
+                {
+                    "contact": {"uuid": str(contact1.uuid), "name": "Bob"},
+                    "operand": "Sounds good",
+                    "time": "2021-12-12T19:49:21.345678+00:00",
+                },
+                {
+                    "contact": {"uuid": str(contact2.uuid), "name": "0979 222 222"},
+                    "operand": "|x|",
+                    "time": "2021-12-12T19:49:15.234567+00:00",
+                },
+                {
+                    "contact": {"uuid": str(contact1.uuid), "name": "Bob"},
+                    "operand": "Hi there",
+                    "time": "2021-12-12T19:49:14.969123+00:00",
+                },
             ],
             response.json(),
         )

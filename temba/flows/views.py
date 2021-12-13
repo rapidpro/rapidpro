@@ -210,7 +210,7 @@ class FlowCRUDL(SmartCRUDL):
         "campaign",
         "revisions",
         "recent_messages",
-        "recent_operands",
+        "recent_contacts",
         "assets",
         "upload_media_action",
     )
@@ -268,9 +268,9 @@ class FlowCRUDL(SmartCRUDL):
 
             return JsonResponse(recent_messages, safe=False)
 
-    class RecentOperands(OrgObjPermsMixin, SmartReadView):
+    class RecentContacts(OrgObjPermsMixin, SmartReadView):
         """
-        Used by the editor for the rollover of recent operands coming from split exits
+        Used by the editor for the rollover of recent contacts coming out of a split
         """
 
         slug_url_kwarg = "uuid"
@@ -282,7 +282,7 @@ class FlowCRUDL(SmartCRUDL):
         def render_to_response(self, context, **response_kwargs):
             exit_uuid, dest_uuid = self.kwargs["exit_uuid"], self.kwargs["dest_uuid"]
 
-            return JsonResponse(self.object.get_recent_operands(exit_uuid, dest_uuid), safe=False)
+            return JsonResponse(self.object.get_recent_contacts(exit_uuid, dest_uuid), safe=False)
 
     class Revisions(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         """
