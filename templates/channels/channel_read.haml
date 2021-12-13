@@ -197,7 +197,10 @@
       - if ivr_count
         .stats-switch
           .msgs-stats-label.active
-            Segments
+            - if msg_segments_count
+              Segments
+            - else
+              Messages
           .stats-sep
             |
           .ivr-stats-label
@@ -210,7 +213,7 @@
         - if msg_segments_count
           .minutes-disclaimer.mb-4
             Please note: When you send a SMS message over 160 characters, the message will be split. Large messages are
-            segmented into 153 characters segment and sent individually, then rebuild by the recipient's device. For
+            segmented into 153 character segments and sent individually, then rebuilt by the recipient's device. For
             example, a 161-character message will be sent as two messages, one with 153 characters and the second with 8
             characters. This is how CCL is billed and therefore how you are billed.
 
@@ -225,7 +228,7 @@
                 %th
                   -trans "Outgoing Segments"
                 %th
-                  -trans "Total Segmants"
+                  -trans "Total Segments"
               - else
                 %th
                   -trans "Incoming Text Messages"
@@ -269,7 +272,7 @@
               %th
                 -trans "Outgoing IVR Messages"
               %th
-                -trans "Total IVR Messages"
+                -trans "Total IVR Messages (Minutes)"
           %tbody
             -for month_data in message_stats_table
               %tr
@@ -438,8 +441,13 @@
             },
             yAxis: {
               title: {
+                {% if msg_segments_count %}
+                text: '{{ _("Segments")|escapejs }}'
+                {% else %}
                 text: '{{ _("Messages")|escapejs }}'
+                {% endif %}
               },
+              opposite: true,
               min: 0,
               allowDecimals: false
               {% if not has_messages %}
@@ -464,6 +472,13 @@
 
           ivrChart = new Highcharts.Chart({
             ...generalSettings,
+            colors: [
+              '#CD76F0',
+              '#8e44ad',
+              '#633077',
+              '#80b9fb',
+              '#2980b9'
+            ],
             chart: {
               renderTo: 'channel-ivr-chart',
               zoomType: 'x',
@@ -474,7 +489,7 @@
               title: {
                 text: '{{ _("Minutes")|escapejs }}'
               },
-              opposite: false,
+              opposite: true,
               min: 0,
               allowDecimals: false
               {% if not ivr_count %}
@@ -484,7 +499,7 @@
               title: {
                 text: '{{_("Messages")|escapejs }}'
               },
-              opposite: true,
+              opposite: false,
               min: 0,
               allowDecimals: false
               {% if not ivr_count %}
