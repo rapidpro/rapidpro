@@ -346,11 +346,13 @@ class Msg(models.Model):
     FAILED_LOOPING = "L"  # message looks like it's part of a loop
     FAILED_ERROR_LIMIT = "E"  # courier tried to send the message but we reached error limit
     FAILED_TOO_OLD = "O"  # message has been queued for too long and too late to send message
+    FAILED_DESTINATION = "D"  # No channel to send or missing URNs
     FAILED_CHOICES = (
         (FAILED_SUSPENDED, "Suspended"),
         (FAILED_LOOPING, "Looping"),
         (FAILED_ERROR_LIMIT, "Error Limit"),
         (FAILED_TOO_OLD, "Too Old"),
+        (FAILED_DESTINATION, "Failed Destination"),
     )
 
     MEDIA_GPS = "geo"
