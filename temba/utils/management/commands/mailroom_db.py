@@ -44,6 +44,7 @@ RESET_SEQUENCES = (
     "msgs_label_id_seq",
     "templates_template_id_seq",
     "templates_templatetranslation_id_seq",
+    "triggers_trigger_id_seq",
 )
 
 
