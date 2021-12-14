@@ -1,3 +1,9 @@
+v7.1.23
+----------
+ * Update help links for the editor
+ * Add failed reason for failed destination such as missing channel or URNs
+ * Add view to fetch recent contacts from Redis
+
 v7.1.22
 ----------
  * Fix join syntax
