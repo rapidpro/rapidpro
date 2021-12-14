@@ -255,6 +255,33 @@
                     = month_data.outgoing_messages_count|intcomma
                   %td
                     = month_data.incoming_messages_count|intcomma|add:month_data.outgoing_messages_count|intcomma
+            %tr
+              - if msg_segments_count
+                %td
+                  %b
+                    -trans "Total"
+                %td
+                  %b
+                    = total_incoming_messages_segments_count|intcomma
+                %td
+                  %b
+                    = total_outgoing_messages_segments_count|intcomma
+                %td
+                  %b
+                    = total_incoming_messages_segments_count|intcomma|add:total_outgoing_messages_segments_count|intcomma
+              -else
+                %td
+                  %b
+                    -trans "Total"
+                %td
+                  %b
+                    = total_incoming_messages_count|intcomma
+                %td
+                  %b
+                    = total_outgoing_messages_count|intcomma
+                %td
+                  %b
+                    = total_incoming_messages_count|intcomma|add:total_outgoing_messages_count|intcomma
       .ivr-stats
         .card.pt-8
           %div#channel-ivr-chart
@@ -284,6 +311,19 @@
                   = month_data.outgoing_ivr_count|intcomma
                 %td
                   = month_data.incoming_ivr_count|intcomma|add:month_data.outgoing_ivr_count|intcomma
+            %tr
+              %td
+                %b
+                  -trans "Total"
+              %td
+                %b
+                  = total_incoming_ivr_count|intcomma
+              %td
+                %b
+                  = total_outgoing_ivr_count|intcomma
+              %td
+                %b
+                  = total_incoming_ivr_count|intcomma|add:total_outgoing_ivr_count|intcomma
 
   -if object.channel_type == 'A'
     %table.list.lined.mt-4
@@ -413,7 +453,7 @@
                 minute: '%H:%M',
                 hour: '%H:%M',
                 day: '%b %e',
-                week: '%e. %b',
+                week: '%e %b',
                 month: '%b \'%y',
                 year: '%Y'
               },
@@ -497,7 +537,7 @@
               {% endif %}
             }, {
               title: {
-                text: '{{_("Messages")|escapejs }}'
+                text: ''
               },
               opposite: false,
               min: 0,
@@ -519,17 +559,6 @@
               {% empty %}
                 {}
               {% endfor %}
-              {% if ivr_count %}
-                ,{
-                  type: 'spline',
-                  name: 'Minutes',
-                  yAxis:0,
-                  data: [
-                    {% for point in call_duration %}[Date.UTC({{point.date|date:'Y'}}, {{point.date|date:'m'|add:-1}}, {{point.date|date:'d'}}), Math.floor(100 * ({{point.duration}} / 60)) / 100]{% if not forloop.last %},
-                    {% endif %}{% endfor %}
-                  ]
-                }
-              {% endif %}
             ]
           });
         });
