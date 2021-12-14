@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
                     ("L", "Looping"),
                     ("E", "Error Limit"),
                     ("O", "Too Old"),
-                    ("D", "Failed Destination"),
+                    ("D", "No Destination"),
                 ],
                 max_length=1,
                 null=True,
