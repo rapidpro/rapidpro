@@ -130,13 +130,15 @@ def identify(user, brand, org):
         brand=brand["slug"] if brand else None,
     )
     user_name = f"{user.first_name} {user.last_name}"
+    email = user.email if user.email else user.username
+
     if org:
         attributes["org"] = org.name
         attributes["paid"] = org.account_value()
 
     # post to segment if configured
     if _segment:  # pragma: no cover
-        segment_analytics.identify(user.email, attributes)
+        segment_analytics.identify(email, attributes)
 
     # post to intercom if configured
     if _intercom:
@@ -145,7 +147,7 @@ def identify(user, brand, org):
             for key in ("first_name", "last_name", "email"):
                 attributes.pop(key, None)
 
-            intercom_user = _intercom.users.create(email=user.email, name=user_name, custom_attributes=attributes)
+            intercom_user = _intercom.users.create(email=email, name=user_name, custom_attributes=attributes)
             intercom_user.companies = [
                 dict(
                     company_id=org.id,
@@ -167,7 +169,7 @@ def identify(user, brand, org):
         segments = [attributes["brand"], f"random-{attributes['segment']}"]
 
         try:
-            existing_profile = _crisp.website.get_people_profile(_crisp.website_id, user.email)
+            existing_profile = _crisp.website.get_people_profile(_crisp.website_id, email)
             segments = existing_profile["segments"]
             external_id = existing_profile["people_id"]
 
@@ -190,16 +192,16 @@ def identify(user, brand, org):
 
         try:
             if existing_profile:
-                _crisp.website.update_people_profile(_crisp.website_id, user.email, data)
+                _crisp.website.update_people_profile(_crisp.website_id, email, data)
             else:
-                data["email"] = user.email
+                data["email"] = email
                 response = _crisp.website.add_new_people_profile(_crisp.website_id, data)
-                external_id = response["data"]["people_id"]
+                external_id = response["people_id"]
 
             support_secret = getattr(settings, "SUPPORT_SECRET", "")
             signature = hmac.new(
                 bytes(support_secret, "latin-1"),
-                msg=bytes(user.email, "latin-1"),
+                msg=bytes(email, "latin-1"),
                 digestmod=hashlib.sha256,
             ).hexdigest()
 
@@ -312,6 +314,10 @@ def track(user, event_name, properties=None, context=None):
 
     email = user.email
 
+    if properties is None:
+        properties = {}
+    properties = {k: v for k, v in properties.items() if v is not None}
+
     # post to segment if configured
     if _segment:  # pragma: no cover
         # create a context if none was passed in
@@ -320,10 +326,6 @@ def track(user, event_name, properties=None, context=None):
 
         # set our source according to our hostname (name of the platform instance, and not machine hostname)
         context["source"] = settings.HOSTNAME
-
-        # create properties if none were passed in
-        if properties is None:
-            properties = dict()
 
         # populate value=1 in our properties if it isn't present
         if "value" not in properties:
@@ -339,7 +341,7 @@ def track(user, event_name, properties=None, context=None):
                 event_name=event_name,
                 created_at=int(time.mktime(time.localtime())),
                 email=email,
-                metadata=properties if properties else {},
+                metadata=properties,
             )
         except Exception:
             logger.error("error posting to intercom", exc_info=True)
@@ -357,15 +359,11 @@ def track(user, event_name, properties=None, context=None):
         if "export" in event_name or "import" in event_name:
             color = "purple"
 
-        # Crisp prefers human readable events
-        event_name = event_name.replace("temba.", "")
-        event_name = " ".join(event_name.split("_")).capitalize()
-
         try:
             _crisp.website.add_people_event(
                 _crisp.website_id,
                 email,
-                {"color": color, "text": event_name, "data": properties if properties else {}},
+                {"color": color, "text": event_name, "data": properties},
             )
         except Exception:  # pragma: no cover
             logger.error("error posting to crisp", exc_info=True)

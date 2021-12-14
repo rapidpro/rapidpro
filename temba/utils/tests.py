@@ -1354,7 +1354,7 @@ class AnalyticsTest(SmartminTest):
         self.crisp_mock.website.add_people_event.assert_called_with(
             self.crisp_mock.website_id,
             self.admin.username,
-            {"color": "blue", "text": "Flow created", "data": {"name": "My Flow"}},
+            {"color": "blue", "text": "temba.flow_created", "data": {"name": "My Flow"}},
         )
 
         # different events get different colors in crisp
@@ -1362,7 +1362,20 @@ class AnalyticsTest(SmartminTest):
         self.crisp_mock.website.add_people_event.assert_called_with(
             self.crisp_mock.website_id,
             self.admin.username,
-            {"color": "green", "text": "User signup", "data": {}},
+            {"color": "green", "text": "temba.user_signup", "data": {}},
+        )
+
+        # test None is removed
+        temba.utils.analytics.track(
+            self.admin,
+            "temba.flow_broadcast",
+            dict(contacts=1, groups=0, query=None),
+        )
+
+        self.crisp_mock.website.add_people_event.assert_called_with(
+            self.crisp_mock.website_id,
+            self.admin.username,
+            {"color": "grey", "text": "temba.flow_broadcast", "data": {"contacts": 1, "groups": 0}},
         )
 
     def test_track_not_anon_user(self):
