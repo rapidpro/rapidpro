@@ -2,9 +2,10 @@ import logging
 import time
 from array import array
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import iso8601
+import pytz
 import regex
 from django_redis import get_redis_connection
 from packaging.version import Version
@@ -660,6 +661,36 @@ class Flow(TembaModel):
             "failed": totals_by_exit.get(FlowRun.EXIT_TYPE_FAILED, 0),
             "completion": int(completed * 100 // total_runs) if total_runs else 0,
         }
+
+    def get_recent_contacts(self, exit_uuid: str, dest_uuid: str) -> list:
+        r = get_redis_connection()
+        key = f"recent_contacts:{exit_uuid}:{dest_uuid}"
+
+        # fetch members of the sorted set from redis and save as tuples of (contact_id, operand, time)
+        contact_ids = set()
+        raw = []
+        for member, score in r.zrange(key, start=0, end=-1, desc=True, withscores=True):
+            rand, contact_id, operand = member.decode().split("|", maxsplit=2)
+            contact_ids.add(int(contact_id))
+            raw.append((int(contact_id), operand, datetime.utcfromtimestamp(score).replace(tzinfo=pytz.UTC)))
+
+        # lookup all the referenced contacts
+        contacts_by_id = {c.id: c for c in self.org.contacts.filter(id__in=contact_ids, is_active=True)}
+
+        # if contact still exists, include in results
+        recent = []
+        for r in raw:
+            contact = contacts_by_id.get(r[0])
+            if contact:
+                recent.append(
+                    {
+                        "contact": {"uuid": str(contact.uuid), "name": contact.get_display(org=self.org)},
+                        "operand": r[1],
+                        "time": r[2].isoformat(),
+                    }
+                )
+
+        return recent
 
     def async_start(self, user, groups, contacts, query=None, restart_participants=False, include_active=True):
         """
