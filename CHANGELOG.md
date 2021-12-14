@@ -1,3 +1,8 @@
+v7.1.24
+----------
+ * Fix crisp identify on signup
+ * Use same event structure for Crisp as others
+
 v7.1.23
 ----------
  * Update help links for the editor
