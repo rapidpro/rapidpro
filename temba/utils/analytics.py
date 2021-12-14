@@ -316,7 +316,7 @@ def track(user, event_name, properties=None, context=None):
 
     if properties is None:
         properties = {}
-    properties = { k: v for k,v in properties.items() if v is not None}
+    properties = {k: v for k, v in properties.items() if v is not None}
 
     # post to segment if configured
     if _segment:  # pragma: no cover
@@ -363,7 +363,7 @@ def track(user, event_name, properties=None, context=None):
             _crisp.website.add_people_event(
                 _crisp.website_id,
                 email,
-                {"color": color, "text": event_name, "data": properties },
+                {"color": color, "text": event_name, "data": properties},
             )
         except Exception:  # pragma: no cover
             logger.error("error posting to crisp", exc_info=True)

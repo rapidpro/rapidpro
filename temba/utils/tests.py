@@ -1375,9 +1375,8 @@ class AnalyticsTest(SmartminTest):
         self.crisp_mock.website.add_people_event.assert_called_with(
             self.crisp_mock.website_id,
             self.admin.username,
-            {"color": "grey", "text": "temba.flow_broadcast", "data": {"contacts": 1, "groups": 0 }},
+            {"color": "grey", "text": "temba.flow_broadcast", "data": {"contacts": 1, "groups": 0}},
         )
-
 
     def test_track_not_anon_user(self):
         anon = AnonymousUser()
