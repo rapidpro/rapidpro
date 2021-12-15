@@ -30,7 +30,7 @@ from temba.contacts.models import Contact, ExportContactsTask
 from temba.flows.models import FlowRun
 from temba.tests import TembaTest, matchers
 from temba.utils import json, uuid
-from temba.utils.json import TembaJsonAdapter
+from temba.utils.json import TembaJsonAdapter, JsonResponse
 
 from . import (
     chunk_list,
@@ -680,6 +680,20 @@ class JsonTest(TembaTest):
         # test that we throw with unknown types
         with self.assertRaises(TypeError):
             json.dumps(dict(foo=Exception("invalid")))
+
+    def test_default_json_encoder(self):
+        struct_data = dict(
+            age=20,
+            date_of_birth=datetime.date(day=28, month=10, year=2017),
+            created_on=datetime.datetime(year=2021, month=12, day=10, hour=0, minute=0, second=0),
+            time=datetime.time(),
+        )
+
+        json_data = JsonResponse(struct_data)
+        self.assertEqual(
+            json_data.getvalue(),
+            b'{"age": 20, "date_of_birth": "2017-10-28", "created_on": "2021-12-10T00:00:00", "time": "00:00:00"}',
+        )
 
 
 class CeleryTest(TembaTest):
