@@ -27,10 +27,12 @@ BEGIN
       RETURN NULL;
     END IF;
 
-    IF msg_direction = 'I' THEN
-      PERFORM temba_insert_channelcount(NEW.channel_id, 'IMS', NEW.created_on::date, segments_count);
-    ELSIF msg_direction = 'O' THEN
-      PERFORM temba_insert_channelcount(NEW.channel_id, 'OMS', NEW.created_on::date, segments_count);
+    IF NEW.description = 'Message Sent' OR NEW.description = 'Message Received' THEN
+      IF msg_direction = 'I' THEN
+        PERFORM temba_insert_channelcount(NEW.channel_id, 'IMS', NEW.created_on::date, segments_count);
+      ELSIF msg_direction = 'O' THEN
+        PERFORM temba_insert_channelcount(NEW.channel_id, 'OMS', NEW.created_on::date, segments_count);
+      END IF;
     END IF;
 
   -- Clean up counts when we are doing a real delete
@@ -45,11 +47,14 @@ BEGIN
       RETURN NULL;
     END IF;
 
-    IF msg_direction = 'I' THEN
-      PERFORM temba_insert_channelcount(OLD.channel_id, 'IMS', OLD.created_on::date, segments_count * -1);
-    ELSIF msg_direction = 'O' THEN
-      PERFORM temba_insert_channelcount(OLD.channel_id, 'OMS', OLD.created_on::date, segments_count * -1);
+    IF OLD.description = 'Message Sent' OR OLD.description = 'Message Received' THEN
+      IF msg_direction = 'I' THEN
+        PERFORM temba_insert_channelcount(OLD.channel_id, 'IMS', OLD.created_on::date, segments_count * -1);
+      ELSIF msg_direction = 'O' THEN
+        PERFORM temba_insert_channelcount(OLD.channel_id, 'OMS', OLD.created_on::date, segments_count * -1);
+      END IF;
     END IF;
+
   END IF;
 
   RETURN NULL;
