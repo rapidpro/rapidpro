@@ -180,6 +180,7 @@ class InitTest(TembaTest):
         self.assertEqual("", decode_stream(io.BytesIO(b"")).read())
         self.assertEqual("hello", decode_stream(io.BytesIO(b"hello")).read())
         self.assertEqual("hello👋", decode_stream(io.BytesIO(b"hello\xf0\x9f\x91\x8b")).read())  # UTF-8
+        self.assertEqual("سلام", decode_stream(io.BytesIO(b"\xd8\xb3\xd9\x84\xd8\xa7\xd9\x85")).read())  # UTF-8
         self.assertEqual("hello", decode_stream(io.BytesIO(b"\xff\xfeh\x00e\x00l\x00l\x00o\x00")).read())  # UTF-16
         self.assertEqual("hèllo", decode_stream(io.BytesIO(b"h\xe8llo")).read())  # ISO8859-1
 
