@@ -1,3 +1,8 @@
+v7.1.25
+----------
+ * Fix Kaleyra claim blurb
+ * Fix HTTPLog read page showing warning shading for healthy calls
+
 v7.1.24
 ----------
  * Fix crisp identify on signup
