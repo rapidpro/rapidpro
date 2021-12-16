@@ -115,7 +115,7 @@ class PolicyCRUDL(SmartCRUDL):
         def form_valid(self, form):
             if form.cleaned_data["consent"]:
 
-                analytics.change_consent(self.request.user.email, True)
+                analytics.change_consent(self.request.user, True)
 
                 for policy in Policy.get_policies_needing_consent(self.request.user):
                     Consent.objects.create(policy=policy, user=self.request.user)
@@ -130,7 +130,7 @@ class PolicyCRUDL(SmartCRUDL):
                 )
                 consents.update(revoked_on=timezone.now())
                 # forget we were ever friends
-                analytics.change_consent(self.request.user.email, False)
+                analytics.change_consent(self.request.user, False)
 
             redirect = self.request.POST.get("next")
             if not redirect:

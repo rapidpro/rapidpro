@@ -1201,13 +1201,6 @@ SESSION_CACHE_ALIAS = "default"
 TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY", "MISSING_TWITTER_API_KEY")
 TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET", "MISSING_TWITTER_API_SECRET")
 
-# Segment.io key for analytics
-SEGMENT_IO_KEY = os.environ.get("SEGMENT_IO_KEY", "")
-
-# Intercom token and app_id for support
-INTERCOM_APP_ID = os.environ.get("INTERCOM_APP_ID", "")
-INTERCOM_TOKEN = os.environ.get("INTERCOM_TOKEN", "")
-
 # Crisp id and key support option
 SUPPORT_SECRET = os.environ.get("SUPPORT_SECRET", "")
 CRISP_IDENTIFIER = os.environ.get("CRISP_IDENTIFIER", "")

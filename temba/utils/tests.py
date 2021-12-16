@@ -9,14 +9,13 @@ from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
-import intercom.errors
 import pytz
 from django_redis import get_redis_connection
 from openpyxl import load_workbook
 from smartmin.tests import SmartminTest, SmartminTestMixin
 
 from django.conf import settings
-from django.contrib.auth.models import AnonymousUser, User
+from django.contrib.auth.models import User
 from django.core import checks
 from django.core.management import CommandError, call_command
 from django.db import connection, models
@@ -1261,53 +1260,16 @@ class AnalyticsTest(SmartminTest):
         self.admin.email = "admin@example.com"
         self.admin.is_authenticated = True
 
-        self.intercom_mock = MagicMock()
-        temba.utils.analytics._intercom = self.intercom_mock
-
         self.crisp_mock = MagicMock()
         temba.utils.analytics._crisp = self.crisp_mock
 
         temba.utils.analytics.init_analytics()
 
-    def test_identify_intercom_exception(self):
-        self.intercom_mock.users.create.side_effect = Exception("Kimi says bwoah...")
-
-        with patch("temba.utils.analytics.logger") as mocked_logging:
-            temba.utils.analytics.identify(self.admin, {"slug": "test", "host": "rapidpro.io"}, self.org)
-
-        mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
-
     def test_identify(self):
-
         self.crisp_mock.website.get_people_profile.side_effect = Exception("No Profile")
         temba.utils.analytics.identify(self.admin, {"slug": "test", "host": "rapidpro.io"}, self.org)
 
-        # assert mocks
-        self.intercom_mock.users.create.assert_called_with(
-            custom_attributes={
-                "brand": "test",
-                "segment": mock.ANY,
-                "org": self.org.name,
-                "paid": self.org.account_value(),
-            },
-            email=self.admin.email,
-            name=" ",
-        )
-
-        self.assertListEqual(
-            self.intercom_mock.users.create.return_value.companies,
-            [
-                {
-                    "company_id": self.org.id,
-                    "name": self.org.name,
-                    "created_at": mock.ANY,
-                    "custom_attributes": {"brand": self.org.brand, "org_id": self.org.id},
-                }
-            ],
-        )
-
         # did we actually call save?
-        self.intercom_mock.users.save.assert_called_once()
         self.crisp_mock.website.add_new_people_profile.assert_called_with(
             self.crisp_mock.website_id,
             {
@@ -1344,13 +1306,6 @@ class AnalyticsTest(SmartminTest):
     def test_track(self):
         temba.utils.analytics.track(self.admin, "temba.flow_created", properties={"name": "My Flow"})
 
-        self.intercom_mock.events.create.assert_called_with(
-            event_name="temba.flow_created",
-            created_at=mock.ANY,
-            email=self.admin.username,
-            metadata={"name": "My Flow"},
-        )
-
         self.crisp_mock.website.add_people_event.assert_called_with(
             self.crisp_mock.website_id,
             self.admin.username,
@@ -1378,48 +1333,11 @@ class AnalyticsTest(SmartminTest):
             {"color": "grey", "text": "temba.flow_broadcast", "data": {"contacts": 1, "groups": 0}},
         )
 
-    def test_track_not_anon_user(self):
-        anon = AnonymousUser()
-        result = temba.utils.analytics.track(anon, "test event", properties={"plan": "free"})
-
-        self.assertIsNone(result)
-
-        self.intercom_mock.events.create.assert_not_called()
-
-    def test_track_intercom_exception(self):
-        self.intercom_mock.events.create.side_effect = Exception("It's raining today")
-
-        with patch("temba.utils.analytics.logger") as mocked_logging:
-            temba.utils.analytics.track(self.admin, "test event", properties={"plan": "free"})
-
-        mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
-
-    def test_consent_missing_user(self):
-        self.intercom_mock.users.find.return_value = None
-        temba.utils.analytics.change_consent(self.admin.email, consent=True)
-
-        self.intercom_mock.users.create.assert_called_with(
-            email=self.admin.email, custom_attributes=dict(consent=True, consent_changed=mock.ANY)
-        )
-
-    def test_consent_invalid_user_decline(self):
-        self.intercom_mock.users.find.return_value = None
-        temba.utils.analytics.change_consent(self.admin.email, consent=False)
-
-        self.intercom_mock.users.create.assert_not_called()
-        self.intercom_mock.users.delete.assert_not_called()
-
     def test_consent_valid_user(self):
-
         # valid user which did not consent
-        self.intercom_mock.users.find.return_value = MagicMock(custom_attributes={"consent": False})
         self.crisp_mock.website.get_people_profile.return_value = {"segments": []}
 
-        temba.utils.analytics.change_consent(self.admin.email, consent=True)
-
-        self.intercom_mock.users.create.assert_called_with(
-            email=self.admin.email, custom_attributes=dict(consent=True, consent_changed=mock.ANY)
-        )
+        temba.utils.analytics.change_consent(self.admin, consent=True)
 
         self.crisp_mock.website.update_people_profile.assert_called_with(
             self.crisp_mock.website_id,
@@ -1427,138 +1345,15 @@ class AnalyticsTest(SmartminTest):
             {"segments": ["consented"]},
         )
 
-    def test_consent_valid_user_already_consented(self):
-        # valid user which did not consent
-        self.intercom_mock.users.find.return_value = MagicMock(custom_attributes={"consent": True})
-
-        temba.utils.analytics.change_consent(self.admin.email, consent=True)
-
-        self.intercom_mock.users.create.assert_not_called()
-
     def test_consent_valid_user_decline(self):
-
         # valid user which did not consent
-        self.intercom_mock.users.find.return_value = MagicMock(custom_attributes={"consent": False})
         self.crisp_mock.website.get_people_profile.return_value = {"segments": ["random-3", "consented"]}
         self.crisp_mock.website.get_people_data.return_value = {"data": {}}
 
-        temba.utils.analytics.change_consent(self.admin.email, consent=False)
-
-        self.intercom_mock.users.create.assert_called_with(
-            email=self.admin.email, custom_attributes=dict(consent=False, consent_changed=mock.ANY)
-        )
-        self.intercom_mock.users.delete.assert_called_with(mock.ANY)
+        temba.utils.analytics.change_consent(self.admin, consent=False)
 
         self.crisp_mock.website.save_people_data.assert_called_with(
             self.crisp_mock.website_id, self.admin.email, {"data": {"consent_changed": mock.ANY}}
-        )
-
-    def test_consent_exception(self):
-        self.intercom_mock.users.find.side_effect = Exception("Kimi says bwoah...")
-
-        with patch("temba.utils.analytics.logger") as mocked_logging:
-            temba.utils.analytics.change_consent(self.admin.email, consent=False)
-
-        mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
-
-    def test_get_intercom_user(self):
-        temba.utils.analytics.get_intercom_user(email="an email")
-
-        self.intercom_mock.users.find.assert_called_with(email="an email")
-
-    def test_get_intercom_user_resourcenotfound(self):
-        self.intercom_mock.users.find.side_effect = intercom.errors.ResourceNotFound
-
-        result = temba.utils.analytics.get_intercom_user(email="an email")
-
-        self.assertIsNone(result)
-
-    def test_set_orgs_invalid_user(self):
-        self.intercom_mock.users.find.return_value = None
-
-        temba.utils.analytics.set_orgs(email="an email", all_orgs=[self.org])
-
-        self.intercom_mock.users.find.assert_called_with(email="an email")
-        self.intercom_mock.users.save.assert_not_called()
-
-    def test_set_orgs_valid_user_same_company(self):
-        intercom_user = MagicMock(companies=[MagicMock(company_id=self.org.id)])
-        self.intercom_mock.users.find.return_value = intercom_user
-
-        temba.utils.analytics.set_orgs(email="an email", all_orgs=[self.org])
-
-        self.intercom_mock.users.find.assert_called_with(email="an email")
-
-        self.assertEqual(intercom_user.companies, [{"company_id": self.org.id, "name": self.org.name}])
-
-        self.intercom_mock.users.save.assert_called_with(mock.ANY)
-
-    def test_set_orgs_valid_user_new_company(self):
-        intercom_user = MagicMock(companies=[MagicMock(company_id=-1), MagicMock(company_id=self.org.id)])
-        self.intercom_mock.users.find.return_value = intercom_user
-
-        temba.utils.analytics.set_orgs(email="an email", all_orgs=[self.org])
-
-        self.intercom_mock.users.find.assert_called_with(email="an email")
-
-        self.assertListEqual(
-            intercom_user.companies,
-            [{"company_id": self.org.id, "name": self.org.name}, {"company_id": -1, "remove": True}],
-        )
-
-        self.intercom_mock.users.save.assert_called_with(mock.ANY)
-
-    def test_set_orgs_valid_user_without_a_company(self):
-        intercom_user = MagicMock(companies=[MagicMock(company_id=-1), MagicMock(company_id=self.org.id)])
-        self.intercom_mock.users.find.return_value = intercom_user
-
-        # we are not setting any org for the user
-        temba.utils.analytics.set_orgs(email="an email", all_orgs=[])
-
-        self.intercom_mock.users.find.assert_called_with(email="an email")
-
-        self.assertListEqual(
-            intercom_user.companies, [{"company_id": -1, "remove": True}, {"company_id": self.org.id, "remove": True}]
-        )
-
-        self.intercom_mock.users.save.assert_called_with(mock.ANY)
-
-    def test_identify_org_empty_attributes(self):
-        result = temba.utils.analytics.identify_org(org=self.org, attributes=None)
-
-        self.assertIsNone(result)
-
-        self.intercom_mock.companies.create.assert_called_with(
-            company_id=self.org.id,
-            created_at=mock.ANY,
-            custom_attributes={"brand": self.org.brand, "org_id": self.org.id},
-            name=self.org.name,
-        )
-
-    def test_identify_org_with_attributes(self):
-        attributes = dict(
-            website="https://example.com",
-            industry="Mining",
-            monthly_spend="a lot",
-            this_is_not_an_intercom_attribute="or is it?",
-        )
-
-        result = temba.utils.analytics.identify_org(org=self.org, attributes=attributes)
-
-        self.assertIsNone(result)
-
-        self.intercom_mock.companies.create.assert_called_with(
-            company_id=self.org.id,
-            created_at=mock.ANY,
-            custom_attributes={
-                "brand": self.org.brand,
-                "org_id": self.org.id,
-                "this_is_not_an_intercom_attribute": "or is it?",
-            },
-            name=self.org.name,
-            website="https://example.com",
-            industry="Mining",
-            monthly_spend="a lot",
         )
 
 

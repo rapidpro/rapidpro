@@ -17,11 +17,12 @@ def branding(request):
 
 def analytics(request):
     """
-    Stuffs intercom / segment / google analytics settings into our request context
+    Stuffs analytics settings into our request context
     """
-    return dict(
-        segment_key=settings.SEGMENT_IO_KEY,
-        intercom_app_id=settings.INTERCOM_APP_ID,
-        google_tracking_id=settings.GOOGLE_TRACKING_ID,
-        crisp_website_id=settings.CRISP_WEBSITE_ID,
-    )
+
+    from temba.utils.analytics import get_template_context
+
+    return {
+        "google_tracking_id": settings.GOOGLE_TRACKING_ID,
+        **get_template_context(),
+    }
