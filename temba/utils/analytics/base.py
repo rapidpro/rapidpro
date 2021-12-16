@@ -9,6 +9,8 @@ REGISTERED_BACKENDS = []
 
 
 class AnalyticsBackend(metaclass=abc.ABCMeta):
+    slug: str = None
+
     def gauge(self, event: str, value):
         """
         Records a gauge value
@@ -61,7 +63,10 @@ def gauge(event: str, value):
     Reports a gauge value
     """
     for backend in REGISTERED_BACKENDS:
-        backend.gauge(event, value)
+        try:
+            backend.gauge(event, value)
+        except Exception:
+            logger.error(f"error updating gauge on {backend.slug}", exc_info=True)
 
 
 def identify(user, brand, org):
@@ -69,7 +74,10 @@ def identify(user, brand, org):
     Creates and identifies a new user to our analytics backends
     """
     for backend in REGISTERED_BACKENDS:
-        backend.identify(user, brand, org)
+        try:
+            backend.identify(user, brand, org)
+        except Exception:
+            logger.error(f"error identifying user on {backend.slug}", exc_info=True)
 
 
 def change_consent(user, consent: bool):
@@ -77,10 +85,13 @@ def change_consent(user, consent: bool):
     Notifies analytics backends of a user's consent status.
     """
     for backend in REGISTERED_BACKENDS:
-        backend.change_consent(user, consent)
+        try:
+            backend.change_consent(user, consent)
+        except Exception:
+            logger.error(f"error changing consent on {backend.slug}", exc_info=True)
 
 
-def track(user, event_name: str, properties: dict = None):
+def track(user, event: str, properties: dict = None):
     """
     Tracks the passed in event for the passed in user in all configured analytics backends.
     """
@@ -89,7 +100,10 @@ def track(user, event_name: str, properties: dict = None):
         return
 
     for backend in REGISTERED_BACKENDS:
-        backend.track(user, event_name, properties or {})
+        try:
+            backend.track(user, event, properties or {})
+        except Exception:
+            logger.error(f"error tracking event on {backend.slug}", exc_info=True)
 
 
 def get_template_context() -> dict:

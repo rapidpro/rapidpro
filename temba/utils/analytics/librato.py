@@ -6,6 +6,8 @@ from .base import AnalyticsBackend
 
 
 class LibratoBackend(AnalyticsBackend):
+    slug = "librato"
+
     def __init__(self, user, token):
         self.client = LibratoClient(user, token)
 
