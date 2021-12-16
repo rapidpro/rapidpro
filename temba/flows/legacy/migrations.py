@@ -1381,7 +1381,7 @@ def map_actions(json_flow, fixer_method):
 
 
 def remove_extra_rules(json_flow, ruleset):
-    """ Remove all rules but the all responses rule """
+    """Remove all rules but the all responses rule"""
     rules = []
     old_rules = ruleset.get("rules")
     for rule in old_rules:
@@ -1396,7 +1396,7 @@ def remove_extra_rules(json_flow, ruleset):
 
 
 def insert_node(flow, node, _next):
-    """ Inserts a node right before _next """
+    """Inserts a node right before _next"""
 
     def update_destination(node_to_update, uuid):
         if node_to_update.get("actions", []):  # pragma: needs cover
