@@ -30,7 +30,7 @@ class AnalyticsTest(TembaTest):
         self.crisp_mock = MagicMock()
         temba.utils.analytics._crisp = self.crisp_mock
 
-        temba.utils.analytics.init_analytics()
+        temba.utils.analytics.init()
 
     def test_identify(self):
         self.crisp_mock.website.get_people_profile.side_effect = Exception("No Profile")

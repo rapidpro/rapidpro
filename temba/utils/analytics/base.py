@@ -35,9 +35,9 @@ class AnalyticsBackend(metaclass=abc.ABCMeta):
         """
 
 
-def init_analytics():
+def init():
     """
-    Initializes our analytics libraries based on our settings
+    Initializes our analytics backends based on our settings
     """
 
     from .crisp import CrispBackend
