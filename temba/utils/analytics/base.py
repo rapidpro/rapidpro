@@ -2,6 +2,7 @@ import abc
 import logging
 
 from django.conf import settings
+from django.utils.safestring import mark_safe
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +11,7 @@ registered_backends = []
 
 class AnalyticsBackend(metaclass=abc.ABCMeta):
     slug: str = None
+    template_hooks = {}
 
     def gauge(self, event: str, value):
         """
@@ -31,9 +33,9 @@ class AnalyticsBackend(metaclass=abc.ABCMeta):
         Notifies of a user's consent status.
         """
 
-    def get_template_context(self) -> dict:
+    def get_template_html(self, hook: str) -> str:
         """
-        Gets any template context
+        Gets HTML to be inserted at the named template hook
         """
 
 
@@ -113,11 +115,14 @@ def track(user, event: str, properties: dict = None):
             logger.exception(f"error tracking event on {backend.slug}")
 
 
-def context_processor(request) -> dict:
+def get_template_html(hook: str) -> str:
     """
-    A Django context processor which adds template context for each backend
+    Gets HTML to be inserted at the named template hook
     """
-    context = {}
+    content = ""
     for backend in get_backends():
-        context.update(**backend.get_template_context())
-    return context
+        html = backend.get_template_html(hook)
+        if html:
+            content += f"<!-- begin hook for {backend.slug} -->\n{html}\n<!-- end hook for {backend.slug} -->\n"
+
+    return mark_safe(content)

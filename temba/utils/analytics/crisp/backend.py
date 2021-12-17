@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class CrispBackend(AnalyticsBackend):
     slug = "crisp"
+    template_hooks = {"login": '<script type="text/javascript">$crisp.push(["do", "session:reset"])</script>'}
 
     def __init__(self, identifier: str, key: str, website_id: str):
         self.client = Crisp()
@@ -141,5 +142,8 @@ class CrispBackend(AnalyticsBackend):
         else:
             self.client.website.add_people_event(self.website_id, email, {"color": "red", "text": f"Consent revoked"})
 
-    def get_template_context(self) -> dict:
-        return {"crisp_website_id": self.website_id}
+    def get_template_html(self, hook) -> str:
+        """
+        Gets HTML to be inserted at the named template hook
+        """
+        return self.template_hooks.get(hook, "")

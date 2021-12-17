@@ -14,12 +14,12 @@ from django.utils.html import escapejs
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext, ugettext_lazy as _, ungettext_lazy
 
+from temba.campaigns.models import Campaign, CampaignEvent
+from temba.contacts.models import ContactGroup
+from temba.flows.models import Flow
+from temba.triggers.models import Trigger
+from temba.utils import analytics
 from temba.utils.dates import datetime_to_str
-
-from ...campaigns.models import Campaign, CampaignEvent
-from ...contacts.models import ContactGroup
-from ...flows.models import Flow
-from ...triggers.models import Trigger
 
 TIME_SINCE_CHUNKS = (
     (60 * 60 * 24 * 365, ungettext_lazy("%d year", "%d years")),
@@ -271,3 +271,8 @@ def format_datetime(context, dt, seconds: bool = False):
 @register.filter
 def parse_isodate(value):
     return iso8601.parse_date(value)
+
+
+@register.simple_tag()
+def analytics_hook(name):
+    return mark_safe(analytics.get_template_html(name))

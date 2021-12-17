@@ -55,12 +55,22 @@ class AnalyticsTest(TembaTest):
         good.change_consent.assert_called_once_with(self.user, True)
 
     @patch("temba.utils.analytics.base.get_backends")
-    def test_context_processor(self, mock_get_backends):
+    def test_get_template_html(self, mock_get_backends):
         good = MagicMock()
-        good.get_template_context.return_value = {"foo": "ABC"}
+        good.slug = "good"
+        good.get_template_html.return_value = '<script>alert("good")</script>'
         mock_get_backends.return_value = [BadBackend(), good]
 
-        self.assertEqual({"foo": "ABC", "badness": "high"}, analytics.context_processor(None))
+        self.assertEqual(
+            """<!-- begin hook for bad -->
+<script>alert("bad")</script>
+<!-- end hook for bad -->
+<!-- begin hook for good -->
+<script>alert("good")</script>
+<!-- end hook for good -->
+""",
+            analytics.get_template_html("login"),
+        )
 
 
 class BadBackend(AnalyticsBackend):
@@ -78,5 +88,5 @@ class BadBackend(AnalyticsBackend):
     def change_consent(self, user, consent: bool):
         raise ValueError("boom")
 
-    def get_template_context(self) -> dict:
-        return {"badness": "high"}
+    def get_template_html(self, hook) -> str:
+        return '<script>alert("bad")</script>'

@@ -30,5 +30,5 @@ class LibratoTest(TembaTest):
     def test_change_consent(self):
         self.backend.change_consent(self.agent, True)  # noop
 
-    def test_get_template_context(self):
-        self.assertEqual({}, self.backend.get_template_context())
+    def test_get_template_html(self):
+        self.assertEqual("", self.backend.get_template_html("login"))  # none

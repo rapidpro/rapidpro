@@ -106,5 +106,9 @@ class CrispTest(TembaTest):
             "my_site", self.admin.email, {"data": {"consent_changed": mock.ANY}}
         )
 
-    def test_get_template_context(self):
-        self.assertEqual({"crisp_website_id": "my_site"}, self.backend.get_template_context())
+    def test_get_template_html(self):
+        self.assertEqual(
+            '<script type="text/javascript">$crisp.push(["do", "session:reset"])</script>',
+            self.backend.get_template_html("login"),
+        )
+        self.assertEqual("", self.backend.get_template_html("foo"))
