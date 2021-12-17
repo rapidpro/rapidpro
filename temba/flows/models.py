@@ -29,7 +29,7 @@ from temba.channels.models import Channel, ChannelConnection
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.msgs.models import Label, Msg
+from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
@@ -1241,19 +1241,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             events_by_step[e[FlowRun.EVENT_STEP_UUID]].append(e)
         return events_by_step
 
-    def get_messages(self):
-        """
-        Gets all the messages associated with this run
-        """
-        # need a data migration to go fix some old message events with uuid="None", until then filter them out
-        msg_uuids = []
-        for e in self.get_msg_events():
-            msg_uuid = e["msg"].get("uuid")
-            if msg_uuid and msg_uuid != "None":
-                msg_uuids.append(msg_uuid)
-
-        return Msg.objects.filter(uuid__in=msg_uuids)
-
     def release(self, delete_reason=None):
         """
         Permanently deletes this flow run
@@ -1853,17 +1840,6 @@ class ExportFlowResultsTask(BaseExportTask):
         book.num_runs_sheets += 1
 
         self.append_row(sheet, columns)
-        return sheet
-
-    def _add_msgs_sheet(self, book):
-        name = "Messages (%d)" % (book.num_msgs_sheets + 1) if book.num_msgs_sheets > 0 else "Messages"
-        index = book.num_runs_sheets + book.num_msgs_sheets
-        sheet = book.add_sheet(name, index)
-        book.num_msgs_sheets += 1
-
-        headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Attachments", "Channel"]
-
-        self.append_row(sheet, headers)
         return sheet
 
     def write_export(self):
