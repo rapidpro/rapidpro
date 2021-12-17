@@ -1421,12 +1421,6 @@ class FlowCRUDL(SmartCRUDL):
                 help_text=_("Only export results for contacts which responded"),
                 widget=CheckboxWidget(),
             )
-            include_msgs = forms.BooleanField(
-                required=False,
-                label=_("Include Messages"),
-                help_text=_("Export all messages sent and received in this flow"),
-                widget=CheckboxWidget(),
-            )
 
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -1513,7 +1507,6 @@ class FlowCRUDL(SmartCRUDL):
                     user,
                     flows,
                     contact_fields=form.cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS],
-                    include_msgs=form.cleaned_data[ExportFlowResultsTask.INCLUDE_MSGS],
                     responded_only=responded_only,
                     extra_urns=form.cleaned_data[ExportFlowResultsTask.EXTRA_URNS],
                     group_memberships=form.cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS],
@@ -1534,8 +1527,8 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
                 else:
-                    export = ExportFlowResultsTask.objects.get(id=export.pk)
-                    dl_url = reverse("assets.download", kwargs=dict(type="results_export", pk=export.pk))
+                    export = ExportFlowResultsTask.objects.get(id=export.id)
+                    dl_url = reverse("assets.download", kwargs=dict(type="results_export", pk=export.id))
                     messages.info(
                         self.request,
                         _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
