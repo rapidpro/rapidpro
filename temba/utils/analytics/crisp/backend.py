@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from temba.utils import json
 
-from .base import AnalyticsBackend
+from ..base import AnalyticsBackend
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class CrispBackend(AnalyticsBackend):
             self.website_id, email, {"color": color, "text": event, "data": properties}
         )
 
-    def identify(self, user, brand, org):
+    def identify(self, user, brand: dict, org):
         attributes = dict(
             email=user.username,
             first_name=user.first_name,

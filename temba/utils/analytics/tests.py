@@ -1,124 +1,74 @@
-import random
-from types import SimpleNamespace
-from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from django.utils import timezone
-
-import temba.utils.analytics
 from temba.tests import TembaTest
+from temba.utils import analytics
+
+from .base import AnalyticsBackend
 
 
 class AnalyticsTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        random.seed(1)
+    @patch("temba.utils.analytics.base.get_backends")
+    def test_gauge(self, mock_get_backends):
+        good = MagicMock()
+        mock_get_backends.return_value = [BadBackend(), good]
 
-        # create org and user stubs
-        self.org = SimpleNamespace(
-            id=1000, name="Some Org", brand="Some Brand", created_on=timezone.now(), account_value=lambda: 1000
-        )
+        analytics.gauge("foo_level", 123)
 
-        self.admin = MagicMock()
-        self.admin.username = "admin@example.com"
-        self.admin.first_name = ""
-        self.admin.last_name = ""
-        self.admin.email = "admin@example.com"
-        self.admin.is_authenticated = True
+        good.gauge.assert_called_once_with("foo_level", 123)
 
-        self.crisp_mock = MagicMock()
-        temba.utils.analytics._crisp = self.crisp_mock
+    @patch("temba.utils.analytics.base.get_backends")
+    def test_track(self, mock_get_backends):
+        good = MagicMock()
+        mock_get_backends.return_value = [BadBackend(), good]
 
-        temba.utils.analytics.init()
+        analytics.track(self.user, "foo_created", {"foo_id": 234})
 
-    def test_identify(self):
-        self.crisp_mock.website.get_people_profile.side_effect = Exception("No Profile")
-        temba.utils.analytics.identify(self.admin, {"slug": "test", "host": "rapidpro.io"}, self.org)
+        good.track.assert_called_once_with(self.user, "foo_created", {"foo_id": 234})
 
-        # did we actually call save?
-        self.crisp_mock.website.add_new_people_profile.assert_called_with(
-            self.crisp_mock.website_id,
-            {
-                "person": {"nickname": " "},
-                "company": {
-                    "name": "Some Org",
-                    "url": "https://rapidpro.io/org/update/1000/",
-                    "domain": "rapidpro.io/org/update/1000",
-                },
-                "segments": ["test", "random-3"],
-                "email": "admin@example.com",
-            },
-        )
+    @patch("temba.utils.analytics.base.get_backends")
+    def test_identify(self, mock_get_backends):
+        good = MagicMock()
+        mock_get_backends.return_value = [BadBackend(), good]
 
-        # now identify when there is an existing profile
-        self.crisp_mock = MagicMock()
-        temba.utils.analytics._crisp = self.crisp_mock
-        temba.utils.analytics.identify(self.admin, {"slug": "test", "host": "rapidpro.io"}, self.org)
+        analytics.identify(self.user, {"name": "Cool"}, self.org)
 
-        self.crisp_mock.website.update_people_profile.assert_called_with(
-            self.crisp_mock.website_id,
-            self.admin.email,
-            {
-                "person": {"nickname": " "},
-                "company": {
-                    "name": "Some Org",
-                    "url": "https://rapidpro.io/org/update/1000/",
-                    "domain": "rapidpro.io/org/update/1000",
-                },
-                "segments": mock.ANY,
-            },
-        )
+        good.identify.assert_called_once_with(self.user, {"name": "Cool"}, self.org)
 
-    def test_track(self):
-        temba.utils.analytics.track(self.admin, "temba.flow_created", properties={"name": "My Flow"})
+    @patch("temba.utils.analytics.base.get_backends")
+    def test_change_consent(self, mock_get_backends):
+        good = MagicMock()
+        mock_get_backends.return_value = [BadBackend(), good]
 
-        self.crisp_mock.website.add_people_event.assert_called_with(
-            self.crisp_mock.website_id,
-            self.admin.username,
-            {"color": "blue", "text": "temba.flow_created", "data": {"name": "My Flow"}},
-        )
+        analytics.change_consent(self.user, True)
 
-        # different events get different colors in crisp
-        temba.utils.analytics.track(self.admin, "temba.user_signup")
-        self.crisp_mock.website.add_people_event.assert_called_with(
-            self.crisp_mock.website_id,
-            self.admin.username,
-            {"color": "green", "text": "temba.user_signup", "data": {}},
-        )
+        good.change_consent.assert_called_once_with(self.user, True)
 
-        # test None is removed
-        temba.utils.analytics.track(
-            self.admin,
-            "temba.flow_broadcast",
-            dict(contacts=1, groups=0, query=None),
-        )
+    @patch("temba.utils.analytics.base.get_backends")
+    def test_context_processor(self, mock_get_backends):
+        good = MagicMock()
+        good.get_template_context.return_value = {"foo": "ABC"}
+        mock_get_backends.return_value = [BadBackend(), good]
 
-        self.crisp_mock.website.add_people_event.assert_called_with(
-            self.crisp_mock.website_id,
-            self.admin.username,
-            {"color": "grey", "text": "temba.flow_broadcast", "data": {"contacts": 1, "groups": 0}},
-        )
+        self.assertEqual({"foo": "ABC", "badness": "high"}, analytics.context_processor(None))
 
-    def test_consent_valid_user(self):
-        # valid user which did not consent
-        self.crisp_mock.website.get_people_profile.return_value = {"segments": []}
 
-        temba.utils.analytics.change_consent(self.admin, consent=True)
+class BadBackend(AnalyticsBackend):
+    slug = "bad"
 
-        self.crisp_mock.website.update_people_profile.assert_called_with(
-            self.crisp_mock.website_id,
-            "admin@example.com",
-            {"segments": ["consented"]},
-        )
+    def gauge(self, event: str, value):
+        raise ValueError("boom")
 
-    def test_consent_valid_user_decline(self):
-        # valid user which did not consent
-        self.crisp_mock.website.get_people_profile.return_value = {"segments": ["random-3", "consented"]}
-        self.crisp_mock.website.get_people_data.return_value = {"data": {}}
+    def track(self, user, event: str, properties: dict):
+        raise ValueError("boom")
 
-        temba.utils.analytics.change_consent(self.admin, consent=False)
+    def identify(self, user, brand, org):
+        raise ValueError("boom")
 
-        self.crisp_mock.website.save_people_data.assert_called_with(
-            self.crisp_mock.website_id, self.admin.email, {"data": {"consent_changed": mock.ANY}}
-        )
+    def change_consent(self, user, consent: bool):
+        raise ValueError("boom")
+
+    def get_template_context(self) -> dict:
+        return {"badness": "high"}
