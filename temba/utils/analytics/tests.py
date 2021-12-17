@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+from django.contrib.auth.models import AnonymousUser
+
 from temba.tests import TembaTest
 from temba.utils import analytics
 
@@ -27,6 +29,12 @@ class AnalyticsTest(TembaTest):
         analytics.track(self.user, "foo_created", {"foo_id": 234})
 
         good.track.assert_called_once_with(self.user, "foo_created", {"foo_id": 234})
+        good.track.reset_mock()
+
+        # anonymous user is a noop
+        analytics.track(AnonymousUser(), "foo_created", {"foo_id": 234})
+
+        good.track.assert_not_called()
 
     @patch("temba.utils.analytics.base.get_backends")
     def test_identify(self, mock_get_backends):

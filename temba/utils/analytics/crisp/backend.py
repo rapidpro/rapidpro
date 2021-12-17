@@ -68,7 +68,7 @@ class CrispBackend(AnalyticsBackend):
             segments = existing_profile["segments"]
             external_id = existing_profile["people_id"]
 
-            segments.push(attributes["brand"])
+            segments.append(attributes["brand"])
             randoms = [seg for seg in segments if seg.startswith("random-")]
             if not randoms:
                 segments.append(f"random-{attributes['segment']}")
@@ -142,4 +142,4 @@ class CrispBackend(AnalyticsBackend):
             self.client.website.add_people_event(self.website_id, email, {"color": "red", "text": f"Consent revoked"})
 
     def get_template_context(self) -> dict:
-        return {"crisp_website_id": settings.CRISP_WEBSITE_ID}
+        return {"crisp_website_id": self.website_id}

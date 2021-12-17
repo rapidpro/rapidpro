@@ -1,12 +1,10 @@
 import random
-from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock
 
-from django.utils import timezone
-
-import temba.utils.analytics
 from temba.tests import TembaTest
+
+from .backend import CrispBackend
 
 
 class CrispTest(TembaTest):
@@ -15,110 +13,98 @@ class CrispTest(TembaTest):
 
         random.seed(1)
 
-        # create org and user stubs
-        self.org = SimpleNamespace(
-            id=1000, name="Some Org", brand="Some Brand", created_on=timezone.now(), account_value=lambda: 1000
+        self.mock_website = MagicMock()
+
+        self.backend = CrispBackend("acme", "sesame", "my_site")
+        self.backend.client.website = self.mock_website
+
+    def test_gauge(self):
+        self.backend.gauge("temba.foo_level", 12)  # noop
+
+    def test_track(self):
+        # signup events in green and None properties not sent
+        self.backend.track(self.user, "user_signup", {"user_id": "123", "nick_name": None})
+
+        self.mock_website.add_people_event.assert_called_with(
+            "my_site", "User@nyaruka.com", {"color": "green", "text": "user_signup", "data": {"user_id": "123"}}
         )
 
-        self.admin = MagicMock()
-        self.admin.username = "admin@example.com"
-        self.admin.first_name = ""
-        self.admin.last_name = ""
-        self.admin.email = "admin@example.com"
-        self.admin.is_authenticated = True
+        # created events in blue...
+        self.backend.track(self.admin, "foo_created", {"foo_id": "234"})
 
-        self.crisp_mock = MagicMock()
-        temba.utils.analytics._crisp = self.crisp_mock
+        self.mock_website.add_people_event.assert_called_with(
+            "my_site", "Administrator@nyaruka.com", {"color": "blue", "text": "foo_created", "data": {"foo_id": "234"}}
+        )
 
-        temba.utils.analytics.init()
+        # export events in purple...
+        self.backend.track(self.admin, "foo_export", {"foo_id": "345"})
+
+        self.mock_website.add_people_event.assert_called_with(
+            "my_site",
+            "Administrator@nyaruka.com",
+            {"color": "purple", "text": "foo_export", "data": {"foo_id": "345"}},
+        )
 
     def test_identify(self):
-        self.crisp_mock.website.get_people_profile.side_effect = Exception("No Profile")
-        temba.utils.analytics.identify(self.admin, {"slug": "test", "host": "rapidpro.io"}, self.org)
+        self.mock_website.get_people_profile.side_effect = Exception("No Profile")
+        self.mock_website.add_new_people_profile.return_value = {"people_id": 1234}
+
+        self.backend.identify(self.admin, {"slug": "test", "host": "rapidpro.io"}, self.org)
 
         # did we actually call save?
-        self.crisp_mock.website.add_new_people_profile.assert_called_with(
-            self.crisp_mock.website_id,
+        self.mock_website.add_new_people_profile.assert_called_with(
+            "my_site",
             {
                 "person": {"nickname": " "},
                 "company": {
-                    "name": "Some Org",
-                    "url": "https://rapidpro.io/org/update/1000/",
-                    "domain": "rapidpro.io/org/update/1000",
+                    "name": "Temba",
+                    "url": f"https://rapidpro.io/org/update/{self.org.id}/",
+                    "domain": f"rapidpro.io/org/update/{self.org.id}",
                 },
                 "segments": ["test", "random-3"],
-                "email": "admin@example.com",
+                "email": "Administrator@nyaruka.com",
             },
         )
 
         # now identify when there is an existing profile
-        self.crisp_mock = MagicMock()
-        temba.utils.analytics._crisp = self.crisp_mock
-        temba.utils.analytics.identify(self.admin, {"slug": "test", "host": "rapidpro.io"}, self.org)
+        self.mock_website.get_people_profile.side_effect = None
+        self.mock_website.get_people_profile.return_value = {"people_id": 2345, "segments": []}
 
-        self.crisp_mock.website.update_people_profile.assert_called_with(
-            self.crisp_mock.website_id,
+        self.backend.identify(self.admin, {"slug": "test", "host": "rapidpro.io"}, self.org)
+
+        self.mock_website.update_people_profile.assert_called_with(
+            "my_site",
             self.admin.email,
             {
                 "person": {"nickname": " "},
                 "company": {
-                    "name": "Some Org",
-                    "url": "https://rapidpro.io/org/update/1000/",
-                    "domain": "rapidpro.io/org/update/1000",
+                    "name": "Temba",
+                    "url": f"https://rapidpro.io/org/update/{self.org.id}/",
+                    "domain": f"rapidpro.io/org/update/{self.org.id}",
                 },
                 "segments": mock.ANY,
             },
         )
 
-    def test_track(self):
-        temba.utils.analytics.track(self.admin, "temba.flow_created", properties={"name": "My Flow"})
-
-        self.crisp_mock.website.add_people_event.assert_called_with(
-            self.crisp_mock.website_id,
-            self.admin.username,
-            {"color": "blue", "text": "temba.flow_created", "data": {"name": "My Flow"}},
-        )
-
-        # different events get different colors in crisp
-        temba.utils.analytics.track(self.admin, "temba.user_signup")
-        self.crisp_mock.website.add_people_event.assert_called_with(
-            self.crisp_mock.website_id,
-            self.admin.username,
-            {"color": "green", "text": "temba.user_signup", "data": {}},
-        )
-
-        # test None is removed
-        temba.utils.analytics.track(
-            self.admin,
-            "temba.flow_broadcast",
-            dict(contacts=1, groups=0, query=None),
-        )
-
-        self.crisp_mock.website.add_people_event.assert_called_with(
-            self.crisp_mock.website_id,
-            self.admin.username,
-            {"color": "grey", "text": "temba.flow_broadcast", "data": {"contacts": 1, "groups": 0}},
-        )
-
-    def test_consent_valid_user(self):
+    def test_change_consent(self):
         # valid user which did not consent
-        self.crisp_mock.website.get_people_profile.return_value = {"segments": []}
+        self.mock_website.get_people_profile.return_value = {"segments": []}
 
-        temba.utils.analytics.change_consent(self.admin, consent=True)
+        self.backend.change_consent(self.admin, True)
 
-        self.crisp_mock.website.update_people_profile.assert_called_with(
-            self.crisp_mock.website_id,
-            "admin@example.com",
-            {"segments": ["consented"]},
+        self.mock_website.update_people_profile.assert_called_with(
+            "my_site", "Administrator@nyaruka.com", {"segments": ["consented"]}
         )
 
-    def test_consent_valid_user_decline(self):
         # valid user which did not consent
-        self.crisp_mock.website.get_people_profile.return_value = {"segments": ["random-3", "consented"]}
-        self.crisp_mock.website.get_people_data.return_value = {"data": {}}
+        self.mock_website.get_people_profile.return_value = {"segments": ["random-3", "consented"]}
+        self.mock_website.get_people_data.return_value = {"data": {}}
 
-        temba.utils.analytics.change_consent(self.admin, consent=False)
+        self.backend.change_consent(self.admin, False)
 
-        self.crisp_mock.website.save_people_data.assert_called_with(
-            self.crisp_mock.website_id, self.admin.email, {"data": {"consent_changed": mock.ANY}}
+        self.mock_website.save_people_data.assert_called_with(
+            "my_site", self.admin.email, {"data": {"consent_changed": mock.ANY}}
         )
+
+    def test_get_template_context(self):
+        self.assertEqual({"crisp_website_id": "my_site"}, self.backend.get_template_context())

@@ -37,7 +37,7 @@ class AnalyticsBackend(metaclass=abc.ABCMeta):
         """
 
 
-def init():
+def init():  # pragma: no cover
     """
     Initializes our analytics backends based on our settings.
     TODO this should all be dynamic based on a setting which is a list of backend class names
