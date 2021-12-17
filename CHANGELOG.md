@@ -1,3 +1,7 @@
+v7.1.26
+----------
+ * Prefer UTF-8 if we're not sure about encoding of CSV import
+
 v7.1.25
 ----------
  * Fix Kaleyra claim blurb
