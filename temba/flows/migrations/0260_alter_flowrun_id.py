@@ -3,11 +3,14 @@
 from django.db import migrations, models
 
 SQL = """
+----------------------------------------------------------------------
+-- Inserts a new flowpathrecentrun
+----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_insert_flowpathrecentrun(_from_uuid UUID, _from_step_uuid UUID, _to_uuid UUID, _to_step_uuid UUID, _run_id BIGINT, _visited_on TIMESTAMPTZ) RETURNS VOID AS $$
-  BEGIN
+BEGIN
     INSERT INTO flows_flowpathrecentrun("from_uuid", "from_step_uuid", "to_uuid", "to_step_uuid", "run_id", "visited_on")
-      VALUES(_from_uuid, _from_step_uuid, _to_uuid, _to_step_uuid, _run_id, _visited_on);
-  END;
+    VALUES(_from_uuid, _from_step_uuid, _to_uuid, _to_step_uuid, _run_id, _visited_on);
+END;
 $$ LANGUAGE plpgsql;"""
 
 
@@ -23,4 +26,10 @@ class Migration(migrations.Migration):
             name="id",
             field=models.BigAutoField(primary_key=True, serialize=False),
         ),
+        migrations.AlterField(
+            model_name="flowsession",
+            name="id",
+            field=models.BigAutoField(primary_key=True, serialize=False),
+        ),
+        migrations.RunSQL(SQL),
     ]
