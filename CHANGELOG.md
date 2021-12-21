@@ -1,3 +1,7 @@
+v7.1.27
+----------
+ * Drop no longer used FlowRun.parent
+
 v7.1.26
 ----------
  * Prefer UTF-8 if we're not sure about encoding of CSV import
