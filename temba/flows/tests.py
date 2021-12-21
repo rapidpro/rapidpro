@@ -1759,24 +1759,11 @@ class FlowTest(TembaTest):
         self.assertEqual(0, parent.group_dependencies.all().count())
 
     def test_update_expiration(self):
-        flow1 = self.get_flow("favorites")
-        flow2 = Flow.copy(flow1, self.admin)
+        flow = self.get_flow("favorites")
 
-        parent = FlowRun.objects.create(
+        run = FlowRun.objects.create(
             org=self.org,
-            flow=flow1,
-            contact=self.contact,
-            path=[
-                {
-                    FlowRun.PATH_STEP_UUID: "1b9c7862-55fb-4ad8-9c81-203a12a63a63",
-                    FlowRun.PATH_NODE_UUID: "93a9f3b9-3471-4849-b6af-daec7c431e2a",
-                    FlowRun.PATH_ARRIVED_ON: datetime.datetime(2019, 1, 1, 0, 0, 0, 0, pytz.UTC),
-                }
-            ],
-        )
-        child = FlowRun.objects.create(
-            org=self.org,
-            flow=flow2,
+            flow=flow,
             contact=self.contact,
             path=[
                 {
@@ -1785,19 +1772,14 @@ class FlowTest(TembaTest):
                     FlowRun.PATH_ARRIVED_ON: datetime.datetime(2019, 1, 1, 0, 0, 0, 0, pytz.UTC),
                 }
             ],
-            parent=parent,
         )
 
-        update_run_expirations_task(flow2.id)
+        update_run_expirations_task(flow.id)
 
-        parent.refresh_from_db()
-        child.refresh_from_db()
+        run.refresh_from_db()
 
-        # child expiration should be last arrived_on + 12 hours
-        self.assertEqual(datetime.datetime(2019, 1, 1, 12, 0, 0, 0, pytz.UTC), child.expires_on)
-
-        # parent expiration should be that + 12 hours
-        self.assertEqual(datetime.datetime(2019, 1, 2, 0, 0, 0, 0, pytz.UTC), parent.expires_on)
+        # run expiration should be last arrived_on + 12 hours
+        self.assertEqual(datetime.datetime(2019, 1, 1, 12, 0, 0, 0, pytz.UTC), run.expires_on)
 
 
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
