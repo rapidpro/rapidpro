@@ -1191,9 +1191,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # if this run is part of a Surveyor session, the user that submitted it
     submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, db_index=False)
 
-    # parent run that started this run (if any)
-    parent = models.ForeignKey("flows.FlowRun", on_delete=models.PROTECT, null=True)
-
     # UUID of the parent run (if any)
     parent_uuid = models.UUIDField(null=True)
 
@@ -1265,9 +1262,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 self.delete_reason = delete_reason
                 self.save(update_fields=["delete_reason"])
 
-            # clear any runs that reference us
-            FlowRun.objects.filter(parent=self).update(parent=None)
-
             # and any recent runs
             for recent in FlowPathRecentRun.objects.filter(run=self):
                 recent.release()
@@ -1291,10 +1285,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             # save our updated fields
             self.save(update_fields=["expires_on", "modified_on"])
-
-        # parent should always have a later expiration than the children
-        if self.parent:
-            self.parent.update_expiration(self.expires_on)
 
     def as_archive_json(self):
         def convert_step(step):
