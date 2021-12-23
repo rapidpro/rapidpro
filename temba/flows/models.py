@@ -125,7 +125,40 @@ class Flow(TembaModel):
     INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
     CURRENT_SPEC_VERSION = "13.1.0"  # current flow spec version
 
-    DEFAULT_EXPIRES_AFTER = 60 * 24 * 7  # 1 week
+    EXPIRES_CHOICES = {
+        TYPE_MESSAGE: (
+            (5, _("After 5 minutes")),
+            (10, _("After 10 minutes")),
+            (15, _("After 15 minutes")),
+            (30, _("After 30 minutes")),
+            (60, _("After 1 hour")),
+            (60 * 3, _("After 3 hours")),
+            (60 * 6, _("After 6 hours")),
+            (60 * 12, _("After 12 hours")),
+            (60 * 18, _("After 18 hours")),
+            (60 * 24, _("After 1 day")),
+            (60 * 24 * 2, _("After 2 days")),
+            (60 * 24 * 3, _("After 3 days")),
+            (60 * 24 * 7, _("After 1 week")),
+            (60 * 24 * 14, _("After 2 weeks")),
+            (60 * 24 * 30, _("After 30 days")),
+        ),
+        TYPE_VOICE: (
+            (1, _("After 1 minute")),
+            (2, _("After 2 minutes")),
+            (3, _("After 3 minutes")),
+            (4, _("After 4 minutes")),
+            (5, _("After 5 minutes")),
+            (10, _("After 10 minutes")),
+            (15, _("After 15 minutes")),
+        ),
+    }
+    EXPIRES_DEFAULTS = {
+        TYPE_MESSAGE: 60 * 24 * 7,  # 1 week
+        TYPE_VOICE: 5,  # 5 minutes
+        TYPE_BACKGROUND: 0,
+        TYPE_SURVEY: 0,
+    }
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
 
@@ -142,7 +175,8 @@ class Flow(TembaModel):
     metadata = JSONAsTextField(null=True, default=dict)
 
     expires_after_minutes = models.IntegerField(
-        default=DEFAULT_EXPIRES_AFTER, help_text=_("Minutes of inactivity that will cause expiration from flow")
+        default=EXPIRES_DEFAULTS[TYPE_MESSAGE],
+        help_text=_("Minutes of inactivity that will cause expiration from flow"),
     )
 
     ignore_triggers = models.BooleanField(default=False, help_text=_("Ignore keyword triggers while in this flow"))
@@ -182,16 +216,18 @@ class Flow(TembaModel):
         user,
         name,
         flow_type=TYPE_MESSAGE,
-        expires_after_minutes=DEFAULT_EXPIRES_AFTER,
+        expires_after_minutes=0,
         base_language="base",
         create_revision=False,
         **kwargs,
     ):
-        flow = Flow.objects.create(
+        assert not expires_after_minutes or cls.is_valid_expires(flow_type, expires_after_minutes)
+
+        flow = cls.objects.create(
             org=org,
             name=name,
             flow_type=flow_type,
-            expires_after_minutes=expires_after_minutes,
+            expires_after_minutes=expires_after_minutes or cls.EXPIRES_DEFAULTS[flow_type],
             base_language=base_language,
             saved_by=user,
             created_by=user,
@@ -311,13 +347,14 @@ class Flow(TembaModel):
             flow_type = db_types[flow_def[Flow.DEFINITION_TYPE]]
             flow_uuid = flow_def[Flow.DEFINITION_UUID]
             flow_name = flow_def[Flow.DEFINITION_NAME]
-            flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, Flow.DEFAULT_EXPIRES_AFTER)
+            flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, 0)
 
             flow = None
             flow_name = flow_name[:64].strip()
 
-            if flow_type == Flow.TYPE_VOICE:
-                flow_expires = min([flow_expires, 15])  # voice flow expiration can't be more than 15 minutes
+            # ensure expires is valid for the flow type
+            if not cls.is_valid_expires(flow_type, flow_expires):
+                flow_expires = cls.EXPIRES_DEFAULTS[flow_type]
 
             # check if we can find that flow by UUID first
             if same_site:
@@ -369,6 +406,11 @@ class Flow(TembaModel):
 
         # return the created flows
         return [f[0] for f in created_flows]
+
+    @classmethod
+    def is_valid_expires(cls, flow_type: str, expires: int) -> bool:
+        valid_expires = {c[0] for c in cls.EXPIRES_CHOICES.get(flow_type, ())}
+        return not valid_expires or expires in valid_expires
 
     @classmethod
     def copy(cls, flow, user):
@@ -877,14 +919,6 @@ class Flow(TembaModel):
 
         if "version" in flow_def:
             flow_def = legacy.migrate_definition(flow_def, flow=flow)
-
-        if "metadata" not in flow_def:
-            flow_def["metadata"] = {}
-
-        # ensure definition has a valid expiration
-        expires = flow_def["metadata"].get("expires", 0)
-        if expires <= 0 or expires > (30 * 24 * 60):
-            flow_def["metadata"]["expires"] = Flow.DEFAULT_EXPIRES_AFTER
 
         # migrate using goflow for anything newer
         if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):

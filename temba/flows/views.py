@@ -72,25 +72,6 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 
-EXPIRES_CHOICES = (
-    (5, _("After 5 minutes")),
-    (10, _("After 10 minutes")),
-    (15, _("After 15 minutes")),
-    (30, _("After 30 minutes")),
-    (60, _("After 1 hour")),
-    (60 * 3, _("After 3 hours")),
-    (60 * 6, _("After 6 hours")),
-    (60 * 12, _("After 12 hours")),
-    (60 * 18, _("After 18 hours")),
-    (60 * 24, _("After 1 day")),
-    (60 * 24 * 2, _("After 2 days")),
-    (60 * 24 * 3, _("After 3 days")),
-    (60 * 24 * 7, _("After 1 week")),
-    (60 * 24 * 14, _("After 2 weeks")),
-    (60 * 24 * 30, _("After 30 days")),
-)
-
-
 class BaseFlowForm(forms.ModelForm):
     def clean_keyword_triggers(self):
         org = self.user.get_org()
@@ -474,18 +455,12 @@ class FlowCRUDL(SmartCRUDL):
         def save(self, obj):
             org = self.request.user.get_org()
 
-            # default expiration is a week
-            expires_after_minutes = Flow.DEFAULT_EXPIRES_AFTER
-            if obj.flow_type == Flow.TYPE_VOICE:
-                # ivr expires after 5 minutes of inactivity
-                expires_after_minutes = 5
-
             self.object = Flow.create(
                 org,
                 self.request.user,
                 obj.name,
                 flow_type=obj.flow_type,
-                expires_after_minutes=expires_after_minutes,
+                expires_after_minutes=Flow.EXPIRES_DEFAULTS[obj.flow_type],
                 base_language=obj.base_language,
                 create_revision=True,
             )
@@ -578,8 +553,8 @@ class FlowCRUDL(SmartCRUDL):
             expires_after_minutes = forms.ChoiceField(
                 label=_("Expire inactive contacts"),
                 help_text=_("When inactive contacts should be removed from the flow"),
-                initial=5,
-                choices=IVRCall.EXPIRES_CHOICES,
+                initial=Flow.EXPIRES_DEFAULTS[Flow.TYPE_VOICE],
+                choices=Flow.EXPIRES_CHOICES[Flow.TYPE_VOICE],
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
             keyword_triggers = forms.CharField(
@@ -643,8 +618,8 @@ class FlowCRUDL(SmartCRUDL):
             expires_after_minutes = forms.ChoiceField(
                 label=_("Expire inactive contacts"),
                 help_text=_("When inactive contacts should be removed from the flow"),
-                initial=str(60 * 24 * 7),
-                choices=EXPIRES_CHOICES,
+                initial=Flow.EXPIRES_DEFAULTS[Flow.TYPE_MESSAGE],
+                choices=Flow.EXPIRES_CHOICES[Flow.TYPE_MESSAGE],
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
 
