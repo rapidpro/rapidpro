@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "7.1.27"
+version = "7.1.28"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 license = "AGPL-3"

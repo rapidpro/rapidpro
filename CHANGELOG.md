@@ -1,3 +1,7 @@
+v7.1.28
+----------
+ * Convert FlowRun.id and FlowSession.id to BIGINT
+
 v7.1.27
 ----------
  * Drop no longer used FlowRun.parent
