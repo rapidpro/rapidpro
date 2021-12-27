@@ -3646,6 +3646,50 @@ class FlowRunTest(TembaTest):
         )
         self.assertFalse(mock_queue_interrupt.called)
 
+    def test_big_ids(self):
+        # create a session and run with big ids
+        session = FlowSession.objects.create(
+            id=3_000_000_000,
+            uuid=uuid4(),
+            org=self.org,
+            contact=self.contact,
+            status=FlowSession.STATUS_WAITING,
+            created_on=timezone.now(),
+        )
+        FlowRun.objects.create(
+            id=4_000_000_000,
+            uuid=uuid4(),
+            org=self.org,
+            session=session,
+            flow=self.create_flow(),
+            contact=self.contact,
+            status=FlowRun.STATUS_WAITING,
+            created_on=timezone.now(),
+            modified_on=timezone.now(),
+            path=[
+                {
+                    "uuid": "b5c3421c-3bbb-4dc7-9bda-683456588a6d",
+                    "node_uuid": "857a1498-3d5f-40f5-8185-2ce596ce2677",
+                    "arrived_on": "2021-12-20T08:47:30.123Z",
+                    "exit_uuid": "6fc14d2c-3b4d-49c7-b342-4b2b2ebf7678",
+                },
+                {
+                    "uuid": "4a254612-8437-47e1-b7bd-feb97ee60bf6",
+                    "node_uuid": "59d992c6-c491-473d-a7e9-4f431d705c01",
+                    "arrived_on": "2021-12-20T08:47:30.234Z",
+                    "exit_uuid": None,
+                },
+            ],
+        )
+        self.assertEqual(
+            {"6fc14d2c-3b4d-49c7-b342-4b2b2ebf7678:59d992c6-c491-473d-a7e9-4f431d705c01": 1},
+            {f"{c.from_uuid}:{c.to_uuid}": c.count for c in FlowPathCount.objects.all()},
+        )
+        self.assertEqual(
+            {"59d992c6-c491-473d-a7e9-4f431d705c01": 1},
+            {str(c.node_uuid): c.count for c in FlowNodeCount.objects.all()},
+        )
+
 
 class FlowSessionTest(TembaTest):
     def test_trim(self):

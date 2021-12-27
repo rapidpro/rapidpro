@@ -1052,6 +1052,7 @@ class FlowSession(models.Model):
         (STATUS_FAILED, "Failed"),
     )
 
+    id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(unique=True)
     org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
@@ -1158,6 +1159,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
 
+    id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="runs", db_index=False)
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="runs")
