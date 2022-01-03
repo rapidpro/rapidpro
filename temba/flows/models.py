@@ -1077,11 +1077,10 @@ class FlowSession(models.Model):
     created_on = models.DateTimeField(default=timezone.now)
     ended_on = models.DateTimeField(null=True)
 
-    # when this session's wait will time out (if at all)
-    timeout_on = models.DateTimeField(null=True)
-
-    # when this session started waiting (if at all)
-    wait_started_on = models.DateTimeField(null=True)
+    # if session is waiting for input...
+    wait_started_on = models.DateTimeField(null=True)  # when it started waiting
+    timeout_on = models.DateTimeField(null=True)  # when it should timeout (set by courier when last msg is sent)
+    wait_expires_on = models.DateTimeField(null=True)  # when waiting run can be expired
 
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
@@ -1104,6 +1103,20 @@ class FlowSession(models.Model):
 
     def __str__(self):  # pragma: no cover
         return str(self.contact)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                name="flows_session_message_expires",
+                fields=("wait_expires_on",),
+                condition=Q(session_type=Flow.TYPE_MESSAGE, status="W", wait_expires_on__isnull=False),
+            ),
+            models.Index(
+                name="flows_session_voice_expires",
+                fields=("wait_expires_on",),
+                condition=Q(session_type=Flow.TYPE_VOICE, status="W", wait_expires_on__isnull=False),
+            ),
+        ]
 
 
 class FlowRun(RequireUpdateFieldsMixin, models.Model):
@@ -1179,9 +1192,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     modified_on = models.DateTimeField(default=timezone.now)
     exited_on = models.DateTimeField(null=True)
 
-    # when this run will expire
-    expires_on = models.DateTimeField(null=True)
-
     # true if the contact has responded in this run
     responded = models.BooleanField(default=False)
 
@@ -1212,6 +1222,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # TODO to be replaced by new status field
     is_active = models.BooleanField(default=True)
     exit_type = models.CharField(null=True, max_length=1, choices=EXIT_TYPE_CHOICES)
+
+    # TODO to be replaced by FlowSession.wait_expires_on
+    expires_on = models.DateTimeField(null=True)
 
     def get_events_of_type(self, event_types):
         """
