@@ -436,7 +436,7 @@ class TembaTestMixin:
             "type": Flow.GOFLOW_TYPES[flow_type],
             "revision": 1,
             "spec_version": "13.1.0",
-            "expire_after_minutes": Flow.DEFAULT_EXPIRES_AFTER,
+            "expire_after_minutes": Flow.EXPIRES_DEFAULTS[flow_type],
             "language": "eng",
             "nodes": nodes,
         }

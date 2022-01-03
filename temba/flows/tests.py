@@ -1952,7 +1952,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         flow2 = Flow.objects.get(org=self.org, name="Surveyor Flow")
         self.assertEqual(flow2.flow_type, "S")
-        self.assertEqual(flow2.expires_after_minutes, 10080)
+        self.assertEqual(flow2.expires_after_minutes, 0)
 
         # make sure we don't get a start flow button for Android Surveys
         response = self.client.get(reverse("flows.flow_editor", args=[flow2.uuid]))

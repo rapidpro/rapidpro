@@ -220,7 +220,7 @@ class CampaignTest(TembaTest):
                 "revision": 1,
                 "language": "eng",
                 "type": "messaging_background",
-                "expire_after_minutes": 10080,
+                "expire_after_minutes": 0,
                 "localization": {},
                 "nodes": [
                     {
@@ -1537,7 +1537,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
                 "name": f"Single Message ({event.id})",
                 "spec_version": "13.0.0",
                 "revision": 1,
-                "expire_after_minutes": 10080,
+                "expire_after_minutes": 0,
                 "language": "fra",
                 "type": "messaging_background",
                 "localization": {"spa": {action_uuid: {"text": ["hola"]}}},
