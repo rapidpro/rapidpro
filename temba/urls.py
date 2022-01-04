@@ -8,7 +8,7 @@ from django.views.i18n import JavaScriptCatalog
 from celery.signals import worker_process_init
 
 from temba.channels.views import register, sync
-from temba.utils.analytics import init_analytics
+from temba.utils import analytics
 
 # javascript translation packages
 js_info_dict = {"packages": ()}  # this is empty due to the fact that all translation are in one folder
@@ -54,12 +54,12 @@ for app in settings.APP_URLS:  # pragma: needs cover
     urlpatterns.append(url(r"^", include(app)))
 
 # initialize our analytics (the signal below will initialize each worker)
-init_analytics()
+analytics.init()
 
 
 @worker_process_init.connect
 def configure_workers(sender=None, **kwargs):
-    init_analytics()  # pragma: needs cover
+    analytics.init()  # pragma: needs cover
 
 
 def track_user(self):  # pragma: no cover

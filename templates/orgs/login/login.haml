@@ -1,14 +1,12 @@
 -extends "orgs/login/login_base.haml"
--load smartmin i18n
+-load smartmin i18n temba
 
 -block login-title
   -trans "Welcome Back"
       
 -block login-content        
 
-  -if crisp_website_id
-    :javascript
-      $crisp.push(["do", "session:reset"])
+  {% analytics_hook 'login' %}
 
   -blocktrans trimmed
     Please sign in with your email address and password.
