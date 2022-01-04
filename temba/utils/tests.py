@@ -543,7 +543,7 @@ class EmailTest(TembaTest):
 
     def test_is_valid_address(self):
 
-        self.VALID_EMAILS = [
+        valid_emails = [
             # Cases from https://en.wikipedia.org/wiki/Email_address
             "prettyandsimple@example.com",
             "very.common@example.com",
@@ -555,7 +555,8 @@ class EmailTest(TembaTest):
             '"very.(),:;<>[]".VERY."very@\\ "very".unusual"@strange.example.com',
             "example-indeed@strange-example.com",
             "#!$%&'*+-/=?^_`{}|~@example.org",
-            '"()<>[]:,;@\\"!#$%&\'-/=?^_`{}| ~.a"@example.org' '" "@example.org',
+            '"()<>[]:,;@\\"!#$%&\'-/=?^_`{}| ~.a"@example.org',
+            '" "@example.org',
             "example@localhost",
             "example@s.solutions",
             # Cases from Django tests
@@ -577,7 +578,7 @@ class EmailTest(TembaTest):
             "a@%s.us" % ("a" * 63),
         ]
 
-        self.INVALID_EMAILS = [
+        invalid_emails = [
             # Cases from https://en.wikipedia.org/wiki/Email_address
             None,
             "",
@@ -629,10 +630,10 @@ class EmailTest(TembaTest):
             "a@[127.0.0.1]\n",
         ]
 
-        for email in self.VALID_EMAILS:
+        for email in valid_emails:
             self.assertTrue(is_valid_address(email), "FAILED: %s should be a valid email" % email)
 
-        for email in self.INVALID_EMAILS:
+        for email in invalid_emails:
             self.assertFalse(is_valid_address(email), "FAILED: %s should be an invalid email" % email)
 
 
