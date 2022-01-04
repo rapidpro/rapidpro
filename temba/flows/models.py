@@ -27,9 +27,9 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.classifiers.models import Classifier
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.msgs.models import Attachment, Label, Msg
+from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
@@ -1287,19 +1287,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             events_by_step[e[FlowRun.EVENT_STEP_UUID]].append(e)
         return events_by_step
 
-    def get_messages(self):
-        """
-        Gets all the messages associated with this run
-        """
-        # need a data migration to go fix some old message events with uuid="None", until then filter them out
-        msg_uuids = []
-        for e in self.get_msg_events():
-            msg_uuid = e["msg"].get("uuid")
-            if msg_uuid and msg_uuid != "None":
-                msg_uuids.append(msg_uuid)
-
-        return Msg.objects.filter(uuid__in=msg_uuids)
-
     def release(self, delete_reason=None):
         """
         Permanently deletes this flow run
@@ -1825,7 +1812,6 @@ class ExportFlowResultsTask(BaseExportTask):
     analytics_key = "flowresult_export"
     notification_export_type = "results"
 
-    INCLUDE_MSGS = "include_msgs"
     CONTACT_FIELDS = "contact_fields"
     GROUP_MEMBERSHIPS = "group_memberships"
     RESPONDED_ONLY = "responded_only"
@@ -1840,9 +1826,8 @@ class ExportFlowResultsTask(BaseExportTask):
     config = JSONAsTextField(null=True, default=dict, help_text=_("Any configuration options for this flow export"))
 
     @classmethod
-    def create(cls, org, user, flows, contact_fields, responded_only, include_msgs, extra_urns, group_memberships):
+    def create(cls, org, user, flows, contact_fields, responded_only, extra_urns, group_memberships):
         config = {
-            ExportFlowResultsTask.INCLUDE_MSGS: include_msgs,
             ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
             ExportFlowResultsTask.RESPONDED_ONLY: responded_only,
             ExportFlowResultsTask.EXTRA_URNS: extra_urns,
@@ -1896,20 +1881,8 @@ class ExportFlowResultsTask(BaseExportTask):
         self.append_row(sheet, columns)
         return sheet
 
-    def _add_msgs_sheet(self, book):
-        name = "Messages (%d)" % (book.num_msgs_sheets + 1) if book.num_msgs_sheets > 0 else "Messages"
-        index = book.num_runs_sheets + book.num_msgs_sheets
-        sheet = book.add_sheet(name, index)
-        book.num_msgs_sheets += 1
-
-        headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Attachments", "Channel"]
-
-        self.append_row(sheet, headers)
-        return sheet
-
     def write_export(self):
         config = self.config
-        include_msgs = config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
         responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
         contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
@@ -1964,7 +1937,6 @@ class ExportFlowResultsTask(BaseExportTask):
             self._write_runs(
                 book,
                 batch,
-                include_msgs,
                 extra_urn_columns,
                 groups,
                 contact_fields,
@@ -2042,7 +2014,6 @@ class ExportFlowResultsTask(BaseExportTask):
         self,
         book,
         runs,
-        include_msgs,
         extra_urn_columns,
         groups,
         contact_fields,
@@ -2122,52 +2093,6 @@ class ExportFlowResultsTask(BaseExportTask):
             runs_sheet_row += result_values
 
             self.append_row(book.current_runs_sheet, runs_sheet_row)
-
-            # write out any message associated with this run
-            if include_msgs and not self.org.is_anon:
-                self._write_run_messages(book, run, contact)
-
-    def _write_run_messages(self, book, run, contact):
-        """
-        Writes out any messages associated with the given run
-        """
-        from temba.mailroom.events import Event
-
-        for event in run["events"] or []:
-            if event["type"] == Event.TYPE_MSG_RECEIVED:
-                msg_direction = "IN"
-            elif event["type"] == Event.TYPE_MSG_CREATED:
-                msg_direction = "OUT"
-            else:  # pragma: no cover
-                continue
-
-            msg = event["msg"]
-            msg_text = msg.get("text", "")
-            msg_created_on = iso8601.parse_date(event["created_on"])
-            msg_channel = msg.get("channel")
-            msg_attachments = [attachment.url for attachment in Attachment.parse_all(msg.get("attachments", []))]
-
-            if "urn" in msg:
-                msg_urn = URN.format(msg["urn"], formatted=False)
-            else:
-                msg_urn = ""
-
-            if not book.current_msgs_sheet or book.current_msgs_sheet.num_rows >= self.MAX_EXCEL_ROWS:
-                book.current_msgs_sheet = self._add_msgs_sheet(book)
-
-            self.append_row(
-                book.current_msgs_sheet,
-                [
-                    str(contact.uuid),
-                    msg_urn,
-                    self.prepare_value(contact.name),
-                    msg_created_on,
-                    msg_direction,
-                    msg_text,
-                    ", ".join(msg_attachments),
-                    msg_channel["name"] if msg_channel else "",
-                ],
-            )
 
 
 @register_asset_store
