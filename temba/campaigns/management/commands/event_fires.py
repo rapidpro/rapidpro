@@ -14,8 +14,8 @@ class Command(BaseCommand):
 
     from django_redis import get_redis_connection
     r = get_redis_connection()
-    r.sismember("campaign_event_2021_09_10", "123456789")  # returns true
-    r.srem("campaign_event_2021_09_10", "123456789")  # allows mailroom to re-fire event
+    r.sismember("campaign_event:2022-01-03", "123456789")  # returns true
+    r.srem("campaign_event:2022-01-03", "123456789")  # allows mailroom to re-fire event
     """
 
     help = "Lists unfired campaign events"
