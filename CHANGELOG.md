@@ -1,3 +1,7 @@
+v7.1.31
+----------
+ * Remove include_msgs option of flow result exports
+
 v7.1.30
 ----------
  * Update to latest flow editor
