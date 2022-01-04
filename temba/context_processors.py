@@ -6,7 +6,7 @@ def config(request):
         "COMPONENTS_DEV_MODE": getattr(settings, "COMPONENTS_DEV_MODE", False),
         "EDITOR_DEV_MODE": getattr(settings, "EDITOR_DEV_MODE", False),
         "google_tracking_id": settings.GOOGLE_TRACKING_ID,
-        "crisp_website_id": settings.CRISP_WEBSITE_ID,
+        "crisp_website_id": getattr(settings, "CRISP_WEBSITE_ID", ""),
     }
 
 
