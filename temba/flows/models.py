@@ -840,7 +840,7 @@ class Flow(TembaModel):
         """
         return self.revisions.order_by("revision").last()
 
-    def save_revision(self, user, definition):
+    def save_revision(self, user, definition) -> tuple:
         """
         Saves a new revision for this flow, validation will be done on the definition first
         """
