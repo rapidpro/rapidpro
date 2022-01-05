@@ -14,7 +14,12 @@ class InstagramType(ChannelType):
     A Instagram channel
     """
 
-    extra_links = [dict(name=_("Reconnect Facebook Page"), link="channels.types.instagram.refresh_token")]
+    extra_links = [
+        dict(
+            name=_("Reconnect Instagram Business Account"),
+            link="channels.types.instagram.refresh_token",
+        )
+    ]
 
     code = "IG"
     category = ChannelType.Category.SOCIAL_MEDIA
@@ -45,7 +50,11 @@ class InstagramType(ChannelType):
     def get_urls(self):
         return [
             self.get_claim_url(),
-            url(r"^(?P<uuid>[a-z0-9\-]+)/refresh_token$", RefreshToken.as_view(), name="refresh_token"),
+            url(
+                r"^(?P<uuid>[a-z0-9\-]+)/refresh_token$",
+                RefreshToken.as_view(),
+                name="refresh_token",
+            ),
         ]
 
     def deactivate(self, channel):
