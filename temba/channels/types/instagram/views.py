@@ -29,8 +29,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 page_id = self.cleaned_data["page_id"]
                 fb_user_id = self.cleaned_data["fb_user_id"]
 
-                app_id = settings.INSTAGRAM_APPLICATION_ID
-                app_secret = settings.INSTAGRAM_APPLICATION_SECRET
+                app_id = settings.FACEBOOK_APPLICATION_ID
+                app_secret = settings.FACEBOOK_APPLICATION_SECRET
 
                 # get user long lived access token
                 url = "https://graph.facebook.com/oauth/access_token"
@@ -123,7 +123,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["claim_url"] = reverse("channels.types.instagram.claim")
-        context["facebook_app_id"] = settings.INSTAGRAM_APPLICATION_ID
+        context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
         return context
 
     def form_valid(self, form):
@@ -160,7 +160,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["refresh_url"] = reverse("channels.types.instagram.refresh_token", args=(self.object.uuid,))
-        context["facebook_app_id"] = settings.INSTAGRAM_APPLICATION_ID
+        context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
 
         resp = requests.get(
             "https://graph.facebook.com/v12.0/me",
@@ -191,8 +191,8 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         if page_id is None:
             raise Exception("Failed to get channel page ID")
 
-        app_id = settings.INSTAGRAM_APPLICATION_ID
-        app_secret = settings.INSTAGRAM_APPLICATION_SECRET
+        app_id = settings.FACEBOOK_APPLICATION_ID
+        app_secret = settings.FACEBOOK_APPLICATION_SECRET
 
         # get user long lived access token
         url = "https://graph.facebook.com/oauth/access_token"
