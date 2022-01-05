@@ -23,6 +23,3 @@ class LibratoBackend(AnalyticsBackend):
 
     def change_consent(self, user, consent: bool):
         pass
-
-    def get_template_html(self, hook: str) -> str:
-        return ""
