@@ -1,3 +1,8 @@
+v7.1.33
+----------
+ * Add management to fix broken flows
+ * Use new recent contacts endpoint for editor
+
 v7.1.32
 ----------
  * Temporarily put crisp_website_id back in context
