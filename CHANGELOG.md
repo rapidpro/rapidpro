@@ -1,3 +1,7 @@
+v7.1.34
+----------
+ * Update to editor v1.16.1
+
 v7.1.33
 ----------
  * Add management to fix broken flows
