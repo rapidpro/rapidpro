@@ -1237,7 +1237,7 @@ class ChannelEvent(models.Model):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT)
-    event_type = models.CharField(max_length=16, choices=TYPE_CHOICES)
+    event_type = models.CharField(max_length=32, choices=TYPE_CHOICES)
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="channel_events")
     contact_urn = models.ForeignKey(
         "contacts.ContactURN", on_delete=models.PROTECT, null=True, related_name="channel_events"
