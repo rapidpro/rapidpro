@@ -1109,7 +1109,6 @@ TICKETER_TYPES = [
 ]
 
 CHANNEL_TYPES = [
-    "temba.channels.types.instagram.InstagramType",
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
     "temba.channels.types.dialog360.Dialog360Type",
@@ -1175,6 +1174,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.android.AndroidType",
     "temba.channels.types.discord.DiscordType",
     "temba.channels.types.rocketchat.RocketChatType",
+    "temba.channels.types.instagram.InstagramType",
 ]
 
 # set of ISO-639-3 codes of languages to allow in addition to all ISO-639-1 languages

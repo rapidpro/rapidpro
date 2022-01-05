@@ -54,13 +54,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 url = f"https://graph.facebook.com/v12.0/{fb_user_id}/accounts"
                 params = {"access_token": long_lived_auth_token}
 
-                response = requests.get(url, params=params)
-
-                if response.status_code != 200:  # pragma: no cover
-                    raise Exception("Failed to get a page long lived token")
-
-                response_json = response.json()
-
                 page_access_token = ""
 
                 while True:
@@ -216,14 +209,8 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         url = f"https://graph.facebook.com/v12.0/{fb_user_id}/accounts"
         params = {"access_token": long_lived_auth_token}
 
-        response = requests.get(url, params=params)
-
-        if response.status_code != 200:  # pragma: no cover
-            raise Exception("Failed to get a page long lived token")
-
-        response_json = response.json()
-
         page_access_token = ""
+
         while True:
             response = requests.get(url, params=params)
             response_json = response.json()
