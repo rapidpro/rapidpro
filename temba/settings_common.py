@@ -188,7 +188,6 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.request",
                 "temba.context_processors.branding",
-                "temba.context_processors.analytics",
                 "temba.context_processors.config",
                 "temba.orgs.context_processors.user_group_perms_processor",
                 "temba.channels.views.channel_status_processor",
@@ -1200,13 +1199,6 @@ SESSION_CACHE_ALIAS = "default"
 # -----------------------------------------------------------------------------------
 TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY", "MISSING_TWITTER_API_KEY")
 TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET", "MISSING_TWITTER_API_SECRET")
-
-# Segment.io key for analytics
-SEGMENT_IO_KEY = os.environ.get("SEGMENT_IO_KEY", "")
-
-# Intercom token and app_id for support
-INTERCOM_APP_ID = os.environ.get("INTERCOM_APP_ID", "")
-INTERCOM_TOKEN = os.environ.get("INTERCOM_TOKEN", "")
 
 # Crisp id and key support option
 SUPPORT_SECRET = os.environ.get("SUPPORT_SECRET", "")

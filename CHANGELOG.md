@@ -1,3 +1,22 @@
+v7.1.32
+----------
+ * Temporarily put crisp_website_id back in context
+
+v7.1.31
+----------
+ * Remove include_msgs option of flow result exports
+
+v7.1.30
+----------
+ * Update to latest flow editor
+
+v7.1.29
+----------
+ * Update to latest floweditor
+ * Add FlowSession.wait_expires_on
+ * Improve validation of flow expires values
+ * Remove segment and intercom integrations and rework librato and crisp into a pluggable analytics framwork
+
 v7.1.28
 ----------
  * Convert FlowRun.id and FlowSession.id to BIGINT

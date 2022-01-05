@@ -806,10 +806,24 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # make some exports with logs
         export = ExportFlowResultsTask.create(
-            self.parent_org, self.admin, [parent_flow], [parent_field], True, True, (), ()
+            self.parent_org,
+            self.admin,
+            [parent_flow],
+            [parent_field],
+            responded_only=True,
+            extra_urns=(),
+            group_memberships=(),
         )
         Notification.export_finished(export)
-        ExportFlowResultsTask.create(self.child_org, self.admin, [child_flow], [child_field], True, True, (), ())
+        ExportFlowResultsTask.create(
+            self.child_org,
+            self.admin,
+            [child_flow],
+            [child_field],
+            responded_only=True,
+            extra_urns=(),
+            group_memberships=(),
+        )
 
         export = ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)
         Notification.export_finished(export)

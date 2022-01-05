@@ -27,9 +27,9 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.classifiers.models import Classifier
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.msgs.models import Attachment, Label, Msg
+from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
@@ -840,7 +840,7 @@ class Flow(TembaModel):
         """
         return self.revisions.order_by("revision").last()
 
-    def save_revision(self, user, definition):
+    def save_revision(self, user, definition) -> tuple:
         """
         Saves a new revision for this flow, validation will be done on the definition first
         """
@@ -1111,11 +1111,10 @@ class FlowSession(models.Model):
     created_on = models.DateTimeField(default=timezone.now)
     ended_on = models.DateTimeField(null=True)
 
-    # when this session's wait will time out (if at all)
-    timeout_on = models.DateTimeField(null=True)
-
-    # when this session started waiting (if at all)
-    wait_started_on = models.DateTimeField(null=True)
+    # if session is waiting for input...
+    wait_started_on = models.DateTimeField(null=True)  # when it started waiting
+    timeout_on = models.DateTimeField(null=True)  # when it should timeout (set by courier when last msg is sent)
+    wait_expires_on = models.DateTimeField(null=True)  # when waiting run can be expired
 
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
@@ -1138,6 +1137,20 @@ class FlowSession(models.Model):
 
     def __str__(self):  # pragma: no cover
         return str(self.contact)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                name="flows_session_message_expires",
+                fields=("wait_expires_on",),
+                condition=Q(session_type=Flow.TYPE_MESSAGE, status="W", wait_expires_on__isnull=False),
+            ),
+            models.Index(
+                name="flows_session_voice_expires",
+                fields=("wait_expires_on",),
+                condition=Q(session_type=Flow.TYPE_VOICE, status="W", wait_expires_on__isnull=False),
+            ),
+        ]
 
 
 class FlowRun(RequireUpdateFieldsMixin, models.Model):
@@ -1213,9 +1226,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     modified_on = models.DateTimeField(default=timezone.now)
     exited_on = models.DateTimeField(null=True)
 
-    # when this run will expire
-    expires_on = models.DateTimeField(null=True)
-
     # true if the contact has responded in this run
     responded = models.BooleanField(default=False)
 
@@ -1247,6 +1257,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     is_active = models.BooleanField(default=True)
     exit_type = models.CharField(null=True, max_length=1, choices=EXIT_TYPE_CHOICES)
 
+    # TODO to be replaced by FlowSession.wait_expires_on
+    expires_on = models.DateTimeField(null=True)
+
     def get_events_of_type(self, event_types):
         """
         Gets all the events of the given type associated with this run
@@ -1273,19 +1286,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         for e in events:
             events_by_step[e[FlowRun.EVENT_STEP_UUID]].append(e)
         return events_by_step
-
-    def get_messages(self):
-        """
-        Gets all the messages associated with this run
-        """
-        # need a data migration to go fix some old message events with uuid="None", until then filter them out
-        msg_uuids = []
-        for e in self.get_msg_events():
-            msg_uuid = e["msg"].get("uuid")
-            if msg_uuid and msg_uuid != "None":
-                msg_uuids.append(msg_uuid)
-
-        return Msg.objects.filter(uuid__in=msg_uuids)
 
     def release(self, delete_reason=None):
         """
@@ -1812,7 +1812,6 @@ class ExportFlowResultsTask(BaseExportTask):
     analytics_key = "flowresult_export"
     notification_export_type = "results"
 
-    INCLUDE_MSGS = "include_msgs"
     CONTACT_FIELDS = "contact_fields"
     GROUP_MEMBERSHIPS = "group_memberships"
     RESPONDED_ONLY = "responded_only"
@@ -1827,9 +1826,8 @@ class ExportFlowResultsTask(BaseExportTask):
     config = JSONAsTextField(null=True, default=dict, help_text=_("Any configuration options for this flow export"))
 
     @classmethod
-    def create(cls, org, user, flows, contact_fields, responded_only, include_msgs, extra_urns, group_memberships):
+    def create(cls, org, user, flows, contact_fields, responded_only, extra_urns, group_memberships):
         config = {
-            ExportFlowResultsTask.INCLUDE_MSGS: include_msgs,
             ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
             ExportFlowResultsTask.RESPONDED_ONLY: responded_only,
             ExportFlowResultsTask.EXTRA_URNS: extra_urns,
@@ -1883,20 +1881,8 @@ class ExportFlowResultsTask(BaseExportTask):
         self.append_row(sheet, columns)
         return sheet
 
-    def _add_msgs_sheet(self, book):
-        name = "Messages (%d)" % (book.num_msgs_sheets + 1) if book.num_msgs_sheets > 0 else "Messages"
-        index = book.num_runs_sheets + book.num_msgs_sheets
-        sheet = book.add_sheet(name, index)
-        book.num_msgs_sheets += 1
-
-        headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Attachments", "Channel"]
-
-        self.append_row(sheet, headers)
-        return sheet
-
     def write_export(self):
         config = self.config
-        include_msgs = config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
         responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
         contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
@@ -1951,7 +1937,6 @@ class ExportFlowResultsTask(BaseExportTask):
             self._write_runs(
                 book,
                 batch,
-                include_msgs,
                 extra_urn_columns,
                 groups,
                 contact_fields,
@@ -2029,7 +2014,6 @@ class ExportFlowResultsTask(BaseExportTask):
         self,
         book,
         runs,
-        include_msgs,
         extra_urn_columns,
         groups,
         contact_fields,
@@ -2109,52 +2093,6 @@ class ExportFlowResultsTask(BaseExportTask):
             runs_sheet_row += result_values
 
             self.append_row(book.current_runs_sheet, runs_sheet_row)
-
-            # write out any message associated with this run
-            if include_msgs and not self.org.is_anon:
-                self._write_run_messages(book, run, contact)
-
-    def _write_run_messages(self, book, run, contact):
-        """
-        Writes out any messages associated with the given run
-        """
-        from temba.mailroom.events import Event
-
-        for event in run["events"] or []:
-            if event["type"] == Event.TYPE_MSG_RECEIVED:
-                msg_direction = "IN"
-            elif event["type"] == Event.TYPE_MSG_CREATED:
-                msg_direction = "OUT"
-            else:  # pragma: no cover
-                continue
-
-            msg = event["msg"]
-            msg_text = msg.get("text", "")
-            msg_created_on = iso8601.parse_date(event["created_on"])
-            msg_channel = msg.get("channel")
-            msg_attachments = [attachment.url for attachment in Attachment.parse_all(msg.get("attachments", []))]
-
-            if "urn" in msg:
-                msg_urn = URN.format(msg["urn"], formatted=False)
-            else:
-                msg_urn = ""
-
-            if not book.current_msgs_sheet or book.current_msgs_sheet.num_rows >= self.MAX_EXCEL_ROWS:
-                book.current_msgs_sheet = self._add_msgs_sheet(book)
-
-            self.append_row(
-                book.current_msgs_sheet,
-                [
-                    str(contact.uuid),
-                    msg_urn,
-                    self.prepare_value(contact.name),
-                    msg_created_on,
-                    msg_direction,
-                    msg_text,
-                    ", ".join(msg_attachments),
-                    msg_channel["name"] if msg_channel else "",
-                ],
-            )
 
 
 @register_asset_store
