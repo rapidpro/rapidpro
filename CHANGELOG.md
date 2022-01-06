@@ -1,3 +1,8 @@
+v7.1.35
+----------
+ * Only display crisp support widget if brand supports it
+ * Do crisp chat widget embedding via analytics template hook
+
 v7.1.34
 ----------
  * Update to editor v1.16.1
