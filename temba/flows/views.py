@@ -1185,13 +1185,6 @@ class FlowCRUDL(SmartCRUDL):
                 choices=(("", "None"),),
                 widget=SelectWidget(),
             )
-            include_args = forms.BooleanField(
-                required=False,
-                label=_("Include Arguments"),
-                initial=True,
-                help_text=_("Include arguments to tests on splits"),
-                widget=CheckboxWidget(),
-            )
 
             def __init__(self, user, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -1211,11 +1204,7 @@ class FlowCRUDL(SmartCRUDL):
             return kwargs
 
         def form_valid(self, form):
-            params = {
-                "flow": self.object.id,
-                "language": form.cleaned_data["language"],
-                "exclude_args": "0" if form.cleaned_data["include_args"] else "1",
-            }
+            params = {"flow": self.object.id, "language": form.cleaned_data["language"]}
             download_url = reverse("flows.flow_download_translation") + "?" + urlencode(params, doseq=True)
 
             # if this is an XHR request, we need to return a structured response that it can parse
@@ -1240,14 +1229,12 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             language = request.GET.get("language", "")
-            exclude_args = request.GET.get("exclude_args") == "1"
-
             filename = slugify_with(self.flows[0].name) if len(self.flows) == 1 else "flows"
             if language:
                 filename += f".{language}"
             filename += ".po"
 
-            po = Flow.export_translation(org, self.flows, language, exclude_args)
+            po = Flow.export_translation(org, self.flows, language)
 
             response = HttpResponse(po, content_type="text/x-gettext-translation")
             response["Content-Disposition"] = f'attachment; filename="{filename}"'

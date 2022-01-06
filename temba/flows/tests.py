@@ -3194,14 +3194,12 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow = self.get_flow("favorites")
         export_url = reverse("flows.flow_export_translation", args=[flow.id])
 
-        self.assertUpdateFetch(
-            export_url, allow_viewers=False, allow_editors=True, form_fields=["language", "include_args"]
-        )
+        self.assertUpdateFetch(export_url, allow_viewers=False, allow_editors=True, form_fields=["language"])
 
         # submit with no language
         response = self.assertUpdateSubmit(export_url, {})
 
-        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=&exclude_args=1", response.url)
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=", response.url)
 
         # check fetching the PO from the download link
         with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
@@ -3215,7 +3213,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # submit with a language
         response = self.requestView(export_url, self.admin, post_data={"language": "spa"})
 
-        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=spa&exclude_args=1", response.url)
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=spa", response.url)
 
         # check fetching the PO from the download link
         with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
@@ -3227,9 +3225,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check submitting the form from a modal
         response = self.client.post(export_url, data={}, HTTP_X_PJAX=True)
-        self.assertEqual(
-            f"/flow/download_translation/?flow={flow.id}&language=&exclude_args=1", response["Temba-Success"]
-        )
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=", response["Temba-Success"])
 
     def test_import_translation(self):
         self.org.set_flow_languages(self.admin, ["eng", "spa"])

@@ -428,9 +428,9 @@ class Flow(TembaModel):
         return copy
 
     @classmethod
-    def export_translation(cls, org, flows, language, exclude_args):
+    def export_translation(cls, org, flows, language):
         flow_ids = [f.id for f in flows]
-        return mailroom.get_client().po_export(org.id, flow_ids, language=language, exclude_arguments=exclude_args)
+        return mailroom.get_client().po_export(org.id, flow_ids, language=language)
 
     @classmethod
     def import_translation(cls, org, flows, language, po_data):
