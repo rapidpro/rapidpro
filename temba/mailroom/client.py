@@ -117,13 +117,8 @@ class MailroomClient:
 
         return self._request("msg/resend", payload)
 
-    def po_export(self, org_id, flow_ids, language, exclude_arguments=False):
-        payload = {
-            "org_id": org_id,
-            "flow_ids": flow_ids,
-            "language": language,
-            "exclude_arguments": exclude_arguments,
-        }
+    def po_export(self, org_id: int, flow_ids: list, language: str):
+        payload = {"org_id": org_id, "flow_ids": flow_ids, "language": language}
 
         return self._request("po/export", payload, returns_json=False)
 
