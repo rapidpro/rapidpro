@@ -1,14 +1,10 @@
 from django.conf import settings
 from django.conf.urls import include, url
 from django.conf.urls.static import static
-from django.contrib.auth.models import AnonymousUser, User
 from django.views.generic import RedirectView
 from django.views.i18n import JavaScriptCatalog
 
-from celery.signals import worker_process_init
-
 from temba.channels.views import register, sync
-from temba.utils import analytics
 
 # javascript translation packages
 js_info_dict = {"packages": ()}  # this is empty due to the fact that all translation are in one folder
@@ -52,30 +48,6 @@ if settings.DEBUG:
 # import any additional urls
 for app in settings.APP_URLS:  # pragma: needs cover
     urlpatterns.append(url(r"^", include(app)))
-
-# initialize our analytics (the signal below will initialize each worker)
-analytics.init()
-
-
-@worker_process_init.connect
-def configure_workers(sender=None, **kwargs):
-    analytics.init()  # pragma: needs cover
-
-
-def track_user(self):  # pragma: no cover
-    """
-    Should the current user be tracked
-    """
-
-    # nothing to report if they haven't logged in
-    if not self.is_authenticated:
-        return False
-
-    return True
-
-
-User.track_user = track_user
-AnonymousUser.track_user = track_user
 
 
 def handler500(request):

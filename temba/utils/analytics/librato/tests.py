@@ -1,17 +1,19 @@
 from unittest.mock import patch
 
 from django.conf import settings
+from django.test.utils import override_settings
 
 from temba.tests import TembaTest
 
 from .backend import LibratoBackend
 
 
+@override_settings(LIBRATO_USER="LU123", LIBRATO_TOKEN="LT234")
 class LibratoTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.backend = LibratoBackend("acme", "sesame")
+        self.backend = LibratoBackend()
 
     @patch("librato_bg.client.Client.gauge")
     def test_gauge(self, mock_client_gauge):
