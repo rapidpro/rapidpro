@@ -3655,6 +3655,8 @@ class FlowRunTest(TembaTest):
             contact=self.contact,
             status=FlowSession.STATUS_WAITING,
             created_on=timezone.now(),
+            wait_started_on=timezone.now(),
+            wait_expires_on=timezone.now() + timedelta(days=7),
         )
         FlowRun.objects.create(
             id=4_000_000_000,
