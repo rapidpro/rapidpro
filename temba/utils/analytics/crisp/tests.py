@@ -2,6 +2,8 @@ import random
 from unittest import mock
 from unittest.mock import MagicMock
 
+from django.test.utils import override_settings
+
 from temba.tests import TembaTest
 
 from .backend import CrispBackend
@@ -106,9 +108,19 @@ class CrispTest(TembaTest):
             "my_site", self.admin.email, {"data": {"consent_changed": mock.ANY}}
         )
 
-    def test_get_template_html(self):
+    @override_settings(CRISP_IDENTIFIER="CI123", CRISP_KEY="CK234", CRISP_WEBSITE_ID="CW345")
+    def test_get_hook_template(self):
+        self.assertEqual("utils/analytics/crisp/login.html", self.backend.get_hook_template("login"))
+
+        request = MagicMock()
+        request.user = self.admin
+
+        self.assertEqual({"crisp_website_id": "CW345", "crisp_token_id": None}, self.backend.get_hook_context(request))
+
+        user_settings = self.admin.get_settings()
+        user_settings.external_id = "AD567"
+        user_settings.save()
+
         self.assertEqual(
-            '<script type="text/javascript">$crisp.push(["do", "session:reset"])</script>',
-            self.backend.get_template_html("login"),
+            {"crisp_website_id": "CW345", "crisp_token_id": "AD567"}, self.backend.get_hook_context(request)
         )
-        self.assertEqual("", self.backend.get_template_html("foo"))

@@ -2,6 +2,7 @@ import abc
 import logging
 
 from django.conf import settings
+from django.template import Context, Engine
 from django.utils.safestring import mark_safe
 
 logger = logging.getLogger(__name__)
@@ -11,7 +12,7 @@ registered_backends = []
 
 class AnalyticsBackend(metaclass=abc.ABCMeta):
     slug: str = None
-    template_hooks = {}
+    hook_templates = {}
 
     def gauge(self, event: str, value):
         """
@@ -33,10 +34,17 @@ class AnalyticsBackend(metaclass=abc.ABCMeta):
         Notifies of a user's consent status.
         """
 
-    def get_template_html(self, hook: str) -> str:
+    def get_hook_template(self, name: str) -> str:
         """
-        Gets HTML to be inserted at the named template hook
+        Gets template name for named hook
         """
+        return self.hook_templates.get(name)
+
+    def get_hook_context(self, request) -> dict:
+        """
+        Gets context to be included in hook templates
+        """
+        return {}
 
 
 def init():  # pragma: no cover
@@ -115,14 +123,18 @@ def track(user, event: str, properties: dict = None):
             logger.exception(f"error tracking event on {backend.slug}")
 
 
-def get_template_html(hook: str) -> str:
+def get_hook_html(name: str, context) -> str:
     """
     Gets HTML to be inserted at the named template hook
     """
-    content = ""
+    engine = Engine.get_default()
+    html = ""
     for backend in get_backends():
-        html = backend.get_template_html(hook)
-        if html:
-            content += f"<!-- begin hook for {backend.slug} -->\n{html}\n<!-- end hook for {backend.slug} -->\n"
+        template_name = backend.get_hook_template(name)
+        if template_name:
+            with context.update(backend.get_hook_context(context.request)):
+                html += f"<!-- begin hook for {backend.slug} -->\n"
+                html += engine.get_template(template_name).render(Context(context))
+                html += f"<!-- end hook for {backend.slug} -->\n"
 
-    return mark_safe(content)
+    return mark_safe(html)
