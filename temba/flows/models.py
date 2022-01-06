@@ -1269,8 +1269,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 self.save(update_fields=["delete_reason"])
 
             # and any recent runs
-            for recent in FlowPathRecentRun.objects.filter(run=self):
-                recent.release()
+            self.recent_runs.all().delete()
 
             if (
                 delete_reason == FlowRun.DELETE_FOR_USER
@@ -1593,9 +1592,6 @@ class FlowPathRecentRun(models.Model):
     to_step_uuid = models.UUIDField()
     run = models.ForeignKey(FlowRun, on_delete=models.PROTECT, related_name="recent_runs")
     visited_on = models.DateTimeField(default=timezone.now)
-
-    def release(self):
-        self.delete()
 
     class Meta:
         indexes = [models.Index(fields=["from_uuid", "to_uuid", "-visited_on"])]
