@@ -28,7 +28,6 @@ class Migration(migrations.Migration):
             model_name="flowsession",
             constraint=models.CheckConstraint(
                 check=models.Q(
-                    models.Q(("session_type__in", ("M", "V")), _negated=True),
                     models.Q(("status", "W"), _negated=True),
                     models.Q(("wait_expires_on__isnull", False), ("wait_started_on__isnull", False)),
                     _connector="OR",

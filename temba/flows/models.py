@@ -1152,11 +1152,9 @@ class FlowSession(models.Model):
             ),
         ]
         constraints = [
-            # ensure that waiting messaging and voice sessions have a wait started and expires
+            # ensure that waiting sessions have a wait started and expires
             models.CheckConstraint(
-                check=~Q(session_type__in=(Flow.TYPE_MESSAGE, Flow.TYPE_VOICE))
-                | ~Q(status="W")
-                | Q(wait_started_on__isnull=False, wait_expires_on__isnull=False),
+                check=~Q(status="W") | Q(wait_started_on__isnull=False, wait_expires_on__isnull=False),
                 name="flows_session_waiting_has_started_and_expires",
             ),
         ]
