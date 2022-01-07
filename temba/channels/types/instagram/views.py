@@ -15,11 +15,16 @@ from ...views import ClaimViewMixin
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
 
-        user_access_token = forms.CharField(min_length=32, required=True, help_text=_("The User Access Token"))
-        fb_user_id = forms.CharField(
-            required=True, help_text=_("The Facebook User ID of the admin that connected the channel")
+        user_access_token = forms.CharField(
+            min_length=32, required=True, help_text=_("The User Access Token")
         )
-        page_name = forms.CharField(required=True, help_text=_("The name of the Facebook page"))
+        fb_user_id = forms.CharField(
+            required=True,
+            help_text=_("The Facebook User ID of the admin that connected the channel"),
+        )
+        page_name = forms.CharField(
+            required=True, help_text=_("The name of the Facebook page")
+        )
         page_id = forms.IntegerField(required=True, help_text="The Facebook Page ID")
 
         def clean(self):
@@ -104,10 +109,16 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     raise Exception("Failed to get IG user")
 
                 response_json = response.json()
-                self.cleaned_data["ig_user_id"] = response_json.get("instagram_business_account").get("id")
+                self.cleaned_data["ig_user_id"] = response_json.get(
+                    "instagram_business_account"
+                ).get("id")
 
             except Exception:
-                raise forms.ValidationError(_("Sorry your Instagram channel could not be connected. Please try again"))
+                raise forms.ValidationError(
+                    _(
+                        "Sorry your Instagram channel could not be connected. Please try again"
+                    )
+                )
 
             return self.cleaned_data
 
@@ -126,10 +137,20 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         name = form.cleaned_data["name"]
         ig_user_id = form.cleaned_data["ig_user_id"]
 
-        config = {Channel.CONFIG_AUTH_TOKEN: page_access_token, Channel.CONFIG_PAGE_NAME: name, "page_id": page_id}
+        config = {
+            Channel.CONFIG_AUTH_TOKEN: page_access_token,
+            Channel.CONFIG_PAGE_NAME: name,
+            "page_id": page_id,
+        }
 
         self.object = Channel.create(
-            org, self.request.user, None, self.channel_type, name=name, address=ig_user_id, config=config
+            org,
+            self.request.user,
+            None,
+            self.channel_type,
+            name=name,
+            address=ig_user_id,
+            config=config,
         )
 
         return super().form_valid(form)
@@ -137,9 +158,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
 class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
-        user_access_token = forms.CharField(min_length=32, required=True, help_text=_("The User Access Token"))
+        user_access_token = forms.CharField(
+            min_length=32, required=True, help_text=_("The User Access Token")
+        )
         fb_user_id = forms.CharField(
-            required=True, help_text=_("The Facebook User ID of the admin that connected the channel")
+            required=True,
+            help_text=_("The Facebook User ID of the admin that connected the channel"),
         )
 
     slug_url_kwarg = "uuid"
@@ -148,11 +172,13 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     permission = "channels.channel_claim"
     fields = ()
     template_name = "channels/types/instagram/refresh_token.html"
-    title = _("Reconnect Facebook Page")
+    title = _("Reconnect Instagram Business Account")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["refresh_url"] = reverse("channels.types.instagram.refresh_token", args=(self.object.uuid,))
+        context["refresh_url"] = reverse(
+            "channels.types.instagram.refresh_token", args=(self.object.uuid,)
+        )
         context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
 
         resp = requests.get(
@@ -169,7 +195,9 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         return context
 
     def get_queryset(self):
-        return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="IG")
+        return Channel.objects.filter(
+            is_active=True, org=self.request.user.get_org(), channel_type="IG"
+        )
 
     def execute_action(self):
 

@@ -27,7 +27,9 @@ class InstagramTypeTest(TembaTest):
             config={"auth_token": "09876543", "page_id": "123456"},
         )
 
-    @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
+    @override_settings(
+        FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET"
+    )
     @patch("requests.post")
     @patch("requests.get")
     def test_claim(self, mock_get, mock_post):
@@ -35,11 +37,23 @@ class InstagramTypeTest(TembaTest):
             MockResponse(200, json.dumps({"access_token": self.long_life_user_token})),
             MockResponse(
                 200,
-                json.dumps({"data": [{"name": "Temba", "id": "123456", "access_token": self.long_life_user_token}]}),
+                json.dumps(
+                    {
+                        "data": [
+                            {
+                                "name": "Temba",
+                                "id": "123456",
+                                "access_token": self.long_life_user_token,
+                            }
+                        ]
+                    }
+                ),
             ),
             MockResponse(
                 200,
-                json.dumps({"instagram_business_account": {"id": "1234567"}, "id": "998776"}),
+                json.dumps(
+                    {"instagram_business_account": {"id": "1234567"}, "id": "998776"}
+                ),
             ),
         ]
 
@@ -68,12 +82,19 @@ class InstagramTypeTest(TembaTest):
         response = self.client.post(url, post_data, follow=True)
 
         # assert our channel got created
-        channel = Channel.objects.get(address="1234567", channel_type="IG")  # address is ig user
-        self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], self.long_life_user_token)
+        channel = Channel.objects.get(
+            address="1234567", channel_type="IG"
+        )  # address is ig user
+        self.assertEqual(
+            channel.config[Channel.CONFIG_AUTH_TOKEN], self.long_life_user_token
+        )
         self.assertEqual(channel.config[Channel.CONFIG_PAGE_NAME], "Temba")
         self.assertEqual(channel.address, "1234567")
 
-        self.assertEqual(response.request["PATH_INFO"], reverse("channels.channel_read", args=[channel.uuid]))
+        self.assertEqual(
+            response.request["PATH_INFO"],
+            reverse("channels.channel_read", args=[channel.uuid]),
+        )
 
         mock_get.assert_any_call(
             "https://graph.facebook.com/oauth/access_token",
@@ -86,7 +107,8 @@ class InstagramTypeTest(TembaTest):
         )
 
         mock_get.assert_any_call(
-            "https://graph.facebook.com/v12.0/098765/accounts", params={"access_token": self.long_life_user_token}
+            "https://graph.facebook.com/v12.0/098765/accounts",
+            params={"access_token": self.long_life_user_token},
         )
 
         mock_post.assert_any_call(
@@ -130,16 +152,21 @@ class InstagramTypeTest(TembaTest):
         self.channel.release(self.admin)
 
         mock_delete.assert_called_once_with(
-            "https://graph.facebook.com/v12.0/019283/subscribed_apps", params={"access_token": "09876543"}
+            "https://graph.facebook.com/v12.0/019283/subscribed_apps",
+            params={"access_token": "09876543"},
         )
 
-    @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
+    @override_settings(
+        FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET"
+    )
     @patch("requests.post")
     @patch("requests.get")
     def test_refresh_token(self, mock_get, mock_post):
         token = "x" * 200
 
-        url = reverse("channels.types.instagram.refresh_token", args=(self.channel.uuid,))
+        url = reverse(
+            "channels.types.instagram.refresh_token", args=(self.channel.uuid,)
+        )
 
         self.login(self.admin)
 
@@ -150,7 +177,7 @@ class InstagramTypeTest(TembaTest):
         ]
 
         response = self.client.get(url)
-        self.assertContains(response, "Reconnect Facebook Page")
+        self.assertContains(response, "Reconnect Instagram Business Account")
         self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
         self.assertEqual(response.context["refresh_url"], url)
         self.assertTrue(response.context["error_connect"])
@@ -160,12 +187,22 @@ class InstagramTypeTest(TembaTest):
             MockResponse(200, json.dumps({"access_token": self.long_life_user_token})),
             MockResponse(
                 200,
-                json.dumps({"data": [{"name": "Temba", "id": "123456", "access_token": self.long_life_user_token}]}),
+                json.dumps(
+                    {
+                        "data": [
+                            {
+                                "name": "Temba",
+                                "id": "123456",
+                                "access_token": self.long_life_user_token,
+                            }
+                        ]
+                    }
+                ),
             ),
         ]
 
         response = self.client.get(url)
-        self.assertContains(response, "Reconnect Facebook Page")
+        self.assertContains(response, "Reconnect Instagram Business Account")
         self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
         self.assertEqual(response.context["refresh_url"], url)
         self.assertFalse(response.context["error_connect"])
@@ -178,11 +215,16 @@ class InstagramTypeTest(TembaTest):
 
         # assert our channel got created
         channel = Channel.objects.get(address="019283", channel_type="IG")
-        self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], self.long_life_user_token)
+        self.assertEqual(
+            channel.config[Channel.CONFIG_AUTH_TOKEN], self.long_life_user_token
+        )
         self.assertEqual(channel.config[Channel.CONFIG_PAGE_NAME], "Temba")
         self.assertEqual(channel.address, "019283")
 
-        self.assertEqual(response.request["PATH_INFO"], reverse("channels.channel_read", args=[channel.uuid]))
+        self.assertEqual(
+            response.request["PATH_INFO"],
+            reverse("channels.channel_read", args=[channel.uuid]),
+        )
 
         mock_get.assert_any_call(
             "https://graph.facebook.com/oauth/access_token",
@@ -195,7 +237,8 @@ class InstagramTypeTest(TembaTest):
         )
 
         mock_get.assert_any_call(
-            "https://graph.facebook.com/v12.0/098765/accounts", params={"access_token": self.long_life_user_token}
+            "https://graph.facebook.com/v12.0/098765/accounts",
+            params={"access_token": self.long_life_user_token},
         )
 
         mock_post.assert_any_call(
