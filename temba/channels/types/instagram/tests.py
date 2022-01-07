@@ -27,9 +27,7 @@ class InstagramTypeTest(TembaTest):
             config={"auth_token": "09876543", "page_id": "123456"},
         )
 
-    @override_settings(
-        FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET"
-    )
+    @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
     @patch("requests.post")
     @patch("requests.get")
     def test_claim(self, mock_get, mock_post):
@@ -51,9 +49,7 @@ class InstagramTypeTest(TembaTest):
             ),
             MockResponse(
                 200,
-                json.dumps(
-                    {"instagram_business_account": {"id": "1234567"}, "id": "998776"}
-                ),
+                json.dumps({"instagram_business_account": {"id": "1234567"}, "id": "998776"}),
             ),
         ]
 
@@ -82,12 +78,8 @@ class InstagramTypeTest(TembaTest):
         response = self.client.post(url, post_data, follow=True)
 
         # assert our channel got created
-        channel = Channel.objects.get(
-            address="1234567", channel_type="IG"
-        )  # address is ig user
-        self.assertEqual(
-            channel.config[Channel.CONFIG_AUTH_TOKEN], self.long_life_user_token
-        )
+        channel = Channel.objects.get(address="1234567", channel_type="IG")  # address is ig user
+        self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], self.long_life_user_token)
         self.assertEqual(channel.config[Channel.CONFIG_PAGE_NAME], "Temba")
         self.assertEqual(channel.address, "1234567")
 
@@ -156,17 +148,13 @@ class InstagramTypeTest(TembaTest):
             params={"access_token": "09876543"},
         )
 
-    @override_settings(
-        FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET"
-    )
+    @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
     @patch("requests.post")
     @patch("requests.get")
     def test_refresh_token(self, mock_get, mock_post):
         token = "x" * 200
 
-        url = reverse(
-            "channels.types.instagram.refresh_token", args=(self.channel.uuid,)
-        )
+        url = reverse("channels.types.instagram.refresh_token", args=(self.channel.uuid,))
 
         self.login(self.admin)
 
@@ -215,9 +203,7 @@ class InstagramTypeTest(TembaTest):
 
         # assert our channel got created
         channel = Channel.objects.get(address="019283", channel_type="IG")
-        self.assertEqual(
-            channel.config[Channel.CONFIG_AUTH_TOKEN], self.long_life_user_token
-        )
+        self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], self.long_life_user_token)
         self.assertEqual(channel.config[Channel.CONFIG_PAGE_NAME], "Temba")
         self.assertEqual(channel.address, "019283")
 
