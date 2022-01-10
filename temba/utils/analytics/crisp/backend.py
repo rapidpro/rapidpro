@@ -22,11 +22,11 @@ class CrispBackend(AnalyticsBackend):
         "frame-top": "utils/analytics/crisp/frame_top.html",
     }
 
-    def __init__(self, identifier: str, key: str, website_id: str):
+    def __init__(self):
         self.client = Crisp()
         self.client.set_tier("plugin")
-        self.client.authenticate(identifier, key)
-        self.website_id = website_id
+        self.client.authenticate(settings.CRISP_IDENTIFIER, settings.CRISP_KEY)
+        self.website_id = settings.CRISP_WEBSITE_ID
 
     def gauge(self, event: str, value):
         pass

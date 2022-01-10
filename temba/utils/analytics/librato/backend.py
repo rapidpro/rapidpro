@@ -8,8 +8,8 @@ from ..base import AnalyticsBackend
 class LibratoBackend(AnalyticsBackend):
     slug = "librato"
 
-    def __init__(self, user, token):
-        self.client = Client(user, token)
+    def __init__(self):
+        self.client = Client(settings.LIBRATO_USER, settings.LIBRATO_TOKEN)
 
     def gauge(self, event: str, value):
         source = f"{settings.MACHINE_HOSTNAME}.{settings.HOSTNAME}"  # e.g. rapid1.rapidpro.io
