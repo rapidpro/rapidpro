@@ -56,7 +56,7 @@ DECLARE
   _old_last_step_uuid TEXT;
 BEGIN
     -- restrict changes
-    IF OLD.status IN ('C', 'I', 'F', 'X') AND NEW.status IN ('A', 'W') THEN RAISE EXCEPTION 'Cannot restart an exited flow run'; END IF;
+    IF OLD.status NOT IN ('A', 'W') AND NEW.status IN ('A', 'W') THEN RAISE EXCEPTION 'Cannot restart an exited flow run'; END IF;
 
     _old_path_json := COALESCE(OLD.path, '[]')::jsonb;
     _new_path_json := COALESCE(NEW.path, '[]')::jsonb;
