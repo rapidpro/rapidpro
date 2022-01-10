@@ -2072,10 +2072,7 @@ class ExportContactsTask(BaseExportTask):
             return str(contact.id)
         elif field["key"] == Contact.SCHEMES:
             contact_urns = contact.get_urns()
-            scheme_urns = []
-            for urn in contact_urns:
-                scheme_urns.append(urn.scheme)
-            return ", ".join(scheme_urns)
+            return contact_urns[0].scheme if contact_urns else ""
         elif field["urn_scheme"] is not None:
             contact_urns = contact.get_urns()
             scheme_urns = []

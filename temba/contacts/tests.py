@@ -4301,7 +4301,7 @@ class ContactFieldTest(TembaTest):
                     ],
                     [
                         str(contact2.id),
-                        "tel, twitter, mailto, telegram",
+                        "tel",
                         contact2.uuid,
                         "Adam Sumner",
                         "eng",
@@ -4313,7 +4313,7 @@ class ContactFieldTest(TembaTest):
                     ],
                     [
                         str(contact.id),
-                        "tel, tel",
+                        "tel",
                         contact.uuid,
                         "Ben Haggerty",
                         "",
@@ -4325,7 +4325,7 @@ class ContactFieldTest(TembaTest):
                     ],
                     [
                         str(contact3.id),
-                        "tel, twitter",
+                        "tel",
                         contact3.uuid,
                         "Luol Deng",
                         "",
@@ -4337,7 +4337,7 @@ class ContactFieldTest(TembaTest):
                     ],
                     [
                         str(contact4.id),
-                        "tel, twitter",
+                        "tel",
                         contact4.uuid,
                         "Stephen",
                         "",
