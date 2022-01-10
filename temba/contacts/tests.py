@@ -4922,6 +4922,9 @@ class URNTest(TembaTest):
     def test_facebook_urn(self):
         self.assertTrue(URN.validate("facebook:ref:asdf"))
 
+    def test_instagram_urn(self):
+        self.assertTrue(URN.validate("instagram:12345678901234567"))        
+
     def test_discord_urn(self):
         self.assertEqual("discord:750841288886321253", URN.from_discord("750841288886321253"))
         self.assertTrue(URN.validate(URN.from_discord("750841288886321253")))
@@ -4967,6 +4970,7 @@ class URNTest(TembaTest):
         self.assertEqual(URN.to_parts("telegram:12345"), ("telegram", "12345", None, None))
         self.assertEqual(URN.to_parts("telegram:12345#foobar"), ("telegram", "12345", None, "foobar"))
         self.assertEqual(URN.to_parts("ext:Aa0()+,-.:=@;$_!*'"), ("ext", "Aa0()+,-.:=@;$_!*'", None, None))
+        self.assertEqual(URN.to_parts("instagram:12345"), ("instagram", "12345", None, None))
 
         self.assertRaises(ValueError, URN.to_parts, "tel")
         self.assertRaises(ValueError, URN.to_parts, "tel:")  # missing scheme
@@ -5043,12 +5047,14 @@ class URNTest(TembaTest):
         # viber urn
         self.assertTrue(URN.validate("viber:dKPvqVrLerGrZw15qTuVBQ=="))
 
-        # facebook, telegram vk URN paths must be integers
+        # facebook, telegram, vk and instagram URN paths must be integers
         self.assertTrue(URN.validate("telegram:12345678901234567"))
         self.assertFalse(URN.validate("telegram:abcdef"))
         self.assertTrue(URN.validate("facebook:12345678901234567"))
         self.assertFalse(URN.validate("facebook:abcdef"))
         self.assertTrue(URN.validate("vk:12345678901234567"))
+        self.assertTrue(URN.validate("instagram:12345678901234567"))
+        self.assertFalse(URN.validate("instagram:abcdef"))
 
 
 class ESIntegrationTest(TembaNonAtomicTest):

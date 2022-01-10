@@ -189,8 +189,8 @@ class URN:
             except ValidationError:
                 return False
 
-        # facebook uses integer ids or temp ref ids
-        elif scheme in [cls.FACEBOOK_SCHEME]:
+        # facebook and instagram use integer ids and facebook also uses temp ref ids
+        elif scheme in [cls.FACEBOOK_SCHEME, cls.INSTAGRAM_SCHEME]:
             # we don't validate facebook refs since they come from the outside
             if URN.is_path_fb_ref(path):
                 return True
