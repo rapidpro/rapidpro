@@ -1,3 +1,9 @@
+v7.1.36
+----------
+ * Add scheme column on contact exports for anon orgs
+ * Remove option to include router arguments in downloaded PO files
+ * Make loading of analytics backends dynamic based on setting of backend class paths
+
 v7.1.35
 ----------
  * Only display crisp support widget if brand supports it
