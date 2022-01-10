@@ -690,7 +690,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     UUID = "uuid"
     GROUPS = "groups"
     ID = "id"
-    SCHEMES = "schemes"
+    SCHEME = "scheme"
 
     RESERVED_ATTRIBUTES = {
         ID,
@@ -699,7 +699,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         LANGUAGE,
         GROUPS,
         UUID,
-        SCHEMES,
+        SCHEME,
         CREATED_ON,
         "created_by",
         "modified_by",
@@ -1933,7 +1933,7 @@ class ExportContactsTask(BaseExportTask):
         if self.org.is_anon:
             fields = [
                 dict(label="ID", key=ContactField.KEY_ID, field=None, urn_scheme=None),
-                dict(label="Schemes", key=Contact.SCHEMES, field=None, urn_scheme=None),
+                dict(label="Scheme", key=Contact.SCHEME, field=None, urn_scheme=None),
             ] + fields
 
         scheme_counts = dict()
@@ -2070,7 +2070,7 @@ class ExportContactsTask(BaseExportTask):
             return contact.last_seen_on
         elif field["key"] == ContactField.KEY_ID:
             return str(contact.id)
-        elif field["key"] == Contact.SCHEMES:
+        elif field["key"] == Contact.SCHEME:
             contact_urns = contact.get_urns()
             return contact_urns[0].scheme if contact_urns else ""
         elif field["urn_scheme"] is not None:

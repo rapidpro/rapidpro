@@ -4289,7 +4289,7 @@ class ContactFieldTest(TembaTest):
                 [
                     [
                         "ID",
-                        "Schemes",
+                        "Scheme",
                         "Contact UUID",
                         "Name",
                         "Language",
