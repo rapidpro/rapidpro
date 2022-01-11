@@ -4923,7 +4923,7 @@ class URNTest(TembaTest):
         self.assertTrue(URN.validate("facebook:ref:asdf"))
 
     def test_instagram_urn(self):
-        self.assertTrue(URN.validate("instagram:12345678901234567"))        
+        self.assertTrue(URN.validate("instagram:12345678901234567"))
 
     def test_discord_urn(self):
         self.assertEqual("discord:750841288886321253", URN.from_discord("750841288886321253"))
