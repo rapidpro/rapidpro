@@ -1,17 +1,19 @@
 from unittest.mock import patch
 
 from django.conf import settings
+from django.test.utils import override_settings
 
 from temba.tests import TembaTest
 
 from .backend import LibratoBackend
 
 
+@override_settings(LIBRATO_USER="LU123", LIBRATO_TOKEN="LT234")
 class LibratoTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.backend = LibratoBackend("acme", "sesame")
+        self.backend = LibratoBackend()
 
     @patch("librato_bg.client.Client.gauge")
     def test_gauge(self, mock_client_gauge):
@@ -30,5 +32,8 @@ class LibratoTest(TembaTest):
     def test_change_consent(self):
         self.backend.change_consent(self.agent, True)  # noop
 
-    def test_get_template_html(self):
-        self.assertEqual("", self.backend.get_template_html("login"))  # none
+    def test_get_hook_template(self):
+        # no hooks..
+        self.assertIsNone(self.backend.get_hook_template("login"))
+        self.assertIsNone(self.backend.get_hook_template("frame-top"))
+        self.assertEqual({}, self.backend.get_hook_context(None))  # none

@@ -273,6 +273,6 @@ def parse_isodate(value):
     return iso8601.parse_date(value)
 
 
-@register.simple_tag()
-def analytics_hook(name):
-    return mark_safe(analytics.get_template_html(name))
+@register.simple_tag(takes_context=True)
+def analytics_hook(context, name: str):
+    return mark_safe(analytics.get_hook_html(name, context))

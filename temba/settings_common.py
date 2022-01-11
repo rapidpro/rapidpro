@@ -350,6 +350,7 @@ BRANDING = {
         "title": _("Visually build nationally scalable mobile applications"),
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
         "credits": _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."),
+        "support_widget": False,
     }
 }
 DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
@@ -480,7 +481,6 @@ PERMISSIONS = {
         "export_results",
         "filter",
         "menu",
-        "recent_messages",
         "recent_contacts",
         "results",
         "revisions",
@@ -874,7 +874,6 @@ GROUP_PERMISSIONS = {
         "flows.flow_list",
         "flows.flow_menu",
         "flows.flow_editor",
-        "flows.flow_recent_messages",
         "flows.flow_recent_contacts",
         "flows.flow_results",
         "flows.flow_revisions",
@@ -1184,6 +1183,8 @@ CHANNEL_TYPES = [
     "temba.channels.types.discord.DiscordType",
     "temba.channels.types.rocketchat.RocketChatType",
 ]
+
+ANALYTICS_TYPES = []
 
 # set of ISO-639-3 codes of languages to allow in addition to all ISO-639-1 languages
 NON_ISO6391_LANGUAGES = {}

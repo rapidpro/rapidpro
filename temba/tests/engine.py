@@ -278,6 +278,7 @@ class MockSessionWriter:
                     contact=self.contact,
                     session=self.session,
                     created_on=run["created_on"],
+                    status=RUN_STATUSES[run["status"]],
                 )
 
             FlowRun.objects.filter(id=run_obj.id).update(

@@ -1,3 +1,28 @@
+v7.1.37
+----------
+ * Migration to remove recent run creation from db triggers
+ * Remove no longer used recent messages view and functionality on FlowPathRecentRun
+
+v7.1.36
+----------
+ * Add scheme column on contact exports for anon orgs
+ * Remove option to include router arguments in downloaded PO files
+ * Make loading of analytics backends dynamic based on setting of backend class paths
+
+v7.1.35
+----------
+ * Only display crisp support widget if brand supports it
+ * Do crisp chat widget embedding via analytics template hook
+
+v7.1.34
+----------
+ * Update to editor v1.16.1
+
+v7.1.33
+----------
+ * Add management to fix broken flows
+ * Use new recent contacts endpoint for editor
+
 v7.1.32
 ----------
  * Temporarily put crisp_website_id back in context
