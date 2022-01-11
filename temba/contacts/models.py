@@ -189,8 +189,8 @@ class URN:
             except ValidationError:
                 return False
 
-        # facebook and instagram use integer ids and facebook also uses temp ref ids
-        elif scheme in [cls.FACEBOOK_SCHEME, cls.INSTAGRAM_SCHEME]:
+        # facebook use integer ids or temp ref ids
+        elif scheme in [cls.FACEBOOK_SCHEME]:
             # we don't validate facebook refs since they come from the outside
             if URN.is_path_fb_ref(path):
                 return True
@@ -203,8 +203,8 @@ class URN:
                 except ValueError:
                     return False
 
-        # telegram and whatsapp use integer ids
-        elif scheme in [cls.TELEGRAM_SCHEME, cls.WHATSAPP_SCHEME]:
+        # telegram, whatsapp and instagram use integer ids
+        elif scheme in [cls.TELEGRAM_SCHEME, cls.WHATSAPP_SCHEME, cls.INSTAGRAM_SCHEME]:
             return regex.match(r"^[0-9]+$", path, regex.V0)
 
         # validate Viber URNS look right (this is a guess)
