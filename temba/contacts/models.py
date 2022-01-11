@@ -1744,9 +1744,10 @@ class ContactGroup(TembaModel, DependencyMixin):
 
         from .tasks import release_group_task
 
+        self.name = f"deleted-{uuid4()}-{self.name}"[: self.MAX_NAME_LEN]
         self.is_active = False
         self.modified_by = user
-        self.save(update_fields=("is_active", "modified_by"))
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
         # do the hard work of actually clearing out contacts etc in a background task
         on_transaction_commit(lambda: release_group_task.delay(self.id))
