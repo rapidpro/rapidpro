@@ -63,7 +63,6 @@ from temba.utils.views import BulkActionMixin, SpaMixin
 from .models import (
     ExportFlowResultsTask,
     FlowLabel,
-    FlowPathRecentRun,
     FlowStartCount,
     FlowUserConflictException,
     FlowVersionConflictException,
@@ -190,7 +189,6 @@ class FlowCRUDL(SmartCRUDL):
         "filter",
         "campaign",
         "revisions",
-        "recent_messages",
         "recent_contacts",
         "assets",
         "upload_media_action",
@@ -227,27 +225,6 @@ class FlowCRUDL(SmartCRUDL):
 
             menu.append(self.create_menu_item(name=_("Archived"), icon="archive", href="flows.flow_archived"))
             return menu
-
-    class RecentMessages(OrgObjPermsMixin, SmartReadView):
-        """
-        Used by the editor for the rollover of recent messages on path segments in a flow
-        """
-
-        slug_url_kwarg = "uuid"
-
-        def get(self, request, *args, **kwargs):
-            exit_uuids = request.GET.get("exits", "").split(",")
-            to_uuid = request.GET.get("to")
-
-            recent_messages = []
-
-            if exit_uuids and to_uuid:
-                for recent_run in FlowPathRecentRun.get_recent(exit_uuids, to_uuid):
-                    recent_messages.append(
-                        {"sent": json.encode_datetime(recent_run["visited_on"]), "text": recent_run["text"]}
-                    )
-
-            return JsonResponse(recent_messages, safe=False)
 
     class RecentContacts(OrgObjPermsMixin, SmartReadView):
         """
