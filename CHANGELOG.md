@@ -1,3 +1,8 @@
+v7.1.37
+----------
+ * Migration to remove recent run creation from db triggers
+ * Remove no longer used recent messages view and functionality on FlowPathRecentRun
+
 v7.1.36
 ----------
  * Add scheme column on contact exports for anon orgs
