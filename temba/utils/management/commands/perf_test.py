@@ -2,12 +2,12 @@ import fnmatch
 import sys
 import time
 from datetime import datetime, timedelta
+from urllib.parse import quote_plus
 
 import pytz
 
 from django.core.management.base import BaseCommand, CommandError
 from django.test import Client
-from django.utils.http import urlquote_plus
 from django.utils.timezone import now
 
 from temba.contacts.models import ContactGroup
@@ -55,28 +55,28 @@ TEST_URLS = (
     "/api/v2/org.json",
     "/contact/",
     "/contact/?search=2507001",
-    "/contact/?search=" + urlquote_plus("name is Dave or tel has 2507001"),
-    "/contact/?search=" + urlquote_plus("gender=F"),
-    "/contact/?search=" + urlquote_plus('joined=""'),
-    "/contact/?search=" + urlquote_plus('joined!=""'),
+    "/contact/?search=" + quote_plus("name is Dave or tel has 2507001"),
+    "/contact/?search=" + quote_plus("gender=F"),
+    "/contact/?search=" + quote_plus('joined=""'),
+    "/contact/?search=" + quote_plus('joined!=""'),
     "/contact/?search="
-    + urlquote_plus(
+    + quote_plus(
         "district=Wudil or district=Anka or district=Zuru or district=Kaura or "
         "district=Giwa or district=Kalgo or district=Shanga or district=Bunza"
     ),
-    "/contact/?search=" + urlquote_plus("gender=M and state=Katsina and age<40 and joined>") + "{1-year-ago}",
-    "/contact/?search=" + urlquote_plus("(gender=M and district=Faskari) or (gender=F and district=Zuru)"),
+    "/contact/?search=" + quote_plus("gender=M and state=Katsina and age<40 and joined>") + "{1-year-ago}",
+    "/contact/?search=" + quote_plus("(gender=M and district=Faskari) or (gender=F and district=Zuru)"),
     "/contact/blocked/",
     "/contact/stopped/",
     "/contact/filter/{first-group}/",
-    "/contact/filter/{first-group}/?search=" + urlquote_plus("gender=F"),
+    "/contact/filter/{first-group}/?search=" + quote_plus("gender=F"),
     "/contact/filter/{last-group}/",
     "/contact/omnibox/?search=",
     "/contact/omnibox/?search=George",
     "/contact/omnibox/?search=07009",
     "/msg/inbox/",
     "/msg/flow/",
-    "/msg/flow/?search=" + urlquote_plus("poots seattle"),
+    "/msg/flow/?search=" + quote_plus("poots seattle"),
     "/msg/archived/",
     "/msg/outbox/",
     "/msg/sent/",
