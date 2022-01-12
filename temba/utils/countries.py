@@ -3,7 +3,7 @@ from typing import Optional
 import phonenumbers
 from django_countries.data import COUNTRIES
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 NAMES = COUNTRIES.copy()
 NAMES["GB"] = _("United Kingdom")

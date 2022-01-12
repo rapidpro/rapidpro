@@ -1,7 +1,7 @@
 from django.db import models
 from django.db.models import Model
 from django.utils import timezone
-from django.utils.translation import ngettext, ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _, ngettext
 
 from temba import mailroom
 from temba.contacts.models import Contact, ContactField, ContactGroup

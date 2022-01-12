@@ -10,7 +10,7 @@ from django.db import models
 from django.db.models import Q, Sum
 from django.template import Engine
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.contacts.models import Contact

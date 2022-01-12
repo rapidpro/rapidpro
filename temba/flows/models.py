@@ -20,7 +20,7 @@ from django.db import models, transaction
 from django.db.models import Max, Q, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store

@@ -24,7 +24,7 @@ from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
 from django.utils import timezone
 from django.utils.http import urlquote_plus
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.orgs.models import DependencyMixin, Org
