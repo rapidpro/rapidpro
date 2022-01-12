@@ -47,7 +47,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import resolve_url
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.utils.encoding import DjangoUnicodeDecodeError, force_text
+from django.utils.encoding import DjangoUnicodeDecodeError, force_str
 from django.utils.html import escape
 from django.utils.http import urlquote
 from django.utils.safestring import mark_safe
@@ -1282,7 +1282,7 @@ class OrgCRUDL(SmartCRUDL):
                 # check that it isn't too old
                 data = self.cleaned_data["import_file"].read()
                 try:
-                    json_data = json.loads(force_text(data))
+                    json_data = json.loads(force_str(data))
                 except (DjangoUnicodeDecodeError, ValueError):
                     raise ValidationError(_("This file is not a valid flow definition file."))
 

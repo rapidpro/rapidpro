@@ -1,6 +1,6 @@
 from django_redis import get_redis_connection
 
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 
 from temba.utils import json
 
@@ -15,7 +15,7 @@ def get_cacheable(cache_key, callable, r=None, force_dirty=False):
     if not force_dirty:
         cached = r.get(cache_key)
         if cached is not None:
-            return json.loads(force_text(cached))
+            return json.loads(force_str(cached))
 
     (calculated, cache_ttl) = callable()
     r.set(cache_key, json.dumps(calculated), ex=cache_ttl or None)

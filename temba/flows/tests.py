@@ -16,7 +16,7 @@ from django.db.models.functions import TruncDate
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 
 from temba.api.models import Resthook
 from temba.archives.models import Archive
@@ -2769,7 +2769,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             self.assertEqual(1, len(response.context["runs"]))
             # self.assertNotContains(response, "ic-append-from")
 
-            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_text(response.content)).group(1)
+            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_str(response.content)).group(1)
             response = self.client.get(next_link)
             self.assertEqual(200, response.status_code)
 
@@ -2810,7 +2810,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             # one more row to add
             self.assertEqual(1, len(response.context["runs"]))
 
-            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_text(response.content)).group(1)
+            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_str(response.content)).group(1)
             response = self.client.get(next_link)
             self.assertEqual(200, response.status_code)
             self.assertEqual(1, len(response.context["runs"]))

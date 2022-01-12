@@ -10,7 +10,7 @@ from os import urandom
 import chardet
 import regex
 
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.text import slugify
 
 CONTROL_CHARACTERES_REGEX = r"[\000-\010]|[\013-\014]|[\016-\037]"
@@ -111,7 +111,7 @@ def decode_base64(original):
 
     decoded = original
     try:
-        decoded = force_text(base64.standard_b64decode(stripped), errors="ignore")
+        decoded = force_str(base64.standard_b64decode(stripped), errors="ignore")
         count = Counter(decoded)
         letters = sum(count[letter] for letter in string.ascii_letters)
         if float(letters) / len(decoded) < 0.5:
