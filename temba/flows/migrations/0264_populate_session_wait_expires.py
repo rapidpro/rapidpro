@@ -27,7 +27,7 @@ def populate_session_wait(apps, schema_editor):
             batch = list(
                 FlowSession.objects.filter(status="W")
                 .filter(Q(wait_started_on__isnull=True) | Q(wait_expires_on__isnull=True))
-                .only("id", "wait_started_on", "wait_expires_on")[:1000]
+                .only("id", "status", "session_type", "wait_started_on", "wait_expires_on", "ended_on")[:1000]
             )
             if not batch:
                 break
