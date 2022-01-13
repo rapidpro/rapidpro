@@ -1,9 +1,8 @@
-import datetime
 import decimal
 import io
 import os
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import PropertyMock, patch
 
 import pytz
@@ -27,7 +26,7 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
@@ -1683,7 +1682,7 @@ class FlowTest(TembaTest):
                 {
                     FlowRun.PATH_STEP_UUID: "263a6e6c-c1d9-4af3-b8cf-b52a3085a625",
                     FlowRun.PATH_NODE_UUID: "474fd1be-eaec-4ae7-96cd-c771410fac18",
-                    FlowRun.PATH_ARRIVED_ON: datetime.datetime(2019, 1, 1, 0, 0, 0, 0, pytz.UTC),
+                    FlowRun.PATH_ARRIVED_ON: datetime(2019, 1, 1, 0, 0, 0, 0, pytz.UTC),
                 }
             ],
         )
@@ -1693,7 +1692,7 @@ class FlowTest(TembaTest):
         run.refresh_from_db()
 
         # run expiration should be last arrived_on + 12 hours
-        self.assertEqual(datetime.datetime(2019, 1, 1, 12, 0, 0, 0, pytz.UTC), run.expires_on)
+        self.assertEqual(datetime(2019, 1, 1, 12, 0, 0, 0, pytz.UTC), run.expires_on)
 
 
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -3490,9 +3489,9 @@ class FlowSessionTest(TembaTest):
         self.assertIsNotNone(run4.session)
 
         # end run1 and run4's sessions in the past
-        run1.session.ended_on = datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run1.session.ended_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
         run1.session.save(update_fields=("ended_on",))
-        run4.session.ended_on = datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run4.session.ended_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
         run4.session.save(update_fields=("ended_on",))
 
         # end run2's session now
@@ -5237,3 +5236,79 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+
+
+class PopulateSessionWaits(MigrationTest):
+    app = "flows"
+    migrate_from = "0263_remove_recent_runs_from_triggers"
+    migrate_to = "0264_populate_session_wait_expires"
+
+    def setUpBeforeMigration(self, apps):
+        contact = self.create_contact("Bob", phone="1234567890")
+        flow = self.create_flow()
+
+        # waiting session with a run with a waiting run with a valid expires_on
+        self.session1 = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=contact, status=FlowSession.STATUS_WAITING, created_on=timezone.now()
+        )
+        FlowRun.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            session=self.session1,
+            flow=flow,
+            contact=contact,
+            status=FlowRun.STATUS_WAITING,
+            created_on=datetime(2022, 1, 8, 10, 40, 30, 0, pytz.UTC),
+            modified_on=datetime(2022, 1, 9, 10, 40, 30, 0, pytz.UTC),
+            expires_on=datetime(2022, 1, 10, 10, 40, 30, 0, pytz.UTC),
+            path=[],
+        )
+
+        # waiting session with a run with a waiting run with an invalid expires_on
+        self.session2 = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=contact, status=FlowSession.STATUS_WAITING, created_on=timezone.now()
+        )
+        FlowRun.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            session=self.session2,
+            flow=flow,
+            contact=contact,
+            status=FlowRun.STATUS_WAITING,
+            created_on=datetime(2022, 1, 11, 10, 40, 30, 0, pytz.UTC),
+            modified_on=datetime(2022, 1, 12, 10, 40, 30, 0, pytz.UTC),
+            expires_on=None,
+            path=[],
+        )
+
+        # a waiting session with no waiting run which should be expired
+        self.session3 = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=contact, status=FlowSession.STATUS_WAITING, created_on=timezone.now()
+        )
+
+        # a non-waiting session which should remain unchanged
+        self.session4 = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=contact, status=FlowSession.STATUS_COMPLETED, created_on=timezone.now()
+        )
+
+    def test_migration(self):
+        def assert_session(session, status: str, started_on, expires_on):
+            session.refresh_from_db()
+            self.assertEqual(status, session.status)
+            self.assertEqual(started_on, session.wait_started_on)
+            self.assertEqual(expires_on, session.wait_expires_on)
+
+        assert_session(
+            self.session1,
+            FlowSession.STATUS_WAITING,
+            datetime(2022, 1, 9, 10, 40, 30, 0, pytz.UTC),
+            datetime(2022, 1, 10, 10, 40, 30, 0, pytz.UTC),
+        )
+        assert_session(
+            self.session2,
+            FlowSession.STATUS_WAITING,
+            datetime(2022, 1, 12, 10, 40, 30, 0, pytz.UTC),
+            datetime(2022, 1, 19, 10, 40, 30, 0, pytz.UTC),  # uses 1 week default
+        )
+        assert_session(self.session3, FlowSession.STATUS_EXPIRED, None, None)
+        assert_session(self.session4, FlowSession.STATUS_COMPLETED, None, None)
