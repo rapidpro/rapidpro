@@ -26,9 +26,9 @@ from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 
@@ -63,7 +63,6 @@ from temba.utils.views import BulkActionMixin, SpaMixin
 from .models import (
     ExportFlowResultsTask,
     FlowLabel,
-    FlowPathRecentRun,
     FlowStartCount,
     FlowUserConflictException,
     FlowVersionConflictException,
@@ -190,7 +189,6 @@ class FlowCRUDL(SmartCRUDL):
         "filter",
         "campaign",
         "revisions",
-        "recent_messages",
         "recent_contacts",
         "assets",
         "upload_media_action",
@@ -227,27 +225,6 @@ class FlowCRUDL(SmartCRUDL):
 
             menu.append(self.create_menu_item(name=_("Archived"), icon="archive", href="flows.flow_archived"))
             return menu
-
-    class RecentMessages(OrgObjPermsMixin, SmartReadView):
-        """
-        Used by the editor for the rollover of recent messages on path segments in a flow
-        """
-
-        slug_url_kwarg = "uuid"
-
-        def get(self, request, *args, **kwargs):
-            exit_uuids = request.GET.get("exits", "").split(",")
-            to_uuid = request.GET.get("to")
-
-            recent_messages = []
-
-            if exit_uuids and to_uuid:
-                for recent_run in FlowPathRecentRun.get_recent(exit_uuids, to_uuid):
-                    recent_messages.append(
-                        {"sent": json.encode_datetime(recent_run["visited_on"]), "text": recent_run["text"]}
-                    )
-
-            return JsonResponse(recent_messages, safe=False)
 
     class RecentContacts(OrgObjPermsMixin, SmartReadView):
         """
@@ -336,7 +313,7 @@ class FlowCRUDL(SmartCRUDL):
                 )
 
             # try to parse our body
-            definition = json.loads(force_text(request.body))
+            definition = json.loads(force_str(request.body))
             try:
                 flow = self.get_object(self.get_queryset())
                 revision, issues = flow.save_revision(self.request.user, definition)
@@ -1185,13 +1162,6 @@ class FlowCRUDL(SmartCRUDL):
                 choices=(("", "None"),),
                 widget=SelectWidget(),
             )
-            include_args = forms.BooleanField(
-                required=False,
-                label=_("Include Arguments"),
-                initial=True,
-                help_text=_("Include arguments to tests on splits"),
-                widget=CheckboxWidget(),
-            )
 
             def __init__(self, user, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -1211,11 +1181,7 @@ class FlowCRUDL(SmartCRUDL):
             return kwargs
 
         def form_valid(self, form):
-            params = {
-                "flow": self.object.id,
-                "language": form.cleaned_data["language"],
-                "exclude_args": "0" if form.cleaned_data["include_args"] else "1",
-            }
+            params = {"flow": self.object.id, "language": form.cleaned_data["language"]}
             download_url = reverse("flows.flow_download_translation") + "?" + urlencode(params, doseq=True)
 
             # if this is an XHR request, we need to return a structured response that it can parse
@@ -1240,14 +1206,12 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             language = request.GET.get("language", "")
-            exclude_args = request.GET.get("exclude_args") == "1"
-
             filename = slugify_with(self.flows[0].name) if len(self.flows) == 1 else "flows"
             if language:
                 filename += f".{language}"
             filename += ".po"
 
-            po = Flow.export_translation(org, self.flows, language, exclude_args)
+            po = Flow.export_translation(org, self.flows, language)
 
             response = HttpResponse(po, content_type="text/x-gettext-translation")
             response["Content-Disposition"] = f'attachment; filename="{filename}"'

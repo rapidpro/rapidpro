@@ -11,7 +11,6 @@ class Command(BaseCommand):  # pragma: no cover
     help = "Updates consent status for each user"
 
     def handle(self, *args, **options):
-        analytics.init()
         count = 0
         consented = 0
 

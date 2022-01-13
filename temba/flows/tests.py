@@ -1,12 +1,10 @@
-import datetime
 import decimal
 import io
 import os
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import PropertyMock, patch
 
-import iso8601
 import pytz
 from django_redis import get_redis_connection
 from openpyxl import load_workbook
@@ -17,7 +15,7 @@ from django.db.models.functions import TruncDate
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 
 from temba.api.models import Resthook
 from temba.archives.models import Archive
@@ -28,7 +26,7 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
@@ -44,7 +42,6 @@ from .models import (
     FlowLabel,
     FlowNodeCount,
     FlowPathCount,
-    FlowPathRecentRun,
     FlowRevision,
     FlowRun,
     FlowRunCount,
@@ -556,32 +553,6 @@ class FlowTest(TembaTest):
             visited,
         )
 
-        # check recent runs
-        recent = FlowPathRecentRun.get_recent([color_prompt["exits"][0]["uuid"]], color_split["uuid"])
-        self.assertEqual(["What is your favorite color?"], [r["text"] for r in recent])
-
-        recent = FlowPathRecentRun.get_recent([color_split["exits"][-1]["uuid"]], color_other["uuid"])
-        self.assertEqual(["mauve", "chartreuse"], [r["text"] for r in recent])
-
-        recent = FlowPathRecentRun.get_recent([color_other["exits"][0]["uuid"]], color_split["uuid"])
-        self.assertEqual(
-            ["I don't know that color. Try again.", "I don't know that color. Try again."], [r["text"] for r in recent]
-        )
-
-        recent = FlowPathRecentRun.get_recent([color_split["exits"][2]["uuid"]], beer_prompt["uuid"])
-        self.assertEqual(["blue"], [r["text"] for r in recent])
-
-        # check the details of the first recent run
-        recent = FlowPathRecentRun.objects.order_by("id").first()
-        run1 = session1.session.runs.get()
-
-        self.assertEqual(recent.run, run1)
-        self.assertEqual(str(recent.from_uuid), run1.path[0]["exit_uuid"])
-        self.assertEqual(str(recent.from_step_uuid), run1.path[0]["uuid"])
-        self.assertEqual(str(recent.to_uuid), run1.path[1]["node_uuid"])
-        self.assertEqual(str(recent.to_step_uuid), run1.path[1]["uuid"])
-        self.assertEqual(recent.visited_on, iso8601.parse_date(run1.path[1]["arrived_on"]))
-
         # a new participant, showing distinct active counts and incremented path
         ryan = self.create_contact("Ryan Lewis", phone="+12065550725")
         session2 = (
@@ -751,10 +722,6 @@ class FlowTest(TembaTest):
             flow.get_run_stats(),
         )
 
-        # messages to/from deleted contacts shouldn't appear in the recent runs
-        recent = FlowPathRecentRun.get_recent([color_split["exits"][-1]["uuid"]], color_other["uuid"])
-        self.assertEqual(["burnt sienna"], [r["text"] for r in recent])
-
         # delete our last contact to make sure activity is gone without first expiring, zeros abound
         ryan.release(self.admin)
 
@@ -821,10 +788,11 @@ class FlowTest(TembaTest):
 
         # now mark run has expired and make sure it is removed from our activity
         run = tupac.runs.get()
+        run.status = FlowRun.STATUS_EXPIRED
         run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
         run.exited_on = timezone.now()
         run.is_active = False
-        run.save(update_fields=("exit_type", "exited_on", "is_active"))
+        run.save(update_fields=("status", "exit_type", "exited_on", "is_active"))
 
         (active, visited) = flow.get_activity()
 
@@ -872,10 +840,11 @@ class FlowTest(TembaTest):
         )
 
         run = jimmy.runs.get()
+        run.status = FlowRun.STATUS_INTERRUPTED
         run.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
         run.exited_on = timezone.now()
         run.is_active = False
-        run.save(update_fields=("exit_type", "exited_on", "is_active"))
+        run.save(update_fields=("status", "exit_type", "exited_on", "is_active"))
 
         (active, visited) = flow.get_activity()
 
@@ -1154,62 +1123,6 @@ class FlowTest(TembaTest):
         # squash them
         FlowStartCount.squash()
         self.assertEqual(FlowStartCount.get_count(start), 10)
-
-    def test_prune_recentruns(self):
-        flow = self.get_flow("color_v13")
-        flow_nodes = flow.get_definition()["nodes"]
-        color_prompt = flow_nodes[0]
-        color_other = flow_nodes[3]
-        color_split = flow_nodes[4]
-        other_exit = color_split["exits"][2]
-
-        # send 12 invalid color responses from two contacts
-        session = None
-        bob = self.create_contact("Bob", phone="+260964151234")
-        for m in range(12):
-            contact = self.contact if m % 2 == 0 else bob
-            session = (
-                MockSessionWriter(contact, flow)
-                .visit(color_prompt)
-                .send_msg("What is your favorite color?", self.channel)
-                .visit(color_split)
-                .wait()
-                .resume(msg=self.create_incoming_msg(contact, text=str(m + 1)))
-                .visit(color_other)
-                .visit(color_split)
-                .wait()
-                .save()
-            )
-
-        # all 12 messages are stored for the other segment
-        other_recent = FlowPathRecentRun.objects.filter(from_uuid=other_exit["uuid"], to_uuid=color_other["uuid"])
-        self.assertEqual(12, len(other_recent))
-
-        # and these are returned with most-recent first
-        other_recent = FlowPathRecentRun.get_recent([other_exit["uuid"]], color_other["uuid"], limit=None)
-        self.assertEqual(
-            ["12", "11", "10", "9", "8", "7", "6", "5", "4", "3", "2", "1"], [r["text"] for r in other_recent]
-        )
-
-        # even when limit is applied
-        other_recent = FlowPathRecentRun.get_recent([other_exit["uuid"]], color_other["uuid"], limit=5)
-        self.assertEqual(["12", "11", "10", "9", "8"], [r["text"] for r in other_recent])
-
-        squash_flowcounts()
-
-        # now only 5 newest are stored
-        other_recent = FlowPathRecentRun.objects.filter(from_uuid=other_exit["uuid"], to_uuid=color_other["uuid"])
-        self.assertEqual(5, len(other_recent))
-
-        other_recent = FlowPathRecentRun.get_recent([other_exit["uuid"]], color_other["uuid"])
-        self.assertEqual(["12", "11", "10", "9", "8"], [r["text"] for r in other_recent])
-
-        # send another message and prune again
-        (session.resume(msg=self.create_incoming_msg(bob, "13")).visit(color_other).visit(color_split).wait().save())
-        squash_flowcounts()
-
-        other_recent = FlowPathRecentRun.get_recent([other_exit["uuid"]], color_other["uuid"])
-        self.assertEqual(["13", "12", "11", "10", "9"], [r["text"] for r in other_recent])
 
     def test_flow_keyword_update(self):
         self.login(self.admin)
@@ -1769,7 +1682,7 @@ class FlowTest(TembaTest):
                 {
                     FlowRun.PATH_STEP_UUID: "263a6e6c-c1d9-4af3-b8cf-b52a3085a625",
                     FlowRun.PATH_NODE_UUID: "474fd1be-eaec-4ae7-96cd-c771410fac18",
-                    FlowRun.PATH_ARRIVED_ON: datetime.datetime(2019, 1, 1, 0, 0, 0, 0, pytz.UTC),
+                    FlowRun.PATH_ARRIVED_ON: datetime(2019, 1, 1, 0, 0, 0, 0, pytz.UTC),
                 }
             ],
         )
@@ -1779,7 +1692,7 @@ class FlowTest(TembaTest):
         run.refresh_from_db()
 
         # run expiration should be last arrived_on + 12 hours
-        self.assertEqual(datetime.datetime(2019, 1, 1, 12, 0, 0, 0, pytz.UTC), run.expires_on)
+        self.assertEqual(datetime(2019, 1, 1, 12, 0, 0, 0, pytz.UTC), run.expires_on)
 
 
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -2720,96 +2633,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertRedirect(response, reverse("flows.flow_editor", args=[flow_copy.uuid]))
 
-    def test_recent_messages(self):
-        contact = self.create_contact("Bob", phone="+593979099111")
-        flow = self.get_flow("favorites_v13")
-        flow_nodes = flow.get_definition()["nodes"]
-        color_prompt = flow_nodes[0]
-        color_other = flow_nodes[1]
-        color_split = flow_nodes[2]
-        beer_prompt = flow_nodes[3]
-        beer_split = flow_nodes[5]
-
-        self.login(self.admin)
-        recent_messages_url = reverse("flows.flow_recent_messages", args=[flow.uuid])
-
-        # URL params for different flow path segments
-        entry_params = f'?exits={color_prompt["exits"][0]["uuid"]}&to={color_split["uuid"]}'
-        other_params = f'?exits={color_split["exits"][-1]["uuid"]}&to={color_other["uuid"]}'
-        blue_params = f'?exits={color_split["exits"][2]["uuid"]}&to={beer_prompt["uuid"]}'
-        invalid_params = f'?exits={color_split["exits"][0]["uuid"]}&to={color_split["uuid"]}'
-
-        def assert_recent(resp, msgs):
-            self.assertEqual(msgs, [r["text"] for r in resp.json()])
-
-        # no params returns no results
-        assert_recent(self.client.get(recent_messages_url), [])
-
-        session = (
-            MockSessionWriter(contact, flow)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(color_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(contact, "chartreuse"))
-            .visit(color_other)
-            .send_msg("I don't know that color. Try again.")
-            .visit(color_split)
-            .wait()
-            .save()
-        )
-
-        response = self.client.get(recent_messages_url + entry_params)
-        assert_recent(response, ["What is your favorite color?"])
-
-        # one incoming message on the other segment
-        response = self.client.get(recent_messages_url + other_params)
-        assert_recent(response, ["chartreuse"])
-
-        # nothing yet on the blue segment
-        response = self.client.get(recent_messages_url + blue_params)
-        assert_recent(response, [])
-
-        # invalid segment
-        response = self.client.get(recent_messages_url + invalid_params)
-        assert_recent(response, [])
-
-        (
-            session.resume(msg=self.create_incoming_msg(contact, "mauve"))
-            .visit(color_other)
-            .send_msg("I don't know that color. Try again.")
-            .visit(color_split)
-            .wait()
-            .save()
-        )
-
-        response = self.client.get(recent_messages_url + entry_params)
-        assert_recent(response, ["What is your favorite color?"])
-
-        response = self.client.get(recent_messages_url + other_params)
-        assert_recent(response, ["mauve", "chartreuse"])
-
-        response = self.client.get(recent_messages_url + blue_params)
-        assert_recent(response, [])
-
-        (
-            session.resume(msg=self.create_incoming_msg(contact, "blue"))
-            .visit(beer_prompt, exit_index=2)
-            .send_msg("I like Blue. What beer do you like?")
-            .visit(beer_split)
-            .wait()
-            .save()
-        )
-
-        response = self.client.get(recent_messages_url + entry_params)
-        assert_recent(response, ["What is your favorite color?"])
-
-        response = self.client.get(recent_messages_url + other_params)
-        assert_recent(response, ["mauve", "chartreuse"])
-
-        response = self.client.get(recent_messages_url + blue_params)
-        assert_recent(response, ["blue"])
-
     def test_recent_contacts(self):
         flow = self.create_flow()
         contact1 = self.create_contact("Bob", phone="0979111111")
@@ -2945,7 +2768,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             self.assertEqual(1, len(response.context["runs"]))
             # self.assertNotContains(response, "ic-append-from")
 
-            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_text(response.content)).group(1)
+            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_str(response.content)).group(1)
             response = self.client.get(next_link)
             self.assertEqual(200, response.status_code)
 
@@ -2986,7 +2809,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             # one more row to add
             self.assertEqual(1, len(response.context["runs"]))
 
-            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_text(response.content)).group(1)
+            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_str(response.content)).group(1)
             response = self.client.get(next_link)
             self.assertEqual(200, response.status_code)
             self.assertEqual(1, len(response.context["runs"]))
@@ -3194,14 +3017,12 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow = self.get_flow("favorites")
         export_url = reverse("flows.flow_export_translation", args=[flow.id])
 
-        self.assertUpdateFetch(
-            export_url, allow_viewers=False, allow_editors=True, form_fields=["language", "include_args"]
-        )
+        self.assertUpdateFetch(export_url, allow_viewers=False, allow_editors=True, form_fields=["language"])
 
         # submit with no language
         response = self.assertUpdateSubmit(export_url, {})
 
-        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=&exclude_args=1", response.url)
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=", response.url)
 
         # check fetching the PO from the download link
         with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
@@ -3215,7 +3036,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # submit with a language
         response = self.requestView(export_url, self.admin, post_data={"language": "spa"})
 
-        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=spa&exclude_args=1", response.url)
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=spa", response.url)
 
         # check fetching the PO from the download link
         with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
@@ -3227,9 +3048,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check submitting the form from a modal
         response = self.client.post(export_url, data={}, HTTP_X_PJAX=True)
-        self.assertEqual(
-            f"/flow/download_translation/?flow={flow.id}&language=&exclude_args=1", response["Temba-Success"]
-        )
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=", response["Temba-Success"])
 
     def test_import_translation(self):
         self.org.set_flow_languages(self.admin, ["eng", "spa"])
@@ -3397,7 +3216,6 @@ class FlowRunTest(TembaTest):
                     "responded",
                     "path",
                     "values",
-                    "events",
                     "created_on",
                     "modified_on",
                     "exited_on",
@@ -3434,45 +3252,6 @@ class FlowRunTest(TembaTest):
                 }
             },
             run_json["values"],
-        )
-
-        self.assertEqual(
-            [
-                {
-                    "created_on": matchers.ISODate(),
-                    "msg": {
-                        "channel": {"name": "Test Channel", "uuid": matchers.UUID4String()},
-                        "text": "What is your favorite color?",
-                        "urn": "tel:+250788123123",
-                        "uuid": matchers.UUID4String(),
-                    },
-                    "step_uuid": matchers.UUID4String(),
-                    "type": "msg_created",
-                },
-                {
-                    "created_on": matchers.ISODate(),
-                    "msg": {
-                        "channel": {"name": "Test Channel", "uuid": matchers.UUID4String()},
-                        "text": "green",
-                        "urn": "tel:+250788123123",
-                        "uuid": matchers.UUID4String(),
-                    },
-                    "step_uuid": matchers.UUID4String(),
-                    "type": "msg_received",
-                },
-                {
-                    "created_on": matchers.ISODate(),
-                    "msg": {
-                        "channel": {"name": "Test Channel", "uuid": matchers.UUID4String()},
-                        "text": "That is a funny color. Try again.",
-                        "urn": "tel:+250788123123",
-                        "uuid": matchers.UUID4String(),
-                    },
-                    "step_uuid": matchers.UUID4String(),
-                    "type": "msg_created",
-                },
-            ],
-            run_json["events"],
         )
 
         self.assertEqual(run.created_on.isoformat(), run_json["created_on"])
@@ -3545,10 +3324,6 @@ class FlowRunTest(TembaTest):
 
         run = FlowRun.objects.get(contact=self.contact)
         run.release(delete_reason)
-
-        recent = FlowPathRecentRun.get_recent([color_prompt["exits"][0]["uuid"]], color_split["uuid"])
-
-        self.assertEqual(0, len(recent))
 
         cat_counts = {c["key"]: c for c in flow.get_category_counts()["counts"]}
 
@@ -3716,9 +3491,9 @@ class FlowSessionTest(TembaTest):
         self.assertIsNotNone(run4.session)
 
         # end run1 and run4's sessions in the past
-        run1.session.ended_on = datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run1.session.ended_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
         run1.session.save(update_fields=("ended_on",))
-        run4.session.ended_on = datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run4.session.ended_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
         run4.session.save(update_fields=("ended_on",))
 
         # end run2's session now
@@ -5463,3 +5238,79 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+
+
+class PopulateSessionWaits(MigrationTest):
+    app = "flows"
+    migrate_from = "0263_remove_recent_runs_from_triggers"
+    migrate_to = "0264_populate_session_wait_expires"
+
+    def setUpBeforeMigration(self, apps):
+        contact = self.create_contact("Bob", phone="1234567890")
+        flow = self.create_flow()
+
+        # waiting session with a run with a waiting run with a valid expires_on
+        self.session1 = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=contact, status=FlowSession.STATUS_WAITING, created_on=timezone.now()
+        )
+        FlowRun.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            session=self.session1,
+            flow=flow,
+            contact=contact,
+            status=FlowRun.STATUS_WAITING,
+            created_on=datetime(2022, 1, 8, 10, 40, 30, 0, pytz.UTC),
+            modified_on=datetime(2022, 1, 9, 10, 40, 30, 0, pytz.UTC),
+            expires_on=datetime(2022, 1, 10, 10, 40, 30, 0, pytz.UTC),
+            path=[],
+        )
+
+        # waiting session with a run with a waiting run with an invalid expires_on
+        self.session2 = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=contact, status=FlowSession.STATUS_WAITING, created_on=timezone.now()
+        )
+        FlowRun.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            session=self.session2,
+            flow=flow,
+            contact=contact,
+            status=FlowRun.STATUS_WAITING,
+            created_on=datetime(2022, 1, 11, 10, 40, 30, 0, pytz.UTC),
+            modified_on=datetime(2022, 1, 12, 10, 40, 30, 0, pytz.UTC),
+            expires_on=None,
+            path=[],
+        )
+
+        # a waiting session with no waiting run which should be expired
+        self.session3 = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=contact, status=FlowSession.STATUS_WAITING, created_on=timezone.now()
+        )
+
+        # a non-waiting session which should remain unchanged
+        self.session4 = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=contact, status=FlowSession.STATUS_COMPLETED, created_on=timezone.now()
+        )
+
+    def test_migration(self):
+        def assert_session(session, status: str, started_on, expires_on):
+            session.refresh_from_db()
+            self.assertEqual(status, session.status)
+            self.assertEqual(started_on, session.wait_started_on)
+            self.assertEqual(expires_on, session.wait_expires_on)
+
+        assert_session(
+            self.session1,
+            FlowSession.STATUS_WAITING,
+            datetime(2022, 1, 9, 10, 40, 30, 0, pytz.UTC),
+            datetime(2022, 1, 10, 10, 40, 30, 0, pytz.UTC),
+        )
+        assert_session(
+            self.session2,
+            FlowSession.STATUS_WAITING,
+            datetime(2022, 1, 12, 10, 40, 30, 0, pytz.UTC),
+            datetime(2022, 1, 19, 10, 40, 30, 0, pytz.UTC),  # uses 1 week default
+        )
+        assert_session(self.session3, FlowSession.STATUS_EXPIRED, None, None)
+        assert_session(self.session4, FlowSession.STATUS_COMPLETED, None, None)

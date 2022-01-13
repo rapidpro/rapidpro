@@ -7,7 +7,7 @@ from django import forms
 from django.conf import settings
 from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import Org
 from temba.orgs.views import OrgPermsMixin

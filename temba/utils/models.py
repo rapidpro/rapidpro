@@ -12,7 +12,7 @@ from django.core.exceptions import ValidationError
 from django.db import connection, models
 from django.db.models import JSONField as DjangoJSONField, Sum
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.utils import json, uuid
 

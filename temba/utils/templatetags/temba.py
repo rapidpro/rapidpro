@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import escapejs
 from django.utils.safestring import mark_safe
-from django.utils.translation import ugettext, ugettext_lazy as _, ungettext_lazy
+from django.utils.translation import gettext, gettext_lazy as _, ngettext_lazy
 
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.contacts.models import ContactGroup
@@ -22,13 +22,13 @@ from temba.utils import analytics
 from temba.utils.dates import datetime_to_str
 
 TIME_SINCE_CHUNKS = (
-    (60 * 60 * 24 * 365, ungettext_lazy("%d year", "%d years")),
-    (60 * 60 * 24 * 30, ungettext_lazy("%d month", "%d months")),
-    (60 * 60 * 24 * 7, ungettext_lazy("%d week", "%d weeks")),
-    (60 * 60 * 24, ungettext_lazy("%d day", "%d days")),
-    (60 * 60, ungettext_lazy("%d hour", "%d hours")),
-    (60, ungettext_lazy("%d minute", "%d minutes")),
-    (1, ungettext_lazy("%d second", "%d seconds")),
+    (60 * 60 * 24 * 365, ngettext_lazy("%d year", "%d years")),
+    (60 * 60 * 24 * 30, ngettext_lazy("%d month", "%d months")),
+    (60 * 60 * 24 * 7, ngettext_lazy("%d week", "%d weeks")),
+    (60 * 60 * 24, ngettext_lazy("%d day", "%d days")),
+    (60 * 60, ngettext_lazy("%d hour", "%d hours")),
+    (60, ngettext_lazy("%d minute", "%d minutes")),
+    (1, ngettext_lazy("%d second", "%d seconds")),
 )
 
 
@@ -148,7 +148,7 @@ def delta_filter(delta):
         since = delta.days * 24 * 60 * 60 + delta.seconds
         if since <= 0:
             # d is in the future compared to now, stop processing.
-            return ugettext("0 seconds")
+            return gettext("0 seconds")
         for i, (seconds, name) in enumerate(TIME_SINCE_CHUNKS):
             count = since // seconds
             if count != 0:

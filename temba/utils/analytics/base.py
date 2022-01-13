@@ -1,13 +1,10 @@
 import abc
 import logging
 
-from django.conf import settings
 from django.template import Context, Engine
 from django.utils.safestring import mark_safe
 
 logger = logging.getLogger(__name__)
-
-registered_backends = []
 
 
 class AnalyticsBackend(metaclass=abc.ABCMeta):
@@ -47,32 +44,24 @@ class AnalyticsBackend(metaclass=abc.ABCMeta):
         return {}
 
 
-def init():  # pragma: no cover
+class ConsoleBackend(AnalyticsBackend):
     """
-    Initializes our analytics backends based on our settings.
-    TODO this should all be dynamic based on a setting which is a list of backend class names
+    An example analytics backend which just prints to the console
     """
 
-    from .crisp import CrispBackend
-    from .librato import LibratoBackend
+    slug = "console"
 
-    registered_backends.clear()
+    def gauge(self, event: str, value):
+        print(f"[analytics] gauge={event} value={value}")
 
-    # configure Librato if configured
-    librato_user = getattr(settings, "LIBRATO_USER", None)
-    librato_token = getattr(settings, "LIBRATO_TOKEN", None)
-    if librato_user and librato_token:
-        registered_backends.append(LibratoBackend(librato_user, librato_token))
-
-    crisp_identifier = getattr(settings, "CRISP_IDENTIFIER", None)
-    crisp_key = getattr(settings, "CRISP_KEY", None)
-    crisp_website_id = getattr(settings, "CRISP_WEBSITE_ID", None)
-    if crisp_identifier and crisp_key and crisp_website_id:
-        registered_backends.append(CrispBackend(crisp_identifier, crisp_key, crisp_website_id))
+    def track(self, user, event: str, properties: dict):
+        print(f"[analytics] event={event} user={user.email}")
 
 
 def get_backends() -> list:
-    return registered_backends
+    from . import backends
+
+    return list(backends.values())
 
 
 def gauge(event: str, value):

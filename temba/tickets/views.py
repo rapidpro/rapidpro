@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.functional import cached_property
 from django.utils.html import mark_safe
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
