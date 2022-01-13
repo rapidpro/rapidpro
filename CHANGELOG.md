@@ -1,3 +1,9 @@
+v7.1.38
+----------
+ * Replace uses of deprecated Django functions
+ * Remove crisp and librato analytics backends and add ConsoleBackend as example
+ * Data migration to populate FlowSession.wait_started_on and wait_expires_on
+
 v7.1.37
 ----------
  * Migration to remove recent run creation from db triggers
