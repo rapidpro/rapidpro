@@ -44,6 +44,20 @@ class AnalyticsBackend(metaclass=abc.ABCMeta):
         return {}
 
 
+class ConsoleBackend(AnalyticsBackend):
+    """
+    An example analytics backend which just prints to the console
+    """
+
+    slug = "console"
+
+    def gauge(self, event: str, value):
+        print(f"[analytics] gauge={event} value={value}")
+
+    def track(self, user, event: str, properties: dict):
+        print(f"[analytics] event={event} user={user.email}")
+
+
 def get_backends() -> list:
     from . import backends
 
