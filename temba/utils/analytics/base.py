@@ -1,6 +1,7 @@
 import abc
 import logging
 
+from django.conf import settings
 from django.template import Context, Engine
 from django.utils.safestring import mark_safe
 
@@ -52,10 +53,12 @@ class ConsoleBackend(AnalyticsBackend):
     slug = "console"
 
     def gauge(self, event: str, value):
-        print(f"[analytics] gauge={event} value={value}")
+        if not settings.TESTING:
+            print(f"[analytics] gauge={event} value={value}")
 
     def track(self, user, event: str, properties: dict):
-        print(f"[analytics] event={event} user={user.email}")
+        if not settings.TESTING:
+            print(f"[analytics] event={event} user={user.email}")
 
 
 def get_backends() -> list:
