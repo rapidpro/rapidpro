@@ -1,6 +1,6 @@
 import requests
 
-from django.conf.urls import url
+from django.urls import re_path
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import URN
@@ -50,7 +50,7 @@ class InstagramType(ChannelType):
     def get_urls(self):
         return [
             self.get_claim_url(),
-            url(
+            re_path(
                 r"^(?P<uuid>[a-z0-9\-]+)/refresh_token$",
                 RefreshToken.as_view(),
                 name="refresh_token",
