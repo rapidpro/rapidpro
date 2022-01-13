@@ -1265,9 +1265,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 self.delete_reason = delete_reason
                 self.save(update_fields=["delete_reason"])
 
-            # and any recent runs
-            self.recent_runs.all().delete()
-
             if (
                 delete_reason == FlowRun.DELETE_FOR_USER
                 and self.session is not None

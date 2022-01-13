@@ -65,9 +65,9 @@ class MockSessionWriter:
                     "uuid": str(uuid4()),
                     "flow": flow.as_export_ref(),
                     "path": [],
-                    "events": [],
                     "results": {},
                     "status": "active",
+                    "responded": False,
                     "created_on": self._now(),
                     "modified_on": self._now(),
                     "exited_on": None,
@@ -215,6 +215,7 @@ class MockSessionWriter:
         self.output["wait"] = None
         self.output["status"] = "active"
         self.current_run["status"] = "active"
+        self.current_run["responded"] = True
         self.current_run["modified_on"] = self._now()
         self._log_event("msg_received", msg=msg_def)
         return self
@@ -283,15 +284,14 @@ class MockSessionWriter:
 
             FlowRun.objects.filter(id=run_obj.id).update(
                 path=run["path"],
-                events=[e for e in run["events"] if e["type"] in PERSIST_EVENTS],
                 results=run["results"],
                 exit_type=EXIT_TYPES.get(run["status"]),
                 is_active=run["status"] in ("waiting", "active"),
                 status=RUN_STATUSES[run["status"]],
+                responded=run["responded"],
                 current_node_uuid=run["path"][-1]["node_uuid"] if run["path"] else None,
                 modified_on=run["modified_on"],
                 exited_on=run["exited_on"],
-                responded=bool([e for e in run["events"] if e["type"] == "msg_received"]),
             )
 
         self._handle_events()
@@ -356,7 +356,6 @@ class MockSessionWriter:
         step_uuid = path[-1]["uuid"] if path else None
         event = {"type": _type, "created_on": self._now(), "step_uuid": step_uuid, **kwargs}
 
-        self.current_run["events"].append(event)
         self.events.append(event)
 
     def _exit(self, status):
