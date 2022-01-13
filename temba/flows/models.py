@@ -1256,9 +1256,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # TODO to be replaced by FlowSession.wait_expires_on
     expires_on = models.DateTimeField(null=True)
 
-    # TODO drop once mailroom is no longer writing
-    events = JSONField(null=True)
-
     def release(self, delete_reason=None):
         """
         Permanently deletes this flow run
@@ -1578,23 +1575,6 @@ class FlowPathCount(SquashableModel):
 
     class Meta:
         index_together = ["flow", "from_uuid", "to_uuid", "period"]
-
-
-class FlowPathRecentRun(models.Model):
-    """
-    TODO drop once we stop writing these
-    """
-
-    id = models.BigAutoField(primary_key=True)
-    from_uuid = models.UUIDField()
-    from_step_uuid = models.UUIDField()
-    to_uuid = models.UUIDField()
-    to_step_uuid = models.UUIDField()
-    run = models.ForeignKey(FlowRun, on_delete=models.PROTECT, related_name="recent_runs")
-    visited_on = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        indexes = [models.Index(fields=["from_uuid", "to_uuid", "-visited_on"])]
 
 
 class FlowNodeCount(SquashableModel):
