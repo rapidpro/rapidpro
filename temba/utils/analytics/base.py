@@ -53,11 +53,11 @@ class ConsoleBackend(AnalyticsBackend):
     slug = "console"
 
     def gauge(self, event: str, value):
-        if not settings.TESTING:
+        if not settings.TESTING:  # pragma: no cover
             print(f"[analytics] gauge={event} value={value}")
 
     def track(self, user, event: str, properties: dict):
-        if not settings.TESTING:
+        if not settings.TESTING:  # pragma: no cover
             print(f"[analytics] event={event} user={user.email}")
 
 
