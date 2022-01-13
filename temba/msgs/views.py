@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from urllib.parse import quote_plus
 
 from smartmin.views import (
     SmartCreateView,
@@ -19,8 +20,8 @@ from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import is_safe_url, urlquote_plus
-from django.utils.translation import ugettext_lazy as _
+from django.utils.http import is_safe_url
+from django.utils.translation import gettext_lazy as _
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
@@ -126,7 +127,7 @@ class InboxView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         return self.system_label
 
     def derive_export_url(self):
-        redirect = urlquote_plus(self.request.get_full_path())
+        redirect = quote_plus(self.request.get_full_path())
         label = self.derive_label()
         label_id = label.uuid if isinstance(label, Label) else label
         return "%s?l=%s&redirect=%s" % (reverse("msgs.msg_export"), label_id, redirect)

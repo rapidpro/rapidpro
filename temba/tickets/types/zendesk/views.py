@@ -11,7 +11,7 @@ from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils import timezone, translation
 from django.utils.http import urlencode
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View

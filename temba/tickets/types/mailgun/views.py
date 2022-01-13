@@ -3,7 +3,7 @@ from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.html import escape
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.utils.email import send_template_email
 from temba.utils.text import random_string

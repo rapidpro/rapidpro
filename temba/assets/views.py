@@ -3,7 +3,7 @@ import mimetypes
 from smartmin.views import SmartTemplateView, SmartView
 
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound, HttpResponseRedirect
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.generic import View
 
 from temba.notifications.views import NotificationTargetMixin

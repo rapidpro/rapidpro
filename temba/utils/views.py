@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import quote
 
 from django import forms
 from django.db import transaction
@@ -6,8 +7,7 @@ from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirec
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
-from django.utils.http import urlquote
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
@@ -246,7 +246,7 @@ class RequireRecentAuthMixin:
         if not is_formax or self.recent_auth_includes_formax:
             last_auth_on = request.user.get_settings().last_auth_on
             if not last_auth_on or (timezone.now() - last_auth_on).total_seconds() > self.recent_auth_seconds:
-                return HttpResponseRedirect(reverse("users.confirm_access") + f"?next={urlquote(request.path)}")
+                return HttpResponseRedirect(reverse("users.confirm_access") + f"?next={quote(request.path)}")
 
         return super().pre_process(request, *args, **kwargs)
 

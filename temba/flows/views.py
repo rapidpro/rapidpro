@@ -26,9 +26,9 @@ from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 
@@ -313,7 +313,7 @@ class FlowCRUDL(SmartCRUDL):
                 )
 
             # try to parse our body
-            definition = json.loads(force_text(request.body))
+            definition = json.loads(force_str(request.body))
             try:
                 flow = self.get_object(self.get_queryset())
                 revision, issues = flow.save_revision(self.request.user, definition)

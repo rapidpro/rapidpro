@@ -16,7 +16,7 @@ from django.db import models
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store

@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.db.models import Prefetch
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.locations.models import AdminBoundary, BoundaryAlias

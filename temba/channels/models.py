@@ -3,6 +3,7 @@ import time
 from abc import ABCMeta
 from datetime import timedelta
 from enum import Enum
+from urllib.parse import quote_plus
 from xml.sax.saxutils import escape
 
 import phonenumbers
@@ -13,7 +14,6 @@ from smartmin.models import SmartModel
 from twilio.base.exceptions import TwilioRestException
 
 from django.conf import settings
-from django.conf.urls import url
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
@@ -22,9 +22,9 @@ from django.db.models import Max, Q, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
+from django.urls import re_path
 from django.utils import timezone
-from django.utils.http import urlquote_plus
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.orgs.models import DependencyMixin, Org
@@ -137,7 +137,7 @@ class ChannelType(metaclass=ABCMeta):
         """
         claim_view_kwargs = self.claim_view_kwargs if self.claim_view_kwargs else {}
         claim_view_kwargs["channel_type"] = self
-        return url(r"^claim$", self.claim_view.as_view(**claim_view_kwargs), name="claim")
+        return re_path(r"^claim$", self.claim_view.as_view(**claim_view_kwargs), name="claim")
 
     def get_update_form(self):
         if self.update_form is None:
@@ -973,7 +973,7 @@ class Channel(TembaModel, DependencyMixin):
 
             # encode based on our content type
             if content_type == Channel.CONTENT_TYPE_URLENCODED:
-                replacement = urlquote_plus(replacement)
+                replacement = quote_plus(replacement)
 
             # if this is JSON, need to wrap in quotes (and escape them)
             elif content_type == Channel.CONTENT_TYPE_JSON:
