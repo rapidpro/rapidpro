@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import quote
 
 from django import forms
 from django.db import transaction
@@ -6,8 +7,7 @@ from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirec
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
-from django.utils.http import urlquote
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
@@ -29,22 +29,27 @@ class SpaMixin(View):
     def spa_referrer_path(self) -> tuple:
         return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
 
+    def is_spa(self):
+        is_spa = "HTTP_TEMBA_SPA" in self.request.META
+        return is_spa
+
     def get_template_names(self):
         templates = super().get_template_names()
+        spa_templates = []
 
-        if "HTTP_TEMBA_SPA" in self.request.META:
-            original = templates[0].split(".")
-            if len(original) == 2:
-                spa_template = original[0] + "_spa." + original[1]
-
-            if spa_template:
-                templates.insert(0, spa_template)
-        return templates
+        if self.is_spa():
+            for template in templates:
+                original = template.split(".")
+                if len(original) == 2:
+                    spa_template = original[0] + "_spa." + original[1]
+                if spa_template:
+                    spa_templates.append(spa_template)
+        return spa_templates + templates
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        if "HTTP_TEMBA_SPA" in self.request.META:
+        if self.is_spa():
             context["base_template"] = "spa.html"
             context["is_spa"] = True
             context["temba_path"] = self.spa_path
@@ -241,7 +246,7 @@ class RequireRecentAuthMixin:
         if not is_formax or self.recent_auth_includes_formax:
             last_auth_on = request.user.get_settings().last_auth_on
             if not last_auth_on or (timezone.now() - last_auth_on).total_seconds() > self.recent_auth_seconds:
-                return HttpResponseRedirect(reverse("users.confirm_access") + f"?next={urlquote(request.path)}")
+                return HttpResponseRedirect(reverse("users.confirm_access") + f"?next={quote(request.path)}")
 
         return super().pre_process(request, *args, **kwargs)
 

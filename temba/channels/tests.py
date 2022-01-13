@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 from urllib.parse import quote
 
-from django_redis import get_redis_connection
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
@@ -18,7 +17,7 @@ from django.test import RequestFactory
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.encoding import force_bytes, force_text
+from django.utils.encoding import force_bytes
 
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
@@ -27,7 +26,7 @@ from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.triggers.models import Trigger
-from temba.utils import dict_to_struct, json
+from temba.utils import json
 from temba.utils.models import generate_uuid
 
 from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
@@ -1959,11 +1958,14 @@ class ChannelLogTest(TembaTest):
 
         # create failed outgoing message with error channel log
         failed_msg = self.create_outgoing_msg(contact, "failed message")
-        failed_log = ChannelLog.log_error(dict_to_struct("MockMsg", failed_msg.as_task_json()), "Error Sending")
-
-        failed_log.response = json.dumps(dict(error="invalid credentials"))
-        failed_log.request = "POST https://foo.bar/send?msg=failed+message"
-        failed_log.save(update_fields=["request", "response"])
+        failed_log = ChannelLog.objects.create(
+            channel=failed_msg.channel,
+            msg=failed_msg,
+            is_error=True,
+            description="Error Sending",
+            request="POST https://foo.bar/send?msg=failed+message",
+            response=json.dumps(dict(error="invalid credentials")),
+        )
 
         # create call with an interaction log
         ivr_flow = self.get_flow("ivr")
@@ -1987,7 +1989,7 @@ class ChannelLogTest(TembaTest):
         response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
-        read_url = reverse("channels.channellog_read", args=[failed_log.id])
+        read_url = reverse("channels.channellog_read", args=[failed_log.channel.uuid, failed_log.id])
         response = self.client.get(read_url)
         self.assertLoginRedirect(response)
 
@@ -1998,7 +2000,7 @@ class ChannelLogTest(TembaTest):
         response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
-        read_url = reverse("channels.channellog_read", args=[failed_log.id])
+        read_url = reverse("channels.channellog_read", args=[failed_log.channel.uuid, failed_log.id])
         response = self.client.get(read_url)
         self.assertLoginRedirect(response)
 
@@ -2024,7 +2026,9 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "invalid credentials")
 
         # can't view log from other org
-        response = self.client.get(reverse("channels.channellog_read", args=[other_org_log.id]))
+        response = self.client.get(
+            reverse("channels.channellog_read", args=[other_org_log.channel.uuid, other_org_log.id])
+        )
         self.assertLoginRedirect(response)
 
         # disconnect our msg
@@ -2035,7 +2039,9 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "invalid credentials")
 
         # view success alone
-        response = self.client.get(reverse("channels.channellog_read", args=[success_log.id]))
+        response = self.client.get(
+            reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        )
         self.assertContains(response, "Successfully Sent")
 
         self.assertEqual(self.channel.get_success_log_count(), 2)
@@ -2106,7 +2112,7 @@ class ChannelLogTest(TembaTest):
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
 
         # check list page shows un-redacted content for a regular org
         response = self.client.get(list_url)
@@ -2142,7 +2148,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "3527065", count=3)
@@ -2176,7 +2182,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "3527065", count=1)
@@ -2197,7 +2203,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "3527065", count=1)
@@ -2228,7 +2234,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "3527065", count=1)
@@ -2280,7 +2286,7 @@ class ChannelLogTest(TembaTest):
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
 
         response = self.client.get(list_url)
 
@@ -2312,7 +2318,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "767659860", count=5)
@@ -2347,7 +2353,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "767659860", count=1)
@@ -2411,7 +2417,7 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "facebook:2150393045080607", count=0)
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
 
         response = self.client.get(read_url)
 
@@ -2432,7 +2438,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
 
         response = self.client.get(read_url)
 
@@ -2479,7 +2485,7 @@ class ChannelLogTest(TembaTest):
 
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
 
         response = self.client.get(read_url)
 
@@ -2532,7 +2538,7 @@ class ChannelLogTest(TembaTest):
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
 
         # check list page shows un-redacted content for a regular org
         response = self.client.get(list_url)
@@ -2570,7 +2576,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "097 909 9111", count=1)
@@ -2622,7 +2628,7 @@ Error: missing request signature""",
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_read", args=[failed_log.id])
+        read_url = reverse("channels.channellog_read", args=[failed_log.channel.uuid, failed_log.id])
 
         response = self.client.get(read_url)
 
@@ -2721,72 +2727,6 @@ class FacebookWhitelistTest(TembaTest):
 
 
 class CourierTest(TembaTest):
-    @override_settings(SEND_MESSAGES=True)
-    def test_queue_to_courier(self):
-        self.channel.channel_type = "T"
-        self.channel.save()
-
-        bob = self.create_contact("Bob", urns=["tel:+12065551111"])
-        cat = self.create_contact("Cat", urns=["tel:+12065552222"])
-        dan = self.create_contact("Dan", urns=["tel:+12065553333"])
-        eve = self.create_contact("eve", urns=["tel:+12065554444"])
-        incoming = self.create_incoming_msg(bob, "Hello", external_id="external-id")
-
-        # create some outgoing messages for our channel
-        msg1 = self.create_outgoing_msg(
-            bob,
-            "Outgoing 1",
-            attachments=["image/jpg:https://example.com/test.jpg", "image/jpg:https://example.com/test2.jpg"],
-        )
-        msg2 = self.create_outgoing_msg(cat, "Outgoing 2", response_to=incoming, attachments=[])
-        msg3 = self.create_outgoing_msg(dan, "Outgoing 3", high_priority=False, attachments=None)
-        msg4 = self.create_outgoing_msg(eve, "Outgoing 4", high_priority=True)
-        msg5 = self.create_outgoing_msg(eve, "Outgoing 5", high_priority=True)
-        all_msgs = [msg1, msg2, msg3, msg4, msg5]
-
-        Msg.send_messages(all_msgs)
-
-        # we should have been queued to our courier queues and our msgs should be marked as such
-        for msg in all_msgs:
-            msg.refresh_from_db()
-            self.assertEqual(msg.status, Msg.STATUS_QUEUED)
-
-        self.assertFalse(msg1.high_priority)
-
-        # responses arent enough to be high priority, it depends on run responded
-        self.assertFalse(msg2.high_priority)
-
-        self.assertFalse(msg3.high_priority)
-        self.assertTrue(msg4.high_priority)  # explicitly high
-        self.assertTrue(msg5.high_priority)
-
-        # check against redis
-        r = get_redis_connection()
-
-        # should have our channel in the active queue
-        queue_name = "msgs:" + self.channel.uuid + "|10"
-        self.assertEqual(1, r.zcard("msgs:active"))
-        self.assertEqual(0, r.zrank("msgs:active", queue_name))
-
-        # check that messages went into the correct queues
-        high_priority_msgs = [json.loads(force_text(t)) for t in r.zrange(queue_name + "/1", 0, -1)]
-        low_priority_msgs = [json.loads(force_text(t)) for t in r.zrange(queue_name + "/0", 0, -1)]
-
-        self.assertEqual([[m["text"] for m in b] for b in high_priority_msgs], [["Outgoing 4", "Outgoing 5"]])
-        self.assertEqual(
-            [[m["text"] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 2"], ["Outgoing 3"]]
-        )
-
-        self.assertEqual(
-            low_priority_msgs[0][0]["attachments"],
-            ["image/jpg:https://example.com/test.jpg", "image/jpg:https://example.com/test2.jpg"],
-        )
-        self.assertEqual(2, low_priority_msgs[0][0]["tps_cost"])
-        self.assertEqual([], low_priority_msgs[1][0]["attachments"])
-        self.assertEqual(1, low_priority_msgs[1][0]["tps_cost"])
-        self.assertEqual("external-id", low_priority_msgs[1][0]["response_to_external_id"])
-        self.assertIsNone(low_priority_msgs[2][0]["attachments"])
-
     def test_courier_urls(self):
         response = self.client.get(reverse("courier.t", args=[self.channel.uuid, "receive"]))
         self.assertEqual(response.status_code, 404)

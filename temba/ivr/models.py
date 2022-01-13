@@ -1,5 +1,5 @@
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import ChannelConnection
 
@@ -13,16 +13,6 @@ class IVRManager(models.Manager):
 
 
 class IVRCall(ChannelConnection):
-    EXPIRES_CHOICES = (
-        (1, _("After 1 minute")),
-        (2, _("After 2 minutes")),
-        (3, _("After 3 minutes")),
-        (4, _("After 4 minutes")),
-        (5, _("After 5 minutes")),
-        (10, _("After 10 minutes")),
-        (15, _("After 15 minutes")),
-    )
-
     RETRY_CHOICES = ((-1, _("Never")), (30, _("After 30 minutes")), (60, _("After 1 hour")), (1440, _("After 1 day")))
 
     objects = IVRManager()

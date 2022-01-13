@@ -3,6 +3,7 @@ import time
 from abc import ABCMeta
 from datetime import timedelta
 from enum import Enum
+from urllib.parse import quote_plus
 from xml.sax.saxutils import escape
 
 import phonenumbers
@@ -13,7 +14,6 @@ from smartmin.models import SmartModel
 from twilio.base.exceptions import TwilioRestException
 
 from django.conf import settings
-from django.conf.urls import url
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
@@ -22,15 +22,14 @@ from django.db.models import Max, Q, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
+from django.urls import re_path
 from django.utils import timezone
-from django.utils.http import urlquote_plus
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, countries, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
-from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
 
@@ -138,7 +137,7 @@ class ChannelType(metaclass=ABCMeta):
         """
         claim_view_kwargs = self.claim_view_kwargs if self.claim_view_kwargs else {}
         claim_view_kwargs["channel_type"] = self
-        return url(r"^claim$", self.claim_view.as_view(**claim_view_kwargs), name="claim")
+        return re_path(r"^claim$", self.claim_view.as_view(**claim_view_kwargs), name="claim")
 
     def get_update_form(self):
         if self.update_form is None:
@@ -853,25 +852,6 @@ class Channel(TembaModel, DependencyMixin):
         # is this channel newer than an hour
         return self.created_on > timezone.now() - timedelta(hours=1) or not self.get_last_sync()
 
-    def calculate_tps_cost(self, msg):
-        """
-        Calculates the TPS cost for sending the passed in message. We look at the URN type and for any
-        `tel` URNs we just use the calculated segments here. All others have a cost of 1.
-
-        In the case of attachments, our cost is the number of attachments.
-        """
-        from temba.contacts.models import URN
-
-        cost = 1
-        if msg.contact_urn.scheme == URN.TEL_SCHEME:
-            cost = calculate_num_segments(msg.text)
-
-        # if we have attachments then use that as our cost (MMS bundles text into the attachment, but only one per)
-        if msg.attachments:
-            cost = len(msg.attachments)
-
-        return cost
-
     def claim(self, org, user, phone):
         """
         Claims this channel for the given org/user
@@ -914,9 +894,8 @@ class Channel(TembaModel, DependencyMixin):
         # disassociate them
         Channel.objects.filter(parent=self).update(parent=None)
 
-        # delete any alerts or notifications
+        # delete any alerts
         self.alerts.all().delete()
-        self.notifications.all().delete()
 
         # any related sync events
         for sync_event in self.sync_events.all():
@@ -994,7 +973,7 @@ class Channel(TembaModel, DependencyMixin):
 
             # encode based on our content type
             if content_type == Channel.CONTENT_TYPE_URLENCODED:
-                replacement = urlquote_plus(replacement)
+                replacement = quote_plus(replacement)
 
             # if this is JSON, need to wrap in quotes (and escape them)
             elif content_type == Channel.CONTENT_TYPE_JSON:
@@ -1007,33 +986,6 @@ class Channel(TembaModel, DependencyMixin):
             text = text.replace("{{%s}}" % key, replacement)
 
         return text
-
-    @classmethod
-    def get_pending_messages(cls, org):
-        """
-        We want all messages that are:
-            1. Pending, ie, never queued
-            2. Queued over twelve hours ago (something went awry and we need to re-queue)
-            3. Errored and are ready for a retry
-        """
-
-        from temba.channels.types.android import AndroidType
-        from temba.msgs.models import Msg
-
-        now = timezone.now()
-        hours_ago = now - timedelta(hours=12)
-        five_minutes_ago = now - timedelta(minutes=5)
-
-        return (
-            Msg.objects.filter(org=org, direction=Msg.DIRECTION_OUT)
-            .filter(
-                Q(status=Msg.STATUS_PENDING, created_on__lte=five_minutes_ago)
-                | Q(status=Msg.STATUS_QUEUED, queued_on__lte=hours_ago)
-                | Q(status=Msg.STATUS_ERRORED, next_attempt__lte=now)
-            )
-            .exclude(channel__channel_type=AndroidType.code)
-            .order_by("created_on")
-        )
 
     def get_count(self, count_types):
         count = (
@@ -1245,13 +1197,6 @@ class ChannelLog(models.Model):
     response_status = models.IntegerField(null=True)
     created_on = models.DateTimeField(default=timezone.now)
     request_time = models.IntegerField(null=True)
-
-    @classmethod
-    def log_error(cls, msg, description):
-        print("[%d] ERROR - %s" % (msg.id, description))
-        return ChannelLog.objects.create(
-            channel_id=msg.channel, msg_id=msg.id, is_error=True, description=description[:255]
-        )
 
     @classmethod
     def log_channel_request(cls, channel_id, description, event, start, is_error=False):
@@ -1476,8 +1421,6 @@ class Alert(SmartModel):
 
     @classmethod
     def create_and_send(cls, channel, alert_type: str, *, sync_event=None):
-        from temba.notifications.models import Notification
-
         user = get_alert_user()
         alert = cls.objects.create(
             channel=channel,
@@ -1487,8 +1430,6 @@ class Alert(SmartModel):
             modified_by=user,
         )
         alert.send_alert()
-
-        Notification.channel_alert(alert)
 
         return alert
 
@@ -1646,7 +1587,6 @@ class Alert(SmartModel):
         context = dict(
             org=self.channel.org,
             channel=self.channel,
-            now=timezone.now(),
             last_seen=self.channel.last_seen,
             sync=self.sync_event,
         )
@@ -1786,9 +1726,6 @@ class ChannelConnection(models.Model):
         session = self.get_session()
         if session:
             session.release()
-
-        for msg in self.msgs.all():
-            msg.release()
 
         self.delete()
 

@@ -1969,8 +1969,28 @@ code {
       box-shadow: var(--widget-box-shadow-focused);
     }
 
+.formax .formax-section.action-summary, .formax .formax-section.action-link {
+      background-color: transparent;
+      --tw-border-opacity: 1;
+      border-color: rgba(203, 203, 203, var(--tw-border-opacity));
+      border-width: 1px;
+      --tw-shadow: 0 0 #0000;
+      box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+      background-color: rgba(0,0,0,.015);
+    }
+
+.formax .formax-section.action-summary .formax-summary, .formax .formax-section.action-link .formax-summary {
+        padding-top: 1.5rem !important;
+        padding-bottom: 1.5rem !important;
+        background-color: transparent;
+      }
+
+.formax .formax-section.action-summary .formax-icon, .formax .formax-section.action-link .formax-icon {
+        background-color: transparent;
+      }
+
 .formax .formax-section.action-summary:hover {
-      --tw-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      --tw-shadow: 0 0 #0000;
       box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
     }
 

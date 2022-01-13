@@ -1,3 +1,183 @@
+v7.1.38
+----------
+ * Replace uses of deprecated Django functions
+ * Remove crisp and librato analytics backends and add ConsoleBackend as example
+ * Data migration to populate FlowSession.wait_started_on and wait_expires_on
+
+v7.1.37
+----------
+ * Migration to remove recent run creation from db triggers
+ * Remove no longer used recent messages view and functionality on FlowPathRecentRun
+
+v7.1.36
+----------
+ * Add scheme column on contact exports for anon orgs
+ * Remove option to include router arguments in downloaded PO files
+ * Make loading of analytics backends dynamic based on setting of backend class paths
+
+v7.1.35
+----------
+ * Only display crisp support widget if brand supports it
+ * Do crisp chat widget embedding via analytics template hook
+
+v7.1.34
+----------
+ * Update to editor v1.16.1
+
+v7.1.33
+----------
+ * Add management to fix broken flows
+ * Use new recent contacts endpoint for editor
+
+v7.1.32
+----------
+ * Temporarily put crisp_website_id back in context
+
+v7.1.31
+----------
+ * Remove include_msgs option of flow result exports
+
+v7.1.30
+----------
+ * Update to latest flow editor
+
+v7.1.29
+----------
+ * Update to latest floweditor
+ * Add FlowSession.wait_expires_on
+ * Improve validation of flow expires values
+ * Remove segment and intercom integrations and rework librato and crisp into a pluggable analytics framwork
+
+v7.1.28
+----------
+ * Convert FlowRun.id and FlowSession.id to BIGINT
+
+v7.1.27
+----------
+ * Drop no longer used FlowRun.parent
+
+v7.1.26
+----------
+ * Prefer UTF-8 if we're not sure about encoding of CSV import
+
+v7.1.25
+----------
+ * Fix Kaleyra claim blurb
+ * Fix HTTPLog read page showing warning shading for healthy calls
+
+v7.1.24
+----------
+ * Fix crisp identify on signup
+ * Use same event structure for Crisp as others
+
+v7.1.23
+----------
+ * Update help links for the editor
+ * Add failed reason for failed destination such as missing channel or URNs
+ * Add view to fetch recent contacts from Redis
+
+v7.1.22
+----------
+ * Fix join syntax
+
+v7.1.21
+----------
+ * Fix join syntax, argh
+
+v7.1.20
+----------
+ * Arrays not allowed on track events
+
+v7.1.19
+----------
+ * Add missing env to settings_common
+
+v7.1.18
+----------
+ * Implement crisp as an analytics integration
+
+v7.1.17
+----------
+ * Tweak event tracking for results exports
+ * Revert change to hide non-responded runs in UI
+
+v7.1.16
+----------
+ * Drop Msg.response_to
+ * Drop Msg.connection_id
+
+v7.1.15
+----------
+ * Remove path field from API runs endpoint docs
+ * Hide options to include non-responded runs on results download modal and results page
+ * Fix welcome page widths
+ * Update mailroom_db to require pg_dump version 12.*
+ * Update temba-components
+ * Add workspace page to new UI
+
+v7.1.14
+----------
+ * Fix wrap for recipients list on flow start log
+ * Set Msg.delete_from_counts when releasing a msg
+ * Msg.fail_old_messages should set failed_reason
+ * Add new fields to Msg: delete_from_counts, failed_reason, response_to_external_id
+ * Tweak msg_dewire command to only fetch messages which have never errored
+
+v7.1.13
+----------
+ * Add management command to dewire messages based on a file of ids
+ * Render webhook calls which are too slow as errors
+
+v7.1.12
+----------
+ * Remove last of msg sending code
+ * Fix link to webhook log
+
+v7.1.11
+----------
+ * Remove unnecessary conditional load of jquery
+
+v7.1.10
+----------
+ * Make forgot password email look a little nicer and be easier to localize
+
+v7.1.9
+----------
+ * Fix email template for password forgets
+
+v7.1.8
+----------
+ * Remove chatbase as an integration as it no longer exists
+ * Clear keyword triggers when switching to flow type that doesn't support them
+ * Use branded emails for export notifications
+
+v7.1.5
+----------
+ * Remove warning on flow start modal about settings changes
+ * Add privacy policy link
+ * Test with Redis 3.2.4
+ * Updates for label sub menu and internal menu navigation
+
+v7.1.4
+----------
+ * Remove task to retry errored messages which now handled in mailroom
+
+v7.1.2
+----------
+ * Update poetry dependencies
+ * Update to latest editor
+
+v7.1.1
+----------
+ * Remove channel alert notifications as these will become incidents
+ * Add Incident model as well as OrgFlagged and WebhooksUnhealthy types
+
+v7.1.0
+----------
+ * Drop no longer used index on msg UUID
+ * Re-run collect_sql
+ * Use std collection types for typing hints and drop use of object in classes
+
 v7.0.4
 ----------
  * Fix contact stop list page 

@@ -10,7 +10,7 @@ from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.assets.models import BaseAssetStore, get_asset_store
 
@@ -158,7 +158,7 @@ class BaseExportTask(TembaModel):
         abstract = True
 
 
-class TableExporter(object):
+class TableExporter:
     """
     Class that abstracts out writing a table of data to a CSV or Excel file. This only works for exports that
     have a single sheet (as CSV's don't have sheets) but takes care of writing to a CSV in the case

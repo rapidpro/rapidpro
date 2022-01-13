@@ -5,12 +5,31 @@
   {{block.super}}
   :css
     .spa-container {
-      padding: 0px;
+      padding: 0;
+    }
+
+    .spa-title {
+      margin: 0em;
+      border-radius: 0;
+    }
+
+    #rp-flow-editor {
+      
+    }
+
+    .more .submenu {
+      top: 2.5em !important;
+      right: 0.5em !important;
+    }
+
+    #rp-flow-editor #simulator {
+      top: 20px !important;
+      right: 1em;
     }
 
 
     #canvas-container > div, #canvas:after {
-      background-color: #eeeeee;
+      
     }
 
     #grid {
@@ -43,21 +62,6 @@
 -block page-container
 
   %temba-modax#send-message-modal{ header:"Send Message" }
-
-  .flex.flex-col
-    .flex.px-6.pb-2.mt-2
-      .title.flex-grow
-        .flex.page-title
-          -if flow.flow_type == 'V'
-            .icon-phone.mt-2.mr-6
-          -elif flow.flow_type == 'S'
-            .icon-mobile.mt-2.mr-6
-          .ml-0
-            {{title}}
-      .menu
-        -include "spa_page_menu.haml"
-
-
 
   %temba-dialog.hide#confirm-language(header='{{_("Change Language")|escapejs}}' primaryButtonName='{{_("Update")|escapejs}}')
     .p-6.body

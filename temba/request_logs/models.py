@@ -6,7 +6,7 @@ from django.db import models
 from django.db.models import Index, Q
 from django.utils import timezone
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.airtime.models import AirtimeTransfer
 from temba.channels.models import Channel
@@ -22,6 +22,8 @@ class HTTPLog(models.Model):
     """
     HTTPLog is used to log HTTP requests and responses.
     """
+
+    HEALTHY_TIME_LIMIT = 10_000  # a call that takes longer than 10 seconds is considered unhealthy
 
     # used for dumping traces
     REQUEST_DELIM = ">!>!>! "
@@ -147,6 +149,10 @@ class HTTPLog(models.Model):
             classifier=classifier,
             ticketer=ticketer,
         )
+
+    @property
+    def is_healthy(self):
+        return self.request_time <= self.HEALTHY_TIME_LIMIT
 
     class Meta:
         indexes = (

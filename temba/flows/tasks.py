@@ -19,7 +19,6 @@ from .models import (
     FlowCategoryCount,
     FlowNodeCount,
     FlowPathCount,
-    FlowPathRecentRun,
     FlowRevision,
     FlowRun,
     FlowRunCount,
@@ -56,7 +55,6 @@ def squash_flowcounts():
     FlowNodeCount.squash()
     FlowRunCount.squash()
     FlowCategoryCount.squash()
-    FlowPathRecentRun.prune()
     FlowStartCount.squash()
     FlowPathCount.squash()
 

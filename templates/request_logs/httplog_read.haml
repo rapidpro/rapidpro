@@ -40,7 +40,7 @@
 
   %table.list
     %tbody
-      %tr.border-b
+      %tr.border-b(class="{% if object.is_error or not object.is_healthy %}warning{% endif %}")
         %td(style="width: 30px;")
           .font-normal.text-2xl
             {{ object.status_code|default:"--" }}

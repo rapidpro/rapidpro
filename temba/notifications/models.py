@@ -19,6 +19,111 @@ from temba.utils.models import SquashableModel
 logger = logging.getLogger(__name__)
 
 
+class IncidentType:
+    slug: str = None
+
+    def as_json(self, incident) -> dict:
+        return {
+            "type": incident.incident_type,
+            "started_on": incident.started_on.isoformat(),
+            "ended_on": incident.ended_on.isoformat() if incident.ended_on else None,
+        }
+
+
+class OrgFlaggedIncidentType(IncidentType):
+    """
+    Org has been flagged due to suspicious activity
+    """
+
+    slug = "org:flagged"
+
+
+class WebhooksUnhealthyIncidentType(IncidentType):
+    """
+    Webhook calls from flows have been taking too long to respond for a period of time.
+    """
+
+    slug = "webhooks:unhealthy"
+
+
+INCIDENT_TYPES_BY_SLUG = {t.slug: t() for t in IncidentType.__subclasses__()}
+
+
+class Incident(models.Model):
+    """
+    Models a problem with something in a workspace - e.g. a channel experiencing high error rates, webhooks in a flow
+    experiencing poor response times.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="incidents")
+    incident_type = models.CharField(max_length=20)
+
+    # The scope is what we maintain uniqueness of ongoing incidents for within an org. For incident types with an
+    # associated object, this will be the UUID of the object.
+    scope = models.CharField(max_length=36)
+
+    started_on = models.DateTimeField(default=timezone.now)
+    ended_on = models.DateTimeField(null=True)
+
+    channel = models.ForeignKey(Channel, null=True, on_delete=models.PROTECT, related_name="incidents")
+
+    @classmethod
+    def flagged(cls, org):
+        """
+        Creates a flagged incident if one is not already ongoing
+        """
+        return cls._create(org, OrgFlaggedIncidentType.slug, scope="")
+
+    @classmethod
+    def _create(cls, org, incident_type: str, *, scope: str, **kwargs):
+        incident, created = cls.objects.get_or_create(
+            org=org,
+            incident_type=incident_type,
+            scope=scope,
+            ended_on=None,
+            defaults=kwargs,
+        )
+        if created:
+            Notification.incident_started(incident)
+        return incident
+
+    def end(self):
+        """
+        Ends this incident
+        """
+        self.ended_on = timezone.now()
+        self.save(update_fields=("ended_on",))
+
+    @property
+    def template(self):
+        return f"notifications/incidents/{self.incident_type.replace(':', '_')}.haml"
+
+    @property
+    def type(self):
+        return INCIDENT_TYPES_BY_SLUG[self.incident_type]
+
+    def as_json(self) -> dict:
+        return self.type.as_json(self)
+
+    class Meta:
+        indexes = [
+            # used to find ongoing incidents which may be ended
+            models.Index(name="incidents_ongoing", fields=("incident_type",), condition=Q(ended_on=None)),
+            # used to list an org's ongoing and ended incidents in the UI
+            models.Index(name="incidents_org_ongoing", fields=("org", "-started_on"), condition=Q(ended_on=None)),
+            models.Index(
+                name="incidents_org_ended", fields=("org", "-started_on"), condition=Q(ended_on__isnull=False)
+            ),
+        ]
+        constraints = [
+            # used to check if we already have an existing ongoing incident for something
+            models.UniqueConstraint(
+                name="incidents_ongoing_scoped", fields=["org", "incident_type", "scope"], condition=Q(ended_on=None)
+            ),
+        ]
+
+
 class NotificationType:
     slug = None
     email_subject = None
@@ -48,18 +153,6 @@ class NotificationType:
             "target_url": self.get_target_url(notification),
             "is_seen": notification.is_seen,
         }
-
-
-class ChannelAlertNotificationType(NotificationType):
-    slug = "channel:alert"
-
-    def get_target_url(self, notification) -> str:
-        return reverse("channels.channel_read", kwargs={"uuid": notification.channel.uuid})
-
-    def as_json(self, notification) -> dict:
-        json = super().as_json(notification)
-        json["channel"] = {"uuid": str(notification.channel.uuid), "name": notification.channel.name}
-        return json
 
 
 class ExportFinishedNotificationType(NotificationType):
@@ -96,6 +189,18 @@ class ImportFinishedNotificationType(NotificationType):
         return json
 
 
+class IncidentStartedNotificationType(NotificationType):
+    slug = "incident:started"
+
+    def get_target_url(self, notification) -> str:
+        return reverse("notifications.incident_list")
+
+    def as_json(self, notification) -> dict:
+        json = super().as_json(notification)
+        json["incident"] = notification.incident.as_json()
+        return json
+
+
 class TicketsOpenedNotificationType(NotificationType):
     slug = "tickets:opened"
 
@@ -110,7 +215,7 @@ class TicketActivityNotificationType(NotificationType):
         return "/ticket/mine/"
 
 
-TYPES_BY_SLUG = {lt.slug: lt() for lt in NotificationType.__subclasses__()}
+NOTIFICATION_TYPES_BY_SLUG = {lt.slug: lt() for lt in NotificationType.__subclasses__()}
 
 
 class Notification(models.Model):
@@ -129,7 +234,7 @@ class Notification(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="notifications")
-    notification_type = models.CharField(max_length=16, null=True)
+    notification_type = models.CharField(max_length=16)
 
     # The scope is what we maintain uniqueness of unseen notifications for within an org. For some notification types,
     # user can only have one unseen of that type per org, and so this will be an empty string. For other notification
@@ -141,7 +246,6 @@ class Notification(models.Model):
     email_status = models.CharField(choices=EMAIL_STATUS_CHOICES, max_length=1, default=EMAIL_STATUS_NONE)
     created_on = models.DateTimeField(default=timezone.now)
 
-    channel = models.ForeignKey(Channel, null=True, on_delete=models.PROTECT, related_name="notifications")
     contact_export = models.ForeignKey(
         ExportContactsTask, null=True, on_delete=models.PROTECT, related_name="notifications"
     )
@@ -154,21 +258,7 @@ class Notification(models.Model):
     contact_import = models.ForeignKey(
         ContactImport, null=True, on_delete=models.PROTECT, related_name="notifications"
     )
-
-    @classmethod
-    def channel_alert(cls, alert):
-        """
-        Creates a new channel alert notification for each org admin if there they don't already have an unread one for
-        the channel.
-        """
-        org = alert.channel.org
-        cls._create_all(
-            org,
-            ChannelAlertNotificationType.slug,
-            scope=str(alert.channel.uuid),
-            users=org.get_admins(),
-            channel=alert.channel,
-        )
+    incident = models.ForeignKey(Incident, null=True, on_delete=models.PROTECT, related_name="notifications")
 
     @classmethod
     def export_finished(cls, export):
@@ -183,6 +273,21 @@ class Notification(models.Model):
             users=[export.created_by],
             email_status=cls.EMAIL_STATUS_PENDING,
             **{export.notification_export_type + "_export": export},
+        )
+
+    @classmethod
+    def incident_started(cls, incident):
+        """
+        Creates an incident started notification for all admins in the workspace.
+        """
+
+        cls._create_all(
+            incident.org,
+            IncidentStartedNotificationType.slug,
+            scope=str(incident.id),
+            users=incident.org.get_admins(),
+            email_status=cls.EMAIL_STATUS_NONE,  # TODO add email support
+            incident=incident,
         )
 
     @classmethod
@@ -217,9 +322,14 @@ class Notification(models.Model):
 
     @classmethod
     def mark_seen(cls, org, notification_type: str, *, scope: str, user):
-        cls.objects.filter(
-            org_id=org.id, notification_type=notification_type, scope=scope, user=user, is_seen=False
-        ).update(is_seen=True)
+        notifications = cls.objects.filter(
+            org_id=org.id, notification_type=notification_type, user=user, is_seen=False
+        )
+
+        if scope is not None:
+            notifications = notifications.filter(scope=scope)
+
+        notifications.update(is_seen=True)
 
     @classmethod
     def get_unseen_count(cls, org: Org, user: User) -> int:
@@ -231,7 +341,7 @@ class Notification(models.Model):
 
     @property
     def type(self):
-        return TYPES_BY_SLUG[self.notification_type]
+        return NOTIFICATION_TYPES_BY_SLUG[self.notification_type]
 
     def as_json(self) -> dict:
         return self.type.as_json(self)
@@ -242,12 +352,18 @@ class Notification(models.Model):
             models.Index(fields=["org", "user", "-created_on"]),
             # used to find notifications with pending email sends
             models.Index(name="notifications_email_pending", fields=["created_on"], condition=Q(email_status="P")),
+            # used for notification types where the target URL clears all of that type (e.g. incident_started)
+            models.Index(
+                name="notifications_unseen_of_type",
+                fields=["org", "notification_type", "user"],
+                condition=Q(is_seen=False),
+            ),
         ]
         constraints = [
             # used to check if we already have existing unseen notifications for something or to clear unseen
             # notifications when visiting their target URL
             models.UniqueConstraint(
-                name="notifications_unseen_of_type",
+                name="notifications_unseen_scoped",
                 fields=["org", "notification_type", "scope", "user"],
                 condition=Q(is_seen=False),
             ),

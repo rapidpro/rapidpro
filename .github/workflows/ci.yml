@@ -4,17 +4,17 @@ jobs:
   test:
     name: Test
     env:
-      python_version: '3.9.x'
-      postgis_version: '3.1'
-      redis_version: '5'
-      node_version: '10'
-      elastic_version: '7.10.1'
-      rpindexer_version: '6.4.0'
-      mailroom_version: '6.5.36'
+      python-version: '3.9.x'
+      postgis-version: '3.1'
+      redis-version: '3.2.4'
+      node-version: '10'
+      elastic-version: '7.10.1'
+      rpindexer-version: '6.4.0'
+      mailroom-version: '6.5.36'
       DJANGO_SETTINGS_MODULE: temba.settings_ci
     strategy:
       matrix:
-        pg_version: ['12', '13']
+        pg-version: ['12', '13']
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -23,8 +23,8 @@ jobs:
     - name: Install PostgreSQL and PostGIS
       uses: nyaruka/postgis-action@v2.1.0
       with:
-        postgresql version: ${{ matrix.pg_version }}
-        postgis version: ${{ env.postgis_version }}
+        postgresql version: ${{ matrix.pg-version }}
+        postgis version: ${{ env.postgis-version }}
         postgresql db: temba
         postgresql user: temba
         postgresql password: temba
@@ -38,37 +38,41 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v1
       with:
-        python-version: ${{ env.python_version }}
+        python-version: ${{ env.python-version }}
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        virtualenvs-in-project: true
 
     - name: Install Redis
       uses: zhulik/redis-action@v1.0.0
       with:
-        redis version: ${{ env.redis_version }}
+        redis version: ${{ env.redis-version }}
 
     - name: Install ElasticSearch
       uses: nyaruka/elasticsearch-action@master
       with:
-        elastic version: ${{ env.elastic_version }}
+        elastic version: ${{ env.elastic-version }}
 
     - name: Install Node
       uses: actions/setup-node@v1
       with:
-        node-version: ${{ env.node_version }}
+        node-version: ${{ env.node-version }}
 
     - name: Initialize environment
       run: |
-        python -m pip install -U pip poetry
         poetry install
         npm install
         sudo npm install -g less
         ln -s ${{ github.workspace }}/temba/settings.py.dev ${{ github.workspace }}/temba/settings.py
         poetry run ./manage.py migrate
         # fetch and extract rp-indexer
-        wget https://github.com/nyaruka/rp-indexer/releases/download/v${{ env.rpindexer_version }}/rp-indexer_${{ env.rpindexer_version }}_linux_amd64.tar.gz
-        tar -xvf rp-indexer_${{ env.rpindexer_version }}_linux_amd64.tar.gz rp-indexer
+        wget https://github.com/nyaruka/rp-indexer/releases/download/v${{ env.rpindexer-version }}/rp-indexer_${{ env.rpindexer-version }}_linux_amd64.tar.gz
+        tar -xvf rp-indexer_${{ env.rpindexer-version }}_linux_amd64.tar.gz rp-indexer
         # fetch, extract and start mailroom
-        wget https://github.com/nyaruka/mailroom/releases/download/v${{ env.mailroom_version }}/mailroom_${{ env.mailroom_version }}_linux_amd64.tar.gz
-        tar -xvf mailroom_${{ env.mailroom_version }}_linux_amd64.tar.gz mailroom
+        wget https://github.com/nyaruka/mailroom/releases/download/v${{ env.mailroom-version }}/mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz
+        tar -xvf mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz mailroom
         ./mailroom -db=postgres://temba:temba@localhost:5432/temba?sslmode=disable -redis=redis://localhost:6379/10 -log-level=info > mailroom.log &
 
     - name: Run pre-test checks
