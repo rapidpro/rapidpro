@@ -369,7 +369,8 @@ class Msg(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="msgs")
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="msgs", db_index=False)
     contact_urn = models.ForeignKey(ContactURN, on_delete=models.PROTECT, null=True, related_name="msgs")
-    broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, blank=True, related_name="msgs")
+    broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, related_name="msgs")
+    flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
 
     text = models.TextField()
     attachments = ArrayField(models.URLField(max_length=2048), null=True)
