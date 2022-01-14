@@ -6,7 +6,7 @@ from twilio.base.exceptions import TwilioRestException
 from django import forms
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.types.twilio.views import SUPPORTED_COUNTRIES
 from temba.contacts.models import URN

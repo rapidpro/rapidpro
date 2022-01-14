@@ -31,9 +31,9 @@ from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonRespons
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.encoding import force_bytes, force_text
+from django.utils.encoding import force_bytes, force_str
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.contacts.models import URN
@@ -324,7 +324,7 @@ def register(request):
     if request.method != "POST":
         return HttpResponse(status=500, content=_("POST Required"))
 
-    client_payload = json.loads(force_text(request.body))
+    client_payload = json.loads(force_str(request.body))
     cmds = client_payload["cmds"]
 
     try:

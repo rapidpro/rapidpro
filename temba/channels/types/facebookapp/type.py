@@ -1,7 +1,7 @@
 import requests
 
-from django.conf.urls import url
-from django.utils.translation import ugettext_lazy as _
+from django.urls import re_path
+from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
@@ -41,7 +41,7 @@ class FacebookAppType(ChannelType):
     def get_urls(self):
         return [
             self.get_claim_url(),
-            url(r"^(?P<uuid>[a-z0-9\-]+)/refresh_token$", RefreshToken.as_view(), name="refresh_token"),
+            re_path(r"^(?P<uuid>[a-z0-9\-]+)/refresh_token$", RefreshToken.as_view(), name="refresh_token"),
         ]
 
     def deactivate(self, channel):

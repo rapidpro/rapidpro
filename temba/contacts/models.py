@@ -22,7 +22,7 @@ from django.db.models import Count, F, Max, Q, Sum, Value
 from django.db.models.functions import Concat
 from django.db.models.functions.text import Upper
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
@@ -1737,7 +1737,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         dependents["campaign"] = self.campaigns.filter(is_active=True)
         return dependents
 
-    def release(self, user):
+    def release(self, user, immediate: bool = False):
         """
         Releases this group, removing all contacts and marking as inactive
         """
@@ -1748,8 +1748,11 @@ class ContactGroup(TembaModel, DependencyMixin):
         self.modified_by = user
         self.save(update_fields=("is_active", "modified_by"))
 
-        # do the hard work of actually clearing out contacts etc in a background task
-        on_transaction_commit(lambda: release_group_task.delay(self.id))
+        if immediate:
+            self._full_release()
+        else:
+            # do the hard work of actually clearing out contacts etc in a background task
+            on_transaction_commit(lambda: release_group_task.delay(self.id))
 
     def _full_release(self):
         from temba.campaigns.models import EventFire

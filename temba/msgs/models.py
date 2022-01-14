@@ -16,7 +16,7 @@ from django.db import models
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
@@ -369,7 +369,8 @@ class Msg(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="msgs")
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="msgs", db_index=False)
     contact_urn = models.ForeignKey(ContactURN, on_delete=models.PROTECT, null=True, related_name="msgs")
-    broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, blank=True, related_name="msgs")
+    broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, related_name="msgs")
+    flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
 
     text = models.TextField()
     attachments = ArrayField(models.URLField(max_length=2048), null=True)
