@@ -26,6 +26,7 @@ from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
@@ -1809,6 +1810,14 @@ class FlowCRUDL(SmartCRUDL):
                 widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")}),
             )
 
+            exclude_inactive = forms.BooleanField(
+                label=_("Exclude inactive contacts"),
+                required=False,
+                initial=False,
+                help_text=_("Any contacts who have not sent a message in the last 90 days will not be started."),
+                widget=CheckboxWidget(),
+            )
+
             exclude_in_other = forms.BooleanField(
                 label=_("Exclude contacts currently in a flow"),
                 required=False,
@@ -1833,12 +1842,20 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean_query(self):
                 query = self.cleaned_data.get("query")
+                exclude_inactive = self.data.get("exclude_inactive")
+
+                if exclude_inactive:
+                    now = timezone.now()
+                    recency_window = now - timedelta(days=90)
+                    query = f"({query}) AND last_seen_on > {self.instance.org.format_datetime(recency_window, show_time=False)}"
+
                 if query:
                     try:
                         parsed = parse_query(self.instance.org, query)
                         query = parsed.query
                     except SearchException as e:
                         raise ValidationError(str(e))
+
                 return query
 
             def clean(self):
@@ -1858,7 +1875,7 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = ("mode", "omnibox", "query", "exclude_in_other", "exclude_reruns")
+                fields = ("mode", "omnibox", "query", "exclude_inactive", "exclude_in_other", "exclude_reruns")
 
         form_class = Form
         success_message = ""
@@ -1902,9 +1919,13 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
-
-            context["blockers"] = self.get_blockers(flow)
             context["warnings"] = self.get_warnings(flow)
+            context["blockers"] = self.get_blockers(flow)
+
+            now = timezone.now()
+            recency_window = now - timedelta(days=90)
+            context["recency_window"] = flow.org.format_datetime(recency_window, show_time=False)
+            context["inactive_threshold"] = self.request.branding.get("inactive_threshold", 0)
             return context
 
         def get_blockers(self, flow) -> list:
@@ -1954,21 +1975,20 @@ class FlowCRUDL(SmartCRUDL):
             return warnings
 
         def save(self, *args, **kwargs):
-            mode = self.form.cleaned_data["mode"]
-
             # gather up the recipients for this flow start
             groups = []
             contacts = []
-            query = None
-            restart_participants = not self.form.cleaned_data["exclude_reruns"]
-            include_active = not self.form.cleaned_data["exclude_in_other"]
+            query = self.form.cleaned_data["query"]
 
-            if mode == self.form.MODE_QUERY:
-                query = self.form.cleaned_data["query"]
-            else:
-                omnibox = self.form.cleaned_data["omnibox"]
-                groups = list(omnibox["groups"])
-                contacts = list(omnibox["contacts"])
+            exclude_inactive = self.form.cleaned_data["exclude_inactive"]
+            restart_participants = not self.form.cleaned_data["exclude_reruns"]
+            include_contacts_with_runs = not self.form.cleaned_data["exclude_in_other"]
+
+            if exclude_inactive:
+                flow = self.get_object()
+                now = timezone.now()
+                ninety_days_ago = now - timedelta(days=90)
+                query = f"({query}) AND last_seen_on > '{flow.org.format_datetime(ninety_days_ago, show_time=False)}'"
 
             analytics.track(
                 self.request.user,
@@ -1983,7 +2003,7 @@ class FlowCRUDL(SmartCRUDL):
                 contacts,
                 query,
                 restart_participants=restart_participants,
-                include_active=include_active,
+                include_active=include_contacts_with_runs,
             )
             return self.object
 
