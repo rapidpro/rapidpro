@@ -268,7 +268,7 @@ class MockSessionWriter:
 
             wait_started_on = timezone.now()
             wait_expires_on = iso8601.parse_date(wait_event["expires_on"]) if wait_event["expires_on"] else None
-            wait_resume_on_expire = (False,)  # this doesn't support sub-flows
+            wait_resume_on_expire = False  # this doesn't support sub-flows
         else:
             wait_started_on = None
             wait_expires_on = None
