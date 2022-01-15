@@ -2441,7 +2441,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             broadcast_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["mode", "omnibox", "query", "exclude_in_other", "exclude_reruns"],
+            form_fields=["mode", "omnibox", "query", "exclude_inactive", "exclude_in_other", "exclude_reruns"],
         )
 
         # create flow start with a query
@@ -2560,7 +2560,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             broadcast_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["mode", "omnibox", "query", "exclude_in_other", "exclude_reruns"],
+            form_fields=["mode", "omnibox", "query", "exclude_inactive", "exclude_in_other", "exclude_reruns"],
         )
 
         # option to exclude contact in other flows is hidden
