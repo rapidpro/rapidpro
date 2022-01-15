@@ -210,7 +210,7 @@
     queryWidget.addEventListener("temba-fetch-complete", function(e) {
       var summary = e.detail;
       var reduction = 1- (summary.total / window.totalSummary.total); 
-      if (summary.total >= MIN_ACTIVE &&  reduction > REDUCTION_THRESHOLD) {
+      if (summary.total >= MIN_ACTIVE && reduction > REDUCTION_THRESHOLD) {
         var checkbox = modalBody.querySelector("temba-checkbox[name=exclude_inactive]");
         if (!checkbox.checked) {
           var confirmation = modalBody.querySelector(".confirmation");
