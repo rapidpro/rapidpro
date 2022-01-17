@@ -14,7 +14,7 @@ EXPIRES_DEFAULTS = {
 }
 
 
-def populate_session_wait(apps, schema_editor):
+def populate_session_wait(apps, schema_editor):  # pragma: no cover
     FlowSession = apps.get_model("flows", "FlowSession")
     FlowRun = apps.get_model("flows", "FlowRun")
 
@@ -67,7 +67,7 @@ def populate_session_wait(apps, schema_editor):
             print(f" > updated {num_updated}, expired {num_expired}")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

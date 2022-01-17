@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("flows", "0264_populate_session_wait_expires"),
+        ("flows", "0266_auto_20220113_1706"),
     ]
 
     operations = [

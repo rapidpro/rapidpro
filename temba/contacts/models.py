@@ -1737,7 +1737,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         dependents["campaign"] = self.campaigns.filter(is_active=True)
         return dependents
 
-    def release(self, user):
+    def release(self, user, immediate: bool = False):
         """
         Releases this group, removing all contacts and marking as inactive
         """
@@ -1748,8 +1748,11 @@ class ContactGroup(TembaModel, DependencyMixin):
         self.modified_by = user
         self.save(update_fields=("is_active", "modified_by"))
 
-        # do the hard work of actually clearing out contacts etc in a background task
-        on_transaction_commit(lambda: release_group_task.delay(self.id))
+        if immediate:
+            self._full_release()
+        else:
+            # do the hard work of actually clearing out contacts etc in a background task
+            on_transaction_commit(lambda: release_group_task.delay(self.id))
 
     def _full_release(self):
         from temba.campaigns.models import EventFire

@@ -1734,7 +1734,7 @@ class Org(SmartModel):
 
         # delete our groups
         for group in self.all_groups.all():
-            group.release(user)
+            group.release(user, immediate=True)
             group.delete()
 
         # delete our channels
