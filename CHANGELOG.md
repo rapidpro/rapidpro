@@ -1,3 +1,7 @@
+v7.1.41
+----------
+ * Add Contact.current_flow
+
 v7.1.40
 ----------
  * Drop FlowRun.events and FlowPathRecentRun
