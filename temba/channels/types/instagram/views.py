@@ -73,13 +73,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     if page_access_token != "":
                         break
 
-                    next_ = response_json["paging"].get("next", None)
-
-                    if next_ is not None:
+                    next_ = response_json["paging"].get("next", None)  # pragma: needs cover
+                    if next_:  # pragma: needs cover
                         url = next_
 
                     else:
-                        break
+                        break  # pragma: needs cover
 
                 if page_access_token == "":  # pragma: no cover
                     raise Exception("Empty page access token!")
@@ -194,7 +193,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         page_id = channel.config.get("page_id")
 
         if page_id is None:
-            raise Exception("Failed to get channel page ID")
+            raise Exception("Failed to get channel page ID")  # pragma: needs cover
 
         app_id = settings.FACEBOOK_APPLICATION_ID
         app_secret = settings.FACEBOOK_APPLICATION_SECRET
@@ -239,12 +238,11 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
             if page_access_token != "":
                 break
 
-            next_ = response_json["paging"].get("next", None)
-
-            if next_ is not None:
+            next_ = response_json["paging"].get("next", None)  # pragma: needs cover
+            if next_:  # pragma: needs cover
                 url = next_
 
-            else:
+            else:  # pragma: needs cover
                 break
 
         url = f"https://graph.facebook.com/v12.0/{page_id}/subscribed_apps"
