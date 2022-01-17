@@ -3576,7 +3576,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def get(self, request, *args, **kwargs):
-            if request.is_ajax():
+            if self.request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
                 initial = self.request.GET.get("initial", "").split(",")
                 matches = []
 
