@@ -1,3 +1,7 @@
+v7.1.42
+----------
+ * Add missing migration
+
 v7.1.41
 ----------
  * Add Contact.current_flow
