@@ -294,7 +294,12 @@ class MockSessionWriter:
                 wait_resume_on_expire=wait_resume_on_expire,
             )
 
+        current_flow = None
+
         for i, run in enumerate(self.output["runs"]):
+            if run["status"] == "waiting":
+                current_flow = Flow.objects.get(uuid=run["flow"]["uuid"])
+
             run_obj = FlowRun.objects.filter(uuid=run["uuid"]).first()
             if not run_obj:
                 run_obj = FlowRun.objects.create(
@@ -319,6 +324,10 @@ class MockSessionWriter:
                 exited_on=run["exited_on"],
                 responded=bool([e for e in run["events"] if e["type"] == "msg_received"]),
             )
+
+        self.contact.current_flow = current_flow
+        self.contact.modified_on = timezone.now()
+        self.contact.save(update_fields=("current_flow", "modified_on"))
 
         self._handle_events()
         return self
