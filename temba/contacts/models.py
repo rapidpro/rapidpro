@@ -665,7 +665,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     fields = JSONField(null=True)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
-
+    current_flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
     ticket_count = models.IntegerField(default=0)
 
     # user that last modified this contact
