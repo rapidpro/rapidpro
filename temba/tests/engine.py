@@ -310,7 +310,6 @@ class MockSessionWriter:
 
             FlowRun.objects.filter(id=run_obj.id).update(
                 path=run["path"],
-                events=[e for e in run["events"] if e["type"] in PERSIST_EVENTS],
                 results=run["results"],
                 exit_type=EXIT_TYPES.get(run["status"]),
                 is_active=run["status"] in ("waiting", "active"),
