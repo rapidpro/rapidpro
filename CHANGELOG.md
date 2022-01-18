@@ -1,3 +1,21 @@
+v7.1.42
+----------
+ * Add missing migration
+
+v7.1.41
+----------
+ * Add Contact.current_flow
+
+v7.1.40
+----------
+ * Drop FlowRun.events and FlowPathRecentRun
+
+v7.1.39
+----------
+ * Include qrious.js script
+ * Add FlowSession.wait_resume_on_expire
+ * Add Msg.flow
+
 v7.1.38
 ----------
  * Replace uses of deprecated Django functions
