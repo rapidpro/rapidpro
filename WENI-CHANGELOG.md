@@ -1,3 +1,7 @@
+1.0.7-rapidpro-7.0.4
+----------
+ * Fix: Gujarati whatsapp language code
+
 1.0.6-rapidpro-7.0.4
 ----------
  * Add background flow type, location support and title variables in branding info.
