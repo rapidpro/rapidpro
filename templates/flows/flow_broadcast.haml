@@ -13,7 +13,7 @@
           You've selected a lot of contacts to send this flow to. Depending on your channel
           it could take days to reach everybody. We recommend limiting your selection to active contacts.
 
-      .card-option.mt-6.mb-4(onclick="handleContactFilter(false);")
+      .card-option.mt-6.mb-4.option-all(onclick="handleContactFilter(false);")
         .flex
           .flex.flex-col
             .text-2xl.font-normal.all-count(style="width:120px")
@@ -25,7 +25,7 @@
             -blocktrans
               Selecting this option will negatively affect your response rate and reputation on some channels.
               
-      .card-option.recommended(onclick="handleContactFilter(true);")
+      .card-option.option-active.selected.recommended(onclick="handleContactFilter(true);")
         .flex.pb-2
           .flex.flex-col
             .text-2xl.font-normal.inactive-count(style="width:120px")
@@ -105,7 +105,7 @@
       }
 
       .warnings.warn {
-        z-index: 10000;
+        z-index: 5000;
         opacity: 1;
         transform: scale(1);
       }
@@ -117,7 +117,7 @@
         border: 2px solid transparent;
       }
 
-      .recommended {
+      .selected {
         border-color: var(--color-primary-dark);
       }
 
@@ -139,7 +139,7 @@
       }
 
       .confirmation.confirm {
-        z-index: 10000;
+        z-index: 4500;
         opacity: 1;
         transform: scale(1);
       }
@@ -200,6 +200,10 @@
     var startForm = modalBody.querySelector('.start-form');
     var omnibox = modalBody.querySelector('temba-omnibox');
     var modeSelect = modalBody.querySelector("temba-select[name='mode']");
+    var forceSelection = false;
+    var activeSummary;
+    var totalSummary;
+    var reduction;
 
     var warnings = modalBody.querySelector(".warnings");
     if (warnings) {
@@ -208,16 +212,11 @@
 
     modax.disabled = true;
     queryWidget.addEventListener("temba-fetch-complete", function(e) {
-      var summary = e.detail;
-      var reduction = 1- (summary.total / window.totalSummary.total); 
-      if (summary.total >= MIN_ACTIVE && reduction > REDUCTION_THRESHOLD) {
-        var checkbox = modalBody.querySelector("temba-checkbox[name=exclude_inactive]");
-        if (!checkbox.checked) {
-          var confirmation = modalBody.querySelector(".confirmation");
-          confirmation.querySelector(".all-count").innerText = window.totalSummary.total.toLocaleString();
-          confirmation.querySelector(".inactive-count").innerText = summary.total.toLocaleString();  
-          showInactiveConfirmation();  
-        }
+      activeSummary = e.detail;
+      reduction = 1 - (activeSummary.total / totalSummary.total); 
+      if (activeSummary.total >= MIN_ACTIVE && reduction > REDUCTION_THRESHOLD) {
+        forceSelection = true;
+        modax.suspendSubmit = true;    
       }
     });
 
@@ -226,20 +225,35 @@
     });
 
     function showInactiveConfirmation() {
-        modax.disabled = true;
         var confirmation = modalBody.querySelector(".confirmation");
         confirmation.classList.add("confirm");
-    }
+        forceSelection = false;
+        var checkbox = modalBody.querySelector("temba-checkbox[name=exclude_inactive]");
+        checkbox.checked = true;
 
-    function hideInactiveConfirmation() {
-      var confirmation = modalBody.querySelector(".confirmation");
-      confirmation.classList.remove("confirm");
+        var warnings = modalBody.querySelector(".warnings");
+        if (warnings) {
+          modax.suspendSubmit = true;
+        } else {
+          modax.suspendSubmit = false;
+        }
     }
 
     function handleContactFilter(exclude) {
       var checkbox = modalBody.querySelector("temba-checkbox[name=exclude_inactive]");
       checkbox.checked = exclude;
-      hideInactiveConfirmation();
+
+      var all = modalBody.querySelector(".option-all");
+      var active = modalBody.querySelector(".option-active");
+
+      if (exclude) {
+        all.classList.remove("selected");
+        active.classList.add("selected");
+      } else {
+        all.classList.add("selected");
+        active.classList.remove("selected");
+      }
+
       modax.disabled = false;
     }
 
@@ -247,9 +261,21 @@
       if (modax.suspendSubmit) {
         event.stopPropagation();
         event.preventDefault();
-        var warnings = modalBody.querySelector(".warnings");
-        warnings.classList.add("warn");
-        modax.suspendSubmit = false;
+
+        var checkbox = modalBody.querySelector("temba-checkbox[name=exclude_inactive]");
+        if (!checkbox.checked && forceSelection) {
+          var confirmation = modalBody.querySelector(".confirmation");
+          confirmation.querySelector(".all-count").innerText = totalSummary.total.toLocaleString();
+          confirmation.querySelector(".inactive-count").innerText = activeSummary.total.toLocaleString();  
+          showInactiveConfirmation();
+        } else {
+          var warnings = modalBody.querySelector(".warnings");
+          if (warnings) {
+            warnings.classList.add("warn");
+            modax.suspendSubmit = false;
+          }
+        }
+      
       }
     }
 
@@ -269,10 +295,11 @@
     });
 
     queryWidget.addEventListener("temba-content-changed", function(e) {
-      window.totalSummary = e.detail;
+      totalSummary = e.detail;
+      activeSummary = null;
       modax.disabled = totalSummary.total == 0;
       if (INACTIVE_THRESHOLD > 0 && totalSummary.total > INACTIVE_THRESHOLD) {
-        queryWidget.executeQuery("(" + this.query + ") AND last_seen_on > {{recency_window}}");
+        queryWidget.executeQuery("(" + this.query + ") AND last_seen_on > \"{{recency_window}}\"");
       }
     });
 
