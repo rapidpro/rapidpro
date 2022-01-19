@@ -38,7 +38,6 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.contacts.search import SearchException, parse_query
-from temba.contacts.search.omnibox import omnibox_deserialize
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
@@ -51,8 +50,6 @@ from temba.utils.fields import (
     CheckboxWidget,
     ContactSearchWidget,
     InputWidget,
-    OmniboxChoice,
-    OmniboxField,
     SelectMultipleWidget,
     SelectWidget,
 )
@@ -1778,32 +1775,6 @@ class FlowCRUDL(SmartCRUDL):
 
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
-            MODE_SELECT = "select"
-            MODE_QUERY = "query"
-            MODE_CHOICES = (
-                (MODE_SELECT, _("Enter contacts and groups to start below")),
-                (MODE_QUERY, _("Search for contacts to start")),
-            )
-
-            mode = forms.ChoiceField(
-                widget=SelectWidget(
-                    attrs={"placeholder": _("Select contacts or groups to start in the flow"), "widget_only": True}
-                ),
-                choices=MODE_CHOICES,
-                initial=MODE_SELECT,
-            )
-
-            omnibox = OmniboxField(
-                required=False,
-                widget=OmniboxChoice(
-                    attrs={
-                        "placeholder": _("Select contact and groups"),
-                        "groups": True,
-                        "contacts": True,
-                        "widget_only": True,
-                    }
-                ),
-            )
 
             query = forms.CharField(
                 required=False,
@@ -1836,10 +1807,6 @@ class FlowCRUDL(SmartCRUDL):
                 widget=CheckboxWidget(),
             )
 
-            def clean_omnibox(self):
-                omnibox = self.cleaned_data.get("omnibox")
-                return omnibox_deserialize(self.instance.org, omnibox) if omnibox else {}
-
             def clean_query(self):
                 query = self.cleaned_data.get("query")
                 exclude_inactive = self.data.get("exclude_inactive")
@@ -1862,20 +1829,16 @@ class FlowCRUDL(SmartCRUDL):
                 cleaned_data = super().clean()
 
                 if self.is_valid():
-                    mode = cleaned_data["mode"]
-                    omnibox = cleaned_data.get("omnibox")
                     query = cleaned_data.get("query")
 
-                    if mode == self.MODE_SELECT and not omnibox:
-                        self.add_error("omnibox", _("This field is required."))
-                    elif mode == self.MODE_QUERY and not query:
+                    if not query:
                         self.add_error("query", _("This field is required."))
 
                 return cleaned_data
 
             class Meta:
                 model = Flow
-                fields = ("mode", "omnibox", "query", "exclude_inactive", "exclude_in_other", "exclude_reruns")
+                fields = ("query", "exclude_inactive", "exclude_in_other", "exclude_reruns")
 
         form_class = Form
         success_message = ""

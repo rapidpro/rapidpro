@@ -64,16 +64,18 @@
             %div= warning
 
     .start-form(class='{% if not form.mode.value == "select" %}query-mode{%endif%}')
-      .field.recipients-mode
-        -render_field 'mode'
+      .field.recipients-mode.mb-4
+        %temba-select(name="mode")
+          %temba-option(name='{{_("Enter contacts and groups to start below")|escapejs}}' value='select')
+          %temba-option(name='{{_("Search for contacts to start")|escapejs}}' value='query')
+        
+      .field.omnibox.mb-4
+        %temba-omnibox(name="omnibox" endpoint="/contact/omnibox/?v=2")
 
-      .field.omnibox
-        -render_field 'omnibox'
-
-      .field.query
+      .field.query.mb-4
         -render_field 'query'
 
-      .start-options.mt-2
+      .start-options
 
         -if inactive_threshold
           -render_field 'exclude_inactive'
@@ -310,6 +312,12 @@
           addClass(startForm, "query-mode");
         } else {
           removeClass(startForm, "query-mode");
+          var query = createQuery(omnibox.getValues());
+          queryWidget.query = query;
+          if (query.trim().length == 0) {
+            modax.disabled = true;
+          }
+          omnibox.blur();
         }
       });
     {% endif %}
