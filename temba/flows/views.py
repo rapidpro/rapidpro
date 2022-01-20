@@ -46,13 +46,7 @@ from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import MenuMixin, ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
-from temba.utils.fields import (
-    CheckboxWidget,
-    ContactSearchWidget,
-    InputWidget,
-    SelectMultipleWidget,
-    SelectWidget,
-)
+from temba.utils.fields import CheckboxWidget, ContactSearchWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4

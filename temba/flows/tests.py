@@ -2503,9 +2503,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         FlowStart.objects.all().delete()
 
         # create selection based flow start with exclude_in_other and exclude_reruns both checked
-        self.assertUpdateSubmit(
-            broadcast_url, {"query": query, "exclude_in_other": True, "exclude_reruns": True}
-        )
+        self.assertUpdateSubmit(broadcast_url, {"query": query, "exclude_in_other": True, "exclude_reruns": True})
 
         start = FlowStart.objects.get()
         self.assertEqual({contact}, set(start.contacts.all()))
