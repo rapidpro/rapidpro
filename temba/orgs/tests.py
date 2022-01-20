@@ -1110,6 +1110,7 @@ class OrgTest(TembaTest):
             "editors": [self.editor.id],
             "administrators": [self.admin.id],
             "surveyors": [self.surveyor.id],
+            "agents": [self.agent.id],
             "surveyor_password": "",
             "fields_limit": 300,
             "groups_limit": 400,
@@ -1139,6 +1140,7 @@ class OrgTest(TembaTest):
             "editors": [self.editor.id],
             "administrators": [self.admin.id],
             "surveyors": [self.surveyor.id],
+            "agents": [self.agent.id],
             "surveyor_password": "",
             "fields_limit": 300,
             "groups_limit": "",
@@ -3995,7 +3997,18 @@ class OrgCRUDLTest(TembaTest):
 
         org_update_url = reverse("orgs.org_update", kwargs={"pk": org.id})
         response = self.client.post(
-            org_update_url, dict(name=org.name, plan=org.plan, brand=org.brand, non_contact_hours=True)
+            org_update_url,
+            dict(
+                name=org.name,
+                plan=org.plan,
+                brand=org.brand,
+                non_contact_hours=True,
+                administrators=[self.admin.id],
+                editors=[self.editor.id],
+                viewers=[self.user.id],
+                surveyors=[self.surveyor.id],
+                agents=[self.agent.id],
+            ),
         )
         self.assertNoFormErrors(response)
         self.assertEqual(response.status_code, 302)
@@ -4016,7 +4029,18 @@ class OrgCRUDLTest(TembaTest):
             self.assertTrue(org.do_not_contact())
 
         response = self.client.post(
-            org_update_url, dict(name=org.name, plan=org.plan, brand=org.brand, non_contact_hours=False)
+            org_update_url,
+            dict(
+                name=org.name,
+                plan=org.plan,
+                brand=org.brand,
+                non_contact_hours=False,
+                administrators=[self.admin.id],
+                editors=[self.editor.id],
+                viewers=[self.user.id],
+                surveyors=[self.surveyor.id],
+                agents=[self.agent.id],
+            ),
         )
         self.assertNoFormErrors(response)
         self.assertEqual(response.status_code, 302)

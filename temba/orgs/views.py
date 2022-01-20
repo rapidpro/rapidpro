@@ -1667,6 +1667,11 @@ class OrgCRUDL(SmartCRUDL):
                     "is_multi_user",
                     "is_multi_org",
                     "is_suspended",
+                    "administrators",
+                    "editors",
+                    "viewers",
+                    "agents",
+                    "surveyors",
                 )
 
         form_class = Form
