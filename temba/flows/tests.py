@@ -2459,8 +2459,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(start.include_active)
         self.assertEqual('name ~ "frank"', start.query)
 
-        # self.assertEqual(1, len(mr_mocks.queued_batch_tasks))
-        # self.assertEqual("start_flow", mr_mocks.queued_batch_tasks[0]["type"])
+        self.assertEqual(1, len(mr_mocks.queued_batch_tasks))
+        self.assertEqual("start_flow", mr_mocks.queued_batch_tasks[0]["type"])
 
         FlowStart.objects.all().delete()
 
@@ -2482,15 +2482,18 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             object_unchanged=flow,
         )
 
-        # create flow start with exclude_in_other and exclude_reruns both left unchecked
         query = f"uuid='{contact.uuid}'"
+        mr_mocks.parse_query(query, cleaned=query, fields=[])
+
+        # create flow start with exclude_in_other and exclude_reruns both left unchecked
         self.assertUpdateSubmit(
             broadcast_url,
             {"query": query, "exclude_in_other": False, "exclude_reruns": False},
         )
 
         start = FlowStart.objects.get()
-        self.assertEqual({contact}, set(start.contacts.all()))
+
+        self.assertEqual(query, start.query)
         self.assertEqual(flow, start.flow)
         self.assertEqual(FlowStart.TYPE_MANUAL, start.start_type)
         self.assertEqual(FlowStart.STATUS_PENDING, start.status)
