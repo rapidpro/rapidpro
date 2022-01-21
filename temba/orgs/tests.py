@@ -1278,10 +1278,9 @@ class OrgTest(TembaTest):
         # unsuspend our org and start a flow
         self.org.is_suspended = False
         self.org.save(update_fields=("is_suspended",))
-        
+
         self.client.post(
-            reverse("flows.flow_broadcast", args=[flow.id]),
-            {"query":f"uuid=\"{mark.uuid}\"", "type": "contact"}
+            reverse("flows.flow_broadcast", args=[flow.id]), {"query": f'uuid="{mark.uuid}"', "type": "contact"}
         )
 
         mock_async_start.assert_called_once()
