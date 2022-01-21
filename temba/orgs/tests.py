@@ -1206,7 +1206,8 @@ class OrgTest(TembaTest):
         self.assertEqual("pt-br", user_settings.language)
 
     @patch("temba.flows.models.FlowStart.async_start")
-    def test_org_flagging_and_suspending(self, mock_async_start):
+    @mock_mailroom
+    def test_org_flagging_and_suspending(self, mr_mocks, mock_async_start):
         self.login(self.admin)
 
         mark = self.create_contact("Mark", phone="+12065551212")
@@ -1277,10 +1278,10 @@ class OrgTest(TembaTest):
         # unsuspend our org and start a flow
         self.org.is_suspended = False
         self.org.save(update_fields=("is_suspended",))
-
+        
         self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
-            {"mode": "select", "omnibox": json.dumps({"id": mark.uuid, "name": mark.name, "type": "contact"})},
+            {"query":f"uuid=\"{mark.uuid}\"", "type": "contact"}
         )
 
         mock_async_start.assert_called_once()

@@ -2509,7 +2509,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(broadcast_url, {"query": query, "exclude_in_other": True, "exclude_reruns": True})
 
         start = FlowStart.objects.get()
-        self.assertEqual({contact}, set(start.contacts.all()))
+        self.assertEqual(query, start.query)
         self.assertEqual(flow, start.flow)
         self.assertEqual(FlowStart.STATUS_PENDING, start.status)
         self.assertFalse(start.restart_participants)
