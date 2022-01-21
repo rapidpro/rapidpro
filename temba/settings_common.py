@@ -453,6 +453,7 @@ PERMISSIONS = {
         "two_factor",
         "token",
         "translations",
+        "opt_out_message",
     ),
     "channels.channel": (
         "api",
@@ -687,6 +688,7 @@ GROUP_PERMISSIONS = {
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.org_translations",
+        "orgs.org_opt_out_message",
         "channels.channel_api",
         "channels.channel_bulk_sender_options",
         "channels.channel_claim",
@@ -806,6 +808,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_token",
         "orgs.topup_list",
         "orgs.topup_read",
+        "orgs.org_opt_out_message",
         "channels.channel_api",
         "channels.channel_bulk_sender_options",
         "channels.channel_claim",

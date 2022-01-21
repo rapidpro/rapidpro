@@ -1,0 +1,18 @@
+-extends "smartmin/update.html"
+-load i18n smartmin temba
+
+
+-block modal-extra-style
+  {{ block.super }}
+
+  :css
+    temba-completion {
+      --textarea-height: 125px;
+    }
+
+-block summary
+  -trans "Set up an opt-out response message."
+
+
+-block fields
+  -render_field 'message'

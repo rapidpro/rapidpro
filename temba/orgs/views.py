@@ -77,6 +77,7 @@ from temba.utils.fields import (
     InputWidget,
     SelectMultipleWidget,
     SelectWidget,
+    CompletionTextarea,
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
@@ -927,6 +928,7 @@ class OrgCRUDL(SmartCRUDL):
         "send_invite",
         "translations",
         "translate",
+        "opt_out_message",
     )
 
     model = Org
@@ -3521,6 +3523,8 @@ class OrgCRUDL(SmartCRUDL):
                 if vonage_client:  # pragma: needs cover
                     formax.add_section("vonage", reverse("orgs.org_vonage_account"), icon="icon-vonage")
 
+            formax.add_section("opt_out_message", reverse("orgs.org_opt_out_message"), icon="icon-bubble-dots-2")
+
             if self.has_org_perm("classifiers.classifier_read"):
                 classifiers = org.classifiers.filter(is_active=True).order_by("created_on")
                 for classifier in classifiers:
@@ -4051,6 +4055,56 @@ class OrgCRUDL(SmartCRUDL):
             else:
                 try:
                     current_config.pop("translator_service")
+                except KeyError:
+                    pass
+            org.config = current_config
+            org.save(update_fields=["config"])
+            return super().form_valid(form)
+
+    class OptOutMessage(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+        class OptOutMessageForm(forms.ModelForm):
+            message = forms.CharField(
+                required=False,
+                label=_("Message"),
+                widget=CompletionTextarea(
+                    attrs={
+                        "placeholder": _("Type the message here"),
+                        "widget_only": True,
+                    }
+                ),
+            )
+
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs["org"]
+                del kwargs["org"]
+                super().__init__(*args, **kwargs)
+
+            class Meta:
+                model = Org
+                fields = ("message",)
+
+        success_message = ""
+        form_class = OptOutMessageForm
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+            org = self.derive_org()
+            initial["message"] = (org.config or {}).get("opt_out_message")
+            return initial
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.user.get_org()
+            return kwargs
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+            current_config = org.config or {}
+            if form.cleaned_data.get("message"):
+                current_config.update(dict(opt_out_message=form.cleaned_data.get("message")))
+            else:
+                try:
+                    current_config.pop("opt_out_message")
                 except KeyError:
                     pass
             org.config = current_config
