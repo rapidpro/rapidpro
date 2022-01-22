@@ -2505,8 +2505,15 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         FlowStart.objects.all().delete()
 
-        # create selection based flow start with exclude_in_other and exclude_reruns both checked
-        self.assertUpdateSubmit(broadcast_url, {"query": query, "exclude_in_other": True, "exclude_reruns": True})
+        # create selection based flow start with exclusions checked
+        self.assertUpdateSubmit(
+            broadcast_url, {"query": query, "exclude_inactive": True, "exclude_in_other": True, "exclude_reruns": True}
+        )
+
+        # exclude inactive will tack on last_seen_on to our query
+        now = timezone.now()
+        recency_window = now - timedelta(days=90)
+        query = f"({query}) AND last_seen_on > {self.org.format_datetime(recency_window, show_time=False)}"
 
         start = FlowStart.objects.get()
         self.assertEqual(query, start.query)

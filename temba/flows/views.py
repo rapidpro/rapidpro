@@ -1937,15 +1937,8 @@ class FlowCRUDL(SmartCRUDL):
             contacts = []
             query = self.form.cleaned_data["query"]
 
-            exclude_inactive = self.form.cleaned_data["exclude_inactive"]
             restart_participants = not self.form.cleaned_data["exclude_reruns"]
             include_contacts_with_runs = not self.form.cleaned_data["exclude_in_other"]
-
-            if exclude_inactive:
-                flow = self.get_object()
-                now = timezone.now()
-                ninety_days_ago = now - timedelta(days=90)
-                query = f"({query}) AND last_seen_on > '{flow.org.format_datetime(ninety_days_ago, show_time=False)}'"
 
             analytics.track(
                 self.request.user,
