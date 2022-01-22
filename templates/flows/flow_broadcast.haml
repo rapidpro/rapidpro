@@ -11,10 +11,11 @@
       .mt-2
         -blocktrans
           You've selected a lot of contacts to send this flow to. Depending on your channel
-          it could take days to reach everybody. We recommend limiting your selection to active contacts.
+          it could take days to reach everybody. We recommend limiting your selection to contacts who
+          are more likely to respond.
 
       .card-option.mt-6.mb-4.option-all(onclick="handleContactFilter(false);")
-        .flex
+        .flex.items-center
           .flex.flex-col
             .text-2xl.font-normal.all-count(style="width:120px")
               4,392,323
@@ -26,16 +27,16 @@
               Selecting this option will negatively affect your response rate and reputation on some channels.
               
       .card-option.option-active.selected.recommended(onclick="handleContactFilter(true);")
-        .flex.pb-2
+        .flex.pb-2.items-center
           .flex.flex-col
             .text-2xl.font-normal.inactive-count(style="width:120px")
               322,225
             .text-md.-mt-1
-              -trans "Active Contacts"
+              -trans "Responders"
   
           .pl-8
             -blocktrans
-              Quickly reach your active contacts. This will also give you better
+              Quickly reach contacts who have responded in the last 90 days. This will give you better
               response rates and reputation on some channels.
 
         .w-full.text-center.recommend-badge(style="margin-bottom:-26px")
@@ -173,7 +174,7 @@
 
     var REDUCTION_THRESHOLD = .25;
     var INACTIVE_THRESHOLD = {{inactive_threshold}};
-    var MIN_ACTIVE = 2;
+    var MIN_ACTIVE = 10000;
 
     function addClass(ele, className) {
       ele.classList.add(className);
