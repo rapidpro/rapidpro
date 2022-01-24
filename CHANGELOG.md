@@ -1,3 +1,7 @@
+v7.1.45
+----------
+ * Make FlowSession.status non-null and add constraint to ensure waiting sessions have wait_started_on and wait_expires_on set
+
 v7.1.44
 ----------
  * Fix login via password managers
