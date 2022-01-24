@@ -9,7 +9,7 @@
         -trans "Wow, that's a lot!"
 
       .mt-2
-        -blocktrans
+        -blocktrans trimmed
           You've selected a lot of contacts to send this flow to. Depending on your channel
           it could take days to reach everybody. We recommend limiting your selection to contacts who
           are more likely to respond.
@@ -23,7 +23,7 @@
               -trans "All Contacts"
 
           .pl-8
-            -blocktrans
+            -blocktrans trimmed
               Selecting this option will negatively affect your response rate and reputation on some channels.
               
       .card-option.option-active.selected.recommended(onclick="handleContactFilter(true);")
@@ -35,7 +35,7 @@
               -trans "Responders"
   
           .pl-8
-            -blocktrans
+            -blocktrans trimmed
               Quickly reach contacts who have responded in the last 90 days. This will give you better
               response rates and reputation on some channels.
 
@@ -57,7 +57,7 @@
           -trans "Warning!"
         
         .mb-4
-          -blocktrans
+          -blocktrans trimmed
             We've identified potential issues you might run into starting this flow. Please review the following before continuing.
 
         -for warning in warnings
