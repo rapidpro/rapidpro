@@ -1,7 +1,48 @@
 -extends 'includes/modax.html'
 -load smartmin i18n
 
+
 -block fields
+  .confirmation
+    .p-6.message
+      .text-xl.font-normal
+        -trans "Wow, that's a lot!"
+
+      .mt-2
+        -blocktrans trimmed
+          You've selected a lot of contacts to send this flow to. Depending on your channel
+          it could take days to reach everybody. We recommend limiting your selection to contacts who
+          are more likely to respond.
+
+      .card-option.mt-6.mb-4.option-all(onclick="handleContactFilter(false);")
+        .flex.items-center
+          .flex.flex-col
+            .text-2xl.font-normal.all-count(style="width:120px")
+              4,392,323
+            .text-md.-mt-1
+              -trans "All Contacts"
+
+          .pl-8
+            -blocktrans trimmed
+              Selecting this option will negatively affect your response rate and reputation on some channels.
+              
+      .card-option.option-active.selected.recommended(onclick="handleContactFilter(true);")
+        .flex.pb-2.items-center
+          .flex.flex-col
+            .text-2xl.font-normal.inactive-count(style="width:120px")
+              322,225
+            .text-md.-mt-1
+              -trans "Responders"
+  
+          .pl-8
+            -blocktrans trimmed
+              Quickly reach contacts who have responded in the last 90 days. This will give you better
+              response rates and reputation on some channels.
+
+        .w-full.text-center.recommend-badge(style="margin-bottom:-26px")
+          .px-4.py-1.bg-primary.text-white.text-sm.font-normal.text-center.rounded-lg.inline
+            -trans "Recommended"
+
   -if blockers
     -for blocker in blockers
       .mb-2
@@ -9,32 +50,131 @@
 
     -trans "You can still test your flow using the simulator by clicking the phone icon on the right."
   -else
-    -for warning in warnings
-      %temba-alert.mb-4(level="warning")
-        %div= warning
 
-    .field.recipients-mode
-      -render_field 'mode'
+    -if warnings
+      .warnings
+        .text-xl.font-normal.mb-2
+          -trans "Warning!"
+        
+        .mb-4
+          -blocktrans trimmed
+            We've identified potential issues you might run into starting this flow. Please review the following before continuing.
 
-    .field.omnibox(class='{% if not form.mode.value == "select" %}hidden{%endif%}')
-      -render_field 'omnibox'
+        -for warning in warnings
+          %temba-alert.mb-4(level="warning")
+            %div= warning
 
-    .field.query(class='{% if form.mode.value == "select" %}hidden{%endif%}')
-      -render_field 'query'
+    .start-form(class='{% if not form.mode.value == "select" %}query-mode{%endif%}')
+      .field.recipients-mode.mb-4
+        %temba-select(name="mode")
+          %temba-option(name='{{_("Enter contacts and groups to start below")|escapejs}}' value='select')
+          %temba-option(name='{{_("Search for contacts to start")|escapejs}}' value='query')
+        
+      .field.omnibox.mb-4
+        %temba-omnibox(name="omnibox" endpoint="/contact/omnibox/?v=2")
 
-    .start-options.mt-6.ml-2
-      -if object.flow_type != 'B'
-        -render_field 'exclude_in_other'
-      -render_field 'exclude_reruns'
+      .field.query.mb-4
+        -render_field 'query'
+
+      .start-options
+
+        -if inactive_threshold
+          -render_field 'exclude_inactive'
+
+        -if object.flow_type != 'B'
+          -render_field 'exclude_in_other'
+        -render_field 'exclude_reruns'
 
 -block form-buttons
   -if not blockers 
     %input.btn.btn-primary(type="submit" value="{{ submit_button_name }}")
 
+-block modal-extra-style
+    {{ block.super }}  
+    :css
 
+      .warnings {
+        z-index: -1;
+        height: 100%;
+        width: 100%;
+        position: absolute;
+        margin-left: -20px;
+        margin-top: -20px;
+        opacity: 0;
+        transition: all 200ms linear;
+        transform: scale(0);
+        padding: 20px;
+        background: white;
+      }
+
+      .warnings.warn {
+        z-index: 5000;
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .card-option {
+        border-radius: var(--curvature);
+        padding: 14px;
+        background: #fafafa;
+        border: 2px solid transparent;
+      }
+
+      .selected {
+        border-color: var(--color-primary-dark);
+      }
+
+      .card-option:hover {
+        cursor: pointer;
+        background: var(--color-selection);        
+      }
+
+      .confirmation {
+        z-index: -1;
+        height: 100%;
+        width: 100%;
+        position: absolute;
+        margin-left: -20px;
+        margin-top: -20px;
+        opacity: 0;
+        transition: all 200ms linear;
+        transform: scale(0);
+      }
+
+      .confirmation.confirm {
+        z-index: 4500;
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .confirmation .message {
+        height:100%;
+        background: #fff;
+      }
+
+      .field_query.control-group, .start-options .control-group {
+        margin-bottom: 3px;
+      }
+
+      .start-form {
+        --contact-search-query-display: none;
+      }
+
+      .start-form.query-mode {
+        --contact-search-query-display: block;
+      }
+
+      .start-form.query-mode .omnibox {
+        display: none;
+      }
+  
 -block modal-script
   {{block.super}}
   :javascript
+
+    var REDUCTION_THRESHOLD = .25;
+    var INACTIVE_THRESHOLD = {{inactive_threshold}};
+    var MIN_ACTIVE = 10000;
 
     function addClass(ele, className) {
       ele.classList.add(className);
@@ -44,20 +184,141 @@
       ele.classList.remove(className);
     }
 
-    var modalBody = document.querySelector("#start-flow").shadowRoot;
+    function createQuery(omniValues) {
+      var operands = omniValues.map(function(value) {
+        if (value.type == "group") {
+          return "group = " + JSON.stringify(value.name);
+        } else {
+          return "uuid = " + JSON.stringify(value.id);
+        }
+      });
+      return operands.join(" OR ");
+    }
+
+    var modax = document.querySelector("#start-flow");
+    var modalBody = modax.shadowRoot;
     var queryField = modalBody.querySelector('.query');
-    var omniboxField = modalBody.querySelector('.omnibox');
+    var queryWidget = queryField.querySelector("temba-contact-search");
+
+    var startForm = modalBody.querySelector('.start-form');
+    var omnibox = modalBody.querySelector('temba-omnibox');
     var modeSelect = modalBody.querySelector("temba-select[name='mode']");
+    var forceSelection = false;
+    var activeSummary;
+    var totalSummary;
+    var reduction;
+
+    var warnings = modalBody.querySelector(".warnings");
+    if (warnings) {
+      modax.suspendSubmit = true;
+    }
+
+    modax.disabled = true;
+    queryWidget.addEventListener("temba-fetch-complete", function(e) {
+      activeSummary = e.detail;
+      reduction = 1 - (activeSummary.total / totalSummary.total); 
+      if (activeSummary.total >= MIN_ACTIVE && reduction > REDUCTION_THRESHOLD) {
+        forceSelection = true;
+        modax.suspendSubmit = true;    
+      }
+    });
+
+    queryWidget.addEventListener("input", function(){
+      modax.disabled = true;
+    });
+
+    function showInactiveConfirmation() {
+        var confirmation = modalBody.querySelector(".confirmation");
+        confirmation.classList.add("confirm");
+        forceSelection = false;
+        var checkbox = modalBody.querySelector("temba-checkbox[name=exclude_inactive]");
+        checkbox.checked = true;
+
+        var warnings = modalBody.querySelector(".warnings");
+        if (warnings) {
+          modax.suspendSubmit = true;
+        } else {
+          modax.suspendSubmit = false;
+        }
+    }
+
+    function handleContactFilter(exclude) {
+      var checkbox = modalBody.querySelector("temba-checkbox[name=exclude_inactive]");
+      checkbox.checked = exclude;
+
+      var all = modalBody.querySelector(".option-all");
+      var active = modalBody.querySelector(".option-active");
+
+      if (exclude) {
+        all.classList.remove("selected");
+        active.classList.add("selected");
+      } else {
+        all.classList.add("selected");
+        active.classList.remove("selected");
+      }
+
+      modax.disabled = false;
+    }
+
+    var handleDialogButton = function(event){
+      if (modax.suspendSubmit) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        var checkbox = modalBody.querySelector("temba-checkbox[name=exclude_inactive]");
+        if (!checkbox.checked && forceSelection) {
+          var confirmation = modalBody.querySelector(".confirmation");
+          confirmation.querySelector(".all-count").innerText = totalSummary.total.toLocaleString();
+          confirmation.querySelector(".inactive-count").innerText = activeSummary.total.toLocaleString();  
+          showInactiveConfirmation();
+        } else {
+          var warnings = modalBody.querySelector(".warnings");
+          if (warnings) {
+            warnings.classList.add("warn");
+            modax.suspendSubmit = false;
+          }
+        }
+      
+      }
+    }
+
+    var dialog = modalBody.querySelector("temba-dialog");
+    if (!dialog.registered) {
+      dialog.addEventListener("temba-button-clicked", handleDialogButton);
+      dialog.registered = true;
+    }
+    
+    omnibox.addEventListener("change", function(evt){
+      var query = createQuery(evt.target.getValues());
+      queryWidget.query = query;
+      if (query.trim().length == 0) {
+        modax.disabled = true;
+      }
+      omnibox.blur();
+    });
+
+    queryWidget.addEventListener("temba-content-changed", function(e) {
+      totalSummary = e.detail;
+      activeSummary = null;
+      modax.disabled = totalSummary.total == 0;
+      if (INACTIVE_THRESHOLD > 0 && totalSummary.total > INACTIVE_THRESHOLD) {
+        queryWidget.executeQuery("(" + this.query + ") AND last_seen_on > \"{{recency_window}}\"");
+      }
+    });
 
     {% if not blockers %}
       modeSelect.addEventListener("change", function(evt) {
         var selected = evt.target.values[0];
         if (selected.value === "query") {
-          removeClass(queryField, "hidden");
-          addClass(omniboxField, "hidden");
+          addClass(startForm, "query-mode");
         } else {
-          addClass(queryField, "hidden");
-          removeClass(omniboxField, "hidden");
+          removeClass(startForm, "query-mode");
+          var query = createQuery(omnibox.getValues());
+          queryWidget.query = query;
+          if (query.trim().length == 0) {
+            modax.disabled = true;
+          }
+          omnibox.blur();
         }
       });
     {% endif %}

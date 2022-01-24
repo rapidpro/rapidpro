@@ -1,3 +1,18 @@
+v7.1.44
+----------
+ * Fix login via password managers
+ * Change gujarati code language to 'guj'
+ * Add instagram channel type
+ * Add interstitial when inactive contact search meets threshold
+
+v7.1.42
+----------
+ * Add missing migration
+
+v7.1.41
+----------
+ * Add Contact.current_flow
+
 v7.1.40
 ----------
  * Drop FlowRun.events and FlowPathRecentRun

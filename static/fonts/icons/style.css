@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?fm72dv');
-  src:  url('fonts/temba.eot?fm72dv#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?fm72dv') format('truetype'),
-    url('fonts/temba.woff?fm72dv') format('woff'),
-    url('fonts/temba.svg?fm72dv#temba') format('svg');
+  src:  url('fonts/temba.eot?m51sn0');
+  src:  url('fonts/temba.eot?m51sn0#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?m51sn0') format('truetype'),
+    url('fonts/temba.woff?m51sn0') format('woff'),
+    url('fonts/temba.svg?m51sn0#temba') format('svg');
   font-weight: normal;
   font-style: normal;
   font-display: block;
@@ -25,6 +25,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-instagram:before {
+  content: "\e900";
+}
 .icon-menu-2:before {
   content: "\e091";
 }
@@ -758,7 +761,7 @@
   content: "\e90a";
 }
 .icon-vk:before {
-  content: "\e900";
+  content: "\e910";
 }
 .icon-wechat:before {
   content: "\ea94";
@@ -773,5 +776,5 @@
   content: "\e918";
 }
 .icon-vonage:before {
-  content: "\e910";
+  content: "\e91f";
 }
