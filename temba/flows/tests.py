@@ -2441,7 +2441,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             broadcast_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["mode", "omnibox", "query", "exclude_in_other", "exclude_reruns"],
+            form_fields=["query", "exclude_inactive", "exclude_in_other", "exclude_reruns"],
         )
 
         # create flow start with a query
@@ -2449,7 +2449,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateSubmit(
             broadcast_url,
-            {"mode": "query", "query": "frank", "exclude_in_other": False, "exclude_reruns": False},
+            {"query": "frank", "exclude_in_other": False, "exclude_reruns": False},
         )
 
         start = FlowStart.objects.get()
@@ -2469,37 +2469,31 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateSubmit(
             broadcast_url,
-            {"mode": "query", "query": 'name = "frank', "exclude_in_other": False, "exclude_reruns": False},
+            {"query": 'name = "frank', "exclude_in_other": False, "exclude_reruns": False},
             form_errors={"query": "query contains an error"},
             object_unchanged=flow,
         )
 
-        # try to create a query based flow start with an empty query
+        # try to create with an empty query
         self.assertUpdateSubmit(
             broadcast_url,
-            {"mode": "query", "query": "", "exclude_in_other": False, "exclude_reruns": False},
+            {"query": "", "exclude_in_other": False, "exclude_reruns": False},
             form_errors={"query": "This field is required."},
             object_unchanged=flow,
         )
 
-        # try to create selection based flow start with an empty selection
+        query = f"uuid='{contact.uuid}'"
+        mr_mocks.parse_query(query, cleaned=query, fields=[])
+
+        # create flow start with exclude_in_other and exclude_reruns both left unchecked
         self.assertUpdateSubmit(
             broadcast_url,
-            {"mode": "select", "omnibox": [], "exclude_in_other": False, "exclude_reruns": False},
-            form_errors={"omnibox": "This field is required."},
-            object_unchanged=flow,
-        )
-
-        # create selection based flow start with exclude_in_other and exclude_reruns both left unchecked
-        selection = json.dumps({"id": contact.uuid, "name": contact.name, "type": "contact"})
-
-        self.assertUpdateSubmit(
-            broadcast_url,
-            {"mode": "select", "omnibox": selection, "exclude_in_other": False, "exclude_reruns": False},
+            {"query": query, "exclude_in_other": False, "exclude_reruns": False},
         )
 
         start = FlowStart.objects.get()
-        self.assertEqual({contact}, set(start.contacts.all()))
+
+        self.assertEqual(query, start.query)
         self.assertEqual(flow, start.flow)
         self.assertEqual(FlowStart.TYPE_MANUAL, start.start_type)
         self.assertEqual(FlowStart.STATUS_PENDING, start.status)
@@ -2511,13 +2505,18 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         FlowStart.objects.all().delete()
 
-        # create selection based flow start with exclude_in_other and exclude_reruns both checked
+        # create selection based flow start with exclusions checked
         self.assertUpdateSubmit(
-            broadcast_url, {"mode": "select", "omnibox": selection, "exclude_in_other": True, "exclude_reruns": True}
+            broadcast_url, {"query": query, "exclude_inactive": True, "exclude_in_other": True, "exclude_reruns": True}
         )
 
+        # exclude inactive will tack on last_seen_on to our query
+        now = timezone.now()
+        recency_window = now - timedelta(days=90)
+        query = f"({query}) AND last_seen_on > {self.org.format_datetime(recency_window, show_time=False)}"
+
         start = FlowStart.objects.get()
-        self.assertEqual({contact}, set(start.contacts.all()))
+        self.assertEqual(query, start.query)
         self.assertEqual(flow, start.flow)
         self.assertEqual(FlowStart.STATUS_PENDING, start.status)
         self.assertFalse(start.restart_participants)
@@ -2560,7 +2559,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             broadcast_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["mode", "omnibox", "query", "exclude_in_other", "exclude_reruns"],
+            form_fields=["query", "exclude_inactive", "exclude_in_other", "exclude_reruns"],
         )
 
         # option to exclude contact in other flows is hidden
@@ -2569,7 +2568,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # create flow start with a query
         mr_mocks.parse_query("frank", cleaned='name ~ "frank"', fields=[])
 
-        self.assertUpdateSubmit(broadcast_url, {"mode": "query", "query": "frank", "exclude_reruns": False})
+        self.assertUpdateSubmit(broadcast_url, {"query": "frank", "exclude_reruns": False})
 
         start = FlowStart.objects.get()
         self.assertEqual(flow, start.flow)
