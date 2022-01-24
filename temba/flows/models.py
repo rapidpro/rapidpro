@@ -1089,7 +1089,7 @@ class FlowSession(models.Model):
     uuid = models.UUIDField(unique=True)
     org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
     # the modality of this session
     session_type = models.CharField(max_length=1, choices=Flow.TYPE_CHOICES, default=Flow.TYPE_MESSAGE)
@@ -1149,6 +1149,13 @@ class FlowSession(models.Model):
                 name="flows_session_voice_expires",
                 fields=("wait_expires_on",),
                 condition=Q(session_type=Flow.TYPE_VOICE, status="W", wait_expires_on__isnull=False),
+            ),
+        ]
+        constraints = [
+            # ensure that waiting sessions have a wait started and expires
+            models.CheckConstraint(
+                check=~Q(status="W") | Q(wait_started_on__isnull=False, wait_expires_on__isnull=False),
+                name="flows_session_waiting_has_started_and_expires",
             ),
         ]
 
