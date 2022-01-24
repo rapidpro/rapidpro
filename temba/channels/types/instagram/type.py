@@ -31,14 +31,8 @@ class InstagramType(ChannelType):
 
     show_config_page = False
 
-    claim_blurb = _(
-        "Add a %(link)s bot to send and receive messages on behalf of one of your business Instagram acounts for free. You will "
-        "need to connect your page by logging into your Facebook and checking the Facebook page to connect. "
-        "Your page must be linked to a business Instagram account, see how %(link1)s."
-        "On the Facebook page, navigate Settings > Page roles and verify you have an admin page role on the page."
-    ) % {
+    claim_blurb = _("Add an %(link)s bot to send and receive messages on behalf of a business Instagram account.") % {
         "link": '<a href="http://instagram.com">Instagram</a>',
-        "link1": '<a href="https://help.instagram.com/399237934150902"> here </a>',
     }
     claim_view = ClaimView
 
