@@ -1,11 +1,12 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import iso8601
 import pytz
 from django_redis import get_redis_connection
 
 from django.conf import settings
+from django.db.models import F
 from django.utils import timezone
 from django.utils.timesince import timesince
 
@@ -16,6 +17,7 @@ from temba.utils.celery import nonoverlapping_task
 
 from .models import (
     ExportFlowResultsTask,
+    Flow,
     FlowCategoryCount,
     FlowNodeCount,
     FlowPathCount,
@@ -31,11 +33,20 @@ FLOW_TIMEOUT_KEY = "flow_timeouts_%y_%m_%d"
 logger = logging.getLogger(__name__)
 
 
-@shared_task(track_started=True, name="update_run_expirations_task")
-def update_run_expirations_task(flow_id):
+@shared_task(track_started=True, name="update_session_wait_expires")
+def update_session_wait_expires(flow_id):
     """
-    Update all of our current run expirations according to our new expiration period
+    Update the wait_expires_on of any session currently waiting in the given flow
     """
+
+    flow = Flow.objects.get(id=flow_id)
+    session_ids = flow.sessions.filter(status=FlowSession.STATUS_WAITING).values_list("id", flat=True)
+
+    for id_batch in chunk_list(session_ids, 1000):
+        batch = FlowSession.objects.filter(id__in=id_batch)
+        batch.update(wait_expires_on=F("wait_started_on") + timedelta(minutes=flow.expires_after_minutes))
+
+    # TODO remove when mailroom no longer uses runs for expirations
     for run in FlowRun.objects.filter(flow_id=flow_id, is_active=True):
         if run.path:
             last_arrived_on = iso8601.parse_date(run.path[-1]["arrived_on"])

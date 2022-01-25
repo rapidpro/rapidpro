@@ -52,7 +52,7 @@ from .models import (
     FlowVersionConflictException,
     get_flow_user,
 )
-from .tasks import squash_flowcounts, trim_flow_revisions, trim_flow_sessions_and_starts, update_run_expirations_task
+from .tasks import squash_flowcounts, trim_flow_revisions, trim_flow_sessions_and_starts, update_session_wait_expires
 from .views import FlowCRUDL
 
 
@@ -1671,13 +1671,25 @@ class FlowTest(TembaTest):
         self.assertEqual(0, parent.flow_dependencies.all().count())
         self.assertEqual(0, parent.group_dependencies.all().count())
 
-    def test_update_expiration(self):
-        flow = self.get_flow("favorites")
+    def test_update_expiration_task(self):
+        flow1 = self.create_flow()
+        flow2 = self.create_flow()
 
-        run = FlowRun.objects.create(
+        # create waiting session and run for flow 1
+        session1 = FlowSession.objects.create(
+            uuid=uuid4(),
             org=self.org,
-            flow=flow,
             contact=self.contact,
+            current_flow=flow1,
+            status=FlowSession.STATUS_WAITING,
+            wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
+            wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
+        )
+        run1 = FlowRun.objects.create(
+            org=self.org,
+            flow=flow1,
+            contact=self.contact,
+            session=session1,
             path=[
                 {
                     FlowRun.PATH_STEP_UUID: "263a6e6c-c1d9-4af3-b8cf-b52a3085a625",
@@ -1687,12 +1699,47 @@ class FlowTest(TembaTest):
             ],
         )
 
-        update_run_expirations_task(flow.id)
+        # create non-waiting session for flow 1
+        session2 = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=self.contact,
+            current_flow=flow1,
+            status=FlowSession.STATUS_COMPLETED,
+            wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
+            wait_expires_on=None,
+        )
 
-        run.refresh_from_db()
+        # create waiting session for flow 2
+        session3 = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=self.contact,
+            current_flow=flow2,
+            status=FlowSession.STATUS_WAITING,
+            wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
+            wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
+        )
 
-        # run expiration should be last arrived_on + 12 hours
-        self.assertEqual(datetime(2019, 1, 1, 12, 0, 0, 0, pytz.UTC), run.expires_on)
+        # update flow 1 expires to 2 hours
+        flow1.expires_after_minutes = 120
+        flow1.save(update_fields=("expires_after_minutes",))
+
+        update_session_wait_expires(flow1.id)
+
+        # new session expiration should be wait_started_on + 1 hour
+        session1.refresh_from_db()
+        self.assertEqual(datetime(2022, 1, 1, 2, 0, 0, 0, pytz.UTC), session1.wait_expires_on)
+
+        # run expiration should be last arrived_on + 1 hour
+        run1.refresh_from_db()
+        self.assertEqual(datetime(2019, 1, 1, 2, 0, 0, 0, pytz.UTC), run1.expires_on)
+
+        # other sessions should be unchanged
+        session2.refresh_from_db()
+        session3.refresh_from_db()
+        self.assertIsNone(session2.wait_expires_on)
+        self.assertEqual(datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC), session3.wait_expires_on)
 
 
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
