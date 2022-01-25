@@ -1932,26 +1932,18 @@ class FlowCRUDL(SmartCRUDL):
             return warnings
 
         def save(self, *args, **kwargs):
-            # gather up the recipients for this flow start
-            groups = []
-            contacts = []
             query = self.form.cleaned_data["query"]
-
             restart_participants = not self.form.cleaned_data["exclude_reruns"]
             include_contacts_with_runs = not self.form.cleaned_data["exclude_in_other"]
 
-            analytics.track(
-                self.request.user,
-                "temba.flow_broadcast",
-                dict(contacts=len(contacts), groups=len(groups), query=query),
-            )
+            analytics.track(self.request.user, "temba.flow_broadcast", dict(query=query))
 
             # queue the flow start to be started by mailroom
             self.object.async_start(
                 self.request.user,
-                groups,
-                contacts,
-                query,
+                groups=(),
+                contacts=(),
+                query=query,
                 restart_participants=restart_participants,
                 include_active=include_contacts_with_runs,
             )
