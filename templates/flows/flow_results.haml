@@ -205,6 +205,16 @@
               color: #555555;
             }
           }
+
+          #total-runs-text {
+            margin: 0 0 10px 0;
+
+            span {
+              display: inline-block;
+            }
+
+          }
+
         }
 
         .add-columns {
@@ -495,10 +505,6 @@
       $('[data-toggle="tooltip"]').tooltip();
     });
 
-    $(document).on('change', function () {
-      console.log(this.attr("total-runs"))
-    })
-
     $('a[data-toggle="tab"]').on('shown.bs.tab', function(e){
       // reflow our charts when analytics is shown on the chance their dimensions have changed
       if (e.currentTarget.innerText == 'Analytics') {
@@ -718,8 +724,12 @@
       $("#runs-responded").val(value);
     }
 
+    function setLoadTotalRuns() {
+      $("#total-runs-text span").html('<img src="{{STATIC_URL}}images/loader-bars.gif"/>')
+
+    }
+
     function setTotalRuns() {
-      $("#total-runs-text span").text("...")
       setTimeout(function () {
         let runsValue = $("#total-runs-value").attr("total-runs");
         if (runsValue)
@@ -798,18 +808,18 @@
           .runs-show#show-all-runs{
             ic-get-from:"/flow/run_table/{{object.id}}/?after={{request.GET.after}}&before={{request.GET.before}}&q={{request.GET.q}}&contact_query={{request.GET.contact_query}}",
             ic-on-beforeSend:'$("#results_run_table").empty();',
-            ic-on-beforeTrigger: 'configToShowResponded("false");',
+            ic-on-beforeTrigger: 'configToShowResponded("false");setLoadTotalRuns();',
             ic-trigger-on:"click",
             ic-target:"#results_run_table",
             ic-on-success: 'setTotalRuns();',
-            ic-indicator:"#indicator"},
+            ic-indicator:"#indicator"}
             -trans "All"
           .runs-show-sep
             |
           .runs-show.active{
               ic-get-from:"/flow/run_table/{{object.id}}/?after={{request.GET.after}}&before={{request.GET.before}}&q={{request.GET.q}}&contact_query={{request.GET.contact_query}}",
               ic-on-beforeSend:'$("#results_run_table").empty();',
-              ic-on-beforeTrigger: 'configToShowResponded("true");',
+              ic-on-beforeTrigger: 'configToShowResponded("true");setLoadTotalRuns();',
               ic-trigger-on:"click",
               ic-target:"#results_run_table",
               ic-on-success: 'setTotalRuns();',
@@ -822,7 +832,7 @@
                 %temba-select#select-columns(searchable="true" onchange="handleColumnSelection(this)" placeholder='{{_("More Columns")|escapejs}}')
 
           #total-runs-text
-            -trans "Total Matching"
+            -trans "Total matching: "
             %span
 
           %table
@@ -847,7 +857,7 @@
                     .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
 
             %tbody{id:"results_run_table"}
-              %tr{ic-append-from:"/flow/run_table/{{object.id}}?after={{request.GET.after}}&before={{request.GET.before}}&q={{request.GET.q}}&contact_query={{request.GET.contact_query}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator", ic-on-success:"setTotalRuns();"}
+              %tr{ic-append-from:"/flow/run_table/{{object.id}}?after={{request.GET.after}}&before={{request.GET.before}}&q={{request.GET.q}}&contact_query={{request.GET.contact_query}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator", ic-on-beforeTrigger:"setLoadTotalRuns();"}
 
     #links.tab-pane
       - if trackable_links
