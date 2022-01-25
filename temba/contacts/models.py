@@ -1681,7 +1681,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         return "atom" if self.is_dynamic else "users"
 
     def get_attrs(self):
-        return { "icon": self.icon }
+        return {"icon": self.icon}
 
     def update_query(self, query, reevaluate=True, parsed=None):
         """
