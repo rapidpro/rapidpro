@@ -1,0 +1,11 @@
+-load smartmin i18n humanize temba compress
+
+%div.weni-navigation-control__back
+  .icon.unnnic-keyboard-arrow-left-1.unnnic-icon-xs
+  .title
+    -trans "Back"
+
+:javascript
+  $(".weni-navigation-control__back").live('click', (event) => {
+    history.back();
+  })

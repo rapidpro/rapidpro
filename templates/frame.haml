@@ -180,6 +180,11 @@
           {% endif %}
 
         .px-12.py-4
+
+          -if use_weni_layout and not show_sidemenu
+            %div.pb-4.-mt-4
+              -include "weni/weni_navigation_control.haml"
+
           -block page-top
             .flex.items-start
               .flex.flex-col.mr-5.leading-tight
@@ -244,7 +249,7 @@
                 -block info
                 
                 -block side
-                  -include 'includes/side.html'
+                  -include 'weni/side.html'
 
                 -if messages
                   -usemacro messages
