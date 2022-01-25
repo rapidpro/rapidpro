@@ -286,7 +286,7 @@ class CampaignEventForm(forms.ModelForm):
 
     flow_start_mode = forms.ChoiceField(
         choices=(
-            (CampaignEvent.MODE_INTERRUPT, _("Stop it and start this event")),
+            (CampaignEvent.MODE_INTERRUPT, _("Stop it and run this flow")),
             (CampaignEvent.MODE_SKIP, _("Skip this event")),
         ),
         required=False,
@@ -370,6 +370,10 @@ class CampaignEventForm(forms.ModelForm):
             obj.flow = self.cleaned_data["flow_to_start"]
             obj.start_mode = self.cleaned_data["flow_start_mode"]
 
+            # force passive mode for user-selected background flows
+            if obj.flow.flow_type == Flow.TYPE_BACKGROUND:
+                obj.start_mode = CampaignEvent.MODE_PASSIVE
+
     def __init__(self, user, *args, **kwargs):
         self.user = user
         super().__init__(*args, **kwargs)
@@ -384,7 +388,7 @@ class CampaignEventForm(forms.ModelForm):
         flow = self.fields["flow_to_start"]
         flow.queryset = Flow.objects.filter(
             org=self.user.get_org(),
-            flow_type__in=[Flow.TYPE_MESSAGE, Flow.TYPE_VOICE],
+            flow_type__in=[Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND],
             is_active=True,
             is_archived=False,
             is_system=False,

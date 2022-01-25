@@ -487,12 +487,16 @@ class Flow(TembaModel):
             except FlowException:  # pragma: no cover
                 pass
 
-    def get_icon(self):
-        if self.flow_type == Flow.TYPE_MESSAGE:
-            return "message-square"
-        elif self.flow_type == Flow.TYPE_VOICE:
-            return "phone"
-        return "flow"
+    def get_attrs(self):
+        icon = (
+            "message-square"
+            if self.flow_type == Flow.TYPE_MESSAGE
+            else "phone"
+            if self.flow_type == Flow.TYPE_VOICE
+            else "flow"
+        )
+
+        return {"icon": icon, "type": self.flow_type}
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
