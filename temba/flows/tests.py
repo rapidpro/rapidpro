@@ -26,7 +26,7 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
@@ -1684,6 +1684,7 @@ class FlowTest(TembaTest):
             status=FlowSession.STATUS_WAITING,
             wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
             wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
+            wait_resume_on_expire=False,
         )
         run1 = FlowRun.objects.create(
             org=self.org,
@@ -1708,6 +1709,7 @@ class FlowTest(TembaTest):
             status=FlowSession.STATUS_COMPLETED,
             wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
             wait_expires_on=None,
+            wait_resume_on_expire=False,
         )
 
         # create waiting session for flow 2
@@ -1719,6 +1721,7 @@ class FlowTest(TembaTest):
             status=FlowSession.STATUS_WAITING,
             wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
             wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
+            wait_resume_on_expire=False,
         )
 
         # update flow 1 expires to 2 hours
@@ -3478,6 +3481,7 @@ class FlowRunTest(TembaTest):
             created_on=timezone.now(),
             wait_started_on=timezone.now(),
             wait_expires_on=timezone.now() + timedelta(days=7),
+            wait_resume_on_expire=False,
         )
         FlowRun.objects.create(
             id=4_000_000_000,
@@ -3520,9 +3524,9 @@ class FlowSessionTest(TembaTest):
         flow = self.get_flow("color")
 
         # create some runs that have sessions
-        session1 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
-        session2 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
-        session3 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
+        session1 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False)
+        session2 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False)
+        session3 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False)
         run1 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session1)
         run2 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session2)
         run3 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session3)
@@ -3572,7 +3576,9 @@ class FlowStartTest(TembaTest):
             start.modified_on = modified_on
             start.save(update_fields=("status", "modified_on"))
 
-            session = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
+            session = FlowSession.objects.create(
+                uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False
+            )
             FlowRun.objects.create(org=self.org, contact=contact, flow=flow, session=session, start=start)
 
             FlowStartCount.objects.create(start=start, count=1, is_squashed=False)
@@ -5284,75 +5290,3 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
-
-
-class PopulateWaitResumeOnExpireTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0267_auto_20220106_2036"
-    migrate_to = "0268_populate_wait_resume_on_expire"
-
-    def setUpBeforeMigration(self, apps):
-        contact = self.create_contact("Bob", phone="1234567890")
-        flow = self.create_flow()
-
-        # waiting session with a waiting run with a parent
-        self.session1 = FlowSession.objects.create(
-            uuid=uuid4(),
-            org=self.org,
-            contact=contact,
-            status=FlowSession.STATUS_WAITING,
-            created_on=timezone.now(),
-            wait_started_on=timezone.now(),
-            wait_expires_on=timezone.now(),
-        )
-        FlowRun.objects.create(
-            uuid=uuid4(),
-            org=self.org,
-            session=self.session1,
-            flow=flow,
-            contact=contact,
-            status=FlowRun.STATUS_WAITING,
-            created_on=datetime(2022, 1, 8, 10, 40, 30, 0, pytz.UTC),
-            modified_on=datetime(2022, 1, 9, 10, 40, 30, 0, pytz.UTC),
-            expires_on=datetime(2022, 1, 10, 10, 40, 30, 0, pytz.UTC),
-            path=[],
-            parent_uuid="39471e40-02f7-429b-a029-a92a162a2207",
-        )
-
-        # waiting session with a waiting run without a parent
-        self.session2 = FlowSession.objects.create(
-            uuid=uuid4(),
-            org=self.org,
-            contact=contact,
-            status=FlowSession.STATUS_WAITING,
-            created_on=timezone.now(),
-            wait_started_on=timezone.now(),
-            wait_expires_on=timezone.now(),
-        )
-        FlowRun.objects.create(
-            uuid=uuid4(),
-            org=self.org,
-            session=self.session2,
-            flow=flow,
-            contact=contact,
-            status=FlowRun.STATUS_WAITING,
-            created_on=datetime(2022, 1, 8, 10, 40, 30, 0, pytz.UTC),
-            modified_on=datetime(2022, 1, 9, 10, 40, 30, 0, pytz.UTC),
-            expires_on=datetime(2022, 1, 10, 10, 40, 30, 0, pytz.UTC),
-            path=[],
-            parent_uuid=None,
-        )
-
-        # a non-waiting session which should have wait_resume_on_expire just set to false
-        self.session3 = FlowSession.objects.create(
-            uuid=uuid4(), org=self.org, contact=contact, status=FlowSession.STATUS_COMPLETED, created_on=timezone.now()
-        )
-
-    def test_migration(self):
-        self.session1.refresh_from_db()
-        self.session2.refresh_from_db()
-        self.session3.refresh_from_db()
-
-        self.assertTrue(self.session1.wait_resume_on_expire)
-        self.assertFalse(self.session2.wait_resume_on_expire)
-        self.assertFalse(self.session3.wait_resume_on_expire)
