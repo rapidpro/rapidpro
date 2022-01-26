@@ -1,14 +1,6 @@
--extends "smartmin/update.html"
--load i18n smartmin temba
+-extends 'smartmin/update.html'
+-load smartmin i18n humanize
 
-
--block modal-extra-style
-  {{ block.super }}
-
-  :css
-    temba-completion {
-      --textarea-height: 125px;
-    }
 
 -block summary
   -trans "Set up an opt-out response message."

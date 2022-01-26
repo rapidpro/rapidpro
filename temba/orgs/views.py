@@ -4068,6 +4068,7 @@ class OrgCRUDL(SmartCRUDL):
                 label=_("Message"),
                 widget=CompletionTextarea(
                     attrs={
+                        "style": "--textarea-height:110px",
                         "placeholder": _("Type the message here"),
                         "widget_only": True,
                     }
@@ -4089,7 +4090,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super().derive_initial()
             org = self.derive_org()
-            initial["message"] = (org.config or {}).get("opt_out_message")
+            initial["message"] = (org.config or {}).get("opt_out_message_back")
             return initial
 
         def get_form_kwargs(self):
@@ -4101,10 +4102,10 @@ class OrgCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             current_config = org.config or {}
             if form.cleaned_data.get("message"):
-                current_config.update(dict(opt_out_message=form.cleaned_data.get("message")))
+                current_config.update(dict(opt_out_message_back=form.cleaned_data.get("message")))
             else:
                 try:
-                    current_config.pop("opt_out_message")
+                    current_config.pop("opt_out_message_back")
                 except KeyError:
                     pass
             org.config = current_config
