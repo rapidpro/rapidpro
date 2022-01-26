@@ -56,7 +56,7 @@ def reverse(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("contacts", "0143_auto_20210908_2224"),
+        ("contacts", "0144_contact_current_flow"),
     ]
 
     operations = [migrations.RunPython(make_group_names_unique, reverse)]

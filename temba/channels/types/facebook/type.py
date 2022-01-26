@@ -1,6 +1,6 @@
 import requests
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 from temba.triggers.models import Trigger

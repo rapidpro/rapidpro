@@ -1,4 +1,5 @@
-from django.conf.urls import include, url
+from django.conf.urls import include
+from django.urls import re_path
 
 from .models import Ticketer
 from .views import TicketCRUDL, TicketerCRUDL
@@ -11,10 +12,10 @@ for ticketer_type in Ticketer.get_types():
         u.name = "tickets.types.%s.%s" % (ticketer_type.slug, u.name)
 
     if urls:
-        service_urls.append(url("^%s/" % ticketer_type.slug, include(urls)))
+        service_urls.append(re_path("^%s/" % ticketer_type.slug, include(urls)))
 
 urlpatterns = [
-    url(r"^", include(TicketCRUDL().as_urlpatterns())),
-    url(r"^", include(TicketerCRUDL().as_urlpatterns())),
-    url(r"^tickets/types/", include(service_urls)),
+    re_path(r"^", include(TicketCRUDL().as_urlpatterns())),
+    re_path(r"^", include(TicketerCRUDL().as_urlpatterns())),
+    re_path(r"^tickets/types/", include(service_urls)),
 ]

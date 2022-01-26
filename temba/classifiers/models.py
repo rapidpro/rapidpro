@@ -3,9 +3,9 @@ from abc import ABCMeta
 
 from smartmin.models import SmartModel
 
-from django.conf.urls import url
 from django.db import models
 from django.template import Engine
+from django.urls import re_path
 from django.utils import timezone
 
 from temba.orgs.models import DependencyMixin, Org
@@ -64,7 +64,7 @@ class ClassifierType(metaclass=ABCMeta):
         """
         Gets the URL/view configuration for this classifier's connect page
         """
-        return url(r"^connect", self.connect_view.as_view(classifier_type=self), name="connect")
+        return re_path(r"^connect", self.connect_view.as_view(classifier_type=self), name="connect")
 
     def get_active_intents_from_api(self, classifier):
         """

@@ -1,7 +1,7 @@
 from smartmin.views import SmartCRUDL, SmartListView
 
 from django.http import JsonResponse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import OrgPermsMixin
 

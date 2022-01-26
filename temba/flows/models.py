@@ -20,7 +20,7 @@ from django.db import models, transaction
 from django.db.models import Max, Q, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
@@ -1089,7 +1089,7 @@ class FlowSession(models.Model):
     uuid = models.UUIDField(unique=True)
     org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
     # the modality of this session
     session_type = models.CharField(max_length=1, choices=Flow.TYPE_CHOICES, default=Flow.TYPE_MESSAGE)
@@ -1114,6 +1114,7 @@ class FlowSession(models.Model):
     wait_started_on = models.DateTimeField(null=True)  # when it started waiting
     timeout_on = models.DateTimeField(null=True)  # when it should timeout (set by courier when last msg is sent)
     wait_expires_on = models.DateTimeField(null=True)  # when waiting run can be expired
+    wait_resume_on_expire = models.BooleanField()  # whether wait expiration can resume a parent run
 
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
@@ -1148,6 +1149,13 @@ class FlowSession(models.Model):
                 name="flows_session_voice_expires",
                 fields=("wait_expires_on",),
                 condition=Q(session_type=Flow.TYPE_VOICE, status="W", wait_expires_on__isnull=False),
+            ),
+        ]
+        constraints = [
+            # ensure that waiting sessions have a wait started and expires
+            models.CheckConstraint(
+                check=~Q(status="W") | Q(wait_started_on__isnull=False, wait_expires_on__isnull=False),
+                name="flows_session_waiting_has_started_and_expires",
             ),
         ]
 
@@ -1256,9 +1264,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # TODO to be replaced by FlowSession.wait_expires_on
     expires_on = models.DateTimeField(null=True)
 
-    # TODO drop once mailroom is no longer writing
-    events = JSONField(null=True)
-
     def release(self, delete_reason=None):
         """
         Permanently deletes this flow run
@@ -1267,9 +1272,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if delete_reason:
                 self.delete_reason = delete_reason
                 self.save(update_fields=["delete_reason"])
-
-            # and any recent runs
-            self.recent_runs.all().delete()
 
             if (
                 delete_reason == FlowRun.DELETE_FOR_USER
@@ -1578,23 +1580,6 @@ class FlowPathCount(SquashableModel):
 
     class Meta:
         index_together = ["flow", "from_uuid", "to_uuid", "period"]
-
-
-class FlowPathRecentRun(models.Model):
-    """
-    TODO drop once we stop writing these
-    """
-
-    id = models.BigAutoField(primary_key=True)
-    from_uuid = models.UUIDField()
-    from_step_uuid = models.UUIDField()
-    to_uuid = models.UUIDField()
-    to_step_uuid = models.UUIDField()
-    run = models.ForeignKey(FlowRun, on_delete=models.PROTECT, related_name="recent_runs")
-    visited_on = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        indexes = [models.Index(fields=["from_uuid", "to_uuid", "-visited_on"])]
 
 
 class FlowNodeCount(SquashableModel):

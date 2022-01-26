@@ -1,9 +1,8 @@
-import datetime
 import decimal
 import io
 import os
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import PropertyMock, patch
 
 import pytz
@@ -16,7 +15,7 @@ from django.db.models.functions import TruncDate
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 
 from temba.api.models import Resthook
 from temba.archives.models import Archive
@@ -53,7 +52,7 @@ from .models import (
     FlowVersionConflictException,
     get_flow_user,
 )
-from .tasks import squash_flowcounts, trim_flow_revisions, trim_flow_sessions_and_starts, update_run_expirations_task
+from .tasks import squash_flowcounts, trim_flow_revisions, trim_flow_sessions_and_starts, update_session_wait_expires
 from .views import FlowCRUDL
 
 
@@ -1672,28 +1671,78 @@ class FlowTest(TembaTest):
         self.assertEqual(0, parent.flow_dependencies.all().count())
         self.assertEqual(0, parent.group_dependencies.all().count())
 
-    def test_update_expiration(self):
-        flow = self.get_flow("favorites")
+    def test_update_expiration_task(self):
+        flow1 = self.create_flow()
+        flow2 = self.create_flow()
 
-        run = FlowRun.objects.create(
+        # create waiting session and run for flow 1
+        session1 = FlowSession.objects.create(
+            uuid=uuid4(),
             org=self.org,
-            flow=flow,
             contact=self.contact,
+            current_flow=flow1,
+            status=FlowSession.STATUS_WAITING,
+            wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
+            wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
+            wait_resume_on_expire=False,
+        )
+        run1 = FlowRun.objects.create(
+            org=self.org,
+            flow=flow1,
+            contact=self.contact,
+            session=session1,
             path=[
                 {
                     FlowRun.PATH_STEP_UUID: "263a6e6c-c1d9-4af3-b8cf-b52a3085a625",
                     FlowRun.PATH_NODE_UUID: "474fd1be-eaec-4ae7-96cd-c771410fac18",
-                    FlowRun.PATH_ARRIVED_ON: datetime.datetime(2019, 1, 1, 0, 0, 0, 0, pytz.UTC),
+                    FlowRun.PATH_ARRIVED_ON: datetime(2019, 1, 1, 0, 0, 0, 0, pytz.UTC),
                 }
             ],
         )
 
-        update_run_expirations_task(flow.id)
+        # create non-waiting session for flow 1
+        session2 = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=self.contact,
+            current_flow=flow1,
+            status=FlowSession.STATUS_COMPLETED,
+            wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
+            wait_expires_on=None,
+            wait_resume_on_expire=False,
+        )
 
-        run.refresh_from_db()
+        # create waiting session for flow 2
+        session3 = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=self.contact,
+            current_flow=flow2,
+            status=FlowSession.STATUS_WAITING,
+            wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
+            wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
+            wait_resume_on_expire=False,
+        )
 
-        # run expiration should be last arrived_on + 12 hours
-        self.assertEqual(datetime.datetime(2019, 1, 1, 12, 0, 0, 0, pytz.UTC), run.expires_on)
+        # update flow 1 expires to 2 hours
+        flow1.expires_after_minutes = 120
+        flow1.save(update_fields=("expires_after_minutes",))
+
+        update_session_wait_expires(flow1.id)
+
+        # new session expiration should be wait_started_on + 1 hour
+        session1.refresh_from_db()
+        self.assertEqual(datetime(2022, 1, 1, 2, 0, 0, 0, pytz.UTC), session1.wait_expires_on)
+
+        # run expiration should be last arrived_on + 1 hour
+        run1.refresh_from_db()
+        self.assertEqual(datetime(2019, 1, 1, 2, 0, 0, 0, pytz.UTC), run1.expires_on)
+
+        # other sessions should be unchanged
+        session2.refresh_from_db()
+        session3.refresh_from_db()
+        self.assertIsNone(session2.wait_expires_on)
+        self.assertEqual(datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC), session3.wait_expires_on)
 
 
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -2442,7 +2491,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             broadcast_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["mode", "omnibox", "query", "exclude_in_other", "exclude_reruns"],
+            form_fields=["query", "exclude_inactive", "exclude_in_other", "exclude_reruns"],
         )
 
         # create flow start with a query
@@ -2450,7 +2499,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateSubmit(
             broadcast_url,
-            {"mode": "query", "query": "frank", "exclude_in_other": False, "exclude_reruns": False},
+            {"query": "frank", "exclude_in_other": False, "exclude_reruns": False},
         )
 
         start = FlowStart.objects.get()
@@ -2470,37 +2519,31 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateSubmit(
             broadcast_url,
-            {"mode": "query", "query": 'name = "frank', "exclude_in_other": False, "exclude_reruns": False},
+            {"query": 'name = "frank', "exclude_in_other": False, "exclude_reruns": False},
             form_errors={"query": "query contains an error"},
             object_unchanged=flow,
         )
 
-        # try to create a query based flow start with an empty query
+        # try to create with an empty query
         self.assertUpdateSubmit(
             broadcast_url,
-            {"mode": "query", "query": "", "exclude_in_other": False, "exclude_reruns": False},
+            {"query": "", "exclude_in_other": False, "exclude_reruns": False},
             form_errors={"query": "This field is required."},
             object_unchanged=flow,
         )
 
-        # try to create selection based flow start with an empty selection
+        query = f"uuid='{contact.uuid}'"
+        mr_mocks.parse_query(query, cleaned=query, fields=[])
+
+        # create flow start with exclude_in_other and exclude_reruns both left unchecked
         self.assertUpdateSubmit(
             broadcast_url,
-            {"mode": "select", "omnibox": [], "exclude_in_other": False, "exclude_reruns": False},
-            form_errors={"omnibox": "This field is required."},
-            object_unchanged=flow,
-        )
-
-        # create selection based flow start with exclude_in_other and exclude_reruns both left unchecked
-        selection = json.dumps({"id": contact.uuid, "name": contact.name, "type": "contact"})
-
-        self.assertUpdateSubmit(
-            broadcast_url,
-            {"mode": "select", "omnibox": selection, "exclude_in_other": False, "exclude_reruns": False},
+            {"query": query, "exclude_in_other": False, "exclude_reruns": False},
         )
 
         start = FlowStart.objects.get()
-        self.assertEqual({contact}, set(start.contacts.all()))
+
+        self.assertEqual(query, start.query)
         self.assertEqual(flow, start.flow)
         self.assertEqual(FlowStart.TYPE_MANUAL, start.start_type)
         self.assertEqual(FlowStart.STATUS_PENDING, start.status)
@@ -2512,13 +2555,18 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         FlowStart.objects.all().delete()
 
-        # create selection based flow start with exclude_in_other and exclude_reruns both checked
+        # create selection based flow start with exclusions checked
         self.assertUpdateSubmit(
-            broadcast_url, {"mode": "select", "omnibox": selection, "exclude_in_other": True, "exclude_reruns": True}
+            broadcast_url, {"query": query, "exclude_inactive": True, "exclude_in_other": True, "exclude_reruns": True}
         )
 
+        # exclude inactive will tack on last_seen_on to our query
+        now = timezone.now()
+        recency_window = now - timedelta(days=90)
+        query = f"({query}) AND last_seen_on > {self.org.format_datetime(recency_window, show_time=False)}"
+
         start = FlowStart.objects.get()
-        self.assertEqual({contact}, set(start.contacts.all()))
+        self.assertEqual(query, start.query)
         self.assertEqual(flow, start.flow)
         self.assertEqual(FlowStart.STATUS_PENDING, start.status)
         self.assertFalse(start.restart_participants)
@@ -2561,7 +2609,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             broadcast_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["mode", "omnibox", "query", "exclude_in_other", "exclude_reruns"],
+            form_fields=["query", "exclude_inactive", "exclude_in_other", "exclude_reruns"],
         )
 
         # option to exclude contact in other flows is hidden
@@ -2570,7 +2618,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # create flow start with a query
         mr_mocks.parse_query("frank", cleaned='name ~ "frank"', fields=[])
 
-        self.assertUpdateSubmit(broadcast_url, {"mode": "query", "query": "frank", "exclude_reruns": False})
+        self.assertUpdateSubmit(broadcast_url, {"query": "frank", "exclude_reruns": False})
 
         start = FlowStart.objects.get()
         self.assertEqual(flow, start.flow)
@@ -2769,7 +2817,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             self.assertEqual(1, len(response.context["runs"]))
             # self.assertNotContains(response, "ic-append-from")
 
-            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_text(response.content)).group(1)
+            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_str(response.content)).group(1)
             response = self.client.get(next_link)
             self.assertEqual(200, response.status_code)
 
@@ -2810,7 +2858,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             # one more row to add
             self.assertEqual(1, len(response.context["runs"]))
 
-            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_text(response.content)).group(1)
+            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_str(response.content)).group(1)
             response = self.client.get(next_link)
             self.assertEqual(200, response.status_code)
             self.assertEqual(1, len(response.context["runs"]))
@@ -3431,6 +3479,9 @@ class FlowRunTest(TembaTest):
             contact=self.contact,
             status=FlowSession.STATUS_WAITING,
             created_on=timezone.now(),
+            wait_started_on=timezone.now(),
+            wait_expires_on=timezone.now() + timedelta(days=7),
+            wait_resume_on_expire=False,
         )
         FlowRun.objects.create(
             id=4_000_000_000,
@@ -3473,9 +3524,9 @@ class FlowSessionTest(TembaTest):
         flow = self.get_flow("color")
 
         # create some runs that have sessions
-        session1 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
-        session2 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
-        session3 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
+        session1 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False)
+        session2 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False)
+        session3 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False)
         run1 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session1)
         run2 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session2)
         run3 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session3)
@@ -3490,9 +3541,9 @@ class FlowSessionTest(TembaTest):
         self.assertIsNotNone(run4.session)
 
         # end run1 and run4's sessions in the past
-        run1.session.ended_on = datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run1.session.ended_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
         run1.session.save(update_fields=("ended_on",))
-        run4.session.ended_on = datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run4.session.ended_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
         run4.session.save(update_fields=("ended_on",))
 
         # end run2's session now
@@ -3525,7 +3576,9 @@ class FlowStartTest(TembaTest):
             start.modified_on = modified_on
             start.save(update_fields=("status", "modified_on"))
 
-            session = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
+            session = FlowSession.objects.create(
+                uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False
+            )
             FlowRun.objects.create(org=self.org, contact=contact, flow=flow, session=session, start=start)
 
             FlowStartCount.objects.create(start=start, count=1, is_squashed=False)

@@ -3,7 +3,7 @@ from smartmin.views import SmartCRUDL, SmartFormView, SmartReadView, SmartTempla
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import DependencyDeleteModal, MenuMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.views import ComponentFormMixin, SpaMixin

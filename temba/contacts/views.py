@@ -1,6 +1,7 @@
 import logging
 from collections import OrderedDict
 from datetime import timedelta
+from urllib.parse import quote_plus
 
 import iso8601
 from smartmin.views import (
@@ -29,8 +30,8 @@ from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpRespons
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
-from django.utils.http import is_safe_url, urlquote_plus
-from django.utils.translation import ugettext_lazy as _
+from django.utils.http import is_safe_url
+from django.utils.translation import gettext_lazy as _
 from django.views import View
 
 from temba.archives.models import Archive
@@ -214,8 +215,8 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         return ContactGroup.all_groups.get(org=self.request.user.get_org(), group_type=self.system_group)
 
     def derive_export_url(self):
-        search = urlquote_plus(self.request.GET.get("search", ""))
-        redirect = urlquote_plus(self.request.get_full_path())
+        search = quote_plus(self.request.GET.get("search", ""))
+        redirect = quote_plus(self.request.get_full_path())
         return "%s?g=%s&s=%s&redirect=%s" % (
             reverse("contacts.contact_export"),
             self.group.uuid,
@@ -1071,6 +1072,7 @@ class ContactCRUDL(SmartCRUDL):
                     "primary_urn_formatted": primary_urn,
                 }
                 contact_json["created_on"] = org.format_datetime(contact.created_on, show_time=False)
+                contact_json["last_seen_on"] = org.format_datetime(contact.last_seen_on, show_time=False)
 
                 json_contacts.append(contact_json)
             summary["sample"] = json_contacts
@@ -1109,7 +1111,7 @@ class ContactCRUDL(SmartCRUDL):
                                 id="create-smartgroup",
                                 title=_("Create Smart Group"),
                                 modax=_("Create Smart Group"),
-                                href=f"{reverse('contacts.contactgroup_create')}?search={urlquote_plus(search)}",
+                                href=f"{reverse('contacts.contactgroup_create')}?search={quote_plus(search)}",
                             )
                         )
                 except SearchException:  # pragma: no cover

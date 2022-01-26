@@ -1,4 +1,5 @@
-from django.conf.urls import include, url
+from django.conf.urls import include
+from django.urls import re_path
 
 from temba.utils.views import CourierURLHandler
 
@@ -15,17 +16,17 @@ for ch_type in Channel.get_types():
         u.name = "channels.types.%s.%s" % (ch_type.slug, u.name)
 
     if channel_urls:
-        type_urls.append(url("^%s/" % ch_type.slug, include(channel_urls)))
+        type_urls.append(re_path("^%s/" % ch_type.slug, include(channel_urls)))
 
     # register a Courier placeholder URL which will error if ever accessed directly
     courier_urls.append(
-        url(ch_type.courier_url, CourierURLHandler.as_view(), name="courier.%s" % ch_type.code.lower())
+        re_path(ch_type.courier_url, CourierURLHandler.as_view(), name="courier.%s" % ch_type.code.lower())
     )
 
 
 urlpatterns = [
-    url(r"^", include(ChannelEventCRUDL().as_urlpatterns())),
-    url(r"^channels/", include(ChannelCRUDL().as_urlpatterns() + ChannelLogCRUDL().as_urlpatterns())),
-    url(r"^c/", include(courier_urls)),
-    url(r"^channels/types/", include(type_urls)),
+    re_path(r"^", include(ChannelEventCRUDL().as_urlpatterns())),
+    re_path(r"^channels/", include(ChannelCRUDL().as_urlpatterns() + ChannelLogCRUDL().as_urlpatterns())),
+    re_path(r"^c/", include(courier_urls)),
+    re_path(r"^channels/types/", include(type_urls)),
 ]
