@@ -26,7 +26,7 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
@@ -5284,3 +5284,75 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+
+
+class PopulateWaitResumeOnExpireTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0267_auto_20220106_2036"
+    migrate_to = "0268_populate_wait_resume_on_expire"
+
+    def setUpBeforeMigration(self, apps):
+        contact = self.create_contact("Bob", phone="1234567890")
+        flow = self.create_flow()
+
+        # waiting session with a waiting run with a parent
+        self.session1 = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=contact,
+            status=FlowSession.STATUS_WAITING,
+            created_on=timezone.now(),
+            wait_started_on=timezone.now(),
+            wait_expires_on=timezone.now(),
+        )
+        FlowRun.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            session=self.session1,
+            flow=flow,
+            contact=contact,
+            status=FlowRun.STATUS_WAITING,
+            created_on=datetime(2022, 1, 8, 10, 40, 30, 0, pytz.UTC),
+            modified_on=datetime(2022, 1, 9, 10, 40, 30, 0, pytz.UTC),
+            expires_on=datetime(2022, 1, 10, 10, 40, 30, 0, pytz.UTC),
+            path=[],
+            parent_uuid="39471e40-02f7-429b-a029-a92a162a2207",
+        )
+
+        # waiting session with a waiting run without a parent
+        self.session2 = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=contact,
+            status=FlowSession.STATUS_WAITING,
+            created_on=timezone.now(),
+            wait_started_on=timezone.now(),
+            wait_expires_on=timezone.now(),
+        )
+        FlowRun.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            session=self.session2,
+            flow=flow,
+            contact=contact,
+            status=FlowRun.STATUS_WAITING,
+            created_on=datetime(2022, 1, 8, 10, 40, 30, 0, pytz.UTC),
+            modified_on=datetime(2022, 1, 9, 10, 40, 30, 0, pytz.UTC),
+            expires_on=datetime(2022, 1, 10, 10, 40, 30, 0, pytz.UTC),
+            path=[],
+            parent_uuid=None,
+        )
+
+        # a non-waiting session which should have wait_resume_on_expire just set to false
+        self.session3 = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=contact, status=FlowSession.STATUS_COMPLETED, created_on=timezone.now()
+        )
+
+    def test_migration(self):
+        self.session1.refresh_from_db()
+        self.session2.refresh_from_db()
+        self.session3.refresh_from_db()
+
+        self.assertTrue(self.session1.wait_resume_on_expire)
+        self.assertFalse(self.session2.wait_resume_on_expire)
+        self.assertFalse(self.session3.wait_resume_on_expire)
