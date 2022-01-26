@@ -272,7 +272,7 @@ class MockSessionWriter:
         else:
             wait_started_on = None
             wait_expires_on = None
-            wait_resume_on_expire = None
+            wait_resume_on_expire = False
 
         # create or update session object itself
         if self.session:

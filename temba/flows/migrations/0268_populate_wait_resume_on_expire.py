@@ -3,7 +3,7 @@
 from django.db import migrations, transaction
 
 
-def populate_wait_resume_on_expire(apps, schema_editor):
+def populate_wait_resume_on_expire(apps, schema_editor):  # pragma: no cover
     FlowSession = apps.get_model("flows", "FlowSession")
     FlowRun = apps.get_model("flows", "FlowRun")
 
@@ -35,7 +35,7 @@ def populate_wait_resume_on_expire(apps, schema_editor):
             print(f" > updated {num_updated}")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
