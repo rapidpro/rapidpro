@@ -1,3 +1,7 @@
+v7.1.47
+----------
+ * Make FlowSession.wait_resume_on_expire not-null
+
 v7.1.46
 ----------
  * Add migration to set wait_resume_on_expire on flow sessions
