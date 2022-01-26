@@ -729,6 +729,7 @@
     }
 
     function setTotalRuns() {
+      setLoadTotalRuns();
       setTimeout(function () {
         let runsValue = $("#total-runs-value").attr("total-runs");
         if (runsValue)
@@ -856,7 +857,7 @@
                     .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
 
             %tbody{id:"results_run_table"}
-              %tr{ic-append-from:"/flow/run_table/{{object.id}}?after={{request.GET.after}}&before={{request.GET.before}}&q={{request.GET.q}}&contact_query={{request.GET.contact_query}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator", ic-on-beforeTrigger:"setLoadTotalRuns();"}
+              %tr{ic-append-from:"/flow/run_table/{{object.id}}?after={{request.GET.after}}&before={{request.GET.before}}&q={{request.GET.q}}&contact_query={{request.GET.contact_query}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator", ic-on-success:"setTotalRuns();"}
 
     #links.tab-pane
       - if trackable_links
