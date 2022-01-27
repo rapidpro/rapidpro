@@ -2363,7 +2363,9 @@ class ContactImport(SmartModel):
         for row_batch in chunk_list(data, ContactImport.BATCH_SIZE):
             if valid_records_count % ContactImport.BATCH_SIZE == 0:
                 if batch_specs:
-                    batches.append(self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num))
+                    batches.append(
+                        self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num)
+                    )
                 batch_specs = []
                 batch_start = record_num
 
