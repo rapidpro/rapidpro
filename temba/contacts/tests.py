@@ -5655,6 +5655,31 @@ class ContactImportTest(TembaTest):
             batch.specs,
         )
 
+        imp = self.create_contact_import("media/test_imports/with_empty_rows.xlsx")
+        imp.start()
+        batch = imp.batches.get()  # single batch
+
+        self.assertEqual(
+            [
+                {
+                    "name": "John Doe",
+                    "language": "eng",
+                    "urns": ["tel:+250788123123"],
+                    "fields": {"goats": "1", "sheep": "0"},
+                    "groups": [str(imp.group.uuid)],
+                },
+                {
+                    "name": "Mary Smith",
+                    "language": "spa",
+                    "urns": ["tel:+250788456456"],
+                    "fields": {"goats": "3", "sheep": "5"},
+                    "groups": [str(imp.group.uuid)],
+                },
+                {"urns": ["tel:+250788456678"], "groups": [str(imp.group.uuid)]},  # blank values ignored
+            ],
+            batch.specs,
+        )
+
         imp = self.create_contact_import("media/test_imports/with_uuid.xlsx")
         imp.start()
         batch = imp.batches.get()

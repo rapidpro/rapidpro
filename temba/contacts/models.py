@@ -2356,8 +2356,9 @@ class ContactImport(SmartModel):
             for raw_row in row_batch:
                 row = self._parse_row(raw_row, len(self.mappings), tz=self.org.timezone)
                 spec = self._row_to_spec(row)
-                batch_specs.append(spec)
-                record_num += 1
+                if spec:
+                    batch_specs.append(spec)
+                    record_num += 1
 
                 urns.extend(spec.get("urns", []))
 
@@ -2466,6 +2467,10 @@ class ContactImport(SmartModel):
                     spec["fields"] = {}
                 key = mapping["key"]
                 spec["fields"][key] = value
+
+        # Make sure the row has a UUID or URNs
+        if not spec.get("uuid", "") and not spec.get("urns", []):
+            return {}
 
         return spec
 
