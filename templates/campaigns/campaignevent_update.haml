@@ -43,10 +43,10 @@
       
       if (isBackground) {
         body.querySelector("#event-flow-start-mode").classList.add("hide");
-        body.querySelector("#background-flow-message").classList.remove("hide");
+        flowSelect.infoText = "{{background_warning|escapejs}}";
       } else {
         body.querySelector("#event-flow-start-mode").classList.remove("hide");
-        body.querySelector("#background-flow-message").classList.add("hide");
+        flowSelect.infoText = "";
       }
     });
 
@@ -145,6 +145,8 @@
       opacity: 0;
       max-height: 0;
       pointer-events: none;
+      margin-bottom:0;
+      overflow:hidden;
     }
 
     #event-flow-start-mode {
@@ -229,10 +231,6 @@
       .start-mode-help
         -trans "If the contact is already active in a flow"
       -render_field 'flow_start_mode'
-
-    #background-flow-message(class="{% if form.initial.flow_to_start.flow_type != 'B' %}hide{%endif%}")
-      -blocktrans trimmed
-        This is a background flow. When it triggers, it will run it for all contacts without interruption.
 
   #schedule-section
     #field-offset

@@ -261,7 +261,11 @@ class CampaignEventForm(forms.ModelForm):
         required=False,
         empty_label=None,
         widget=SelectWidget(
-            attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
+            attrs={
+                "placeholder": _("Select a flow to start"),
+                "widget_only": True,
+                "searchable": True,
+            }
         ),
     )
 
@@ -374,7 +378,7 @@ class CampaignEventForm(forms.ModelForm):
             if obj.flow.flow_type == Flow.TYPE_BACKGROUND:
                 obj.start_mode = CampaignEvent.MODE_PASSIVE
 
-    def __init__(self, user, *args, **kwargs):
+    def __init__(self, user, event, *args, **kwargs):
         self.user = user
         super().__init__(*args, **kwargs)
 
@@ -393,6 +397,9 @@ class CampaignEventForm(forms.ModelForm):
             is_archived=False,
             is_system=False,
         ).order_by("name")
+
+        if event and event.flow and event.flow.flow_type == Flow.TYPE_BACKGROUND:
+            flow.widget.attrs["info_text"] = CampaignEventCRUDL.BACKGROUND_WARNING
 
         message = self.instance.message or {}
         self.languages = []
@@ -475,6 +482,10 @@ class CampaignEventCRUDL(SmartCRUDL):
     model = CampaignEvent
     actions = ("create", "delete", "read", "update")
 
+    BACKGROUND_WARNING = _(
+        "This is a background flow. When it triggers, it will run it for all contacts without interruption."
+    )
+
     class Read(OrgObjPermsMixin, SmartReadView):
         def pre_process(self, request, *args, **kwargs):
             event = self.get_object()
@@ -499,6 +510,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             scheduled = scheduled_event_fires[:25]
             context["scheduled_event_fires"] = scheduled
             context["scheduled_event_fires_count"] = scheduled_event_fires.count() - len(scheduled)
+            context["background_warning"] = CampaignEventCRUDL.BACKGROUND_WARNING
 
             return context
 
@@ -576,13 +588,16 @@ class CampaignEventCRUDL(SmartCRUDL):
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
+            kwargs["event"] = self.object
             return kwargs
 
         def get_object_org(self):
             return self.get_object().campaign.org
 
         def get_context_data(self, **kwargs):
-            return super().get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
+            context["background_warning"] = CampaignEventCRUDL.BACKGROUND_WARNING
+            return context
 
         def derive_fields(self):
 
@@ -701,6 +716,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
+            kwargs["event"] = None
             return kwargs
 
         def derive_initial(self):
