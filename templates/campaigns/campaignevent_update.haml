@@ -39,7 +39,6 @@
     flowSelect.addEventListener('change', function(event) {
       var option = event.target.values[0];
       var isBackground = option.type == "B";
-      console.log("isBackground", isBackground)
       
       if (isBackground) {
         body.querySelector("#event-flow-start-mode").classList.add("hide");

@@ -510,7 +510,6 @@ class CampaignEventCRUDL(SmartCRUDL):
             scheduled = scheduled_event_fires[:25]
             context["scheduled_event_fires"] = scheduled
             context["scheduled_event_fires_count"] = scheduled_event_fires.count() - len(scheduled)
-            context["background_warning"] = CampaignEventCRUDL.BACKGROUND_WARNING
 
             return context
 
@@ -685,6 +684,11 @@ class CampaignEventCRUDL(SmartCRUDL):
         success_message = ""
         template_name = "campaigns/campaignevent_update.haml"
         submit_button_name = _("Add Event")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["background_warning"] = CampaignEventCRUDL.BACKGROUND_WARNING
+            return context
 
         def pre_process(self, request, *args, **kwargs):
             campaign_id = request.GET.get("campaign", None)
