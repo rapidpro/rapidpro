@@ -2144,7 +2144,7 @@ class ContactImport(SmartModel):
     finished_on = models.DateTimeField(null=True)
 
     @classmethod
-    def try_to_parse(cls, org: Org, file, filename: str) -> tuple[list, int]:
+    def try_to_parse(cls, org: Org, file, filename: str) -> tuple[list, int, int]:
         """
         Tries to parse the given file stream as an import. If successful it returns the automatic column mappings and
         total number of records. Otherwise raises a ValidationError.
@@ -2171,6 +2171,8 @@ class ContactImport(SmartModel):
         seen_uuids = set()
         seen_urns = set()
         num_records = 0
+        valid_records_count = 0
+        num_ignored = 0
         for raw_row in data:
             row = cls._parse_row(raw_row, len(mappings))
             uuid, urns = cls._extract_uuid_and_urns(row, mappings)
@@ -2187,6 +2189,11 @@ class ContactImport(SmartModel):
                     )
                 seen_urns.add(urn)
 
+            if not uuid and not urns:
+                num_ignored += 1
+            else:
+                valid_records_count += 1
+
             # check if we exceed record limit
             num_records += 1
             if num_records > ContactImport.MAX_RECORDS:
@@ -2195,12 +2202,12 @@ class ContactImport(SmartModel):
                     params={"max": ContactImport.MAX_RECORDS},
                 )
 
-        if num_records == 0:
+        if valid_records_count == 0:
             raise ValidationError(_("Import file doesn't contain any records."))
 
         file.seek(0)  # seek back to beginning so subsequent reads work
 
-        return mappings, num_records
+        return mappings, num_records, num_ignored
 
     @staticmethod
     def _extract_uuid_and_urns(row, mappings) -> tuple[str, list[str]]:
@@ -2349,19 +2356,28 @@ class ContactImport(SmartModel):
         urns = []
         batches = []
         record_num = 0
+        valid_records_count = 0
+        batch_specs = []
+        batch_start = record_num
+
         for row_batch in chunk_list(data, ContactImport.BATCH_SIZE):
-            batch_specs = []
-            batch_start = record_num
+            if valid_records_count % ContactImport.BATCH_SIZE == 0:
+                if batch_specs:
+                    batches.append(self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num))
+                batch_specs = []
+                batch_start = record_num
 
             for raw_row in row_batch:
                 row = self._parse_row(raw_row, len(self.mappings), tz=self.org.timezone)
                 spec = self._row_to_spec(row)
+                record_num += 1
                 if spec:
                     batch_specs.append(spec)
-                    record_num += 1
+                    valid_records_count += 1
 
                 urns.extend(spec.get("urns", []))
 
+        if batch_specs:
             batches.append(self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num))
 
         # set redis key which mailroom batch tasks can decrement to know when import has completed
