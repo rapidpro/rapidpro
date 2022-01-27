@@ -2,7 +2,7 @@ import logging
 import time
 from array import array
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import iso8601
 import pytz
@@ -1133,6 +1133,9 @@ class FlowSession(models.Model):
             return self.output
 
     def release(self):
+        for run in self.runs.all():
+            run.release()
+
         self.delete()
 
     def __str__(self):  # pragma: no cover
@@ -1223,11 +1226,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # session this run belongs to (can be null if session has been trimmed)
     session = models.ForeignKey(FlowSession, on_delete=models.PROTECT, related_name="runs", null=True)
 
-    # for an IVR session this is the connection to the IVR channel
-    connection = models.ForeignKey(
-        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="runs", null=True
-    )
-
     # when this run was created, last modified and exited
     created_on = models.DateTimeField(default=timezone.now)
     modified_on = models.DateTimeField(default=timezone.now)
@@ -1241,9 +1239,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     # if this run is part of a Surveyor session, the user that submitted it
     submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, db_index=False)
-
-    # UUID of the parent run (if any)
-    parent_uuid = models.UUIDField(null=True)
 
     # results collected in this run keyed by snakified result name
     results = JSONAsTextField(null=True, default=dict)
@@ -1260,9 +1255,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # TODO to be replaced by new status field
     is_active = models.BooleanField(default=True)
     exit_type = models.CharField(null=True, max_length=1, choices=EXIT_TYPE_CHOICES)
-
-    # TODO to be replaced by FlowSession.wait_expires_on
-    expires_on = models.DateTimeField(null=True)
 
     def release(self, delete_reason=None):
         """
@@ -1281,17 +1273,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 mailroom.queue_interrupt(self.org, session=self.session)
 
             self.delete()
-
-    def update_expiration(self, point_in_time):
-        """
-        Set our expiration according to the flow settings
-        """
-        if self.flow.expires_after_minutes:
-            self.expires_on = point_in_time + timedelta(minutes=self.flow.expires_after_minutes)
-            self.modified_on = timezone.now()
-
-            # save our updated fields
-            self.save(update_fields=["expires_on", "modified_on"])
 
     def as_archive_json(self):
         def convert_step(step):

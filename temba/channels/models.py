@@ -1717,9 +1717,6 @@ class ChannelConnection(models.Model):
             return None
 
     def release(self):
-        for run in self.runs.all():
-            run.release()
-
         for log in self.channel_logs.all():
             log.release()
 
