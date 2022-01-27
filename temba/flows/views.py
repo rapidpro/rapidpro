@@ -26,6 +26,7 @@ from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -37,24 +38,15 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.contacts.search import SearchException, parse_query
-from temba.contacts.search.omnibox import omnibox_deserialize
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
-from temba.flows.tasks import export_flow_results_task
+from temba.flows.tasks import export_flow_results_task, update_session_wait_expires
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import MenuMixin, ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
-from temba.utils.fields import (
-    CheckboxWidget,
-    ContactSearchWidget,
-    InputWidget,
-    OmniboxChoice,
-    OmniboxField,
-    SelectMultipleWidget,
-    SelectWidget,
-)
+from temba.utils.fields import CheckboxWidget, ContactSearchWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
@@ -689,10 +681,7 @@ class FlowCRUDL(SmartCRUDL):
                             modified_by=user,
                         )
 
-            # run async task to update all runs
-            from .tasks import update_run_expirations_task
-
-            on_transaction_commit(lambda: update_run_expirations_task.delay(obj.pk))
+            on_transaction_commit(lambda: update_session_wait_expires.delay(obj.pk))
 
             return obj
 
@@ -1777,36 +1766,18 @@ class FlowCRUDL(SmartCRUDL):
 
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
-            MODE_SELECT = "select"
-            MODE_QUERY = "query"
-            MODE_CHOICES = (
-                (MODE_SELECT, _("Enter contacts and groups to start below")),
-                (MODE_QUERY, _("Search for contacts to start")),
-            )
-
-            mode = forms.ChoiceField(
-                widget=SelectWidget(
-                    attrs={"placeholder": _("Select contacts or groups to start in the flow"), "widget_only": True}
-                ),
-                choices=MODE_CHOICES,
-                initial=MODE_SELECT,
-            )
-
-            omnibox = OmniboxField(
-                required=False,
-                widget=OmniboxChoice(
-                    attrs={
-                        "placeholder": _("Select contact and groups"),
-                        "groups": True,
-                        "contacts": True,
-                        "widget_only": True,
-                    }
-                ),
-            )
 
             query = forms.CharField(
                 required=False,
                 widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")}),
+            )
+
+            exclude_inactive = forms.BooleanField(
+                label=_("Exclude inactive contacts"),
+                required=False,
+                initial=False,
+                help_text=_("Any contacts who have not sent a message in the last 90 days will not be started."),
+                widget=CheckboxWidget(),
             )
 
             exclude_in_other = forms.BooleanField(
@@ -1827,38 +1798,38 @@ class FlowCRUDL(SmartCRUDL):
                 widget=CheckboxWidget(),
             )
 
-            def clean_omnibox(self):
-                omnibox = self.cleaned_data.get("omnibox")
-                return omnibox_deserialize(self.instance.org, omnibox) if omnibox else {}
-
             def clean_query(self):
                 query = self.cleaned_data.get("query")
+                exclude_inactive = self.data.get("exclude_inactive")
+
+                if exclude_inactive:
+                    now = timezone.now()
+                    recency_window = now - timedelta(days=90)
+                    query = f"({query}) AND last_seen_on > {self.instance.org.format_datetime(recency_window, show_time=False)}"
+
                 if query:
                     try:
                         parsed = parse_query(self.instance.org, query)
                         query = parsed.query
                     except SearchException as e:
                         raise ValidationError(str(e))
+
                 return query
 
             def clean(self):
                 cleaned_data = super().clean()
 
                 if self.is_valid():
-                    mode = cleaned_data["mode"]
-                    omnibox = cleaned_data.get("omnibox")
                     query = cleaned_data.get("query")
 
-                    if mode == self.MODE_SELECT and not omnibox:
-                        self.add_error("omnibox", _("This field is required."))
-                    elif mode == self.MODE_QUERY and not query:
+                    if not query:
                         self.add_error("query", _("This field is required."))
 
                 return cleaned_data
 
             class Meta:
                 model = Flow
-                fields = ("mode", "omnibox", "query", "exclude_in_other", "exclude_reruns")
+                fields = ("query", "exclude_inactive", "exclude_in_other", "exclude_reruns")
 
         form_class = Form
         success_message = ""
@@ -1902,9 +1873,13 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
-
-            context["blockers"] = self.get_blockers(flow)
             context["warnings"] = self.get_warnings(flow)
+            context["blockers"] = self.get_blockers(flow)
+
+            now = timezone.now()
+            recency_window = now - timedelta(days=90)
+            context["recency_window"] = flow.org.format_datetime(recency_window, show_time=False)
+            context["inactive_threshold"] = self.request.branding.get("inactive_threshold", 0)
             return context
 
         def get_blockers(self, flow) -> list:
@@ -1954,36 +1929,20 @@ class FlowCRUDL(SmartCRUDL):
             return warnings
 
         def save(self, *args, **kwargs):
-            mode = self.form.cleaned_data["mode"]
-
-            # gather up the recipients for this flow start
-            groups = []
-            contacts = []
-            query = None
+            query = self.form.cleaned_data["query"]
             restart_participants = not self.form.cleaned_data["exclude_reruns"]
-            include_active = not self.form.cleaned_data["exclude_in_other"]
+            include_contacts_with_runs = not self.form.cleaned_data["exclude_in_other"]
 
-            if mode == self.form.MODE_QUERY:
-                query = self.form.cleaned_data["query"]
-            else:
-                omnibox = self.form.cleaned_data["omnibox"]
-                groups = list(omnibox["groups"])
-                contacts = list(omnibox["contacts"])
-
-            analytics.track(
-                self.request.user,
-                "temba.flow_broadcast",
-                dict(contacts=len(contacts), groups=len(groups), query=query),
-            )
+            analytics.track(self.request.user, "temba.flow_broadcast", dict(query=query))
 
             # queue the flow start to be started by mailroom
             self.object.async_start(
                 self.request.user,
-                groups,
-                contacts,
-                query,
+                groups=(),
+                contacts=(),
+                query=query,
                 restart_participants=restart_participants,
-                include_active=include_active,
+                include_active=include_contacts_with_runs,
             )
             return self.object
 
