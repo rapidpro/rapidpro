@@ -1621,6 +1621,26 @@ class OrgCRUDL(SmartCRUDL):
             parent = forms.IntegerField(required=False)
             plan_end = forms.DateTimeField(required=False)
             non_contact_hours = forms.BooleanField(required=False)
+            viewers = forms.ModelMultipleChoiceField(
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="")),
+                required=False,
+                widget=SelectMultipleWidget(attrs={"searchable": True}),
+            )
+            editors = forms.ModelMultipleChoiceField(
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="")),
+                required=False,
+                widget=SelectMultipleWidget(attrs={"searchable": True}),
+            )
+            surveyors = forms.ModelMultipleChoiceField(
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="")),
+                required=False,
+                widget=SelectMultipleWidget(attrs={"searchable": True}),
+            )
+            administrators = forms.ModelMultipleChoiceField(
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="")),
+                required=False,
+                widget=SelectMultipleWidget(attrs={"searchable": True}),
+            )
 
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -1670,7 +1690,6 @@ class OrgCRUDL(SmartCRUDL):
                     "administrators",
                     "editors",
                     "viewers",
-                    "agents",
                     "surveyors",
                 )
 
