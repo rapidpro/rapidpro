@@ -2210,6 +2210,8 @@ class FlowCRUDL(SmartCRUDL):
             if str_to_bool(self.request.GET.get("responded", "true")):
                 runs = runs.filter(responded=True)
 
+            context["total_runs"] = len(runs)
+
             # paginate
             modified_on = self.request.GET.get("modified_on", None)
             if modified_on:
