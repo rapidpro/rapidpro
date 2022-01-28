@@ -20,7 +20,7 @@ def channellog_url(context, log, *args, **kwargs):
 def channellog_request(context, log, *args, **kwargs):
 
     request = []
-    for header in log.request.split('\r\n'):
+    for header in log.request.split("\r\n"):
         can_add = True
         for excluded in settings.EXCLUDED_HTTP_HEADERS:
             if excluded.lower() in header.lower():
@@ -29,8 +29,7 @@ def channellog_request(context, log, *args, **kwargs):
         if can_add:
             request.append(header)
 
-
-    log.request = '\r\n'.join(request)
+    log.request = "\r\n".join(request)
 
     return log.get_request_display(context["user"], ContactURN.ANON_MASK)
 
