@@ -1624,22 +1624,22 @@ class OrgCRUDL(SmartCRUDL):
             viewers = forms.ModelMultipleChoiceField(
                 User.objects.exclude(Q(email__isnull=True) | Q(email__exact="")),
                 required=False,
-                widget=SelectMultipleWidget(attrs={"searchable": True}),
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
             )
             editors = forms.ModelMultipleChoiceField(
                 User.objects.exclude(Q(email__isnull=True) | Q(email__exact="")),
                 required=False,
-                widget=SelectMultipleWidget(attrs={"searchable": True}),
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
             )
             surveyors = forms.ModelMultipleChoiceField(
                 User.objects.exclude(Q(email__isnull=True) | Q(email__exact="")),
                 required=False,
-                widget=SelectMultipleWidget(attrs={"searchable": True}),
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
             )
             administrators = forms.ModelMultipleChoiceField(
                 User.objects.exclude(Q(email__isnull=True) | Q(email__exact="")),
                 required=False,
-                widget=SelectMultipleWidget(attrs={"searchable": True}),
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
             )
 
             def __init__(self, org, *args, **kwargs):
