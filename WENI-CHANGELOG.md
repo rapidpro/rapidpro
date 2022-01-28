@@ -1,3 +1,9 @@
+1.1.0-rapidpro-7.0.4
+----------
+ * Merge instagram channel
+ * Lock weni-rp-apps to 1.0.8
+ * Feat/back button missing
+
 1.0.7-rapidpro-7.0.4
 ----------
  * Fix: Gujarati whatsapp language code
