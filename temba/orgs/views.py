@@ -1622,24 +1622,24 @@ class OrgCRUDL(SmartCRUDL):
             plan_end = forms.DateTimeField(required=False)
             non_contact_hours = forms.BooleanField(required=False)
             viewers = forms.ModelMultipleChoiceField(
-                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="")),
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="") | Q(is_active=False)),
                 required=False,
-                widget=SelectMultipleWidget(attrs={"searchable": True}),
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
             )
             editors = forms.ModelMultipleChoiceField(
-                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="")),
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="") | Q(is_active=False)),
                 required=False,
-                widget=SelectMultipleWidget(attrs={"searchable": True}),
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
             )
             surveyors = forms.ModelMultipleChoiceField(
-                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="")),
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="") | Q(is_active=False)),
                 required=False,
-                widget=SelectMultipleWidget(attrs={"searchable": True}),
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
             )
             administrators = forms.ModelMultipleChoiceField(
-                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="")),
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="") | Q(is_active=False)),
                 required=False,
-                widget=SelectMultipleWidget(attrs={"searchable": True}),
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
             )
 
             def __init__(self, org, *args, **kwargs):
