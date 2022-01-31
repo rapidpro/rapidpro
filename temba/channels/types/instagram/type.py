@@ -29,6 +29,8 @@ class InstagramType(ChannelType):
     name = "Instagram"
     icon = "icon-instagram"
 
+    beta_only = True
+
     show_config_page = False
 
     claim_blurb = _("Add an %(link)s bot to send and receive messages on behalf of a business Instagram account.") % {
