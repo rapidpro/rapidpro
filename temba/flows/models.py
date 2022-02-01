@@ -2,9 +2,10 @@ import logging
 import time
 from array import array
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime
 
 import iso8601
+import pytz
 import regex
 from django_redis import get_redis_connection
 from packaging.version import Version
@@ -14,21 +15,20 @@ from xlsxlite.writer import XLSXBook
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
-from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
-from django.db import connection as db_connection, models, transaction
+from django.db import models, transaction
 from django.db.models import Max, Q, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.classifiers.models import Classifier
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.msgs.models import Attachment, Label, Msg
+from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
@@ -124,7 +124,40 @@ class Flow(TembaModel):
     INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
     CURRENT_SPEC_VERSION = "13.1.0"  # current flow spec version
 
-    DEFAULT_EXPIRES_AFTER = 60 * 24 * 7  # 1 week
+    EXPIRES_CHOICES = {
+        TYPE_MESSAGE: (
+            (5, _("After 5 minutes")),
+            (10, _("After 10 minutes")),
+            (15, _("After 15 minutes")),
+            (30, _("After 30 minutes")),
+            (60, _("After 1 hour")),
+            (60 * 3, _("After 3 hours")),
+            (60 * 6, _("After 6 hours")),
+            (60 * 12, _("After 12 hours")),
+            (60 * 18, _("After 18 hours")),
+            (60 * 24, _("After 1 day")),
+            (60 * 24 * 2, _("After 2 days")),
+            (60 * 24 * 3, _("After 3 days")),
+            (60 * 24 * 7, _("After 1 week")),
+            (60 * 24 * 14, _("After 2 weeks")),
+            (60 * 24 * 30, _("After 30 days")),
+        ),
+        TYPE_VOICE: (
+            (1, _("After 1 minute")),
+            (2, _("After 2 minutes")),
+            (3, _("After 3 minutes")),
+            (4, _("After 4 minutes")),
+            (5, _("After 5 minutes")),
+            (10, _("After 10 minutes")),
+            (15, _("After 15 minutes")),
+        ),
+    }
+    EXPIRES_DEFAULTS = {
+        TYPE_MESSAGE: 60 * 24 * 7,  # 1 week
+        TYPE_VOICE: 5,  # 5 minutes
+        TYPE_BACKGROUND: 0,
+        TYPE_SURVEY: 0,
+    }
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
 
@@ -141,7 +174,8 @@ class Flow(TembaModel):
     metadata = JSONAsTextField(null=True, default=dict)
 
     expires_after_minutes = models.IntegerField(
-        default=DEFAULT_EXPIRES_AFTER, help_text=_("Minutes of inactivity that will cause expiration from flow")
+        default=EXPIRES_DEFAULTS[TYPE_MESSAGE],
+        help_text=_("Minutes of inactivity that will cause expiration from flow"),
     )
 
     ignore_triggers = models.BooleanField(default=False, help_text=_("Ignore keyword triggers while in this flow"))
@@ -181,16 +215,18 @@ class Flow(TembaModel):
         user,
         name,
         flow_type=TYPE_MESSAGE,
-        expires_after_minutes=DEFAULT_EXPIRES_AFTER,
+        expires_after_minutes=0,
         base_language="base",
         create_revision=False,
         **kwargs,
     ):
-        flow = Flow.objects.create(
+        assert not expires_after_minutes or cls.is_valid_expires(flow_type, expires_after_minutes)
+
+        flow = cls.objects.create(
             org=org,
             name=name,
             flow_type=flow_type,
-            expires_after_minutes=expires_after_minutes,
+            expires_after_minutes=expires_after_minutes or cls.EXPIRES_DEFAULTS[flow_type],
             base_language=base_language,
             saved_by=user,
             created_by=user,
@@ -213,7 +249,7 @@ class Flow(TembaModel):
                 },
             )
 
-        analytics.track(user, "temba.flow_created", dict(name=name))
+        analytics.track(user, "temba.flow_created", dict(name=name, uuid=flow.uuid))
         return flow
 
     @classmethod
@@ -310,13 +346,14 @@ class Flow(TembaModel):
             flow_type = db_types[flow_def[Flow.DEFINITION_TYPE]]
             flow_uuid = flow_def[Flow.DEFINITION_UUID]
             flow_name = flow_def[Flow.DEFINITION_NAME]
-            flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, Flow.DEFAULT_EXPIRES_AFTER)
+            flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, 0)
 
             flow = None
             flow_name = flow_name[:64].strip()
 
-            if flow_type == Flow.TYPE_VOICE:
-                flow_expires = min([flow_expires, 15])  # voice flow expiration can't be more than 15 minutes
+            # ensure expires is valid for the flow type
+            if not cls.is_valid_expires(flow_type, flow_expires):
+                flow_expires = cls.EXPIRES_DEFAULTS[flow_type]
 
             # check if we can find that flow by UUID first
             if same_site:
@@ -370,6 +407,11 @@ class Flow(TembaModel):
         return [f[0] for f in created_flows]
 
     @classmethod
+    def is_valid_expires(cls, flow_type: str, expires: int) -> bool:
+        valid_expires = {c[0] for c in cls.EXPIRES_CHOICES.get(flow_type, ())}
+        return not valid_expires or expires in valid_expires
+
+    @classmethod
     def copy(cls, flow, user):
         copy = Flow.create(flow.org, user, "Copy of %s" % flow.name[:55], flow_type=flow.flow_type)
 
@@ -385,9 +427,9 @@ class Flow(TembaModel):
         return copy
 
     @classmethod
-    def export_translation(cls, org, flows, language, exclude_args):
+    def export_translation(cls, org, flows, language):
         flow_ids = [f.id for f in flows]
-        return mailroom.get_client().po_export(org.id, flow_ids, language=language, exclude_arguments=exclude_args)
+        return mailroom.get_client().po_export(org.id, flow_ids, language=language)
 
     @classmethod
     def import_translation(cls, org, flows, language, po_data):
@@ -445,12 +487,16 @@ class Flow(TembaModel):
             except FlowException:  # pragma: no cover
                 pass
 
-    def get_icon(self):
-        if self.flow_type == Flow.TYPE_MESSAGE:
-            return "message-square"
-        elif self.flow_type == Flow.TYPE_VOICE:
-            return "phone"
-        return "flow"
+    def get_attrs(self):
+        icon = (
+            "message-square"
+            if self.flow_type == Flow.TYPE_MESSAGE
+            else "phone"
+            if self.flow_type == Flow.TYPE_VOICE
+            else "flow"
+        )
+
+        return {"icon": icon, "type": self.flow_type}
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
@@ -661,6 +707,36 @@ class Flow(TembaModel):
             "completion": int(completed * 100 // total_runs) if total_runs else 0,
         }
 
+    def get_recent_contacts(self, exit_uuid: str, dest_uuid: str) -> list:
+        r = get_redis_connection()
+        key = f"recent_contacts:{exit_uuid}:{dest_uuid}"
+
+        # fetch members of the sorted set from redis and save as tuples of (contact_id, operand, time)
+        contact_ids = set()
+        raw = []
+        for member, score in r.zrange(key, start=0, end=-1, desc=True, withscores=True):
+            rand, contact_id, operand = member.decode().split("|", maxsplit=2)
+            contact_ids.add(int(contact_id))
+            raw.append((int(contact_id), operand, datetime.utcfromtimestamp(score).replace(tzinfo=pytz.UTC)))
+
+        # lookup all the referenced contacts
+        contacts_by_id = {c.id: c for c in self.org.contacts.filter(id__in=contact_ids, is_active=True)}
+
+        # if contact still exists, include in results
+        recent = []
+        for r in raw:
+            contact = contacts_by_id.get(r[0])
+            if contact:
+                recent.append(
+                    {
+                        "contact": {"uuid": str(contact.uuid), "name": contact.get_display(org=self.org)},
+                        "operand": r[1],
+                        "time": r[2].isoformat(),
+                    }
+                )
+
+        return recent
+
     def async_start(self, user, groups, contacts, query=None, restart_participants=False, include_active=True):
         """
         Causes us to schedule a flow to start in a background thread.
@@ -767,7 +843,7 @@ class Flow(TembaModel):
         """
         return self.revisions.order_by("revision").last()
 
-    def save_revision(self, user, definition):
+    def save_revision(self, user, definition) -> tuple:
         """
         Saves a new revision for this flow, validation will be done on the definition first
         """
@@ -846,14 +922,6 @@ class Flow(TembaModel):
 
         if "version" in flow_def:
             flow_def = legacy.migrate_definition(flow_def, flow=flow)
-
-        if "metadata" not in flow_def:
-            flow_def["metadata"] = {}
-
-        # ensure definition has a valid expiration
-        expires = flow_def["metadata"].get("expires", 0)
-        if expires <= 0 or expires > (30 * 24 * 60):
-            flow_def["metadata"]["expires"] = Flow.DEFAULT_EXPIRES_AFTER
 
         # migrate using goflow for anything newer
         if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
@@ -1021,10 +1089,11 @@ class FlowSession(models.Model):
         (STATUS_FAILED, "Failed"),
     )
 
+    id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(unique=True)
     org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
     # the modality of this session
     session_type = models.CharField(max_length=1, choices=Flow.TYPE_CHOICES, default=Flow.TYPE_MESSAGE)
@@ -1045,11 +1114,11 @@ class FlowSession(models.Model):
     created_on = models.DateTimeField(default=timezone.now)
     ended_on = models.DateTimeField(null=True)
 
-    # when this session's wait will time out (if at all)
-    timeout_on = models.DateTimeField(null=True)
-
-    # when this session started waiting (if at all)
-    wait_started_on = models.DateTimeField(null=True)
+    # if session is waiting for input...
+    wait_started_on = models.DateTimeField(null=True)  # when it started waiting
+    timeout_on = models.DateTimeField(null=True)  # when it should timeout (set by courier when last msg is sent)
+    wait_expires_on = models.DateTimeField(null=True)  # when waiting run can be expired
+    wait_resume_on_expire = models.BooleanField()  # whether wait expiration can resume a parent run
 
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
@@ -1068,15 +1137,39 @@ class FlowSession(models.Model):
             return self.output
 
     def release(self):
+        for run in self.runs.all():
+            run.release()
+
         self.delete()
 
     def __str__(self):  # pragma: no cover
         return str(self.contact)
 
+    class Meta:
+        indexes = [
+            models.Index(
+                name="flows_session_message_expires",
+                fields=("wait_expires_on",),
+                condition=Q(session_type=Flow.TYPE_MESSAGE, status="W", wait_expires_on__isnull=False),
+            ),
+            models.Index(
+                name="flows_session_voice_expires",
+                fields=("wait_expires_on",),
+                condition=Q(session_type=Flow.TYPE_VOICE, status="W", wait_expires_on__isnull=False),
+            ),
+        ]
+        constraints = [
+            # ensure that waiting sessions have a wait started and expires
+            models.CheckConstraint(
+                check=~Q(status="W") | Q(wait_started_on__isnull=False, wait_expires_on__isnull=False),
+                name="flows_session_waiting_has_started_and_expires",
+            ),
+        ]
+
 
 class FlowRun(RequireUpdateFieldsMixin, models.Model):
     """
-    A single contact's journey through a flow. It records the path taken, results collected, events generated etc.
+    A single contact's journey through a flow. It records the path taken, results collected etc.
     """
 
     STATUS_ACTIVE = "A"
@@ -1127,6 +1220,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
 
+    id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="runs", db_index=False)
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="runs")
@@ -1136,18 +1230,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # session this run belongs to (can be null if session has been trimmed)
     session = models.ForeignKey(FlowSession, on_delete=models.PROTECT, related_name="runs", null=True)
 
-    # for an IVR session this is the connection to the IVR channel
-    connection = models.ForeignKey(
-        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="runs", null=True
-    )
-
     # when this run was created, last modified and exited
     created_on = models.DateTimeField(default=timezone.now)
     modified_on = models.DateTimeField(default=timezone.now)
     exited_on = models.DateTimeField(null=True)
-
-    # when this run will expire
-    expires_on = models.DateTimeField(null=True)
 
     # true if the contact has responded in this run
     responded = models.BooleanField(default=False)
@@ -1158,20 +1244,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # if this run is part of a Surveyor session, the user that submitted it
     submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, db_index=False)
 
-    # parent run that started this run (if any)
-    parent = models.ForeignKey("flows.FlowRun", on_delete=models.PROTECT, null=True)
-
-    # UUID of the parent run (if any)
-    parent_uuid = models.UUIDField(null=True)
-
     # results collected in this run keyed by snakified result name
     results = JSONAsTextField(null=True, default=dict)
 
     # path taken by this run through the flow
     path = JSONAsTextField(null=True, default=list)
-
-    # engine events generated by this run
-    events = JSONField(null=True)
 
     # current node location of this run in the flow
     current_node_uuid = models.UUIDField(null=True)
@@ -1183,46 +1260,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     is_active = models.BooleanField(default=True)
     exit_type = models.CharField(null=True, max_length=1, choices=EXIT_TYPE_CHOICES)
 
-    def get_events_of_type(self, event_types):
-        """
-        Gets all the events of the given type associated with this run
-        """
-        if not self.events:  # pragma: no cover
-            return []
-
-        return [e for e in self.events if e[FlowRun.EVENT_TYPE] in event_types]
-
-    def get_msg_events(self):
-        """
-        Gets all the messages associated with this run
-        """
-        from temba.mailroom.events import Event
-
-        return self.get_events_of_type((Event.TYPE_MSG_RECEIVED, Event.TYPE_MSG_CREATED))
-
-    def get_events_by_step(self, msg_only=False):
-        """
-        Gets a map of step UUIDs to lists of events created at that step
-        """
-        events = self.get_msg_events() if msg_only else self.events
-        events_by_step = defaultdict(list)
-        for e in events:
-            events_by_step[e[FlowRun.EVENT_STEP_UUID]].append(e)
-        return events_by_step
-
-    def get_messages(self):
-        """
-        Gets all the messages associated with this run
-        """
-        # need a data migration to go fix some old message events with uuid="None", until then filter them out
-        msg_uuids = []
-        for e in self.get_msg_events():
-            msg_uuid = e["msg"].get("uuid")
-            if msg_uuid and msg_uuid != "None":
-                msg_uuids.append(msg_uuid)
-
-        return Msg.objects.filter(uuid__in=msg_uuids)
-
     def release(self, delete_reason=None):
         """
         Permanently deletes this flow run
@@ -1232,13 +1269,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 self.delete_reason = delete_reason
                 self.save(update_fields=["delete_reason"])
 
-            # clear any runs that reference us
-            FlowRun.objects.filter(parent=self).update(parent=None)
-
-            # and any recent runs
-            for recent in FlowPathRecentRun.objects.filter(run=self):
-                recent.release()
-
             if (
                 delete_reason == FlowRun.DELETE_FOR_USER
                 and self.session is not None
@@ -1247,21 +1277,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 mailroom.queue_interrupt(self.org, session=self.session)
 
             self.delete()
-
-    def update_expiration(self, point_in_time):
-        """
-        Set our expiration according to the flow settings
-        """
-        if self.flow.expires_after_minutes:
-            self.expires_on = point_in_time + timedelta(minutes=self.flow.expires_after_minutes)
-            self.modified_on = timezone.now()
-
-            # save our updated fields
-            self.save(update_fields=["expires_on", "modified_on"])
-
-        # parent should always have a later expiration than the children
-        if self.parent:
-            self.parent.update_expiration(self.expires_on)
 
     def as_archive_json(self):
         def convert_step(step):
@@ -1285,7 +1300,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             "responded": self.responded,
             "path": [convert_step(s) for s in self.path],
             "values": {k: convert_result(r) for k, r in self.results.items()} if self.results else {},
-            "events": self.events,
             "created_on": self.created_on.isoformat(),
             "modified_on": self.modified_on.isoformat(),
             "exited_on": self.exited_on.isoformat() if self.exited_on else None,
@@ -1553,108 +1567,6 @@ class FlowPathCount(SquashableModel):
         index_together = ["flow", "from_uuid", "to_uuid", "period"]
 
 
-class FlowPathRecentRun(models.Model):
-    """
-    Maintains recent runs for a flow path segment
-    """
-
-    PRUNE_TO = 5
-    LAST_PRUNED_KEY = "last_recentrun_pruned"
-
-    id = models.BigAutoField(primary_key=True)
-
-    # the node and step UUIDs of the start of the path segment
-    from_uuid = models.UUIDField()
-    from_step_uuid = models.UUIDField()
-
-    # the node and step UUIDs of the end of the path segment
-    to_uuid = models.UUIDField()
-    to_step_uuid = models.UUIDField()
-
-    run = models.ForeignKey(FlowRun, on_delete=models.PROTECT, related_name="recent_runs")
-
-    # when the run visited this path segment
-    visited_on = models.DateTimeField(default=timezone.now)
-
-    def release(self):
-        self.delete()
-
-    @classmethod
-    def get_recent(cls, exit_uuids, to_uuid, limit=PRUNE_TO):
-        """
-        Gets the recent runs for the given flow segments
-        """
-        recent = (
-            cls.objects.filter(from_uuid__in=exit_uuids, to_uuid=to_uuid).select_related("run").order_by("-visited_on")
-        )
-        if limit:
-            recent = recent[:limit]
-
-        results = []
-        for r in recent:
-            msg_events_by_step = r.run.get_events_by_step(msg_only=True)
-            msg_event = None
-
-            # find the last message event in the run before this step
-            before_step = False
-            for step in reversed(r.run.path):
-                step_uuid = step[FlowRun.PATH_STEP_UUID]
-                if step_uuid == str(r.from_step_uuid):
-                    before_step = True
-
-                if before_step:
-                    msg_events = msg_events_by_step[step_uuid]
-                    if msg_events:
-                        msg_event = msg_events[-1]
-                        break
-
-            if msg_event:
-                results.append({"run": r.run, "text": msg_event["msg"]["text"], "visited_on": r.visited_on})
-
-        return results
-
-    @classmethod
-    def prune(cls):
-        """
-        Removes old recent run records leaving only PRUNE_TO most recent for each segment
-        """
-        last_id = cache.get(cls.LAST_PRUNED_KEY, -1)
-
-        newest = cls.objects.order_by("-id").values("id").first()
-        newest_id = newest["id"] if newest else -1
-
-        sql = """
-            DELETE FROM %(table)s WHERE id IN (
-              SELECT id FROM (
-                  SELECT
-                    r.id,
-                    dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY visited_on DESC) AS pos
-                  FROM %(table)s r
-                  WHERE (from_uuid, to_uuid) IN (
-                    -- get the unique segments added to since last prune
-                    SELECT DISTINCT from_uuid, to_uuid FROM %(table)s WHERE id > %(last_id)d
-                  )
-              ) s WHERE s.pos > %(limit)d
-            )""" % {
-            "table": cls._meta.db_table,
-            "last_id": last_id,
-            "limit": cls.PRUNE_TO,
-        }
-
-        cursor = db_connection.cursor()
-        cursor.execute(sql)
-
-        cache.set(cls.LAST_PRUNED_KEY, newest_id)
-
-        return cursor.rowcount  # number of deleted entries
-
-    def __str__(self):  # pragma: no cover
-        return f"run={self.run.uuid} flow={self.run.flow.uuid} segment={self.to_uuid}→{self.from_uuid}"
-
-    class Meta:
-        indexes = [models.Index(fields=["from_uuid", "to_uuid", "-visited_on"])]
-
-
 class FlowNodeCount(SquashableModel):
     """
     Maintains counts of unique contacts at each flow node.
@@ -1755,7 +1667,6 @@ class ExportFlowResultsTask(BaseExportTask):
     analytics_key = "flowresult_export"
     notification_export_type = "results"
 
-    INCLUDE_MSGS = "include_msgs"
     CONTACT_FIELDS = "contact_fields"
     GROUP_MEMBERSHIPS = "group_memberships"
     RESPONDED_ONLY = "responded_only"
@@ -1770,9 +1681,8 @@ class ExportFlowResultsTask(BaseExportTask):
     config = JSONAsTextField(null=True, default=dict, help_text=_("Any configuration options for this flow export"))
 
     @classmethod
-    def create(cls, org, user, flows, contact_fields, responded_only, include_msgs, extra_urns, group_memberships):
+    def create(cls, org, user, flows, contact_fields, responded_only, extra_urns, group_memberships):
         config = {
-            ExportFlowResultsTask.INCLUDE_MSGS: include_msgs,
             ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
             ExportFlowResultsTask.RESPONDED_ONLY: responded_only,
             ExportFlowResultsTask.EXTRA_URNS: extra_urns,
@@ -1826,20 +1736,8 @@ class ExportFlowResultsTask(BaseExportTask):
         self.append_row(sheet, columns)
         return sheet
 
-    def _add_msgs_sheet(self, book):
-        name = "Messages (%d)" % (book.num_msgs_sheets + 1) if book.num_msgs_sheets > 0 else "Messages"
-        index = book.num_runs_sheets + book.num_msgs_sheets
-        sheet = book.add_sheet(name, index)
-        book.num_msgs_sheets += 1
-
-        headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Attachments", "Channel"]
-
-        self.append_row(sheet, headers)
-        return sheet
-
     def write_export(self):
         config = self.config
-        include_msgs = config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
         responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
         contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
@@ -1894,7 +1792,6 @@ class ExportFlowResultsTask(BaseExportTask):
             self._write_runs(
                 book,
                 batch,
-                include_msgs,
                 extra_urn_columns,
                 groups,
                 contact_fields,
@@ -1972,7 +1869,6 @@ class ExportFlowResultsTask(BaseExportTask):
         self,
         book,
         runs,
-        include_msgs,
         extra_urn_columns,
         groups,
         contact_fields,
@@ -2052,52 +1948,6 @@ class ExportFlowResultsTask(BaseExportTask):
             runs_sheet_row += result_values
 
             self.append_row(book.current_runs_sheet, runs_sheet_row)
-
-            # write out any message associated with this run
-            if include_msgs and not self.org.is_anon:
-                self._write_run_messages(book, run, contact)
-
-    def _write_run_messages(self, book, run, contact):
-        """
-        Writes out any messages associated with the given run
-        """
-        from temba.mailroom.events import Event
-
-        for event in run["events"] or []:
-            if event["type"] == Event.TYPE_MSG_RECEIVED:
-                msg_direction = "IN"
-            elif event["type"] == Event.TYPE_MSG_CREATED:
-                msg_direction = "OUT"
-            else:  # pragma: no cover
-                continue
-
-            msg = event["msg"]
-            msg_text = msg.get("text", "")
-            msg_created_on = iso8601.parse_date(event["created_on"])
-            msg_channel = msg.get("channel")
-            msg_attachments = [attachment.url for attachment in Attachment.parse_all(msg.get("attachments", []))]
-
-            if "urn" in msg:
-                msg_urn = URN.format(msg["urn"], formatted=False)
-            else:
-                msg_urn = ""
-
-            if not book.current_msgs_sheet or book.current_msgs_sheet.num_rows >= self.MAX_EXCEL_ROWS:
-                book.current_msgs_sheet = self._add_msgs_sheet(book)
-
-            self.append_row(
-                book.current_msgs_sheet,
-                [
-                    str(contact.uuid),
-                    msg_urn,
-                    self.prepare_value(contact.name),
-                    msg_created_on,
-                    msg_direction,
-                    msg_text,
-                    ", ".join(msg_attachments),
-                    msg_channel["name"] if msg_channel else "",
-                ],
-            )
 
 
 @register_asset_store

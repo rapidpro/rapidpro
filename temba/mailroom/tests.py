@@ -187,7 +187,7 @@ class MailroomClientTest(TembaTest):
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/po/export",
             headers={"User-Agent": "Temba"},
-            json={"org_id": self.org.id, "flow_ids": [123, 234], "language": "spa", "exclude_arguments": False},
+            json={"org_id": self.org.id, "flow_ids": [123, 234], "language": "spa"},
         )
 
     def test_po_import(self):

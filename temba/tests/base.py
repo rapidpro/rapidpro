@@ -289,7 +289,6 @@ class TembaTestMixin:
         created_on=None,
         sent_on=None,
         high_priority=False,
-        response_to=None,
         surveyor=False,
         next_attempt=None,
     ):
@@ -311,7 +310,6 @@ class TembaTestMixin:
             created_on,
             sent_on,
             high_priority=high_priority,
-            response_to=response_to,
             surveyor=surveyor,
             metadata=metadata,
             next_attempt=next_attempt,
@@ -331,7 +329,6 @@ class TembaTestMixin:
         visibility=Msg.VISIBILITY_VISIBLE,
         external_id=None,
         high_priority=False,
-        response_to=None,
         surveyor=False,
         broadcast=None,
         metadata=None,
@@ -371,7 +368,6 @@ class TembaTestMixin:
             visibility=visibility,
             external_id=external_id,
             high_priority=high_priority,
-            response_to=response_to,
             created_on=created_on or timezone.now(),
             sent_on=sent_on,
             broadcast=broadcast,
@@ -385,7 +381,6 @@ class TembaTestMixin:
         text,
         contacts=(),
         groups=(),
-        response_to=None,
         msg_status=Msg.STATUS_SENT,
         parent=None,
         schedule=None,
@@ -417,7 +412,6 @@ class TembaTestMixin:
                     status=msg_status,
                     created_on=timezone.now(),
                     sent_on=timezone.now(),
-                    response_to=response_to,
                     broadcast=bcast,
                 )
 
@@ -442,7 +436,7 @@ class TembaTestMixin:
             "type": Flow.GOFLOW_TYPES[flow_type],
             "revision": 1,
             "spec_version": "13.1.0",
-            "expire_after_minutes": Flow.DEFAULT_EXPIRES_AFTER,
+            "expire_after_minutes": Flow.EXPIRES_DEFAULTS[flow_type],
             "language": "eng",
             "nodes": nodes,
         }
@@ -468,12 +462,13 @@ class TembaTestMixin:
             status=status,
             duration=15,
         )
-        session = FlowSession.objects.create(uuid=uuid4(), org=contact.org, contact=contact, connection=call)
-        FlowRun.objects.create(org=self.org, flow=flow, contact=contact, connection=call, session=session)
+        session = FlowSession.objects.create(
+            uuid=uuid4(), org=contact.org, contact=contact, connection=call, wait_resume_on_expire=False
+        )
+        FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session)
         Msg.objects.create(
             org=self.org,
             channel=self.channel,
-            connection=call,
             direction="O",
             contact=contact,
             contact_urn=contact.get_urn(),

@@ -3,7 +3,7 @@ from smartmin.models import SmartModel
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup

@@ -4,7 +4,7 @@ from unittest.mock import patch
 from requests import HTTPError
 from requests.structures import CaseInsensitiveDict
 
-from django.utils.encoding import force_bytes, force_text
+from django.utils.encoding import force_bytes, force_str
 
 from temba.utils import json
 
@@ -27,7 +27,7 @@ class MockResponse:
         if isinstance(body, dict):
             body = json.dumps(body)
 
-        self.body = force_text(body)
+        self.body = force_str(body)
         self.text = self.body
         self.content = force_bytes(self.body)
         self.status_code = status_code

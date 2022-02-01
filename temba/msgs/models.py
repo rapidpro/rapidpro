@@ -16,7 +16,7 @@ from django.db import models
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
@@ -346,11 +346,13 @@ class Msg(models.Model):
     FAILED_LOOPING = "L"  # message looks like it's part of a loop
     FAILED_ERROR_LIMIT = "E"  # courier tried to send the message but we reached error limit
     FAILED_TOO_OLD = "O"  # message has been queued for too long and too late to send message
+    FAILED_NO_DESTINATION = "D"  # no compatible channel + URN destination found
     FAILED_CHOICES = (
         (FAILED_SUSPENDED, "Suspended"),
         (FAILED_LOOPING, "Looping"),
         (FAILED_ERROR_LIMIT, "Error Limit"),
         (FAILED_TOO_OLD, "Too Old"),
+        (FAILED_NO_DESTINATION, "No Destination"),
     )
 
     MEDIA_GPS = "geo"
@@ -367,7 +369,8 @@ class Msg(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="msgs")
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="msgs", db_index=False)
     contact_urn = models.ForeignKey(ContactURN, on_delete=models.PROTECT, null=True, related_name="msgs")
-    broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, blank=True, related_name="msgs")
+    broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, related_name="msgs")
+    flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
 
     text = models.TextField()
     attachments = ArrayField(models.URLField(max_length=2048), null=True)
@@ -399,11 +402,6 @@ class Msg(models.Model):
 
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
 
-    # used for IVR sessions on channels
-    connection = models.ForeignKey(
-        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="msgs", null=True
-    )
-
     metadata = JSONAsTextField(null=True, default=dict)
 
     # can be set before deletion to indicate deletion by a user which should decrement from counts
@@ -414,11 +412,6 @@ class Msg(models.Model):
     DELETE_FOR_USER = "U"
     DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, "Archive delete"), (DELETE_FOR_USER, "User delete"))
     delete_reason = models.CharField(null=True, max_length=1, choices=DELETE_CHOICES)
-
-    # TODO deprecated and to be removed once mailroom stops writing it
-    response_to = models.ForeignKey(
-        "Msg", on_delete=models.PROTECT, null=True, blank=True, related_name="responses", db_index=False
-    )
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
@@ -661,7 +654,6 @@ class Msg(models.Model):
         """
         Releases (i.e. deletes) this message
         """
-        Msg.objects.filter(response_to=self).update(response_to=None)
 
         for log in ChannelLog.objects.filter(msg=self):
             log.release()

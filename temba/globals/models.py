@@ -4,7 +4,7 @@ from smartmin.models import SmartModel
 from django.conf import settings
 from django.db import models
 from django.db.models import Count
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils.text import unsnakify

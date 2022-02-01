@@ -22,7 +22,7 @@ from django.db.models import Count, F, Max, Q, Sum, Value
 from django.db.models.functions import Concat
 from django.db.models.functions.text import Upper
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
@@ -70,10 +70,12 @@ class URN:
     FRESHCHAT_SCHEME = "freshchat"
     ROCKETCHAT_SCHEME = "rocketchat"
     DISCORD_SCHEME = "discord"
+    INSTAGRAM_SCHEME = "instagram"
 
     SCHEME_CHOICES = (
         (TEL_SCHEME, _("Phone number")),
         (FACEBOOK_SCHEME, _("Facebook identifier")),
+        (INSTAGRAM_SCHEME, _("Instagram identifier")),
         (TWITTER_SCHEME, _("Twitter handle")),
         (TWITTERID_SCHEME, _("Twitter ID")),
         (VIBER_SCHEME, _("Viber identifier")),
@@ -187,8 +189,8 @@ class URN:
             except ValidationError:
                 return False
 
-        # facebook uses integer ids or temp ref ids
-        elif scheme == cls.FACEBOOK_SCHEME:
+        # facebook use integer ids or temp ref ids
+        elif scheme in [cls.FACEBOOK_SCHEME]:
             # we don't validate facebook refs since they come from the outside
             if URN.is_path_fb_ref(path):
                 return True
@@ -201,8 +203,8 @@ class URN:
                 except ValueError:
                     return False
 
-        # telegram and whatsapp use integer ids
-        elif scheme in [cls.TELEGRAM_SCHEME, cls.WHATSAPP_SCHEME]:
+        # telegram, whatsapp and instagram use integer ids
+        elif scheme in [cls.TELEGRAM_SCHEME, cls.WHATSAPP_SCHEME, cls.INSTAGRAM_SCHEME]:
             return regex.match(r"^[0-9]+$", path, regex.V0)
 
         # validate Viber URNS look right (this is a guess)
@@ -665,7 +667,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     fields = JSONField(null=True)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
-
+    current_flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
     ticket_count = models.IntegerField(default=0)
 
     # user that last modified this contact
@@ -690,6 +692,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     UUID = "uuid"
     GROUPS = "groups"
     ID = "id"
+    SCHEME = "scheme"
 
     RESERVED_ATTRIBUTES = {
         ID,
@@ -698,6 +701,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         LANGUAGE,
         GROUPS,
         UUID,
+        SCHEME,
         CREATED_ON,
         "created_by",
         "modified_by",
@@ -1303,7 +1307,12 @@ class ContactURN(models.Model):
     """
 
     # schemes that support "new conversation" triggers
-    SCHEMES_SUPPORTING_NEW_CONVERSATION = {URN.FACEBOOK_SCHEME, URN.VIBER_SCHEME, URN.TELEGRAM_SCHEME}
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {
+        URN.FACEBOOK_SCHEME,
+        URN.VIBER_SCHEME,
+        URN.TELEGRAM_SCHEME,
+        URN.INSTAGRAM_SCHEME,
+    }
     SCHEMES_SUPPORTING_REFERRALS = {URN.FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     # mailroom sets priorites like 1000, 999, ...
@@ -1671,8 +1680,8 @@ class ContactGroup(TembaModel, DependencyMixin):
     def icon(self) -> str:
         return "atom" if self.is_dynamic else "users"
 
-    def get_icon(self):
-        return self.icon
+    def get_attrs(self):
+        return {"icon": self.icon}
 
     def update_query(self, query, reevaluate=True, parsed=None):
         """
@@ -1735,7 +1744,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         dependents["campaign"] = self.campaigns.filter(is_active=True)
         return dependents
 
-    def release(self, user):
+    def release(self, user, immediate: bool = False):
         """
         Releases this group, removing all contacts and marking as inactive
         """
@@ -1746,8 +1755,11 @@ class ContactGroup(TembaModel, DependencyMixin):
         self.modified_by = user
         self.save(update_fields=("is_active", "modified_by"))
 
-        # do the hard work of actually clearing out contacts etc in a background task
-        on_transaction_commit(lambda: release_group_task.delay(self.id))
+        if immediate:
+            self._full_release()
+        else:
+            # do the hard work of actually clearing out contacts etc in a background task
+            on_transaction_commit(lambda: release_group_task.delay(self.id))
 
     def _full_release(self):
         from temba.campaigns.models import EventFire
@@ -1929,7 +1941,10 @@ class ExportContactsTask(BaseExportTask):
 
         # anon orgs also get an ID column that is just the PK
         if self.org.is_anon:
-            fields = [dict(label="ID", key=ContactField.KEY_ID, field=None, urn_scheme=None)] + fields
+            fields = [
+                dict(label="ID", key=ContactField.KEY_ID, field=None, urn_scheme=None),
+                dict(label="Scheme", key=Contact.SCHEME, field=None, urn_scheme=None),
+            ] + fields
 
         scheme_counts = dict()
         if not self.org.is_anon:
@@ -2065,6 +2080,9 @@ class ExportContactsTask(BaseExportTask):
             return contact.last_seen_on
         elif field["key"] == ContactField.KEY_ID:
             return str(contact.id)
+        elif field["key"] == Contact.SCHEME:
+            contact_urns = contact.get_urns()
+            return contact_urns[0].scheme if contact_urns else ""
         elif field["urn_scheme"] is not None:
             contact_urns = contact.get_urns()
             scheme_urns = []

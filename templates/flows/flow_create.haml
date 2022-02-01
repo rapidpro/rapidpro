@@ -13,7 +13,7 @@
   .keywords(class="{% if form.flow_type.value == 'B' or form.flow_type.value == 'S' %}hidden{%endif%}")
     -render_field 'keyword_triggers'
   
-  -if form.base_language
+  -if form.fields.base_language
     .flex.flex-col
       -render_field 'base_language'
 

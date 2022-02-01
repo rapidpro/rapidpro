@@ -806,10 +806,24 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # make some exports with logs
         export = ExportFlowResultsTask.create(
-            self.parent_org, self.admin, [parent_flow], [parent_field], True, True, (), ()
+            self.parent_org,
+            self.admin,
+            [parent_flow],
+            [parent_field],
+            responded_only=True,
+            extra_urns=(),
+            group_memberships=(),
         )
         Notification.export_finished(export)
-        ExportFlowResultsTask.create(self.child_org, self.admin, [child_flow], [child_field], True, True, (), ())
+        ExportFlowResultsTask.create(
+            self.child_org,
+            self.admin,
+            [child_flow],
+            [child_field],
+            responded_only=True,
+            extra_urns=(),
+            group_memberships=(),
+        )
 
         export = ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)
         Notification.export_finished(export)
@@ -1192,7 +1206,8 @@ class OrgTest(TembaTest):
         self.assertEqual("pt-br", user_settings.language)
 
     @patch("temba.flows.models.FlowStart.async_start")
-    def test_org_flagging_and_suspending(self, mock_async_start):
+    @mock_mailroom
+    def test_org_flagging_and_suspending(self, mr_mocks, mock_async_start):
         self.login(self.admin)
 
         mark = self.create_contact("Mark", phone="+12065551212")
@@ -1265,8 +1280,7 @@ class OrgTest(TembaTest):
         self.org.save(update_fields=("is_suspended",))
 
         self.client.post(
-            reverse("flows.flow_broadcast", args=[flow.id]),
-            {"mode": "select", "omnibox": json.dumps({"id": mark.uuid, "name": mark.name, "type": "contact"})},
+            reverse("flows.flow_broadcast", args=[flow.id]), {"query": f'uuid="{mark.uuid}"', "type": "contact"}
         )
 
         mock_async_start.assert_called_once()
@@ -4383,13 +4397,13 @@ class BulkExportTest(TembaTest):
         self.assertIn("Child Flow", group)
 
     def test_import_voice_flows_expiration_time(self):
-        # all imported voice flows should have a max expiration time of 15 min
+        # import file has invalid expires for an IVR flow so it should get the default (5)
         self.get_flow("ivr")
 
         self.assertEqual(Flow.objects.filter(flow_type=Flow.TYPE_VOICE).count(), 1)
         voice_flow = Flow.objects.get(flow_type=Flow.TYPE_VOICE)
         self.assertEqual(voice_flow.name, "IVR Flow")
-        self.assertEqual(voice_flow.expires_after_minutes, 15)
+        self.assertEqual(voice_flow.expires_after_minutes, 5)
 
     def test_import(self):
 

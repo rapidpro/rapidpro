@@ -1692,7 +1692,7 @@ class BroadcastTest(TembaTest):
         self.create_incoming_msg(self.frank, "Bonjour")
 
         # create a broadcast which is a response to an incoming message
-        self.create_broadcast(self.user, "Noted", contacts=[self.joe], response_to=msg_in1)
+        self.create_broadcast(self.user, "Noted", contacts=[self.joe])
 
         # create a broadcast which is to several contacts
         broadcast2 = self.create_broadcast(

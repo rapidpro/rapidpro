@@ -1,3 +1,168 @@
+v7.1.49
+----------
+ * Update to Django 4
+
+v7.1.48
+----------
+ * Make IG channel beta gated
+ * Remove expires_on, parent_uuid and connection_id fields from FlowRun
+ * Add background flow options to campaign event dialog
+
+v7.1.47
+----------
+ * Make FlowSession.wait_resume_on_expire not-null
+
+v7.1.46
+----------
+ * Add migration to set wait_resume_on_expire on flow sessions
+ * Update task used to update run expirations to also update them on the session
+
+v7.1.45
+----------
+ * Make FlowSession.status non-null and add constraint to ensure waiting sessions have wait_started_on and wait_expires_on set
+
+v7.1.44
+----------
+ * Fix login via password managers
+ * Change gujarati code language to 'guj'
+ * Add instagram channel type
+ * Add interstitial when inactive contact search meets threshold
+
+v7.1.42
+----------
+ * Add missing migration
+
+v7.1.41
+----------
+ * Add Contact.current_flow
+
+v7.1.40
+----------
+ * Drop FlowRun.events and FlowPathRecentRun
+
+v7.1.39
+----------
+ * Include qrious.js script
+ * Add FlowSession.wait_resume_on_expire
+ * Add Msg.flow
+
+v7.1.38
+----------
+ * Replace uses of deprecated Django functions
+ * Remove crisp and librato analytics backends and add ConsoleBackend as example
+ * Data migration to populate FlowSession.wait_started_on and wait_expires_on
+
+v7.1.37
+----------
+ * Migration to remove recent run creation from db triggers
+ * Remove no longer used recent messages view and functionality on FlowPathRecentRun
+
+v7.1.36
+----------
+ * Add scheme column on contact exports for anon orgs
+ * Remove option to include router arguments in downloaded PO files
+ * Make loading of analytics backends dynamic based on setting of backend class paths
+
+v7.1.35
+----------
+ * Only display crisp support widget if brand supports it
+ * Do crisp chat widget embedding via analytics template hook
+
+v7.1.34
+----------
+ * Update to editor v1.16.1
+
+v7.1.33
+----------
+ * Add management to fix broken flows
+ * Use new recent contacts endpoint for editor
+
+v7.1.32
+----------
+ * Temporarily put crisp_website_id back in context
+
+v7.1.31
+----------
+ * Remove include_msgs option of flow result exports
+
+v7.1.30
+----------
+ * Update to latest flow editor
+
+v7.1.29
+----------
+ * Update to latest floweditor
+ * Add FlowSession.wait_expires_on
+ * Improve validation of flow expires values
+ * Remove segment and intercom integrations and rework librato and crisp into a pluggable analytics framwork
+
+v7.1.28
+----------
+ * Convert FlowRun.id and FlowSession.id to BIGINT
+
+v7.1.27
+----------
+ * Drop no longer used FlowRun.parent
+
+v7.1.26
+----------
+ * Prefer UTF-8 if we're not sure about encoding of CSV import
+
+v7.1.25
+----------
+ * Fix Kaleyra claim blurb
+ * Fix HTTPLog read page showing warning shading for healthy calls
+
+v7.1.24
+----------
+ * Fix crisp identify on signup
+ * Use same event structure for Crisp as others
+
+v7.1.23
+----------
+ * Update help links for the editor
+ * Add failed reason for failed destination such as missing channel or URNs
+ * Add view to fetch recent contacts from Redis
+
+v7.1.22
+----------
+ * Fix join syntax
+
+v7.1.21
+----------
+ * Fix join syntax, argh
+
+v7.1.20
+----------
+ * Arrays not allowed on track events
+
+v7.1.19
+----------
+ * Add missing env to settings_common
+
+v7.1.18
+----------
+ * Implement crisp as an analytics integration
+
+v7.1.17
+----------
+ * Tweak event tracking for results exports
+ * Revert change to hide non-responded runs in UI
+
+v7.1.16
+----------
+ * Drop Msg.response_to
+ * Drop Msg.connection_id
+
+v7.1.15
+----------
+ * Remove path field from API runs endpoint docs
+ * Hide options to include non-responded runs on results download modal and results page
+ * Fix welcome page widths
+ * Update mailroom_db to require pg_dump version 12.*
+ * Update temba-components
+ * Add workspace page to new UI
+
 v7.1.14
 ----------
  * Fix wrap for recipients list on flow start log

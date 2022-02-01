@@ -175,3 +175,24 @@ temba-select:focus {
   margin-bottom: 28px;
   margin-left: -13px;
 }
+
+.input {
+  border-radius: var(--curvature-widget);
+  cursor: text;
+  background: var(--color-widget-bg);
+  border: 1px solid var(--color-widget-border);
+  transition: all ease-in-out 200ms;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  box-shadow: var(--widget-box-shadow);
+  caret-color: var(--input-caret);
+  padding: var(--temba-textinput-padding);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-focus);
+  background: var(--color-widget-bg-focused);
+  box-shadow: var(--widget-box-shadow-focused);
+}
