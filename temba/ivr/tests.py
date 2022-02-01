@@ -14,11 +14,7 @@ class IVRCallTest(TembaTest):
         call2 = self.create_incoming_call(flow, contact)
 
         self.assertEqual(FlowSession.objects.count(), 2)
-
-        self.assertEqual(call1.runs.count(), 1)
         self.assertEqual(call1.channel_logs.count(), 1)
-
-        self.assertEqual(call2.runs.count(), 1)
         self.assertEqual(call2.channel_logs.count(), 1)
 
         call2.release()
@@ -26,12 +22,8 @@ class IVRCallTest(TembaTest):
         self.assertEqual(FlowSession.objects.count(), 1)
 
         # call #1 unaffected
-        self.assertEqual(call1.runs.count(), 1)
         self.assertEqual(call1.channel_logs.count(), 1)
-
-        self.assertEqual(call2.runs.count(), 0)
         self.assertEqual(call2.channel_logs.count(), 0)
-
         self.assertFalse(IVRCall.objects.filter(id=call2.id).exists())
 
     def test_mailroom_urls(self):

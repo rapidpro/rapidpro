@@ -723,7 +723,7 @@ class ContactGroupTest(TembaTest):
         group.save(update_fields=("status",))
 
         # dynamic groups should get their own icon
-        self.assertEqual(group.get_icon(), "atom")
+        self.assertEqual(group.get_attrs(), {"icon": "atom"})
 
         # can't update query again while it is in this state
         with self.assertRaises(ValueError):

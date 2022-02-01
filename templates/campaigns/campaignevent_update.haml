@@ -16,6 +16,8 @@
     var body = modax.shadowRoot.querySelector(".modax-body");
     var languageLinks = body.querySelectorAll(".show_language");
     var deliveryHourOptions = body.querySelector("#send-at");
+    var flowSelect = body.querySelector("temba-select[name='flow_to_start']");
+    var modeSelect = body.querySelector("temba-select[name='flow_start_mode']");
     var unitSelect = body.querySelector("temba-select[name='unit']");
     var eventTypeSelect = body.querySelector("temba-select[name='event_type']");
     var flowSection = body.querySelector("#flow-section");
@@ -30,11 +32,22 @@
         body.querySelector("." + event.target.dataset.iso).style.display = 'block';
       });
 
-      // initial value
       body.querySelector("." + link.dataset.iso).style.display = display;
       display = 'none';
-
     }
+    
+    flowSelect.addEventListener('change', function(event) {
+      var option = event.target.values[0];
+      var isBackground = option.type == "B";
+      
+      if (isBackground) {
+        body.querySelector("#event-flow-start-mode").classList.add("hide");
+        flowSelect.infoText = "{{background_warning|escapejs}}";
+      } else {
+        body.querySelector("#event-flow-start-mode").classList.remove("hide");
+        flowSelect.infoText = "";
+      }
+    });
 
     eventTypeSelect.addEventListener('change', function(event){
       var type = event.target.values[0].value;
@@ -127,6 +140,43 @@
       flex-grow: 1;
     }
 
+    #event-flow-start-mode.hide {
+      opacity: 0;
+      max-height: 0;
+      pointer-events: none;
+      margin-bottom:0;
+      overflow:hidden;
+    }
+
+    #event-flow-start-mode {
+      opacity: 1;
+    }
+    
+    #background-flow-message {
+      opacity: 1;
+      transition: margin 200ms ease-in-out;
+      margin-bottom: 16px;
+      margin-top: -2em;
+      padding: 0.5em 1em;
+      background: #f3f3f3;
+      padding-top: 1.5em;
+      border-radius: var(--curvature);
+      font-size: .9em;
+      color: rgba(0,0,0,.5);
+      box-shadow: inset 0px 0px 4px rgb(0 0 0 / 10%)
+    }
+
+    #background-flow-message.hide {
+      opacity: 0;
+      max-height: 0;
+      margin-bottom: 0px;
+      margin-top: -4em;
+      margin-bottom: 2em;
+      pointer-events: none;
+
+    }
+
+
     .start-mode-help {
       display: inline-block;
       width:262px;
@@ -175,8 +225,8 @@
 
   #flow-section
     -render_field 'flow_to_start'
-
-    #event-flow-start-mode
+    
+    #event-flow-start-mode(class="{% if form.initial.flow_to_start.flow_type == 'B' %}hide{%endif%}")
       .start-mode-help
         -trans "If the contact is already active in a flow"
       -render_field 'flow_start_mode'
