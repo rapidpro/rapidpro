@@ -1,3 +1,9 @@
+v7.1.48
+----------
+ * Make IG channel beta gated
+ * Remove expires_on, parent_uuid and connection_id fields from FlowRun
+ * Add background flow options to campaign event dialog
+
 v7.1.47
 ----------
  * Make FlowSession.wait_resume_on_expire not-null
