@@ -465,7 +465,7 @@ class TembaTestMixin:
         session = FlowSession.objects.create(
             uuid=uuid4(), org=contact.org, contact=contact, connection=call, wait_resume_on_expire=False
         )
-        FlowRun.objects.create(org=self.org, flow=flow, contact=contact, connection=call, session=session)
+        FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session)
         Msg.objects.create(
             org=self.org,
             channel=self.channel,

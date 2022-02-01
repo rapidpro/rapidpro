@@ -1686,19 +1686,6 @@ class FlowTest(TembaTest):
             wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
             wait_resume_on_expire=False,
         )
-        run1 = FlowRun.objects.create(
-            org=self.org,
-            flow=flow1,
-            contact=self.contact,
-            session=session1,
-            path=[
-                {
-                    FlowRun.PATH_STEP_UUID: "263a6e6c-c1d9-4af3-b8cf-b52a3085a625",
-                    FlowRun.PATH_NODE_UUID: "474fd1be-eaec-4ae7-96cd-c771410fac18",
-                    FlowRun.PATH_ARRIVED_ON: datetime(2019, 1, 1, 0, 0, 0, 0, pytz.UTC),
-                }
-            ],
-        )
 
         # create non-waiting session for flow 1
         session2 = FlowSession.objects.create(
@@ -1733,10 +1720,6 @@ class FlowTest(TembaTest):
         # new session expiration should be wait_started_on + 1 hour
         session1.refresh_from_db()
         self.assertEqual(datetime(2022, 1, 1, 2, 0, 0, 0, pytz.UTC), session1.wait_expires_on)
-
-        # run expiration should be last arrived_on + 1 hour
-        run1.refresh_from_db()
-        self.assertEqual(datetime(2019, 1, 1, 2, 0, 0, 0, pytz.UTC), run1.expires_on)
 
         # other sessions should be unchanged
         session2.refresh_from_db()
@@ -3533,7 +3516,7 @@ class FlowSessionTest(TembaTest):
 
         # create an IVR call with session
         call = self.create_incoming_call(flow, contact)
-        run4 = call.runs.get()
+        run4 = call.session.runs.get()
 
         self.assertIsNotNone(run1.session)
         self.assertIsNotNone(run2.session)
@@ -3558,7 +3541,6 @@ class FlowSessionTest(TembaTest):
         self.assertIsNotNone(run2.session)  # ended too recently to be deleted
         self.assertIsNotNone(run3.session)  # never ended
         self.assertIsNone(run4.session)
-        self.assertIsNotNone(run4.connection)  # channel session unaffected
 
         # only sessions for run2 and run3 are left
         self.assertEqual(FlowSession.objects.count(), 2)

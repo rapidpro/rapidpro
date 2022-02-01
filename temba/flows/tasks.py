@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime, timedelta
 
-import iso8601
 import pytz
 from django_redis import get_redis_connection
 
@@ -45,12 +44,6 @@ def update_session_wait_expires(flow_id):
     for id_batch in chunk_list(session_ids, 1000):
         batch = FlowSession.objects.filter(id__in=id_batch)
         batch.update(wait_expires_on=F("wait_started_on") + timedelta(minutes=flow.expires_after_minutes))
-
-    # TODO remove when mailroom no longer uses runs for expirations
-    for run in FlowRun.objects.filter(flow_id=flow_id, is_active=True):
-        if run.path:
-            last_arrived_on = iso8601.parse_date(run.path[-1]["arrived_on"])
-            run.update_expiration(last_arrived_on)
 
 
 @shared_task(track_started=True, name="export_flow_results_task")
