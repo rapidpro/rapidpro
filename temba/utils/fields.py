@@ -65,11 +65,14 @@ class CheckboxWidget(forms.CheckboxInput):
 class SelectWidget(forms.Select):
     template_name = "utils/forms/select.haml"
     is_annotated = True
+    option_inherits_attrs = True
 
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+
+        if hasattr(self.choices, "option_attrs_by_value"):
+            attrs = self.choices.option_attrs_by_value.get(value)
+        attrs = attrs if attrs else {}
         option = super().create_option(name, value, label, selected, index, subindex, attrs)
-        if hasattr(self.choices, "icons"):
-            option["icon"] = self.choices.icons.get(value)
         return option
 
     def format_value(self, value):
@@ -157,14 +160,14 @@ class OmniboxField(JSONField):
 class TembaChoiceIterator(forms.models.ModelChoiceIterator):
     def __init__(self, field):
         super().__init__(field)
-        self.icons = dict()
+        self.option_attrs_by_value = dict()
 
     def choice(self, obj):
         value = self.field.prepare_value(obj)
         option = (value, self.field.label_from_instance(obj))
 
-        if hasattr(obj, "get_icon"):
-            self.icons[value] = obj.get_icon()
+        if hasattr(obj, "get_attrs"):
+            self.option_attrs_by_value[value] = obj.get_attrs()
 
         return option
 

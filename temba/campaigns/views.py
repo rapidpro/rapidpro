@@ -261,7 +261,11 @@ class CampaignEventForm(forms.ModelForm):
         required=False,
         empty_label=None,
         widget=SelectWidget(
-            attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
+            attrs={
+                "placeholder": _("Select a flow to start"),
+                "widget_only": True,
+                "searchable": True,
+            }
         ),
     )
 
@@ -286,7 +290,7 @@ class CampaignEventForm(forms.ModelForm):
 
     flow_start_mode = forms.ChoiceField(
         choices=(
-            (CampaignEvent.MODE_INTERRUPT, _("Stop it and start this event")),
+            (CampaignEvent.MODE_INTERRUPT, _("Stop it and run this flow")),
             (CampaignEvent.MODE_SKIP, _("Skip this event")),
         ),
         required=False,
@@ -370,7 +374,11 @@ class CampaignEventForm(forms.ModelForm):
             obj.flow = self.cleaned_data["flow_to_start"]
             obj.start_mode = self.cleaned_data["flow_start_mode"]
 
-    def __init__(self, user, *args, **kwargs):
+            # force passive mode for user-selected background flows
+            if obj.flow.flow_type == Flow.TYPE_BACKGROUND:
+                obj.start_mode = CampaignEvent.MODE_PASSIVE
+
+    def __init__(self, user, event, *args, **kwargs):
         self.user = user
         super().__init__(*args, **kwargs)
 
@@ -384,11 +392,14 @@ class CampaignEventForm(forms.ModelForm):
         flow = self.fields["flow_to_start"]
         flow.queryset = Flow.objects.filter(
             org=self.user.get_org(),
-            flow_type__in=[Flow.TYPE_MESSAGE, Flow.TYPE_VOICE],
+            flow_type__in=[Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND],
             is_active=True,
             is_archived=False,
             is_system=False,
         ).order_by("name")
+
+        if event and event.flow and event.flow.flow_type == Flow.TYPE_BACKGROUND:
+            flow.widget.attrs["info_text"] = CampaignEventCRUDL.BACKGROUND_WARNING
 
         message = self.instance.message or {}
         self.languages = []
@@ -470,6 +481,10 @@ class CampaignEventForm(forms.ModelForm):
 class CampaignEventCRUDL(SmartCRUDL):
     model = CampaignEvent
     actions = ("create", "delete", "read", "update")
+
+    BACKGROUND_WARNING = _(
+        "This is a background flow. When it triggers, it will run it for all contacts without interruption."
+    )
 
     class Read(OrgObjPermsMixin, SmartReadView):
         def pre_process(self, request, *args, **kwargs):
@@ -572,13 +587,16 @@ class CampaignEventCRUDL(SmartCRUDL):
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
+            kwargs["event"] = self.object
             return kwargs
 
         def get_object_org(self):
             return self.get_object().campaign.org
 
         def get_context_data(self, **kwargs):
-            return super().get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
+            context["background_warning"] = CampaignEventCRUDL.BACKGROUND_WARNING
+            return context
 
         def derive_fields(self):
 
@@ -667,6 +685,11 @@ class CampaignEventCRUDL(SmartCRUDL):
         template_name = "campaigns/campaignevent_update.haml"
         submit_button_name = _("Add Event")
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["background_warning"] = CampaignEventCRUDL.BACKGROUND_WARNING
+            return context
+
         def pre_process(self, request, *args, **kwargs):
             campaign_id = request.GET.get("campaign", None)
             if campaign_id:
@@ -697,6 +720,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
+            kwargs["event"] = None
             return kwargs
 
         def derive_initial(self):
