@@ -219,11 +219,11 @@
         -include 'includes/nav.html'
 
     -block interface-option
-      -if user.is_beta
-        .text-center.px-3.py-1.text-sm(style='background:rgba(255,255,255,.75);z-index:10000;margin-top:-1px; ')
-          -trans "Hey there, you've been invited to try out the "
+      -if user.is_beta and "nyaruka" in user.email
+        .text-center.px-3.text-sm.py-1(style='background:rgba(0,0,0,.75);z-index:10000;position:fixed;bottom:0px;width:100%;color:#fff')
+          Preview the
           %span.linked(onclick="switchToNewInterface()")<
-            {% trans "new interface" %}
+            new interface
 
     -if messages
       -block messages
