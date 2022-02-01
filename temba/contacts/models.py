@@ -2374,7 +2374,7 @@ class ContactImport(SmartModel):
                 spec = self._row_to_spec(row)
                 record_num += 1
                 if spec:
-                    spec["_import_row"] = record_num
+                    spec["_import_row"] = record_num + 1
                     batch_specs.append(spec)
                     num_valid_records += 1
 
