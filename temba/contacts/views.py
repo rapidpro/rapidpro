@@ -30,7 +30,7 @@ from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpRespons
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
-from django.utils.http import is_safe_url
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 from django.views import View
 
@@ -651,7 +651,7 @@ class ContactCRUDL(SmartCRUDL):
             group_uuid = self.request.GET.get("g")
             search = self.request.GET.get("s")
             redirect = self.request.GET.get("redirect")
-            if redirect and not is_safe_url(redirect, self.request.get_host()):
+            if redirect and not url_has_allowed_host_and_scheme(redirect, self.request.get_host()):
                 redirect = None
 
             return group_uuid, search, redirect
@@ -1072,6 +1072,7 @@ class ContactCRUDL(SmartCRUDL):
                     "primary_urn_formatted": primary_urn,
                 }
                 contact_json["created_on"] = org.format_datetime(contact.created_on, show_time=False)
+                contact_json["last_seen_on"] = org.format_datetime(contact.last_seen_on, show_time=False)
 
                 json_contacts.append(contact_json)
             summary["sample"] = json_contacts

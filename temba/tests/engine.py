@@ -1,3 +1,7 @@
+from datetime import timedelta
+
+import iso8601
+
 from django.utils import timezone
 
 from temba.channels.models import Channel
@@ -197,11 +201,15 @@ class MockSessionWriter:
         return self
 
     def wait(self):
-        self.output["wait"] = {"type": "msg"}
         self.output["status"] = "waiting"
         self.current_run["status"] = "waiting"
         self.current_run["modified_on"] = self._now()
-        self._log_event("msg_wait")
+
+        expires_on = None
+        if self.output["type"] in ("messaging", "voice"):
+            expires_on = (timezone.now() + timedelta(days=7)).isoformat()
+
+        self._log_event("msg_wait", expires_on=expires_on)
         return self
 
     def resume(self, msg):
@@ -252,11 +260,27 @@ class MockSessionWriter:
                 exited_on=interrupted_on,
             )
 
+        if self.output["status"] == "waiting":
+            wait_event = None
+            for evt in self.events:
+                if evt["type"].endswith("_wait"):
+                    wait_event = evt
+
+            wait_started_on = timezone.now()
+            wait_expires_on = iso8601.parse_date(wait_event["expires_on"]) if wait_event["expires_on"] else None
+            wait_resume_on_expire = False  # this doesn't support sub-flows
+        else:
+            wait_started_on = None
+            wait_expires_on = None
+            wait_resume_on_expire = False
+
         # create or update session object itself
         if self.session:
             self.session.output = self.output
             self.session.status = SESSION_STATUSES[self.output["status"]]
-            self.session.save(update_fields=("output", "status"))
+            self.session.wait_started_on = wait_started_on
+            self.session.wait_expires_on = wait_expires_on
+            self.session.save(update_fields=("output", "status", "wait_started_on", "wait_expires_on"))
         else:
             self.session = FlowSession.objects.create(
                 uuid=self.output["uuid"],
@@ -265,9 +289,17 @@ class MockSessionWriter:
                 session_type=db_flow_types[self.output["type"]],
                 output=self.output,
                 status=SESSION_STATUSES[self.output["status"]],
+                wait_started_on=wait_started_on,
+                wait_expires_on=wait_expires_on,
+                wait_resume_on_expire=wait_resume_on_expire,
             )
 
+        current_flow = None
+
         for i, run in enumerate(self.output["runs"]):
+            if run["status"] == "waiting":
+                current_flow = Flow.objects.get(uuid=run["flow"]["uuid"])
+
             run_obj = FlowRun.objects.filter(uuid=run["uuid"]).first()
             if not run_obj:
                 run_obj = FlowRun.objects.create(
@@ -283,7 +315,6 @@ class MockSessionWriter:
 
             FlowRun.objects.filter(id=run_obj.id).update(
                 path=run["path"],
-                events=[e for e in run["events"] if e["type"] in PERSIST_EVENTS],
                 results=run["results"],
                 exit_type=EXIT_TYPES.get(run["status"]),
                 is_active=run["status"] in ("waiting", "active"),
@@ -293,6 +324,10 @@ class MockSessionWriter:
                 exited_on=run["exited_on"],
                 responded=bool([e for e in run["events"] if e["type"] == "msg_received"]),
             )
+
+        self.contact.current_flow = current_flow
+        self.contact.modified_on = timezone.now()
+        self.contact.save(update_fields=("current_flow", "modified_on"))
 
         self._handle_events()
         return self

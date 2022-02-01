@@ -1,3 +1,51 @@
+v7.1.49
+----------
+ * Update to Django 4
+
+v7.1.48
+----------
+ * Make IG channel beta gated
+ * Remove expires_on, parent_uuid and connection_id fields from FlowRun
+ * Add background flow options to campaign event dialog
+
+v7.1.47
+----------
+ * Make FlowSession.wait_resume_on_expire not-null
+
+v7.1.46
+----------
+ * Add migration to set wait_resume_on_expire on flow sessions
+ * Update task used to update run expirations to also update them on the session
+
+v7.1.45
+----------
+ * Make FlowSession.status non-null and add constraint to ensure waiting sessions have wait_started_on and wait_expires_on set
+
+v7.1.44
+----------
+ * Fix login via password managers
+ * Change gujarati code language to 'guj'
+ * Add instagram channel type
+ * Add interstitial when inactive contact search meets threshold
+
+v7.1.42
+----------
+ * Add missing migration
+
+v7.1.41
+----------
+ * Add Contact.current_flow
+
+v7.1.40
+----------
+ * Drop FlowRun.events and FlowPathRecentRun
+
+v7.1.39
+----------
+ * Include qrious.js script
+ * Add FlowSession.wait_resume_on_expire
+ * Add Msg.flow
+
 v7.1.38
 ----------
  * Replace uses of deprecated Django functions

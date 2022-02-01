@@ -30,6 +30,8 @@ class CampaignTest(TembaTest):
         self.reminder_flow = self.create_flow(name="Reminder Flow")
         self.reminder2_flow = self.create_flow(name="Planting Reminder")
 
+        self.background_flow = self.create_flow(name="Background Flow", flow_type=Flow.TYPE_BACKGROUND)
+
         # create a voice flow to make sure they work too, not a proper voice flow but
         # sufficient for assuring these flow types show up where they should
         self.voice_flow = self.create_flow(name="IVR flow", flow_type="V")
@@ -608,6 +610,25 @@ class CampaignTest(TembaTest):
         self.assertFalse(CampaignEvent.objects.filter(is_active=True).exists())
         response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.id]))
         self.assertNotContains(response, "Color Flow")
+
+        post_data = dict(
+            relative_to=self.planting_date.pk,
+            delivery_hour=-1,
+            base="",
+            direction="A",
+            offset=2,
+            unit="D",
+            event_type="F",
+            flow_start_mode="I",
+            flow_to_start=self.background_flow.pk,
+        )
+        response = self.client.post(
+            reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
+        )
+
+        # events created with background flows are always passive start mode
+        event = CampaignEvent.objects.filter(is_active=True).get()
+        self.assertEqual(CampaignEvent.MODE_PASSIVE, event.start_mode)
 
     def test_view_campaign_cant_modify_inactive_or_archive(self):
         self.login(self.admin)

@@ -667,7 +667,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     fields = JSONField(null=True)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
-
+    current_flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
     ticket_count = models.IntegerField(default=0)
 
     # user that last modified this contact
@@ -1680,8 +1680,8 @@ class ContactGroup(TembaModel, DependencyMixin):
     def icon(self) -> str:
         return "atom" if self.is_dynamic else "users"
 
-    def get_icon(self):
-        return self.icon
+    def get_attrs(self):
+        return {"icon": self.icon}
 
     def update_query(self, query, reevaluate=True, parsed=None):
         """
@@ -1744,7 +1744,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         dependents["campaign"] = self.campaigns.filter(is_active=True)
         return dependents
 
-    def release(self, user):
+    def release(self, user, immediate: bool = False):
         """
         Releases this group, removing all contacts and marking as inactive
         """
@@ -1755,8 +1755,11 @@ class ContactGroup(TembaModel, DependencyMixin):
         self.modified_by = user
         self.save(update_fields=("is_active", "modified_by"))
 
-        # do the hard work of actually clearing out contacts etc in a background task
-        on_transaction_commit(lambda: release_group_task.delay(self.id))
+        if immediate:
+            self._full_release()
+        else:
+            # do the hard work of actually clearing out contacts etc in a background task
+            on_transaction_commit(lambda: release_group_task.delay(self.id))
 
     def _full_release(self):
         from temba.campaigns.models import EventFire
