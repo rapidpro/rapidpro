@@ -5528,9 +5528,24 @@ class ContactImportTest(TembaTest):
         self.assertEqual(3, batches[0].record_end)
         self.assertEqual(
             [
-                {"name": "Eric Newcomer", "urns": ["tel:+250788382382"], "groups": [str(imp.group.uuid)]},
-                {"name": "NIC POTTIER", "urns": ["tel:+250788383383"], "groups": [str(imp.group.uuid)]},
-                {"name": "jen newcomer", "urns": ["tel:+250788383385"], "groups": [str(imp.group.uuid)]},
+                {
+                    "_import_row": 1,
+                    "name": "Eric Newcomer",
+                    "urns": ["tel:+250788382382"],
+                    "groups": [str(imp.group.uuid)],
+                },
+                {
+                    "_import_row": 2,
+                    "name": "NIC POTTIER",
+                    "urns": ["tel:+250788383383"],
+                    "groups": [str(imp.group.uuid)],
+                },
+                {
+                    "_import_row": 3,
+                    "name": "jen newcomer",
+                    "urns": ["tel:+250788383385"],
+                    "groups": [str(imp.group.uuid)],
+                },
             ],
             batches[0].specs,
         )
@@ -5637,6 +5652,7 @@ class ContactImportTest(TembaTest):
         self.assertEqual(
             [
                 {
+                    "_import_row": 1,
                     "name": "John Doe",
                     "language": "eng",
                     "urns": ["tel:+250788123123"],
@@ -5644,13 +5660,18 @@ class ContactImportTest(TembaTest):
                     "groups": [str(imp.group.uuid)],
                 },
                 {
+                    "_import_row": 2,
                     "name": "Mary Smith",
                     "language": "spa",
                     "urns": ["tel:+250788456456"],
                     "fields": {"goats": "3", "sheep": "5"},
                     "groups": [str(imp.group.uuid)],
                 },
-                {"urns": ["tel:+250788456678"], "groups": [str(imp.group.uuid)]},  # blank values ignored
+                {
+                    "_import_row": 3,
+                    "urns": ["tel:+250788456678"],
+                    "groups": [str(imp.group.uuid)],
+                },  # blank values ignored
             ],
             batch.specs,
         )
@@ -5659,9 +5680,11 @@ class ContactImportTest(TembaTest):
         imp.start()
         batch = imp.batches.get()  # single batch
 
+        # row 2 nad 3 is skipped
         self.assertEqual(
             [
                 {
+                    "_import_row": 1,
                     "name": "John Doe",
                     "language": "eng",
                     "urns": ["tel:+250788123123"],
@@ -5669,13 +5692,18 @@ class ContactImportTest(TembaTest):
                     "groups": [str(imp.group.uuid)],
                 },
                 {
+                    "_import_row": 4,
                     "name": "Mary Smith",
                     "language": "spa",
                     "urns": ["tel:+250788456456"],
                     "fields": {"goats": "3", "sheep": "5"},
                     "groups": [str(imp.group.uuid)],
                 },
-                {"urns": ["tel:+250788456678"], "groups": [str(imp.group.uuid)]},  # blank values ignored
+                {
+                    "_import_row": 5,
+                    "urns": ["tel:+250788456678"],
+                    "groups": [str(imp.group.uuid)],
+                },  # blank values ignored
             ],
             batch.specs,
         )
@@ -5685,8 +5713,18 @@ class ContactImportTest(TembaTest):
         batch = imp.batches.get()
         self.assertEqual(
             [
-                {"uuid": "f519ca1f-8513-49ba-8896-22bf0420dec7", "name": "Joe", "groups": [str(imp.group.uuid)]},
-                {"uuid": "989975f0-3bff-43d6-82c8-a6bbc201c938", "name": "Frank", "groups": [str(imp.group.uuid)]},
+                {
+                    "_import_row": 1,
+                    "uuid": "f519ca1f-8513-49ba-8896-22bf0420dec7",
+                    "name": "Joe",
+                    "groups": [str(imp.group.uuid)],
+                },
+                {
+                    "_import_row": 2,
+                    "uuid": "989975f0-3bff-43d6-82c8-a6bbc201c938",
+                    "name": "Frank",
+                    "groups": [str(imp.group.uuid)],
+                },
             ],
             batch.specs,
         )
@@ -5698,6 +5736,7 @@ class ContactImportTest(TembaTest):
 
         self.assertEqual(
             {
+                "_import_row": 3,
                 "name": "",
                 "language": "",
                 "urns": ["tel:+250788456678"],
@@ -5714,12 +5753,14 @@ class ContactImportTest(TembaTest):
         self.assertEqual(
             [
                 {
+                    "_import_row": 1,
                     "uuid": "92faa753-6faa-474a-a833-788032d0b757",
                     "name": "Eric Newcomer",
                     "language": "eng",
                     "groups": [str(imp.group.uuid)],
                 },
                 {
+                    "_import_row": 2,
                     "uuid": "3c11ac1f-c869-4247-a73c-9b97bff61659",
                     "name": "NIC POTTIER",
                     "language": "spa",
@@ -5738,8 +5779,13 @@ class ContactImportTest(TembaTest):
         # invalid looking urns still passed to mailroom to decide how to handle them
         self.assertEqual(
             [
-                {"name": "Eric Newcomer", "urns": ["tel:+%3F"], "groups": [str(imp.group.uuid)]},
-                {"name": "Nic Pottier", "urns": ["tel:2345678901234567890"], "groups": [str(imp.group.uuid)]},
+                {"_import_row": 1, "name": "Eric Newcomer", "urns": ["tel:+%3F"], "groups": [str(imp.group.uuid)]},
+                {
+                    "_import_row": 2,
+                    "name": "Nic Pottier",
+                    "urns": ["tel:2345678901234567890"],
+                    "groups": [str(imp.group.uuid)],
+                },
             ],
             batch.specs,
         )
@@ -5753,11 +5799,17 @@ class ContactImportTest(TembaTest):
         self.assertEqual(
             [
                 {
+                    "_import_row": 1,
                     "name": "Bob",
                     "urns": ["tel:+250788382001", "tel:+250788382002", "tel:+250788382003"],
                     "groups": [str(imp.group.uuid)],
                 },
-                {"name": "Jim", "urns": ["tel:+250788382004", "tel:+250788382005"], "groups": [str(imp.group.uuid)]},
+                {
+                    "_import_row": 2,
+                    "name": "Jim",
+                    "urns": ["tel:+250788382004", "tel:+250788382005"],
+                    "groups": [str(imp.group.uuid)],
+                },
             ],
             batch.specs,
         )
@@ -5770,9 +5822,24 @@ class ContactImportTest(TembaTest):
 
         self.assertEqual(
             [
-                {"name": "Eric Newcomer", "urns": ["tel:+250788382382"], "groups": [str(imp.group.uuid)]},
-                {"name": "NIC POTTIER", "urns": ["tel:+250788383383"], "groups": [str(imp.group.uuid)]},
-                {"name": "jen newcomer", "urns": ["tel:+250788383385"], "groups": [str(imp.group.uuid)]},
+                {
+                    "_import_row": 1,
+                    "name": "Eric Newcomer",
+                    "urns": ["tel:+250788382382"],
+                    "groups": [str(imp.group.uuid)],
+                },
+                {
+                    "_import_row": 2,
+                    "name": "NIC POTTIER",
+                    "urns": ["tel:+250788383383"],
+                    "groups": [str(imp.group.uuid)],
+                },
+                {
+                    "_import_row": 3,
+                    "name": "jen newcomer",
+                    "urns": ["tel:+250788383385"],
+                    "groups": [str(imp.group.uuid)],
+                },
             ],
             batch.specs,
         )
@@ -5839,6 +5906,7 @@ class ContactImportTest(TembaTest):
         self.assertEqual(
             [
                 {
+                    "_import_row": 1,
                     "uuid": "17c4388a-024f-4e67-937a-13be78a70766",
                     "fields": {
                         "a_number": "1234.5678",
