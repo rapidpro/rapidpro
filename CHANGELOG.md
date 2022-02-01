@@ -1,3 +1,7 @@
+v7.1.49
+----------
+ * Update to Django 4
+
 v7.1.48
 ----------
  * Make IG channel beta gated
