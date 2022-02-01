@@ -20,7 +20,7 @@ from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import is_safe_url
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 
 from temba.archives.models import Archive
@@ -622,7 +622,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_success_url(self):
             redirect = self.request.GET.get("redirect")
-            if redirect and not is_safe_url(redirect, self.request.get_host()):
+            if redirect and not url_has_allowed_host_and_scheme(redirect, self.request.get_host()):
                 redirect = None
 
             return redirect or reverse("msgs.msg_inbox")

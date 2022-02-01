@@ -157,7 +157,7 @@
           .sync-summary.mb-4
             .flex.text-gray-600
               .i-status.w-12.py-1.px-2
-                -ifequal last_sync.network_type "WIFI"
+                -if last_sync.network_type == "WIFI"
                   .icon-connection.-mt-1{style:"font-size: 16px"}
                 -else
                   .icon-radio{style:"font-size: 16px"}

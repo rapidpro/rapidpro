@@ -43,6 +43,8 @@ if TESTING:
 ADMINS = (("RapidPro", "code@yourdomain.io"),)
 MANAGERS = ADMINS
 
+USE_DEPRECATED_PYTZ = True
+
 # -----------------------------------------------------------------------------------
 # Location support
 # -----------------------------------------------------------------------------------
