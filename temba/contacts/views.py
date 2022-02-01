@@ -1048,6 +1048,16 @@ class ContactCRUDL(SmartCRUDL):
             if self.has_org_perm("contacts.contactfield_list"):
                 links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
 
+            if self.org.get_twilio_client() and self.has_org_perm("flows.flow_launch"):
+                links.append(
+                    dict(
+                        id="start-studio-flow",
+                        title=_("Start Studio Flow"),
+                        modax=_("Launch Studio Flow"),
+                        href=reverse("flows.flow_launch_studio_flow"),
+                    )
+                )
+
             if self.has_org_perm("contacts.contact_export"):
                 links.append(
                     dict(
