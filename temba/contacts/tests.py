@@ -15,7 +15,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.validators import ValidationError
 from django.db import connection
 from django.db.models import Value as DbValue
-from django.db.models.functions import Concat, Substr
+from django.db.models.functions import Concat, Lower, Substr
 from django.db.utils import IntegrityError
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -37,6 +37,7 @@ from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     TembaNonAtomicTest,
     TembaTest,
     matchers,
@@ -2870,8 +2871,9 @@ class ContactTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # make sure it is inactive
-        self.assertIsNone(ContactGroup.user_groups.filter(name="New Test").first())
-        self.assertFalse(ContactGroup.all_groups.get(name="New Test").is_active)
+        group.refresh_from_db()
+        self.assertFalse(group.is_active)
+        self.assertTrue(group.name.startswith("deleted-"))
 
         # remove Joe from the group
         self.client.post(
@@ -6120,3 +6122,84 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
+
+
+class UniqueGroupNamesTest(MigrationTest):
+    app = "contacts"
+    migrate_from = "0145_alter_contact_created_by_alter_contact_modified_by_and_more"
+    migrate_to = "0146_unique_group_names"
+
+    def create_org(self, name: str, group_names: list, inactive_names: list):
+        org = Org.objects.create(
+            name=name,
+            timezone=pytz.UTC,
+            brand="rapidpro.io",
+            created_on=timezone.now(),
+            created_by=self.superuser,
+            modified_by=self.superuser,
+        )
+        for name in group_names:
+            ContactGroup.user_groups.create(
+                org=org,
+                name=name,
+                created_on=timezone.now(),
+                created_by=self.superuser,
+                modified_on=timezone.now(),
+                modified_by=self.superuser,
+            )
+        for name in inactive_names:
+            ContactGroup.user_groups.create(
+                org=org,
+                name=name,
+                created_on=timezone.now(),
+                created_by=self.superuser,
+                modified_on=timezone.now(),
+                modified_by=self.superuser,
+                is_active=False,
+            )
+
+    def setUpBeforeMigration(self, apps):
+        self.create_org("Test 0", [], [])
+        self.create_org(
+            "Test 1",
+            ["Customers", "Sample", "Import"],  # no duplicates
+            ["deleted-44793ea0-54ec-41ab-b95f-71580e793fff-Test"],  # already prefixed
+        )
+        self.create_org("Test 2", ["Customers 1", "Sample", "Customers", "Customers"], ["Test"])
+        self.create_org("Test 3", ["SAMPLE", "sample", "Sample"], ["Spammers"])
+        self.create_org(
+            "Test 4", ["Import 1", "Sample", "Import", "Import 2", "Import 3", "Import", "Import", "Sample"], []
+        )
+
+        from temba.utils import uuid
+
+        uuid.default_generator = uuid.seeded_generator(1234)
+
+    def test_migration(self):
+        def assert_org(name: str, group_names: list, inactive_names: list):
+            org = Org.objects.get(name=name)
+            active_groups = org.all_groups.filter(group_type="U", is_active=True).order_by(Lower("name"))
+            self.assertEqual(
+                group_names, [g.name for g in active_groups], f"active group names mismatch for org '{org.name}'"
+            )
+
+            inactive_groups = org.all_groups.filter(group_type="U", is_active=False).order_by(Lower("name"))
+            self.assertEqual(
+                inactive_names,
+                [g.name for g in inactive_groups],
+                f"inactive group names mismatch for org '{org.name}'",
+            )
+
+        assert_org("Test 0", [], [])
+        assert_org("Test 1", ["Customers", "Import", "Sample"], ["deleted-44793ea0-54ec-41ab-b95f-71580e793fff-Test"])
+        assert_org(
+            "Test 2",
+            ["Customers", "Customers 1", "Customers 2", "Sample"],
+            ["deleted-b97f69f7-5edf-45c7-9fda-d37066eae91d-Test"],
+        )
+        assert_org(
+            "Test 3", ["SAMPLE", "sample 1", "Sample 2"], ["deleted-14f6ea01-456b-4417-b0b8-35e942f549f1-Spammers"]
+        )
+        assert_org(
+            "Test 4", ["Import", "Import 1", "Import 2", "Import 3", "Import 4", "Import 5", "Sample", "Sample 1"], []
+        )
