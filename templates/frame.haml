@@ -15,6 +15,42 @@
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
+    -if user.is_beta
+      %script{src:"{{ STATIC_URL }}js/urls.js"}
+
+      :javascript
+
+        function loadNewInterface(force) {
+          var newUrl = mapUrl(window.location.pathname);
+          if (newUrl != window.location.pathname) {
+            window.location = newUrl;
+          } else { 
+            if (force) {
+              window.location = "/messages";
+            }
+          }
+        }
+        
+        function getCookie(name) {
+          var value = `; ${document.cookie}`;
+          var parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        function switchToNewInterface() {
+          document.cookie = "nav=2; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
+          loadNewInterface(true);
+        }
+
+      -block auto-route
+        :javascript
+          (function(){
+            var nav = getCookie("nav");
+            if (nav == "2") {
+              loadNewInterface(false);
+            }
+          })();
+
     :javascript
 
       window.supportEmail = '{{brand.support_email}}';
@@ -153,7 +189,6 @@
 
     -block header
       <!-- Header -->
-
       -if user_org
         .org-header.self-end
           -if user_orgs|length > 1
@@ -183,6 +218,12 @@
       -block nav
         -include 'includes/nav.html'
 
+    -block interface-option
+      -if user.is_beta and "nyaruka" in user.email
+        .text-center.px-3.text-sm.py-1(style='background:rgba(0,0,0,.75);z-index:10000;position:fixed;bottom:0px;width:100%;color:#fff')
+          Preview the
+          %span.linked(onclick="switchToNewInterface()")<
+            new interface
 
     -if messages
       -block messages
