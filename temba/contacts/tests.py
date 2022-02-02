@@ -6126,8 +6126,8 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
 
 class UniqueGroupNamesTest(MigrationTest):
     app = "contacts"
-    migrate_from = "0144_contact_current_flow"
-    migrate_to = "0145_unique_group_names"
+    migrate_from = "0145_alter_contact_created_by_alter_contact_modified_by_and_more"
+    migrate_to = "0146_unique_group_names"
 
     def create_org(self, name: str, group_names: list, inactive_names: list):
         org = Org.objects.create(
