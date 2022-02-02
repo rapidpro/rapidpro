@@ -32,6 +32,8 @@ def make_group_names_unique(apps, schema_editor):
                             suffix += 1
                             new_name = f"{g.name} {suffix}"
 
+                        print(f"   - '{g.name}' renamed to '{new_name}'")
+
                         g.name = new_name
                         g.save(update_fields=("name",))
                         active_updated += 1
