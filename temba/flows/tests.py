@@ -1485,8 +1485,7 @@ class FlowTest(TembaTest):
     def test_group_send(self):
         # create an inactive group with the same name, to test that this doesn't blow up our import
         group = ContactGroup.get_or_create(self.org, self.admin, "Survey Audience")
-        group.is_active = False
-        group.save()
+        group.release(self.admin)
 
         # and create another as well
         ContactGroup.get_or_create(self.org, self.admin, "Survey Audience")

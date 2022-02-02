@@ -4911,7 +4911,10 @@ class BulkExportTest(TembaTest):
         # and our objects should have the same names as before
         self.assertEqual("Confirm Appointment", Flow.objects.get(pk=flow.pk).name)
         self.assertEqual("Appointment Schedule", Campaign.objects.filter(is_active=True).first().name)
-        self.assertEqual("Pending Appointments", ContactGroup.user_groups.get(pk=group.pk).name)
+
+        # except the group.. we don't mess with their names
+        self.assertFalse(ContactGroup.user_groups.filter(name="Pending Appointments").exists())
+        self.assertTrue(ContactGroup.user_groups.filter(name="A new group").exists())
 
         # let's rename our objects again
         flow.name = "A new name"
@@ -4923,7 +4926,7 @@ class BulkExportTest(TembaTest):
         group.name = "A new group"
         group.save(update_fields=("name",))
 
-        # now import the same import but pretend its from a different site
+        # now import the same import but pretend it's from a different site
         self.org.import_app(exported, self.admin, site="http://temba.io")
 
         # the newly named objects won't get updated in this case and we'll create new ones instead
