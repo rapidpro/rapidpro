@@ -19,7 +19,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, models, transaction
 from django.db.models import Count, F, Max, Q, Sum, Value
-from django.db.models.functions import Concat
+from django.db.models.functions import Concat, Lower
 from django.db.models.functions.text import Upper
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -1843,6 +1843,8 @@ class ContactGroup(TembaModel, DependencyMixin):
     class Meta:
         verbose_name = _("Group")
         verbose_name_plural = _("Groups")
+
+        constraints = [models.UniqueConstraint("org", Lower("name").desc(), name="unique_contact_group_names")]
 
 
 class ContactGroupCount(SquashableModel):
