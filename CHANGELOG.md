@@ -1,3 +1,8 @@
+v7.1.50
+----------
+ * Add migration to make contact group names unique within an organization
+ * Add cookie based path to opt in and out of new interface
+
 v7.1.49
 ----------
  * Update to Django 4
