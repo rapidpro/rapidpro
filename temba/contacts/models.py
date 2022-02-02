@@ -2171,7 +2171,6 @@ class ContactImport(SmartModel):
         seen_uuids = set()
         seen_urns = set()
         num_records = 0
-        num_valid_records = 0
         num_ignored = 0
         for raw_row in data:
             row = cls._parse_row(raw_row, len(mappings))
@@ -2192,17 +2191,16 @@ class ContactImport(SmartModel):
             if not uuid and not urns:
                 num_ignored += 1
             else:
-                num_valid_records += 1
+                num_records += 1
 
             # check if we exceed record limit
-            num_records += 1
             if num_records > ContactImport.MAX_RECORDS:
                 raise ValidationError(
                     _("Import files can contain a maximum of %(max)d records."),
                     params={"max": ContactImport.MAX_RECORDS},
                 )
 
-        if num_valid_records == 0:
+        if num_records == 0:
             raise ValidationError(_("Import file doesn't contain any records."))
 
         file.seek(0)  # seek back to beginning so subsequent reads work
@@ -2356,12 +2354,12 @@ class ContactImport(SmartModel):
         urns = []
         batches = []
         record_num = 0
-        num_valid_records = 0
+        num_records = 0
         batch_specs = []
         batch_start = record_num
 
         for row_batch in chunk_list(data, ContactImport.BATCH_SIZE):
-            if num_valid_records % ContactImport.BATCH_SIZE == 0:
+            if num_records % ContactImport.BATCH_SIZE == 0:
                 if batch_specs:
                     batches.append(
                         self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num)
@@ -2376,7 +2374,7 @@ class ContactImport(SmartModel):
                 if spec:
                     spec["_import_row"] = record_num + 1
                     batch_specs.append(spec)
-                    num_valid_records += 1
+                    num_records += 1
 
                 urns.extend(spec.get("urns", []))
 
