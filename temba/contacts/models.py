@@ -1844,7 +1844,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         verbose_name = _("Group")
         verbose_name_plural = _("Groups")
 
-        constraints = [models.UniqueConstraint("org", Lower("name").desc(), name="unique_contact_group_names")]
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_contact_group_names")]
 
 
 class ContactGroupCount(SquashableModel):

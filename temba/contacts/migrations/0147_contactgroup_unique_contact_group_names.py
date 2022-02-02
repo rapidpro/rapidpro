@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             model_name="contactgroup",
             constraint=models.UniqueConstraint(
                 django.db.models.expressions.F("org"),
-                django.db.models.expressions.OrderBy(django.db.models.functions.text.Lower("name"), descending=True),
+                django.db.models.functions.text.Lower("name"),
                 name="unique_contact_group_names",
             ),
         ),
