@@ -23,16 +23,16 @@ class InfobipTypeTest(TembaTest):
 
         post_data["country"] = "NI"
         post_data["number"] = "250788123123"
-        post_data["username"] = "user1"
-        post_data["password"] = "pass1"
+        post_data["url"] = "http://xxxx.api.infobip.com"
+        post_data["api_key"] = "1010100101033003030030"
 
         response = self.client.post(url, post_data)
 
         channel = Channel.objects.get()
 
         self.assertEqual("NI", channel.country)
-        self.assertEqual(post_data["username"], channel.config["username"])
-        self.assertEqual(post_data["password"], channel.config["password"])
+        self.assertEqual(post_data["url"], channel.config["send_url"])
+        self.assertEqual(post_data["api_key"], channel.config["api_key"])
         self.assertEqual("+250788123123", channel.address)
         self.assertEqual("IB", channel.channel_type)
 
@@ -52,15 +52,15 @@ class InfobipTypeTest(TembaTest):
 
         post_data["country"] = "NI"
         post_data["number"] = "20050"
-        post_data["username"] = "user1"
-        post_data["password"] = "pass1"
+        post_data["url"] = "http://xxxx.api.infobip.com"
+        post_data["api_key"] = "1010100101033003030030"
 
-        response = self.client.post(url, post_data)
+        self.client.post(url, post_data)
 
         channel = Channel.objects.get()
 
         self.assertEqual("NI", channel.country)
-        self.assertEqual(post_data["username"], channel.config["username"])
-        self.assertEqual(post_data["password"], channel.config["password"])
+        self.assertEqual(post_data["url"], channel.config["send_url"])
+        self.assertEqual(post_data["api_key"], channel.config["api_key"])
         self.assertEqual("20050", channel.address)
         self.assertEqual("IB", channel.channel_type)
