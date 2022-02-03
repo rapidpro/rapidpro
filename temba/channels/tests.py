@@ -1076,14 +1076,14 @@ class ChannelTest(TembaTest):
             dict(cmd="mt_fail", msg_id=msg5.pk, ts=date),
             dict(cmd="mt_fail", msg_id=(msg6.pk - 4294967296), ts=date),  # simulate a negative integer from relayer
             # a missed call
-            dict(cmd="call", phone="2505551212", type="miss", ts=date),
+            dict(cmd="call", phone="0788381212", type="miss", ts=date),
             # repeated missed calls should be skipped
-            dict(cmd="call", phone="2505551212", type="miss", ts=date),
-            dict(cmd="call", phone="2505551212", type="miss", ts=date),
+            dict(cmd="call", phone="0788381212", type="miss", ts=date),
+            dict(cmd="call", phone="0788381212", type="miss", ts=date),
             # incoming
-            dict(cmd="call", phone="2505551212", type="mt", dur=10, ts=date),
+            dict(cmd="call", phone="0788381212", type="mt", dur=10, ts=date),
             # repeated calls should be skipped
-            dict(cmd="call", phone="2505551212", type="mt", dur=10, ts=date),
+            dict(cmd="call", phone="0788381212", type="mt", dur=10, ts=date),
             # incoming, invalid URN
             dict(cmd="call", phone="*", type="mt", dur=10, ts=date),
             # outgoing

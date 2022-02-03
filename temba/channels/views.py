@@ -255,12 +255,15 @@ def sync(request, channel_id):
                 if cmd["phone"] and call_tuple not in unique_calls:
                     urn = URN.from_tel(cmd["phone"])
                     try:
-                        ChannelEvent.create_relayer_event(
-                            channel, urn, cmd["type"], date, extra=dict(duration=duration)
-                        )
+                        urn = URN.normalize(urn, channel.country.code)
+                        if URN.validate(urn):
+                            ChannelEvent.create_relayer_event(
+                                channel, urn, cmd["type"], date, extra=dict(duration=duration)
+                            )
                     except ValueError:
                         # in some cases Android passes us invalid URNs, in those cases just ignore them
                         pass
+
                     unique_calls.add(call_tuple)
                 handled = True
 
