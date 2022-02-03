@@ -52,7 +52,6 @@
       -if not object_list
         %tr.empty_list
           %td{ colspan:'99' }
-              -trans "No Matching calls"
+            -trans "No Matching calls"
 
-  - block paginator
-    -include "includes/pagination.haml"
+  -include "includes/pagination.haml"
