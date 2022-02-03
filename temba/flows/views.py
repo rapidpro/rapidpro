@@ -46,7 +46,7 @@ from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.contacts.search import SearchException, parse_query
 from temba.contacts.search.elastic import query_contact_ids
 from temba.contacts.search.omnibox import omnibox_deserialize
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart, StudioFlowStart
 from temba.flows.tasks import export_flow_results_task, download_flow_images_task
 from temba.ivr.models import IVRCall
 from temba.links.models import Link, LinkContacts
@@ -3172,6 +3172,12 @@ class FlowCRUDL(SmartCRUDL):
                 for flow in _response_json["flows"]:
                     _flows.append((flow["sid"], flow["friendly_name"]))
 
+            def clean_omnibox(self):
+                starting = self.cleaned_data.get("omnibox")
+                if not starting:  # pragma: needs cover
+                    raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
+                return omnibox_deserialize(self.org, starting)
+
         permission = "flows.flow_launch"
         success_message = ""
         submit_button_name = _("OK")
@@ -3189,6 +3195,15 @@ class FlowCRUDL(SmartCRUDL):
             return kwargs
 
         def form_valid(self, form):
+            start = StudioFlowStart.create(
+                org=self.derive_org(),
+                user=self.get_user(),
+                flow_sid=form.cleaned_data["flow"],
+                channel=form.cleaned_data["channel"],
+                groups=form.cleaned_data["omnibox"]["groups"],
+                contacts=form.cleaned_data["omnibox"]["contacts"],
+            )
+            start.async_start()
             return super().form_valid(form)
 
 
