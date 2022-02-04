@@ -2353,33 +2353,16 @@ class ContactImport(SmartModel):
 
         urns = []
         batches = []
-        record_num = 0
-        num_records = 0
-        batch_specs = []
-        batch_start = record_num
 
-        for row_batch in chunk_list(data, ContactImport.BATCH_SIZE):
-            if num_records % ContactImport.BATCH_SIZE == 0:
-                if batch_specs:
-                    batches.append(
-                        self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num)
-                    )
-                batch_specs = []
-                batch_start = record_num
+        batches_gen = self._batches_generator(data, urns)
+        try:
+            batch_specs, batch_start, record_num, urns = next(batches_gen)
+            while batch_specs:
+                batches.append(self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num))
+                batch_specs, batch_start, record_num, urns = next(batches_gen)
 
-            for raw_row in row_batch:
-                row = self._parse_row(raw_row, len(self.mappings), tz=self.org.timezone)
-                spec = self._row_to_spec(row)
-                record_num += 1
-                if spec:
-                    spec["_import_row"] = record_num + 1
-                    batch_specs.append(spec)
-                    num_records += 1
-
-                urns.extend(spec.get("urns", []))
-
-        if batch_specs:
-            batches.append(self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num))
+        except StopIteration:
+            pass
 
         # set redis key which mailroom batch tasks can decrement to know when import has completed
         r = get_redis_connection()
@@ -2392,6 +2375,31 @@ class ContactImport(SmartModel):
         # flag org if the set of imported URNs looks suspicious
         if not self.org.is_verified() and self._detect_spamminess(urns):
             self.org.flag()
+
+    def _batches_generator(self, data, urns):
+        record_num = 0
+        num_records = 0
+        batch_specs = []
+        batch_start = record_num
+
+        for raw_row in data:
+            row = self._parse_row(raw_row, len(self.mappings), tz=self.org.timezone)
+            spec = self._row_to_spec(row)
+            record_num += 1
+            if spec:
+                spec["_import_row"] = record_num + 1
+                batch_specs.append(spec)
+                num_records += 1
+
+            urns.extend(spec.get("urns", []))
+
+            if len(batch_specs) == ContactImport.BATCH_SIZE:
+                yield batch_specs, batch_start, record_num, urns
+                batch_specs = []
+                batch_start = record_num
+
+        if batch_specs:
+            yield batch_specs, batch_start, record_num, urns
 
     def get_info(self):
         """
