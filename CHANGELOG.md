@@ -1,3 +1,8 @@
+v7.1.51
+----------
+ * Merge pull request #3671 from nyaruka/ui-widget-fixes
+ * Fix select for slow clicks and removing rules in the editor
+
 v7.1.50
 ----------
  * Add migration to make contact group names unique within an organization
