@@ -1,3 +1,7 @@
+v7.1.52
+----------
+ * Fix scrolling select
+
 v7.1.51
 ----------
  * Merge pull request #3671 from nyaruka/ui-widget-fixes
