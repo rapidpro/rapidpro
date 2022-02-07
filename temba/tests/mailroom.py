@@ -144,6 +144,13 @@ class TestClient(MailroomClient):
         org = Org.objects.get(id=org_id)
         user = get_anonymous_user()
 
+        try:
+            urn = URN.normalize(urn, org.default_country_code)
+            if not URN.validate(urn, org.default_country_code):
+                raise ValueError()
+        except ValueError:
+            raise MailroomException("contact/resolve", None, {"error": "invalid URN"})
+
         contact_urn = ContactURN.lookup(org, urn)
         if contact_urn:
             contact = contact_urn.contact

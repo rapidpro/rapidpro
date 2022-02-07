@@ -1,3 +1,22 @@
+v7.1.55
+----------
+ * Fix horizontal scrolling in editor
+ * Add support to undo_footgun command to revert status changes
+
+v7.1.53
+----------
+ * Relayer syncing should ignore bad URNs that fail validation in mailroom
+ * Add unique constraint to ContactGroup to enforce name uniqueness within an org
+
+v7.1.52
+----------
+ * Fix scrolling select
+
+v7.1.51
+----------
+ * Merge pull request #3671 from nyaruka/ui-widget-fixes
+ * Fix select for slow clicks and removing rules in the editor
+
 v7.1.50
 ----------
  * Add migration to make contact group names unique within an organization

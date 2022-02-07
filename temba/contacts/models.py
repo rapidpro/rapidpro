@@ -19,7 +19,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, models, transaction
 from django.db.models import Count, F, Max, Q, Sum, Value
-from django.db.models.functions import Concat
+from django.db.models.functions import Concat, Lower
 from django.db.models.functions.text import Upper
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -734,7 +734,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Resolves a contact and URN from a channel interaction. Only used for relayer endpoints.
         """
-        response = mailroom.get_client().contact_resolve(channel.org_id, channel.id, urn)
+        try:
+            response = mailroom.get_client().contact_resolve(channel.org_id, channel.id, urn)
+        except mailroom.MailroomException as e:
+            raise ValueError(e.response.get("error"))
+
         contact = Contact.objects.get(id=response["contact"]["id"])
         contact_urn = ContactURN.objects.get(id=response["urn"]["id"])
         return contact, contact_urn
@@ -1843,6 +1847,8 @@ class ContactGroup(TembaModel, DependencyMixin):
     class Meta:
         verbose_name = _("Group")
         verbose_name_plural = _("Groups")
+
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_contact_group_names")]
 
 
 class ContactGroupCount(SquashableModel):

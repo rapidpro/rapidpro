@@ -335,8 +335,6 @@ class Flow(TembaModel):
         Import flows from our flow export file
         """
 
-        from temba.campaigns.models import Campaign
-
         created_flows = []
         db_types = {value: key for key, value in Flow.GOFLOW_TYPES.items()}
 
@@ -390,7 +388,7 @@ class Flow(TembaModel):
 
         # remap flow UUIDs in any campaign events
         for campaign in export_json.get("campaigns", []):
-            for event in campaign[Campaign.EXPORT_EVENTS]:
+            for event in campaign["events"]:
                 if "flow" in event:
                     flow_uuid = event["flow"]["uuid"]
                     if flow_uuid in dependency_mapping:

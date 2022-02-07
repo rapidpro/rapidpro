@@ -256,11 +256,12 @@ def sync(request, channel_id):
                     urn = URN.from_tel(cmd["phone"])
                     try:
                         ChannelEvent.create_relayer_event(
-                            channel, urn, cmd["type"], date, extra=dict(duration=duration)
+                            channel, urn, cmd["type"], date, extra={"duration": duration}
                         )
                     except ValueError:
                         # in some cases Android passes us invalid URNs, in those cases just ignore them
                         pass
+
                     unique_calls.add(call_tuple)
                 handled = True
 

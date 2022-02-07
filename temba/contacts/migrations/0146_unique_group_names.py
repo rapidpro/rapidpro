@@ -8,7 +8,7 @@ from django.db.models.functions import Lower
 from temba.utils.uuid import uuid4
 
 
-def make_group_names_unique(apps, schema_editor):
+def make_group_names_unique(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")  # noqa
 
     for org in Org.objects.all():
@@ -51,7 +51,7 @@ def make_group_names_unique(apps, schema_editor):
         print(f" > org '{org.name}' active updated = {active_updated}, inactive updated = {inactive_updated}")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
