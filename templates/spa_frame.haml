@@ -258,11 +258,6 @@
       margin-right: 0 !important;
     }
 
-    #crisp-chatbox a {  
-      // transform: scale(1);
-      // left: 4px !important;
-      // bottom: 15px !important;
-    }
 
     #crisp-chatbox [data-chat-status = "ongoing"] {
       border-radius: 10px !important;
@@ -716,20 +711,6 @@
         "onSuccess": onSuccess, "ignoreEvents": false
       });
     }
-
-    var spaContent = document.querySelector(".spa-content");
-    var spaFooter = document.querySelector(".spa-footer");
-
-    function innerScroll(event) {
-      // console.log(event);
-      // var bottom = spaContent.offsetHeight + spaContent.scrollTop;
-      // var remaining = bottom + spaFooter.offsetHeight - spaContent.scrollHeight;
-      // console.log(remaining);
-      // spaFooter.style.marginTop = remaining;
-      // console.log(-Math.min(60, remaining));
-      // spaContent.style.marginBottom = -(Math.min(60, Math.abs(remaining))) + "px";
-    }
-
 
 -block temba-store
   %temba-store(

@@ -8,9 +8,17 @@
         {{ blocker|safe }}
 
   -else
-    {{ block.super }}
-    .fixed-wrapper(style="position:fixed;width:362px;margin-left:200px;margin-top:-67px")
+    -if form.omnibox
+      -render_field 'omnibox'
+    
+    -render_field 'text'
+    .fixed-wrapper(style="position:fixed;width:362px;margin-left:200px;margin-top:-10px")
       %temba-charcount
+
+
+    -if form.schedule
+      -render_field 'schedule'
+
 
     -if recipient_count
       -blocktrans trimmed count recipient_count as recipients
