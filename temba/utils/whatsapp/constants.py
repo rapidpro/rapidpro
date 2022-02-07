@@ -44,6 +44,7 @@ LANGUAGE_MAPPING = dict(
     kn=("kan", None),  # Kannada
     kk=("kaz", None),  # Kazakh
     ko=("kor", None),  # Korean
+    ky_KG=("kir", None),  # Kyrgyzstan
     lo=("lao", None),  # Lao
     lv=("lav", None),  # Latvian
     lt=("lit", None),  # Lithuanian
