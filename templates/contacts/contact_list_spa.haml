@@ -18,7 +18,7 @@
   .mt-4.shadow.rounded-lg.overflow-y-auto
     -include "contacts/contact_list_include.haml"
 
-  .flex.flex-col(class="{%if not is_spa%}mb-16{%endif%}")
+  .flex.flex-col.mr-24
     -include "includes/pagination.haml"
 
     -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000

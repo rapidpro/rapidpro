@@ -74,7 +74,7 @@
       pointer-events: none;
     }
 
-    .spa-container.loading .loader {
+    .spa-container.loading .spa-loader {
       display: block;
     }
 
@@ -94,7 +94,7 @@
     .spa-content {
       display: flex;
       flex-direction: column;
-      height:100%;
+      flex-grow: 1;
       transition: opacity 200ms linear;
     }
 
@@ -233,6 +233,7 @@
     }
 
     .spa-container {
+      height:100%;
     }
 
     .folders {
@@ -256,6 +257,21 @@
       margin-left: 0 !important;
       margin-right: 0 !important;
     }
+
+
+    #crisp-chatbox [data-chat-status = "ongoing"] {
+      border-radius: 10px !important;
+    }
+
+    .spa-footer {
+      background: rgba(0,0,0,.05);
+      padding: 18px;
+      
+    }
+
+
+}
+
      
 -block full-page-script
   %script{src:"{{ STATIC_URL }}js/labels.js?4"}
@@ -696,7 +712,6 @@
       });
     }
 
-
 -block temba-store
   %temba-store(
     completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
@@ -712,9 +727,15 @@
     .flex.widget-container(style="height:100vh;")
       .folders       
         %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)")
-      .flex-grow.text-lg.spa-container.p-5
-        .loader.hide.absolute
+      .flex-grow.text-lg.spa-container.flex.flex-col
+        .spa-loader.hide.absolute
           .wrapper(style="display:flex;z-index:100000;margin-top:2px;")
             %temba-loading(size=20 units=6)
-        .spa-content
+        .spa-content.p-5.overflow-y-auto.overflow-x-hidden
+
+        .spa-footer.text-center.text-gray-400.hide(style="margin-top:-60px;z-index:10000")
+          Copyright © 2012-2022 TextIt <a href="http://google.com">hey</a>
+
+      
+      
   
