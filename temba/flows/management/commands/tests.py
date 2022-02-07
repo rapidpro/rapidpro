@@ -162,7 +162,7 @@ class RecalcNodeCountsTest(TembaTest):
 
 
 class UndoFootgunTest(TembaTest):
-    def test_command(self):
+    def test_group_changes(self):
         flow = self.create_flow("Test")
         nodes = flow.get_definition()["nodes"]
 
@@ -228,3 +228,49 @@ class UndoFootgunTest(TembaTest):
 
         # contacts 1 and 2 will have had modified_on updated
         self.assertEqual(2, Contact.objects.filter(modified_on__gt=t0).count())
+
+    def test_status_changes(self):
+        flow = self.create_flow("Test")
+        nodes = flow.get_definition()["nodes"]
+
+        contact1 = self.create_contact("Joe", phone="1234")
+        contact2 = self.create_contact("Frank", phone="2345")
+        contact3 = self.create_contact("Anne", phone="3456")
+
+        # simulate a flow start which adds blocks contact1 and stops contact2
+        start1 = FlowStart.create(flow, self.admin, contacts=[contact1, contact2])
+        (
+            MockSessionWriter(contact1, flow, start=start1)
+            .visit(nodes[0])
+            .set_contact_status("blocked")
+            .complete()
+            .save()
+        )
+        (
+            MockSessionWriter(contact2, flow, start=start1)
+            .visit(nodes[0])
+            .set_contact_status("stopped")
+            .complete()
+            .save()
+        )
+
+        t0 = timezone.now()
+
+        self.assertEqual({contact1}, set(Contact.objects.filter(status="B")))
+        self.assertEqual({contact2}, set(Contact.objects.filter(status="S")))
+        self.assertEqual({contact3}, set(Contact.objects.filter(status="A")))
+
+        # can run with --dry-run to preview changes
+        call_command("undo_footgun", start=start1.id, dry_run=True, quiet=True)
+
+        self.assertEqual({contact1}, set(Contact.objects.filter(status="B")))
+        self.assertEqual({contact2}, set(Contact.objects.filter(status="S")))
+        self.assertEqual({contact3}, set(Contact.objects.filter(status="A")))
+
+        # no contacts will have had modified_on updated
+        self.assertEqual(0, Contact.objects.filter(modified_on__gt=t0).count())
+
+        # and then actually make database changes
+        call_command("undo_footgun", start=start1.id, quiet=True)
+
+        self.assertEqual({contact1, contact2, contact3}, set(Contact.objects.filter(status="A")))

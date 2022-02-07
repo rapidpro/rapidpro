@@ -115,4 +115,26 @@ class ContactGroupsChanged:
             self.stdout.write(f" > '{name}': {count}")
 
 
-UNDO_CLASSES = {"contact_groups_changed": ContactGroupsChanged}
+class ContactStatusChanged:
+    def __init__(self, stdout):
+        self.stdout = stdout
+        self.num_reverts = 0
+
+    def undo(self, contact: Contact, event: dict, dry_run: bool):
+        new_status = event["status"]
+        if dry_run:
+            self.stdout.write(f"   - contact {contact.uuid} reverted from {new_status} to active")
+        else:
+            contact.status = Contact.STATUS_ACTIVE
+            contact.save(update_fields=("status",))
+
+        self.num_reverts += 1
+
+    def print_summary(self):
+        self.stdout.write(f"Reverted contacts to active status: {self.num_reverts}")
+
+
+UNDO_CLASSES = {
+    "contact_groups_changed": ContactGroupsChanged,
+    "contact_status_changed": ContactStatusChanged,
+}
