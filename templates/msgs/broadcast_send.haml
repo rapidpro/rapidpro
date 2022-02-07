@@ -9,7 +9,7 @@
 
   -else
     {{ block.super }}
-    .fixed-wrapper(style="position:fixed;width:362px;margin-left:200px;margin-top:-38px")
+    .fixed-wrapper(style="position:fixed;width:362px;margin-left:200px;margin-top:-67px")
       %temba-charcount
 
     -if recipient_count
@@ -28,6 +28,10 @@
   {{ block.super }}
 
   :css
+    temba-checkbox {
+      width: 50%;
+    }
+    
     temba-completion {
       --textarea-height: 110px;
     }

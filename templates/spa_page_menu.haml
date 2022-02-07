@@ -68,31 +68,32 @@
   }
 
   .more {
-    transition: all 200ms ease-in-out;
+    width: 3em;
   }
 
   .more:hover {
     background:rgba(0,0,0,.25);
-    box-shadow: inset 4px 4px 57px -28px rgba(0,0,0,0.75);
+    box-shadow: inset 4px 4px 57px -28px rgba(0,0,0,0.85);
   }
 
   .more .submenu {
     top:3.5em;
-    right:1em;
+    right: 1em;
     z-index: 1000;
     transform: translateY(3em);
-    transition: transform 200ms ease-in-out, opacity 200ms linear, visibility 300ms linear;
+    transition: transform 150ms linear, opacity 150ms linear, visibility 500ms linear;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
+    width: 14em;
   }
 
   .more .submenu:before {
     content:'';
     width: 0px; 
     height: 0;
-    top: 5px;
-    right: 8px;
+    top: 2px;
+    right: 12px;
     float:right;
     position: relative;
     margin-left: 6px;
@@ -101,7 +102,7 @@
     border-bottom: 12px solid white;
   }
 
-  .more:hover .submenu {
+  .more.open .submenu {
     display: inline-block;
     transform: translateY(0);
     opacity: 1;
@@ -110,6 +111,13 @@
   }
 
 :javascript
+
+  document.querySelector("html").addEventListener("click", function(event) {
+    var classes = document.querySelector(".more").classList;
+    if (classes.contains("open")) {
+      classes.remove("open");
+    }
+  });
 
   function handleMenuClicked(evt) {
     var link = evt.target;
@@ -132,6 +140,17 @@
     modax.open = true;
   }
 
+  function handleMoreToggle(event) {
+    var classes = document.querySelector(".more").classList;
+    if (classes.contains("open")) {
+      classes.remove("open");
+    } else {
+      classes.add("open");
+    }
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
 -with gear_links=view.get_gear_links
 
   -if gear_links
@@ -144,7 +163,7 @@
  
       -if gear_links|length > 1
 
-        .more.px-2.flex.flex-column.items-center.cursor-pointer.rounded-br.rounded-tr
+        .more.px-2.flex.flex-column.items-center.cursor-pointer.rounded-br.rounded-tr(onclick="handleMoreToggle(event)")
           .submenu.absolute.rounded
             .card.mb-0.shadow-xl.py-3
               -for link in gear_links
