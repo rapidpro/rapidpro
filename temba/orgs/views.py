@@ -1621,6 +1621,26 @@ class OrgCRUDL(SmartCRUDL):
             parent = forms.IntegerField(required=False)
             plan_end = forms.DateTimeField(required=False)
             non_contact_hours = forms.BooleanField(required=False)
+            viewers = forms.ModelMultipleChoiceField(
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="") | Q(is_active=False)),
+                required=False,
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
+            )
+            editors = forms.ModelMultipleChoiceField(
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="") | Q(is_active=False)),
+                required=False,
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
+            )
+            surveyors = forms.ModelMultipleChoiceField(
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="") | Q(is_active=False)),
+                required=False,
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
+            )
+            administrators = forms.ModelMultipleChoiceField(
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="") | Q(is_active=False)),
+                required=False,
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
+            )
 
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -1667,6 +1687,10 @@ class OrgCRUDL(SmartCRUDL):
                     "is_multi_user",
                     "is_multi_org",
                     "is_suspended",
+                    "administrators",
+                    "editors",
+                    "viewers",
+                    "surveyors",
                 )
 
         form_class = Form
@@ -3554,53 +3578,14 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_smtp_server"):
                 formax.add_section("email", reverse("orgs.org_smtp_server"), icon="icon-envelop")
 
-            if self.has_org_perm("orgs.org_dtone_account"):
-                if not self.object.is_connected_to_dtone():
-                    formax.add_section(
-                        "dtone",
-                        reverse("orgs.org_dtone_account"),
-                        icon="icon-dtone",
-                        action="redirect",
-                        button=_("Connect"),
-                    )
-                else:  # pragma: needs cover
-                    formax.add_section(
-                        "dtone", reverse("orgs.org_dtone_account"), icon="icon-dtone", action="redirect", nobutton=True
-                    )
-
-            if self.has_org_perm("orgs.org_chatbase"):
-                (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
-                if not chatbase_api_key:
-                    formax.add_section(
-                        "chatbase",
-                        reverse("orgs.org_chatbase"),
-                        icon="icon-chatbase",
-                        action="redirect",
-                        button=_("Connect"),
-                    )
-                else:  # pragma: needs cover
-                    formax.add_section(
-                        "chatbase",
-                        reverse("orgs.org_chatbase"),
-                        icon="icon-chatbase",
-                        action="redirect",
-                        nobutton=True,
-                    )
-
             if self.has_org_perm("orgs.org_token"):
                 formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)
 
             if self.has_org_perm("orgs.org_prometheus"):
                 formax.add_section("prometheus", reverse("orgs.org_prometheus"), icon="icon-prometheus", nobutton=True)
 
-            if self.has_org_perm("orgs.org_resthooks"):
-                formax.add_section(
-                    "resthooks", reverse("orgs.org_resthooks"), icon="icon-cloud-lightning", dependents="resthooks"
-                )
-
             # show globals and archives
             formax.add_section("globals", reverse("globals.global_list"), icon="icon-global", action="link")
-            formax.add_section("archives", reverse("archives.archive_message"), icon="icon-box", action="link")
 
     class DtoneAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):

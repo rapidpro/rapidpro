@@ -1110,6 +1110,7 @@ class OrgTest(TembaTest):
             "editors": [self.editor.id],
             "administrators": [self.admin.id],
             "surveyors": [self.surveyor.id],
+            "agents": [self.agent.id],
             "surveyor_password": "",
             "fields_limit": 300,
             "groups_limit": 400,
@@ -1139,6 +1140,7 @@ class OrgTest(TembaTest):
             "editors": [self.editor.id],
             "administrators": [self.admin.id],
             "surveyors": [self.surveyor.id],
+            "agents": [self.agent.id],
             "surveyor_password": "",
             "fields_limit": 300,
             "groups_limit": "",
@@ -2428,10 +2430,6 @@ class OrgTest(TembaTest):
         self.login(self.admin)
 
         dtone_url = reverse("orgs.org_dtone_account")
-        home_url = reverse("orgs.org_home")
-
-        response = self.client.get(home_url)
-        self.assertContains(response, "Connect your DT One account.")
 
         # formax includes form to connect DT One
         response = self.client.get(dtone_url, HTTP_X_FORMAX=True)
@@ -2457,11 +2455,6 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_connected_to_dtone())
         self.assertEqual(self.org.config["dtone_key"], "key123")
         self.assertEqual(self.org.config["dtone_secret"], "sesame")
-
-        # and that stated on home page
-        response = self.client.get(home_url)
-        self.assertContains(response, "Connected to your <b>DT One</b> account.")
-        self.assertContains(response, reverse("airtime.airtimetransfer_list"))
 
         # formax includes the disconnect link
         response = self.client.get(dtone_url, HTTP_X_FORMAX=True)
@@ -2503,11 +2496,6 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.config["CHATBASE_AGENT_NAME"], "chatbase_agent")
         self.assertEqual(self.org.config["CHATBASE_VERSION"], "1.0")
 
-        org_home_url = reverse("orgs.org_home")
-
-        response = self.client.get(org_home_url)
-        self.assertContains(response, self.org.config["CHATBASE_AGENT_NAME"])
-
         payload.update(dict(disconnect="true"))
 
         self.client.post(chatbase_account_url, payload, follow=True)
@@ -2516,7 +2504,6 @@ class OrgTest(TembaTest):
         self.assertEqual((None, None), self.org.get_chatbase_credentials())
 
     def test_resthooks(self):
-        home_url = reverse("orgs.org_home")
         resthook_url = reverse("orgs.org_resthooks")
 
         # no hitting this page without auth
@@ -2530,9 +2517,6 @@ class OrgTest(TembaTest):
 
         # shouldn't have any resthooks listed yet
         self.assertFalse(response.context["current_resthooks"])
-
-        response = self.client.get(home_url)
-        self.assertContains(response, "You have <b>no flow events</b> configured.")
 
         # try to create one with name that's too long
         response = self.client.post(resthook_url, {"new_slug": "x" * 100})
@@ -2554,10 +2538,6 @@ class OrgTest(TembaTest):
             [{"field": f"resthook_{mother_reg.id}", "resthook": mother_reg}],
             list(response.context["current_resthooks"]),
         )
-
-        # and summarized on org home page
-        response = self.client.get(home_url)
-        self.assertContains(response, "You have <b>1 flow event</b> configured.")
 
         # let's try to create a repeat, should fail due to duplicate slug
         response = self.client.post(resthook_url, {"new_slug": "Mother-Registration"})
@@ -3995,7 +3975,18 @@ class OrgCRUDLTest(TembaTest):
 
         org_update_url = reverse("orgs.org_update", kwargs={"pk": org.id})
         response = self.client.post(
-            org_update_url, dict(name=org.name, plan=org.plan, brand=org.brand, non_contact_hours=True)
+            org_update_url,
+            dict(
+                name=org.name,
+                plan=org.plan,
+                brand=org.brand,
+                non_contact_hours=True,
+                administrators=[self.admin.id],
+                editors=[self.editor.id],
+                viewers=[self.user.id],
+                surveyors=[self.surveyor.id],
+                agents=[self.agent.id],
+            ),
         )
         self.assertNoFormErrors(response)
         self.assertEqual(response.status_code, 302)
@@ -4016,7 +4007,18 @@ class OrgCRUDLTest(TembaTest):
             self.assertTrue(org.do_not_contact())
 
         response = self.client.post(
-            org_update_url, dict(name=org.name, plan=org.plan, brand=org.brand, non_contact_hours=False)
+            org_update_url,
+            dict(
+                name=org.name,
+                plan=org.plan,
+                brand=org.brand,
+                non_contact_hours=False,
+                administrators=[self.admin.id],
+                editors=[self.editor.id],
+                viewers=[self.user.id],
+                surveyors=[self.surveyor.id],
+                agents=[self.agent.id],
+            ),
         )
         self.assertNoFormErrors(response)
         self.assertEqual(response.status_code, 302)
