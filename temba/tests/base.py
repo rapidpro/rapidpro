@@ -18,7 +18,7 @@ from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, ContactField, ContactGroup, ContactImport, ContactURN
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport, ContactURN
 from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -203,7 +203,17 @@ class TembaTestMixin:
         return data["flows"][0]
 
     def create_contact(
-        self, name=None, *, language=None, phone=None, urns=None, fields=None, org=None, user=None, last_seen_on=None
+        self,
+        name=None,
+        *,
+        language=None,
+        phone=None,
+        urns=None,
+        fields=None,
+        org=None,
+        user=None,
+        status=Contact.STATUS_ACTIVE,
+        last_seen_on=None,
     ):
         """
         Create a new contact
@@ -214,7 +224,15 @@ class TembaTestMixin:
         urns = [URN.from_tel(phone)] if phone else urns
 
         return create_contact_locally(
-            org, user, name, language, urns or [], fields or {}, group_uuids=[], last_seen_on=last_seen_on
+            org,
+            user,
+            name,
+            language,
+            urns or [],
+            fields or {},
+            group_uuids=[],
+            status=status,
+            last_seen_on=last_seen_on,
         )
 
     def create_group(self, name, contacts=(), query=None, org=None):
