@@ -734,7 +734,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Resolves a contact and URN from a channel interaction. Only used for relayer endpoints.
         """
-        response = mailroom.get_client().contact_resolve(channel.org_id, channel.id, urn)
+        try:
+            response = mailroom.get_client().contact_resolve(channel.org_id, channel.id, urn)
+        except mailroom.MailroomException as e:
+            raise ValueError(e.response.get("error"))
+
         contact = Contact.objects.get(id=response["contact"]["id"])
         contact_urn = ContactURN.objects.get(id=response["urn"]["id"])
         return contact, contact_urn
