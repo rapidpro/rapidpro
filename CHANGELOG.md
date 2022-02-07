@@ -1,3 +1,8 @@
+v7.1.53
+----------
+ * Relayer syncing should ignore bad URNs that fail validation in mailroom
+ * Add unique constraint to ContactGroup to enforce name uniqueness within an org
+
 v7.1.52
 ----------
  * Fix scrolling select
