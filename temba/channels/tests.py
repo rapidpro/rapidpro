@@ -1113,10 +1113,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(2, Msg.objects.filter(channel=self.tel_channel, status="F", direction="O").count())
 
         # we should now have two incoming messages
-        self.assertEqual(3, Msg.objects.filter(direction="I").count())
-
-        # one of them should have an empty 'tel'
-        self.assertTrue(Msg.objects.filter(direction="I", contact_urn__path="empty"))
+        self.assertEqual(2, Msg.objects.filter(direction="I").count())
 
         # We should now have one sync
         self.assertEqual(1, SyncEvent.objects.filter(channel=self.tel_channel).count())
@@ -1327,9 +1324,9 @@ class ChannelTest(TembaTest):
         response = self.sync(
             self.tel_channel,
             cmds=[
-                dict(cmd="mo_sms", phone="2505551212", msg="First message", p_id="1", ts=date),
-                dict(cmd="mo_sms", phone="2505551212", msg="First message", p_id="2", ts=date),
-                dict(cmd="mo_sms", phone="2505551212", msg="A second message", p_id="3", ts=date),
+                dict(cmd="mo_sms", phone="0788383383", msg="First message", p_id="1", ts=date),
+                dict(cmd="mo_sms", phone="0788383383", msg="First message", p_id="2", ts=date),
+                dict(cmd="mo_sms", phone="0788383383", msg="A second message", p_id="3", ts=date),
             ],
         )
         self.assertEqual(200, response.status_code)
