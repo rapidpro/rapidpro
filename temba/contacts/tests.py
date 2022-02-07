@@ -37,6 +37,7 @@ from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     TembaNonAtomicTest,
     TembaTest,
     matchers,
@@ -6121,3 +6122,30 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
+
+
+class FixInactiveContactsInGroupsTest(MigrationTest):
+    app = "contacts"
+    migrate_from = "0147_contactgroup_unique_contact_group_names"
+    migrate_to = "0148_fix_inactive_contacts_in_groups"
+
+    def setUpBeforeMigration(self, apps):
+        self.ann = self.create_contact("Ann", phone="+593979111111", status="A")
+        self.bob = self.create_contact("Bob", phone="+593979222222", status="B")
+        self.stu = self.create_contact("Stu", phone="+593979333333", status="S")
+
+        self.coders = self.create_group("Coders")
+        self.testers = self.create_group("Testers")
+
+        self.coders.contacts.add(self.ann, self.bob, self.stu)
+        self.testers.contacts.add(self.ann, self.bob, self.stu)
+
+    def test_migration(self):
+        # inactive contacts removed from user groups
+        self.assertEqual({self.ann}, set(self.coders.contacts.all()))
+        self.assertEqual({self.ann}, set(self.testers.contacts.all()))
+
+        # but not from system groups
+        self.assertEqual({self.ann}, set(ContactGroup.system_groups.get(org=self.org, name="Active").contacts.all()))
+        self.assertEqual({self.bob}, set(ContactGroup.system_groups.get(org=self.org, name="Blocked").contacts.all()))
+        self.assertEqual({self.stu}, set(ContactGroup.system_groups.get(org=self.org, name="Stopped").contacts.all()))
