@@ -1,3 +1,8 @@
+v7.1.55
+----------
+ * Fix horizontal scrolling in editor
+ * Add support to undo_footgun command to revert status changes
+
 v7.1.53
 ----------
  * Relayer syncing should ignore bad URNs that fail validation in mailroom
