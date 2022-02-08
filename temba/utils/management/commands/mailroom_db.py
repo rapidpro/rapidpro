@@ -350,6 +350,7 @@ class Command(BaseCommand):
                         e["offset_unit"],
                         flow,
                         delivery_hour=e.get("delivery_hour", -1),
+                        start_mode=e["start_mode"],
                     )
                 else:
                     evt = CampaignEvent.create_message_event(
@@ -362,6 +363,7 @@ class Command(BaseCommand):
                         e["message"],
                         delivery_hour=e.get("delivery_hour", -1),
                         base_language=e["base_language"],
+                        start_mode=e["start_mode"],
                     )
                     evt.flow.uuid = e["uuid"]
                     evt.flow.save()

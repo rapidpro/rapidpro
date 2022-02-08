@@ -297,7 +297,8 @@
               "offset_field": "joined",
               "offset": "5",
               "offset_unit": "D",
-              "delivery_hour": 12
+              "delivery_hour": 12,
+              "start_mode": "I"
             },
             {
               "uuid": "3a92a964-3a8d-420b-9206-2cd9d884ac30",
@@ -308,7 +309,16 @@
               },
               "offset_field": "joined",
               "offset": "10",
-              "offset_unit": "M"
+              "offset_unit": "M",
+              "start_mode": "P"
+            },
+            {
+              "flow": "Pick a Number",
+              "offset_field": "joined",
+              "offset": "1",
+              "offset_unit": "W",
+              "delivery_hour": -1,
+              "start_mode": "S"
             }
           ]
         }
