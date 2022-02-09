@@ -2,6 +2,7 @@ import datetime
 import io
 import os
 import re
+from collections import namedtuple
 from datetime import timedelta
 from unittest.mock import PropertyMock, patch
 
@@ -53,9 +54,11 @@ from .models import (
     FlowUserConflictException,
     FlowVersionConflictException,
     get_flow_user,
+    StudioFlowStart,
 )
 from .tasks import squash_flowcounts, trim_flow_revisions, trim_flow_sessions_and_starts, update_run_expirations_task
 from .views import FlowCRUDL
+from ..tests.twilio import MockTwilioClient
 
 
 class FlowTest(TembaTest):
@@ -3252,6 +3255,62 @@ msgstr "Azul"
 
         # should have a new revision
         self.assertEqual(2, flow.revisions.count())
+
+    def test_studio_flow_sanding(self):
+        self.login(self.admin)
+        launch_url = reverse("flows.flow_launch_studio_flow")
+
+        response = self.client.get(launch_url)
+        self.assertEqual(response.status_code, 404)
+
+        init_starts_count = StudioFlowStart.objects.count()
+
+        with patch("temba.orgs.models.Org.get_twilio_client") as tw_client:
+            tw_client.return_value = MockTwilioClient("", "", self.org)
+            tw_client.return_value.request = lambda *args: namedtuple("TestResponse", "text")(
+                text=json.dumps(
+                    {
+                        "meta": {"next_page_url": ""},
+                        "flows": [{"sid": "FW2932f221ca8741fb714ff97df7986172", "friendly_name": "Test Flow"}],
+                    }
+                )
+            )
+            response = self.client.get(launch_url)
+            self.assertEqual(response.status_code, 200)
+
+            with patch("temba.flows.models.StudioFlowStart.async_start") as mock_async_start:
+                channel = Channel.create(
+                    self.org,
+                    self.admin,
+                    country="US",
+                    channel_type="T",
+                    name="+4921551511",
+                    address="+4921551511",
+                    role="SR",
+                    config={},
+                    uuid=uuid4(),
+                    tps=80,
+                )
+                contact = self.create_contact("Test Contact", phone="+4921551511", org=self.org)
+                response = self.client.post(
+                    launch_url,
+                    {
+                        "flow": "FW2932f221ca8741fb714ff97df7986172",
+                        "omnibox": json.dumps(
+                            {
+                                "id": contact.id,
+                                "name": contact.name,
+                                "type": "contact",
+                                "urn": str(contact.urns.first()),
+                            }
+                        ),
+                        "channel": channel.id,
+                    },
+                )
+                self.assertNoFormErrors(response)
+                self.assertTrue(mock_async_start.called)
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(StudioFlowStart.objects.count(), init_starts_count + 1)
 
 
 class FlowRunTest(TembaTest):

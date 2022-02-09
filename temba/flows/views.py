@@ -3116,7 +3116,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.fields["flow"].choices = self.get_flows()
                 self.fields["channel"].queryset = self.org.channels.filter(
                     channel_type__in=["T", "TW", "TMS", "TWA"],
-                    is_active=False,
+                    is_active=True,
                 ).distinct()
 
             flow = forms.ChoiceField(
@@ -3151,10 +3151,8 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             def get_flows(self):
-                from twilio.rest import Client as TwilioClient
-
                 flows = []
-                twilio_client: TwilioClient = self.org.get_twilio_client()
+                twilio_client = self.org.get_twilio_client()
                 if twilio_client:
                     response = twilio_client.request("GET", "https://studio.twilio.com/v2/Flows?PageSize=50&Page=0")
                     response_json = json.loads(response.text)
