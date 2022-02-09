@@ -1,3 +1,9 @@
+v7.1.56
+----------
+ * Fix issue with sending to step_node
+ * Add missing languages for whatsapp templates
+ * Add migration to remove inactive contacts from user groups
+
 v7.1.55
 ----------
  * Fix horizontal scrolling in editor
