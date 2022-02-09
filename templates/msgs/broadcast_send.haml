@@ -19,6 +19,9 @@
     -if form.schedule
       -render_field 'schedule'
 
+    -if form.step_node
+      -render_field 'step_node'
+  
 
     -if recipient_count
       -blocktrans trimmed count recipient_count as recipients
