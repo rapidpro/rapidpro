@@ -20,7 +20,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
@@ -650,10 +650,10 @@ class Msg(models.Model):
         self.visibility = self.VISIBILITY_VISIBLE
         self.save(update_fields=("visibility", "modified_on"))
 
-    def delete(self, soft: bool = False, reason: str = DELETE_FOR_USER):
+    def delete(self, soft: bool = False):
         """
         Deletes this message. This can be soft if messages are being deleted from the UI, or hard in the case of
-        contact removal.
+        contact or org removal.
         """
         if soft:
             self.labels.clear()
@@ -663,11 +663,11 @@ class Msg(models.Model):
             self.visibility = Msg.VISIBILITY_DELETED_BY_USER
             self.save(update_fields=("text", "attachments", "visibility"))
         else:
-            for log in ChannelLog.objects.filter(msg=self):
+            for log in self.channel_logs.all():
                 log.release()
 
-            self.delete_reason = reason
-            self.delete_from_counts = reason == self.DELETE_FOR_USER
+            self.delete_reason = Msg.DELETE_FOR_USER
+            self.delete_from_counts = True
             self.save(update_fields=("delete_reason", "delete_from_counts"))
 
             super().delete()

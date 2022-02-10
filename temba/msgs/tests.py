@@ -32,6 +32,18 @@ from .tasks import squash_msgcounts
 from .templatetags.sms import as_icon
 
 
+def archiver_delete(msg):
+    """
+    Simulates deletion of a message by archiver
+    """
+    for log in msg.channel_logs.all():
+        log.release()
+
+    msg.delete_reason = Msg.DELETE_FOR_ARCHIVE
+    msg.save(update_fields=("delete_reason",))
+    super(Msg, msg).delete()
+
+
 class MsgTest(TembaTest):
     def setUp(self):
         super().setUp()
@@ -113,40 +125,34 @@ class MsgTest(TembaTest):
             },
         )
 
-    def test_deletes(self):
-
+    def test_delete(self):
         # create some incoming messages
-        msg1 = self.create_incoming_msg(self.joe, "i'm having a problem")
-        msg2 = self.create_incoming_msg(self.frank, "ignore joe, he's a liar")
-        msg3 = self.create_incoming_msg(self.frank, "ok")
+        msg1 = self.create_incoming_msg(self.joe, "i'm having a problem", attachments=["image:http://a.jpg"])
+        msg2 = self.create_incoming_msg(self.frank, "ignore joe, he's a liar", attachments=["image:http://b.jpg"])
 
-        # create a channel log for msg2
+        # create a channel logs for both
+        ChannelLog.objects.create(channel=self.channel, msg=msg1, is_error=False)
         ChannelLog.objects.create(channel=self.channel, msg=msg2, is_error=False)
 
-        # we've used 3 credits
-        self.assertEqual(3, Msg.objects.all().count())
-        self.assertEqual(self.org._calculate_credits_used()[0], 3)
-
-        # a soft delete should keep credits the same and clear text
-        msg3.delete(soft=True)
-        msg3.refresh_from_db()
-        self.assertEqual(3, Msg.objects.all().count())
-        self.assertEqual(self.org._calculate_credits_used()[0], 3)
-        self.assertEqual(Msg.VISIBILITY_DELETED_BY_USER, msg3.visibility)
-        self.assertEqual("", msg3.text)
-
-        # a manual delete (i.e. no reason set) on a message should reduce credits used
-        super(Msg, msg1).delete()
+        # we've used 2 credits
         self.assertEqual(2, Msg.objects.all().count())
         self.assertEqual(self.org._calculate_credits_used()[0], 2)
 
-        # a hard delete as part of a contact removal should keep credits the same
-        msg2.delete(reason=Msg.DELETE_FOR_USER)
-        self.assertEqual(1, Msg.objects.all().count())
+        # a soft delete should keep credits the same and clear text
+        msg1.delete(soft=True)
+        msg1.refresh_from_db()
+        self.assertEqual(2, Msg.objects.all().count())
         self.assertEqual(self.org._calculate_credits_used()[0], 2)
+        self.assertEqual(Msg.VISIBILITY_DELETED_BY_USER, msg1.visibility)
+        self.assertEqual("", msg1.text)
+        self.assertEqual([], msg1.attachments)
+        self.assertEqual(1, msg1.channel_logs.count())  # logs still there
 
-        # log should be gone
-        self.assertEqual(0, ChannelLog.objects.filter(channel=self.channel).count())
+        # test a hard delete as part of a contact removal
+        msg2.delete()
+        self.assertEqual(1, Msg.objects.all().count())
+        self.assertEqual(self.org._calculate_credits_used()[0], 2)  # used credits unchanged
+        self.assertEqual(0, msg2.channel_logs.count())  # logs should be gone
 
     def test_get_sync_commands(self):
         msg1 = self.create_outgoing_msg(self.joe, "Hello, we heard from you.")
@@ -1739,7 +1745,10 @@ class BroadcastTest(TembaTest):
 
         # delete all our messages save for our flow incoming message
         for m in Msg.objects.exclude(id=msg_in3.id):
-            m.delete(reason=tc["delete_reason"])
+            if tc["delete_reason"] == Msg.DELETE_FOR_ARCHIVE:
+                archiver_delete(m)
+            else:
+                m.delete()
 
         # broadcasts should be unaffected
         self.assertEqual(Broadcast.objects.count(), tc["broadcast_count"])
@@ -1787,7 +1796,7 @@ class BroadcastTest(TembaTest):
             tc["twitter_outgoing_count"],
         )
 
-    def test_archive_release(self):
+    def test_delete_by_archiver(self):
         self.run_msg_release_test(
             {
                 "delete_reason": Msg.DELETE_FOR_ARCHIVE,
@@ -1811,7 +1820,7 @@ class BroadcastTest(TembaTest):
             }
         )
 
-    def test_user_release(self):
+    def test_delete_by_user(self):
         self.run_msg_release_test(
             {
                 "delete_reason": Msg.DELETE_FOR_USER,
@@ -1832,30 +1841,6 @@ class BroadcastTest(TembaTest):
                 "sms_outgoing_count": 6,
                 "twitter_incoming_count": 0,
                 "twitter_outgoing_count": 1,
-            }
-        )
-
-    def test_delete_release(self):
-        self.run_msg_release_test(
-            {
-                "delete_reason": None,
-                "broadcast_count": 2,
-                "label_count": 0,
-                "archived_label_count": 0,
-                "inbox_count": 0,
-                "flow_count": 1,
-                "sent_count": 0,
-                "failed_count": 0,
-                "archived_inbox_count": 0,
-                "archived_flow_count": 0,
-                "archived_sent_count": 0,
-                "archived_failed_count": 0,
-                "credits_used": 1,
-                "credits_remaining": 999,
-                "sms_incoming_count": 1,
-                "sms_outgoing_count": 0,
-                "twitter_incoming_count": 0,
-                "twitter_outgoing_count": 0,
             }
         )
 
@@ -2313,7 +2298,7 @@ class LabelTest(TembaTest):
         self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 0)
         self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 2)
 
-        msg1.delete(reason=Msg.DELETE_FOR_ARCHIVE)
+        archiver_delete(msg1)
 
         self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
         self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
@@ -2324,8 +2309,8 @@ class LabelTest(TembaTest):
         self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
         self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
 
-        # do a user release
-        msg3.delete(reason=Msg.DELETE_FOR_USER)
+        # do a hard deletion
+        msg3.delete()
 
         self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
         self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 0)
@@ -2719,7 +2704,7 @@ class SystemLabelTest(TembaTest):
         self.assertEqual(SystemLabelCount.objects.all().count(), 7)
 
         # archive one of our inbox messages
-        msg1.delete(reason=Msg.DELETE_FOR_ARCHIVE)
+        archiver_delete(msg1)
 
         self.assertEqual(
             SystemLabel.get_counts(self.org),
