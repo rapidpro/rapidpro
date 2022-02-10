@@ -201,7 +201,7 @@ class Broadcast(models.Model):
             child.release()
 
         for msg in self.msgs.all():
-            msg.release()
+            msg.delete()
 
         BroadcastMsgCount.objects.filter(broadcast=self).delete()
 
@@ -623,8 +623,7 @@ class Msg(models.Model):
         """
         Archives this message
         """
-        if self.direction != self.DIRECTION_IN:
-            raise ValueError("Can only archive incoming non-test messages")
+        assert self.direction == self.DIRECTION_IN and self.visibility == Msg.VISIBILITY_VISIBLE
 
         self.visibility = self.VISIBILITY_ARCHIVED
         self.save(update_fields=("visibility", "modified_on"))
@@ -646,15 +645,25 @@ class Msg(models.Model):
         """
         Restores (i.e. un-archives) this message
         """
-        if self.direction != self.DIRECTION_IN:  # pragma: needs cover
-            raise ValueError("Can only restore incoming non-test messages")
+        assert self.direction == self.DIRECTION_IN and self.visibility == Msg.VISIBILITY_ARCHIVED
 
         self.visibility = self.VISIBILITY_VISIBLE
         self.save(update_fields=("visibility", "modified_on"))
 
-    def release(self, delete_reason=DELETE_FOR_USER):
+    def soft_delete(self):
         """
-        Releases (i.e. deletes) this message
+        Soft deletes this message, clearing its content and marking it as deleted
+        """
+        self.labels.clear()
+
+        self.text = ""
+        self.attachments = []
+        self.visibility = Msg.VISIBILITY_DELETED_BY_USER
+        self.save(update_fields=("text", "attachments", "visibility"))
+
+    def delete(self, delete_reason=DELETE_FOR_USER):
+        """
+        Deletes this message
         """
 
         for log in ChannelLog.objects.filter(msg=self):
@@ -664,8 +673,7 @@ class Msg(models.Model):
         self.delete_from_counts = delete_reason == self.DELETE_FOR_USER
         self.save(update_fields=("delete_reason", "delete_from_counts"))
 
-        # delete this object
-        self.delete()
+        super().delete()
 
     @classmethod
     def apply_action_label(cls, user, msgs, label):
@@ -688,7 +696,7 @@ class Msg(models.Model):
     @classmethod
     def apply_action_delete(cls, user, msgs):
         for msg in msgs:
-            msg.release()
+            msg.soft_delete()
 
     @classmethod
     def apply_action_resend(cls, user, msgs):

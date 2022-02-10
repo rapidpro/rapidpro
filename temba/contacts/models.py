@@ -1167,7 +1167,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
             # release our messages
             for msg in self.msgs.all():
-                msg.release()
+                msg.delete()
 
             # any urns currently owned by us
             for urn in self.urns.all():
@@ -1176,7 +1176,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 # these could include messages that began life
                 # on a different contact
                 for msg in urn.msgs.all():
-                    msg.release()
+                    msg.delete()
 
                 # same thing goes for connections
                 for conn in urn.connections.all():

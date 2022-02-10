@@ -1692,7 +1692,7 @@ class Org(SmartModel):
         # might be a lot of messages, batch this
         for id_batch in chunk_list(msg_ids, 1000):
             for msg in self.msgs.filter(id__in=id_batch):
-                msg.release()
+                msg.delete()
 
         # our system label counts
         self.system_labels.all().delete()
