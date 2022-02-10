@@ -650,30 +650,27 @@ class Msg(models.Model):
         self.visibility = self.VISIBILITY_VISIBLE
         self.save(update_fields=("visibility", "modified_on"))
 
-    def soft_delete(self):
+    def delete(self, soft: bool = False, reason: str = DELETE_FOR_USER):
         """
-        Soft deletes this message, clearing its content and marking it as deleted
+        Deletes this message. This can be soft if messages are being deleted from the UI, or hard in the case of
+        contact removal.
         """
-        self.labels.clear()
+        if soft:
+            self.labels.clear()
 
-        self.text = ""
-        self.attachments = []
-        self.visibility = Msg.VISIBILITY_DELETED_BY_USER
-        self.save(update_fields=("text", "attachments", "visibility"))
+            self.text = ""
+            self.attachments = []
+            self.visibility = Msg.VISIBILITY_DELETED_BY_USER
+            self.save(update_fields=("text", "attachments", "visibility"))
+        else:
+            for log in ChannelLog.objects.filter(msg=self):
+                log.release()
 
-    def delete(self, delete_reason=DELETE_FOR_USER):
-        """
-        Deletes this message
-        """
+            self.delete_reason = reason
+            self.delete_from_counts = reason == self.DELETE_FOR_USER
+            self.save(update_fields=("delete_reason", "delete_from_counts"))
 
-        for log in ChannelLog.objects.filter(msg=self):
-            log.release()
-
-        self.delete_reason = delete_reason
-        self.delete_from_counts = delete_reason == self.DELETE_FOR_USER
-        self.save(update_fields=("delete_reason", "delete_from_counts"))
-
-        super().delete()
+            super().delete()
 
     @classmethod
     def apply_action_label(cls, user, msgs, label):
@@ -696,7 +693,7 @@ class Msg(models.Model):
     @classmethod
     def apply_action_delete(cls, user, msgs):
         for msg in msgs:
-            msg.soft_delete()
+            msg.delete(soft=True)
 
     @classmethod
     def apply_action_resend(cls, user, msgs):

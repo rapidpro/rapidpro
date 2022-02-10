@@ -3818,7 +3818,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1})
         self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg3})
-        self.assertFalse(Msg.objects.filter(id=msg2.id).exists())
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_DELETED_BY_USER)), {msg2})
 
         # try to act on a a valid message and a deleted message
         response = self.postJSON(url, None, {"messages": [msg2.id, msg3.id], "action": "restore"})

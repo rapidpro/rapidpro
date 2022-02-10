@@ -1328,7 +1328,7 @@ class MsgBulkActionSerializer(WriteSerializer):
                 elif action == self.RESTORE:
                     msg.restore()
                 elif action == self.DELETE:
-                    msg.release()
+                    msg.delete(soft=True)
 
         return BulkActionFailure(missing_message_ids) if missing_message_ids else None
 

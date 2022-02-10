@@ -1872,7 +1872,7 @@ class ChannelCountTest(TembaTest):
         self.assertEqual(ChannelCount.objects.all().count(), 1)
 
         # deleting a message doesn't decrement the count
-        msg.release()
+        msg.delete()
         self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
@@ -1893,7 +1893,10 @@ class ChannelCountTest(TembaTest):
         self.assertEqual(0, self.channel.get_count([ChannelCount.ERROR_LOG_TYPE]))
 
         # deleting a message doesn't decrement the count
-        msg.release()
+        msg.delete(soft=True)
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
+
+        msg.delete()
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
@@ -1901,7 +1904,7 @@ class ChannelCountTest(TembaTest):
         # incoming IVR
         msg = self.create_incoming_msg(contact, "Test Message", msg_type=Msg.TYPE_IVR)
         self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
-        msg.release()
+        msg.delete()
         self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
@@ -1909,7 +1912,7 @@ class ChannelCountTest(TembaTest):
         # outgoing ivr
         msg = self.create_outgoing_msg(contact, "Real Voice", msg_type=Msg.TYPE_IVR)
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
-        msg.release()
+        msg.delete()
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
 
         with patch("temba.channels.tasks.track") as mock:
