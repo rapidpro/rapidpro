@@ -2377,29 +2377,29 @@ class ContactImport(SmartModel):
             self.org.flag()
 
     def _batches_generator(self, data, urns):
-        record_num = 0
+        row = 1
         num_records = 0
         batch_specs = []
-        batch_start = record_num
+        batch_start = row
 
         for raw_row in data:
-            row = self._parse_row(raw_row, len(self.mappings), tz=self.org.timezone)
-            spec = self._row_to_spec(row)
-            record_num += 1
+            row_data = self._parse_row(raw_row, len(self.mappings), tz=self.org.timezone)
+            spec = self._row_to_spec(row_data)
+            row += 1
             if spec:
-                spec["_import_row"] = record_num + 1
+                spec["_import_row"] = row
                 batch_specs.append(spec)
                 num_records += 1
 
             urns.extend(spec.get("urns", []))
 
             if len(batch_specs) == ContactImport.BATCH_SIZE:
-                yield batch_specs, batch_start, record_num, urns
+                yield batch_specs, batch_start, row, urns
                 batch_specs = []
-                batch_start = record_num
+                batch_start = row
 
         if batch_specs:
-            yield batch_specs, batch_start, record_num, urns
+            yield batch_specs, batch_start, row, urns
 
     def get_info(self):
         """

@@ -5525,8 +5525,8 @@ class ContactImportTest(TembaTest):
 
         self.assertIsNotNone(imp.started_on)
         self.assertEqual(1, len(batches))
-        self.assertEqual(0, batches[0].record_start)
-        self.assertEqual(3, batches[0].record_end)
+        self.assertEqual(1, batches[0].record_start)
+        self.assertEqual(4, batches[0].record_end)
         self.assertEqual(
             [
                 {
@@ -5571,10 +5571,10 @@ class ContactImportTest(TembaTest):
 
         batches = list(imp.batches.order_by("id"))
         self.assertEqual(2, len(batches))
-        self.assertEqual(0, batches[0].record_start)
-        self.assertEqual(2, batches[0].record_end)
-        self.assertEqual(2, batches[1].record_start)
-        self.assertEqual(3, batches[1].record_end)
+        self.assertEqual(1, batches[0].record_start)
+        self.assertEqual(3, batches[0].record_end)
+        self.assertEqual(3, batches[1].record_start)
+        self.assertEqual(4, batches[1].record_end)
 
         # info is calculated across all batches
         self.assertEqual(
