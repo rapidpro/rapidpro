@@ -780,12 +780,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.flows.models import FlowExit
         from temba.ivr.models import IVRCall
         from temba.mailroom.events import get_event_time
-        from temba.msgs.models import Msg
         from temba.tickets.models import TicketEvent
 
         msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
-            .exclude(visibility=Msg.VISIBILITY_DELETED)
             .order_by("-created_on")
             .select_related("channel", "contact_urn", "broadcast")
             .prefetch_related("channel_logs")[:limit]

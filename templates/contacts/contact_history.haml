@@ -144,11 +144,18 @@
       -elif event.type == 'msg_created' or event.type == 'msg_received' or event.type == "ivr_created"
         .activity-message
           .activity-body
-            -if event.msg.text
-              .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
-                {{ event.msg.text }}
-            -for attachment in event.msg.attachments
-              {% attachment_button attachment %}
+            -if obj.visibility == 'D'
+              %i
+                -trans "Message deleted by user"
+            -elif obj.visibility == 'X'
+              %i
+                -trans "Message deleted by sender"
+            -else
+              -if event.msg.text
+                .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
+                  {{ event.msg.text }}
+              -for attachment in event.msg.attachments
+                {% attachment_button attachment %}
 
       -elif event.type == 'run_result_changed'
         -blocktrans trimmed with name=event.name category=event.category value=event.value

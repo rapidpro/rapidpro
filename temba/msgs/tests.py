@@ -1613,7 +1613,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg2 = self.create_incoming_msg(frank, "test2")
         msg3 = self.create_incoming_msg(billy, "test3")
         msg4 = self.create_incoming_msg(joe, "test4", visibility=Msg.VISIBILITY_ARCHIVED)
-        msg5 = self.create_incoming_msg(joe, "test5", visibility=Msg.VISIBILITY_DELETED)
+        msg5 = self.create_incoming_msg(joe, "test5", visibility=Msg.VISIBILITY_DELETED_BY_USER)
         msg6 = self.create_incoming_msg(joe, "flow test", msg_type="F")
 
         # apply the labels

@@ -1183,10 +1183,9 @@ class MsgReadSerializer(ReadSerializer):
         Msg.STATUS_RESENT: "resent",
     }
     TYPES = {Msg.TYPE_INBOX: "inbox", Msg.TYPE_FLOW: "flow", Msg.TYPE_IVR: "ivr"}
-    VISIBILITIES = {
+    VISIBILITIES = {  # deleted messages should never be exposed over API
         Msg.VISIBILITY_VISIBLE: "visible",
         Msg.VISIBILITY_ARCHIVED: "archived",
-        Msg.VISIBILITY_DELETED: "deleted",
     }
 
     broadcast = serializers.SerializerMethodField()
