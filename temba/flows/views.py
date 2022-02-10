@@ -46,7 +46,7 @@ from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.contacts.search import SearchException, parse_query
 from temba.contacts.search.elastic import query_contact_ids
 from temba.contacts.search.omnibox import omnibox_deserialize
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart, StudioFlowStart
 from temba.flows.tasks import export_flow_results_task, download_flow_images_task
 from temba.ivr.models import IVRCall
 from temba.links.models import Link, LinkContacts
@@ -481,6 +481,7 @@ class FlowCRUDL(SmartCRUDL):
         "export_pdf",
         "merge_flows",
         "merging_flows_table",
+        "launch_studio_flow",
     )
 
     model = Flow
@@ -3107,6 +3108,103 @@ class FlowCRUDL(SmartCRUDL):
             context["start_date"] = flow.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN)
             context["paginate_by"] = self.paginate_by
             return context
+
+    class LaunchStudioFlow(ModalMixin, OrgPermsMixin, SmartTemplateView):
+        class LaunchStudioFlowForm(forms.Form):
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs.pop("org")
+                super().__init__(*args, **kwargs)
+
+                self.fields["flow"].choices = self.get_flows()
+                self.fields["channel"].queryset = self.org.channels.filter(
+                    channel_type__in=["T", "TW", "TMS", "TWA"],
+                    is_active=True,
+                ).distinct()
+
+            flow = forms.ChoiceField(
+                widget=SelectWidget(
+                    attrs={"placeholder": _("Select Twilio Studio Flow to launch."), "widget_only": True}
+                ),
+                choices=[],
+            )
+
+            omnibox = JSONField(
+                label=_("Contacts & Groups"),
+                required=False,
+                help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
+                widget=OmniboxChoice(
+                    attrs={
+                        "placeholder": _("Select the group"),
+                        "groups": True,
+                        "contacts": True,
+                        "widget_only": True,
+                    }
+                ),
+            )
+
+            channel = forms.ModelChoiceField(
+                Channel.objects.none(),
+                widget=SelectWidget(
+                    attrs={
+                        "placeholder": _("Select the channel that contacts will receive the flow."),
+                        "widget_only": True,
+                    }
+                ),
+            )
+
+            def get_flows(self):
+                flows = []
+                twilio_client = self.org.get_twilio_client()
+                if twilio_client:
+                    response = twilio_client.request("GET", "https://studio.twilio.com/v2/Flows?PageSize=50&Page=0")
+                    response_json = json.loads(response.text)
+                    self._fill_flows(response_json, flows)
+
+                    while response_json["meta"]["next_page_url"]:
+                        response = twilio_client.request("GET", response_json["meta"]["next_page_url"])
+                        response_json = json.loads(response.text)
+                        self._fill_flows(response_json, flows)
+
+                return sorted(flows, key=lambda x: x[1])
+
+            @staticmethod
+            def _fill_flows(_response_json: dict, _flows: list):
+                for flow in _response_json["flows"]:
+                    _flows.append((flow["sid"], flow["friendly_name"]))
+
+            def clean_omnibox(self):
+                starting = self.cleaned_data.get("omnibox")
+                if not starting:  # pragma: needs cover
+                    raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
+                return omnibox_deserialize(self.org, starting)
+
+        permission = "flows.flow_launch"
+        success_message = ""
+        submit_button_name = _("OK")
+        form_class = LaunchStudioFlowForm
+
+        def dispatch(self, request, *args, **kwargs):
+            org = self.derive_org()
+            if not org or not org.get_twilio_client():
+                raise Http404
+            return super().dispatch(request, *args, **kwargs)
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.derive_org()
+            return kwargs
+
+        def form_valid(self, form):
+            start = StudioFlowStart.create(
+                org=self.derive_org(),
+                user=self.get_user(),
+                flow_sid=form.cleaned_data["flow"],
+                channel=form.cleaned_data["channel"],
+                groups=form.cleaned_data["omnibox"]["groups"],
+                contacts=form.cleaned_data["omnibox"]["contacts"],
+            )
+            start.async_start()
+            return super().form_valid(form)
 
 
 # this is just for adhoc testing of the preprocess url
