@@ -2007,9 +2007,7 @@ class ContactImportCRUDL(SmartCRUDL):
                 file = self.cleaned_data["file"]
 
                 # try to parse the file saving the mappings so we don't have to repeat parsing when saving the import
-                self.mappings, self.num_records, num_ignored = ContactImport.try_to_parse(
-                    self.org, file.file, file.name
-                )
+                self.mappings, self.num_records = ContactImport.try_to_parse(self.org, file.file, file.name)
 
                 return file
 

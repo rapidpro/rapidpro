@@ -2144,7 +2144,7 @@ class ContactImport(SmartModel):
     finished_on = models.DateTimeField(null=True)
 
     @classmethod
-    def try_to_parse(cls, org: Org, file, filename: str) -> tuple[list, int, int]:
+    def try_to_parse(cls, org: Org, file, filename: str) -> tuple[list, int]:
         """
         Tries to parse the given file stream as an import. If successful it returns the automatic column mappings and
         total number of records. Otherwise raises a ValidationError.
@@ -2171,7 +2171,7 @@ class ContactImport(SmartModel):
         seen_uuids = set()
         seen_urns = set()
         num_records = 0
-        num_ignored = 0
+
         for raw_row in data:
             row = cls._parse_row(raw_row, len(mappings))
             uuid, urns = cls._extract_uuid_and_urns(row, mappings)
@@ -2188,9 +2188,7 @@ class ContactImport(SmartModel):
                     )
                 seen_urns.add(urn)
 
-            if not uuid and not urns:
-                num_ignored += 1
-            else:
+            if uuid or urns:  # if we have a UUID or URN on this row it's an importable record
                 num_records += 1
 
             # check if we exceed record limit
@@ -2205,7 +2203,7 @@ class ContactImport(SmartModel):
 
         file.seek(0)  # seek back to beginning so subsequent reads work
 
-        return mappings, num_records, num_ignored
+        return mappings, num_records
 
     @staticmethod
     def _extract_uuid_and_urns(row, mappings) -> tuple[str, list[str]]:
@@ -2354,15 +2352,11 @@ class ContactImport(SmartModel):
         urns = []
         batches = []
 
-        batches_gen = self._batches_generator(data, urns)
-        try:
-            batch_specs, batch_start, record_num, urns = next(batches_gen)
-            while batch_specs:
-                batches.append(self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num))
-                batch_specs, batch_start, record_num, urns = next(batches_gen)
+        for batch_specs, batch_start, batch_end in self._batches_generator(data):
+            batches.append(self.batches.create(specs=batch_specs, record_start=batch_start, record_end=batch_end))
 
-        except StopIteration:
-            pass
+            for spec in batch_specs:
+                urns.extend(spec.get("urns", []))
 
         # set redis key which mailroom batch tasks can decrement to know when import has completed
         r = get_redis_connection()
@@ -2376,30 +2370,32 @@ class ContactImport(SmartModel):
         if not self.org.is_verified() and self._detect_spamminess(urns):
             self.org.flag()
 
-    def _batches_generator(self, data, urns):
-        row = 1
-        num_records = 0
+    def _batches_generator(self, row_iter):
+        """
+        Generator which takes an iterable of raw rows and returns tuples of 1. a batches of specs, 2. the record index
+        at which the batch starts, 3. the record number at which the batch ends
+        """
+        record = 0
         batch_specs = []
-        batch_start = row
+        batch_start = record
+        row = 1  # 1-based rows like Excel uses
 
-        for raw_row in data:
+        for raw_row in row_iter:
             row_data = self._parse_row(raw_row, len(self.mappings), tz=self.org.timezone)
             spec = self._row_to_spec(row_data)
             row += 1
             if spec:
                 spec["_import_row"] = row
                 batch_specs.append(spec)
-                num_records += 1
-
-            urns.extend(spec.get("urns", []))
+                record += 1
 
             if len(batch_specs) == ContactImport.BATCH_SIZE:
-                yield batch_specs, batch_start, row, urns
+                yield batch_specs, batch_start, record
                 batch_specs = []
-                batch_start = row
+                batch_start = record
 
         if batch_specs:
-            yield batch_specs, batch_start, row, urns
+            yield batch_specs, batch_start, record
 
     def get_info(self):
         """
