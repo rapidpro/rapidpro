@@ -6217,28 +6217,47 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
 
 
-class FixInactiveContactsInGroupsTest(MigrationTest):
+class PopulateCurrentFlowTest(MigrationTest):
     app = "contacts"
-    migrate_from = "0147_contactgroup_unique_contact_group_names"
-    migrate_to = "0148_fix_inactive_contacts_in_groups"
+    migrate_from = "0148_fix_inactive_contacts_in_groups"
+    migrate_to = "0149_populate_current_flow"
 
     def setUpBeforeMigration(self, apps):
-        self.ann = self.create_contact("Ann", phone="+593979111111", status="A")
-        self.bob = self.create_contact("Bob", phone="+593979222222", status="B")
-        self.stu = self.create_contact("Stu", phone="+593979333333", status="S")
+        def create_session(contact, flow, status):
+            FlowSession.objects.create(
+                uuid=uuid.uuid4(),
+                org=self.org,
+                contact=contact,
+                session_type="M",
+                status=status,
+                wait_started_on=timezone.now(),
+                wait_expires_on=timezone.now(),
+                wait_resume_on_expire=True,
+                current_flow=flow,
+            )
 
-        self.coders = self.create_group("Coders")
-        self.testers = self.create_group("Testers")
+        self.contact1 = self.create_contact("Ann", phone="+593979111111", status="A")
+        self.contact2 = self.create_contact("Bob", phone="+593979222222", status="B")
+        self.contact3 = self.create_contact("Cat", phone="+593979333333", status="S")
 
-        self.coders.contacts.add(self.ann, self.bob, self.stu)
-        self.testers.contacts.add(self.ann, self.bob, self.stu)
+        self.flow1 = self.create_flow("Flow 1")
+        self.flow2 = self.create_flow("2")
+
+        create_session(self.contact1, flow=None, status="C")
+        create_session(self.contact1, flow=self.flow1, status="W")
+        create_session(self.contact2, flow=None, status="X")
+        create_session(self.contact2, flow=self.flow2, status="W")
+        create_session(self.contact3, flow=None, status="I")
+
+        # set incorrectly on contact #2
+        self.contact2.current_flow = self.flow1
+        self.contact2.save(update_fields=("current_flow",))
 
     def test_migration(self):
-        # inactive contacts removed from user groups
-        self.assertEqual({self.ann}, set(self.coders.contacts.all()))
-        self.assertEqual({self.ann}, set(self.testers.contacts.all()))
+        self.contact1.refresh_from_db()
+        self.contact2.refresh_from_db()
+        self.contact3.refresh_from_db()
 
-        # but not from system groups
-        self.assertEqual({self.ann}, set(ContactGroup.system_groups.get(org=self.org, name="Active").contacts.all()))
-        self.assertEqual({self.bob}, set(ContactGroup.system_groups.get(org=self.org, name="Blocked").contacts.all()))
-        self.assertEqual({self.stu}, set(ContactGroup.system_groups.get(org=self.org, name="Stopped").contacts.all()))
+        self.assertEqual(self.flow1, self.contact1.current_flow)
+        self.assertEqual(self.flow2, self.contact2.current_flow)
+        self.assertIsNone(self.contact3.current_flow)

@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def remove_inactive_from_groups(apps, schema_editor):
+def remove_inactive_from_groups(apps, schema_editor):  # pragma: no cover
     ContactGroup = apps.get_model("contacts", "ContactGroup")
 
     bad_memberships = ContactGroup.contacts.through.objects.exclude(contact__status="A").filter(
@@ -22,7 +22,7 @@ def remove_inactive_from_groups(apps, schema_editor):
         print(f"Deleted {num_deleted} bad group memberships for inactive contacts")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
