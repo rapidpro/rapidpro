@@ -751,6 +751,7 @@ class ContactCRUDL(SmartCRUDL):
     class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         fields = ("name",)
+        select_related = ("current_flow",)
 
         def derive_title(self):
             return self.object.get_display()
