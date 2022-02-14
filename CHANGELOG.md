@@ -1,3 +1,7 @@
+v7.1.59
+----------
+ * Add migration to populate Contact.current_flow
+
 v7.1.58
 ----------
  * Restrict msg visibility changes on bulk actions endpoint
