@@ -718,7 +718,7 @@ class EventTest(TembaTest):
         contact1 = self.create_contact("Jim", phone="0979111111")
         contact2 = self.create_contact("Bob", phone="0979222222")
 
-        msg_in = self.create_incoming_msg(contact1, "Hello", external_id="12345")
+        msg_in = self.create_incoming_msg(contact1, "Hello", external_id="12345", attachments=["image:http://a.jpg"])
 
         self.assertEqual(
             {
@@ -729,10 +729,58 @@ class EventTest(TembaTest):
                     "id": msg_in.id,
                     "urn": "tel:+250979111111",
                     "text": "Hello",
+                    "attachments": ["image:http://a.jpg"],
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     "external_id": "12345",
                 },
                 "msg_type": "I",
+                "visibility": "V",
+                "logs_url": None,
+            },
+            Event.from_msg(self.org, self.admin, msg_in),
+        )
+
+        msg_in.visibility = Msg.VISIBILITY_DELETED_BY_USER
+        msg_in.save(update_fields=("visibility",))
+
+        self.assertEqual(
+            {
+                "type": "msg_received",
+                "created_on": matchers.ISODate(),
+                "msg": {
+                    "uuid": str(msg_in.uuid),
+                    "id": msg_in.id,
+                    "urn": "tel:+250979111111",
+                    "text": "",
+                    "attachments": [],
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "external_id": "12345",
+                },
+                "msg_type": "I",
+                "visibility": "D",
+                "logs_url": None,
+            },
+            Event.from_msg(self.org, self.admin, msg_in),
+        )
+
+        msg_in.visibility = Msg.VISIBILITY_DELETED_BY_SENDER
+        msg_in.save(update_fields=("visibility",))
+
+        self.assertEqual(
+            {
+                "type": "msg_received",
+                "created_on": matchers.ISODate(),
+                "msg": {
+                    "uuid": str(msg_in.uuid),
+                    "id": msg_in.id,
+                    "urn": "tel:+250979111111",
+                    "text": "",
+                    "attachments": [],
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "external_id": "12345",
+                },
+                "msg_type": "I",
+                "visibility": "X",
                 "logs_url": None,
             },
             Event.from_msg(self.org, self.admin, msg_in),

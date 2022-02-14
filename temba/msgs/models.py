@@ -20,7 +20,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
@@ -201,7 +201,7 @@ class Broadcast(models.Model):
             child.release()
 
         for msg in self.msgs.all():
-            msg.release()
+            msg.delete()
 
         BroadcastMsgCount.objects.filter(broadcast=self).delete()
 
@@ -320,11 +320,13 @@ class Msg(models.Model):
 
     VISIBILITY_VISIBLE = "V"
     VISIBILITY_ARCHIVED = "A"
-    VISIBILITY_DELETED = "D"
+    VISIBILITY_DELETED_BY_USER = "D"
+    VISIBILITY_DELETED_BY_SENDER = "X"
     VISIBILITY_CHOICES = (
         (VISIBILITY_VISIBLE, "Visible"),
         (VISIBILITY_ARCHIVED, "Archived"),
-        (VISIBILITY_DELETED, "Deleted"),
+        (VISIBILITY_DELETED_BY_USER, "Deleted by user"),
+        (VISIBILITY_DELETED_BY_SENDER, "Deleted by sender"),
     )
 
     DIRECTION_IN = "I"
@@ -621,8 +623,7 @@ class Msg(models.Model):
         """
         Archives this message
         """
-        if self.direction != self.DIRECTION_IN:
-            raise ValueError("Can only archive incoming non-test messages")
+        assert self.direction == self.DIRECTION_IN and self.visibility == Msg.VISIBILITY_VISIBLE
 
         self.visibility = self.VISIBILITY_ARCHIVED
         self.save(update_fields=("visibility", "modified_on"))
@@ -644,26 +645,32 @@ class Msg(models.Model):
         """
         Restores (i.e. un-archives) this message
         """
-        if self.direction != self.DIRECTION_IN:  # pragma: needs cover
-            raise ValueError("Can only restore incoming non-test messages")
+        assert self.direction == self.DIRECTION_IN and self.visibility == Msg.VISIBILITY_ARCHIVED
 
         self.visibility = self.VISIBILITY_VISIBLE
         self.save(update_fields=("visibility", "modified_on"))
 
-    def release(self, delete_reason=DELETE_FOR_USER):
+    def delete(self, soft: bool = False):
         """
-        Releases (i.e. deletes) this message
+        Deletes this message. This can be soft if messages are being deleted from the UI, or hard in the case of
+        contact or org removal.
         """
+        if soft:
+            self.labels.clear()
 
-        for log in ChannelLog.objects.filter(msg=self):
-            log.release()
+            self.text = ""
+            self.attachments = []
+            self.visibility = Msg.VISIBILITY_DELETED_BY_USER
+            self.save(update_fields=("text", "attachments", "visibility"))
+        else:
+            for log in self.channel_logs.all():
+                log.release()
 
-        self.delete_reason = delete_reason
-        self.delete_from_counts = delete_reason == self.DELETE_FOR_USER
-        self.save(update_fields=("delete_reason", "delete_from_counts"))
+            self.delete_reason = Msg.DELETE_FOR_USER
+            self.delete_from_counts = True
+            self.save(update_fields=("delete_reason", "delete_from_counts"))
 
-        # delete this object
-        self.delete()
+            super().delete()
 
     @classmethod
     def apply_action_label(cls, user, msgs, label):
@@ -686,7 +693,7 @@ class Msg(models.Model):
     @classmethod
     def apply_action_delete(cls, user, msgs):
         for msg in msgs:
-            msg.release()
+            msg.delete(soft=True)
 
     @classmethod
     def apply_action_resend(cls, user, msgs):

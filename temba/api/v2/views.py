@@ -2540,7 +2540,9 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             else:
                 return self.model.objects.filter(pk=-1)
         else:
-            return self.model.objects.filter(org=org).exclude(visibility=Msg.VISIBILITY_DELETED).exclude(msg_type=None)
+            return self.model.objects.filter(
+                org=org, visibility__in=(Msg.VISIBILITY_VISIBLE, Msg.VISIBILITY_ARCHIVED)
+            ).exclude(msg_type=None)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
