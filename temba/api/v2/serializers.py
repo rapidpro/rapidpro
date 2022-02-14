@@ -1323,11 +1323,11 @@ class MsgBulkActionSerializer(WriteSerializer):
                 label.toggle_label(messages, add=False)
         else:
             for msg in messages:
-                if action == self.ARCHIVE:
+                if action == self.ARCHIVE and msg.visibility == Msg.VISIBILITY_VISIBLE:
                     msg.archive()
-                elif action == self.RESTORE:
+                elif action == self.RESTORE and msg.visibility == Msg.VISIBILITY_ARCHIVED:
                     msg.restore()
-                elif action == self.DELETE:
+                elif action == self.DELETE and msg.visibility in (Msg.VISIBILITY_VISIBLE, Msg.VISIBILITY_ARCHIVED):
                     msg.delete(soft=True)
 
         return BulkActionFailure(missing_message_ids) if missing_message_ids else None
