@@ -87,12 +87,27 @@ class OrgUserRateThrottle(ScopedRateThrottle):
     Throttle class which rate limits a user in an org
     """
 
+    def get_org_rate(self, request):
+        default_rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
+        org_rates = {}
+        if request.user.using_token:
+            org = request.user.get_org()
+            org_rates = org.api_rates
+        combined_rates = {**default_rates, **org_rates}
+        return combined_rates[self.scope]
+
     def allow_request(self, request, view):
         # any request not using a token (e.g. editor, explorer) isn't subject to throttling
         if request.user.is_authenticated and not request.user.using_token:
             return True
 
-        return super().allow_request(request, view)
+        self.scope = getattr(view, self.scope_attr, None)
+
+        # Determine the allowed request rate considering the org config
+        self.rate = self.get_org_rate(request)
+        self.num_requests, self.duration = self.parse_rate(self.rate)
+
+        return super(ScopedRateThrottle, self).allow_request(request, view)
 
     def get_cache_key(self, request, view):
         ident = None
