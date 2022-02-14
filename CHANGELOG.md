@@ -1,3 +1,7 @@
+v7.1.58
+----------
+ * Restrict msg visibility changes on bulk actions endpoint
+
 v7.1.57
 ----------
  * Add sentry id for 500 page
