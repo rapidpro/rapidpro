@@ -1,3 +1,10 @@
+v7.1.57
+----------
+ * Add sentry id for 500 page
+ * Display current flow on contact read page for beta users
+ * Add new msg visibility for msgs deleted by senders and allow deleted msgs to appear redacted in contact histories
+ * Contact imports should strip empty rows, missing a UUID or URNs
+
 v7.1.56
 ----------
  * Fix issue with sending to step_node
