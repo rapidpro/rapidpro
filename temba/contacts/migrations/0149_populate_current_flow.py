@@ -36,7 +36,7 @@ def reverse(apps, schema_editor):
 
 
 def apply_manual():  # pragma: no cover
-    from django import apps
+    from django.apps import apps
 
     populate_current_flow(apps, None)
 
