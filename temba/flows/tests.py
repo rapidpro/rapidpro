@@ -229,6 +229,15 @@ class FlowTest(TembaTest):
 
         # change our channel to use a whatsapp scheme
         self.channel.schemes = [URN.WHATSAPP_SCHEME]
+        self.channel.channel_type = "TWA"
+        self.channel.save()
+
+        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
+
+        # no warning, we don't have a whatsapp channel that requires a message template
+        self.assertNotContains(response, "affirmation")
+
+        self.channel.channel_type = "WA"
         self.channel.save()
 
         # clear dependencies, this will cause our flow to look like it isn't using templates
