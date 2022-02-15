@@ -2069,12 +2069,22 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "30 seconds")
 
     def test_channellog_connection_anonymous(self):
-        url = reverse("channels.channellog_connection", args=(1,))
+        contact = self.create_contact("Joe Blow", phone="123")
+        call = IVRCall.objects.create(
+            contact=contact,
+            status=IVRCall.STATUS_ERRORED,
+            error_reason=IVRCall.ERROR_NOANSWER,
+            channel=self.channel,
+            org=self.org,
+            contact_urn=contact.urns.all().first(),
+            error_count=0,
+        )
+        url = reverse("channels.channellog_connection", args=(call.pk,))
 
         self.login(self.admin)
         response = self.client.get(url)
 
-        self.assertTrue(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
 
         with AnonymousOrg(self.org):
             response = self.client.get(url)
@@ -2089,7 +2099,7 @@ class ChannelLogTest(TembaTest):
         with AnonymousOrg(self.org):
             response = self.client.get(url)
             # customer_support has access
-            self.assertTrue(response.status_code, 200)
+            self.assertEqual(response.status_code, 200)
 
     def test_redaction_for_telegram(self):
         urn = "telegram:3527065"

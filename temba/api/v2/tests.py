@@ -4047,7 +4047,7 @@ class APITest(TembaTest):
         self.assertEqual({self.joe}, set(start2.contacts.all()))
         self.assertEqual({hans_group}, set(start2.groups.all()))
         self.assertFalse(start2.restart_participants)
-        self.assertTrue(start2.extra, {"first_name": "Ryan", "last_name": "Lewis"})
+        self.assertEqual(start2.extra, {"first_name": "Ryan", "last_name": "Lewis"})
 
         # check we tried to start the new flow start
         mock_async_start.assert_called_once()
@@ -4077,7 +4077,7 @@ class APITest(TembaTest):
         self.assertEqual({hans_group}, set(start3.groups.all()))
         self.assertFalse(start3.restart_participants)
         self.assertTrue(start3.include_active)
-        self.assertTrue(start3.extra, {"first_name": "Bob", "last_name": "Marley"})
+        self.assertEqual(start3.extra, {"first_name": "Bob", "last_name": "Marley"})
 
         # check we tried to start the new flow start
         mock_async_start.assert_called_once()
