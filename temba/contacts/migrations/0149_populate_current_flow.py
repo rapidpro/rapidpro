@@ -4,7 +4,7 @@ from django.db import migrations, transaction
 from django.utils import timezone
 
 
-def populate_current_flow(apps, schema_editor):
+def populate_current_flow(apps, schema_editor):  # pragma: no cover
     FlowSession = apps.get_model("flows", "FlowSession")
 
     max_id = 0
@@ -32,7 +32,7 @@ def populate_current_flow(apps, schema_editor):
         max_id = batch[-1].id
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
