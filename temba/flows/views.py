@@ -706,7 +706,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def save_media_upload(self, file):
             flow = self.get_object()
-            name_uuid = str(uuid4())
+            uuid = str(uuid4())
             extension = file.name.split(".")[-1]
 
             # browsers might send m4a files but correct MIME type is audio/mp4
@@ -714,7 +714,7 @@ class FlowCRUDL(SmartCRUDL):
                 file.content_type = "audio/mp4"
 
             url = public_file_storage.save(
-                "attachments/%d/%d/steps/%s.%s" % (flow.org.pk, flow.id, name_uuid, extension), file
+                "attachments/%d/%d/steps/%s/%s" % (flow.org.pk, flow.id, uuid, file.name), file
             )
             return {"type": file.content_type, "url": f"{settings.STORAGE_URL}/{url}"}
 
@@ -1945,7 +1945,7 @@ class FlowCRUDL(SmartCRUDL):
                 query=query,
                 restart_participants=restart_participants,
                 include_active=include_contacts_with_runs,
-            )
+                ,)
             return self.object
 
     class Assets(OrgPermsMixin, SmartTemplateView):
