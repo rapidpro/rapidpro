@@ -346,6 +346,8 @@ class Org(SmartModel):
 
     limits = JSONField(default=dict)
 
+    api_rates = JSONField(default=dict)
+
     is_anon = models.BooleanField(
         default=False, help_text=_("Whether this organization anonymizes the phone numbers of contacts within it")
     )

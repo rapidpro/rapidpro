@@ -2962,6 +2962,14 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 500)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
 
+    def test_org_api_rates(self):
+        self.assertEqual(self.org.api_rates, {})
+
+        self.org.api_rates = {"v2.contacts": "10000/hour"}
+        self.org.save()
+
+        self.assertEqual(self.org.api_rates, {"v2.contacts": "10000/hour"})
+
     def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
         self.org.reset_capabilities()
