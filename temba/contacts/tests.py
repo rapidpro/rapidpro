@@ -1509,6 +1509,9 @@ class ContactTest(TembaTest):
         # give contact an open and a closed ticket
         self.create_ticket(self.org.ticketers.get(), contact, "Hi")
         self.create_ticket(self.org.ticketers.get(), contact, "Hi", closed_on=timezone.now())
+        bcast_ticket = self.create_ticket(self.org.ticketers.get(), contact, "Hi All")
+        bcast2.ticket = bcast_ticket
+        bcast2.save()
 
         self.assertEqual(1, group.contacts.all().count())
         self.assertEqual(1, contact.connections.all().count())
@@ -1519,7 +1522,7 @@ class ContactTest(TembaTest):
         self.assertEqual(2, len(contact.fields))
         self.assertEqual(1, contact.campaign_fires.count())
 
-        self.assertEqual(2, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
+        self.assertEqual(3, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
         self.assertEqual(1, TicketCount.get_all(self.org, Ticket.STATUS_CLOSED))
 
         # first try a regular release and make sure our urns are anonymized
@@ -1530,7 +1533,7 @@ class ContactTest(TembaTest):
             self.assertEqual(URN.DELETED_SCHEME, urn.scheme)
 
         # tickets unchanged
-        self.assertEqual(2, contact.tickets.count())
+        self.assertEqual(3, contact.tickets.count())
 
         # a new contact arrives with those urns
         new_contact = self.create_contact("URN Thief", urns=["tel:+12065552000", "twitter:tweettweet"])
@@ -1538,6 +1541,7 @@ class ContactTest(TembaTest):
 
         self.assertEqual({contact2}, set(bcast1.contacts.all()))
         self.assertEqual({contact, contact2}, set(bcast2.contacts.all()))
+        self.assertIsNotNone(bcast2.ticket)
 
         # now lets go for a full release
         contact.release(self.admin)
@@ -1568,6 +1572,9 @@ class ContactTest(TembaTest):
         Flow.objects.get(id=msg_flow.id)
         Flow.objects.get(id=ivr_flow.id)
         self.assertEqual(1, Ticket.objects.count())
+
+        bcast2.refresh_from_db()
+        self.assertIsNone(bcast2.ticket)
 
     @mock_mailroom
     def test_status_changes_and_release(self, mr_mocks):
