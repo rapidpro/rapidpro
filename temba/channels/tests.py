@@ -2074,7 +2074,7 @@ class ChannelLogTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(url)
 
-        self.assertTrue(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
 
         with AnonymousOrg(self.org):
             response = self.client.get(url)
@@ -2089,7 +2089,7 @@ class ChannelLogTest(TembaTest):
         with AnonymousOrg(self.org):
             response = self.client.get(url)
             # customer_support has access
-            self.assertTrue(response.status_code, 200)
+            self.assertEqual(response.status_code, 200)
 
     def test_redaction_for_telegram(self):
         urn = "telegram:3527065"
