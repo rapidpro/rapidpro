@@ -1,3 +1,8 @@
+v7.1.60
+----------
+ * Adjust WA message template warning to not be show for Twilio WhatsApp channels
+ * Add support to increase API rates per org
+
 v7.1.59
 ----------
  * Add migration to populate Contact.current_flow
