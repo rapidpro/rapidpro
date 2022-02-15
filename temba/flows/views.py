@@ -1907,8 +1907,10 @@ class FlowCRUDL(SmartCRUDL):
             if facebook_channel and not self.has_facebook_topic(flow):
                 warnings.append(self.warnings["facebook_topic"])
 
-            # if we have a whatsapp channel
-            whatsapp_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
+            # if we have a whatsapp channel that requires a message template; exclude twilio whatsApp
+            whatsapp_channel = flow.org.channels.filter(
+                role__contains=Channel.ROLE_SEND, schemes__contains=[URN.WHATSAPP_SCHEME], is_active=True
+            ).exclude(channel_type__in=["TWA"])
             if whatsapp_channel:
                 # check to see we are using templates
                 templates = flow.get_dependencies_metadata("template")
