@@ -16,8 +16,12 @@
   .field
     - render_field 'omnibox'
 
-  .field
+  .field.channel-field
     - render_field 'channel'
+
+  .no-channel-available.hidden
+    %temba-alert{level: "warning"}
+      There is no channel to be selected to launch the flow.
 
 -block form-buttons
   -if send_channel
@@ -48,5 +52,16 @@
       } else {
         numberSelector.staticOptions = getNumberOptions();
         numberSelector.values = [];
+      }
+
+      // hide channel field if no options and show message about it
+      if (numberSelector.staticOptions.length > 0) {
+        modalBody.querySelector(".channel-field").classList.remove("hidden");
+        modalBody.querySelector(".no-channel-available").classList.add("hidden");
+        document.querySelector("#start-studio-flow").primaryName = "OK";
+      } else {
+        modalBody.querySelector(".channel-field").classList.add("hidden");
+        modalBody.querySelector(".no-channel-available").classList.remove("hidden");
+        document.querySelector("#start-studio-flow").primaryName = "";
       }
     });
