@@ -276,6 +276,7 @@ class Ticket(models.Model):
         return org.get_users_with_perm(cls.ASSIGNEE_PERMISSION)
 
     def delete(self):
+        self.events.all().delete()
         self.broadcasts.update(ticket=None)
         super().delete()
 
