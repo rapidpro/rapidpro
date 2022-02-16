@@ -6,7 +6,8 @@ from django.db import migrations
 def full_release_deleted_contacts(apps, schema_editor):  # pragma: no cover
     Contact = apps.get_model("contacts", "Contact")
 
-    deleted_contacts = Contact.objects.filter(is_active=False, name=None)
+    # get inactive contacts who have tickets
+    deleted_contacts = Contact.objects.filter(is_active=False, name=None).exclude(tickets=None)
 
     for contact in deleted_contacts:
         contact.ticket_events.all().delete()
