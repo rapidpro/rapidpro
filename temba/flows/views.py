@@ -3118,7 +3118,12 @@ class FlowCRUDL(SmartCRUDL):
                 self.fields["channel"].choices = numbers
 
             flow = forms.ChoiceField(
-                widget=SelectWidget(attrs={"placeholder": _("Select Twilio Studio Flow to launch.")}),
+                widget=SelectWidget(
+                    attrs={
+                        "placeholder": _("Select Twilio Studio Flow to launch."),
+                        "searchable": True,
+                    }
+                ),
                 choices=[],
             )
 
@@ -3131,6 +3136,7 @@ class FlowCRUDL(SmartCRUDL):
                         "placeholder": _("Select the group"),
                         "groups": True,
                         "contacts": True,
+                        "urns": True,
                         "widget_only": True,
                     }
                 ),
@@ -3141,6 +3147,7 @@ class FlowCRUDL(SmartCRUDL):
                     attrs={
                         "placeholder": _("Select the channel that contacts will receive the flow."),
                         "widget_only": True,
+                        "searchable": True,
                     }
                 ),
                 choices=[],
@@ -3204,6 +3211,7 @@ class FlowCRUDL(SmartCRUDL):
                 channel=form.cleaned_data["channel"],
                 groups=form.cleaned_data["omnibox"]["groups"],
                 contacts=form.cleaned_data["omnibox"]["contacts"],
+                urns=form.cleaned_data["omnibox"]["urns"],
             )
             start.async_start()
             return super(ModalMixin, self).form_valid(form)

@@ -3115,6 +3115,7 @@ class StudioFlowStart(models.Model):
         channel,
         groups=(),
         contacts=(),
+        urns=(),
     ):
         start = StudioFlowStart.objects.create(
             org=org,
@@ -3122,6 +3123,11 @@ class StudioFlowStart(models.Model):
             channel=channel,
             created_by=user,
         )
+
+        for urn in urns:
+            contact = Contact.from_urn(org, urn)
+            if contact:
+                start.contacts.add(contact)
 
         for contact in contacts:
             start.contacts.add(contact)
