@@ -3078,7 +3078,7 @@ class StudioFlowStart(models.Model):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="studio_flow_starts")
 
     # the channel number from which will be used as from parameter
-    channel = models.ForeignKey(Channel, related_name="dependent_studio_flows", on_delete=models.PROTECT)
+    channel = models.CharField(max_length=64)
 
     # the flow that should be started
     flow_sid = models.CharField(max_length=64)

@@ -158,7 +158,7 @@ def queue_studio_flow_start(start):
         "flow_sid": start.flow_sid,
         "contact_ids": list(start.contacts.values_list("id", flat=True)),
         "group_ids": list(start.groups.values_list("id", flat=True)),
-        "channel_id": start.channel.id,
+        "channel": start.channel,
     }
 
     _queue_batch_task(org_id, BatchTask.START_STUDIO_FLOW, task, HIGH_PRIORITY)

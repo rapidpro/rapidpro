@@ -3153,7 +3153,7 @@ class FlowCRUDL(SmartCRUDL):
                 return omnibox_deserialize(self.org, starting)
 
         permission = "flows.flow_launch"
-        success_message = ""
+        success_url = "@contacts.contact_list"
         submit_button_name = _("OK")
         form_class = LaunchStudioFlowForm
         studio_flows = []
@@ -3206,10 +3206,10 @@ class FlowCRUDL(SmartCRUDL):
                 contacts=form.cleaned_data["omnibox"]["contacts"],
             )
             start.async_start()
-            return super().form_valid(form)
+            return super(ModalMixin, self).form_valid(form)
 
         def get_context_data(self, **kwargs):
-            context_data = super().get_context_data(**kwargs)
+            context_data = super(ModalMixin, self).get_context_data(**kwargs)
             context_data["numbers"] = json.dumps(self.studio_numbers)
             context_data["flow_numbers"] = json.dumps(self.studio_flow_numbers)
             return context_data
