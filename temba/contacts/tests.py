@@ -6249,12 +6249,14 @@ class FullReleaseDeletedContacts(MigrationTest):
 
         self.group = self.create_group("Test Group", contacts=[self.contact])
 
-        contact2 = self.create_contact("Billy", urns=["twitter:billy"])
+        self.contact2 = self.create_contact("Billy", urns=["twitter:billy"])
 
         # create scheduled and regular broadcasts which send to both contacts
         schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
-        self.bcast1 = self.create_broadcast(self.admin, "Test", contacts=[self.contact, contact2], schedule=schedule)
-        self.bcast2 = self.create_broadcast(self.admin, "Test", contacts=[self.contact, contact2])
+        self.bcast1 = self.create_broadcast(
+            self.admin, "Test", contacts=[self.contact, self.contact2], schedule=schedule
+        )
+        self.bcast2 = self.create_broadcast(self.admin, "Test", contacts=[self.contact, self.contact2])
 
         flow_nodes = self.msg_flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
@@ -6312,9 +6314,11 @@ class FullReleaseDeletedContacts(MigrationTest):
         self.assertEqual(1, TicketCount.get_all(self.org, Ticket.STATUS_CLOSED))
 
         self.contact.release(self.admin, full=False)
+        self.contact2.release(self.admin, full=False)
 
     def test_migration(self):
         self.contact.refresh_from_db()
+        self.contact2.refresh_from_db()
         self.old_contact.refresh_from_db()
         self.bcast2.refresh_from_db()
 
@@ -6345,3 +6349,6 @@ class FullReleaseDeletedContacts(MigrationTest):
         self.assertEqual(0, self.contact.tickets.count())
 
         self.assertEqual(1, self.old_contact.tickets.count())
+
+        # make sure we only applied the full release migration on the contact with a ticket that were half deleted
+        self.assertEqual(1, self.contact2.addressed_broadcasts.all().count())
