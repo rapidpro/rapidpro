@@ -3078,7 +3078,7 @@ class StudioFlowStart(models.Model):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="studio_flow_starts")
 
     # the channel number from which will be used as from parameter
-    channel = models.ForeignKey(Channel, related_name="dependent_studio_flows", on_delete=models.PROTECT)
+    channel = models.CharField(max_length=64)
 
     # the flow that should be started
     flow_sid = models.CharField(max_length=64)
@@ -3115,6 +3115,7 @@ class StudioFlowStart(models.Model):
         channel,
         groups=(),
         contacts=(),
+        urns=(),
     ):
         start = StudioFlowStart.objects.create(
             org=org,
@@ -3122,6 +3123,11 @@ class StudioFlowStart(models.Model):
             channel=channel,
             created_by=user,
         )
+
+        for urn in urns:
+            contact = Contact.from_urn(org, urn)
+            if contact:
+                start.contacts.add(contact)
 
         for contact in contacts:
             start.contacts.add(contact)

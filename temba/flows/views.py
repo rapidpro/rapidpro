@@ -3113,17 +3113,18 @@ class FlowCRUDL(SmartCRUDL):
         class LaunchStudioFlowForm(forms.Form):
             def __init__(self, *args, **kwargs):
                 self.org = kwargs.pop("org")
+                flows = kwargs.pop("flows")
+                numbers = kwargs.pop("numbers")
                 super().__init__(*args, **kwargs)
-
-                self.fields["flow"].choices = self.get_flows()
-                self.fields["channel"].queryset = self.org.channels.filter(
-                    channel_type__in=["T", "TW", "TMS", "TWA"],
-                    is_active=True,
-                ).distinct()
+                self.fields["flow"].choices = flows
+                self.fields["channel"].choices = numbers
 
             flow = forms.ChoiceField(
                 widget=SelectWidget(
-                    attrs={"placeholder": _("Select Twilio Studio Flow to launch."), "widget_only": True}
+                    attrs={
+                        "placeholder": _("Select Twilio Studio Flow to launch."),
+                        "searchable": True,
+                    }
                 ),
                 choices=[],
             )
@@ -3137,40 +3138,22 @@ class FlowCRUDL(SmartCRUDL):
                         "placeholder": _("Select the group"),
                         "groups": True,
                         "contacts": True,
+                        "urns": True,
                         "widget_only": True,
                     }
                 ),
             )
 
-            channel = forms.ModelChoiceField(
-                Channel.objects.none(),
+            channel = forms.ChoiceField(
                 widget=SelectWidget(
                     attrs={
                         "placeholder": _("Select the channel that contacts will receive the flow."),
                         "widget_only": True,
+                        "searchable": True,
                     }
                 ),
+                choices=[],
             )
-
-            def get_flows(self):
-                flows = []
-                twilio_client = self.org.get_twilio_client()
-                if twilio_client:
-                    response = twilio_client.request("GET", "https://studio.twilio.com/v2/Flows?PageSize=50&Page=0")
-                    response_json = json.loads(response.text)
-                    self._fill_flows(response_json, flows)
-
-                    while response_json["meta"]["next_page_url"]:
-                        response = twilio_client.request("GET", response_json["meta"]["next_page_url"])
-                        response_json = json.loads(response.text)
-                        self._fill_flows(response_json, flows)
-
-                return sorted(flows, key=lambda x: x[1])
-
-            @staticmethod
-            def _fill_flows(_response_json: dict, _flows: list):
-                for flow in _response_json["flows"]:
-                    _flows.append((flow["sid"], flow["friendly_name"]))
 
             def clean_omnibox(self):
                 starting = self.cleaned_data.get("omnibox")
@@ -3179,19 +3162,47 @@ class FlowCRUDL(SmartCRUDL):
                 return omnibox_deserialize(self.org, starting)
 
         permission = "flows.flow_launch"
-        success_message = ""
+        success_url = "@contacts.contact_list"
         submit_button_name = _("OK")
         form_class = LaunchStudioFlowForm
+        studio_flows = []
+        studio_numbers = []
+        studio_flow_numbers = []
 
         def dispatch(self, request, *args, **kwargs):
             org = self.derive_org()
             if not org or not org.get_twilio_client():
                 raise Http404
+
+            twilio_client = org.get_twilio_client()
+            flows_webhook_prefix = f"https://webhooks.twilio.com/v1/Accounts/{twilio_client.auth[0]}/Flows/"
+
+            def get_flow_sids(_number):
+                if _number.sms_application_sid == "" and _number.sms_url.startswith(flows_webhook_prefix):
+                    yield _number.sms_url[len(flows_webhook_prefix) :]
+                if _number.voice_application_sid == "" and _number.voice_url.startswith(flows_webhook_prefix):
+                    yield _number.voice_url[len(flows_webhook_prefix) :]
+
+            if twilio_client:
+                studio_flows = twilio_client.studio.flows.stream(page_size=1000)
+                flows = [(flow.sid, flow.friendly_name) for flow in studio_flows if flow.status == "published"]
+                self.studio_flows = sorted(flows, key=lambda x: x[1])
+
+                numbers = []
+                active_numbers = twilio_client.api.incoming_phone_numbers.stream(page_size=1000)
+                for number in active_numbers:
+                    numbers.append((number.phone_number, number.friendly_name))
+                    self.studio_flow_numbers.extend(
+                        (flow_sid, number.phone_number) for flow_sid in get_flow_sids(number)
+                    )
+                self.studio_numbers = sorted(numbers, key=lambda x: x[1])
             return super().dispatch(request, *args, **kwargs)
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.derive_org()
+            kwargs["flows"] = self.studio_flows
+            kwargs["numbers"] = self.studio_numbers
             return kwargs
 
         def form_valid(self, form):
@@ -3202,9 +3213,16 @@ class FlowCRUDL(SmartCRUDL):
                 channel=form.cleaned_data["channel"],
                 groups=form.cleaned_data["omnibox"]["groups"],
                 contacts=form.cleaned_data["omnibox"]["contacts"],
+                urns=form.cleaned_data["omnibox"]["urns"],
             )
             start.async_start()
-            return super().form_valid(form)
+            return super(ModalMixin, self).form_valid(form)
+
+        def get_context_data(self, **kwargs):
+            context_data = super(ModalMixin, self).get_context_data(**kwargs)
+            context_data["numbers"] = json.dumps(self.studio_numbers)
+            context_data["flow_numbers"] = json.dumps(self.studio_flow_numbers)
+            return context_data
 
 
 # this is just for adhoc testing of the preprocess url
