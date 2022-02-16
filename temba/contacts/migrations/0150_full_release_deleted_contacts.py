@@ -5,8 +5,11 @@ from django.db import migrations
 
 def full_release_deleted_contacts(apps, schema_editor):  # pragma: no cover
     Contact = apps.get_model("contacts", "Contact")
+    Ticket = apps.get_model("tickets", "Ticket")
 
-    deleted_contacts = Contact.objects.filter(is_active=False, name=None)
+    tickets_contact_ids = Ticket.objects.all().values_list("contact_id", flat=True)
+
+    deleted_contacts = Contact.objects.filter(id__in=tickets_contact_ids, is_active=False, name=None)
 
     for contact in deleted_contacts:
         contact.ticket_events.all().delete()
