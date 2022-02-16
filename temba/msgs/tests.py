@@ -1764,21 +1764,8 @@ class BroadcastTest(TembaTest):
         self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], tc["sent_count"])
         self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], tc["failed_count"])
 
-        # check our archived counts as well
-        self.assertEqual(
-            SystemLabelCount.get_totals(self.org, True)[SystemLabel.TYPE_INBOX], tc["archived_inbox_count"]
-        )
-        self.assertEqual(
-            SystemLabelCount.get_totals(self.org, True)[SystemLabel.TYPE_FLOWS], tc["archived_flow_count"]
-        )
-        self.assertEqual(SystemLabelCount.get_totals(self.org, True)[SystemLabel.TYPE_SENT], tc["archived_sent_count"])
-        self.assertEqual(
-            SystemLabelCount.get_totals(self.org, True)[SystemLabel.TYPE_FAILED], tc["archived_failed_count"]
-        )
-
-        # check user labels
+        # check user label
         self.assertEqual(LabelCount.get_totals([label])[label], tc["label_count"])
-        self.assertEqual(LabelCount.get_totals([label], True)[label], tc["archived_label_count"])
 
         # but daily channel counts should be unchanged
         self.assertEqual(
@@ -1802,15 +1789,10 @@ class BroadcastTest(TembaTest):
                 "delete_reason": Msg.DELETE_FOR_ARCHIVE,
                 "broadcast_count": 2,
                 "label_count": 0,
-                "archived_label_count": 1,
                 "inbox_count": 0,
                 "flow_count": 1,
                 "sent_count": 0,
                 "failed_count": 0,
-                "archived_inbox_count": 2,
-                "archived_flow_count": 0,
-                "archived_sent_count": 6,
-                "archived_failed_count": 1,
                 "credits_used": 10,
                 "credits_remaining": 990,
                 "sms_incoming_count": 3,
@@ -1826,15 +1808,10 @@ class BroadcastTest(TembaTest):
                 "delete_reason": Msg.DELETE_FOR_USER,
                 "broadcast_count": 2,
                 "label_count": 0,
-                "archived_label_count": 0,
                 "inbox_count": 0,
                 "flow_count": 1,
                 "sent_count": 0,
                 "failed_count": 0,
-                "archived_inbox_count": 0,
-                "archived_flow_count": 0,
-                "archived_sent_count": 0,
-                "archived_failed_count": 0,
                 "credits_used": 10,
                 "credits_remaining": 990,
                 "sms_incoming_count": 3,
@@ -2294,29 +2271,26 @@ class LabelTest(TembaTest):
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
         self.assertRaises(ValueError, folder.get_visible_count)
 
-        # archive one of our messages, should change count but keep an archived count as well
-        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 0)
-        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 2)
+        # archive one of our messages, should change count
+        self.assertEqual(LabelCount.get_totals([label])[label], 2)
 
         archiver_delete(msg1)
 
-        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
-        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label])[label], 1)
 
         # squash and check once more
         squash_msgcounts()
 
-        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
-        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label])[label], 1)
 
         # do a hard deletion
         msg3.delete()
 
-        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
-        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 0)
+        self.assertEqual(LabelCount.get_totals([label])[label], 0)
+
         squash_msgcounts()
-        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
-        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 0)
+
+        self.assertEqual(LabelCount.get_totals([label])[label], 0)
 
     def test_get_messages_and_hierarchy(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")
@@ -2717,23 +2691,6 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
-            },
-        )
-
-        squash_msgcounts()
-
-        # check our archived count
-        self.assertEqual(
-            SystemLabelCount.get_totals(self.org, True),
-            {
-                SystemLabel.TYPE_INBOX: 1,
-                SystemLabel.TYPE_FLOWS: 0,
-                SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 0,
-                SystemLabel.TYPE_SENT: 0,
-                SystemLabel.TYPE_FAILED: 0,
-                SystemLabel.TYPE_SCHEDULED: 0,
-                SystemLabel.TYPE_CALLS: 0,
             },
         )
 

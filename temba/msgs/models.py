@@ -875,11 +875,11 @@ class SystemLabelCount(SquashableModel):
         return sql, (distinct_set.org_id, distinct_set.label_type, distinct_set.is_archived) * 2
 
     @classmethod
-    def get_totals(cls, org, is_archived=False):
+    def get_totals(cls, org):
         """
         Gets all system label counts by type for the given org
         """
-        counts = cls.objects.filter(org=org, is_archived=is_archived)
+        counts = cls.objects.filter(org=org, is_archived=False)
         counts = counts.values_list("label_type").annotate(count_sum=Sum("count"))
         counts_by_type = {c[0]: c[1] for c in counts}
 
@@ -1095,12 +1095,12 @@ class LabelCount(SquashableModel):
         return sql, (distinct_set.label_id, distinct_set.is_archived) * 2
 
     @classmethod
-    def get_totals(cls, labels, is_archived=False):
+    def get_totals(cls, labels):
         """
         Gets total counts for all the given labels
         """
         counts = (
-            cls.objects.filter(label__in=labels, is_archived=is_archived)
+            cls.objects.filter(label__in=labels, is_archived=False)
             .values_list("label_id")
             .annotate(count_sum=Sum("count"))
         )
