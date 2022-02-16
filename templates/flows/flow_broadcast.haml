@@ -83,7 +83,11 @@
 
         -if object.flow_type != 'B'
           -render_field 'exclude_in_other'
-        -render_field 'exclude_reruns'
+
+        .deprecated
+          -render_field 'exclude_reruns'
+          .p-4.pt-0.text-sm(onclick="toggleReruns(event)")
+            This option is no longer recommended and will be removed. Please read our article on <a target="_" href="https://help.nyaruka.com/en/article/excluding-contacts-previously-in-a-flow-1jbr15k/">Excluding Contacts Previously in a Flow</a>.
 
 -block form-buttons
   -if not blockers 
@@ -92,6 +96,18 @@
 -block modal-extra-style
     {{ block.super }}  
     :css
+
+      .deprecated {
+        opacity: 0.2;
+        border: 1px solid #999;
+        border-radius: var(--curvature);
+      }
+
+      .deprecated:hover {
+        cursor: pointer;
+        opacity: 1;
+        background: #f8f8f8;
+      }
 
       .warnings {
         z-index: -1;
@@ -226,6 +242,14 @@
     queryWidget.addEventListener("input", function(){
       modax.disabled = true;
     });
+
+    function toggleReruns(event) {
+      console.log(event.target.tagName);
+      if (event.target.tagName != "A") {
+        var checkbox = modalBody.querySelector("temba-checkbox[name=exclude_reruns]");
+        checkbox.click();
+      }
+    }
 
     function showInactiveConfirmation() {
         var confirmation = modalBody.querySelector(".confirmation");
