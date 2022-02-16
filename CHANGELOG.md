@@ -1,3 +1,10 @@
+v7.1.61
+----------
+ * Add flow field to contacts API endpoint
+ * Add support to the audit_es command for dumping ES queries
+ * Add migration to make sure contacts which we failed to delete are really deleted
+ * Fix contact release with tickets having a broadcast
+
 v7.1.60
 ----------
  * Adjust WA message template warning to not be show for Twilio WhatsApp channels
