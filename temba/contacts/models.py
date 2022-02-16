@@ -1165,7 +1165,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.ticket_events.all().delete()
 
             for ticket in self.tickets.all():
-                ticket.broadcasts.update(ticket=None)
                 ticket.delete()
 
             # release our messages

@@ -275,6 +275,10 @@ class Ticket(models.Model):
     def get_allowed_assignees(cls, org):
         return org.get_users_with_perm(cls.ASSIGNEE_PERMISSION)
 
+    def delete(self):
+        self.broadcasts.update(ticket=None)
+        super().delete()
+
     def __str__(self):
         return f"Ticket[uuid={self.uuid}, topic={self.topic.name}]"
 
