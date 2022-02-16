@@ -1674,9 +1674,12 @@ class APITest(TembaTest):
         # tweak modified_on so we get the order we want
         self.joe.modified_on = timezone.now()
         self.joe.save(update_fields=("modified_on",))
+
+        survey = self.create_flow("Survey")
         contact4.modified_on = timezone.now()
         contact4.last_seen_on = datetime(2020, 8, 12, 13, 30, 45, 123456, pytz.UTC)
-        contact4.save(update_fields=("modified_on", "last_seen_on"))
+        contact4.current_flow = survey
+        contact4.save(update_fields=("modified_on", "last_seen_on", "current_flow"))
 
         contact1.refresh_from_db()
         contact4.refresh_from_db()
@@ -1686,7 +1689,7 @@ class APITest(TembaTest):
         hans = self.create_contact("Hans", phone="0788000004", org=self.org2)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url, readonly_models={Contact})
 
         resp_json = response.json()
@@ -1694,7 +1697,6 @@ class APITest(TembaTest):
         self.assertEqual(resp_json["next"], None)
         self.assertResultsByUUID(response, [contact4, self.joe, contact2, contact1, self.frank])
         self.assertEqual(
-            resp_json["results"][0],
             {
                 "uuid": contact4.uuid,
                 "name": "Don",
@@ -1702,16 +1704,18 @@ class APITest(TembaTest):
                 "urns": ["tel:+250788000004"],
                 "groups": [{"uuid": group.uuid, "name": group.name}],
                 "fields": {"nickname": "Donnie", "gender": "male"},
+                "flow": {"uuid": str(survey.uuid), "name": "Survey"},
                 "blocked": False,
                 "stopped": False,
                 "created_on": format_datetime(contact4.created_on),
                 "modified_on": format_datetime(contact4.modified_on),
                 "last_seen_on": "2020-08-12T13:30:45.123456Z",
             },
+            resp_json["results"][0],
         )
 
         # reversed
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url, "reverse=true")
 
         resp_json = response.json()
@@ -1720,7 +1724,7 @@ class APITest(TembaTest):
         self.assertResultsByUUID(response, [self.frank, contact1, contact2, self.joe, contact4])
 
         with AnonymousOrg(self.org):
-            with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+            with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
                 response = self.fetchJSON(url)
 
             resp_json = response.json()
@@ -1728,7 +1732,6 @@ class APITest(TembaTest):
             self.assertEqual(resp_json["next"], None)
             self.assertResultsByUUID(response, [contact4, self.joe, contact2, contact1, self.frank])
             self.assertEqual(
-                resp_json["results"][0],
                 {
                     "uuid": contact4.uuid,
                     "name": "Don",
@@ -1736,12 +1739,14 @@ class APITest(TembaTest):
                     "urns": ["tel:********"],
                     "groups": [{"uuid": group.uuid, "name": group.name}],
                     "fields": {"nickname": "Donnie", "gender": "male"},
+                    "flow": {"uuid": str(survey.uuid), "name": "Survey"},
                     "blocked": False,
                     "stopped": False,
                     "created_on": format_datetime(contact4.created_on),
                     "modified_on": format_datetime(contact4.modified_on),
                     "last_seen_on": "2020-08-12T13:30:45.123456Z",
                 },
+                resp_json["results"][0],
             )
 
         # filter by UUID
@@ -1780,7 +1785,6 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "deleted=true")
         self.assertResultsByUUID(response, [contact3])
         self.assertEqual(
-            response.json()["results"][0],
             {
                 "uuid": contact3.uuid,
                 "name": None,
@@ -1788,12 +1792,14 @@ class APITest(TembaTest):
                 "urns": [],
                 "groups": [],
                 "fields": {},
+                "flow": None,
                 "blocked": None,
                 "stopped": None,
                 "created_on": format_datetime(contact3.created_on),
                 "modified_on": format_datetime(contact3.modified_on),
                 "last_seen_on": None,
             },
+            response.json()["results"][0],
         )
 
         # try to post something other than an object
@@ -1807,7 +1813,6 @@ class APITest(TembaTest):
         empty = Contact.objects.get(name=None, is_active=True)
 
         self.assertEqual(
-            response.json(),
             {
                 "uuid": empty.uuid,
                 "name": None,
@@ -1815,12 +1820,14 @@ class APITest(TembaTest):
                 "urns": [],
                 "groups": [],
                 "fields": {"nickname": None, "gender": None},
+                "flow": None,
                 "blocked": False,
                 "stopped": False,
                 "created_on": format_datetime(empty.created_on),
                 "modified_on": format_datetime(empty.modified_on),
                 "last_seen_on": None,
             },
+            response.json(),
         )
 
         # create with all fields but empty

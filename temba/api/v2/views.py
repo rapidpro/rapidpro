@@ -1296,7 +1296,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
                 "fields": {
                   "nickname": "Macklemore",
                   "side_kick": "Ryan Lewis"
-                }
+                },
+                "flow": {"uuid": "c1bc5fcf-3e27-4265-97bf-f6c3a385c2d6", "name": "Registration"},
                 "blocked": false,
                 "stopped": false,
                 "created_on": "2015-11-11T13:05:57.457742Z",
@@ -1340,7 +1341,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             "fields": {
               "nickname": "Macklemore",
               "side_kick": "Ryan Lewis"
-            }
+            },
+            "flow": null,
             "blocked": false,
             "stopped": false,
             "created_on": "2015-11-11T13:05:57.457742Z",
@@ -1429,6 +1431,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
                 queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk"),
                 to_attr="prefetched_user_groups",
             ),
+            Prefetch("current_flow"),
         )
 
         return self.filter_before_after(queryset, "modified_on")
