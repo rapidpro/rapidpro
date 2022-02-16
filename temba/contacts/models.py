@@ -1162,8 +1162,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     def _full_release(self):
         with transaction.atomic():
-            self.ticket_events.all().delete()
-            self.tickets.all().delete()
+            # release our tickets
+            for ticket in self.tickets.all():
+                ticket.delete()
 
             # release our messages
             for msg in self.msgs.all():
