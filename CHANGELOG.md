@@ -1,3 +1,7 @@
+v7.1.62
+----------
+ * Tweak migration to only fully delete inactive contacts with tickets
+
 v7.1.61
 ----------
  * Add flow field to contacts API endpoint
