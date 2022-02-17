@@ -1,3 +1,9 @@
+v7.1.64
+----------
+ * API rate limits should be org scoped except for staff accounts
+ * Expose current flow on contact read page for all users
+ * Add deprecation text for restart_participants
+
 v7.1.63
 ----------
  * Fix documentation of contacts API endpoint
