@@ -487,6 +487,7 @@ class ClassifierReadSerializer(ReadSerializer):
 class ContactReadSerializer(ReadSerializer):
     name = serializers.SerializerMethodField()
     language = serializers.SerializerMethodField()
+    flow = fields.FlowField(source="current_flow")
     urns = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
     fields = serializers.SerializerMethodField("get_contact_fields")
@@ -539,6 +540,7 @@ class ContactReadSerializer(ReadSerializer):
             "urns",
             "groups",
             "fields",
+            "flow",
             "blocked",
             "stopped",
             "created_on",

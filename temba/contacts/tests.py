@@ -1509,6 +1509,9 @@ class ContactTest(TembaTest):
         # give contact an open and a closed ticket
         self.create_ticket(self.org.ticketers.get(), contact, "Hi")
         self.create_ticket(self.org.ticketers.get(), contact, "Hi", closed_on=timezone.now())
+        bcast_ticket = self.create_ticket(self.org.ticketers.get(), contact, "Hi All")
+        bcast2.ticket = bcast_ticket
+        bcast2.save()
 
         self.assertEqual(1, group.contacts.all().count())
         self.assertEqual(1, contact.connections.all().count())
@@ -1519,7 +1522,7 @@ class ContactTest(TembaTest):
         self.assertEqual(2, len(contact.fields))
         self.assertEqual(1, contact.campaign_fires.count())
 
-        self.assertEqual(2, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
+        self.assertEqual(3, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
         self.assertEqual(1, TicketCount.get_all(self.org, Ticket.STATUS_CLOSED))
 
         # first try a regular release and make sure our urns are anonymized
@@ -1530,7 +1533,7 @@ class ContactTest(TembaTest):
             self.assertEqual(URN.DELETED_SCHEME, urn.scheme)
 
         # tickets unchanged
-        self.assertEqual(2, contact.tickets.count())
+        self.assertEqual(3, contact.tickets.count())
 
         # a new contact arrives with those urns
         new_contact = self.create_contact("URN Thief", urns=["tel:+12065552000", "twitter:tweettweet"])
@@ -1538,6 +1541,7 @@ class ContactTest(TembaTest):
 
         self.assertEqual({contact2}, set(bcast1.contacts.all()))
         self.assertEqual({contact, contact2}, set(bcast2.contacts.all()))
+        self.assertIsNotNone(bcast2.ticket)
 
         # now lets go for a full release
         contact.release(self.admin)
@@ -1568,6 +1572,9 @@ class ContactTest(TembaTest):
         Flow.objects.get(id=msg_flow.id)
         Flow.objects.get(id=ivr_flow.id)
         self.assertEqual(1, Ticket.objects.count())
+
+        bcast2.refresh_from_db()
+        self.assertIsNone(bcast2.ticket)
 
     @mock_mailroom
     def test_status_changes_and_release(self, mr_mocks):
@@ -6217,47 +6224,134 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
 
 
-class PopulateCurrentFlowTest(MigrationTest):
+class FullReleaseDeletedContacts(MigrationTest):
     app = "contacts"
-    migrate_from = "0148_fix_inactive_contacts_in_groups"
-    migrate_to = "0149_populate_current_flow"
+    migrate_from = "0149_populate_current_flow"
+    migrate_to = "0150_full_release_deleted_contacts"
 
     def setUpBeforeMigration(self, apps):
-        def create_session(contact, flow, status):
-            FlowSession.objects.create(
-                uuid=uuid.uuid4(),
-                org=self.org,
-                contact=contact,
-                session_type="M",
-                status=status,
-                wait_started_on=timezone.now(),
-                wait_expires_on=timezone.now(),
-                wait_resume_on_expire=True,
-                current_flow=flow,
-            )
+        # create a contact with a message
+        self.old_contact = self.create_contact("Jose", phone="+12065552000")
+        self.create_incoming_msg(self.old_contact, "hola mundo")
+        urn = self.old_contact.get_urn()
 
-        self.contact1 = self.create_contact("Ann", phone="+593979111111", status="A")
-        self.contact2 = self.create_contact("Bob", phone="+593979222222", status="B")
-        self.contact3 = self.create_contact("Cat", phone="+593979333333", status="S")
+        self.create_ticket(self.org.ticketers.get(), self.old_contact, "Hi")
 
-        self.flow1 = self.create_flow("Flow 1")
-        self.flow2 = self.create_flow("2")
+        self.ivr_flow = self.get_flow("ivr")
+        self.msg_flow = self.get_flow("favorites_v13")
 
-        create_session(self.contact1, flow=None, status="C")
-        create_session(self.contact1, flow=self.flow1, status="W")
-        create_session(self.contact2, flow=None, status="X")
-        create_session(self.contact2, flow=self.flow2, status="W")
-        create_session(self.contact3, flow=None, status="I")
+        self.create_incoming_call(self.msg_flow, self.old_contact)
 
-        # set incorrectly on contact #2
-        self.contact2.current_flow = self.flow1
-        self.contact2.save(update_fields=("current_flow",))
+        # steal his urn into a new contact
+        self.contact = self.create_contact("Joe", urns=["twitter:tweettweet"], fields={"gender": "Male", "age": 40})
+        urn.contact = self.contact
+        urn.save(update_fields=("contact",))
+        self.create_channel_event(
+            self.channel, str(self.contact.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
+        )
+
+        self.group = self.create_group("Test Group", contacts=[self.contact])
+
+        self.contact2 = self.create_contact("Billy", urns=["twitter:billy"])
+
+        # create scheduled and regular broadcasts which send to both contacts
+        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
+        self.bcast1 = self.create_broadcast(
+            self.admin, "Test", contacts=[self.contact, self.contact2], schedule=schedule
+        )
+        self.bcast2 = self.create_broadcast(self.admin, "Test", contacts=[self.contact, self.contact2])
+
+        flow_nodes = self.msg_flow.get_definition()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[2]
+        beer_prompt = flow_nodes[3]
+        beer_split = flow_nodes[5]
+        name_prompt = flow_nodes[6]
+        name_split = flow_nodes[7]
+        (
+            MockSessionWriter(self.contact, self.msg_flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=self.create_incoming_msg(self.contact, "red"))
+            .visit(beer_prompt)
+            .send_msg("Good choice, I like Red too! What is your favorite beer?", self.channel)
+            .visit(beer_split)
+            .wait()
+            .resume(msg=self.create_incoming_msg(self.contact, "primus"))
+            .visit(name_prompt)
+            .send_msg("Lastly, what is your name?", self.channel)
+            .visit(name_split)
+            .wait()
+            .save()
+        )
+
+        campaign = Campaign.create(self.org, self.admin, "Reminders", self.group)
+        joined = ContactField.get_or_create(
+            self.org, self.admin, "joined", "Joined On", value_type=ContactField.TYPE_DATETIME
+        )
+
+        event = CampaignEvent.create_message_event(self.org, self.admin, campaign, joined, 2, unit="D", message="Hi")
+        EventFire.objects.create(event=event, contact=self.contact, scheduled=timezone.now() + timedelta(days=2))
+
+        self.create_incoming_call(self.msg_flow, self.contact)
+
+        # give contact an open and a closed ticket
+        self.create_ticket(self.org.ticketers.get(), self.contact, "Hi")
+        self.create_ticket(self.org.ticketers.get(), self.contact, "Hi", closed_on=timezone.now())
+        bcast_ticket = self.create_ticket(self.org.ticketers.get(), self.contact, "Hi All")
+        self.bcast2.ticket = bcast_ticket
+        self.bcast2.save()
+
+        self.assertEqual(1, self.group.contacts.all().count())
+        self.assertEqual(1, self.contact.connections.all().count())
+        self.assertEqual(2, self.contact.addressed_broadcasts.all().count())
+        self.assertEqual(2, self.contact.urns.all().count())
+        self.assertEqual(2, self.contact.runs.all().count())
+        self.assertEqual(7, self.contact.msgs.all().count())
+        self.assertEqual(2, len(self.contact.fields))
+        self.assertEqual(1, self.contact.campaign_fires.count())
+
+        self.assertEqual(3, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
+        self.assertEqual(1, TicketCount.get_all(self.org, Ticket.STATUS_CLOSED))
+
+        self.contact.release(self.admin, full=False)
+        self.contact2.release(self.admin, full=False)
 
     def test_migration(self):
-        self.contact1.refresh_from_db()
+        self.contact.refresh_from_db()
         self.contact2.refresh_from_db()
-        self.contact3.refresh_from_db()
+        self.old_contact.refresh_from_db()
+        self.bcast2.refresh_from_db()
 
-        self.assertEqual(self.flow1, self.contact1.current_flow)
-        self.assertEqual(self.flow2, self.contact2.current_flow)
-        self.assertIsNone(self.contact3.current_flow)
+        self.assertEqual(0, self.group.contacts.all().count())
+        self.assertEqual(0, self.contact.connections.all().count())
+        self.assertEqual(0, self.contact.addressed_broadcasts.all().count())
+        self.assertEqual(0, self.contact.urns.all().count())
+        self.assertEqual(0, self.contact.runs.all().count())
+        self.assertEqual(0, self.contact.msgs.all().count())
+        self.assertEqual(0, self.contact.campaign_fires.count())
+        # tickets deleted (only for this contact)
+        self.assertEqual(0, self.contact.tickets.count())
+        self.assertEqual(1, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
+        self.assertEqual(0, TicketCount.get_all(self.org, Ticket.STATUS_CLOSED))
+        # contact who used to own our urn had theirs released too
+        self.assertEqual(0, self.old_contact.connections.all().count())
+        self.assertEqual(0, self.old_contact.msgs.all().count())
+        self.assertIsNone(self.contact.fields)
+        self.assertIsNone(self.contact.name)
+        # nope, we aren't paranoid or anything
+        Org.objects.get(id=self.org.id)
+        Flow.objects.get(id=self.msg_flow.id)
+        Flow.objects.get(id=self.ivr_flow.id)
+        self.assertEqual(1, Ticket.objects.count())
+
+        self.bcast2.refresh_from_db()
+        self.assertIsNone(self.bcast2.ticket)
+        self.assertEqual(0, self.contact.tickets.count())
+
+        self.assertEqual(1, self.old_contact.tickets.count())
+
+        # make sure we only applied the full release migration on the contact with a ticket that were half deleted
+        self.assertEqual(1, self.contact2.addressed_broadcasts.all().count())

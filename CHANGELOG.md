@@ -1,3 +1,20 @@
+v7.1.63
+----------
+ * Fix documentation of contacts API endpoint
+ * Release URN channel events in data migration to fix deleted contacts with tickets
+ * Use original filename inside UUID folder to upload media files
+
+v7.1.62
+----------
+ * Tweak migration to only fully delete inactive contacts with tickets
+
+v7.1.61
+----------
+ * Add flow field to contacts API endpoint
+ * Add support to the audit_es command for dumping ES queries
+ * Add migration to make sure contacts which we failed to delete are really deleted
+ * Fix contact release with tickets having a broadcast
+
 v7.1.60
 ----------
  * Adjust WA message template warning to not be show for Twilio WhatsApp channels
