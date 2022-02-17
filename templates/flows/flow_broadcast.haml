@@ -84,13 +84,12 @@
         -if object.flow_type != 'B'
           -render_field 'exclude_in_other'
 
-        .deprecated
-          -render_field 'exclude_reruns'
-          .p-4.pt-0.text-sm(onclick="toggleReruns(event)")
+        -render_field 'exclude_reruns'
+        .deprecated.mt-4.hidden
+          %temba-alert(level="info")
             -blocktrans trimmed
               This option is no longer recommended and will be removed. Thankfully, there is a better way!
-            .mt-1
-              <a target="_" href="https://help.nyaruka.com/en/article/excluding-contacts-previously-in-a-flow-1jbr15k/">Excluding Contacts Previously in a Flow</a>
+            <a target="_" href="https://help.nyaruka.com/en/article/excluding-contacts-previously-in-a-flow-1jbr15k/">Excluding Contacts Previously in a Flow</a>
 
 
 -block form-buttons
@@ -101,17 +100,9 @@
     {{ block.super }}  
     :css
 
-      .deprecated {
-        opacity: 0.2;
-        border: 1px solid #ccc;
-        border-radius: var(--curvature);
-      }
+      .deprecated.show {
 
-      .deprecated:hover {
-        cursor: pointer;
-        opacity: 1;
-        background: #f8f8f8;
-        color: #777;
+        display: block;
       }
 
       .warnings {
@@ -224,6 +215,8 @@
     var startForm = modalBody.querySelector('.start-form');
     var omnibox = modalBody.querySelector('temba-omnibox');
     var modeSelect = modalBody.querySelector("temba-select[name='mode']");
+    var reruns = modalBody.querySelector("temba-checkbox[name=exclude_reruns]");
+
     var forceSelection = false;
     var activeSummary;
     var totalSummary;
@@ -248,12 +241,14 @@
       modax.disabled = true;
     });
 
-    function toggleReruns(event) {
-      if (event.target.tagName != "A") {
-        var checkbox = modalBody.querySelector("temba-checkbox[name=exclude_reruns]");
-        checkbox.click();
+    reruns.addEventListener("change", function() {
+      console.log(reruns.checked);
+      if (reruns.checked) {
+        modalBody.querySelector(".deprecated").classList.add("show")
+      } else {
+        modalBody.querySelector(".deprecated").classList.remove("show")
       }
-    }
+    })
 
     function showInactiveConfirmation() {
         var confirmation = modalBody.querySelector(".confirmation");
