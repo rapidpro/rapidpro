@@ -3216,6 +3216,13 @@ class FlowCRUDL(SmartCRUDL):
                 urns=form.cleaned_data["omnibox"]["urns"],
             )
             start.async_start()
+            messages.info(
+                self.request,
+                _(
+                    "Your Twilio Studio flow was launched but contacts that are still active on it will not receive "
+                    "messages again."
+                ),
+            )
             return super(ModalMixin, self).form_valid(form)
 
         def get_context_data(self, **kwargs):
