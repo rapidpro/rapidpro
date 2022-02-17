@@ -43,6 +43,9 @@ brand_info = env.dict(
     },
 )
 
+privacy_url = f"https://{brand_info.get('domain')}/policy"
+brand_info["credits"] = f"Copyright &copy; 2012-2022 Weni. All Rights Reserved. <br> <a href='{privacy_url}' class='p-1 text-gray-500 underline'>Privacy</a>"
+
 DEFAULT_BRAND = env("DEFAULT_BRAND", default="rapidpro.io")
 DEFAULT_PLAN = env("DEFAULT_PLAN", default=TOPUP_PLAN)
 BRANDING = {
