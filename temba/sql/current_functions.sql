@@ -468,6 +468,8 @@ BEGIN
         RETURN 'I';
       ELSIF _msg.msg_type = 'F' THEN
         RETURN 'W';
+      ELSIF _msg.msg_type = 'V' THEN
+        RETURN 'V';
       END IF;
     ELSIF _msg.visibility = 'A' THEN
       RETURN 'A';
@@ -477,7 +479,11 @@ BEGIN
       IF _msg.status = 'P' OR _msg.status = 'Q' THEN
         RETURN 'O';
       ELSIF _msg.status = 'W' OR _msg.status = 'S' OR _msg.status = 'D' THEN
-        RETURN 'S';
+        IF _msg.msg_type = 'V' THEN
+          RETURN 'Z';
+        ELSE
+          RETURN 'S';
+        END IF;
       ELSIF _msg.status = 'F' THEN
         RETURN 'X';
       END IF;
