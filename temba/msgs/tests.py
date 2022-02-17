@@ -555,6 +555,39 @@ class MsgTest(TembaTest):
         self.assertEqual(set(response.context["object_list"]), {msg3, msg2, msg1})
         self.assertEqual(response.context["actions"], ("label",))
 
+    def test_flow_voice(self):
+        self.login(self.admin)
+        flow_url_voice = reverse("msgs.msg_flow_voice")
+        flow_url_text = reverse("msgs.msg_flow")
+        self.create_incoming_msg(self.joe, "test 1", msg_type="V")
+        self.create_incoming_msg(self.joe, "test 1", msg_type="F")
+        self.create_incoming_msg(self.joe, "test 1", msg_type="V")
+
+        response_voice = self.client.get(flow_url_voice)
+        response_text = self.client.get(flow_url_text)
+
+        self.assertEqual(len(response_voice.context_data["object_list"]), 2)
+        self.assertEqual(len(response_text.context_data["object_list"]), 1)
+
+    def test_sent_voice(self):
+        self.login(self.admin)
+        sent_url_voice = reverse("msgs.msg_sent_voice")
+        sent_url_text = reverse("msgs.msg_sent")
+
+        self.create_outgoing_msg(self.joe, "test 1", msg_type="V", status="W")
+        self.create_outgoing_msg(self.joe, "test 1", msg_type="V", status="F")
+        self.create_outgoing_msg(self.joe, "test 1", msg_type="V", status="S")
+
+        self.create_outgoing_msg(self.joe, "test 1", msg_type="F", status="S")
+        self.create_outgoing_msg(self.joe, "test 1", msg_type="F", status="D")
+        self.create_outgoing_msg(self.joe, "test 1", msg_type="F", status="F")
+
+        response_voice = self.client.get(sent_url_voice)
+        response_text = self.client.get(sent_url_text)
+
+        self.assertEqual(len(response_voice.context_data["object_list"]), 2)
+        self.assertEqual(len(response_text.context_data["object_list"]), 2)
+
     def test_retry_errored(self):
         # change our default channel to external
         self.channel.channel_type = "EX"
