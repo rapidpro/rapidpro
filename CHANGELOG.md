@@ -1,3 +1,9 @@
+v7.1.63
+----------
+ * Fix documentation of contacts API endpoint
+ * Release URN channel events in data migration to fix deleted contacts with tickets
+ * Use original filename inside UUID folder to upload media files
+
 v7.1.62
 ----------
  * Tweak migration to only fully delete inactive contacts with tickets
