@@ -1,3 +1,7 @@
+1.1.2-rapidpro-7.0.4
+----------
+ * Fix: Branding with privacy url
+
 1.1.1-rapidpro-7.0.4
 ----------
  * Fix: Kyrgyzstan whatsapp language code
