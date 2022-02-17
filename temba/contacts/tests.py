@@ -6246,6 +6246,9 @@ class FullReleaseDeletedContacts(MigrationTest):
         self.contact = self.create_contact("Joe", urns=["twitter:tweettweet"], fields={"gender": "Male", "age": 40})
         urn.contact = self.contact
         urn.save(update_fields=("contact",))
+        self.create_channel_event(
+            self.channel, str(self.contact.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
+        )
 
         self.group = self.create_group("Test Group", contacts=[self.contact])
 
