@@ -1,3 +1,7 @@
+1.1.1-rapidpro-7.0.4
+----------
+ * Fix: Kyrgyzstan whatsapp language code
+
 1.1.0-rapidpro-7.0.4
 ----------
  * Merge instagram channel
