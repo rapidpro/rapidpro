@@ -391,8 +391,13 @@ class APITest(TembaTest):
         campaigns_url = reverse("api.v2.campaigns")
         fields_url = reverse("api.v2.fields")
 
+        self.customer_support.is_staff = True
+        self.customer_support.save(update_fields=("is_staff",))
+
         token1 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Administrators"))
         token2 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Surveyors"))
+        token3 = APIToken.get_or_create(self.org, self.editor, Group.objects.get(name="Editors"))
+        token4 = APIToken.get_or_create(self.org, self.customer_support, Group.objects.get(name="Administrators"))
 
         # can request fields endpoint using all 3 methods
         response = request_by_token(fields_url, token1.key)
@@ -433,7 +438,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # simulate the admin user exceeding the rate limit for the v2 scope
-        cache.set(f"throttle_v2_{self.org.id}-{self.admin.id}", [time.time() for r in range(10000)])
+        cache.set(f"throttle_v2_{self.org.id}", [time.time() for r in range(10000)])
 
         # next request they make using a token will be rejected
         response = request_by_token(fields_url, token1.key)
@@ -443,18 +448,26 @@ class APITest(TembaTest):
         response = request_by_basic_auth(fields_url, self.admin.username, token1.key)
         self.assertEqual(response.status_code, 429)
 
+        # or if another user in same org makes a request
+        response = request_by_token(fields_url, token3.key)
+        self.assertEqual(response.status_code, 429)
+
         # but they can still make a request if they have a session
         response = request_by_session(fields_url, self.admin)
         self.assertEqual(response.status_code, 200)
 
+        # or if they're a staff user because they are user-scoped
+        response = request_by_token(fields_url, token4.key)
+        self.assertEqual(response.status_code, 200)
+
         # are allowed to access if we have not reached the configured org api rates
         self.org.api_rates = {"v2": "15000/hour"}
-        self.org.save()
+        self.org.save(update_fields=("api_rates",))
 
         response = request_by_basic_auth(fields_url, self.admin.username, token1.key)
         self.assertEqual(response.status_code, 200)
 
-        cache.set(f"throttle_v2_{self.org.id}-{self.admin.id}", [time.time() for r in range(15000)])
+        cache.set(f"throttle_v2_{self.org.id}", [time.time() for r in range(15000)])
 
         # next request they make using a token will be rejected
         response = request_by_token(fields_url, token1.key)
