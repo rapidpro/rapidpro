@@ -2643,17 +2643,20 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         assert_media_upload(
             f"{settings.MEDIA_ROOT}/test_media/steve.marten.jpg",
             "image/jpeg",
-            "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "11111-111-11", ".jpg"),
+            "%s/attachments/%d/%d/steps/%s/%s"
+            % (settings.STORAGE_URL, self.org.id, flow.id, "11111-111-11", "steve.marten.jpg"),
         )
         assert_media_upload(
             f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
             "video/mp4",
-            "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "22222-222-22", ".mp4"),
+            "%s/attachments/%d/%d/steps/%s/%s"
+            % (settings.STORAGE_URL, self.org.id, flow.id, "22222-222-22", "snow.mp4"),
         )
         assert_media_upload(
             f"{settings.MEDIA_ROOT}/test_media/snow.m4a",
             "audio/mp4",
-            "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "33333-333-33", ".m4a"),
+            "%s/attachments/%d/%d/steps/%s/%s"
+            % (settings.STORAGE_URL, self.org.id, flow.id, "33333-333-33", "snow.m4a"),
         )
 
         # can't upload for flow in other org
