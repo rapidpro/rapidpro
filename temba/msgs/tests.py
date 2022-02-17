@@ -310,7 +310,7 @@ class MsgTest(TembaTest):
         with self.assertNumQueries(36):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
-        self.assertEqual(1, response.context_data["folders"][3]["count"])  # Outbox
+        self.assertEqual(1, response.context_data["folders"][4]["count"])  # Outbox
         self.assertEqual(set(response.context_data["object_list"]), {msg1})
 
         broadcast2 = self.create_broadcast(
@@ -334,7 +334,7 @@ class MsgTest(TembaTest):
         with self.assertNumQueries(38):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
-        self.assertEqual(5, response.context_data["folders"][3]["count"])  # Outbox
+        self.assertEqual(5, response.context_data["folders"][4]["count"])  # Outbox
         self.assertEqual(list(response.context_data["object_list"]), [msg4, msg3, msg2, msg1])
         self.assertEqual(list(response.context_data["pending_broadcasts"]), [broadcast3])
 
@@ -2669,6 +2669,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 0,
                 SystemLabel.TYPE_CALLS: 0,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2699,6 +2701,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 1,
                 SystemLabel.TYPE_CALLS: 1,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2728,6 +2732,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 2,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2751,6 +2757,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2771,6 +2779,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2792,6 +2802,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2812,6 +2824,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2829,6 +2843,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 0,
                 SystemLabel.TYPE_CALLS: 0,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
