@@ -87,7 +87,11 @@
         .deprecated
           -render_field 'exclude_reruns'
           .p-4.pt-0.text-sm(onclick="toggleReruns(event)")
-            This option is no longer recommended and will be removed. Please read our article on <a target="_" href="https://help.nyaruka.com/en/article/excluding-contacts-previously-in-a-flow-1jbr15k/">Excluding Contacts Previously in a Flow</a>.
+            -blocktrans trimmed
+              This option is no longer recommended and will be removed. Thankfully, there is a better way!
+            .mt-1
+              <a target="_" href="https://help.nyaruka.com/en/article/excluding-contacts-previously-in-a-flow-1jbr15k/">Excluding Contacts Previously in a Flow</a>
+
 
 -block form-buttons
   -if not blockers 
@@ -99,7 +103,7 @@
 
       .deprecated {
         opacity: 0.2;
-        border: 1px solid #999;
+        border: 1px solid #ccc;
         border-radius: var(--curvature);
       }
 
@@ -107,6 +111,7 @@
         cursor: pointer;
         opacity: 1;
         background: #f8f8f8;
+        color: #777;
       }
 
       .warnings {
