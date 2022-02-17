@@ -1270,7 +1270,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
      * **language** - the preferred language of the contact (string).
      * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
      * **groups** - the UUIDs of any groups the contact is part of (array of objects), filterable as `group` with group name or UUID.
-     * **fields** - any contact fields on this contact (dictionary).
+     * **fields** - any contact fields on this contact (object).
+     * **flow** - the flow that the contact is currently in, if any (object).
      * **blocked** - whether the contact is blocked (boolean).
      * **stopped** - whether the contact is stopped, i.e. has opted out (boolean).
      * **created_on** - when this contact was created (datetime).
