@@ -160,14 +160,21 @@ class InboxView(OrgPermsMixin, BulkActionMixin, SmartListView):
                 patch_queryset_count(self.object_list, lambda: counts[label])
 
         context = super().get_context_data(**kwargs)
-
         folders = [
             dict(count=counts[SystemLabel.TYPE_INBOX], label=_("Inbox"), url=reverse("msgs.msg_inbox")),
-            dict(count=counts[SystemLabel.TYPE_FLOWS], label=_("Flows"), url=reverse("msgs.msg_flow")),
+            dict(count=counts[SystemLabel.TYPE_FLOWS], label=_("Text Flows"), url=reverse("msgs.msg_flow")),
+            dict(
+                count=counts[SystemLabel.TYPE_FLOW_VOICE], label=_("Voice Flows"), url=reverse("msgs.msg_flow_voice")
+            ),
             dict(count=counts[SystemLabel.TYPE_ARCHIVED], label=_("Archived"), url=reverse("msgs.msg_archived")),
             dict(count=counts[SystemLabel.TYPE_OUTBOX], label=_("Outbox"), url=reverse("msgs.msg_outbox")),
-            dict(count=counts[SystemLabel.TYPE_SENT], label=_("Sent"), url=reverse("msgs.msg_sent")),
-            dict(count=counts[SystemLabel.TYPE_CALLS], label=_("Calls"), url=reverse("channels.channelevent_calls")),
+            dict(count=counts[SystemLabel.TYPE_SENT], label=_("Text Sent"), url=reverse("msgs.msg_sent")),
+            dict(count=counts[SystemLabel.TYPE_SENT_VOICE], label=_("Voice Sent"), url=reverse("msgs.msg_sent_voice")),
+            dict(
+                count=counts[SystemLabel.TYPE_CALLS],
+                label=_("Missed Calls"),
+                url=reverse("channels.channelevent_calls"),
+            ),
             dict(
                 count=counts[SystemLabel.TYPE_SCHEDULED],
                 label=_("Schedules"),
@@ -505,7 +512,7 @@ class ExportForm(Form):
 
 class MsgCRUDL(SmartCRUDL):
     model = Msg
-    actions = ("inbox", "flow", "archived", "outbox", "sent", "failed", "filter", "export")
+    actions = ("inbox", "flow", "archived", "outbox", "sent", "failed", "filter", "export", "flow_voice", "sent_voice")
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
 
@@ -631,6 +638,17 @@ class MsgCRUDL(SmartCRUDL):
             qs = super().get_queryset(**kwargs)
             return qs.prefetch_related("labels").select_related("contact")
 
+    class FlowVoice(InboxView):
+        title = _("Flow Voice Messages")
+        template_name = "msgs/message_box.haml"
+        system_label = SystemLabel.TYPE_FLOW_VOICE
+        bulk_actions = ("label",)
+        allow_export = True
+
+        def get_queryset(self, **kwargs):
+            qs = super().get_queryset(**kwargs)
+            return qs.prefetch_related("labels").select_related("contact")
+
     class Archived(InboxView):
         title = _("Archived")
         template_name = "msgs/msg_archived.haml"
@@ -671,6 +689,18 @@ class MsgCRUDL(SmartCRUDL):
         title = _("Sent Messages")
         template_name = "msgs/msg_sent.haml"
         system_label = SystemLabel.TYPE_SENT
+        bulk_actions = ()
+        allow_export = True
+        show_channel_logs = True
+
+        def get_queryset(self, **kwargs):  # pragma: needs cover
+            qs = super().get_queryset(**kwargs)
+            return qs.prefetch_related("channel_logs").select_related("contact")
+
+    class SentVoice(InboxView):
+        title = _("Sent Voice Messages")
+        template_name = "msgs/msg_sent.haml"
+        system_label = SystemLabel.TYPE_SENT_VOICE
         bulk_actions = ()
         allow_export = True
         show_channel_logs = True
