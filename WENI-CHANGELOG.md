@@ -1,3 +1,7 @@
+1.1.3-rapidpro-7.0.4
+----------
+ * Fix: Use original filename instead uuid at end of path on upload attachment
+
 1.1.2-rapidpro-7.0.4
 ----------
  * Fix: Branding with privacy url
