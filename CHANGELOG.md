@@ -1,3 +1,7 @@
+v7.1.65
+----------
+ * Rework msgs database triggers so we don't track counts for messages in archives
+
 v7.1.64
 ----------
  * API rate limits should be org scoped except for staff accounts
