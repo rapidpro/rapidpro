@@ -46,7 +46,7 @@ from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.contacts.search import SearchException, parse_query
 from temba.contacts.search.elastic import query_contact_ids
 from temba.contacts.search.omnibox import omnibox_deserialize
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart, StudioFlowStart
 from temba.flows.tasks import export_flow_results_task, download_flow_images_task
 from temba.ivr.models import IVRCall
 from temba.links.models import Link, LinkContacts
@@ -481,6 +481,7 @@ class FlowCRUDL(SmartCRUDL):
         "export_pdf",
         "merge_flows",
         "merging_flows_table",
+        "launch_studio_flow",
     )
 
     model = Flow
@@ -3107,6 +3108,128 @@ class FlowCRUDL(SmartCRUDL):
             context["start_date"] = flow.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN)
             context["paginate_by"] = self.paginate_by
             return context
+
+    class LaunchStudioFlow(ModalMixin, OrgPermsMixin, SmartTemplateView):
+        class LaunchStudioFlowForm(forms.Form):
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs.pop("org")
+                flows = kwargs.pop("flows")
+                numbers = kwargs.pop("numbers")
+                super().__init__(*args, **kwargs)
+                self.fields["flow"].choices = flows
+                self.fields["channel"].choices = numbers
+
+            flow = forms.ChoiceField(
+                widget=SelectWidget(
+                    attrs={
+                        "placeholder": _("Select Twilio Studio Flow to launch."),
+                        "searchable": True,
+                    }
+                ),
+                choices=[],
+            )
+
+            omnibox = JSONField(
+                label=_("Contacts & Groups"),
+                required=False,
+                help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
+                widget=OmniboxChoice(
+                    attrs={
+                        "placeholder": _("Select the group"),
+                        "groups": True,
+                        "contacts": True,
+                        "urns": True,
+                        "widget_only": True,
+                    }
+                ),
+            )
+
+            channel = forms.ChoiceField(
+                widget=SelectWidget(
+                    attrs={
+                        "placeholder": _("Select the channel that contacts will receive the flow."),
+                        "widget_only": True,
+                        "searchable": True,
+                    }
+                ),
+                choices=[],
+            )
+
+            def clean_omnibox(self):
+                starting = self.cleaned_data.get("omnibox")
+                if not starting:  # pragma: needs cover
+                    raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
+                return omnibox_deserialize(self.org, starting)
+
+        permission = "flows.flow_launch"
+        success_url = "@contacts.contact_list"
+        submit_button_name = _("OK")
+        form_class = LaunchStudioFlowForm
+        studio_flows = []
+        studio_numbers = []
+        studio_flow_numbers = []
+
+        def dispatch(self, request, *args, **kwargs):
+            org = self.derive_org()
+            if not org or not org.get_twilio_client():
+                raise Http404
+
+            twilio_client = org.get_twilio_client()
+            flows_webhook_prefix = f"https://webhooks.twilio.com/v1/Accounts/{twilio_client.auth[0]}/Flows/"
+
+            def get_flow_sids(_number):
+                if _number.sms_application_sid == "" and _number.sms_url.startswith(flows_webhook_prefix):
+                    yield _number.sms_url[len(flows_webhook_prefix) :]
+                if _number.voice_application_sid == "" and _number.voice_url.startswith(flows_webhook_prefix):
+                    yield _number.voice_url[len(flows_webhook_prefix) :]
+
+            if twilio_client:
+                studio_flows = twilio_client.studio.flows.stream(page_size=1000)
+                flows = [(flow.sid, flow.friendly_name) for flow in studio_flows if flow.status == "published"]
+                self.studio_flows = sorted(flows, key=lambda x: x[1])
+
+                numbers = []
+                active_numbers = twilio_client.api.incoming_phone_numbers.stream(page_size=1000)
+                for number in active_numbers:
+                    numbers.append((number.phone_number, number.friendly_name))
+                    self.studio_flow_numbers.extend(
+                        (flow_sid, number.phone_number) for flow_sid in get_flow_sids(number)
+                    )
+                self.studio_numbers = sorted(numbers, key=lambda x: x[1])
+            return super().dispatch(request, *args, **kwargs)
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.derive_org()
+            kwargs["flows"] = self.studio_flows
+            kwargs["numbers"] = self.studio_numbers
+            return kwargs
+
+        def form_valid(self, form):
+            start = StudioFlowStart.create(
+                org=self.derive_org(),
+                user=self.get_user(),
+                flow_sid=form.cleaned_data["flow"],
+                channel=form.cleaned_data["channel"],
+                groups=form.cleaned_data["omnibox"]["groups"],
+                contacts=form.cleaned_data["omnibox"]["contacts"],
+                urns=form.cleaned_data["omnibox"]["urns"],
+            )
+            start.async_start()
+            messages.info(
+                self.request,
+                _(
+                    "Your Twilio Studio flow was launched but contacts that are still active on it will not receive "
+                    "messages again."
+                ),
+            )
+            return super(ModalMixin, self).form_valid(form)
+
+        def get_context_data(self, **kwargs):
+            context_data = super(ModalMixin, self).get_context_data(**kwargs)
+            context_data["numbers"] = json.dumps(self.studio_numbers)
+            context_data["flow_numbers"] = json.dumps(self.studio_flow_numbers)
+            return context_data
 
 
 # this is just for adhoc testing of the preprocess url

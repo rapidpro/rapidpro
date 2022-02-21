@@ -187,3 +187,26 @@ class MockTwilioClient(Client):
 
         def update(self, external_id, url):
             print("Updating call for %s to url %s" % (external_id, url))
+
+    @property
+    def studio(self):
+        return MockTwilioClient.MockStudio()
+
+    class MockStudio(object):
+        @property
+        def flows(self):
+            return MockTwilioClient.MockStudioFlows()
+
+    class MockStudioFlows(MockInstanceResource):
+        def __init__(self):
+            pass
+
+        @staticmethod
+        def stream(*_, **__):
+            return iter([MockTwilioClient.MockStudioFlow("FW2932f221ca8741fb714ff97df7986172", "Test Flow")])
+
+    class MockStudioFlow(MockInstanceResource):
+        def __init__(self, sid, friendly_name, status="published"):
+            self.sid = sid
+            self.friendly_name = friendly_name
+            self.status = status
