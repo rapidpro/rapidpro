@@ -4,6 +4,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 from temba.tests import MockResponse, TembaTest
+from temba.triggers.models import Trigger
 from temba.utils import json
 
 from ...models import Channel
@@ -193,3 +194,45 @@ class FacebookTypeTest(TembaTest):
             },
             params={"access_token": f"page-long-life-{token}"},
         )
+
+    def test_new_conversation_triggers(self):
+        flow = self.create_flow()
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
+
+            trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow, channel=self.channel)
+
+            mock_post.assert_called_once_with(
+                "https://graph.facebook.com/v12.0/me/messenger_profile",
+                json={"get_started": {"payload": "get_started"}},
+                headers={"Content-Type": "application/json"},
+                params={"access_token": "09876543"},
+            )
+            mock_post.reset_mock()
+
+        with patch("requests.delete") as mock_post:
+            mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
+
+            trigger.archive(self.admin)
+
+            mock_post.assert_called_once_with(
+                "https://graph.facebook.com/v12.0/me/messenger_profile",
+                json={"fields": ["get_started"]},
+                headers={"Content-Type": "application/json"},
+                params={"access_token": "09876543"},
+            )
+            mock_post.reset_mock()
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
+
+            trigger.restore(self.admin)
+
+            mock_post.assert_called_once_with(
+                "https://graph.facebook.com/v12.0/me/messenger_profile",
+                json={"get_started": {"payload": "get_started"}},
+                headers={"Content-Type": "application/json"},
+                params={"access_token": "09876543"},
+            )
+            mock_post.reset_mock()

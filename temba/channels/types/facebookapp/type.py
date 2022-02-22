@@ -4,6 +4,7 @@ from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
+from temba.triggers.models import Trigger
 
 from ...models import Channel, ChannelType
 from .views import ClaimView, RefreshToken
@@ -50,3 +51,33 @@ class FacebookAppType(ChannelType):
             f"https://graph.facebook.com/v12.0/{channel.address}/subscribed_apps",
             params={"access_token": config[Channel.CONFIG_AUTH_TOKEN]},
         )
+
+    def activate_trigger(self, trigger):
+        # if this is new conversation trigger, register for the FB callback
+        if trigger.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
+            # register for get_started events
+            url = "https://graph.facebook.com/v12.0/me/messenger_profile"
+            body = {"get_started": {"payload": "get_started"}}
+            access_token = trigger.channel.config[Channel.CONFIG_AUTH_TOKEN]
+
+            response = requests.post(
+                url, json=body, params={"access_token": access_token}, headers={"Content-Type": "application/json"}
+            )
+
+            if response.status_code != 200:  # pragma: no cover
+                raise Exception("Unable to update call to action: %s" % response.text)
+
+    def deactivate_trigger(self, trigger):
+        # for any new conversation triggers, clear out the call to action payload
+        if trigger.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
+            # register for get_started events
+            url = "https://graph.facebook.com/v12.0/me/messenger_profile"
+            body = {"fields": ["get_started"]}
+            access_token = trigger.channel.config[Channel.CONFIG_AUTH_TOKEN]
+
+            response = requests.delete(
+                url, json=body, params={"access_token": access_token}, headers={"Content-Type": "application/json"}
+            )
+
+            if response.status_code != 200:  # pragma: no cover
+                raise Exception("Unable to update call to action: %s" % response.text)
