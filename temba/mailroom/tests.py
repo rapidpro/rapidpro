@@ -648,7 +648,7 @@ class MailroomQueueTest(TembaTest):
 
         run = FlowRun.objects.get(contact=jim)
         session = run.session
-        run.release("U")
+        run.delete()
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
