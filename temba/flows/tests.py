@@ -229,6 +229,15 @@ class FlowTest(TembaTest):
 
         # change our channel to use a whatsapp scheme
         self.channel.schemes = [URN.WHATSAPP_SCHEME]
+        self.channel.channel_type = "TWA"
+        self.channel.save()
+
+        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
+
+        # no warning, we don't have a whatsapp channel that requires a message template
+        self.assertNotContains(response, "affirmation")
+
+        self.channel.channel_type = "WA"
         self.channel.save()
 
         # clear dependencies, this will cause our flow to look like it isn't using templates
@@ -1485,8 +1494,7 @@ class FlowTest(TembaTest):
     def test_group_send(self):
         # create an inactive group with the same name, to test that this doesn't blow up our import
         group = ContactGroup.get_or_create(self.org, self.admin, "Survey Audience")
-        group.is_active = False
-        group.save()
+        group.release(self.admin)
 
         # and create another as well
         ContactGroup.get_or_create(self.org, self.admin, "Survey Audience")
@@ -2635,17 +2643,20 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         assert_media_upload(
             f"{settings.MEDIA_ROOT}/test_media/steve.marten.jpg",
             "image/jpeg",
-            "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "11111-111-11", ".jpg"),
+            "%s/attachments/%d/%d/steps/%s/%s"
+            % (settings.STORAGE_URL, self.org.id, flow.id, "11111-111-11", "steve.marten.jpg"),
         )
         assert_media_upload(
             f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
             "video/mp4",
-            "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "22222-222-22", ".mp4"),
+            "%s/attachments/%d/%d/steps/%s/%s"
+            % (settings.STORAGE_URL, self.org.id, flow.id, "22222-222-22", "snow.mp4"),
         )
         assert_media_upload(
             f"{settings.MEDIA_ROOT}/test_media/snow.m4a",
             "audio/mp4",
-            "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "33333-333-33", ".m4a"),
+            "%s/attachments/%d/%d/steps/%s/%s"
+            % (settings.STORAGE_URL, self.org.id, flow.id, "33333-333-33", "snow.m4a"),
         )
 
         # can't upload for flow in other org

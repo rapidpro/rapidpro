@@ -5,7 +5,7 @@ import iso8601
 from django.utils import timezone
 
 from temba.channels.models import Channel
-from temba.contacts.models import URN, ContactGroup
+from temba.contacts.models import URN, Contact, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.msgs.models import Msg
 from temba.request_logs.models import HTTPLog
@@ -35,6 +35,14 @@ EXIT_TYPES = {
     "interrupted": FlowRun.EXIT_TYPE_INTERRUPTED,
     "expired": FlowRun.EXIT_TYPE_EXPIRED,
     "failed": FlowRun.EXIT_TYPE_FAILED,
+}
+
+# engine contact statuses to db statuses
+CONTACT_STATUSES = {
+    "active": Contact.STATUS_ACTIVE,
+    "blocked": Contact.STATUS_BLOCKED,
+    "stopped": Contact.STATUS_STOPPED,
+    "archived": Contact.STATUS_ARCHIVED,
 }
 
 PERSIST_EVENTS = {"msg_created", "msg_received"}
@@ -136,6 +144,10 @@ class MockSessionWriter:
         self._log_event(
             "contact_groups_changed", groups_removed=[{"uuid": str(g.uuid), "name": g.name} for g in groups]
         )
+        return self
+
+    def set_contact_status(self, status: str):
+        self._log_event("contact_status_changed", status=status)
         return self
 
     def error(self, text):
@@ -364,6 +376,11 @@ class MockSessionWriter:
 
         for group in event.get("groups_removed", []):
             ContactGroup.user_groups.get(uuid=group["uuid"]).contacts.remove(self.contact)
+
+    def _handle_contact_status_changed(self, event):
+        self.contact.status = CONTACT_STATUSES[event["status"]]
+        self.contact.modified_on = timezone.now()
+        self.contact.save(update_fields=("status", "modified_on"))
 
     def _handle_webhook_called(self, event):
         HTTPLog.objects.create(

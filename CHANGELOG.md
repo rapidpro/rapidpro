@@ -1,3 +1,80 @@
+v7.1.65
+----------
+ * Rework msgs database triggers so we don't track counts for messages in archives
+
+v7.1.64
+----------
+ * API rate limits should be org scoped except for staff accounts
+ * Expose current flow on contact read page for all users
+ * Add deprecation text for restart_participants
+
+v7.1.63
+----------
+ * Fix documentation of contacts API endpoint
+ * Release URN channel events in data migration to fix deleted contacts with tickets
+ * Use original filename inside UUID folder to upload media files
+
+v7.1.62
+----------
+ * Tweak migration to only fully delete inactive contacts with tickets
+
+v7.1.61
+----------
+ * Add flow field to contacts API endpoint
+ * Add support to the audit_es command for dumping ES queries
+ * Add migration to make sure contacts which we failed to delete are really deleted
+ * Fix contact release with tickets having a broadcast
+
+v7.1.60
+----------
+ * Adjust WA message template warning to not be show for Twilio WhatsApp channels
+ * Add support to increase API rates per org
+
+v7.1.59
+----------
+ * Add migration to populate Contact.current_flow
+
+v7.1.58
+----------
+ * Restrict msg visibility changes on bulk actions endpoint
+
+v7.1.57
+----------
+ * Add sentry id for 500 page
+ * Display current flow on contact read page for beta users
+ * Add new msg visibility for msgs deleted by senders and allow deleted msgs to appear redacted in contact histories
+ * Contact imports should strip empty rows, missing a UUID or URNs
+
+v7.1.56
+----------
+ * Fix issue with sending to step_node
+ * Add missing languages for whatsapp templates
+ * Add migration to remove inactive contacts from user groups
+
+v7.1.55
+----------
+ * Fix horizontal scrolling in editor
+ * Add support to undo_footgun command to revert status changes
+
+v7.1.53
+----------
+ * Relayer syncing should ignore bad URNs that fail validation in mailroom
+ * Add unique constraint to ContactGroup to enforce name uniqueness within an org
+
+v7.1.52
+----------
+ * Fix scrolling select
+
+v7.1.51
+----------
+ * Merge pull request #3671 from nyaruka/ui-widget-fixes
+ * Fix select for slow clicks and removing rules in the editor
+
+v7.1.50
+----------
+ * Add migration to make contact group names unique within an organization
+ * Add cookie based path to opt in and out of new interface
+
 v7.1.49
 ----------
  * Update to Django 4

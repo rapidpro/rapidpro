@@ -92,6 +92,7 @@ class Event:
                 "msg": _msg_in(obj),
                 # additional properties
                 "msg_type": obj.msg_type,
+                "visibility": obj.visibility,
                 "logs_url": logs_url,
             }
         elif obj.broadcast and obj.broadcast.get_message_count() > 1:
@@ -250,16 +251,17 @@ def _msg_out(obj) -> dict:
 
 
 def _base_msg(obj) -> dict:
+    redact = obj.visibility in (Msg.VISIBILITY_DELETED_BY_USER, Msg.VISIBILITY_DELETED_BY_SENDER)
     d = {
         "uuid": str(obj.uuid),
         "id": obj.id,
         "urn": str(obj.contact_urn) if obj.contact_urn else None,
-        "text": obj.text,
+        "text": obj.text if not redact else "",
     }
     if obj.channel:
         d["channel"] = {"uuid": str(obj.channel.uuid), "name": obj.channel.name}
     if obj.attachments:
-        d["attachments"] = obj.attachments
+        d["attachments"] = obj.attachments if not redact else []
 
     return d
 

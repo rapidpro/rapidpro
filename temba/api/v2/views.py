@@ -1270,7 +1270,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
      * **language** - the preferred language of the contact (string).
      * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
      * **groups** - the UUIDs of any groups the contact is part of (array of objects), filterable as `group` with group name or UUID.
-     * **fields** - any contact fields on this contact (dictionary).
+     * **fields** - any contact fields on this contact (object).
+     * **flow** - the flow that the contact is currently in, if any (object).
      * **blocked** - whether the contact is blocked (boolean).
      * **stopped** - whether the contact is stopped, i.e. has opted out (boolean).
      * **created_on** - when this contact was created (datetime).
@@ -1296,7 +1297,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
                 "fields": {
                   "nickname": "Macklemore",
                   "side_kick": "Ryan Lewis"
-                }
+                },
+                "flow": {"uuid": "c1bc5fcf-3e27-4265-97bf-f6c3a385c2d6", "name": "Registration"},
                 "blocked": false,
                 "stopped": false,
                 "created_on": "2015-11-11T13:05:57.457742Z",
@@ -1340,7 +1342,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             "fields": {
               "nickname": "Macklemore",
               "side_kick": "Ryan Lewis"
-            }
+            },
+            "flow": null,
             "blocked": false,
             "stopped": false,
             "created_on": "2015-11-11T13:05:57.457742Z",
@@ -1429,6 +1432,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
                 queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk"),
                 to_attr="prefetched_user_groups",
             ),
+            Prefetch("current_flow"),
         )
 
         return self.filter_before_after(queryset, "modified_on")
@@ -2540,7 +2544,9 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             else:
                 return self.model.objects.filter(pk=-1)
         else:
-            return self.model.objects.filter(org=org).exclude(visibility=Msg.VISIBILITY_DELETED).exclude(msg_type=None)
+            return self.model.objects.filter(
+                org=org, visibility__in=(Msg.VISIBILITY_VISIBLE, Msg.VISIBILITY_ARCHIVED)
+            ).exclude(msg_type=None)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params

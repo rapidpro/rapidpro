@@ -706,7 +706,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def save_media_upload(self, file):
             flow = self.get_object()
-            name_uuid = str(uuid4())
+            random_uuid_folder_name = str(uuid4())
             extension = file.name.split(".")[-1]
 
             # browsers might send m4a files but correct MIME type is audio/mp4
@@ -714,7 +714,7 @@ class FlowCRUDL(SmartCRUDL):
                 file.content_type = "audio/mp4"
 
             url = public_file_storage.save(
-                "attachments/%d/%d/steps/%s.%s" % (flow.org.pk, flow.id, name_uuid, extension), file
+                "attachments/%d/%d/steps/%s/%s" % (flow.org.pk, flow.id, random_uuid_folder_name, file.name), file
             )
             return {"type": file.content_type, "url": f"{settings.STORAGE_URL}/{url}"}
 
@@ -1907,8 +1907,10 @@ class FlowCRUDL(SmartCRUDL):
             if facebook_channel and not self.has_facebook_topic(flow):
                 warnings.append(self.warnings["facebook_topic"])
 
-            # if we have a whatsapp channel
-            whatsapp_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
+            # if we have a whatsapp channel that requires a message template; exclude twilio whatsApp
+            whatsapp_channel = flow.org.channels.filter(
+                role__contains=Channel.ROLE_SEND, schemes__contains=[URN.WHATSAPP_SCHEME], is_active=True
+            ).exclude(channel_type__in=["TWA"])
             if whatsapp_channel:
                 # check to see we are using templates
                 templates = flow.get_dependencies_metadata("template")

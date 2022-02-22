@@ -37,6 +37,11 @@
         %temba-icon(name="archive")
         -trans "Archived"
 
+    -if contact.current_flow
+      .lbl-group.linked.inverted.bg-tertiary.mr-2.mb-2(onclick="goto(event)" href="{% url 'flows.flow_editor' contact.current_flow.uuid %}")
+        %temba-icon(name="flow")
+        {{ contact.current_flow.name }}
+
     -for group in contact_groups
       -if group.is_dynamic
         -include "includes/recipients_group.haml" with group=group
