@@ -406,14 +406,9 @@ class Msg(models.Model):
 
     metadata = JSONAsTextField(null=True, default=dict)
 
-    # can be set before deletion to indicate deletion by a user which should decrement from counts
+    # TODO to be removed
     delete_from_counts = models.BooleanField(null=True, default=False)
-
-    # TODO deprecated in favor of delete_from_counts
-    DELETE_FOR_ARCHIVE = "A"
-    DELETE_FOR_USER = "U"
-    DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, "Archive delete"), (DELETE_FOR_USER, "User delete"))
-    delete_reason = models.CharField(null=True, max_length=1, choices=DELETE_CHOICES)
+    delete_reason = models.CharField(null=True, max_length=1, choices=(("A", "Archive delete"), ("U", "User delete")))
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
@@ -665,10 +660,6 @@ class Msg(models.Model):
         else:
             for log in self.channel_logs.all():
                 log.release()
-
-            self.delete_reason = Msg.DELETE_FOR_USER
-            self.delete_from_counts = True
-            self.save(update_fields=("delete_reason", "delete_from_counts"))
 
             super().delete()
 
