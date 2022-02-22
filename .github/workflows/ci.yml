@@ -9,8 +9,8 @@ jobs:
       redis_version: '5'
       node_version: '10'
       elastic_version: '7.10.1'
-      rpindexer_version: '6.2.0'
-      mailroom_version: '6.2.3'
+      rpindexer_version: '6.4.0'
+      mailroom_version: '6.4.0'
       DJANGO_SETTINGS_MODULE: temba.settings_ci
     strategy:
       matrix:
@@ -57,7 +57,6 @@ jobs:
 
     - name: Initialize environment
       run: |
-        echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
         python -m pip install -U pip poetry
         poetry install
         npm install
@@ -75,7 +74,7 @@ jobs:
     - name: Run pre-test checks
       run: |
         # test that everything is well formatted, no missing migrations etc
-        poetry run ./code_check.py --debug $([[ "$BRANCH_NAME" == "translations_django-po" ]] && echo "--skip-compilemessages")
+        poetry run ./code_check.py --debug
         # check we can collect and compress all static files
         poetry run ./manage.py collectstatic --noinput --verbosity=0
         poetry run ./manage.py compress --extension=".haml" --settings=temba.settings_compress

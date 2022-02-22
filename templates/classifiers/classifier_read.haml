@@ -42,34 +42,6 @@
   .text-center.mt-2.text-sm.text-gray-500
     -trans "Intents are synced automatically every 5 minutes"
 
-
--block extra-script
-  {{block.super}}
-
-  :javascript
-    {% if org_perms.classifiers.classifier_delete %}
-      $(".delete-classifier").live('click', function(){
-        modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
-        modal.addClass('alert');
-
-        {% if object.dependent_flows.count == 0 %}
-            modal.setListeners({onPrimary: function(){
-              $('#deletion-form').click();
-            }}, false);
-            modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
-
-        {% else %}
-            modal.hideSecondaryButton();
-            modal.setListeners({onPrimary: function(){
-              modal.dismiss();
-            }}, false);
-            modal.setPrimaryButton('{{ _("Ok")|escapejs }}');
-        {% endif %}
-
-        modal.show();
-        });
-    {% endif %}
-
 -block extra-style
   {{ block.super }}
 

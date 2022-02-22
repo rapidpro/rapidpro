@@ -31,7 +31,6 @@
         (function() { document.write(unescape('%3Cscript src="' + src + '"%3E%3C/script%3E')); })();
       }
 
-
     // ==== JQUERY ====
     :javascript
       conditionalLoad('bower/jquery/jquery.js', '//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.js');
@@ -39,7 +38,6 @@
 
     -# this view make it possible to process translations from javascript land
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
-
     -compress js
       :javascript
         var static_url = '{{STATIC_URL}}';
@@ -71,9 +69,11 @@
       %script{src:"{{ STATIC_URL }}js/temba.js"}
       %script{src:"{{ STATIC_URL }}js/labels.js"}
       %script{src:"{{ STATIC_URL }}js/formax.js"}
-    
-    -include "components-head.html"
+
     -include "includes/frame_top.html"
+
+    -if not COMPONENTS_DEV_MODE
+      -include "components-head.html"
 
     -if brand.favico
       %link{type:"image/ico", rel:"shortcut icon", href:"{{ STATIC_URL }}{{ brand.favico }}"}
@@ -133,30 +133,27 @@
 {% block body %}
 
 %body#pageBody.bg-gradient
-  -include "components-body.html"
+
+  -if COMPONENTS_DEV_MODE
+    <script type="module">
+      import '../out-tsc/temba-modules.js';
+    </script>
+  -else
+    -include "components-body.html"
 
   -block temba-store
-
+    
     -if user.is_authenticated
       %temba-store(
-        completions="/mr/docs/{{ LANGUAGE_CODE }}/completion.json"
-        functions="/mr/docs/{{ LANGUAGE_CODE }}/functions.json"
+        completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
         fields="/api/v2/fields.json"
         globals="/api/v2/globals.json")
 
   .flex.flex-col.h-full
     <!-- Header -->
-    #header
-      &nbsp;
-
-    %a#big-logo.logo.icon-logo{href:"{% if request.session.org_id %}{% url 'orgs.org_home' %}{% elif not request.user.is_authenticated %}/{% endif %}", title:"{{brand.name}}"}
-      %img{src:'{{ STATIC_URL }}brands/rapidpro/cc-logo.png'}
-
-    -block nav
-      -include 'includes/nav.html'
 
     -if user_org
-      .org-header
+      .org-header.self-end
         -if user_orgs|length > 1
           .pull-right.toggle
             .icon-menu-2
@@ -170,6 +167,20 @@
               .org
                 %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
                   {{ org.name }}
+
+
+
+    #header
+      &nbsp;
+
+
+    %a#big-logo.logo.icon-logo{href:"{% if user.is_authenticated %}{% url 'msgs.msg_inbox' %}{% else %}/{% endif %}", title:"{{brand.name}}", class:"hover:no-underline"}
+      .name
+        {{brand.name}}
+
+    -block nav
+      -include 'includes/nav.html'
+
 
     -if messages
       -block messages
@@ -196,7 +207,7 @@
                 .flex.flex-col.mr-5.leading-tight
                   .page-title
                     -block title
-
+                      
                   .page-subtitle
                     -block subtitle
 
@@ -213,11 +224,12 @@
 
             -block post-content
 
-    .footer.text-center.py-12.bg-gray-200.text-gray-500
-      {{ request.branding.credits|safe }}
+    -block footer
+      .footer.text-center.py-12.bg-gray-200.text-gray-500
+        {{ request.branding.credits|safe }}
 
   -trans 'Delete' as title
-  %temba-dialog#general-delete-confirmation{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}
+  %temba-dialog#general-delete-confirmation.hidden{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}
     .p-6.confirmation-body
       -trans "Are you sure you want to continue? This cannot be undone."
 
@@ -252,8 +264,9 @@
       }
 
       function removalConfirmation(removal, buttonName) {
-
+  
         var modal = document.querySelector("#general-delete-confirmation");
+        modal.classList.remove("hidden");
 
         // set modal deets
         var title = document.querySelector('.' + removal + ' > .title').innerHTML;
@@ -372,5 +385,6 @@
 
       });
 {% endblock body %}
+
 
 </html>

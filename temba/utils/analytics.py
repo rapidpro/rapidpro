@@ -32,8 +32,8 @@ def init_analytics():  # pragma: no cover
     segment_key = getattr(settings, "SEGMENT_IO_KEY", "")
     if segment_key:
         global _segment
-        segment_analytics.send = settings.IS_PROD
-        segment_analytics.debug = not settings.IS_PROD
+        segment_analytics.send = True
+        segment_analytics.debug = False
         segment_analytics.write_key = segment_key
         _segment = True
 
@@ -77,9 +77,6 @@ def identify_org(org, attributes=None):
     """
     Creates and identifies an org on our analytics backends where appropriate
     """
-    if not settings.IS_PROD:
-        return
-
     if not attributes:
         attributes = {}
 
@@ -108,9 +105,6 @@ def identify(user, brand, org):
     Creates and identifies a new user to our analytics backends. It is ok to call this with an
     existing user, their name and attributes will just be updated.
     """
-    # no op if we aren't prod
-    if not settings.IS_PROD:
-        return
 
     attributes = dict(
         email=user.username, first_name=user.first_name, segment=randint(1, 10), last_name=user.last_name, brand=brand
@@ -152,10 +146,6 @@ def set_orgs(email, all_orgs):
     Sets a user's orgs to canonical set of orgs it they aren't archived
     """
 
-    # no op if we aren't prod
-    if not settings.IS_PROD:
-        return
-
     if _intercom:
         intercom_user = get_intercom_user(email)
 
@@ -175,9 +165,6 @@ def change_consent(email, consent):
     """
     Notifies analytics backends of a user's consent status.
     """
-    # no op if we aren't prod
-    if not settings.IS_PROD:
-        return
 
     if _intercom:
         try:
@@ -203,13 +190,16 @@ def change_consent(email, consent):
             logger.error("error posting to intercom", exc_info=True)
 
 
-def track(email, event_name, properties=None, context=None):
+def track(user, event_name, properties=None, context=None):
     """
     Tracks the passed in event for the passed in user in all configured analytics backends.
     """
-    # no op if we aren't prod
-    if not settings.IS_PROD:
+
+    # no op for anon user
+    if not user.is_authenticated:
         return
+
+    email = user.email
 
     # post to segment if configured
     if _segment:  # pragma: no cover

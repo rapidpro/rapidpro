@@ -1,9 +1,9 @@
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.types.twilio_whatsapp.views import ClaimView
 from temba.contacts.models import URN
 
 from ...models import ChannelType
+from .views import ClaimView
 
 
 class TwilioWhatsappType(ChannelType):

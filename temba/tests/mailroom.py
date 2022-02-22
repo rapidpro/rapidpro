@@ -7,6 +7,8 @@ from functools import wraps
 from typing import Dict, List
 from unittest.mock import call, patch
 
+from django_redis import get_redis_connection
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import connection
@@ -19,8 +21,9 @@ from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
 from temba.tests.dates import parse_datetime
-from temba.tickets.models import Ticket
+from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import format_number, get_anonymous_user, json
+from temba.utils.cache import incrby_existing
 
 event_units = {
     CampaignEvent.UNIT_MINUTES: "minutes",
@@ -177,16 +180,64 @@ class TestClient(MailroomClient):
         return mock(offset, sort)
 
     @_client_method
-    def ticket_close(self, org_id, ticket_ids):
-        tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_OPEN, id__in=ticket_ids)
-        tickets.update(status=Ticket.STATUS_CLOSED)
+    def ticket_assign(self, org_id, user_id, ticket_ids, assignee_id, note):
+        now = timezone.now()
+        tickets = Ticket.objects.filter(org_id=org_id, id__in=ticket_ids).exclude(assignee_id=assignee_id)
+
+        for ticket in tickets:
+            ticket.events.create(
+                org_id=org_id,
+                contact=ticket.contact,
+                event_type=TicketEvent.TYPE_ASSIGNED,
+                assignee_id=assignee_id,
+                note=note,
+                created_by_id=user_id,
+            )
+
+        tickets.update(assignee_id=assignee_id, modified_on=now, last_activity_on=now)
 
         return {"changed_ids": [t.id for t in tickets]}
 
     @_client_method
-    def ticket_reopen(self, org_id, ticket_ids):
+    def ticket_note(self, org_id, user_id, ticket_ids, note):
+        now = timezone.now()
+        tickets = Ticket.objects.filter(org_id=org_id, id__in=ticket_ids)
+        tickets.update(modified_on=now, last_activity_on=now)
+
+        for ticket in tickets:
+            ticket.events.create(
+                org_id=org_id,
+                contact=ticket.contact,
+                event_type=TicketEvent.TYPE_NOTE,
+                note=note,
+                created_by_id=user_id,
+            )
+
+        return {"changed_ids": [t.id for t in tickets]}
+
+    @_client_method
+    def ticket_close(self, org_id, user_id, ticket_ids):
+        tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_OPEN, id__in=ticket_ids)
+
+        for ticket in tickets:
+            ticket.events.create(
+                org_id=org_id, contact=ticket.contact, event_type=TicketEvent.TYPE_CLOSED, created_by_id=user_id
+            )
+
+        tickets.update(status=Ticket.STATUS_CLOSED, closed_on=timezone.now())
+
+        return {"changed_ids": [t.id for t in tickets]}
+
+    @_client_method
+    def ticket_reopen(self, org_id, user_id, ticket_ids):
         tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_CLOSED, id__in=ticket_ids)
-        tickets.update(status=Ticket.STATUS_OPEN)
+
+        for ticket in tickets:
+            ticket.events.create(
+                org_id=org_id, contact=ticket.contact, event_type=TicketEvent.TYPE_REOPENED, created_by_id=user_id
+            )
+
+        tickets.update(status=Ticket.STATUS_OPEN, closed_on=None)
 
         return {"changed_ids": [t.id for t in tickets]}
 
@@ -529,3 +580,30 @@ def find_boundary_by_name(org, name, level, parent):
         boundary = AdminBoundary.objects.filter(**query)
 
     return boundary
+
+
+def decrement_credit(org):
+    r = get_redis_connection()
+
+    # we always consider this a credit 'used' since un-applied msgs are pending
+    # credit expenses for the next purchased topup
+    incrby_existing(f"org:{org.id}:cache:credits_used", 1)
+
+    # if we have an active topup cache, we need to decrement the amount remaining
+    active_topup_id = org.get_active_topup_id()
+    if active_topup_id:
+        remaining = r.decr(f"org:{org.id}:cache:credits_remaining:{active_topup_id}", 1)
+
+        # near the edge, clear out our cache and calculate from the db
+        if not remaining or int(remaining) < 100:
+            active_topup_id = None
+            org.clear_credit_cache()
+
+    # calculate our active topup if we need to
+    if not active_topup_id:
+        active_topup = org.get_active_topup(force_dirty=True)
+        if active_topup:
+            active_topup_id = active_topup.id
+            r.decr(f"org:{org.id}:cache:credits_remaining:{active_topup_id}", 1)
+
+    return active_topup_id or None

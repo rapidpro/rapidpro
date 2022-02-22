@@ -6,6 +6,7 @@ from temba.msgs.models import Label
 from temba.tests import TembaTest, matchers, mock_mailroom
 
 from .expressions import migrate_v7_template
+from .languages import iso6391_to_iso6393
 from .migrations import (
     map_actions,
     migrate_export_to_version_9,
@@ -895,7 +896,7 @@ class FlowMigrationTest(TembaTest):
         del flow_json["metadata"]
         flow_json = migrate_to_version_9(flow_json, start_flow)
         self.assertEqual(1, flow_json["metadata"]["revision"])
-        self.assertEqual("Color Flow", flow_json["metadata"]["name"])
+        self.assertEqual("Test Flow", flow_json["metadata"]["name"])
         self.assertEqual(10080, flow_json["metadata"]["expires"])
         self.assertIn("uuid", flow_json["metadata"])
 
@@ -1075,7 +1076,7 @@ class FlowMigrationTest(TembaTest):
 
             ContactGroup.user_groups.all().delete()
             self.assertEqual(Flow.CURRENT_SPEC_VERSION, flow.version_number)
-            flow.release()
+            flow.release(self.admin)
 
     def test_migrate_malformed_groups(self):
         flow = self.get_flow("malformed_groups")
@@ -1152,3 +1153,154 @@ class MigrationUtilsTest(TembaTest):
 
         removed = map_actions(flow_def, lambda x: None if x["msg"] is None else x)
         self.assertEqual(removed["entry"], "3456")
+
+    def test_language_migrations(self):
+        self.assertEqual("pcm", iso6391_to_iso6393("cpe", country_code="NG"))
+
+        org_languages = [
+            "dum",
+            "ger",
+            "alb",
+            "ita",
+            "tir",
+            "nwc",
+            "tsn",
+            "tso",
+            "lua",
+            "jav",
+            "nso",
+            "aus",
+            "nor",
+            "ada",
+            "fij",
+            "hat",
+            "hau",
+            "fil",
+            "amh",
+            "som",
+            "ssw",
+            "mon",
+            "him",
+            "hin",
+            "tig",
+            "guj",
+            "ibo",
+            "afr",
+            "div",
+            "bam",
+            "kac",
+            "tel",
+            "tpi",
+            "snd",
+            "ara",
+            "lao",
+            "nbl",
+            "arm",
+            "abk",
+            "kur",
+            "per",
+            "wol",
+            "smi",
+            "lug",
+            "tmh",
+            "nep",
+            "luo",
+            "run",
+            "rum",
+            "tur",
+            "orm",
+            "que",
+            "ori",
+            "rus",
+            "asm",
+            "pus",
+            "kik",
+            "ace",
+            "syr",
+            "ach",
+            "nde",
+            "srp",
+            "zul",
+            "vie",
+            "por",
+            "chm",
+            "mai",
+            "pol",
+            "sot",
+            "art",
+            "tgl",
+            "che",
+            "fre",
+            "kon",
+            "swa",
+            "chi",
+            "twi",
+            "swe",
+            "ukr",
+            "mkh",
+            "heb",
+            "kor",
+            "dut",
+            "tog",
+            "bur",
+            "ven",
+            "hmn",
+            "enm",
+            "gaa",
+            "ben",
+            "bem",
+            "xho",
+            "aze",
+            "ain",
+            "ful",
+            "ang",
+            "dan",
+            "bho",
+            "jpn",
+            "raj",
+            "khm",
+            "AAR",
+            "ind",
+            "spa",
+            "eng",
+            "lin",
+            "afa",
+            "ewe",
+            "nyn",
+            "nyo",
+            "mis",
+            "nya",
+            "yor",
+            "pan",
+            "tam",
+            "phi",
+            "mar",
+            "sna",
+            "may",
+            "kan",
+            "kal",
+            "kas",
+            "kar",
+            "kin",
+            "lat",
+            "mal",
+            "urd",
+            "gsw",
+            "cpe",
+            "cpf",
+            "cpp",
+            "tha",
+        ]
+
+        for lang in org_languages:
+            self.assertIsNotNone(iso6391_to_iso6393(lang))
+
+        # test if language is already iso-639-3
+        self.assertEqual("cro", iso6391_to_iso6393("cro"))
+        # test code path when language is in cache
+        self.assertEqual("cro", iso6391_to_iso6393("cro"))
+
+        # test behavior with unknown values
+        self.assertIsNone(iso6391_to_iso6393(iso_code=None))
+        self.assertRaises(ValueError, iso6391_to_iso6393, iso_code="")
+        self.assertRaises(ValueError, iso6391_to_iso6393, iso_code="123")

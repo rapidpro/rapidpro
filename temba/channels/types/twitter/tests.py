@@ -2,7 +2,6 @@ from unittest.mock import patch
 
 from twython import TwythonError
 
-from django.test import override_settings
 from django.urls import reverse
 
 from temba.contacts.models import URN, Contact
@@ -17,14 +16,10 @@ class TwitterTypeTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.channel = Channel.create(
-            self.org,
-            self.user,
-            None,
+        self.channel = self.create_channel(
             "TWT",
-            name="Twitter Beta",
-            address="beta_bob",
-            role="SR",
+            "Twitter Beta",
+            "beta_bob",
             config={
                 "api_key": "ak1",
                 "api_secret": "as1",
@@ -36,7 +31,6 @@ class TwitterTypeTest(TembaTest):
             },
         )
 
-    @override_settings(IS_PROD=True)
     @patch("temba.channels.types.twitter.client.TwitterClient.get_webhooks")
     @patch("temba.channels.types.twitter.client.TwitterClient.delete_webhook")
     @patch("temba.channels.types.twitter.client.TwitterClient.subscribe_to_webhook")
@@ -140,10 +134,9 @@ class TwitterTypeTest(TembaTest):
         )
         mock_subscribe_to_webhook.assert_called_with("beta")
 
-    @override_settings(IS_PROD=True)
     @patch("temba.channels.types.twitter.client.TwitterClient.delete_webhook")
     def test_release(self, mock_delete_webhook):
-        self.channel.release()
+        self.channel.release(self.admin)
         mock_delete_webhook.assert_called_once_with("beta", "1234567")
 
     @patch("twython.Twython.lookup_user")

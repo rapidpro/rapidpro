@@ -12,31 +12,34 @@ import intercom.errors
 import pytz
 from django_redis import get_redis_connection
 from openpyxl import load_workbook
+from smartmin.tests import SmartminTest, SmartminTestMixin
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AnonymousUser, User
 from django.core import checks
-from django.core.management import call_command
+from django.core.management import call_command, CommandError
 from django.db import connection, models
 from django.forms import ValidationError
-from django.test import TestCase, override_settings
+from django.test import TestCase, override_settings, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone, translation
 
 from celery.app.task import Task
 
 import temba.utils.analytics
-from temba.contacts.models import Contact, ExportContactsTask
+from temba.contacts.models import Contact, ExportContactsTask, ContactGroup, ContactGroupCount, ContactField
 from temba.flows.models import FlowRun
-from temba.tests import TembaTest, matchers
+from temba.orgs.models import Org
+from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json, uuid
 from temba.utils.json import TembaJsonAdapter
 
 from . import (
     chunk_list,
+    countries,
     dict_to_struct,
     format_number,
-    get_country_code_by_name,
+    languages,
     percentage,
     redact,
     sizeof_fmt,
@@ -197,14 +200,6 @@ class InitTest(TembaTest):
         self.assertEqual(75, percentage(75, 100))
         self.assertEqual(76, percentage(759, 1000))
 
-    def test_get_country_code_by_name(self):
-        self.assertEqual("RW", get_country_code_by_name("Rwanda"))
-        self.assertEqual("US", get_country_code_by_name("United States of America"))
-        self.assertEqual("US", get_country_code_by_name("United States"))
-        self.assertEqual("GB", get_country_code_by_name("United Kingdom"))
-        self.assertEqual("CI", get_country_code_by_name("Ivory Coast"))
-        self.assertEqual("CD", get_country_code_by_name("Democratic Republic of the Congo"))
-
     def test_remove_control_charaters(self):
         self.assertIsNone(clean_string(None))
         self.assertEqual(clean_string("ngert\x07in."), "ngertin.")
@@ -242,6 +237,14 @@ class DatesTest(TembaTest):
         self.assertIsNone(datetime_to_str(None, "%Y-%m-%d %H:%M", tz=tz))
         self.assertEqual(datetime_to_str(d2, "%Y-%m-%d %H:%M", tz=tz), "2014-01-02 03:04")
         self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=pytz.UTC), "2014/01/02 01:04")
+
+
+class CountriesTest(TembaTest):
+    def test_from_tel(self):
+        self.assertIsNone(countries.from_tel(""))
+        self.assertIsNone(countries.from_tel("123"))
+        self.assertEqual("EC", countries.from_tel("+593979123456"))
+        self.assertEqual("US", countries.from_tel("+1 213 621 0002"))
 
 
 class TimezonesTest(TembaTest):
@@ -921,7 +924,7 @@ class ExportTest(TembaTest):
 
 
 class MiddlewareTest(TembaTest):
-    def test_org_header(self):
+    def test_org(self):
         response = self.client.get(reverse("public.public_index"))
         self.assertFalse(response.has_header("X-Temba-Org"))
 
@@ -948,43 +951,62 @@ class MiddlewareTest(TembaTest):
         with self.settings(BRANDING=branding):
             self.assertRedirect(self.client.get(reverse("public.public_index")), "/redirect")
 
+    def test_language(self):
+        def assert_text(text: str):
+            self.assertContains(self.client.get(reverse("public.public_index")), text)
 
-# -- has issues with mailroom
-# class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
-#     def test_command(self):
-#         self.create_anonymous_user()
-#
-#         with ESMockWithScroll():
-#             call_command("test_db", num_orgs=3, num_contacts=30, seed=1234)
-#
-#         org1, org2, org3 = tuple(Org.objects.order_by("id"))
-#
-#         def assertOrgCounts(qs, counts):
-#             self.assertEqual([qs.filter(org=o).count() for o in (org1, org2, org3)], counts)
-#
-#         self.assertEqual(
-#             User.objects.exclude(username__in=["AnonymousUser", "root", "rapidpro_flow", "temba_flow"]).count(), 12
-#         )
-#         assertOrgCounts(ContactField.user_fields.all(), [6, 6, 6])
-#         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
-#         assertOrgCounts(Contact.objects.all(), [13, 13, 4])
-#
-#         org_1_active_contacts = ContactGroup.system_groups.get(org=org1, name="Active")
-#
-#         self.assertEqual(org_1_active_contacts.contacts.count(), 12)
-#         self.assertEqual(
-#             list(ContactGroupCount.objects.filter(group=org_1_active_contacts).values_list("count")), [(12,)]
-#         )
-#
-#         # same seed should generate objects with same UUIDs
-#         self.assertEqual(ContactGroup.user_groups.order_by("id").first().uuid, "86f15ec5-3a37-431c-a891-f9f4ff519987")
-#
-#         # check if contact fields are serialized
-#         self.assertIsNotNone(Contact.objects.first().fields)
-#
-#         # check generate can't be run again on a now non-empty database
-#         with self.assertRaises(CommandError):
-#             call_command("test_db", num_orgs=3, num_contacts=30, seed=1234)
+        # default is English
+        assert_text("Visually build nationally scalable mobile applications")
+
+        # can be overridden in Django settings
+        with override_settings(DEFAULT_LANGUAGE="es"):
+            assert_text("Cree visualmente aplicaciones móviles")
+
+        # if we have an authenticated user, their setting takes priority
+        self.login(self.admin)
+
+        user_settings = self.admin.get_settings()
+        user_settings.language = "fr"
+        user_settings.save(update_fields=("language",))
+
+        assert_text("Créez visuellement des applications mobiles")
+
+
+class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
+    def test_command(self):
+        self.create_anonymous_user()
+
+        with ESMockWithScroll():
+            call_command("test_db", num_orgs=3, num_contacts=30, seed=1234)
+
+        org1, org2, org3 = tuple(Org.objects.order_by("id"))
+
+        def assertOrgCounts(qs, counts):
+            self.assertEqual([qs.filter(org=o).count() for o in (org1, org2, org3)], counts)
+
+        self.assertEqual(
+            User.objects.exclude(username__in=["AnonymousUser", "root", "rapidpro_flow", "temba_flow"]).count(), 12
+        )
+        assertOrgCounts(ContactField.user_fields.all(), [6, 6, 6])
+        assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
+        assertOrgCounts(Contact.objects.all(), [13, 13, 4])
+
+        org_1_active_contacts = ContactGroup.system_groups.get(org=org1, name="Active")
+
+        self.assertEqual(org_1_active_contacts.contacts.count(), 12)
+        self.assertEqual(
+            list(ContactGroupCount.objects.filter(group=org_1_active_contacts).values_list("count")), [(12,)]
+        )
+
+        # same seed should generate objects with same UUIDs
+        self.assertEqual("7a7ab82c-9fff-49f3-a390-a2957fd60834", ContactGroup.user_groups.order_by("id").first().uuid)
+
+        # check if contact fields are serialized
+        self.assertIsNotNone(Contact.objects.first().fields)
+
+        # check generate can't be run again on a now non-empty database
+        with self.assertRaises(CommandError):
+            call_command("test_db", num_orgs=3, num_contacts=30, seed=1234)
 
 
 class PreDeployTest(TembaTest):
@@ -1040,7 +1062,6 @@ class TestJSONAsTextField(TestCase):
         )
 
     def test_to_python(self):
-
         field = JSONAsTextField(default=dict)
 
         self.assertEqual(field.to_python({}), {})
@@ -1048,7 +1069,6 @@ class TestJSONAsTextField(TestCase):
         self.assertEqual(field.to_python("{}"), {})
 
     def test_default_with_null(self):
-
         model = JsonModelTestDefaultNull()
         model.save()
         model.refresh_from_db()
@@ -1064,7 +1084,6 @@ class TestJSONAsTextField(TestCase):
         self.assertEqual(data[0][1], None)
 
     def test_default_without_null(self):
-
         model = JsonModelTestDefault()
         model.save()
         model.refresh_from_db()
@@ -1089,6 +1108,18 @@ class TestJSONAsTextField(TestCase):
 
         model.field = ""
         self.assertRaises(ValueError, model.save)
+
+    def test_invalid_unicode(self):
+        # invalid unicode escape sequences are stripped out
+        model = JsonModelTestDefault()
+        model.field = {"foo": "bar\u0000"}
+        model.save()
+
+        with connection.cursor() as cur:
+            cur.execute("select field::jsonb from utils_jsonmodeltestdefault")
+            data = cur.fetchall()
+
+        self.assertEqual(data[0][0], {"foo": "bar"})
 
     def test_write_None_value(self):
         model = JsonModelTestDefault()
@@ -1172,6 +1203,67 @@ class TestJSONField(TembaTest):
             self.assertEqual(number_field, Decimal("123.45"))
 
 
+class LanguagesTest(TembaTest):
+    def test_get_name(self):
+        with override_settings(NON_ISO6391_LANGUAGES={"acx", "frc"}):
+            languages.reload()
+            self.assertEqual("French", languages.get_name("fra"))
+            self.assertEqual("Arabic (Omani, ISO-639-3)", languages.get_name("acx"))  # name is overridden
+            self.assertEqual("Cajun French", languages.get_name("frc"))  # non ISO-639-1 lang explicitly included
+
+            self.assertEqual("", languages.get_name("cpi"))  # not in our allowed languages
+            self.assertEqual("", languages.get_name("xyz"))
+
+            # should strip off anything after an open paren or semicolon
+            self.assertEqual("Haitian", languages.get_name("hat"))
+
+        languages.reload()
+
+    def test_search_by_name(self):
+        # check that search returns results and in the proper order
+        self.assertEqual(
+            [
+                {"value": "afr", "name": "Afrikaans"},
+                {"value": "fra", "name": "French"},
+                {"value": "fry", "name": "Western Frisian"},
+            ],
+            languages.search_by_name("Fr"),
+        )
+
+        # usually only return ISO-639-1 languages but can add inclusions in settings
+        with override_settings(NON_ISO6391_LANGUAGES={"afr", "afb", "acx", "frc"}):
+            languages.reload()
+
+            # order is based on name rather than code
+            self.assertEqual(
+                [
+                    {"value": "afr", "name": "Afrikaans"},
+                    {"value": "frc", "name": "Cajun French"},
+                    {"value": "fra", "name": "French"},
+                    {"value": "fry", "name": "Western Frisian"},
+                ],
+                languages.search_by_name("Fr"),
+            )
+
+            # searching and ordering uses overridden names
+            self.assertEqual(
+                [
+                    {"value": "ara", "name": "Arabic"},
+                    {"value": "afb", "name": "Arabic (Gulf, ISO-639-3)"},
+                    {"value": "acx", "name": "Arabic (Omani, ISO-639-3)"},
+                ],
+                languages.search_by_name("Arabic"),
+            )
+
+        languages.reload()
+
+    def alpha2_to_alpha3(self):
+        self.assertEqual("eng", languages.alpha2_to_alpha3("en"))
+        self.assertEqual("eng", languages.alpha2_to_alpha3("en-us"))
+        self.assertEqual("spa", languages.alpha2_to_alpha3("es"))
+        self.assertIsNone(languages.alpha2_to_alpha3("xx"))
+
+
 class MatchersTest(TembaTest):
     def test_string(self):
         self.assertEqual("abc", matchers.String())
@@ -1238,7 +1330,7 @@ class JSONTest(TestCase):
         )
 
 
-class AnalyticsTest(TestCase):
+class AnalyticsTest(SmartminTest):
     def setUp(self):
         super().setUp()
 
@@ -1247,22 +1339,13 @@ class AnalyticsTest(TestCase):
             id=1000, name="Some Org", brand="Some Brand", created_on=timezone.now(), account_value=lambda: 1000
         )
         self.admin = SimpleNamespace(
-            username="admin@example.com", first_name="", last_name="", email="admin@example.com"
+            username="admin@example.com", first_name="", last_name="", email="admin@example.com", is_authenticated=True
         )
 
         self.intercom_mock = MagicMock()
         temba.utils.analytics._intercom = self.intercom_mock
         temba.utils.analytics.init_analytics()
 
-    @override_settings(IS_PROD=False)
-    def test_identify_not_prod_env(self):
-        result = temba.utils.analytics.identify(self.admin, "test", self.org)
-
-        self.assertIsNone(result)
-        self.intercom_mock.users.create.assert_not_called()
-        self.intercom_mock.users.save.assert_not_called()
-
-    @override_settings(IS_PROD=True)
     def test_identify_intercom_exception(self):
         self.intercom_mock.users.create.side_effect = Exception("Kimi says bwoah...")
 
@@ -1271,7 +1354,6 @@ class AnalyticsTest(TestCase):
 
         mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
 
-    @override_settings(IS_PROD=True)
     def test_identify_intercom(self):
         temba.utils.analytics.identify(self.admin, "test", self.org)
 
@@ -1283,7 +1365,7 @@ class AnalyticsTest(TestCase):
                 "org": self.org.name,
                 "paid": self.org.account_value(),
             },
-            email=self.admin.email,
+            email=self.admin.username,
             name=" ",
         )
         self.assertListEqual(
@@ -1300,32 +1382,29 @@ class AnalyticsTest(TestCase):
         # did we actually call save?
         self.intercom_mock.users.save.assert_called_once()
 
-    @override_settings(IS_PROD=True)
     def test_track_intercom(self):
-        temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+        temba.utils.analytics.track(self.admin, "test event", properties={"plan": "free"})
 
         self.intercom_mock.events.create.assert_called_with(
-            event_name="test event", created_at=mock.ANY, email=self.admin.email, metadata={"plan": "free"}
+            event_name="test event", created_at=mock.ANY, email=self.admin.username, metadata={"plan": "free"}
         )
 
-    @override_settings(IS_PROD=False)
-    def test_track_not_prod_env(self):
-        result = temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+    def test_track_not_anon_user(self):
+        anon = AnonymousUser()
+        result = temba.utils.analytics.track(anon, "test event", properties={"plan": "free"})
 
         self.assertIsNone(result)
 
         self.intercom_mock.events.create.assert_not_called()
 
-    @override_settings(IS_PROD=True)
     def test_track_intercom_exception(self):
         self.intercom_mock.events.create.side_effect = Exception("It's raining today")
 
         with patch("temba.utils.analytics.logger") as mocked_logging:
-            temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+            temba.utils.analytics.track(self.admin, "test event", properties={"plan": "free"})
 
         mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
 
-    @override_settings(IS_PROD=True)
     def test_consent_missing_user(self):
         self.intercom_mock.users.find.return_value = None
         temba.utils.analytics.change_consent(self.admin.email, consent=True)
@@ -1334,7 +1413,6 @@ class AnalyticsTest(TestCase):
             email=self.admin.email, custom_attributes=dict(consent=True, consent_changed=mock.ANY)
         )
 
-    @override_settings(IS_PROD=True)
     def test_consent_invalid_user_decline(self):
         self.intercom_mock.users.find.return_value = None
         temba.utils.analytics.change_consent(self.admin.email, consent=False)
@@ -1342,7 +1420,6 @@ class AnalyticsTest(TestCase):
         self.intercom_mock.users.create.assert_not_called()
         self.intercom_mock.users.delete.assert_not_called()
 
-    @override_settings(IS_PROD=True)
     def test_consent_valid_user(self):
 
         # valid user which did not consent
@@ -1354,7 +1431,6 @@ class AnalyticsTest(TestCase):
             email=self.admin.email, custom_attributes=dict(consent=True, consent_changed=mock.ANY)
         )
 
-    @override_settings(IS_PROD=True)
     def test_consent_valid_user_already_consented(self):
         # valid user which did not consent
         self.intercom_mock.users.find.return_value = MagicMock(custom_attributes={"consent": True})
@@ -1363,7 +1439,6 @@ class AnalyticsTest(TestCase):
 
         self.intercom_mock.users.create.assert_not_called()
 
-    @override_settings(IS_PROD=True)
     def test_consent_valid_user_decline(self):
 
         # valid user which did not consent
@@ -1376,7 +1451,6 @@ class AnalyticsTest(TestCase):
         )
         self.intercom_mock.users.delete.assert_called_with(mock.ANY)
 
-    @override_settings(IS_PROD=True)
     def test_consent_exception(self):
         self.intercom_mock.users.find.side_effect = Exception("Kimi says bwoah...")
 
@@ -1384,15 +1458,6 @@ class AnalyticsTest(TestCase):
             temba.utils.analytics.change_consent(self.admin.email, consent=False)
 
         mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
-
-    @override_settings(IS_PROD=False)
-    def test_consent_not_prod_env(self):
-        result = temba.utils.analytics.change_consent(self.admin.email, consent=False)
-
-        self.assertIsNone(result)
-        self.intercom_mock.users.find.assert_not_called()
-        self.intercom_mock.users.create.assert_not_called()
-        self.intercom_mock.users.delete.assert_not_called()
 
     def test_get_intercom_user(self):
         temba.utils.analytics.get_intercom_user(email="an email")
@@ -1406,16 +1471,6 @@ class AnalyticsTest(TestCase):
 
         self.assertIsNone(result)
 
-    @override_settings(IS_PROD=False)
-    def test_set_orgs_not_prod_env(self):
-        result = temba.utils.analytics.set_orgs(email="an email", all_orgs=[self.org])
-
-        self.assertIsNone(result)
-
-        self.intercom_mock.users.find.assert_not_called()
-        self.intercom_mock.users.save.assert_not_called()
-
-    @override_settings(IS_PROD=True)
     def test_set_orgs_invalid_user(self):
         self.intercom_mock.users.find.return_value = None
 
@@ -1424,7 +1479,6 @@ class AnalyticsTest(TestCase):
         self.intercom_mock.users.find.assert_called_with(email="an email")
         self.intercom_mock.users.save.assert_not_called()
 
-    @override_settings(IS_PROD=True)
     def test_set_orgs_valid_user_same_company(self):
         intercom_user = MagicMock(companies=[MagicMock(company_id=self.org.id)])
         self.intercom_mock.users.find.return_value = intercom_user
@@ -1437,7 +1491,6 @@ class AnalyticsTest(TestCase):
 
         self.intercom_mock.users.save.assert_called_with(mock.ANY)
 
-    @override_settings(IS_PROD=True)
     def test_set_orgs_valid_user_new_company(self):
         intercom_user = MagicMock(companies=[MagicMock(company_id=-1), MagicMock(company_id=self.org.id)])
         self.intercom_mock.users.find.return_value = intercom_user
@@ -1453,7 +1506,6 @@ class AnalyticsTest(TestCase):
 
         self.intercom_mock.users.save.assert_called_with(mock.ANY)
 
-    @override_settings(IS_PROD=True)
     def test_set_orgs_valid_user_without_a_company(self):
         intercom_user = MagicMock(companies=[MagicMock(company_id=-1), MagicMock(company_id=self.org.id)])
         self.intercom_mock.users.find.return_value = intercom_user
@@ -1469,15 +1521,6 @@ class AnalyticsTest(TestCase):
 
         self.intercom_mock.users.save.assert_called_with(mock.ANY)
 
-    @override_settings(IS_PROD=False)
-    def test_identify_org_not_prod_env(self):
-        result = temba.utils.analytics.identify_org(org=self.org, attributes=None)
-
-        self.assertIsNone(result)
-
-        self.intercom_mock.companies.create.assert_not_called()
-
-    @override_settings(IS_PROD=True)
     def test_identify_org_empty_attributes(self):
         result = temba.utils.analytics.identify_org(org=self.org, attributes=None)
 
@@ -1490,7 +1533,6 @@ class AnalyticsTest(TestCase):
             name=self.org.name,
         )
 
-    @override_settings(IS_PROD=True)
     def test_identify_org_with_attributes(self):
         attributes = dict(
             website="https://example.com",

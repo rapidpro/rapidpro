@@ -24,10 +24,11 @@ from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole
+from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 
-from .mailroom import create_contact_locally, update_field_locally
+from .mailroom import create_contact_locally, decrement_credit, update_field_locally
 
 
 def add_testing_flag_to_context(*args):
@@ -287,6 +288,7 @@ class TembaTestMixin:
         high_priority=False,
         response_to=None,
         surveyor=False,
+        next_attempt=None,
     ):
         if status == SENT and not sent_on:
             sent_on = timezone.now()
@@ -312,6 +314,7 @@ class TembaTestMixin:
             response_to=response_to,
             surveyor=surveyor,
             metadata=metadata,
+            next_attempt=next_attempt,
         )
 
     def _create_msg(
@@ -332,6 +335,7 @@ class TembaTestMixin:
         surveyor=False,
         broadcast=None,
         metadata=None,
+        next_attempt=None,
     ):
         assert not (surveyor and channel), "surveyor messages don't have channels"
         assert not channel or channel.org == contact.org, "channel belong to different org than contact"
@@ -351,7 +355,7 @@ class TembaTestMixin:
                 else:
                     channel = org.channels.filter(is_active=True, schemes__contains=[contact_urn.scheme]).first()
 
-            (topup_id, amount) = org.decrement_credit()
+            topup_id = decrement_credit(org)
 
         return Msg.objects.create(
             org=org,
@@ -372,10 +376,11 @@ class TembaTestMixin:
             sent_on=sent_on,
             broadcast=broadcast,
             metadata=metadata,
+            next_attempt=next_attempt,
         )
 
-    def create_broadcast(self, user, text, contacts=(), groups=(), response_to=None, msg_status=SENT):
-        bcast = Broadcast.create(self.org, user, text, contacts=contacts, groups=groups, status=SENT)
+    def create_broadcast(self, user, text, contacts=(), groups=(), response_to=None, msg_status=SENT, parent=None):
+        bcast = Broadcast.create(self.org, user, text, contacts=contacts, groups=groups, status=SENT, parent=parent)
 
         contacts = set(bcast.contacts.all())
         for group in bcast.groups.all():
@@ -398,18 +403,11 @@ class TembaTestMixin:
 
         return bcast
 
-    def create_flow(self, name="Color Flow", flow_type=Flow.TYPE_MESSAGE, org=None):
+    def create_flow(self, name="Test Flow", *, flow_type=Flow.TYPE_MESSAGE, nodes=None, is_system=False, org=None):
         org = org or self.org
-        flow = Flow.create(org, self.admin, name, flow_type=flow_type)
-        definition = {
-            "uuid": "fc8cfc80-c73c-4d96-82b6-c8ab4ecb1df6",
-            "name": name,
-            "type": Flow.GOFLOW_TYPES[flow_type],
-            "revision": 1,
-            "spec_version": "13.1.0",
-            "expire_after_minutes": Flow.DEFAULT_EXPIRES_AFTER,
-            "language": "eng",
-            "nodes": [
+        flow = Flow.create(org, self.admin, name, flow_type=flow_type, is_system=is_system)
+        if not nodes:
+            nodes = [
                 {
                     "uuid": "f3d5ccd0-fee0-4955-bcb7-21613f049eae",
                     "actions": [
@@ -417,7 +415,16 @@ class TembaTestMixin:
                     ],
                     "exits": [{"uuid": "72a3f1da-bde1-4549-a986-d35809807be8"}],
                 }
-            ],
+            ]
+        definition = {
+            "uuid": str(uuid4()),
+            "name": name,
+            "type": Flow.GOFLOW_TYPES[flow_type],
+            "revision": 1,
+            "spec_version": "13.1.0",
+            "expire_after_minutes": Flow.DEFAULT_EXPIRES_AFTER,
+            "language": "eng",
+            "nodes": nodes,
         }
 
         flow.version_number = definition["spec_version"]
@@ -506,6 +513,34 @@ class TembaTestMixin:
                 modified_by=self.admin,
             )
 
+    def create_channel(
+        self,
+        channel_type: str,
+        name: str,
+        address: str,
+        role=None,
+        schemes=None,
+        country=None,
+        secret=None,
+        config=None,
+        org=None,
+    ):
+        channel_type = Channel.get_type_from_code(channel_type)
+
+        return Channel.objects.create(
+            org=org or self.org,
+            country=country,
+            channel_type=channel_type.code,
+            name=name,
+            address=address,
+            config=config or {},
+            role=role or Channel.DEFAULT_ROLE,
+            secret=secret,
+            schemes=schemes or channel_type.schemes,
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
     def create_channel_event(self, channel, urn, event_type, occurred_on=None, extra=None):
         urn_obj = ContactURN.lookup(channel.org, urn, country_code=channel.country)
         if urn_obj:
@@ -523,6 +558,36 @@ class TembaTestMixin:
             event_type=event_type,
             extra=extra,
         )
+
+    def create_ticket(
+        self, ticketer, contact, subject, body="", opened_on=None, opened_by=None, closed_on=None, closed_by=None
+    ):
+        if not opened_on:
+            opened_on = timezone.now()
+
+        ticket = Ticket.objects.create(
+            org=ticketer.org,
+            ticketer=ticketer,
+            contact=contact,
+            subject=subject,
+            body=body,
+            status=Ticket.STATUS_CLOSED if closed_on else Ticket.STATUS_OPEN,
+            opened_on=opened_on,
+            closed_on=closed_on,
+        )
+        TicketEvent.objects.create(
+            org=ticket.org, contact=contact, ticket=ticket, event_type=TicketEvent.TYPE_OPENED, created_by=opened_by
+        )
+        if closed_on:
+            TicketEvent.objects.create(
+                org=ticket.org,
+                contact=contact,
+                ticket=ticket,
+                event_type=TicketEvent.TYPE_CLOSED,
+                created_by=closed_by,
+            )
+
+        return ticket
 
     def set_contact_field(self, contact, key, value):
         update_field_locally(self.admin, contact, key, value)
@@ -577,6 +642,19 @@ class TembaTestMixin:
 
         for r, row in enumerate(rows):
             self.assertExcelRow(sheet, r, row, tz)
+
+    def assertPathValue(self, container: dict, path: str, expected, msg: str):
+        """
+        Asserts a value at a path in a container, e.g.
+          assertPathValue({"foo": "bar", "zed": 123}, "foo", "bar")
+          assertPathValue({"foo": {"bar": 123}}, "foo__bar", 123)
+        """
+        actual = container
+        for key in path.split("__"):
+            if key not in actual:
+                self.fail(self._formatMessage(msg, f"path {path} not found in {json.dumps(container)}"))
+            actual = actual[key]
+        self.assertEqual(actual, expected, self._formatMessage(msg, f"value mismatch at {path}"))
 
     def assertResponseError(self, response, field, message, status_code=400):
         self.assertEqual(status_code, response.status_code)

@@ -7,10 +7,10 @@ from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Label
 from temba.utils import json
-from temba.utils.languages import iso6392_to_iso6393
 from temba.utils.uuid import uuid4
 
 from .expressions import migrate_v7_template
+from .languages import iso6391_to_iso6393
 
 
 def migrate_to_version_11_12(json_flow, flow=None):
@@ -575,7 +575,7 @@ def migrate_to_version_11_3(json_flow, flow=None):
 def _base_migrate_to_version_11_2(json_flow, country_code):
     if "base_language" in json_flow and json_flow["base_language"] != "base":
         iso_code = json_flow["base_language"]
-        new_iso_code = iso6392_to_iso6393(iso_code, country_code)
+        new_iso_code = iso6391_to_iso6393(iso_code, country_code)
         json_flow["base_language"] = new_iso_code
 
     return json_flow
@@ -631,13 +631,13 @@ def _base_migrate_to_version_11_1(json_flow, country_code):
                     if key == "base":
                         new_obj.update({key: val})
                     else:
-                        new_key = iso6392_to_iso6393(key, country_code)
+                        new_key = iso6391_to_iso6393(key, country_code)
                         new_obj.update({new_key: val})
 
                 value = new_obj
             elif "lang" in obj and obj["lang"] != "base":
                 iso_code = obj["lang"]
-                new_iso_code = iso6392_to_iso6393(iso_code, country_code)
+                new_iso_code = iso6391_to_iso6393(iso_code, country_code)
                 obj["lang"] = new_iso_code
                 value = obj
             else:
@@ -1381,7 +1381,7 @@ def map_actions(json_flow, fixer_method):
 
 
 def remove_extra_rules(json_flow, ruleset):
-    """ Remove all rules but the all responses rule """
+    """Remove all rules but the all responses rule"""
     rules = []
     old_rules = ruleset.get("rules")
     for rule in old_rules:
@@ -1396,7 +1396,7 @@ def remove_extra_rules(json_flow, ruleset):
 
 
 def insert_node(flow, node, _next):
-    """ Inserts a node right before _next """
+    """Inserts a node right before _next"""
 
     def update_destination(node_to_update, uuid):
         if node_to_update.get("actions", []):  # pragma: needs cover

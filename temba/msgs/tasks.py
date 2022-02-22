@@ -46,7 +46,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
         broadcast = Broadcast.create(org, user, text, contact_ids=contact_ids)
         broadcast.send_async()
 
-        analytics.track(user.username, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
+        analytics.track(user, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
 
 
 @task(track_started=True, name="fail_old_messages")
@@ -133,13 +133,9 @@ def retry_errored_messages():
     """
     Requeues any messages that have errored and have a next attempt in the past
     """
-
-    from temba.channels.types.android import AndroidType
-
     errored_msgs = (
         Msg.objects.filter(direction=OUTGOING, status=ERRORED, next_attempt__lte=timezone.now())
-        .exclude(channel__channel_type=AndroidType.code)
-        .order_by("created_on")
+        .order_by("next_attempt", "created_on")
         .prefetch_related("channel")[:5000]
     )
     Msg.send_messages(errored_msgs)

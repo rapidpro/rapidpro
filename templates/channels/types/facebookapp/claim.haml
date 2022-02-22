@@ -118,7 +118,7 @@
     function getFBPages(token) {
       $.ajax({
         type: "GET",
-        url: "https://graph.facebook.com/me/accounts?access_token=" + token,
+        url: "https://graph.facebook.com/me/accounts?access_token=" + token + "&limit=200",
         dataType: "json",
         success: function(response, status, xhr){
           data = response.data;

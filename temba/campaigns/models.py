@@ -23,16 +23,8 @@ class Campaign(TembaModel):
     EXPORT_EVENTS = "events"
 
     org = models.ForeignKey(Org, related_name="campaigns", on_delete=models.PROTECT)
-
-    name = models.CharField(max_length=MAX_NAME_LEN, help_text=_("The name of this campaign"))
-
-    group = models.ForeignKey(
-        ContactGroup,
-        on_delete=models.PROTECT,
-        help_text=_("The group this campaign operates on"),
-        related_name="campaigns",
-    )
-
+    name = models.CharField(max_length=MAX_NAME_LEN)
+    group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="campaigns")
     is_archived = models.BooleanField(default=False)
 
     @classmethod
@@ -123,7 +115,7 @@ class Campaign(TembaModel):
 
             # deactivate all of our events, we'll recreate these
             for event in campaign.events.all():
-                event.release()
+                event.release(user)
 
             # fill our campaign with events
             for event_spec in campaign_def[Campaign.EXPORT_EVENTS]:
@@ -206,7 +198,7 @@ class Campaign(TembaModel):
                 .select_related("flow")
             )
             for event in events:
-                event.flow.restore()
+                event.flow.restore(user)
 
             campaign.schedule_events_async()
 
@@ -261,17 +253,21 @@ class Campaign(TembaModel):
 
         return sorted(events, key=lambda e: e.relative_to.pk * 100_000 + e.minute_offset())
 
-    def _full_release(self):
+    def delete(self):
         """
         Deletes this campaign completely
         """
         for event in self.events.all():
-            event._full_release()
+            event.delete()
 
-        self.delete()
+        super().delete()
 
     def __str__(self):
         return f'Campaign[uuid={self.uuid}, name="{self.name}"]'
+
+    class Meta:
+        verbose_name = _("Campaign")
+        verbose_name_plural = _("Campaigns")
 
 
 class CampaignEvent(TembaModel):
@@ -358,7 +354,7 @@ class CampaignEvent(TembaModel):
             )
 
         if isinstance(message, str):
-            base_language = org.primary_language.iso_code if org.primary_language else "base"
+            base_language = org.flow_languages[0] if org.flow_languages else "base"
             message = {base_language: message}
 
         flow = Flow.create_single_message(org, user, message, base_language)
@@ -415,6 +411,10 @@ class CampaignEvent(TembaModel):
                     hour -= 12
             hours.append((i, "at %s:00 %s" % (hour, period)))
         return hours
+
+    @property
+    def name(self):
+        return f"{self.campaign.name} ({self.offset_display} {self.relative_to.name})"
 
     def get_message(self, contact=None):
         if not self.message:
@@ -495,7 +495,7 @@ class CampaignEvent(TembaModel):
         and when a change is made that would invalidate existing event fires, we deactivate the event and recreate it.
         The event fire handling code knows to ignore event fires for deactivated event.
         """
-        self.release()
+        self.release(self.created_by)
 
         # clone our event into a new event
         if self.event_type == CampaignEvent.TYPE_FLOW:
@@ -525,35 +525,39 @@ class CampaignEvent(TembaModel):
                 self.start_mode,
             )
 
-    def release(self):
+    def release(self, user):
         """
         Marks the event inactive and releases flows for single message flows
         """
         # we need to be inactive so our fires are noops
         self.is_active = False
-        self.save(update_fields=("is_active",))
+        self.modified_by = user
+        self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
         # detach any associated flow starts
         self.flow_starts.all().update(campaign_event=None)
 
         # if flow isn't a user created flow we can delete it too
         if self.event_type == CampaignEvent.TYPE_MESSAGE:
-            self.flow.release()
+            self.flow.release(user)
 
-    def _full_release(self):
+    def delete(self):
         """
         Deletes this event completely along with associated fires
         """
-        self.release()
 
         # delete any associated fires
         self.fires.all().delete()
 
         # and ourselves
-        self.delete()
+        super().delete()
 
     def __str__(self):
         return f'Event[relative_to={self.relative_to.key}, offset={self.offset}, flow="{self.flow.name}"]'
+
+    class Meta:
+        verbose_name = _("Campaign Event")
+        verbose_name_plural = _("Campaign Events")
 
 
 class EventFire(Model):

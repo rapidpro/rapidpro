@@ -68,7 +68,7 @@
                   - trans "Create Contact"
 
             -if org_perms.contacts.contactgroup_create
-              %temba-modax#create-group-modal(header='{% trans "Create Group" %}' endpoint="{% url 'contacts.contactgroup_create' %}" onloaded="handleCreateGroupModalLoaded" onsubmitted="handleCreateGroupModalSubmitted")
+              %temba-modax#create-group-modal(header='{% trans "Create Group" %}' endpoint="{% url 'contacts.contactgroup_create' %}" -temba-loaded="handleCreateGroupModalLoaded")
                 .button-light.block.mt-3
                   - trans "Create Group"
 
@@ -241,7 +241,7 @@
                             %temba-checkbox(onclick="handleRowSelection(this)")
 
                         %td
-                          .whitespace-no-wrap
+                          .whitespace-nowrap
                             {{ object|name:user_org }}
                         %td
                           .value-labels
@@ -256,7 +256,7 @@
                                     {{ group.name }}
 
                         %td.w-full
-                          .whitespace-no-wrap
+                          .whitespace-nowrap
                             {{ object|urn:user_org }}
 
                         -for field in contact_fields
@@ -265,13 +265,13 @@
                               {{ object|contact_field:field.key }}
 
                         %td.value-received.field_received
-                          .whitespace-no-wrap
+                          .whitespace-nowrap
                             -if object.last_seen_on
                               {% format_datetime object.last_seen_on %}
                             -else
                               {{ "--" }}
                         %td.value-received.field_received
-                          .whitespace-no-wrap
+                          .whitespace-nowrap
                             {% format_datetime object.created_on %}
 
                         // This is needed for action buttons

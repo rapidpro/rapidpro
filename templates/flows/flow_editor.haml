@@ -368,6 +368,7 @@
       onChangeLanguage: handleChangeLanguage,
       mutable: {{mutable|lower}},
       filters: {{feature_filters|to_json}},
+      brand: '{{brand.name|escapejs}}',
 
       help: {},
 
@@ -394,9 +395,6 @@
         environment: base + 'environment',
         activity: '/flow/activity/{{object.uuid}}/',
         recipients: '/contact/omnibox?v=2&types=gc',
-
-        completion: '/mr/docs/{{ LANGUAGE_CODE }}/completion.json',
-        functions: '/mr/docs/{{ LANGUAGE_CODE }}/functions.json',
 
         {% if can_simulate %}
         simulateStart: '/flow/simulate/{{object.id}}/',

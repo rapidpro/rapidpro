@@ -119,7 +119,7 @@
           %a{href:'{% url "public.video_update" video.pk%}'}
             -trans "Edit"
 
-      <iframe src="//player.vimeo.com/video/{{video.vimeo_id}}" width=550 height=309 frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+      <iframe class='vimeo' src="//player.vimeo.com/video/{{video.vimeo_id}}" width=550 height=309 frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
         //.number
         //  {{video.order}}
       .description
