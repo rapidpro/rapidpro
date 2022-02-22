@@ -151,7 +151,7 @@ class FlowRunCRUDL(SmartCRUDL):
         success_message = None
 
         def post(self, request, *args, **kwargs):
-            self.get_object().release(FlowRun.DELETE_FOR_USER)
+            self.get_object().delete()
             return HttpResponse()
 
 
