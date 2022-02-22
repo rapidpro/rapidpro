@@ -1056,7 +1056,6 @@ REST_FRAMEWORK = {
         "v2.messages": "2500/hour",
         "v2.broadcasts": "36000/hour",
         "v2.runs": "2500/hour",
-        "v2.api": "2500/hour",
     },
     "PAGE_SIZE": 250,
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
