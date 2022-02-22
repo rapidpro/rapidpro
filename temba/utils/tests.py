@@ -938,25 +938,6 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
             call_command("test_db", num_orgs=3, num_contacts=30, seed=1234)
 
 
-class PreDeployTest(TembaTest):
-    def test_command(self):
-        buffer = io.StringIO()
-        call_command("pre_deploy", stdout=buffer)
-
-        self.assertEqual("", buffer.getvalue())
-
-        ExportContactsTask.create(self.org, self.admin)
-        ExportContactsTask.create(self.org, self.admin)
-
-        buffer = io.StringIO()
-        call_command("pre_deploy", stdout=buffer)
-
-        self.assertEqual(
-            "WARNING: there are 2 unfinished tasks of type contact-export. Last one started 0\xa0minutes ago.\n",
-            buffer.getvalue(),
-        )
-
-
 class JsonModelTestDefaultNull(models.Model):
     field = JSONAsTextField(default=dict, null=True)
 
