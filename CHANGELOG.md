@@ -1,3 +1,7 @@
+v7.1.66
+----------
+ * Fix last reference to Msg.delete_reason in db triggers and stop writing that on deletion
+
 v7.1.65
 ----------
  * Rework msgs database triggers so we don't track counts for messages in archives
