@@ -1,3 +1,7 @@
+1.1.4-rapidpro-7.0.4
+----------
+ * Update weni-rp-apps to 1.0.12
+
 1.1.3-rapidpro-7.0.4
 ----------
  * Fix: Use original filename instead uuid at end of path on upload attachment
