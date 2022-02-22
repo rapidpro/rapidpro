@@ -3367,11 +3367,9 @@ class FlowRunTest(TembaTest):
 
         run = FlowRun.objects.get(contact=self.contact)
         if by_archiver:
-            run.delete_reason = "A"
-            run.save(update_fields=("delete_reason",))
-            super(FlowRun, run).delete()
+            super(FlowRun, run).delete()  # delete_from_counts left unset
         else:
-            run.delete()
+            run.delete()  # delete_from_counts updated to true
 
         cat_counts = {c["key"]: c for c in flow.get_category_counts()["counts"]}
 
@@ -3385,7 +3383,7 @@ class FlowRunTest(TembaTest):
         self.assertFalse(FlowRun.objects.filter(id=run.id).exists())
 
     @patch("temba.mailroom.queue_interrupt")
-    def test_user_deletion_with_complete_session(self, mock_queue_interrupt):
+    def test_delete_by_user_with_complete_session(self, mock_queue_interrupt):
         self._check_deletion(
             by_archiver=False,
             expected={
@@ -3406,7 +3404,7 @@ class FlowRunTest(TembaTest):
         self.assertFalse(mock_queue_interrupt.called)
 
     @patch("temba.mailroom.queue_interrupt")
-    def test_user_deletion_without_complete_session(self, mock_queue_interrupt):
+    def test_delete_by_user_without_complete_session(self, mock_queue_interrupt):
         self._check_deletion(
             by_archiver=False,
             expected={
@@ -3428,7 +3426,7 @@ class FlowRunTest(TembaTest):
         mock_queue_interrupt.assert_called_once()
 
     @patch("temba.mailroom.queue_interrupt")
-    def test_archiving(self, mock_queue_interrupt):
+    def test_delete_by_archiver(self, mock_queue_interrupt):
         self._check_deletion(
             by_archiver=True,
             expected={
