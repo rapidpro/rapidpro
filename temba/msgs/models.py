@@ -406,10 +406,6 @@ class Msg(models.Model):
 
     metadata = JSONAsTextField(null=True, default=dict)
 
-    # TODO to be removed
-    delete_from_counts = models.BooleanField(null=True, default=False)
-    delete_reason = models.CharField(null=True, max_length=1, choices=(("A", "Archive delete"), ("U", "User delete")))
-
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
         messages = cls.objects.filter(org=org)
