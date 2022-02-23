@@ -1240,8 +1240,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # current node location of this run in the flow
     current_node_uuid = models.UUIDField(null=True)
 
-    # set when deleting to signal to db triggers that activity counts should be decremented
-    delete_from_counts = models.BooleanField(null=True)
+    # set when deleting to signal to db triggers that result category counts should be decremented
+    delete_from_results = models.BooleanField(null=True)
 
     # TODO to be dropped
     delete_reason = models.CharField(null=True, max_length=1, choices=(("A", "Archive delete"), ("U", "User delete")))
@@ -1281,11 +1281,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     def delete(self):
         """
-        Deletes this run, decrementing it from activity counts
+        Deletes this run, decrementing it from result category counts
         """
         with transaction.atomic():
-            self.delete_from_counts = True
-            self.save(update_fields=("delete_from_counts",))
+            self.delete_from_results = True
+            self.save(update_fields=("delete_from_results",))
 
             if self.session and self.session.status == FlowSession.STATUS_WAITING:
                 mailroom.queue_interrupt(self.org, session=self.session)

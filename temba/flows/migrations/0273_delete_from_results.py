@@ -13,7 +13,7 @@ DECLARE
     _path_len INT;
 BEGIN
     -- leave activity as is if we're being archived
-    IF OLD.delete_from_counts THEN
+    IF OLD.delete_from_results THEN
         -- nothing to do if path was empty
         IF OLD.path IS NULL OR OLD.path = '[]' THEN RETURN NULL; END IF;
 
@@ -53,7 +53,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION temba_update_flowcategorycount() RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
-    IF OLD.delete_from_counts THEN
+    IF OLD.delete_from_results THEN
       EXECUTE temba_update_category_counts(OLD.flow_id, NULL, OLD.results::json);
     END IF;
 
@@ -83,7 +83,7 @@ BEGIN
 
   -- FlowRun being removed
   ELSIF TG_OP = 'DELETE' THEN
-     IF OLD.delete_from_counts THEN
+     IF OLD.delete_from_results THEN
        PERFORM temba_insert_flowruncount(OLD.flow_id, OLD.exit_type, -1);
      END IF;
 
@@ -108,7 +108,7 @@ BEGIN
 
   -- FlowRun being removed
   ELSIF TG_OP = 'DELETE' THEN
-    IF OLD.delete_from_counts THEN
+    IF OLD.delete_from_results THEN
       PERFORM temba_insert_flowstartcount(OLD.start_id, -1);
     END IF;
 

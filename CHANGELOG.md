@@ -1,3 +1,8 @@
+v7.1.67
+----------
+ * Drop no longer used Msg.delete_reason and delete_from_counts columns
+ * Update to Facebook Graph API v12
+
 v7.1.66
 ----------
  * Fix last reference to Msg.delete_reason in db triggers and stop writing that on deletion

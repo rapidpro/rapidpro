@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="flowrun",
-            name="delete_from_counts",
+            name="delete_from_results",
             field=models.BooleanField(null=True),
         ),
     ]
