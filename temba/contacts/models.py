@@ -1189,12 +1189,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for event in self.channel_events.all():  # pragma: needs cover
                 event.release()
 
-            # release our runs too
             for run in self.runs.all():
-                run.release()
+                run.delete()
 
             for session in self.sessions.all():
-                session.release()
+                session.delete()
 
             for conn in self.connections.all():  # pragma: needs cover
                 conn.release()

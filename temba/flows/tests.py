@@ -1069,7 +1069,7 @@ class FlowTest(TembaTest):
 
         # and if we delete our runs, things zero out
         for run in FlowRun.objects.all():
-            run.release()
+            run.delete()
 
         counts = favorites.get_category_counts()
         assertCount(counts, "beer", "Turbo King", 0)
@@ -3303,9 +3303,9 @@ class FlowRunTest(TembaTest):
         self.assertIsNone(run_json["exited_on"])
         self.assertIsNone(run_json["submitted_by"])
 
-    def _check_deletion(self, delete_reason, expected, session_completed=True):
+    def _check_deletion(self, by_archiver: bool, expected: dict, session_completed=True):
         """
-        Runs our favorites flow, then releases the run with the passed in delete_reason, asserting our final state
+        Runs our favorites flow, then deletes the run and asserts our final state
         """
 
         flow = self.get_flow("favorites_v13")
@@ -3366,7 +3366,12 @@ class FlowRunTest(TembaTest):
             )
 
         run = FlowRun.objects.get(contact=self.contact)
-        run.release(delete_reason)
+        if by_archiver:
+            run.delete_reason = "A"
+            run.save(update_fields=("delete_reason",))
+            super(FlowRun, run).delete()
+        else:
+            run.delete()
 
         cat_counts = {c["key"]: c for c in flow.get_category_counts()["counts"]}
 
@@ -3380,31 +3385,10 @@ class FlowRunTest(TembaTest):
         self.assertFalse(FlowRun.objects.filter(id=run.id).exists())
 
     @patch("temba.mailroom.queue_interrupt")
-    def test_deletion(self, mock_queue_interrupt):
-        self._check_deletion(
-            None,
-            {
-                "red_count": 0,
-                "primus_count": 0,
-                "start_count": 0,
-                "run_count": {
-                    "total": 0,
-                    "active": 0,
-                    "completed": 0,
-                    "expired": 0,
-                    "interrupted": 0,
-                    "failed": 0,
-                    "completion": 0,
-                },
-            },
-        )
-        self.assertFalse(mock_queue_interrupt.called)
-
-    @patch("temba.mailroom.queue_interrupt")
     def test_user_deletion_with_complete_session(self, mock_queue_interrupt):
         self._check_deletion(
-            "U",
-            {
+            by_archiver=False,
+            expected={
                 "red_count": 0,
                 "primus_count": 0,
                 "start_count": 0,
@@ -3424,8 +3408,8 @@ class FlowRunTest(TembaTest):
     @patch("temba.mailroom.queue_interrupt")
     def test_user_deletion_without_complete_session(self, mock_queue_interrupt):
         self._check_deletion(
-            "U",
-            {
+            by_archiver=False,
+            expected={
                 "red_count": 0,
                 "primus_count": 0,
                 "start_count": 0,
@@ -3439,15 +3423,15 @@ class FlowRunTest(TembaTest):
                     "completion": 0,
                 },
             },
-            False,
+            session_completed=False,
         )
         mock_queue_interrupt.assert_called_once()
 
     @patch("temba.mailroom.queue_interrupt")
     def test_archiving(self, mock_queue_interrupt):
         self._check_deletion(
-            "A",
-            {
+            by_archiver=True,
+            expected={
                 "red_count": 1,
                 "primus_count": 1,
                 "start_count": 1,
@@ -4659,8 +4643,8 @@ class ExportFlowResultsTest(TembaTest):
         )
         mock_s3.put_object("test-bucket", "archive1.jsonl.gz", body)
 
-        contact1_run.release()
-        contact2_run.release()
+        contact1_run.delete()
+        contact2_run.delete()
 
         # create an archive earlier than our flow created date so we check that it isn't included
         Archive.objects.create(
