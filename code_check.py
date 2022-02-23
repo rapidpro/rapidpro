@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     if not args.skip_flake:
         status("Running flake8")
-        cmd("flake8 temba --ignore=E501,F405,T003,E203,W503")
+        cmd("flake8 temba --ignore=E501,F405,T003,E203,W503,F541,E741")
 
     # if any code changes were made, exit with error
     if cmd("git diff temba locale"):

@@ -7,6 +7,7 @@ import time
 import pycountry
 from collections import defaultdict
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 import nexmo
 import phonenumbers
@@ -1352,8 +1353,15 @@ class ChannelCRUDL(SmartCRUDL):
 
             message_stats_table = []
 
-            # we'll show totals for every month since this channel was started
+            # we'll show totals for every month since this channel was started (limited to 12 months ago)
             month_start = channel.created_on.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+            now = timezone.now()
+            twelve_months_ago = now + relativedelta(months=-12)
+            twelve_months_ago = twelve_months_ago.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+            if month_start < twelve_months_ago:
+                month_start = twelve_months_ago
 
             # get our totals grouped by month
             monthly_totals = list(
@@ -1374,8 +1382,14 @@ class ChannelCRUDL(SmartCRUDL):
                 .annotate(count_sum=Sum("count"))
             )
 
+            context["total_incoming_messages_count"] = 0
+            context["total_outgoing_messages_count"] = 0
+            context["total_incoming_messages_segments_count"] = 0
+            context["total_outgoing_messages_segments_count"] = 0
+            context["total_incoming_ivr_count"] = 0
+            context["total_outgoing_ivr_count"] = 0
+
             # calculate our summary table for last 12 months
-            now = timezone.now()
             while month_start < now:
                 msg_in = 0
                 msg_out = 0
@@ -1410,6 +1424,13 @@ class ChannelCRUDL(SmartCRUDL):
                         outgoing_ivr_count=ivr_out,
                     )
                 )
+
+                context["total_incoming_messages_count"] += msg_in
+                context["total_outgoing_messages_count"] += msg_out
+                context["total_incoming_messages_segments_count"] += msg_segments_in
+                context["total_outgoing_messages_segments_count"] += msg_segments_out
+                context["total_incoming_ivr_count"] += ivr_in
+                context["total_outgoing_ivr_count"] += ivr_out
 
                 month_start = (month_start + timedelta(days=32)).replace(day=1)
 

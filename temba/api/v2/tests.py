@@ -44,6 +44,7 @@ from temba.utils import json
 
 from . import fields
 from .serializers import format_datetime, normalize_extra
+from .validators import is_uuid_valid
 
 NUM_BASE_REQUEST_QUERIES = 6  # number of db queries required for any API request
 
@@ -4490,3 +4491,10 @@ class APITest(TembaTest):
 
         # check that triggered a call to mailroom
         mock_ticket_reopen.assert_called_once_with(self.org.id, self.admin.id, [ticket2.id])
+
+    def test_is_uuid_valid(self):
+        valid = is_uuid_valid("1234-123-123")
+        self.assertFalse(valid)
+
+        valid = is_uuid_valid("6df7f177-6d1b-4493-8cea-086de5dcff5e")
+        self.assertTrue(valid)

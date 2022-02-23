@@ -2107,6 +2107,17 @@ class Org(SmartModel):
     def get_translation(self, text, target_lang, source_lang=None, provider=None, api_key=None, use_config=True):
         import requests
 
+        def convert_language(lang):
+            languages_map = {"fra": "fr", "deu": "de", "zho": "zh"}
+            if lang == "base":
+                nonlocal self
+                lang = self.primary_language.iso_code if self.primary_language else "eng"
+            return languages_map.get(lang, lang)
+
+        target_lang, source_lang = tuple(map(convert_language, (target_lang, source_lang)))
+        if target_lang == source_lang:
+            return text, 200
+
         def google_translate(_text, _target_lang, _source_lang, _api_key):
             body = {"q": _text, "target": _target_lang}
             body.update({"source": _source_lang} if _source_lang else {})
@@ -2139,6 +2150,26 @@ class Org(SmartModel):
         if all((saved_provider, saved_api_key)) and saved_provider in providers.keys():
             return providers.get(saved_provider, lambda _: (None, 404))(text, target_lang, source_lang, saved_api_key)
         return None, 404
+
+    def do_not_contact(self):
+        do_not_contact = (self.config or {}).get("non_contact_hours", False)
+        if not do_not_contact:
+            return False
+
+        timezone.activate(pytz.timezone(str(self.timezone)))
+        start = timezone.localtime(timezone.now()).replace(hour=8, minute=0, second=0, microsecond=0)
+        end = timezone.localtime(timezone.now()).replace(hour=21, minute=0, second=0, microsecond=0)
+        now = timezone.localtime(timezone.now())
+        in_do_not_contact_times = now < start or now > end
+        timezone.deactivate()
+        return in_do_not_contact_times
+
+    @property
+    def do_not_contact_enabled(self):
+        do_not_contact = (self.config or {}).get("non_contact_hours", False)
+        if not do_not_contact:
+            return False
+        return True
 
 
 # ===================== monkey patch User class with a few extra functions ========================

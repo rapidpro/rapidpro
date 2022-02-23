@@ -1758,6 +1758,27 @@ class OrgCRUDL(SmartCRUDL):
         class Form(forms.ModelForm):
             parent = forms.IntegerField(required=False)
             plan_end = forms.DateTimeField(required=False)
+            non_contact_hours = forms.BooleanField(required=False)
+            viewers = forms.ModelMultipleChoiceField(
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="") | Q(is_active=False)),
+                required=False,
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
+            )
+            editors = forms.ModelMultipleChoiceField(
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="") | Q(is_active=False)),
+                required=False,
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
+            )
+            surveyors = forms.ModelMultipleChoiceField(
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="") | Q(is_active=False)),
+                required=False,
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
+            )
+            administrators = forms.ModelMultipleChoiceField(
+                User.objects.exclude(Q(email__isnull=True) | Q(email__exact="") | Q(is_active=False)),
+                required=False,
+                widget=SelectMultipleWidget(attrs={"searchable": True, "placeholder": "Select Users"}),
+            )
 
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -1804,6 +1825,10 @@ class OrgCRUDL(SmartCRUDL):
                     "is_multi_user",
                     "is_multi_org",
                     "is_suspended",
+                    "administrators",
+                    "editors",
+                    "viewers",
+                    "surveyors",
                 )
 
         form_class = Form
@@ -1911,7 +1936,15 @@ class OrgCRUDL(SmartCRUDL):
             cleaned_data = self.form.cleaned_data
 
             obj.limits = cleaned_data["limits"]
+            obj.config = obj.config or {}
+            obj.config["non_contact_hours"] = cleaned_data["non_contact_hours"]
             return obj
+
+        def derive_initial(self):
+            org = self.get_object()
+            initial = super().derive_initial()
+            initial["non_contact_hours"] = (org.config or {}).get("non_contact_hours", False)
+            return initial
 
     class Delete(ModalMixin, SmartDeleteView):
         cancel_url = "id@orgs.org_update"
@@ -3609,14 +3642,8 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_prometheus"):
                 formax.add_section("prometheus", reverse("orgs.org_prometheus"), icon="icon-prometheus", nobutton=True)
 
-            if self.has_org_perm("orgs.org_resthooks"):
-                formax.add_section(
-                    "resthooks", reverse("orgs.org_resthooks"), icon="icon-cloud-lightning", dependents="resthooks"
-                )
-
             # show globals and archives
             formax.add_section("globals", reverse("globals.global_list"), icon="icon-global", action="link")
-            formax.add_section("archives", reverse("archives.archive_message"), icon="icon-box", action="link")
 
     class TwilioAccount(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 

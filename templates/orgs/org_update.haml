@@ -23,10 +23,31 @@
 
   {{ block.super }}
 
+-block extra-style
+  :css
+    .org_users {
+      flex-wrap: wrap;
+      flex-direction: row;
+      justify-content: space-between;
+      flex: 1 0 50%;
+      display: flex;
+      align-items: flex-start;
+      align-content: space-around;
+    }
+    .org_users_block {
+      display: flex;
+      flex-direction: column;
+      flex-wrap: wrap;
+      align-content: stretch;
+      align-items: stretch;
+      justify-content: space-around;
+      flex: 1 0 50%;
+    }
+
 -block pre-form
-  .mb-4.flex
+  .mb-4.flex.org_users
     -if org.administrators.all
-      .mb-2
+      .mb-3.org_users_block
         .cap-label
           Administrators
 
@@ -35,7 +56,7 @@
             {{user.email}}
 
     -if org.editors.all
-      .mb-2
+      .mb-3.org_users_block
         .cap-label
           Editors
 
@@ -44,7 +65,7 @@
             {{user.email}}
 
     -if org.viewers.all
-      .mb-2
+      .mb-3.org_users_block
         .cap-label
           Viewers
 
@@ -53,7 +74,7 @@
             {{user.email}}
 
     -if org.surveyors.all
-      .mb-2
+      .mb-3.org_users_block
         .cap-label
           Surveyors
 

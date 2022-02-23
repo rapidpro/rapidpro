@@ -2319,7 +2319,6 @@ class OrgTest(TembaTest):
         self.assertContains(response, "Enable Prometheus")
 
     def test_resthooks(self):
-        home_url = reverse("orgs.org_home")
         resthook_url = reverse("orgs.org_resthooks")
 
         # no hitting this page without auth
@@ -2333,9 +2332,6 @@ class OrgTest(TembaTest):
 
         # shouldn't have any resthooks listed yet
         self.assertFalse(response.context["current_resthooks"])
-
-        response = self.client.get(home_url)
-        self.assertContains(response, "You have <b>no flow events</b> configured.")
 
         # try to create one with name that's too long
         response = self.client.post(resthook_url, {"new_slug": "x" * 100})
@@ -2357,10 +2353,6 @@ class OrgTest(TembaTest):
             [{"field": f"resthook_{mother_reg.id}", "resthook": mother_reg}],
             list(response.context["current_resthooks"]),
         )
-
-        # and summarized on org home page
-        response = self.client.get(home_url)
-        self.assertContains(response, "You have <b>1 flow event</b> configured.")
 
         # let's try to create a repeat, should fail due to duplicate slug
         response = self.client.post(resthook_url, {"new_slug": "Mother-Registration"})
@@ -4032,6 +4024,78 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # can no longer go to inbox, asked to log in
         response = self.client.get(reverse("msgs.msg_inbox"))
         self.assertRedirect(response, "/users/login/")
+
+    def test__do_not_contact(self):
+        org = self.org
+        self.login(self.superuser)
+
+        self.assertFalse(org.do_not_contact())
+        self.assertFalse(org.do_not_contact_enabled)
+
+        org_update_url = reverse("orgs.org_update", kwargs={"pk": org.id})
+        response = self.client.post(
+            org_update_url,
+            dict(
+                name=org.name,
+                plan=org.plan,
+                brand=org.brand,
+                non_contact_hours=True,
+                administrators=[self.admin.id],
+                editors=[self.editor.id],
+                viewers=[self.user.id],
+                surveyors=[self.surveyor.id],
+                agents=[self.agent.id],
+            ),
+        )
+        self.assertNoFormErrors(response)
+        self.assertEqual(response.status_code, 302)
+        org.refresh_from_db()
+
+        with patch(
+            "django.utils.timezone.now",
+            return_value=timezone.localtime(timezone.now()).replace(hour=12, minute=0, second=0, microsecond=0),
+        ):
+            self.assertTrue(org.do_not_contact_enabled)
+            self.assertFalse(org.do_not_contact())
+
+        with patch(
+            "django.utils.timezone.now",
+            return_value=timezone.localtime(timezone.now()).replace(hour=23, minute=0, second=0, microsecond=0),
+        ):
+            self.assertTrue(org.do_not_contact_enabled)
+            self.assertTrue(org.do_not_contact())
+
+        response = self.client.post(
+            org_update_url,
+            dict(
+                name=org.name,
+                plan=org.plan,
+                brand=org.brand,
+                non_contact_hours=False,
+                administrators=[self.admin.id],
+                editors=[self.editor.id],
+                viewers=[self.user.id],
+                surveyors=[self.surveyor.id],
+                agents=[self.agent.id],
+            ),
+        )
+        self.assertNoFormErrors(response)
+        self.assertEqual(response.status_code, 302)
+        org.refresh_from_db()
+
+        with patch(
+            "django.utils.timezone.now",
+            return_value=timezone.localtime(timezone.now()).replace(hour=12, minute=0, second=0, microsecond=0),
+        ):
+            self.assertFalse(org.do_not_contact_enabled)
+            self.assertFalse(org.do_not_contact())
+
+        with patch(
+            "django.utils.timezone.now",
+            return_value=timezone.localtime(timezone.now()).replace(hour=23, minute=0, second=0, microsecond=0),
+        ):
+            self.assertFalse(org.do_not_contact_enabled)
+            self.assertFalse(org.do_not_contact())
 
     def test_back_translations(self):
         org = self.org

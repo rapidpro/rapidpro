@@ -197,7 +197,10 @@
       - if ivr_count
         .stats-switch
           .msgs-stats-label.active
-            Segments
+            - if msg_segments_count
+              Segments
+            - else
+              Messages
           .stats-sep
             |
           .ivr-stats-label
@@ -210,7 +213,7 @@
         - if msg_segments_count
           .minutes-disclaimer.mb-4
             Please note: When you send a SMS message over 160 characters, the message will be split. Large messages are
-            segmented into 153 characters segment and sent individually, then rebuild by the recipient's device. For
+            segmented into 153 character segments and sent individually, then rebuilt by the recipient's device. For
             example, a 161-character message will be sent as two messages, one with 153 characters and the second with 8
             characters. This is how CCL is billed and therefore how you are billed.
 
@@ -225,7 +228,7 @@
                 %th
                   -trans "Outgoing Segments"
                 %th
-                  -trans "Total Segmants"
+                  -trans "Total Segments"
               - else
                 %th
                   -trans "Incoming Text Messages"
@@ -252,6 +255,33 @@
                     = month_data.outgoing_messages_count|intcomma
                   %td
                     = month_data.incoming_messages_count|intcomma|add:month_data.outgoing_messages_count|intcomma
+            %tr
+              - if msg_segments_count
+                %td
+                  %b
+                    -trans "Total"
+                %td
+                  %b
+                    = total_incoming_messages_segments_count|intcomma
+                %td
+                  %b
+                    = total_outgoing_messages_segments_count|intcomma
+                %td
+                  %b
+                    = total_incoming_messages_segments_count|intcomma|add:total_outgoing_messages_segments_count|intcomma
+              -else
+                %td
+                  %b
+                    -trans "Total"
+                %td
+                  %b
+                    = total_incoming_messages_count|intcomma
+                %td
+                  %b
+                    = total_outgoing_messages_count|intcomma
+                %td
+                  %b
+                    = total_incoming_messages_count|intcomma|add:total_outgoing_messages_count|intcomma
       .ivr-stats
         .card.pt-8
           %div#channel-ivr-chart
@@ -269,7 +299,7 @@
               %th
                 -trans "Outgoing IVR Messages"
               %th
-                -trans "Total IVR Messages"
+                -trans "Total IVR Messages (Minutes)"
           %tbody
             -for month_data in message_stats_table
               %tr
@@ -281,6 +311,19 @@
                   = month_data.outgoing_ivr_count|intcomma
                 %td
                   = month_data.incoming_ivr_count|intcomma|add:month_data.outgoing_ivr_count|intcomma
+            %tr
+              %td
+                %b
+                  -trans "Total"
+              %td
+                %b
+                  = total_incoming_ivr_count|intcomma
+              %td
+                %b
+                  = total_outgoing_ivr_count|intcomma
+              %td
+                %b
+                  = total_incoming_ivr_count|intcomma|add:total_outgoing_ivr_count|intcomma
 
   -if object.channel_type == 'A'
     %table.list.lined.mt-4
@@ -410,7 +453,7 @@
                 minute: '%H:%M',
                 hour: '%H:%M',
                 day: '%b %e',
-                week: '%e. %b',
+                week: '%e %b',
                 month: '%b \'%y',
                 year: '%Y'
               },
@@ -438,8 +481,13 @@
             },
             yAxis: {
               title: {
+                {% if msg_segments_count %}
+                text: '{{ _("Segments")|escapejs }}'
+                {% else %}
                 text: '{{ _("Messages")|escapejs }}'
+                {% endif %}
               },
+              opposite: true,
               min: 0,
               allowDecimals: false
               {% if not has_messages %}
@@ -464,6 +512,13 @@
 
           ivrChart = new Highcharts.Chart({
             ...generalSettings,
+            colors: [
+              '#CD76F0',
+              '#8e44ad',
+              '#633077',
+              '#80b9fb',
+              '#2980b9'
+            ],
             chart: {
               renderTo: 'channel-ivr-chart',
               zoomType: 'x',
@@ -474,7 +529,7 @@
               title: {
                 text: '{{ _("Minutes")|escapejs }}'
               },
-              opposite: false,
+              opposite: true,
               min: 0,
               allowDecimals: false
               {% if not ivr_count %}
@@ -482,9 +537,9 @@
               {% endif %}
             }, {
               title: {
-                text: '{{_("Messages")|escapejs }}'
+                text: ''
               },
-              opposite: true,
+              opposite: false,
               min: 0,
               allowDecimals: false
               {% if not ivr_count %}
@@ -504,17 +559,6 @@
               {% empty %}
                 {}
               {% endfor %}
-              {% if ivr_count %}
-                ,{
-                  type: 'spline',
-                  name: 'Minutes',
-                  yAxis:0,
-                  data: [
-                    {% for point in call_duration %}[Date.UTC({{point.date|date:'Y'}}, {{point.date|date:'m'|add:-1}}, {{point.date|date:'d'}}), Math.floor(100 * ({{point.duration}} / 60)) / 100]{% if not forloop.last %},
-                    {% endif %}{% endfor %}
-                  ]
-                }
-              {% endif %}
             ]
           });
         });

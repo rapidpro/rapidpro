@@ -5,6 +5,7 @@
     %td{colspan: 10, style:"color: red"}
       {{ query_error }}
 -else
+  <tr id="total-runs-value" total-runs="{{total_runs}}"></tr>
   -for run in runs
     <tr id="run_{{run.id}}" class="run exit-{{run.exit_type}}"
       {% if forloop.last and more %}
