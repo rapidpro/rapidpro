@@ -1,3 +1,7 @@
+v7.1.68
+----------
+ * Add FlowRun.delete_from_results to replace delete_reason
+
 v7.1.67
 ----------
  * Drop no longer used Msg.delete_reason and delete_from_counts columns
