@@ -310,52 +310,6 @@ class NewConversationTriggerForm(BaseTriggerForm):
         fields = ("channel", "flow")
 
 
-class ReferralTriggerForm(BaseTriggerForm):
-    """
-    Form for referral triggers
-    """
-
-    channel = forms.ModelChoiceField(
-        Channel.objects.filter(pk__lt=0),
-        label=_("Channel"),
-        required=False,
-        help_text=_("The channel to apply this trigger to, leave blank for all Facebook channels"),
-    )
-    referrer_id = forms.CharField(
-        max_length=255, required=False, label=_("Referrer Id"), help_text=_("The referrer id that will trigger us")
-    )
-
-    def __init__(self, user, *args, **kwargs):
-        flows = Flow.get_triggerable_flows(user.get_org(), by_schedule=False)
-        super().__init__(user, flows, *args, **kwargs)
-
-        self.fields["channel"].queryset = Channel.objects.filter(
-            is_active=True, org=self.user.get_org(), schemes__overlap=list(ContactURN.SCHEMES_SUPPORTING_REFERRALS)
-        )
-
-    def get_existing_triggers(self, cleaned_data):
-        ref_id = cleaned_data.get("referrer_id", "").strip()
-        channel = cleaned_data.get("channel")
-        existing = Trigger.objects.filter(
-            org=self.user.get_org(),
-            trigger_type=Trigger.TYPE_REFERRAL,
-            is_active=True,
-            is_archived=False,
-            referrer_id__iexact=ref_id,
-        )
-        if self.instance:
-            existing = existing.exclude(pk=self.instance.pk)
-
-        if channel:
-            existing = existing.filter(channel=channel)
-
-        return existing
-
-    class Meta(BaseTriggerForm.Meta):
-        fields = ("channel", "referrer_id", "flow")
-        fields = ("keyword", "action_join_group", "response") + BaseTriggerForm.Meta.fields
-
-
 class TriggerCRUDL(SmartCRUDL):
     model = Trigger
     actions = (

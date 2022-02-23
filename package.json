@@ -9,9 +9,9 @@
     ]
   },
   "dependencies": {
-    "@greatnonprofits-nfp/flow-editor": "1.13.1",
+    "@greatnonprofits-nfp/flow-editor": "1.14.0",
     "@greatnonprofits-nfp/temba-analytics": "1.1.1",
-    "@greatnonprofits-nfp/temba-components": "0.8.12",
+    "@greatnonprofits-nfp/temba-components": "0.13.4",
     "@tailwindcss/ui": "0.2.2",
     "fa-icons": "0.2.0",
     "is-core-module": "2.4.0",
