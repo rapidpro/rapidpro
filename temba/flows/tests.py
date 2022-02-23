@@ -3389,15 +3389,15 @@ class FlowRunTest(TembaTest):
             expected={
                 "red_count": 0,
                 "primus_count": 0,
-                "start_count": 0,
-                "run_count": {
-                    "total": 0,
+                "start_count": 1,  # unchanged
+                "run_count": {  # unchanged
+                    "total": 1,
                     "active": 0,
-                    "completed": 0,
+                    "completed": 1,
                     "expired": 0,
                     "interrupted": 0,
                     "failed": 0,
-                    "completion": 0,
+                    "completion": 100,
                 },
             },
         )
@@ -3410,10 +3410,10 @@ class FlowRunTest(TembaTest):
             expected={
                 "red_count": 0,
                 "primus_count": 0,
-                "start_count": 0,
-                "run_count": {
-                    "total": 0,
-                    "active": 0,
+                "start_count": 1,  # unchanged
+                "run_count": {  # unchanged
+                    "total": 1,
+                    "active": 1,
                     "completed": 0,
                     "expired": 0,
                     "interrupted": 0,
@@ -3432,8 +3432,8 @@ class FlowRunTest(TembaTest):
             expected={
                 "red_count": 1,
                 "primus_count": 1,
-                "start_count": 1,
-                "run_count": {
+                "start_count": 1,  # unchanged
+                "run_count": {  # unchanged
                     "total": 1,
                     "active": 0,
                     "completed": 1,
@@ -3483,6 +3483,7 @@ class FlowRunTest(TembaTest):
                     "exit_uuid": None,
                 },
             ],
+            current_node_uuid="59d992c6-c491-473d-a7e9-4f431d705c01",
         )
         self.assertEqual(
             {"6fc14d2c-3b4d-49c7-b342-4b2b2ebf7678:59d992c6-c491-473d-a7e9-4f431d705c01": 1},
