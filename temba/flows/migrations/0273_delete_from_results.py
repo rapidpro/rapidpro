@@ -12,6 +12,7 @@ DECLARE
     _path_json JSONB;
     _path_len INT;
 BEGIN
+    -- if this run is part of a flow start, increment that start's count of runs
     IF NEW.start_id IS NOT NULL THEN
         PERFORM temba_insert_flowstartcount(NEW.start_id, 1);
     END IF;

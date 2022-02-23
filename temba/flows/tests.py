@@ -489,6 +489,7 @@ class FlowTest(TembaTest):
             .visit(color_split)
             .wait()
             .resume(msg=self.create_incoming_msg(self.contact, "chartreuse"))
+            .set_result("color", "chartreuse", category="Other", input="chartreuse")
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -518,6 +519,7 @@ class FlowTest(TembaTest):
         # the active stats will look the same, but there should be one more journey on the path
         (
             session1.resume(msg=self.create_incoming_msg(self.contact, "mauve"))
+            .set_result("color", "mauve", category="Other", input="mauve")
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -541,6 +543,7 @@ class FlowTest(TembaTest):
         # to another node, but still just one entry
         (
             session1.resume(msg=self.create_incoming_msg(self.contact, "blue"))
+            .set_result("color", "blue", category="Blue", input="blue")
             .visit(beer_prompt, exit_index=2)
             .send_msg("Good choice, I like Blue too! What is your favorite beer?")
             .visit(beer_split)
@@ -571,6 +574,7 @@ class FlowTest(TembaTest):
             .visit(color_split)
             .wait()
             .resume(msg=self.create_incoming_msg(ryan, "burnt sienna"))
+            .set_result("color", "burnt sienna", category="Other", input="burnt sienna")
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -599,6 +603,7 @@ class FlowTest(TembaTest):
         # now let's have them land in the same place
         (
             session2.resume(msg=self.create_incoming_msg(ryan, "blue"))
+            .set_result("color", "blue", category="Blue", input="blue")
             .visit(beer_prompt, exit_index=2)
             .send_msg("Good choice, I like Blue too! What is your favorite beer?")
             .visit(beer_split)
@@ -669,9 +674,24 @@ class FlowTest(TembaTest):
             {"total": 2, "active": 1, "completed": 1, "expired": 0, "interrupted": 0, "failed": 0, "completion": 50},
             flow.get_run_stats(),
         )
+        self.assertEqual(
+            {
+                "counts": [
+                    {
+                        "categories": [
+                            {"count": 2, "name": "Blue", "pct": 1.0},
+                            {"count": 0, "name": "Other", "pct": 0.0},
+                        ],
+                        "key": "color",
+                        "name": "color",
+                        "total": 2,
+                    }
+                ]
+            },
+            flow.get_category_counts(),
+        )
 
-        # now let's delete our contact, we'll still have one active node, but
-        # our visit path counts will go down by two since he went there twice
+        # now let's delete our contact which won't effect path or run counts, but will decrement category counts
         self.contact.release(self.user)
 
         (active, visited) = flow.get_activity()
@@ -679,25 +699,39 @@ class FlowTest(TembaTest):
         self.assertEqual({beer_split["uuid"]: 1}, active)
         self.assertEqual(
             {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 1,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 1,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 1,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 0,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 0,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 0,
+                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
+                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 3,
+                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
+                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
+                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
+                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 1,
+                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 1,
+                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 1,
             },
             visited,
         )
-
-        # he was also accounting for our completion rate, back to nothing
         self.assertEqual(
-            {"total": 1, "active": 1, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0, "completion": 0},
+            {"total": 2, "active": 1, "completed": 1, "expired": 0, "interrupted": 0, "failed": 0, "completion": 50},
             flow.get_run_stats(),
         )
+        self.assertEqual(
+            {
+                "counts": [
+                    {
+                        "categories": [
+                            {"count": 1, "name": "Blue", "pct": 1.0},
+                            {"count": 0, "name": "Other", "pct": 0.0},
+                        ],
+                        "key": "color",
+                        "name": "color",
+                        "total": 1,
+                    }
+                ]
+            },
+            flow.get_category_counts(),
+        )
 
-        # advance ryan to the end to make sure our percentage accounts for one less contact
+        # advance ryan to the end
         (
             session2.resume(msg=self.create_incoming_msg(ryan, "Turbo King"))
             .visit(name_prompt, exit_index=2)
@@ -715,23 +749,23 @@ class FlowTest(TembaTest):
         self.assertEqual({}, active)
         self.assertEqual(
             {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 1,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 1,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 1,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 1,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 1,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 1,
+                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
+                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 3,
+                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
+                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
+                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
+                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 2,
+                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 2,
+                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 2,
             },
             visited,
         )
         self.assertEqual(
-            {"total": 1, "active": 0, "completed": 1, "expired": 0, "interrupted": 0, "failed": 0, "completion": 100},
+            {"total": 2, "active": 0, "completed": 2, "expired": 0, "interrupted": 0, "failed": 0, "completion": 100},
             flow.get_run_stats(),
         )
 
-        # delete our last contact to make sure activity is gone without first expiring, zeros abound
+        # delete our last contact to make sure activity remains except for results
         ryan.release(self.admin)
 
         (active, visited) = flow.get_activity()
@@ -739,26 +773,42 @@ class FlowTest(TembaTest):
         self.assertEqual({}, active)
         self.assertEqual(
             {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 0,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 0,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 0,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 0,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 0,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 0,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 0,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 0,
+                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 2,
+                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 3,
+                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
+                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
+                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
+                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 2,
+                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 2,
+                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 2,
             },
             visited,
         )
         self.assertEqual(
-            {"total": 0, "active": 0, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0, "completion": 0},
+            {"total": 2, "active": 0, "completed": 2, "expired": 0, "interrupted": 0, "failed": 0, "completion": 100},
             flow.get_run_stats(),
+        )
+        self.assertEqual(
+            {
+                "counts": [
+                    {
+                        "categories": [
+                            {"count": 0, "name": "Blue", "pct": 0.0},
+                            {"count": 0, "name": "Other", "pct": 0.0},
+                        ],
+                        "key": "color",
+                        "name": "color",
+                        "total": 0,
+                    }
+                ]
+            },
+            flow.get_category_counts(),
         )
 
         # runs all gone too
         self.assertEqual(0, FlowRun.objects.filter(flow=flow).count())
 
-        # test that expirations remove activity when triggered from the cron in the same way
+        # test that expirations don't change activity... start another contact in the flow
         tupac = self.create_contact("Tupac Shakur", phone="+12065550725")
         (
             MockSessionWriter(tupac, flow)
@@ -767,6 +817,7 @@ class FlowTest(TembaTest):
             .visit(color_split)
             .wait()
             .resume(msg=self.create_incoming_msg(tupac, "azul"))
+            .set_result("color", "azul", category="Other", input="azul")
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -779,23 +830,23 @@ class FlowTest(TembaTest):
         self.assertEqual({color_split["uuid"]: 1}, active)
         self.assertEqual(
             {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 1,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 0,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 0,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 0,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 0,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 0,
+                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 3,
+                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 4,
+                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 4,
+                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 2,
+                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 2,
+                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 2,
+                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 2,
+                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 2,
             },
             visited,
         )
         self.assertEqual(
-            {"total": 1, "active": 1, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0, "completion": 0},
+            {"total": 3, "active": 1, "completed": 2, "expired": 0, "interrupted": 0, "failed": 0, "completion": 66},
             flow.get_run_stats(),
         )
 
-        # now mark run has expired and make sure it is removed from our activity
+        # now mark run has expired and make sure exit type counts updated
         run = tupac.runs.get()
         run.status = FlowRun.STATUS_EXPIRED
         run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
@@ -807,20 +858,7 @@ class FlowTest(TembaTest):
 
         self.assertEqual({}, active)
         self.assertEqual(
-            {
-                f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][-1]["uuid"]}:{color_other["uuid"]}': 1,
-                f'{color_other["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
-                f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 0,
-                f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 0,
-                f'{beer_split["exits"][2]["uuid"]}:{name_prompt["uuid"]}': 0,
-                f'{name_prompt["exits"][0]["uuid"]}:{name_split["uuid"]}': 0,
-                f'{name_split["exits"][0]["uuid"]}:{end_prompt["uuid"]}': 0,
-            },
-            visited,
-        )
-        self.assertEqual(
-            {"total": 1, "active": 0, "completed": 0, "expired": 1, "interrupted": 0, "failed": 0, "completion": 0},
+            {"total": 3, "active": 0, "completed": 2, "expired": 1, "interrupted": 0, "failed": 0, "completion": 66},
             flow.get_run_stats(),
         )
 
@@ -844,7 +882,7 @@ class FlowTest(TembaTest):
 
         self.assertEqual({color_split["uuid"]: 1}, active)
         self.assertEqual(
-            {"total": 2, "active": 1, "completed": 0, "expired": 1, "interrupted": 0, "failed": 0, "completion": 0},
+            {"total": 4, "active": 1, "completed": 2, "expired": 1, "interrupted": 0, "failed": 0, "completion": 50},
             flow.get_run_stats(),
         )
 
@@ -859,7 +897,7 @@ class FlowTest(TembaTest):
 
         self.assertEqual({}, active)
         self.assertEqual(
-            {"total": 2, "active": 0, "completed": 0, "expired": 1, "interrupted": 1, "failed": 0, "completion": 0},
+            {"total": 4, "active": 0, "completed": 2, "expired": 1, "interrupted": 1, "failed": 0, "completion": 50},
             flow.get_run_stats(),
         )
 
