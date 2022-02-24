@@ -15,7 +15,7 @@ def populate_fb_contact_names(apps, schema_editor):  # pragma: no cover
         num_updated = 0
 
         fb_urns = (
-            ContactURN.objects.filter(contact__is_active=True, org=org, scheme="facebook")
+            ContactURN.objects.filter(contact__is_active=True, contact__name=None, org=org, scheme="facebook")
             .exclude(channel=None)
             .exclude(channel__is_active=False)
             .select_related("channel", "contact")
@@ -29,7 +29,7 @@ def populate_fb_contact_names(apps, schema_editor):  # pragma: no cover
             if response.status_code == 200:
                 resp_json = response.json()
                 name = f"{resp_json.get('first_name')} {resp_json.get('last_name')}"
-                if name and name != fb_urn.contact.name:
+                if name:
                     contact = fb_urn.contact
                     contact.name = name
                     contact.save(update_fields=("name", "modified_on"))
