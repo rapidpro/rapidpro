@@ -1723,7 +1723,7 @@ class Org(SmartModel):
 
         # delete our contacts
         for contact in self.contacts.all():
-            contact.release(user, full=True, immediately=True)
+            contact.release(user, immediately=True)
             contact.delete()
 
         # delete all our URNs

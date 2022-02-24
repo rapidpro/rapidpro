@@ -1119,10 +1119,12 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Contact.bulk_change_status(user, [self], modifiers.Status.ACTIVE)
         self.refresh_from_db()
 
-    def release(self, user, *, full=True, immediately=False):
+    def release(self, user, *, immediately=False):
         """
         Marks this contact for deletion
         """
+        from .tasks import full_release_contact
+
         with transaction.atomic():
             # prep our urns for deletion so our old path creates a new urn
             for urn in self.urns.all():
@@ -1151,16 +1153,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.modified_by = user
             self.save(update_fields=("name", "is_active", "fields", "modified_by", "modified_on"))
 
-        # if we are removing everything do so
-        if full:
-            if immediately:
-                self._full_release()
-            else:
-                from .tasks import full_release_contact
-
-                full_release_contact.delay(self.id)
+        # the hard work of removing everything this contact owns can be given to a celery task
+        if immediately:
+            self._full_release()
+        else:
+            on_transaction_commit(lambda: full_release_contact.delay(self.id))
 
     def _full_release(self):
+        """
+        Deletes everything owned by this contact
+        """
+
         with transaction.atomic():
             # release our tickets
             for ticket in self.tickets.all():

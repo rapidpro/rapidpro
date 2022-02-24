@@ -1,3 +1,8 @@
+v7.1.71
+----------
+ * Fix race condition in contact deletion
+ * Rework flowrun database triggers to look at delete_from_results instead of delete_reason
+
 v7.1.69
 ----------
  * Update to latest floweditor
