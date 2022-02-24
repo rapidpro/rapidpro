@@ -125,6 +125,69 @@ END;
 $$ LANGUAGE plpgsql;
 
 ----------------------------------------------------------------------
+-- Handles changes relating to a flow run's path
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_flowrun_path_change() RETURNS TRIGGER AS $$
+DECLARE
+  p INT;
+  _old_path_json JSONB;
+  _new_path_json JSONB;
+  _old_path_len INT;
+  _new_path_len INT;
+  _old_last_step_uuid TEXT;
+BEGIN
+    _old_path_json := COALESCE(OLD.path, '[]')::jsonb;
+    _new_path_json := COALESCE(NEW.path, '[]')::jsonb;
+    _old_path_len := jsonb_array_length(_old_path_json);
+    _new_path_len := jsonb_array_length(_new_path_json);
+
+    -- we don't support rewinding run paths, so the new path must be longer than the old
+    IF _new_path_len < _old_path_len THEN RAISE EXCEPTION 'Cannot rewind a flow run path'; END IF;
+
+    -- update the node counts
+    IF _old_path_len > 0 AND OLD.status IN ('A', 'W') THEN
+        PERFORM temba_insert_flownodecount(OLD.flow_id, UUID(_old_path_json->(_old_path_len-1)->>'node_uuid'), -1);
+    END IF;
+
+    IF _new_path_len > 0 AND NEW.status IN ('A', 'W') THEN
+        PERFORM temba_insert_flownodecount(NEW.flow_id, UUID(_new_path_json->(_new_path_len-1)->>'node_uuid'), 1);
+    END IF;
+
+    -- if we have an old path, find its last step in the new path, and that will be our starting point
+    IF _old_path_len > 1 THEN
+        _old_last_step_uuid := _old_path_json->(_old_path_len-1)->>'uuid';
+
+        -- old and new paths end with same step so path activity doesn't change
+        IF _old_last_step_uuid = _new_path_json->(_new_path_len-1)->>'uuid' THEN
+            RETURN NULL;
+        END IF;
+
+        p := _new_path_len - 1;
+        LOOP
+            EXIT WHEN p = 1 OR _new_path_json->(p-1)->>'uuid' = _old_last_step_uuid;
+            p := p - 1;
+        END LOOP;
+    ELSE
+        p := 1;
+    END IF;
+
+    LOOP
+      EXIT WHEN p >= _new_path_len;
+      PERFORM temba_insert_flowpathcount(
+          NEW.flow_id,
+          UUID(_new_path_json->(p-1)->>'exit_uuid'),
+          UUID(_new_path_json->p->>'node_uuid'),
+          timestamptz(_new_path_json->p->>'arrived_on'),
+          1
+      );
+      p := p + 1;
+    END LOOP;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+----------------------------------------------------------------------
 -- Handles changes to a run's status
 ----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_flowrun_status_change() RETURNS TRIGGER AS $$
