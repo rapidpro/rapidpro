@@ -1243,11 +1243,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # set when deleting to signal to db triggers that result category counts should be decremented
     delete_from_results = models.BooleanField(null=True)
 
-    # TODO to be replaced by delete_from_results
-    DELETE_FOR_ARCHIVE = "A"
-    DELETE_FOR_USER = "U"
-    DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, "Archive delete"), (DELETE_FOR_USER, "User delete"))
-    delete_reason = models.CharField(null=True, max_length=1, choices=DELETE_CHOICES)
+    # TODO to be dropped
+    delete_reason = models.CharField(null=True, max_length=1, choices=(("A", "Archive delete"), ("U", "User delete")))
 
     # TODO to be replaced by new status field
     is_active = models.BooleanField(default=True)
@@ -1287,11 +1284,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         Deletes this run, decrementing it from result category counts
         """
         with transaction.atomic():
-            self.delete_reason = FlowRun.DELETE_FOR_USER
             self.delete_from_results = True
-            self.save(update_fields=("delete_reason", "delete_from_results"))
+            self.save(update_fields=("delete_from_results",))
 
-            if self.session is not None and self.session.status == FlowSession.STATUS_WAITING:
+            if self.session and self.session.status == FlowSession.STATUS_WAITING:
                 mailroom.queue_interrupt(self.org, session=self.session)
 
             super().delete()
