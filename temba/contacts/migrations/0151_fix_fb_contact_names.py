@@ -12,8 +12,10 @@ def populate_fb_contact_names(apps, schema_editor):  # pragma: no cover
     orgs = Org.objects.filter(is_active=True, is_anon=False)
 
     for org in orgs:
+        num_updated = 0
+
         fb_urns = (
-            ContactURN.objects.filter(contact__is_active=True, scheme="facebook")
+            ContactURN.objects.filter(contact__is_active=True, org=org, scheme="facebook")
             .exclude(channel=None)
             .exclude(channel__is_active=False)
             .select_related("channel", "contact")
@@ -31,6 +33,10 @@ def populate_fb_contact_names(apps, schema_editor):  # pragma: no cover
                     contact = fb_urn.contact
                     contact.name = name
                     contact.save(update_fields=("name", "modified_on"))
+                    num_updated += 1
+
+        if num_updated > 0:
+            print(f"Updated {num_updated} contacts for org #{org.pk}, {org.name}")
 
 
 def reverse(apps, schema_editor):  # pragma: no cover
