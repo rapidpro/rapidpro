@@ -264,10 +264,8 @@ class MockSessionWriter:
             self.contact.sessions.filter(status=FlowSession.STATUS_WAITING).update(
                 status=FlowSession.STATUS_INTERRUPTED, ended_on=timezone.now()
             )
-            self.contact.runs.filter(is_active=True).update(
+            self.contact.runs.filter(status__in=(FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING)).update(
                 status=FlowRun.STATUS_INTERRUPTED,
-                exit_type=FlowRun.EXIT_TYPE_INTERRUPTED,
-                is_active=False,
                 modified_on=interrupted_on,
                 exited_on=interrupted_on,
             )
@@ -316,8 +314,6 @@ class MockSessionWriter:
                 path=run["path"],
                 results=run["results"],
                 status=RUN_STATUSES[run["status"]],
-                exit_type=EXIT_TYPES.get(run["status"]),
-                is_active=run["status"] in ("waiting", "active"),
                 current_node_uuid=run["path"][-1]["node_uuid"] if run["path"] else None,
                 modified_on=run["modified_on"],
                 exited_on=run["exited_on"],
