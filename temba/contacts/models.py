@@ -1121,7 +1121,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     def release(self, user, *, immediately=False):
         """
-        Marks this contact for deletion
+        Releases this contact. Note that we clear all identifying data but don't hard delete the contact because we need
+        to expose deleted contacts over the API to allow external systems to know that contacts have been deleted.
         """
         from .tasks import full_release_contact
 
