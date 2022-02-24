@@ -1,3 +1,7 @@
+v7.1.72
+----------
+ * Revert database trigger changes which stopped deleting path and exit_type counts on flowrun deletion
+
 v7.1.71
 ----------
  * Fix race condition in contact deletion
