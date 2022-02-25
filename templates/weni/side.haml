@@ -2,10 +2,8 @@
 
 #unnnic-menu
 
-  %div{href:"#", class:"button-secondary-small-icon-on-left", onclick:'goBack()'}
-    .icon.unnnic-keyboard-arrow-left-1.unnnic-icon-xs
-    .title
-      -trans "Back"
+  %div{href:"#", class:"button-secondary-small-icon-on-left"}
+    -include "./weni_navigation_control.haml"
     .unnnic-tooltip
         -trans "Back"
 
@@ -121,8 +119,4 @@
       $("#unnnic-content").toggleClass("reduced")
       $("#unnnic-menu").toggleClass("reduced")
       $("#unnnic-shrink-button").toggleClass("reduced")
-    }
-
-    function goBack() {
-      window.history.back();
     }

@@ -6,6 +6,102 @@
     -trans "Back"
 
 :javascript
+
+  function isFlows() {
+    const configRoutes = [
+      '/org/',
+      '/channels/',
+      '/archive/',
+      '/global/',
+      '/ticketer/',
+      '/classifier/',
+      '/adminboundary/'
+    ]
+
+    const isConfig = configRoutes.filter(route => {
+      if (window.location.pathname.includes(route)) {
+        return true;
+      }
+      return false;
+    })
+    
+    return (isConfig.length === 0)
+  }
+
+  $( document ).ready(function() {
+
+    let currentHistory = undefined;
+
+    if (isFlows()) {
+      currentHistory = sessionStorage.getItem('flows-history');
+    } else {
+      currentHistory = sessionStorage.getItem('config-history');
+    }
+
+    
+    // if no history is available, create an empty one
+    if (!currentHistory) {
+      currentHistory = [];
+    } else {
+      currentHistory = JSON.parse(currentHistory);
+    }
+
+    // get the current window url
+    const currentUrl = window.location.href;
+
+    // check if the current url is already the last one
+    if (currentHistory.slice(-1)[0] !== currentUrl) {
+      // if not the last one, add it to the history
+      currentHistory.push(currentUrl);
+    }    
+
+    // update the history in the session storage
+    if (isFlows()) {
+      sessionStorage.setItem('flows-history', JSON.stringify(currentHistory));
+    } else {
+      sessionStorage.setItem('config-history', JSON.stringify(currentHistory));
+    }
+    
+    // hide the button
+    if (currentHistory.length <= 1) {
+      $(".weni-navigation-control__back").hide()
+    }
+  });
+
   $(".weni-navigation-control__back").live('click', (event) => {
-    history.back();
+
+    let currentHistory = undefined;
+
+    if (isFlows()) {
+      currentHistory = sessionStorage.getItem('flows-history');
+    } else {
+      currentHistory = sessionStorage.getItem('config-history');
+    }
+
+    // if no history is available, just return
+    if (!currentHistory) {
+      return;
+    } else {
+      currentHistory = JSON.parse(currentHistory);
+    }
+
+    // do nothing because this is the first session
+    if (currentHistory.length <= 1) {
+      return;
+    }
+
+    // removes current url
+    currentHistory.pop();
+    // removes previous url since it will be added again when loaded
+    const destinationUrl = currentHistory.pop();
+
+    // sets the storage value to the new history
+    if (isFlows()) {
+      sessionStorage.setItem('flows-history', JSON.stringify(currentHistory));
+    } else {
+      sessionStorage.setItem('config-history', JSON.stringify(currentHistory));
+    }
+
+    // changes the url to the destination url
+    window.location.href = destinationUrl;
   })
