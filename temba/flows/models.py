@@ -1279,7 +1279,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             "submitted_by": self.submitted_by.username if self.submitted_by else None,
         }
 
-    def delete(self):
+    def delete(self, interrupt: bool = True):
         """
         Deletes this run, decrementing it from result category counts
         """
@@ -1287,7 +1287,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             self.delete_from_results = True
             self.save(update_fields=("delete_from_results",))
 
-            if self.session and self.session.status == FlowSession.STATUS_WAITING:
+            if interrupt and self.session and self.session.status == FlowSession.STATUS_WAITING:
                 mailroom.queue_interrupt(self.org, session=self.session)
 
             super().delete()

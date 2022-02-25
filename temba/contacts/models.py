@@ -1194,7 +1194,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 event.release()
 
             for run in self.runs.all():
-                run.delete()
+                run.delete(interrupt=False)  # don't try interrupting sessions that are about to be deleted
 
             for session in self.sessions.all():
                 session.delete()
