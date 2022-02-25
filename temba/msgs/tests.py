@@ -1425,7 +1425,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             flows_url, allow_viewers=True, allow_editors=True, context_objects=[msg2, msg1]
         )
 
-        self.assertEqual(("label",), response.context["actions"])
+        self.assertEqual(("archive", "label"), response.context["actions"])
 
     def test_archived(self):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
@@ -2202,11 +2202,11 @@ class LabelTest(TembaTest):
 
         # can't label outgoing messages
         msg5 = self.create_outgoing_msg(self.joe, "Message")
-        self.assertRaises(ValueError, label.toggle_label, [msg5], add=True)
+        self.assertRaises(AssertionError, label.toggle_label, [msg5], add=True)
 
         # can't get a count of a folder
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        self.assertRaises(ValueError, folder.get_visible_count)
+        self.assertRaises(AssertionError, folder.get_visible_count)
 
         # squashing shouldn't affect counts
         self.assertEqual(LabelCount.get_totals([label])[label], 2)

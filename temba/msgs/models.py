@@ -994,8 +994,7 @@ class Label(TembaModel, DependencyMixin):
         """
         Returns the count of visible, non-test message tagged with this label
         """
-        if self.is_folder():
-            raise ValueError("Message counts are not tracked for user folders")
+        assert not self.is_folder()
 
         return LabelCount.get_totals([self])[self]
 
@@ -1009,8 +1008,7 @@ class Label(TembaModel, DependencyMixin):
         changed = set()
 
         for msg in msgs:
-            if msg.direction != Msg.DIRECTION_IN:
-                raise ValueError("Can only apply labels to incoming messages")
+            assert msg.direction == Msg.DIRECTION_IN
 
             # if we are adding the label and this message doesnt have it, add it
             if add:
