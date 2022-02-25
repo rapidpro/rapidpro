@@ -1,3 +1,10 @@
+1.1.5-rapidpro-7.0.4
+----------
+ * Update weni-rp-apps to 1.0.13
+ * Add pages_read_engagement permission for Instagram
+ * Fix: back button history behavior 
+ * Downgrade elasticsearch version to 7.13.4
+
 1.1.4-rapidpro-7.0.4
 ----------
  * Update weni-rp-apps to 1.0.12
