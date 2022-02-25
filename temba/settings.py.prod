@@ -389,3 +389,6 @@ EXCLUDED_HTTP_HEADERS = env.list("EXCLUDED_HTTP_HEADERS", default=[])
 
 # Non ISO-639-1 Languages that must be included in temba.utils.languages
 NON_ISO6391_LANGUAGES = set(env.tuple("NON_ISO6391_LANGUAGES", default={}))
+
+# the name of our infinity plan
+INFINITY_PLAN = "infinity"
