@@ -1,3 +1,7 @@
+v7.1.75
+----------
+ * Rework flowrun db triggers to use status rather than exit_type or is_active
+
 v7.1.74
 ----------
  * Allow archiving of flow messages
