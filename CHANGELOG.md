@@ -1,3 +1,7 @@
+v7.1.77
+----------
+ * Tweak migration as Postgres won't let us drop function being used
+
 v7.1.76
 ----------
  * Update vonage deprecated methods
