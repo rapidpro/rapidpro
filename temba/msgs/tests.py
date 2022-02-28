@@ -1346,7 +1346,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(36):
             self.client.get(inbox_url)
 
         response = self.assertListFetch(
@@ -1425,7 +1425,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             flows_url, allow_viewers=True, allow_editors=True, context_objects=[msg2, msg1]
         )
 
-        self.assertEqual(("label",), response.context["actions"])
+        self.assertEqual(("archive", "label"), response.context["actions"])
 
     def test_archived(self):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
@@ -1442,7 +1442,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(36):
             self.client.get(archived_url)
 
         response = self.assertListFetch(
@@ -1485,7 +1485,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(39):
             self.client.get(outbox_url)
 
         # messages sorted by created_on
@@ -1547,7 +1547,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(41):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
@@ -1574,7 +1574,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(40):
             self.client.get(failed_url)
 
         response = self.assertListFetch(
@@ -2202,11 +2202,11 @@ class LabelTest(TembaTest):
 
         # can't label outgoing messages
         msg5 = self.create_outgoing_msg(self.joe, "Message")
-        self.assertRaises(ValueError, label.toggle_label, [msg5], add=True)
+        self.assertRaises(AssertionError, label.toggle_label, [msg5], add=True)
 
         # can't get a count of a folder
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        self.assertRaises(ValueError, folder.get_visible_count)
+        self.assertRaises(AssertionError, folder.get_visible_count)
 
         # squashing shouldn't affect counts
         self.assertEqual(LabelCount.get_totals([label])[label], 2)
