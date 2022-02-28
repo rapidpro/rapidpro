@@ -3,12 +3,10 @@
 from django.db import migrations
 
 SQL = """
-DROP FUNCTION temba_insert_flowruncount(INT, CHAR(1), INT);
-
 ----------------------------------------------------------------------
 -- Inserts a new flowruncount
 ----------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION temba_insert_flowruncount(_flow_id INT, _status CHAR(1), _count INT) RETURNS VOID AS $$
+CREATE OR REPLACE FUNCTION temba_insert_flowrunstatuscount(_flow_id INT, _status CHAR(1), _count INT) RETURNS VOID AS $$
 DECLARE
     _exit_type CHAR(1);
 BEGIN
@@ -36,7 +34,7 @@ DECLARE
     _path_len INT;
 BEGIN
     -- increment count for runs with this flow and status
-    PERFORM temba_insert_flowruncount(NEW.flow_id, NEW.status, 1);
+    PERFORM temba_insert_flowrunstatuscount(NEW.flow_id, NEW.status, 1);
 
     -- if this run is part of a flow start, increment that start's count of runs
     IF NEW.start_id IS NOT NULL THEN
@@ -90,7 +88,7 @@ BEGIN
 
     -- if this is a user delete then remove from results
     IF OLD.delete_from_results THEN
-        PERFORM temba_insert_flowruncount(OLD.flow_id, OLD.status, -1);
+        PERFORM temba_insert_flowrunstatuscount(OLD.flow_id, OLD.status, -1);
         PERFORM temba_update_category_counts(OLD.flow_id, NULL, OLD.results::json);
 
         -- nothing more to do if path was empty
@@ -196,8 +194,8 @@ BEGIN
     IF OLD.status NOT IN ('A', 'W') AND NEW.status IN ('A', 'W') THEN RAISE EXCEPTION 'Cannot restart an exited flow run'; END IF;
 
     IF OLD.status != NEW.status THEN
-        PERFORM temba_insert_flowruncount(OLD.flow_id, OLD.status, -1);
-        PERFORM temba_insert_flowruncount(NEW.flow_id, NEW.status, 1);
+        PERFORM temba_insert_flowrunstatuscount(OLD.flow_id, OLD.status, -1);
+        PERFORM temba_insert_flowrunstatuscount(NEW.flow_id, NEW.status, 1);
     END IF;
     RETURN NULL;
 END;
@@ -214,6 +212,8 @@ DROP TRIGGER temba_flowrun_path_change ON flows_flowrun;
 CREATE TRIGGER temba_flowrun_path_change
     AFTER UPDATE OF path, status ON flows_flowrun
     FOR EACH ROW EXECUTE PROCEDURE temba_flowrun_path_change();
+
+DROP FUNCTION temba_insert_flowruncount(INT, CHAR(1), INT);
 """
 
 
