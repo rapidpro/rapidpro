@@ -188,7 +188,7 @@ class VonageTypeTest(TembaTest):
         channel.save(update_fields=("channel_type", "config"))
 
         # mock a 404 response from Vonage during deactivation
-        with patch("vonage.Client.delete_application") as mock_delete_application:
+        with patch("vonage.ApplicationV2.delete_application") as mock_delete_application:
             mock_delete_application.side_effect = vonage.ClientError("404 response")
 
             # releasing shouldn't blow up on auth failures
@@ -271,7 +271,7 @@ class ClientTest(TembaTest):
             }
         )
 
-    @patch("vonage.Client.create_application")
+    @patch("vonage.ApplicationV2.create_application")
     def test_create_application(self, mock_create_application):
         mock_create_application.return_value = {"id": "myappid", "keys": {"private_key": "tejh42gf3"}}
 
@@ -279,18 +279,27 @@ class ClientTest(TembaTest):
         self.assertEqual(app_id, "myappid")
         self.assertEqual(app_private_key, "tejh42gf3")
 
-        mock_create_application.assert_called_once_with(
-            params={
-                "name": "rapidpro.io/702cb3b5-8fec-4974-a87a-75234117c768",
-                "type": "voice",
-                "answer_url": "https://rapidpro.io/mr/ivr/c/702cb3b5-8fec-4974-a87a-75234117c768/incoming",
-                "answer_method": "POST",
-                "event_url": "https://rapidpro.io/mr/ivr/c/702cb3b5-8fec-4974-a87a-75234117c768/status",
-                "event_method": "POST",
-            }
-        )
+        app_data = {
+            "name": "rapidpro.io/702cb3b5-8fec-4974-a87a-75234117c768",
+            "capabilities": {
+                "voice": {
+                    "webhooks": {
+                        "answer_url": {
+                            "address": "https://rapidpro.io/mr/ivr/c/702cb3b5-8fec-4974-a87a-75234117c768/incoming",
+                            "http_method": "POST",
+                        },
+                        "event_url": {
+                            "address": "https://rapidpro.io/mr/ivr/c/702cb3b5-8fec-4974-a87a-75234117c768/status",
+                            "http_method": "POST",
+                        },
+                    }
+                }
+            },
+        }
 
-    @patch("vonage.Client.delete_application")
+        mock_create_application.assert_called_once_with(application_data=app_data)
+
+    @patch("vonage.ApplicationV2.delete_application")
     def test_delete_application(self, mock_delete_application):
         self.client.delete_application("myappid")
 

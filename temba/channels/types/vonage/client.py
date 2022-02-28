@@ -81,17 +81,19 @@ class VonageClient:
         answer_url = reverse("mailroom.ivr_handler", args=[channel_uuid, "incoming"])
         event_url = reverse("mailroom.ivr_handler", args=[channel_uuid, "status"])
 
-        response = self._with_retry(
-            self.base.create_application,
-            params={
-                "name": name,
-                "type": "voice",
-                "answer_url": f"https://{domain}{answer_url}",
-                "answer_method": "POST",
-                "event_url": f"https://{domain}{event_url}",
-                "event_method": "POST",
+        app_data = {
+            "name": name,
+            "capabilities": {
+                "voice": {
+                    "webhooks": {
+                        "answer_url": {"address": f"https://{domain}{answer_url}", "http_method": "POST"},
+                        "event_url": {"address": f"https://{domain}{event_url}", "http_method": "POST"},
+                    }
+                }
             },
-        )
+        }
+
+        response = self._with_retry(self.base.application_v2.create_application, application_data=app_data)
 
         app_id = response.get("id")
         app_private_key = response.get("keys", {}).get("private_key")
@@ -99,7 +101,7 @@ class VonageClient:
 
     def delete_application(self, app_id):
         try:
-            self._with_retry(self.base.delete_application, application_id=app_id)
+            self._with_retry(self.base.application_v2.delete_application, application_id=app_id)
         except vonage.ClientError:
             # possible application no longer exists
             pass
