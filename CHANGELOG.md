@@ -1,3 +1,9 @@
+v7.1.74
+----------
+ * Allow archiving of flow messages
+ * Don't try interrupting session that is about to be deleted
+ * Tweak criteria for who can preview new interface
+
 v7.1.73
 ----------
  * Data migration to fix facebook contacts name
