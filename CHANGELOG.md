@@ -1,3 +1,17 @@
+v7.1.75
+----------
+ * Rework flowrun db triggers to use status rather than exit_type or is_active
+
+v7.1.74
+----------
+ * Allow archiving of flow messages
+ * Don't try interrupting session that is about to be deleted
+ * Tweak criteria for who can preview new interface
+
+v7.1.73
+----------
+ * Data migration to fix facebook contacts name
+
 v7.1.72
 ----------
  * Revert database trigger changes which stopped deleting path and exit_type counts on flowrun deletion
