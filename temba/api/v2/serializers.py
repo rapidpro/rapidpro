@@ -760,7 +760,7 @@ class ContactGroupWriteSerializer(WriteSerializer):
     name = serializers.CharField(
         required=True,
         max_length=ContactGroup.MAX_NAME_LEN,
-        validators=[UniqueForOrgValidator(queryset=ContactGroup.user_groups.filter(is_active=True), ignore_case=True)],
+        validators=[UniqueForOrgValidator(queryset=ContactGroup.all_groups.filter(is_active=True), ignore_case=True)],
     )
 
     def validate_name(self, value):

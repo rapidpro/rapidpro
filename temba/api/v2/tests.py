@@ -3006,6 +3006,10 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"name": "reporters"})
         self.assertResponseError(response, "name", "This field must be unique.")
 
+        # try to create another group with same name as a system group..
+        response = self.postJSON(url, "uuid=%s" % reporters.uuid, {"name": "blocked"})
+        self.assertResponseError(response, "name", "This field must be unique.")
+
         # it's fine if a group in another org has that name
         response = self.postJSON(url, None, {"name": "Spammers"})
         self.assertEqual(response.status_code, 201)
