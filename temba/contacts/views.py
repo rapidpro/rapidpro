@@ -134,7 +134,7 @@ class ContactGroupForm(forms.ModelForm):
         name = self.cleaned_data["name"].strip()
 
         # make sure the name isn't already taken
-        existing = ContactGroup.all_groups.filter(org=self.org, name__iexact=name)
+        existing = ContactGroup.all_groups.filter(org=self.org, is_active=True, name__iexact=name).first()
         if existing and self.instance != existing:
             raise forms.ValidationError(_("Name is used by another group"))
 
