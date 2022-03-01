@@ -1245,12 +1245,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     # TODO to be dropped
     delete_reason = models.CharField(null=True, max_length=1, choices=(("A", "Archive delete"), ("U", "User delete")))
-
-    # TODO to be replaced by new status field
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(null=True, default=True)
     exit_type = models.CharField(null=True, max_length=1, choices=EXIT_TYPE_CHOICES)
 
     def as_archive_json(self):
+        from temba.api.v2.views import FlowRunReadSerializer
+
         def convert_step(step):
             return {"node": step[FlowRun.PATH_NODE_UUID], "time": step[FlowRun.PATH_ARRIVED_ON]}
 
@@ -1275,7 +1275,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             "created_on": self.created_on.isoformat(),
             "modified_on": self.modified_on.isoformat(),
             "exited_on": self.exited_on.isoformat() if self.exited_on else None,
-            "exit_type": self.exit_type,
+            "exit_type": FlowRunReadSerializer.EXIT_TYPES.get(self.status),
             "submitted_by": self.submitted_by.username if self.submitted_by else None,
         }
 

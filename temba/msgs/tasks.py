@@ -25,7 +25,9 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
     user = User.objects.get(pk=user_id)
     node_uuid = kwargs.get("s", None)
 
-    runs = FlowRun.objects.filter(org=org, current_node_uuid=node_uuid, is_active=True)
+    runs = FlowRun.objects.filter(
+        org=org, current_node_uuid=node_uuid, status__in=(FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING)
+    )
 
     contact_ids = list(
         Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True)

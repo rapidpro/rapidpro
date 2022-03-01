@@ -849,10 +849,8 @@ class FlowTest(TembaTest):
         # now mark run has expired and make sure exit type counts updated
         run = tupac.runs.get()
         run.status = FlowRun.STATUS_EXPIRED
-        run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
         run.exited_on = timezone.now()
-        run.is_active = False
-        run.save(update_fields=("status", "exit_type", "exited_on", "is_active"))
+        run.save(update_fields=("status", "exited_on"))
 
         (active, visited) = flow.get_activity()
 
@@ -901,10 +899,8 @@ class FlowTest(TembaTest):
 
         run = jimmy.runs.get()
         run.status = FlowRun.STATUS_INTERRUPTED
-        run.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
         run.exited_on = timezone.now()
-        run.is_active = False
-        run.save(update_fields=("status", "exit_type", "exited_on", "is_active"))
+        run.save(update_fields=("status", "exited_on"))
 
         (active, visited) = flow.get_activity()
 

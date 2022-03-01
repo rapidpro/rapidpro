@@ -2640,13 +2640,11 @@ class APITest(TembaTest):
         reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
         color.labels.add(reporting)
 
-        # make it look like joe completed a the color flow
+        # make it look like joe completed the color flow
         run = FlowRun.objects.create(org=self.org, flow=color, contact=self.joe)
-        run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
         run.status = FlowRun.STATUS_COMPLETED
         run.exited_on = timezone.now()
-        run.is_active = False
-        run.save(update_fields=("exit_type", "status", "exited_on", "modified_on", "is_active"))
+        run.save(update_fields=("status", "exited_on", "modified_on"))
 
         # flow belong to other org
         self.create_flow(org=self.org2, name="Other")
