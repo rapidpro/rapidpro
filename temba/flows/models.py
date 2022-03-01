@@ -1243,11 +1243,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # set when deleting to signal to db triggers that result category counts should be decremented
     delete_from_results = models.BooleanField(null=True)
 
-    # TODO to be dropped
-    delete_reason = models.CharField(null=True, max_length=1, choices=(("A", "Archive delete"), ("U", "User delete")))
-    is_active = models.BooleanField(null=True, default=True)
-    exit_type = models.CharField(null=True, max_length=1, choices=EXIT_TYPE_CHOICES)
-
     def as_archive_json(self):
         from temba.api.v2.views import FlowRunReadSerializer
 
