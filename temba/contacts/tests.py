@@ -1126,35 +1126,39 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # can't create group as viewer
         self.login(self.user)
-        response = self.client.post(url, dict(name="Spammers"))
+        response = self.client.post(url, {"name": "Spammers"})
         self.assertLoginRedirect(response)
 
         self.login(self.admin)
 
         # try to create a contact group whose name is only whitespace
-        response = self.client.post(url, dict(name="  "))
+        response = self.client.post(url, {"name": "  "})
         self.assertFormError(response, "form", "name", "This field is required.")
 
         # try to create a contact group whose name begins with reserved character
-        response = self.client.post(url, dict(name="+People"))
+        response = self.client.post(url, {"name": "+People"})
         self.assertFormError(response, "form", "name", "Group name must not be blank or begin with + or -")
 
         # try to create with name that's already taken
-        response = self.client.post(url, dict(name="Customers"))
+        response = self.client.post(url, {"name": "Customers"})
+        self.assertFormError(response, "form", "name", "Name is used by another group")
+
+        # try to create with name that's already taken by a system group
+        response = self.client.post(url, {"name": "blocked"})
         self.assertFormError(response, "form", "name", "Name is used by another group")
 
         # create with valid name (that will be trimmed)
-        response = self.client.post(url, dict(name="first  "))
+        response = self.client.post(url, {"name": "first  "})
         self.assertNoFormErrors(response)
         ContactGroup.user_groups.get(org=self.org, name="first")
 
         # create a group with preselected contacts
-        self.client.post(url, dict(name="Everybody", preselected_contacts="%d,%d" % (self.joe.pk, self.frank.pk)))
+        self.client.post(url, {"name": "Everybody", "preselected_contacts": f"{self.joe.id},{self.frank.id}"})
         group = ContactGroup.user_groups.get(org=self.org, name="Everybody")
         self.assertEqual(set(group.contacts.all()), {self.joe, self.frank})
 
         # create a dynamic group using a query
-        self.client.post(url, dict(name="Frank", group_query="tel = 1234"))
+        self.client.post(url, {"name": "Frank", "group_query": "tel = 1234"})
 
         ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
 
@@ -1164,7 +1168,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         for i in range(10):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
 
-        response = self.client.post(url, dict(name="People"))
+        response = self.client.post(url, {"name": "People"})
         self.assertNoFormErrors(response)
         ContactGroup.user_groups.get(org=self.org, name="People")
 
@@ -1175,7 +1179,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             ContactGroup.create_static(self.org, self.admin, "group%d" % i)
 
         self.assertEqual(10, ContactGroup.user_groups.all().count())
-        response = self.client.post(url, dict(name="People"))
+        response = self.client.post(url, {"name": "People"})
         self.assertFormError(
             response,
             "form",
