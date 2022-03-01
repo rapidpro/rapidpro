@@ -1,3 +1,8 @@
+v7.1.78
+----------
+ * Test with latest indexer and mailroom
+ * Stop using FlowRun.exit_type, is_active and delete_reason
+
 v7.1.77
 ----------
  * Tweak migration as Postgres won't let us drop function being used
