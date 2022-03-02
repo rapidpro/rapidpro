@@ -173,10 +173,8 @@
     #header
       &nbsp;
 
-
-    %a#big-logo.logo.icon-logo{href:"{% if user.is_authenticated %}{% url 'msgs.msg_inbox' %}{% else %}/{% endif %}", title:"{{brand.name}}", class:"hover:no-underline"}
-      .name
-        {{brand.name}}
+    %a#big-logo.logo.icon-logo{href:"{% if request.session.org_id %}{% url 'orgs.org_home' %}{% elif not request.user.is_authenticated %}/{% endif %}", title:"{{brand.name}}"}
+      %img{src:'{{ STATIC_URL }}brands/rapidpro/cc-logo.png'}
 
     -block nav
       -include 'includes/nav.html'
@@ -264,7 +262,6 @@
       }
 
       function removalConfirmation(removal, buttonName) {
-  
         var modal = document.querySelector("#general-delete-confirmation");
         modal.classList.remove("hidden");
 
