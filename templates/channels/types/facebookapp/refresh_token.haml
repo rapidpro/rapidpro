@@ -48,14 +48,12 @@
 
     $(document).ready(function(){
       $(".connect-facebook").click(function(evt){
-        $("#throbber").show();
         FB.login(function(response) {
           if (response.status === 'connected') {
             $("#fb-user-id").val(response.authResponse.userID);
             $("#user-access-token").val(response.authResponse.accessToken);
             $("#refresh-token-form").submit();
           } else {
-              $("#throbber").hide();
               $("#fb-status").hide();
               $("#fb-channel-error").show();
           }
