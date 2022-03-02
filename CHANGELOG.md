@@ -1,3 +1,9 @@
+v7.1.79
+----------
+ * Remove progress dots for FBA and IG channel claim pages
+ * Actually drop exit_type, is_active and delete_reason on FlowRun
+ * Fix group name validation to include system groups
+
 v7.1.78
 ----------
  * Test with latest indexer and mailroom
