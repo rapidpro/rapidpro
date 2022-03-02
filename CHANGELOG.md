@@ -1,3 +1,8 @@
+v7.1.81
+----------
+ * Remove unused collect_metrics_task
+ * Bump dependencies
+
 v7.1.80
 ----------
  * Remove progress bar on facebook claim
