@@ -34,7 +34,6 @@ from django.urls import reverse
 from django.utils.encoding import force_text
 from django.utils.functional import cached_property
 from django.utils.text import slugify
-from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
@@ -2624,7 +2623,115 @@ class FlowCRUDL(SmartCRUDL):
         flow_params_fields = []
         flow_params_values = []
 
-        class LaunchForm(forms.ModelForm):
+        class Form(forms.ModelForm):
+            MODE_SELECT = "select"
+            MODE_QUERY = "query"
+            MODE_CHOICES = (
+                (MODE_SELECT, _("Enter contacts and groups to start below")),
+                (MODE_QUERY, _("Search for contacts to start")),
+            )
+
+            launch_type = forms.ChoiceField(choices=LAUNCH_CHOICES, initial=LAUNCH_IMMEDIATELY, widget=SelectWidget)
+
+            mode = forms.ChoiceField(
+                widget=SelectWidget(
+                    attrs={"placeholder": _("Select contacts or groups to start in the flow"), "widget_only": True}
+                ),
+                choices=MODE_CHOICES,
+                initial=MODE_SELECT,
+            )
+
+            omnibox = JSONField(
+                required=False,
+                widget=OmniboxChoice(
+                    attrs={
+                        "placeholder": _("Select contact and groups"),
+                        "groups": True,
+                        "contacts": True,
+                        "widget_only": True,
+                    }
+                ),
+            )
+
+            query = forms.CharField(
+                required=False,
+                widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")}),
+            )
+
+            exclude_in_other = forms.BooleanField(
+                label=_("Exclude contacts currently in a flow"),
+                required=False,
+                initial=False,
+                help_text=_("Any contacts currently in a flow will not be interrupted and not started in this flow."),
+                widget=CheckboxWidget(),
+            )
+
+            exclude_reruns = forms.BooleanField(
+                label=_("Exclude contacts previously in this flow"),
+                required=False,
+                initial=False,
+                help_text=_(
+                    "Any contacts who have gone through this flow in the last 90 days will not be started again."
+                ),
+                widget=CheckboxWidget(),
+            )
+
+            def clean_omnibox(self):
+                omnibox = self.cleaned_data.get("omnibox")
+                return omnibox_deserialize(self.instance.org, omnibox) if omnibox else {}
+
+            def clean_query(self):
+                query = self.cleaned_data.get("query")
+                if query:
+                    try:
+                        parsed = parse_query(self.instance.org, query)
+                        query = parsed.query
+                    except SearchException as e:
+                        raise ValidationError(str(e))
+                return query
+
+            def clean(self):
+                cleaned_data = super().clean()
+                mode = cleaned_data["mode"]
+                omnibox = cleaned_data.get("omnibox")
+                query = cleaned_data.get("query")
+
+                if mode == self.MODE_SELECT and not omnibox:
+                    self.add_error("omnibox", _("This field is required."))
+                elif mode == self.MODE_QUERY and not query:
+                    # TODO https://github.com/nyaruka/temba-components/issues/103
+                    # self.add_error("query", _("This field is required."))
+                    raise ValidationError(_("Contact query is required."))
+
+                # check whether there are any flow starts that are incomplete
+                if self.instance.is_starting():
+                    raise ValidationError(
+                        _(
+                            "This flow is already being started, please wait until that process is complete before "
+                            "starting more contacts."
+                        )
+                    )
+
+                if self.instance.org.is_suspended:
+                    raise ValidationError(
+                        _(
+                            "Sorry, your workspace is currently suspended. "
+                            "To enable starting flows, please contact support."
+                        )
+                    )
+                if self.instance.org.is_flagged:
+                    raise ValidationError(
+                        _(
+                            "Sorry, your workspace is currently flagged. To enable starting flows, please contact support."
+                        )
+                    )
+
+                return cleaned_data
+
+            class Meta:
+                model = Flow
+                fields = ("launch_type", "mode", "omnibox", "query", "exclude_in_other", "exclude_reruns")
+
             def __init__(self, *args, **kwargs):
                 self.user = kwargs.pop("user")
                 self.flow = kwargs.pop("flow")
@@ -2649,129 +2756,26 @@ class FlowCRUDL(SmartCRUDL):
                     if f"flow_param_value_{counter}" not in FlowCRUDL.Launch.flow_params_values:
                         FlowCRUDL.Launch.flow_params_values.append(f"flow_param_value_{counter}")
 
-            launch_type = forms.ChoiceField(choices=LAUNCH_CHOICES, initial=LAUNCH_IMMEDIATELY, widget=SelectWidget)
-
-            # Fields for immediate launch
-            start_type = forms.ChoiceField(
-                widget=SelectWidget(
-                    attrs={"placeholder": _("Select contacts or groups to start in the flow"), "widget_only": True}
-                ),
-                choices=(
-                    ("select", _("Enter contacts and groups to start below")),
-                    ("query", _("Search for contacts to start")),
-                ),
-                initial="select",
-            )
-
-            omnibox = JSONField(
-                label=_("Contacts & Groups"),
-                required=False,
-                help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
-                widget=OmniboxChoice(
-                    attrs={
-                        "placeholder": _("Recipients, enter contacts or groups"),
-                        "groups": True,
-                        "contacts": True,
-                        "widget_only": True,
-                    }
-                ),
-            )
-
-            contact_query = forms.CharField(
-                required=False,
-                widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")}),
-            )
-
-            restart_participants = forms.BooleanField(
-                label=_("Restart Participants"),
-                required=False,
-                initial=False,
-                help_text=_("Restart any contacts already participating in this flow"),
-                widget=CheckboxWidget(),
-            )
-
-            include_active = forms.BooleanField(
-                label=_("Include Active Contacts"),
-                required=False,
-                initial=False,
-                help_text=_("Include contacts currently active in a flow"),
-                widget=CheckboxWidget(),
-            )
-
-            def clean_omnibox(self):
-                starting = self.cleaned_data.get("omnibox")
-                start_type = self.cleaned_data.get("start_type")
-
-                if start_type == "select" and not starting:  # pragma: needs cover
-                    raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
-
-                return omnibox_deserialize(self.user.get_org(), starting)
-
-            def clean_contact_query(self):
-                start_type = self.cleaned_data.get("start_type")
-                contact_query = self.cleaned_data.get("contact_query")
-                if start_type == "query":
-                    if not contact_query.strip():
-                        raise ValidationError(_("Contact query is required"))
-                    client = mailroom.get_client()
-                    try:
-                        resp = client.parse_query(self.flow.org_id, contact_query)
-                        contact_query = resp["query"]
-                    except mailroom.MailroomException as e:
-                        self.add_error("contact_query", ValidationError(e.response["error"]))
-                return contact_query
-
-            def clean(self):
-                cleaned_data = super().clean()
-
-                if not cleaned_data["launch_type"] == LAUNCH_IMMEDIATELY:
-                    raise ValidationError(_("You can't perform this action."))
-
-                # check flow params
-                value_fields = [item for item in cleaned_data if "flow_param_value" in item]
-                for value_field in value_fields:
-                    if not cleaned_data.get(value_field):
-                        self.add_error(value_field, ValidationError(_("You must specify the value for this field.")))
-
-                # check whether there are any flow starts that are incomplete
-                if self.flow.is_starting():
-                    raise ValidationError(
-                        _(
-                            "This flow is already being started, please wait until that process is complete before starting more contacts."
-                        )
-                    )
-
-                if self.flow.org.is_suspended:
-                    raise ValidationError(
-                        _(
-                            "Sorry, your account is currently suspended. To enable sending messages, please contact support."
-                        )
-                    )
-
-                return cleaned_data
-
-            class Meta:
-                model = Flow
-                fields = (
-                    "launch_type",
-                    "start_type",
-                    "omnibox",
-                    "contact_query",
-                    "restart_participants",
-                    "include_active",
-                )
-
-        form_class = LaunchForm
+        form_class = Form
         success_message = ""
         submit_button_name = _("OK")
         success_url = "uuid@flows.flow_editor"
 
         def derive_fields(self):
             return (
-                ("launch_type", "start_type", "omnibox", "contact_query", "restart_participants", "include_active")
+                ("launch_type", "mode", "omnibox", "query", "exclude_in_other", "exclude_reruns")
                 + tuple(self.flow_params_fields)
                 + tuple(self.flow_params_values)
             )
+
+        @staticmethod
+        def has_facebook_topic(flow):
+            if not flow.is_legacy():
+                definition = flow.get_current_revision().get_migrated_definition()
+                for node in definition.get("nodes", []):
+                    for action in node.get("actions", []):
+                        if action.get("type", "") == "send_msg" and action.get("topic", ""):
+                            return True
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -2780,13 +2784,27 @@ class FlowCRUDL(SmartCRUDL):
 
             warnings = []
 
+            # facebook channels need to warn if no topic is set
+            facebook_channel = org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
+            if facebook_channel:
+                if not self.has_facebook_topic(flow):
+                    warnings.append(
+                        _(
+                            "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
+                        )
+                    )
+
             # if we have a whatsapp channel
-            whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
+            whatsapp_channel = org.get_channel(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
             if whatsapp_channel:
                 # check to see we are using templates
                 templates = flow.get_dependencies_metadata("template")
                 if not templates:
-                    warnings.append(_("This flow does not use message templates."))
+                    warnings.append(
+                        _(
+                            "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
+                        )
+                    )
 
                 # check that this template is synced and ready to go
                 for ref in templates:
@@ -2802,12 +2820,9 @@ class FlowCRUDL(SmartCRUDL):
 
             run_stats = self.object.get_run_stats()
 
-            context["flow"] = flow
             context["warnings"] = warnings
             context["run_count"] = run_stats["total"]
             context["complete_count"] = run_stats["completed"]
-            context["user_tz"] = get_current_timezone_name()
-            context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
             flow_params_fields = [
                 (self.flow_params_fields[count], self.flow_params_values[count])
                 for count in range(len(self.flow_params_values))
@@ -2826,15 +2841,15 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.object
 
             # save off our broadcast info
-            start_type = form.cleaned_data["start_type"]
+            mode = form.cleaned_data["mode"]
             groups = []
             contacts = []
             contact_query = None
 
             flow_params = build_flow_parameters(self.request.POST, self.flow_params_fields, self.flow_params_values)
 
-            if start_type == "query":
-                contact_query = form.cleaned_data["contact_query"]
+            if mode == "query":
+                contact_query = form.cleaned_data["query"]
             else:
                 omnibox = form.cleaned_data["omnibox"]
                 groups = list(omnibox["groups"])

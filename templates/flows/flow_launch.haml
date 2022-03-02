@@ -35,17 +35,17 @@
 
     .l-immediately
       .field.start-type
-        - render_field 'start_type'
+        - render_field 'mode'
 
       .field.omnibox{class:'{% if not form.start_type.value == "select" %}hidden{%endif%}'}
         - render_field 'omnibox'
 
       .field.contact-query{class:'{% if form.start_type.value == "select" %}hidden{%endif%}'}
-        - render_field 'contact_query'
+        - render_field 'query'
 
       .start-options.mt-6.ml-2
-        - render_field 'restart_participants'
-        - render_field 'include_active'
+        - render_field 'exclude_in_other'
+        - render_field 'exclude_reruns'
 
         -if flow_params_fields
           .control-group
@@ -63,14 +63,6 @@
 
     .loader.hidden
       %img{src:"{{STATIC_URL}}images/loader-circles.gif"}
-
-    -if warnings
-      %div.warning
-        -for warning in warnings
-          %p= warning
-
-        %p
-          -trans "You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
 
 -block form-buttons
   -if send_channel
@@ -165,7 +157,7 @@
 
     var queryField = modalBody.querySelector('.contact-query');
     var recipientsField = modalBody.querySelector('.omnibox');
-    var modeSelect = modalBody.querySelector("temba-select[name='start_type']");
+    var modeSelect = modalBody.querySelector("temba-select[name='mode']");
 
     if (modeSelect) {
       modeSelect.addEventListener("change", function(evt) {
