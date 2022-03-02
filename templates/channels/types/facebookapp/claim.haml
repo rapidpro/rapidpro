@@ -96,7 +96,6 @@
 
     $(document).ready(function(){
       $(".connect-facebook").click(function(evt){
-        $("#throbber").show();
         FB.login(function(response) {
           if (response.status === 'connected') {
             $("#fb-user-id").val(response.authResponse.userID);
@@ -123,7 +122,6 @@
           }
           $("#fb-channel-options").show();
           $("#fb-app-connect").hide();
-          $("#throbber").hide();
 
         },
         failure: function(req){
