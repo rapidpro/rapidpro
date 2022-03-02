@@ -1,3 +1,8 @@
+v7.1.80
+----------
+ * Remove progress bar on facebook claim
+ * Replace old indexes based on flows_flowrun.is_active
+
 v7.1.79
 ----------
  * Remove progress dots for FBA and IG channel claim pages
