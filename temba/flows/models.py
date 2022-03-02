@@ -1290,6 +1290,16 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     def __str__(self):  # pragma: no cover
         return f"FlowRun[uuid={self.uuid}, flow={self.flow.uuid}]"
 
+    class Meta:
+        indexes = [
+            models.Index(
+                name="flows_flowrun_contacts_at_node",
+                fields=("org", "current_node_uuid"),
+                condition=Q(status__in=("A", "W")),
+                include=("contact",),
+            ),
+        ]
+
 
 class FlowExit:
     """
