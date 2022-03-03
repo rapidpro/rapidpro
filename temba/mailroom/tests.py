@@ -452,7 +452,7 @@ class MailroomQueueTest(TembaTest):
         r = get_redis_connection()
 
         # noop, this event isn't handled by mailroom
-        self.assertEqual(0, r.zcard(f"handler:active"))
+        self.assertEqual(0, r.zcard("handler:active"))
         self.assertEqual(0, r.zcard(f"handler:{self.org.id}"))
         self.assertEqual(0, r.llen(f"c:{self.org.id}:{event.contact_id}"))
 

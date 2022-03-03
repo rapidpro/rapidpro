@@ -304,8 +304,8 @@ class Command(BaseCommand):
     def create_labels(self, spec, org, user):
         self._log(f"Creating {len(spec['labels'])} labels... ")
 
-        for l in spec["labels"]:
-            Label.label_objects.create(org=org, name=l["name"], uuid=l["uuid"], created_by=user, modified_by=user)
+        for lb in spec["labels"]:
+            Label.label_objects.create(org=org, name=lb["name"], uuid=lb["uuid"], created_by=user, modified_by=user)
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
@@ -408,7 +408,7 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + "\n")
 
     def create_group_contacts(self, spec, org, user):
-        self._log(f"Generating group contacts...")
+        self._log("Generating group contacts...")
 
         for g in spec["groups"]:
             size = int(g.get("size", 0))

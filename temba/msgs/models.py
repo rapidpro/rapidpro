@@ -455,7 +455,7 @@ class Msg(models.Model):
             "visibility": MsgReadSerializer.VISIBILITIES.get(self.visibility),
             "text": self.text,
             "attachments": [attachment.as_json() for attachment in Attachment.parse_all(self.attachments)],
-            "labels": [{"uuid": l.uuid, "name": l.name} for l in self.labels.all()],
+            "labels": [{"uuid": lb.uuid, "name": lb.name} for lb in self.labels.all()],
             "created_on": self.created_on.isoformat(),
             "sent_on": self.sent_on.isoformat() if self.sent_on else None,
         }
@@ -871,7 +871,7 @@ class SystemLabelCount(SquashableModel):
         counts_by_type = {c[0]: c[1] for c in counts}
 
         # for convenience, include all label types
-        return {l: counts_by_type.get(l, 0) for l, n in SystemLabel.TYPE_CHOICES}
+        return {lb: counts_by_type.get(lb, 0) for lb, n in SystemLabel.TYPE_CHOICES}
 
     class Meta:
         index_together = ("org", "label_type")
@@ -948,7 +948,7 @@ class Label(TembaModel, DependencyMixin):
         """
 
         labels_and_folders = list(Label.all_objects.filter(org=org, is_active=True).order_by(Upper("name")))
-        label_counts = LabelCount.get_totals([l for l in labels_and_folders if not l.is_folder()])
+        label_counts = LabelCount.get_totals([lb for lb in labels_and_folders if not lb.is_folder()])
 
         folder_nodes = {}
         all_nodes = []
@@ -1090,7 +1090,7 @@ class LabelCount(SquashableModel):
             .annotate(count_sum=Sum("count"))
         )
         counts_by_label_id = {c[0]: c[1] for c in counts}
-        return {l: counts_by_label_id.get(l.id, 0) for l in labels}
+        return {lb: counts_by_label_id.get(lb.id, 0) for lb in labels}
 
 
 class MsgIterator:

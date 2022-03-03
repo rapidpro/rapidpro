@@ -25,7 +25,7 @@ def send_notification_emails():
             notification.send_email()
             num_sent += 1
         except Exception:  # pragma: no cover
-            logger.error(f"error sending notification email", exc_info=True)
+            logger.error("error sending notification email", exc_info=True)
             num_errored += 1
 
     if num_sent or num_errored:

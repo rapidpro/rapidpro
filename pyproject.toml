@@ -62,7 +62,7 @@ openpyxl = "^3.0.9"
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"
 coverage = "^5.5"
-flake8 = "3.7.7"
+flake8 = "^4.0.1"
 isort = "^5.10.1"
 codecov = "^2.1.11"
 responses = "^0.12.1"

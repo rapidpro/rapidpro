@@ -534,7 +534,7 @@ class MsgCRUDL(SmartCRUDL):
                     .exclude(label_type=Label.TYPE_FOLDER)
                     .order_by(Upper("name"))
                 )
-                label_counts = LabelCount.get_totals([l for l in labels])
+                label_counts = LabelCount.get_totals([lb for lb in labels])
 
                 menu = []
                 for label in labels:
@@ -951,7 +951,7 @@ class LabelCRUDL(SmartCRUDL):
             return Label.label_objects.filter(org=self.request.user.get_org())
 
         def render_to_response(self, context, **response_kwargs):
-            results = [dict(id=l.uuid, text=l.name) for l in context["object_list"]]
+            results = [{"id": lb.uuid, "text": lb.name} for lb in context["object_list"]]
             return HttpResponse(json.dumps(results), content_type="application/json")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
