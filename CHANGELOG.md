@@ -1,3 +1,7 @@
+v7.1.82
+----------
+ * Update to latest flake8, black and isort
+
 v7.1.81
 ----------
  * Remove unused collect_metrics_task
