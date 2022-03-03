@@ -30,7 +30,7 @@ from temba.orgs.models import Org
 from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.triggers.models import Trigger
 from temba.utils import json, uuid
-from temba.utils.templatetags.temba import icon, format_datetime
+from temba.utils.templatetags.temba import format_datetime, icon
 
 from . import chunk_list, countries, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
