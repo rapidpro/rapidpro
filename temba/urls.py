@@ -59,8 +59,9 @@ def handler500(request):
     Context: None
     """
     from sentry_sdk import last_event_id
-    from django.template import loader
+
     from django.http import HttpResponseServerError
+    from django.template import loader
 
     t = loader.get_template("500.html")
     return HttpResponseServerError(t.render({"request": request, "sentry_id": last_event_id()}))  # pragma: needs cover

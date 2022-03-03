@@ -1869,7 +1869,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 field_count = ContactField.user_fields.count_active_for_org(org=self.org)
                 if field_count >= org_active_fields_limit:
                     raise forms.ValidationError(
-                        _(f"Cannot create a new field as limit is %(limit)s."),
+                        _("Cannot create a new field as limit is %(limit)s."),
                         params={"limit": org_active_fields_limit},
                     )
 

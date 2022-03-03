@@ -471,7 +471,7 @@ class UserTest(TembaTest):
 
     @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_confirm_access(self):
-        confirm_url = reverse("users.confirm_access") + f"?next=/msg/inbox/"
+        confirm_url = reverse("users.confirm_access") + "?next=/msg/inbox/"
         failed_url = reverse("users.user_failed")
 
         # try to access before logging in
@@ -3205,7 +3205,7 @@ class OrgTest(TembaTest):
         sub_org.refresh_from_db()
         self.assertEqual("New Sub Org Name", sub_org.name)
 
-        self.assertEqual(response.url, f"/org/sub_orgs/")
+        self.assertEqual(response.url, "/org/sub_orgs/")
 
         # edit our sub org's details in a spa view
         response = self.client.post(

@@ -3256,7 +3256,7 @@ class APITest(TembaTest):
                 "archived": msg.visibility == "A",
                 "visibility": msg_visibility,
                 "text": msg.text,
-                "labels": [dict(name=l.name, uuid=l.uuid) for l in msg.labels.all()],
+                "labels": [{"name": lb.name, "uuid": lb.uuid} for lb in msg.labels.all()],
                 "attachments": [{"content_type": a.content_type, "url": a.url} for a in msg.get_attachments()],
                 "created_on": format_datetime(msg.created_on),
                 "sent_on": format_datetime(msg.sent_on),

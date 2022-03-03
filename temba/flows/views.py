@@ -932,7 +932,7 @@ class FlowCRUDL(SmartCRUDL):
             label = FlowLabel.objects.get(uuid=self.kwargs["uuid"])
             children = label.children.all()
             if children:  # pragma: needs cover
-                return [l for l in FlowLabel.objects.filter(parent=label)] + [label]
+                return [lb for lb in FlowLabel.objects.filter(parent=label)] + [label]
             else:
                 return [label]
 

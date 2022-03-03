@@ -879,7 +879,7 @@ class FlowReadSerializer(ReadSerializer):
         return self.FLOW_TYPES.get(obj.flow_type)
 
     def get_labels(self, obj):
-        return [{"uuid": l.uuid, "name": l.name} for l in obj.labels.all()]
+        return [{"uuid": lb.uuid, "name": lb.name} for lb in obj.labels.all()]
 
     def get_runs(self, obj):
         stats = obj.get_run_stats()

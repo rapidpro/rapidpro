@@ -20,16 +20,16 @@ class Command(BaseCommand):
             if lang != settings.DEFAULT_LANGUAGE:
                 self.fetch_translation(lang)
 
-        self.stdout.write(f"running makemessages to extract new strings...")
+        self.stdout.write("running makemessages to extract new strings...")
 
         self.extract_default_translation()
 
-        self.stdout.write(f"compiling MO files...")
+        self.stdout.write("compiling MO files...")
 
         # rebuild the .mo files too
         subprocess.check_output("./manage.py compilemessages", shell=True)
 
-        self.stdout.write(f"🍾 finished")
+        self.stdout.write("🍾 finished")
 
     def extract_default_translation(self):
         """
@@ -51,7 +51,7 @@ class Command(BaseCommand):
 
         while True:
             time.sleep(1)
-            self.stdout.write(f" > checking for download...")
+            self.stdout.write(" > checking for download...")
             response = self.client.check_download_status(download_id)
 
             if response.status_code == 303:
@@ -59,7 +59,7 @@ class Command(BaseCommand):
                 break
 
     def download_translation(self, lang: str, url: str):
-        self.stdout.write(f" > downloading translation...")
+        self.stdout.write(" > downloading translation...")
 
         po_path = f"locale/{lang}/LC_MESSAGES/django.po"
         response = requests.get(url)
@@ -83,7 +83,7 @@ class TransifexClient:
 
     def create_translation_download(self, org: str, project: str, resource: str, lang: str):
         return self._post(
-            f"resource_translations_async_downloads",
+            "resource_translations_async_downloads",
             {
                 "data": {
                     "attributes": {
