@@ -13,9 +13,10 @@ logger = logging.getLogger(__name__)
 @shared_task(track_started=True, name="send_to_flow_node")
 def send_to_flow_node(org_id, user_id, text, **kwargs):
     from django.contrib.auth.models import User
+
     from temba.contacts.models import Contact
-    from temba.orgs.models import Org
     from temba.flows.models import FlowRun
+    from temba.orgs.models import Org
 
     org = Org.objects.get(pk=org_id)
     user = User.objects.get(pk=user_id)

@@ -253,8 +253,8 @@ class TimezonesTest(TembaTest):
 class TemplateTagTest(TembaTest):
     def test_icon(self):
         from temba.campaigns.models import Campaign
-        from temba.triggers.models import Trigger
         from temba.flows.models import Flow
+        from temba.triggers.models import Trigger
         from temba.utils.templatetags.temba import icon
 
         campaign = Campaign.create(self.org, self.admin, "Test Campaign", self.create_group("Test group", []))
