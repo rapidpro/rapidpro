@@ -23,12 +23,14 @@ from django.utils import timezone, translation
 
 from celery.app.task import Task
 
+from temba.campaigns.models import Campaign
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import Org
 from temba.tests import ESMockWithScroll, TembaTest, matchers
+from temba.triggers.models import Trigger
 from temba.utils import json, uuid
-from temba.utils.templatetags.temba import format_datetime
+from temba.utils.templatetags.temba import icon, format_datetime
 
 from . import chunk_list, countries, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
@@ -252,11 +254,6 @@ class TimezonesTest(TembaTest):
 
 class TemplateTagTest(TembaTest):
     def test_icon(self):
-        from temba.campaigns.models import Campaign
-        from temba.flows.models import Flow
-        from temba.triggers.models import Trigger
-        from temba.utils.templatetags.temba import icon
-
         campaign = Campaign.create(self.org, self.admin, "Test Campaign", self.create_group("Test group", []))
         flow = Flow.create(self.org, self.admin, "Test Flow")
         trigger = Trigger.objects.create(
