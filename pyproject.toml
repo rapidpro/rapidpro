@@ -60,7 +60,7 @@ chardet = "^4.0.0"
 openpyxl = "^3.0.9"
 
 [tool.poetry.dev-dependencies]
-black = "^21.11b1"
+black = "^22.1.0"
 coverage = "^5.5"
 flake8 = "3.7.7"
 isort = "^5.10.1"
