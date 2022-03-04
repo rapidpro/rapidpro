@@ -1032,7 +1032,7 @@ class MenuMixin(OrgPermsMixin):
         if icon:  # pragma: no cover
             menu_item["icon"] = icon
 
-        if "href" not in menu_item: # pragma: no cover
+        if "href" not in menu_item:  # pragma: no cover
             return None
 
         return menu_item
