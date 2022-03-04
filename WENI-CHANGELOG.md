@@ -1,3 +1,8 @@
+1.1.6-rapidpro-7.0.4
+----------
+ * Add subscribed_apps permission for Instagram Channel
+ * Feature to limit recovery password to 5 times in 12 hours.
+
 1.1.5-rapidpro-7.0.4
 ----------
  * Update weni-rp-apps to 1.0.13
