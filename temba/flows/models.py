@@ -1020,22 +1020,6 @@ class Flow(TembaModel):
         if interrupt_sessions:
             mailroom.queue_interrupt(self.org, flow=self)
 
-    def release_runs(self):
-        """
-        Exits all flow runs
-        """
-        # grab the ids of all our runs
-        run_ids = self.runs.all().values_list("id", flat=True)
-
-        # clear our association with any related sessions
-        self.sessions.all().update(current_flow=None)
-
-        # batch this for 1,000 runs at a time so we don't grab locks for too long
-        for id_batch in chunk_list(run_ids, 1000):
-            runs = FlowRun.objects.filter(id__in=id_batch)
-            for run in runs:
-                run.release()
-
     def delete(self):
         """
         Does actual deletion of this flow's data
@@ -1043,7 +1027,17 @@ class Flow(TembaModel):
 
         assert not self.is_active, "can't delete flow which hasn't been released"
 
-        self.release_runs()
+        # clear our association with any related sessions
+        self.sessions.all().update(current_flow=None)
+
+        # grab the ids of all our runs
+        run_ids = self.runs.all().values_list("id", flat=True)
+
+        # batch this for 1,000 runs at a time so we don't grab locks for too long
+        for id_batch in chunk_list(run_ids, 1000):
+            runs = FlowRun.objects.filter(id__in=id_batch)
+            for run in runs:
+                run.delete()
 
         for rev in self.revisions.all():
             rev.release()
@@ -1134,11 +1128,11 @@ class FlowSession(models.Model):
         else:
             return self.output
 
-    def release(self):
+    def delete(self):
         for run in self.runs.all():
-            run.release()
+            run.delete()
 
-        self.delete()
+        super().delete()
 
     def __str__(self):  # pragma: no cover
         return str(self.contact)
@@ -1213,11 +1207,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     EVENT_STEP_UUID = "step_uuid"
     EVENT_CREATED_ON = "created_on"
 
-    DELETE_FOR_ARCHIVE = "A"
-    DELETE_FOR_USER = "U"
-
-    DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
-
     id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="runs", db_index=False)
@@ -1251,32 +1240,12 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # current node location of this run in the flow
     current_node_uuid = models.UUIDField(null=True)
 
-    # if this run is scheduled for deletion, why
-    delete_reason = models.CharField(null=True, max_length=1, choices=DELETE_CHOICES)
-
-    # TODO to be replaced by new status field
-    is_active = models.BooleanField(default=True)
-    exit_type = models.CharField(null=True, max_length=1, choices=EXIT_TYPE_CHOICES)
-
-    def release(self, delete_reason=None):
-        """
-        Permanently deletes this flow run
-        """
-        with transaction.atomic():
-            if delete_reason:
-                self.delete_reason = delete_reason
-                self.save(update_fields=["delete_reason"])
-
-            if (
-                delete_reason == FlowRun.DELETE_FOR_USER
-                and self.session is not None
-                and self.session.status == FlowSession.STATUS_WAITING
-            ):
-                mailroom.queue_interrupt(self.org, session=self.session)
-
-            self.delete()
+    # set when deleting to signal to db triggers that result category counts should be decremented
+    delete_from_results = models.BooleanField(null=True)
 
     def as_archive_json(self):
+        from temba.api.v2.views import FlowRunReadSerializer
+
         def convert_step(step):
             return {"node": step[FlowRun.PATH_NODE_UUID], "time": step[FlowRun.PATH_ARRIVED_ON]}
 
@@ -1301,12 +1270,35 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             "created_on": self.created_on.isoformat(),
             "modified_on": self.modified_on.isoformat(),
             "exited_on": self.exited_on.isoformat() if self.exited_on else None,
-            "exit_type": self.exit_type,
+            "exit_type": FlowRunReadSerializer.EXIT_TYPES.get(self.status),
             "submitted_by": self.submitted_by.username if self.submitted_by else None,
         }
 
+    def delete(self, interrupt: bool = True):
+        """
+        Deletes this run, decrementing it from result category counts
+        """
+        with transaction.atomic():
+            self.delete_from_results = True
+            self.save(update_fields=("delete_from_results",))
+
+            if interrupt and self.session and self.session.status == FlowSession.STATUS_WAITING:
+                mailroom.queue_interrupt(self.org, session=self.session)
+
+            super().delete()
+
     def __str__(self):  # pragma: no cover
         return f"FlowRun[uuid={self.uuid}, flow={self.flow.uuid}]"
+
+    class Meta:
+        indexes = [
+            models.Index(
+                name="flows_flowrun_contacts_at_node",
+                fields=("org", "current_node_uuid"),
+                condition=Q(status__in=("A", "W")),
+                include=("contact",),
+            ),
+        ]
 
 
 class FlowExit:

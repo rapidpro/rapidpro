@@ -1119,10 +1119,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Contact.bulk_change_status(user, [self], modifiers.Status.ACTIVE)
         self.refresh_from_db()
 
-    def release(self, user, *, full=True, immediately=False):
+    def release(self, user, *, immediately=False):
         """
-        Marks this contact for deletion
+        Releases this contact. Note that we clear all identifying data but don't hard delete the contact because we need
+        to expose deleted contacts over the API to allow external systems to know that contacts have been deleted.
         """
+        from .tasks import full_release_contact
+
         with transaction.atomic():
             # prep our urns for deletion so our old path creates a new urn
             for urn in self.urns.all():
@@ -1151,19 +1154,21 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.modified_by = user
             self.save(update_fields=("name", "is_active", "fields", "modified_by", "modified_on"))
 
-        # if we are removing everything do so
-        if full:
-            if immediately:
-                self._full_release()
-            else:
-                from .tasks import full_release_contact
-
-                full_release_contact.delay(self.id)
+        # the hard work of removing everything this contact owns can be given to a celery task
+        if immediately:
+            self._full_release()
+        else:
+            on_transaction_commit(lambda: full_release_contact.delay(self.id))
 
     def _full_release(self):
+        """
+        Deletes everything owned by this contact
+        """
+
         with transaction.atomic():
-            self.ticket_events.all().delete()
-            self.tickets.all().delete()
+            # release our tickets
+            for ticket in self.tickets.all():
+                ticket.delete()
 
             # release our messages
             for msg in self.msgs.all():
@@ -1188,12 +1193,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for event in self.channel_events.all():  # pragma: needs cover
                 event.release()
 
-            # release our runs too
             for run in self.runs.all():
-                run.release()
+                run.delete(interrupt=False)  # don't try interrupting sessions that are about to be deleted
 
             for session in self.sessions.all():
-                session.release()
+                session.delete()
 
             for conn in self.connections.all():  # pragma: needs cover
                 conn.release()

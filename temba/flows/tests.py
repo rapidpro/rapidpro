@@ -229,6 +229,15 @@ class FlowTest(TembaTest):
 
         # change our channel to use a whatsapp scheme
         self.channel.schemes = [URN.WHATSAPP_SCHEME]
+        self.channel.channel_type = "TWA"
+        self.channel.save()
+
+        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
+
+        # no warning, we don't have a whatsapp channel that requires a message template
+        self.assertNotContains(response, "affirmation")
+
+        self.channel.channel_type = "WA"
         self.channel.save()
 
         # clear dependencies, this will cause our flow to look like it isn't using templates
@@ -480,6 +489,7 @@ class FlowTest(TembaTest):
             .visit(color_split)
             .wait()
             .resume(msg=self.create_incoming_msg(self.contact, "chartreuse"))
+            .set_result("color", "chartreuse", category="Other", input="chartreuse")
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -509,6 +519,7 @@ class FlowTest(TembaTest):
         # the active stats will look the same, but there should be one more journey on the path
         (
             session1.resume(msg=self.create_incoming_msg(self.contact, "mauve"))
+            .set_result("color", "mauve", category="Other", input="mauve")
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -532,6 +543,7 @@ class FlowTest(TembaTest):
         # to another node, but still just one entry
         (
             session1.resume(msg=self.create_incoming_msg(self.contact, "blue"))
+            .set_result("color", "blue", category="Blue", input="blue")
             .visit(beer_prompt, exit_index=2)
             .send_msg("Good choice, I like Blue too! What is your favorite beer?")
             .visit(beer_split)
@@ -562,6 +574,7 @@ class FlowTest(TembaTest):
             .visit(color_split)
             .wait()
             .resume(msg=self.create_incoming_msg(ryan, "burnt sienna"))
+            .set_result("color", "burnt sienna", category="Other", input="burnt sienna")
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -590,6 +603,7 @@ class FlowTest(TembaTest):
         # now let's have them land in the same place
         (
             session2.resume(msg=self.create_incoming_msg(ryan, "blue"))
+            .set_result("color", "blue", category="Blue", input="blue")
             .visit(beer_prompt, exit_index=2)
             .send_msg("Good choice, I like Blue too! What is your favorite beer?")
             .visit(beer_split)
@@ -660,6 +674,22 @@ class FlowTest(TembaTest):
             {"total": 2, "active": 1, "completed": 1, "expired": 0, "interrupted": 0, "failed": 0, "completion": 50},
             flow.get_run_stats(),
         )
+        self.assertEqual(
+            {
+                "counts": [
+                    {
+                        "categories": [
+                            {"count": 2, "name": "Blue", "pct": 1.0},
+                            {"count": 0, "name": "Other", "pct": 0.0},
+                        ],
+                        "key": "color",
+                        "name": "color",
+                        "total": 2,
+                    }
+                ]
+            },
+            flow.get_category_counts(),
+        )
 
         # now let's delete our contact, we'll still have one active node, but
         # our visit path counts will go down by two since he went there twice
@@ -681,11 +711,25 @@ class FlowTest(TembaTest):
             },
             visited,
         )
-
-        # he was also accounting for our completion rate, back to nothing
         self.assertEqual(
             {"total": 1, "active": 1, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0, "completion": 0},
             flow.get_run_stats(),
+        )
+        self.assertEqual(
+            {
+                "counts": [
+                    {
+                        "categories": [
+                            {"count": 1, "name": "Blue", "pct": 1.0},
+                            {"count": 0, "name": "Other", "pct": 0.0},
+                        ],
+                        "key": "color",
+                        "name": "color",
+                        "total": 1,
+                    }
+                ]
+            },
+            flow.get_category_counts(),
         )
 
         # advance ryan to the end to make sure our percentage accounts for one less contact
@@ -745,11 +789,27 @@ class FlowTest(TembaTest):
             {"total": 0, "active": 0, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0, "completion": 0},
             flow.get_run_stats(),
         )
+        self.assertEqual(
+            {
+                "counts": [
+                    {
+                        "categories": [
+                            {"count": 0, "name": "Blue", "pct": 0.0},
+                            {"count": 0, "name": "Other", "pct": 0.0},
+                        ],
+                        "key": "color",
+                        "name": "color",
+                        "total": 0,
+                    }
+                ]
+            },
+            flow.get_category_counts(),
+        )
 
         # runs all gone too
         self.assertEqual(0, FlowRun.objects.filter(flow=flow).count())
 
-        # test that expirations remove activity when triggered from the cron in the same way
+        # test that expirations don't change activity... start another contact in the flow
         tupac = self.create_contact("Tupac Shakur", phone="+12065550725")
         (
             MockSessionWriter(tupac, flow)
@@ -786,13 +846,11 @@ class FlowTest(TembaTest):
             flow.get_run_stats(),
         )
 
-        # now mark run has expired and make sure it is removed from our activity
+        # now mark run has expired and make sure exit type counts updated
         run = tupac.runs.get()
         run.status = FlowRun.STATUS_EXPIRED
-        run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
         run.exited_on = timezone.now()
-        run.is_active = False
-        run.save(update_fields=("status", "exit_type", "exited_on", "is_active"))
+        run.save(update_fields=("status", "exited_on"))
 
         (active, visited) = flow.get_activity()
 
@@ -841,10 +899,8 @@ class FlowTest(TembaTest):
 
         run = jimmy.runs.get()
         run.status = FlowRun.STATUS_INTERRUPTED
-        run.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
         run.exited_on = timezone.now()
-        run.is_active = False
-        run.save(update_fields=("status", "exit_type", "exited_on", "is_active"))
+        run.save(update_fields=("status", "exited_on"))
 
         (active, visited) = flow.get_activity()
 
@@ -1060,7 +1116,7 @@ class FlowTest(TembaTest):
 
         # and if we delete our runs, things zero out
         for run in FlowRun.objects.all():
-            run.release()
+            run.delete()
 
         counts = favorites.get_category_counts()
         assertCount(counts, "beer", "Turbo King", 0)
@@ -2634,17 +2690,20 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         assert_media_upload(
             f"{settings.MEDIA_ROOT}/test_media/steve.marten.jpg",
             "image/jpeg",
-            "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "11111-111-11", ".jpg"),
+            "%s/attachments/%d/%d/steps/%s/%s"
+            % (settings.STORAGE_URL, self.org.id, flow.id, "11111-111-11", "steve.marten.jpg"),
         )
         assert_media_upload(
             f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
             "video/mp4",
-            "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "22222-222-22", ".mp4"),
+            "%s/attachments/%d/%d/steps/%s/%s"
+            % (settings.STORAGE_URL, self.org.id, flow.id, "22222-222-22", "snow.mp4"),
         )
         assert_media_upload(
             f"{settings.MEDIA_ROOT}/test_media/snow.m4a",
             "audio/mp4",
-            "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "33333-333-33", ".m4a"),
+            "%s/attachments/%d/%d/steps/%s/%s"
+            % (settings.STORAGE_URL, self.org.id, flow.id, "33333-333-33", "snow.m4a"),
         )
 
         # can't upload for flow in other org
@@ -3291,9 +3350,9 @@ class FlowRunTest(TembaTest):
         self.assertIsNone(run_json["exited_on"])
         self.assertIsNone(run_json["submitted_by"])
 
-    def _check_deletion(self, delete_reason, expected, session_completed=True):
+    def _check_deletion(self, by_archiver: bool, expected: dict, session_completed=True):
         """
-        Runs our favorites flow, then releases the run with the passed in delete_reason, asserting our final state
+        Runs our favorites flow, then deletes the run and asserts our final state
         """
 
         flow = self.get_flow("favorites_v13")
@@ -3354,7 +3413,10 @@ class FlowRunTest(TembaTest):
             )
 
         run = FlowRun.objects.get(contact=self.contact)
-        run.release(delete_reason)
+        if by_archiver:
+            super(FlowRun, run).delete()  # delete_from_counts left unset
+        else:
+            run.delete()  # delete_from_counts updated to true
 
         cat_counts = {c["key"]: c for c in flow.get_category_counts()["counts"]}
 
@@ -3368,13 +3430,13 @@ class FlowRunTest(TembaTest):
         self.assertFalse(FlowRun.objects.filter(id=run.id).exists())
 
     @patch("temba.mailroom.queue_interrupt")
-    def test_deletion(self, mock_queue_interrupt):
+    def test_delete_by_user_with_complete_session(self, mock_queue_interrupt):
         self._check_deletion(
-            None,
-            {
+            by_archiver=False,
+            expected={
                 "red_count": 0,
                 "primus_count": 0,
-                "start_count": 0,
+                "start_count": 1,  # unchanged
                 "run_count": {
                     "total": 0,
                     "active": 0,
@@ -3389,13 +3451,13 @@ class FlowRunTest(TembaTest):
         self.assertFalse(mock_queue_interrupt.called)
 
     @patch("temba.mailroom.queue_interrupt")
-    def test_user_deletion_with_complete_session(self, mock_queue_interrupt):
+    def test_delete_by_user_without_complete_session(self, mock_queue_interrupt):
         self._check_deletion(
-            "U",
-            {
+            by_archiver=False,
+            expected={
                 "red_count": 0,
                 "primus_count": 0,
-                "start_count": 0,
+                "start_count": 1,  # unchanged
                 "run_count": {
                     "total": 0,
                     "active": 0,
@@ -3406,40 +3468,19 @@ class FlowRunTest(TembaTest):
                     "completion": 0,
                 },
             },
-        )
-        self.assertFalse(mock_queue_interrupt.called)
-
-    @patch("temba.mailroom.queue_interrupt")
-    def test_user_deletion_without_complete_session(self, mock_queue_interrupt):
-        self._check_deletion(
-            "U",
-            {
-                "red_count": 0,
-                "primus_count": 0,
-                "start_count": 0,
-                "run_count": {
-                    "total": 0,
-                    "active": 0,
-                    "completed": 0,
-                    "expired": 0,
-                    "interrupted": 0,
-                    "failed": 0,
-                    "completion": 0,
-                },
-            },
-            False,
+            session_completed=False,
         )
         mock_queue_interrupt.assert_called_once()
 
     @patch("temba.mailroom.queue_interrupt")
-    def test_archiving(self, mock_queue_interrupt):
+    def test_delete_by_archiver(self, mock_queue_interrupt):
         self._check_deletion(
-            "A",
-            {
+            by_archiver=True,
+            expected={
                 "red_count": 1,
                 "primus_count": 1,
-                "start_count": 1,
-                "run_count": {
+                "start_count": 1,  # unchanged
+                "run_count": {  # unchanged
                     "total": 1,
                     "active": 0,
                     "completed": 1,
@@ -3489,6 +3530,7 @@ class FlowRunTest(TembaTest):
                     "exit_uuid": None,
                 },
             ],
+            current_node_uuid="59d992c6-c491-473d-a7e9-4f431d705c01",
         )
         self.assertEqual(
             {"6fc14d2c-3b4d-49c7-b342-4b2b2ebf7678:59d992c6-c491-473d-a7e9-4f431d705c01": 1},
@@ -4647,8 +4689,8 @@ class ExportFlowResultsTest(TembaTest):
         )
         mock_s3.put_object("test-bucket", "archive1.jsonl.gz", body)
 
-        contact1_run.release()
-        contact2_run.release()
+        contact1_run.delete()
+        contact2_run.delete()
 
         # create an archive earlier than our flow created date so we check that it isn't included
         Archive.objects.create(

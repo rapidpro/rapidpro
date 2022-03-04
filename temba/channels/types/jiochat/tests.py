@@ -78,7 +78,7 @@ class JioChatTypeTest(TembaTest):
         refresh_jiochat_access_tokens()
 
         self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk).count(), 1)
-        self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(is_error=True).count(), 1)
 
         self.assertEqual(mock_post.call_count, 1)
 
@@ -92,8 +92,8 @@ class JioChatTypeTest(TembaTest):
         refresh_jiochat_access_tokens()
 
         self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk).count(), 2)
-        self.assertTrue(ChannelLog.objects.filter(channel_id=channel.pk, is_error=True).count(), 1)
-        self.assertTrue(ChannelLog.objects.filter(channel_id=channel.pk, is_error=False).count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk, is_error=True).count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk, is_error=False).count(), 1)
         self.assertEqual(mock_post.call_count, 1)
 
         self.assertEqual(channel_client.get_access_token(), b"ABC1234")

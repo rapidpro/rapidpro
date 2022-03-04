@@ -9,8 +9,8 @@ jobs:
       redis-version: '3.2.4'
       node-version: '10'
       elastic-version: '7.10.1'
-      rpindexer-version: '6.4.0'
-      mailroom-version: '6.5.36'
+      rpindexer-version: '7.1.0'
+      mailroom-version: '7.1.44'
       DJANGO_SETTINGS_MODULE: temba.settings_ci
     strategy:
       matrix:

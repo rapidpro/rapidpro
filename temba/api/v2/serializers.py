@@ -487,6 +487,7 @@ class ClassifierReadSerializer(ReadSerializer):
 class ContactReadSerializer(ReadSerializer):
     name = serializers.SerializerMethodField()
     language = serializers.SerializerMethodField()
+    flow = fields.FlowField(source="current_flow")
     urns = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
     fields = serializers.SerializerMethodField("get_contact_fields")
@@ -539,6 +540,7 @@ class ContactReadSerializer(ReadSerializer):
             "urns",
             "groups",
             "fields",
+            "flow",
             "blocked",
             "stopped",
             "created_on",
@@ -758,7 +760,7 @@ class ContactGroupWriteSerializer(WriteSerializer):
     name = serializers.CharField(
         required=True,
         max_length=ContactGroup.MAX_NAME_LEN,
-        validators=[UniqueForOrgValidator(queryset=ContactGroup.user_groups.filter(is_active=True), ignore_case=True)],
+        validators=[UniqueForOrgValidator(queryset=ContactGroup.all_groups.filter(is_active=True), ignore_case=True)],
     )
 
     def validate_name(self, value):
@@ -877,7 +879,7 @@ class FlowReadSerializer(ReadSerializer):
         return self.FLOW_TYPES.get(obj.flow_type)
 
     def get_labels(self, obj):
-        return [{"uuid": l.uuid, "name": l.name} for l in obj.labels.all()]
+        return [{"uuid": lb.uuid, "name": lb.name} for lb in obj.labels.all()]
 
     def get_runs(self, obj):
         stats = obj.get_run_stats()

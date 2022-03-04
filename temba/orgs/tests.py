@@ -471,7 +471,7 @@ class UserTest(TembaTest):
 
     @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_confirm_access(self):
-        confirm_url = reverse("users.confirm_access") + f"?next=/msg/inbox/"
+        confirm_url = reverse("users.confirm_access") + "?next=/msg/inbox/"
         failed_url = reverse("users.user_failed")
 
         # try to access before logging in
@@ -2962,6 +2962,14 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 500)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
 
+    def test_org_api_rates(self):
+        self.assertEqual(self.org.api_rates, {})
+
+        self.org.api_rates = {"v2.contacts": "10000/hour"}
+        self.org.save()
+
+        self.assertEqual(self.org.api_rates, {"v2.contacts": "10000/hour"})
+
     def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
         self.org.reset_capabilities()
@@ -3197,7 +3205,7 @@ class OrgTest(TembaTest):
         sub_org.refresh_from_db()
         self.assertEqual("New Sub Org Name", sub_org.name)
 
-        self.assertEqual(response.url, f"/org/sub_orgs/")
+        self.assertEqual(response.url, "/org/sub_orgs/")
 
         # edit our sub org's details in a spa view
         response = self.client.post(

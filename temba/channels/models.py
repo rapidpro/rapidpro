@@ -1722,7 +1722,7 @@ class ChannelConnection(models.Model):
 
         session = self.get_session()
         if session:
-            session.release()
+            session.delete()
 
         self.delete()
 

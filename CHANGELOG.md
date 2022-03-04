@@ -1,3 +1,108 @@
+v7.1.82
+----------
+ * Update to latest flake8, black and isort
+
+v7.1.81
+----------
+ * Remove unused collect_metrics_task
+ * Bump dependencies
+
+v7.1.80
+----------
+ * Remove progress bar on facebook claim
+ * Replace old indexes based on flows_flowrun.is_active
+
+v7.1.79
+----------
+ * Remove progress dots for FBA and IG channel claim pages
+ * Actually drop exit_type, is_active and delete_reason on FlowRun
+ * Fix group name validation to include system groups
+
+v7.1.78
+----------
+ * Test with latest indexer and mailroom
+ * Stop using FlowRun.exit_type, is_active and delete_reason
+
+v7.1.77
+----------
+ * Tweak migration as Postgres won't let us drop function being used
+
+v7.1.76
+----------
+ * Update vonage deprecated methods
+
+v7.1.75
+----------
+ * Rework flowrun db triggers to use status rather than exit_type or is_active
+
+v7.1.74
+----------
+ * Allow archiving of flow messages
+ * Don't try interrupting session that is about to be deleted
+ * Tweak criteria for who can preview new interface
+
+v7.1.73
+----------
+ * Data migration to fix facebook contacts name
+
+v7.1.72
+----------
+ * Revert database trigger changes which stopped deleting path and exit_type counts on flowrun deletion
+
+v7.1.71
+----------
+ * Fix race condition in contact deletion
+ * Rework flowrun database triggers to look at delete_from_results instead of delete_reason
+
+v7.1.69
+----------
+ * Update to latest floweditor
+
+v7.1.68
+----------
+ * Add FlowRun.delete_from_results to replace delete_reason
+
+v7.1.67
+----------
+ * Drop no longer used Msg.delete_reason and delete_from_counts columns
+ * Update to Facebook Graph API v12
+
+v7.1.66
+----------
+ * Fix last reference to Msg.delete_reason in db triggers and stop writing that on deletion
+
+v7.1.65
+----------
+ * Rework msgs database triggers so we don't track counts for messages in archives
+
+v7.1.64
+----------
+ * API rate limits should be org scoped except for staff accounts
+ * Expose current flow on contact read page for all users
+ * Add deprecation text for restart_participants
+
+v7.1.63
+----------
+ * Fix documentation of contacts API endpoint
+ * Release URN channel events in data migration to fix deleted contacts with tickets
+ * Use original filename inside UUID folder to upload media files
+
+v7.1.62
+----------
+ * Tweak migration to only fully delete inactive contacts with tickets
+
+v7.1.61
+----------
+ * Add flow field to contacts API endpoint
+ * Add support to the audit_es command for dumping ES queries
+ * Add migration to make sure contacts which we failed to delete are really deleted
+ * Fix contact release with tickets having a broadcast
+
+v7.1.60
+----------
+ * Adjust WA message template warning to not be show for Twilio WhatsApp channels
+ * Add support to increase API rates per org
+
 v7.1.59
 ----------
  * Add migration to populate Contact.current_flow

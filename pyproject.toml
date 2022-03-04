@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "7.1.59"
+version = "7.1.82"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 license = "AGPL-3"
@@ -60,10 +60,10 @@ chardet = "^4.0.0"
 openpyxl = "^3.0.9"
 
 [tool.poetry.dev-dependencies]
-black = "^21.11b1"
+black = "^22.1.0"
 coverage = "^5.5"
-flake8 = "3.7.7"
-isort = "^4.3.16"
+flake8 = "^4.0.1"
+isort = "^5.10.1"
 codecov = "^2.1.11"
 responses = "^0.12.1"
 beautifulsoup4 = "^4.9.3"

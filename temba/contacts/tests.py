@@ -37,7 +37,6 @@ from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
-    MigrationTest,
     TembaNonAtomicTest,
     TembaTest,
     matchers,
@@ -97,7 +96,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING
         )
 
-        with self.assertNumQueries(62):
+        with self.assertNumQueries(61):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
@@ -1127,35 +1126,39 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # can't create group as viewer
         self.login(self.user)
-        response = self.client.post(url, dict(name="Spammers"))
+        response = self.client.post(url, {"name": "Spammers"})
         self.assertLoginRedirect(response)
 
         self.login(self.admin)
 
         # try to create a contact group whose name is only whitespace
-        response = self.client.post(url, dict(name="  "))
+        response = self.client.post(url, {"name": "  "})
         self.assertFormError(response, "form", "name", "This field is required.")
 
         # try to create a contact group whose name begins with reserved character
-        response = self.client.post(url, dict(name="+People"))
+        response = self.client.post(url, {"name": "+People"})
         self.assertFormError(response, "form", "name", "Group name must not be blank or begin with + or -")
 
         # try to create with name that's already taken
-        response = self.client.post(url, dict(name="Customers"))
+        response = self.client.post(url, {"name": "Customers"})
+        self.assertFormError(response, "form", "name", "Name is used by another group")
+
+        # try to create with name that's already taken by a system group
+        response = self.client.post(url, {"name": "blocked"})
         self.assertFormError(response, "form", "name", "Name is used by another group")
 
         # create with valid name (that will be trimmed)
-        response = self.client.post(url, dict(name="first  "))
+        response = self.client.post(url, {"name": "first  "})
         self.assertNoFormErrors(response)
         ContactGroup.user_groups.get(org=self.org, name="first")
 
         # create a group with preselected contacts
-        self.client.post(url, dict(name="Everybody", preselected_contacts="%d,%d" % (self.joe.pk, self.frank.pk)))
+        self.client.post(url, {"name": "Everybody", "preselected_contacts": f"{self.joe.id},{self.frank.id}"})
         group = ContactGroup.user_groups.get(org=self.org, name="Everybody")
         self.assertEqual(set(group.contacts.all()), {self.joe, self.frank})
 
         # create a dynamic group using a query
-        self.client.post(url, dict(name="Frank", group_query="tel = 1234"))
+        self.client.post(url, {"name": "Frank", "group_query": "tel = 1234"})
 
         ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
 
@@ -1165,7 +1168,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         for i in range(10):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
 
-        response = self.client.post(url, dict(name="People"))
+        response = self.client.post(url, {"name": "People"})
         self.assertNoFormErrors(response)
         ContactGroup.user_groups.get(org=self.org, name="People")
 
@@ -1176,7 +1179,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             ContactGroup.create_static(self.org, self.admin, "group%d" % i)
 
         self.assertEqual(10, ContactGroup.user_groups.all().count())
-        response = self.client.post(url, dict(name="People"))
+        response = self.client.post(url, {"name": "People"})
         self.assertFormError(
             response,
             "form",
@@ -1509,6 +1512,9 @@ class ContactTest(TembaTest):
         # give contact an open and a closed ticket
         self.create_ticket(self.org.ticketers.get(), contact, "Hi")
         self.create_ticket(self.org.ticketers.get(), contact, "Hi", closed_on=timezone.now())
+        bcast_ticket = self.create_ticket(self.org.ticketers.get(), contact, "Hi All")
+        bcast2.ticket = bcast_ticket
+        bcast2.save()
 
         self.assertEqual(1, group.contacts.all().count())
         self.assertEqual(1, contact.connections.all().count())
@@ -1519,18 +1525,21 @@ class ContactTest(TembaTest):
         self.assertEqual(2, len(contact.fields))
         self.assertEqual(1, contact.campaign_fires.count())
 
-        self.assertEqual(2, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
+        self.assertEqual(3, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
         self.assertEqual(1, TicketCount.get_all(self.org, Ticket.STATUS_CLOSED))
 
-        # first try a regular release and make sure our urns are anonymized
-        contact.release(self.admin, full=False)
+        # first try releasing with _full_release patched so we can check the state of the contact before the task
+        # to do a full release has kicked off
+        with patch("temba.contacts.models.Contact._full_release"):
+            contact.release(self.admin)
+
         self.assertEqual(2, contact.urns.all().count())
         for urn in contact.urns.all():
             uuid.UUID(urn.path, version=4)
             self.assertEqual(URN.DELETED_SCHEME, urn.scheme)
 
         # tickets unchanged
-        self.assertEqual(2, contact.tickets.count())
+        self.assertEqual(3, contact.tickets.count())
 
         # a new contact arrives with those urns
         new_contact = self.create_contact("URN Thief", urns=["tel:+12065552000", "twitter:tweettweet"])
@@ -1538,6 +1547,7 @@ class ContactTest(TembaTest):
 
         self.assertEqual({contact2}, set(bcast1.contacts.all()))
         self.assertEqual({contact, contact2}, set(bcast2.contacts.all()))
+        self.assertIsNotNone(bcast2.ticket)
 
         # now lets go for a full release
         contact.release(self.admin)
@@ -1568,6 +1578,9 @@ class ContactTest(TembaTest):
         Flow.objects.get(id=msg_flow.id)
         Flow.objects.get(id=ivr_flow.id)
         self.assertEqual(1, Ticket.objects.count())
+
+        bcast2.refresh_from_db()
+        self.assertIsNone(bcast2.ticket)
 
     @mock_mailroom
     def test_status_changes_and_release(self, mr_mocks):
@@ -5343,6 +5356,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
         self.login(self.admin)
         url = reverse("contacts.contactgroup_create")
         self.client.post(url, dict(name="Adults", group_query="age > 30"))
+        self.assertNoFormErrors(response)
 
         time.sleep(5)
 
@@ -5366,6 +5380,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
         # update the query
         url = reverse("contacts.contactgroup_update", args=[adults.id])
         self.client.post(url, dict(name="Adults", query="age > 18"))
+        self.assertNoFormErrors(response)
 
         # need to wait at least 10 seconds because mailroom will wait that long to give indexer time to catch up if it
         # sees recently modified contacts
@@ -6215,49 +6230,3 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
-
-
-class PopulateCurrentFlowTest(MigrationTest):
-    app = "contacts"
-    migrate_from = "0148_fix_inactive_contacts_in_groups"
-    migrate_to = "0149_populate_current_flow"
-
-    def setUpBeforeMigration(self, apps):
-        def create_session(contact, flow, status):
-            FlowSession.objects.create(
-                uuid=uuid.uuid4(),
-                org=self.org,
-                contact=contact,
-                session_type="M",
-                status=status,
-                wait_started_on=timezone.now(),
-                wait_expires_on=timezone.now(),
-                wait_resume_on_expire=True,
-                current_flow=flow,
-            )
-
-        self.contact1 = self.create_contact("Ann", phone="+593979111111", status="A")
-        self.contact2 = self.create_contact("Bob", phone="+593979222222", status="B")
-        self.contact3 = self.create_contact("Cat", phone="+593979333333", status="S")
-
-        self.flow1 = self.create_flow("Flow 1")
-        self.flow2 = self.create_flow("2")
-
-        create_session(self.contact1, flow=None, status="C")
-        create_session(self.contact1, flow=self.flow1, status="W")
-        create_session(self.contact2, flow=None, status="X")
-        create_session(self.contact2, flow=self.flow2, status="W")
-        create_session(self.contact3, flow=None, status="I")
-
-        # set incorrectly on contact #2
-        self.contact2.current_flow = self.flow1
-        self.contact2.save(update_fields=("current_flow",))
-
-    def test_migration(self):
-        self.contact1.refresh_from_db()
-        self.contact2.refresh_from_db()
-        self.contact3.refresh_from_db()
-
-        self.assertEqual(self.flow1, self.contact1.current_flow)
-        self.assertEqual(self.flow2, self.contact2.current_flow)
-        self.assertIsNone(self.contact3.current_flow)

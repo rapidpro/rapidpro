@@ -3773,6 +3773,7 @@ class StripeHandler(View):  # pragma: no cover
 
     def post(self, request, *args, **kwargs):
         import stripe
+
         from temba.orgs.models import Org, TopUp
 
         # stripe delivers a JSON payload
