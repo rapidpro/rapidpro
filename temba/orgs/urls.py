@@ -10,9 +10,11 @@ from .views import (
     TopUpCRUDL,
     TwoFactorBackupView,
     TwoFactorVerifyView,
-    UserCRUDL,
     check_login,
 )
+
+from .password_forget import UserCRUDL
+
 
 urlpatterns = OrgCRUDL().as_urlpatterns()
 urlpatterns += TopUpCRUDL().as_urlpatterns()

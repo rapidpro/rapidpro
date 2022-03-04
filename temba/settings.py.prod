@@ -392,3 +392,7 @@ NON_ISO6391_LANGUAGES = set(env.tuple("NON_ISO6391_LANGUAGES", default={}))
 
 # the name of our infinity plan
 INFINITY_PLAN = "infinity"
+
+# User reset password limit
+USER_RECOVER_TIME_INTERVAL = env.int("USER_RECOVER_TIME_INTERVAL", default=12)
+USER_RECOVER_MAX_ATTEMPTS = env.int("USER_RECOVER_MAX_ATTEMPTS", default=5)
