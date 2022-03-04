@@ -13,7 +13,7 @@ import pytz
 from django_redis import get_redis_connection
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core.management import BaseCommand, CommandError
 from django.db import connection
 from django.utils import timezone
@@ -166,7 +166,11 @@ class Command(BaseCommand):
         r.flushdb()
         self._log(self.style.SUCCESS("OK") + "\n")
 
+        # create root user and a customer support user
         superuser = User.objects.create_superuser("root", "root@nyaruka.com", password)
+
+        support = User.objects.create_user("support@nyaruka.com", "support@nyaruka.com", password, is_staff=True)
+        support.groups.add(Group.objects.get(name="Customer Support"))
 
         country, locations = self.load_locations(LOCATIONS_DUMP)
         orgs = self.create_orgs(superuser, country, num_orgs)
