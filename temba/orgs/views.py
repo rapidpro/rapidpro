@@ -1024,7 +1024,7 @@ class MenuMixin(OrgPermsMixin):
     def create_modax_button(self, name, href, icon=None):
         menu_item = {"id": slugify(name), "name": name, "type": "modax-button"}
         if href:
-            if href[0] == "/":
+            if href[0] == "/":  # pragma: no cover
                 menu_item["href"] = href
             elif self.has_org_perm(href):
                 menu_item["href"] = reverse(href)
