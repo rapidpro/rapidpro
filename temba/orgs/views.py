@@ -1029,10 +1029,10 @@ class MenuMixin(OrgPermsMixin):
             elif self.has_org_perm(href):
                 menu_item["href"] = reverse(href)
 
-        if icon:
+        if icon:  # pragma: no cover
             menu_item["icon"] = icon
 
-        if "href" not in menu_item:
+        if "href" not in menu_item: # pragma: no cover
             return None
 
         return menu_item

@@ -429,6 +429,31 @@ class TriggerTest(TembaTest):
 
 
 class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_menu(self):
+
+        self.login(self.admin)
+        menu_url = reverse("triggers.trigger_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+        self.assertEqual(4, len(menu))
+
+        # create a trigger with no groups
+        create_url = reverse("triggers.trigger_create_keyword")
+        flow = self.create_flow("My Flow", flow_type=Flow.TYPE_MESSAGE)
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "start", "flow": flow.id, "match_type": "F"},
+            new_obj_query=Trigger.objects.filter(keyword="start", flow=flow),
+            success_status=200,
+        )
+
+        menu_url = reverse("triggers.trigger_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+
+        # our keyword trigger should force a keywords section
+        self.assertEqual(5, len(menu))
+
     def test_create(self):
         create_url = reverse("triggers.trigger_create")
         create_new_convo_url = reverse("triggers.trigger_create_new_conversation")
