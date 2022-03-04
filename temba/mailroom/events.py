@@ -206,7 +206,11 @@ class Event:
         return {
             "type": cls.TYPE_CAMPAIGN_FIRED,
             "created_on": get_event_time(obj).isoformat(),
-            "campaign": {"id": obj.event.campaign.id, "name": obj.event.campaign.name},
+            "campaign": {
+                "uuid": obj.event.campaign.uuid,
+                "id": obj.event.campaign.id,
+                "name": obj.event.campaign.name,
+            },
             "campaign_event": {
                 "id": obj.event.id,
                 "offset_display": obj.event.offset_display,
