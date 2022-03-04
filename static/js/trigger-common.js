@@ -45,8 +45,8 @@ function submitFormData(options) {
 function buildFormData(form) {
   return form.serializeArray().reduce(function(acc, item) {
     let value = item.value;
-    if (item.name === 'omnibox' && value) {
-      value = acc['omnibox'] || [];
+    if (['omnibox', 'contacts', 'groups'].includes(item.name) && value) {
+      value = acc[item.name] || [];
       value.push(item.value);
     }
     acc[item.name] = value;
@@ -68,9 +68,9 @@ function getTodaysDate() {
   return new Date().toJSON().substring(0,10);
 }
 
-function lockScheduleDate(formContainer) {
+function lockScheduleDate(formContainer, in_batch= false) {
   const datePickerElem = formContainer.querySelector('#schedule-options')
-  .querySelector('#id_schedule_start_datetime')
+  .querySelector('#id_schedule' + (in_batch ? '_in_batch' : '') + '_start_datetime')
   .shadowRoot.querySelector('lit-flatpickr');
   
   datePickerElem.setAttribute('minDate', getTodaysDate());

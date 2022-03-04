@@ -65,6 +65,7 @@ class Trigger(SmartModel):
 
     TYPE_KEYWORD = "K"
     TYPE_SCHEDULE = "S"
+    TYPE_SCHEDULE_IN_BATCH = "B"
     TYPE_INBOUND_CALL = "V"
     TYPE_MISSED_CALL = "M"
     TYPE_NEW_CONVERSATION = "N"

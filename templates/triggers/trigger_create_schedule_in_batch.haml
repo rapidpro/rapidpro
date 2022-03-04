@@ -2,6 +2,40 @@
 -load i18n smartmin
 
 
+-block fields
+  #trigger_flow
+    - render_field 'flow'
+  #trigger_groups
+    - render_field 'groups'
+  #trigger_groups_exclude
+    - render_field 'exclude_groups'
+  #schedule-options
+    -render_field 'start_datetime'
+  #recurrence
+    .repeat-period
+      -render_field 'repeat_period'
+    .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else %}hidden{% endif %}'}
+      -render_field 'repeat_days_of_week'
+  #batch_interval
+    -render_field 'batch_interval'
+  %h5.embedded-data-schedule-in-batch.hidden
+    -trans "Flow Parameters"
+  #embedded-data-schedule-in-batch.hidden
+    #embed-container-schedule-in-batch
+
+
+  %temba-dialog#bulk-schedule-confirmation.hide(header='{{ _("Bulk Schedule Confirmation")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
+    .p-6
+
+  %temba-dialog#do-not-contact-batch-dialog(header='{{ _("Out of Business Hours Warning")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
+    .p-6
+      {{ _("You are trying to send a message out of compliance hours (8AM - 9PM). Are you sure you want to continue?") }}
+
+
+-block summary
+  -trans "Start a flow in the future or on a schedule in batches."
+
+
 -block extra-script
   {{ block.super }}
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
@@ -17,19 +51,7 @@
     document.addEventListener("DOMContentLoaded", function() {
       const formContainer = document.querySelector('#id-trigger-schedule-in-batch');
       const repeatPeriod = formContainer.querySelector("#id_schedule_repeat_period");
-      const tembaField = formContainer.querySelector('#id_schedule_omnibox').shadowRoot
-        .querySelector('temba-select').shadowRoot
-        .querySelector('temba-field');
-
-      const helpTextNode = document.createElement('div');
-      const textNode = document.createTextNode('The batches will deploy in the order you add the group');
-      helpTextNode.appendChild(textNode);
-      helpTextNode.setAttribute('style', 'font-size: 11px; margin-top: 6px; opacity: 1;');
-      tembaField.appendChild(helpTextNode);
-      const label = tembaField.shadowRoot.querySelector('label');
-      label.innerHTML = 'Groups';
-
-      lockScheduleDate(formContainer);
+      lockScheduleDate(formContainer, true);
 
       if (repeatPeriod) {
         repeatPeriod.addEventListener("change", function(event) {
@@ -66,7 +88,7 @@
 
         const modalMessage = $('#bulk-schedule-confirmation').find('div.p-6');
         const flowName = flowById[formDataByName.flow];
-        const selectedGroups = (formDataByName.omnibox || []).length;
+        const selectedGroups = (formDataByName.groups || []).length;
         const message = messageTemplate
           .replace('{flowName}', flowName || '--')
           .replace('{groupCount}', String(selectedGroups))
@@ -86,45 +108,13 @@
 
       inBatchConfirmation.addEventListener("temba-button-clicked", function(event) {
         const container = "#id-trigger-schedule-in-batch > .formax-container";
-        const groupIds = (buildFormData(form)['omnibox'] || []).map(row => JSON.parse(row).id);
+        const groupIds = (buildFormData(form)['groups'] || []);
         const appendToForm = '&group_order=' + encodeURIComponent(JSON.stringify(groupIds));
         const options = {
-          form, container, successFunc: onSuccess, appendToForm, postUrl: '/trigger/schedule_in_batch/'
+          form, container, successFunc: onSuccess, appendToForm, postUrl: '/trigger/create_schedule_in_batch/'
         };
         if (!event.detail.button.secondary) submitFormData(options);
         inBatchConfirmation.classList.add("hide");
         inBatchConfirmation.open = false;
       });
     });
-
-
--block fields
-  #trigger_flow
-    - render_field 'flow'
-  #trigger_omnibox
-    - render_field 'omnibox'
-  #schedule-options
-    -render_field 'start_datetime'
-  #recurrence
-    .repeat-period
-      -render_field 'repeat_period'
-    .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hidden{%endif%}'}
-      -render_field 'repeat_days_of_week'
-  #batch_interval
-    -render_field 'batch_interval'
-  %h5.embedded-data-schedule-in-batch.hidden
-    -trans "Flow Parameters"
-  #embedded-data-schedule-in-batch.hidden
-    #embed-container-schedule-in-batch
-
-
-  %temba-dialog#bulk-schedule-confirmation.hide(header='{{ _("Bulk Schedule Confirmation")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
-    .p-6
-
-  %temba-dialog#do-not-contact-batch-dialog(header='{{ _("Out of Business Hours Warning")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
-    .p-6
-      {{ _("You are trying to send a message out of compliance hours (8AM - 9PM). Are you sure you want to continue?") }}
-
-
--block summary
-  -trans "Start a flow in the future or on a schedule in batches."

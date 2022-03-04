@@ -124,6 +124,46 @@ class ScheduledTriggerType(TriggerType):
     form = Form
 
 
+class ScheduledInBatchTriggerType(TriggerType):
+    """
+    A trigger with a time-based schedule
+    """
+
+    class Form(BaseTriggerForm, ScheduleFormMixin):
+        BATCH_INTERVAL = (
+            (5, _("5 minutes")),
+            (10, _("10 minutes")),
+            (15, _("15 minutes")),
+            (20, _("20 minutes")),
+            (25, _("25 minutes")),
+            (30, _("30 minutes")),
+        )
+
+        batch_interval = forms.ChoiceField(
+            choices=BATCH_INTERVAL, label="Batch Interval", required=True, widget=SelectWidget()
+        )
+
+        def __init__(self, user, *args, **kwargs):
+            super().__init__(user, Trigger.TYPE_SCHEDULE_IN_BATCH, *args, **kwargs)
+
+            self.set_user(user)
+
+        class Meta(BaseTriggerForm.Meta):
+            fields = ScheduleFormMixin.Meta.fields + ("batch_interval", "flow", "groups", "exclude_groups")
+            help_texts = {
+                "groups": _("The groups that will be started in the flow."),
+                "exclude_groups": _("Any contacts in these groups will not be started in the flow."),
+            }
+
+    code = Trigger.TYPE_SCHEDULE_IN_BATCH
+    slug = "schedule_in_batch"
+    name = _("Schedule In Batch")
+    title = _("Schedule In Batch Triggers")
+    allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND)
+    exportable = False
+    form = Form
+
+
 class InboundCallTriggerType(TriggerType):
     """
     A trigger for inbound IVR calls

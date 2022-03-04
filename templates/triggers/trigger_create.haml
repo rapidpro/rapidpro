@@ -70,11 +70,10 @@
   <script src="{{ STATIC_URL }}js/trigger-common.js"></script>
   :javascript
 
-    ["keyword", "schedule", "missed_call", "new_conversation", "referral", "catchall", "schedule-in-batch"].forEach(triggerType => {
+    ["keyword", "schedule", "missed_call", "new_conversation", "referral", "catch_all", "schedule_in_batch"].forEach(triggerType => {
       let triggerBody = document.querySelector(`#id-trigger-${triggerType}, #id-trigger-${triggerType.replace('_', '')}, #id-trigger-${triggerType.replace('_', '-')}`);
       if (triggerBody) {
-        const typeOverride = triggerType === 'schedule-in-batch' ? 'schedule' : triggerType;
-        let flowElement = triggerBody.querySelector(`#id_${typeOverride}_flow`);
+        let flowElement = triggerBody.querySelector(`#id_${triggerType}_flow`);
         flowElement.addEventListener('change', function(event) {
           let selectedValue = event.target.values[0].value;
           let flowId = (selectedValue !== '' ? parseInt(selectedValue) : null);
