@@ -374,7 +374,7 @@ PERMISSIONS = {
     "api.resthook": ("api", "list"),
     "api.webhookevent": ("api",),
     "api.resthooksubscriber": ("api",),
-    "campaigns.campaign": ("api", "archived", "archive", "activate"),
+    "campaigns.campaign": ("api", "archived", "archive", "activate", "menu"),
     "campaigns.campaignevent": ("api",),
     "classifiers.classifier": ("connect", "api", "sync", "menu"),
     "classifiers.intent": ("api",),
@@ -516,7 +516,7 @@ PERMISSIONS = {
     "tickets.ticket": ("api", "assign", "assignee", "menu", "note"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "tickets.topic": ("api",),
-    "triggers.trigger": ("archived", "type"),
+    "triggers.trigger": ("archived", "type", "menu"),
 }
 
 
@@ -821,6 +821,7 @@ GROUP_PERMISSIONS = {
     "Viewers": (
         "campaigns.campaign_archived",
         "campaigns.campaign_list",
+        "campaigns.campaign_menu",
         "campaigns.campaign_read",
         "campaigns.campaignevent_read",
         "classifiers.classifier_api",
@@ -903,6 +904,7 @@ GROUP_PERMISSIONS = {
         "tickets.topic_api",
         "triggers.trigger_archived",
         "triggers.trigger_list",
+        "triggers.trigger_menu",
         "triggers.trigger_type",
     ),
     "Agents": (

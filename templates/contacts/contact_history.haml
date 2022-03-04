@@ -29,7 +29,7 @@
         -else
           &nbsp;triggered
 
-        %a(href='{%url "campaigns.campaignevent_read" event.campaign_event.id %}')
+        %a(href='{%url "campaigns.campaignevent_read" event.campaign.uuid event.campaign_event.id %}')
           {{ event.campaign_event.offset_display }} {{ event.campaign_event.relative_to.name }}
 
       -elif event.type == 'channel_event'

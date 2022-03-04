@@ -1021,6 +1021,22 @@ class MenuMixin(OrgPermsMixin):
     def create_section(self, name):
         return {"id": slugify(name), "name": name, "type": "section"}
 
+    def create_modax_button(self, name, href, icon=None):
+        menu_item = {"id": slugify(name), "name": name, "type": "modax-button"}
+        if href:
+            if href[0] == "/":
+                menu_item["href"] = href
+            elif self.has_org_perm(href):
+                menu_item["href"] = reverse(href)
+
+        if icon:
+            menu_item["icon"] = icon
+
+        if "href" not in menu_item:
+            return None
+
+        return menu_item
+
     def create_menu_item(
         self,
         menu_id=None,
@@ -1243,7 +1259,6 @@ class OrgCRUDL(SmartCRUDL):
                     self.create_menu_item(name=_("Messages"), icon="message-square", endpoint="msgs.msg_menu"),
                     self.create_menu_item(name=_("Contacts"), icon="contact", endpoint="contacts.contact_menu"),
                     self.create_menu_item(name=_("Flows"), icon="flow", endpoint="flows.flow_menu"),
-                    self.create_menu_item(name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaigns_menu"),
                     self.create_menu_item(
                         name=_("Tickets"), icon="agent", endpoint="tickets.ticket_menu", href="tickets.ticket_list"
                     ),
@@ -1255,13 +1270,7 @@ class OrgCRUDL(SmartCRUDL):
                         "endpoint": f"{reverse('orgs.org_menu')}settings/",
                         "bottom": True,
                     },
-                    {
-                        "id": "support",
-                        "name": _("Support"),
-                        "icon": "help-circle",
-                        "bottom": True,
-                        "trigger": "showSupportWidget",
-                    },
+                    self.create_menu_item(name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaign_menu"),
                 ]
 
                 # Other Plugins:

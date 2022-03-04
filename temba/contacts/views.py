@@ -1289,6 +1289,9 @@ class ContactCRUDL(SmartCRUDL):
         def get_object_org(self):
             return self.group.org
 
+        def derive_title(self):
+            return self.group.name
+
         def derive_group(self):
             try:
                 return ContactGroup.user_groups.get(uuid=self.kwargs["group"])

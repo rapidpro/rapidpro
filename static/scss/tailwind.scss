@@ -338,6 +338,17 @@ table.padded {
 table.list {
   @apply w-full shadow rounded-lg overflow-hidden bg-white;
 
+  &.scrolled {
+    @apply rounded-none !important;
+    @apply shadow-none !important;
+  }
+
+  tr:first-child {
+    td {
+      border-top:none;
+    }
+  }
+
   tr {
     &.checked {
       td, td:hover {
