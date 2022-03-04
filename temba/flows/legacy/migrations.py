@@ -710,9 +710,9 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
         # figure out which rulesets are date or location
         for rs in flow.get("rule_sets", []):
             rs_type = None
-            for rule in rs.get("rules", []):
+            for rule in rs.get("rules", []):  # pragma: no cover
                 test = rule.get("test", {}).get("type")
-                if not test:  # pragma: no cover
+                if not test:
                     continue
                 elif test == "true":
                     continue
