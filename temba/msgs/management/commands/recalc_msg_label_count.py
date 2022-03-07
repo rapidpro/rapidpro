@@ -1,9 +1,8 @@
 from celery import shared_task
-from django.core.management import BaseCommand
+from django.core.management import BaseCommand, CommandError
 from django.db.models import Count, Case, When, IntegerField, Q
 
 from temba.msgs.models import Msg, OUTGOING, INCOMING, WIRED, SENT, DELIVERED, IVR, FLOW, SystemLabelCount, SystemLabel
-from temba.orgs.models import Org
 
 
 @shared_task(track_started=True, name="get_calculated_values")
@@ -86,7 +85,7 @@ class Command(BaseCommand):  # pragma: no cover
         if org_list is not None:
             orgs = org_list.split(",")
         else:
-            orgs = list(Org.objects.values_list("id", flat=True))
+            raise CommandError("Kindly provide at least one org ID")
 
         for org_id in orgs:
             get_calculated_values.delay(int(org_id))
