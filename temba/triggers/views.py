@@ -640,6 +640,9 @@ class TriggerCRUDL(SmartCRUDL):
             org_triggers = org.triggers.filter(is_active=True, is_archived=False)
             folders = []
             for slug, trigger_type in TYPES_BY_SLUG.items():
+                # skip schedule in batch
+                if trigger_type.code == "B":
+                    continue
                 folders.append(
                     dict(
                         label=trigger_type.name,
