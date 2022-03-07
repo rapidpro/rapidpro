@@ -32,6 +32,12 @@ for integration in IntegrationType.get_all():
 
 
 spa = SpaView.as_view()
+sections = r"campaigns|contacts|tickets|triggers|messages|channels|flows|plugins|settings"
+level_0 = rf"^(?P<level_0>{sections})/"
+level_1 = rf"{level_0}(?P<level_1>.+)/"
+level_2 = rf"{level_1}(?P<level_2>.+)/"
+level_3 = rf"{level_2}(?P<level_3>.+)/"
+level_4 = rf"{level_3}(?P<level_4>.+)/"
 
 urlpatterns += [
     re_path(r"^login/$", check_login, name="users.user_check_login"),
@@ -44,20 +50,10 @@ urlpatterns += [
     # for backwards compatibility
     re_path(r"^api/v1/stripe/$", StripeHandler.as_view()),
     # for spa
-    re_path(r"^(?P<level_0>contacts|tickets|messages|channels|flows|plugins|settings)/$", spa, name="spa"),
-    re_path(
-        r"^(?P<level_0>contacts|tickets|messages|channels|flows|plugins|settings)/(?P<level_1>.+)/$",
-        spa,
-        name="spa.level_1",
-    ),
-    re_path(
-        r"^(?P<level_0>contacts|tickets|messages|channels|flows|plugins|settings)/(?P<level_1>\w+)/(?P<level_2>.+)/$",
-        spa,
-        name="spa.level_2",
-    ),
-    re_path(
-        r"^(?P<level_0>contacts|tickets|messages|channels|flows|plugins|settings)/(?P<level_1>\w+)/(?P<level_2>.+)/.*$",
-        spa,
-        name="spa.level_max",
-    ),
+    re_path(rf"{level_0}$", spa, name="spa"),
+    re_path(rf"{level_1}$", spa, name="spa.level_1"),
+    re_path(rf"{level_2}$", spa, name="spa.level_2"),
+    re_path(rf"{level_3}$", spa, name="spa.level_3"),
+    re_path(rf"{level_4}$", spa, name="spa.level_4"),
+    re_path(rf"{level_4}.*$", spa, name="spa.level_max"),
 ]

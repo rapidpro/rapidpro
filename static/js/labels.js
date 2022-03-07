@@ -67,7 +67,7 @@ function unlabelObjectRows(labelId) {
             action: 'unlabel',
             pjax: 'true',
         },
-        onSuccess: wireTableListeners
+        onSuccess: wireTableListeners,
     });
 }
 
@@ -229,8 +229,9 @@ function updateLabelMenu() {
 
 function handleRowSelection(checkbox) {
     var row = checkbox.parentElement.parentElement.classList;
-    var listButtons = document.querySelector('.list-buttons-container')
-        .classList;
+    var listButtons = document.querySelector(
+        '.list-buttons-container'
+    ).classList;
     var pageTitle = document.querySelector('.page-title').classList;
 
     if (checkbox.checked) {

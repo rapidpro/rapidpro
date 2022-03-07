@@ -907,7 +907,7 @@ class EventTest(TembaTest):
             {
                 "type": "campaign_fired",
                 "created_on": fire.fired.isoformat(),
-                "campaign": {"id": campaign.id, "name": "Welcomes"},
+                "campaign": {"id": campaign.id, "name": "Welcomes", "uuid": campaign.uuid},
                 "campaign_event": {
                     "id": event.id,
                     "offset_display": "1 week after",

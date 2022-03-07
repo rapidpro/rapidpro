@@ -477,7 +477,7 @@ class CampaignTest(TembaTest):
 
         # should be redirected back to our campaign event read page
         event = CampaignEvent.objects.filter(is_active=True).get()
-        self.assertRedirect(response, reverse("campaigns.campaignevent_read", args=[event.pk]))
+        self.assertRedirect(response, reverse("campaigns.campaignevent_read", args=[event.campaign.uuid, event.pk]))
 
         # should now have update the campaign event
         self.assertEqual(self.reminder_flow, event.flow)
@@ -504,7 +504,9 @@ class CampaignTest(TembaTest):
         event = CampaignEvent.objects.filter(is_active=True).get()
 
         # reading our old event should redirect to the campaign page
-        response = self.client.get(reverse("campaigns.campaignevent_read", args=[previous_event.pk]))
+        response = self.client.get(
+            reverse("campaigns.campaignevent_read", args=[previous_event.campaign.uuid, previous_event.pk])
+        )
         self.assertRedirect(response, reverse("campaigns.campaign_read", args=[previous_event.campaign.pk]))
 
         # attempting to update our old event gives a 404
@@ -600,7 +602,7 @@ class CampaignTest(TembaTest):
         event = CampaignEvent.objects.filter(is_active=True).first()
 
         # get the detail page of the event
-        response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.id]))
+        response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.campaign.uuid, event.id]))
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.context["scheduled_event_fires_count"], 0)
         self.assertEqual(len(response.context["scheduled_event_fires"]), 1)
@@ -689,7 +691,7 @@ class CampaignTest(TembaTest):
         self.assertContains(response, "Archived", count=0)
 
         gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Add Event", "Export", "Edit", "Archive"])
+        self.assertListEqual([gl["title"] for gl in gear_links], ["New Event", "Export", "Edit", "Archive"])
 
         # archive the campaign
         campaign.is_archived = True
@@ -746,7 +748,7 @@ class CampaignTest(TembaTest):
             self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
         )
 
-        response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.pk]))
+        response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.campaign.uuid, event.pk]))
 
         # page title and main content title should NOT contain Archived
         self.assertContains(response, "Perform the rain dance", count=1)
@@ -759,7 +761,7 @@ class CampaignTest(TembaTest):
         campaign.is_archived = True
         campaign.save()
 
-        response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.pk]))
+        response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.campaign.uuid, event.pk]))
 
         # page title and main content title should contain Archived
         self.assertContains(response, "Perform the rain dance", count=1)
@@ -1245,6 +1247,19 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         return campaign
 
+    def test_menu(self):
+        menu_url = reverse("campaigns.campaign_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+        self.assertEqual(4, len(menu))
+
+        # cerate a campaign, it should show in our list, with a divider
+        group = self.create_group("My Group", contacts=[])
+        self.create_campaign(self.org, "My Campaign", group)
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+        self.assertEqual(6, len(menu))
+
     def test_create(self):
         group = self.create_group("Reporters", contacts=[])
 
@@ -1397,7 +1412,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_read(self):
         event = self.campaign1.events.order_by("id").first()
-        read_url = reverse("campaigns.campaignevent_read", args=[event.id])
+        read_url = reverse("campaigns.campaignevent_read", args=[event.campaign.uuid, event.id])
 
         response = self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=event)
 

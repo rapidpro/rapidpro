@@ -1568,6 +1568,16 @@ table.list {
   width: 100%;
 }
 
+table.list.scrolled {
+    border-radius: 0 !important;
+    --tw-shadow: 0 0 #0000 !important;
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow) !important;
+  }
+
+table.list tr:first-child td {
+      border-top:none;
+    }
+
 table.list tr.checked td temba-checkbox, table.list tr.checked td:hover temba-checkbox {
           --icon-color: #444 !important;
         }
