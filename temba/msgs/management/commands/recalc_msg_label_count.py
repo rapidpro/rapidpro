@@ -86,7 +86,7 @@ class Command(BaseCommand):  # pragma: no cover
         if org_list is not None:
             orgs = org_list.split(",")
         else:
-            orgs = list(Org.objects.values_list('id', flat=True))
+            orgs = list(Org.objects.values_list("id", flat=True))
 
         for org_id in orgs:
             get_calculated_values.delay(int(org_id))
