@@ -1,3 +1,8 @@
+v7.2.0
+----------
+ * Disallow PO export/import for archived flows because mailroom doesn't know about them
+ * Add campaigns section to new UI
+
 v7.1.82
 ----------
  * Update to latest flake8, black and isort
