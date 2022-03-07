@@ -85,48 +85,27 @@
 
 -block modal-script
   {{ block.super }}
-  -if object.schedule
     :javascript
-      function lockScheduleDate(formContainer) {
-        const scheduleOption = formContainer.querySelector('#schedule-options');
-        if (scheduleOption) {
-          const datePickerElem = scheduleOption.querySelector('#id_start_datetime').shadowRoot
-            .querySelector('lit-flatpickr');
-          datePickerElem.setAttribute('minDate', new Date().toJSON().substring(0,10));
-        }
-      }
-
       var body = document.querySelector("#update-trigger").getBody();
-
-      lockScheduleDate(body);
-      var repeatPeriod = body.querySelector("#id_repeat_period");
-      var repeatDays = body.querySelector(".repeat-days-container");
-      repeatPeriod.addEventListener("change", function(event) {
-        var currentRepeat = event.currentTarget.values[0].value;
-        if (currentRepeat === 'W') {
-          repeatDays.classList.remove("hidden");
-        } else {
-          repeatDays.classList.add("hidden");
-        }
-      });
-
       var flowField = body.querySelector("#id_flow");
-      flowField.addEventListener('change', function (event) {
-        let selectedValue = event.target.values[0].value;
-        let flowId = (selectedValue !== '' ? parseInt(selectedValue) : null);
-        _requestAndBuildFlowParams(flowId);
-      });
+      if (flowField) {
+        flowField.addEventListener('change', function (event) {
+          let selectedValue = event.target.values[0].value;
+          let flowId = (selectedValue !== '' ? parseInt(selectedValue) : null);
+          _requestAndBuildFlowParams(flowId);
+        });
 
-      setTimeout(() => {
-        var idFlowVal = flowField.values[0].value;
-        {% if flow_parameters_fields and flow_parameters_values %}
-            var flowParamsFields = "{{ flow_parameters_fields }}".split("|");
-            var flowParamsValues = "{{ flow_parameters_values }}".split("|");
-            _requestAndBuildFlowParams(idFlowVal, flowParamsFields, flowParamsValues);
-        {% else %}
-          _requestAndBuildFlowParams(idFlowVal);
-        {% endif %}
-      }, 100)
+        setTimeout(() => {
+          var idFlowVal = flowField.values[0].value;
+          {% if flow_parameters_fields and flow_parameters_values %}
+              var flowParamsFields = "{{ flow_parameters_fields }}".split("|");
+              var flowParamsValues = "{{ flow_parameters_values }}".split("|");
+              _requestAndBuildFlowParams(idFlowVal, flowParamsFields, flowParamsValues);
+          {% else %}
+            _requestAndBuildFlowParams(idFlowVal);
+          {% endif %}
+        }, 100)
+      }
 
       function _requestAndBuildFlowParams(flowId, fields, values) {
         if (flowId) {
@@ -142,3 +121,26 @@
           buildTriggerFlowParams([], [], 'update', body);
         }
       }
+
+  -if object.schedule
+    :javascript
+      var body = document.querySelector("#update-trigger").getBody();
+      function lockScheduleDate(formContainer) {
+        const scheduleOption = formContainer.querySelector('#schedule-options');
+        if (scheduleOption) {
+          const datePickerElem = scheduleOption.querySelector('#id_start_datetime').shadowRoot
+            .querySelector('lit-flatpickr');
+          datePickerElem.setAttribute('minDate', new Date().toJSON().substring(0,10));
+        }
+      }
+      lockScheduleDate(body);
+      var repeatPeriod = body.querySelector("#id_repeat_period");
+      var repeatDays = body.querySelector(".repeat-days-container");
+      repeatPeriod.addEventListener("change", function(event) {
+        var currentRepeat = event.currentTarget.values[0].value;
+        if (currentRepeat === 'W') {
+          repeatDays.classList.remove("hidden");
+        } else {
+          repeatDays.classList.add("hidden");
+        }
+      });

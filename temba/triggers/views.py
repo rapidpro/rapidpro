@@ -24,10 +24,41 @@ from temba.utils.fields import (
     TembaMultipleChoiceField,
 )
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
-from temba.utils import build_flow_parameters, analytics
+from temba.utils import build_flow_parameters, analytics, flow_params_context
 from temba.utils.fields import CompletionTextarea, JSONField, OmniboxChoice
 
 from .models import Trigger
+
+
+class FlowParamsMixin:
+    def pre_save(self, obj, *args, **kwargs):
+        obj = super().pre_save(obj, *args, **kwargs)
+        obj.org = self.request.user.get_org()
+
+        flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
+        flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
+
+        params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
+        obj.extra = params if params else None
+
+        return obj
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        obj = self.get_object()
+        if obj.extra:
+            context["flow_parameters_fields"] = "|".join([f"@trigger.params.{key}" for key in obj.extra.keys()])
+            context["flow_parameters_values"] = "|".join(obj.extra.values())
+        params_context = flow_params_context(self.request)
+        context.update(params_context)
+        return context
+
+    @property
+    def flow_params(self):
+        flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
+        flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
+        params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
+        return params if params else None
 
 
 class BaseTriggerForm(forms.ModelForm):
@@ -368,23 +399,11 @@ class TriggerCRUDL(SmartCRUDL):
 
             return context
 
-    class BaseCreate(OrgPermsMixin, ComponentFormMixin, SmartCreateView):
+    class BaseCreate(OrgPermsMixin, ComponentFormMixin, FlowParamsMixin, SmartCreateView):
         trigger_type = None
         permission = "triggers.trigger_create"
         success_url = "@triggers.trigger_list"
         success_message = ""
-
-        def pre_save(self, obj, *args, **kwargs):
-            obj = super().pre_save(obj, *args, **kwargs)
-            obj.org = self.request.user.get_org()
-
-            flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
-            flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
-
-            params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
-            obj.extra = params if params else None
-
-            return obj
 
         def get_form_class(self):
             return self.form_class or Trigger.get_type(code=self.trigger_type).form
@@ -423,13 +442,6 @@ class TriggerCRUDL(SmartCRUDL):
             response = self.render_to_response(self.get_context_data(form=form))
             response["REDIRECT"] = self.get_success_url()
             return response
-
-        @property
-        def flow_params(self):
-            flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
-            flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
-            params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
-            return params if params else None
 
     class CreateKeyword(BaseCreate):
         trigger_type = Trigger.TYPE_KEYWORD
@@ -554,7 +566,7 @@ class TriggerCRUDL(SmartCRUDL):
     class CreateClosedTicket(BaseCreate):
         trigger_type = Trigger.TYPE_CLOSED_TICKET
 
-    class Update(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, FlowParamsMixin, SmartUpdateView):
         success_message = ""
 
         def get_form_class(self):

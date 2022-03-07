@@ -27,7 +27,7 @@
         formContainerId: '#id-trigger-keyword',
         confirmationBoxId: '#confirm-keyword-trigger',
         flowFieldId: '#id_keyword_flow',
-        postUrl: '/trigger/keyword/',
+        postUrl: '{% url "triggers.trigger_create_keyword" %}',
         successFunc: onKeywordSuccess
       };
       initForm(options);
