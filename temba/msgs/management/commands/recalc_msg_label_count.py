@@ -55,6 +55,7 @@ def get_calculated_values(org_id):  # pragma: no cover
 
     for key, count in results.items():
         label_type = label_mapping[key]
+        print(f"Recalculating for Org {org_id}, label type {label_type}, message count {count}.")
         update_system_label_counts(count, org_id, label_type)
 
 
