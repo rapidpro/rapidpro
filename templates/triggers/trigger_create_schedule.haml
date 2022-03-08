@@ -11,6 +11,11 @@
   -render_field 'contacts'
   -render_field 'exclude_groups'
 
+  %h5.embedded-data-schedule.hidden
+    -trans "Flow Parameters"
+  #embedded-data-schedule.hidden
+    #embed-container-schedule
+
 -block extra-script
   {{ block.super }}
   :javascript

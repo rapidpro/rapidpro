@@ -70,10 +70,14 @@
   <script src="{{ STATIC_URL }}js/trigger-common.js"></script>
   :javascript
 
-    ["keyword", "schedule", "missed_call", "new_conversation", "referral", "catch_all", "schedule_in_batch"].forEach(triggerType => {
-      let triggerBody = document.querySelector(`#id-trigger-${triggerType}, #id-trigger-${triggerType.replace('_', '')}, #id-trigger-${triggerType.replace('_', '-')}`);
+    const getIdVariants = (triggerType) => {
+      return Array.from(new Set([triggerType, triggerType.replaceAll('_', ''), triggerType.replaceAll('_', '-')])).map((t) => `#id-trigger-${t}`).join(", ");
+    }
+
+    ["keyword", "register", "catch_all", "schedule",  "schedule_in_batch", "missed_call", "new_conversation", "referral", "closed_ticket"].forEach(triggerType => {
+      let triggerBody = document.querySelector(getIdVariants(triggerType));
       if (triggerBody) {
-        let flowElement = triggerBody.querySelector(`#id_${triggerType}_flow`);
+        let flowElement = triggerBody.querySelector(`#id_${triggerType}_flow, #id_flow`);
         flowElement.addEventListener('change', function(event) {
           let selectedValue = event.target.values[0].value;
           let flowId = (selectedValue !== '' ? parseInt(selectedValue) : null);

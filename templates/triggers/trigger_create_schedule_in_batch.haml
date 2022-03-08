@@ -18,10 +18,11 @@
       -render_field 'repeat_days_of_week'
   #batch_interval
     -render_field 'batch_interval'
-  %h5.embedded-data-schedule-in-batch.hidden
+
+  %h5.embedded-data-schedule_in_batch.hidden
     -trans "Flow Parameters"
-  #embedded-data-schedule-in-batch.hidden
-    #embed-container-schedule-in-batch
+  #embedded-data-schedule_in_batch.hidden
+    #embed-container-schedule_in_batch
 
 
   %temba-dialog#bulk-schedule-confirmation.hide(header='{{ _("Bulk Schedule Confirmation")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')

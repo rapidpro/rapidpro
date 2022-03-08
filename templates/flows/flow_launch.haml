@@ -37,10 +37,10 @@
       .field.start-type
         - render_field 'mode'
 
-      .field.omnibox{class:'{% if not form.start_type.value == "select" %}hidden{%endif%}'}
+      .field.omnibox{class:'{% if not form.mode.value == "select" %}hidden{%endif%}'}
         - render_field 'omnibox'
 
-      .field.contact-query{class:'{% if form.start_type.value == "select" %}hidden{%endif%}'}
+      .field.contact-query{class:'{% if form.mode.value == "select" %}hidden{%endif%}'}
         - render_field 'query'
 
       .start-options.mt-6.ml-2

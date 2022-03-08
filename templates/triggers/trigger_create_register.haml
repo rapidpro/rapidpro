@@ -7,6 +7,12 @@
 
 -block fields
   {{ block.super }}
+
+  %h5.embedded-data-register.hidden
+    -trans "Flow Parameters"
+  #embedded-data-register.hidden
+    #embed-container-register
+
   %temba-dialog#confirm-register-trigger.hide(header='{{ _("Trigger Confirmation")|escapejs }}' primaryButtonName='{{ _("Confirm")|escapejs }}' destructive='true')
     .p-6
 

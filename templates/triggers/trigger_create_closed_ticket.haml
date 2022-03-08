@@ -1,5 +1,13 @@
 -extends 'smartmin/form.html'
 -load i18n
 
+-block fields
+  {{ block.super }}
+
+  %h5.embedded-data-closed_ticket.hidden
+    -trans "Flow Parameters"
+  #embedded-data-closed_ticket.hidden
+    #embed-container-closed_ticket
+
 -block summary
   -trans "Start a flow after a ticket is closed."
