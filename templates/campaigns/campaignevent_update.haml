@@ -11,8 +11,7 @@
   {{ block.super }}
 
   :javascript
-
-    var modax = document.querySelector("#event-add, #event-update");
+    var modax = document.querySelector("#event-add, #event-update, temba-modax#gear-modax");
     var body = modax.shadowRoot.querySelector(".modax-body");
     var languageLinks = body.querySelectorAll(".show_language");
     var deliveryHourOptions = body.querySelector("#send-at");
@@ -179,7 +178,6 @@
 
     .start-mode-help {
       display: inline-block;
-      width:262px;
       margin-bottom: 6px;
     }
 
@@ -194,7 +192,6 @@
     }
 
     temba-completion {
-
       margin: 10px 0px 20px 0px;
       --textarea-height: 125px;
     }

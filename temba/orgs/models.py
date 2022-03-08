@@ -605,8 +605,8 @@ class Org(SmartModel):
 
     @classmethod
     def export_definitions(cls, site_link, components, include_fields=True, include_groups=True):
-        from temba.contacts.models import ContactField
         from temba.campaigns.models import Campaign
+        from temba.contacts.models import ContactField
         from temba.flows.models import Flow
         from temba.triggers.models import Trigger
 
@@ -698,14 +698,14 @@ class Org(SmartModel):
         return self.get_channel(Channel.ROLE_RECEIVE, scheme=scheme)
 
     def get_call_channel(self):
-        from temba.contacts.models import URN
         from temba.channels.models import Channel
+        from temba.contacts.models import URN
 
         return self.get_channel(Channel.ROLE_CALL, scheme=URN.TEL_SCHEME)
 
     def get_answer_channel(self):
-        from temba.contacts.models import URN
         from temba.channels.models import Channel
+        from temba.contacts.models import URN
 
         return self.get_channel(Channel.ROLE_ANSWER, scheme=URN.TEL_SCHEME)
 
@@ -1467,7 +1467,7 @@ class Org(SmartModel):
         Generates a dict of all exportable flows and campaigns for this org with each object's immediate dependencies
         """
         from temba.campaigns.models import Campaign, CampaignEvent
-        from temba.contacts.models import ContactGroup, ContactField
+        from temba.contacts.models import ContactField, ContactGroup
         from temba.flows.models import Flow
 
         campaign_prefetches = (
@@ -1562,8 +1562,8 @@ class Org(SmartModel):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
-        from temba.middleware import BrandingMiddleware
         from temba.contacts.models import ContactField, ContactGroup
+        from temba.middleware import BrandingMiddleware
         from temba.tickets.models import Ticketer, Topic
 
         with transaction.atomic():
@@ -1723,7 +1723,7 @@ class Org(SmartModel):
 
         # delete our contacts
         for contact in self.contacts.all():
-            contact.release(user, full=True, immediately=True)
+            contact.release(user, immediately=True)
             contact.delete()
 
         # delete all our URNs

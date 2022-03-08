@@ -134,7 +134,7 @@ class ContactGroupForm(forms.ModelForm):
         name = self.cleaned_data["name"].strip()
 
         # make sure the name isn't already taken
-        existing = ContactGroup.get_user_group_by_name(self.org, name)
+        existing = ContactGroup.all_groups.filter(org=self.org, is_active=True, name__iexact=name).first()
         if existing and self.instance != existing:
             raise forms.ValidationError(_("Name is used by another group"))
 
@@ -1289,6 +1289,9 @@ class ContactCRUDL(SmartCRUDL):
         def get_object_org(self):
             return self.group.org
 
+        def derive_title(self):
+            return self.group.name
+
         def derive_group(self):
             try:
                 return ContactGroup.user_groups.get(uuid=self.kwargs["group"])
@@ -1869,7 +1872,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 field_count = ContactField.user_fields.count_active_for_org(org=self.org)
                 if field_count >= org_active_fields_limit:
                     raise forms.ValidationError(
-                        _(f"Cannot create a new field as limit is %(limit)s."),
+                        _("Cannot create a new field as limit is %(limit)s."),
                         params={"limit": org_active_fields_limit},
                     )
 

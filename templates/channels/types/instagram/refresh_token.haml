@@ -18,8 +18,6 @@
       .button-primary.connect-facebook
         -trans "Reconnect Instagram Business Account"
 
-    #throbber(style="display:none;")
-      %img(src="{{ STATIC_URL }}/images/loader-circles.gif")
     %form#refresh-token-form(style="display:none;" method="POST" action="{{ refresh_url }}")
       {% csrf_token %}
       %input#fb-user-id(type="text" name="fb_user_id")
@@ -33,7 +31,6 @@
     window.fbAsyncInit = function() {
       FB.init({
         appId      : '{{ facebook_app_id }}',
-        cookie     : true,
         xfbml      : true,
         version    : 'v12.0'
       });
@@ -51,14 +48,12 @@
 
     $(document).ready(function(){
       $(".connect-facebook").click(function(evt){
-        $("#throbber").show();
         FB.login(function(response) {
           if (response.status === 'connected') {
             $("#fb-user-id").val(response.authResponse.userID);
             $("#user-access-token").val(response.authResponse.accessToken);
             $("#refresh-token-form").submit();
           } else {
-              $("#throbber").hide();
               $("#fb-status").hide();
               $("#fb-channel-error").show();
           }

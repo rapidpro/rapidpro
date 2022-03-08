@@ -50,7 +50,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 if long_lived_auth_token == "":  # pragma: no cover
                     raise Exception("Empty user access token!")
 
-                url = f"https://graph.facebook.com/v7.0/{fb_user_id}/accounts"
+                url = f"https://graph.facebook.com/v12.0/{fb_user_id}/accounts"
                 params = {"access_token": long_lived_auth_token}
 
                 response = requests.get(url, params=params)
@@ -70,7 +70,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 if page_access_token == "":  # pragma: no cover
                     raise Exception("Empty page access token!")
 
-                url = f"https://graph.facebook.com/v7.0/{page_id}/subscribed_apps"
+                url = f"https://graph.facebook.com/v12.0/{page_id}/subscribed_apps"
                 params = {"access_token": page_access_token}
                 data = {
                     "subscribed_fields": "messages,message_deliveries,messaging_optins,messaging_optouts,messaging_postbacks,message_reads,messaging_referrals,messaging_handovers"
@@ -136,7 +136,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
 
         resp = requests.get(
-            "https://graph.facebook.com/v7.0/me",
+            "https://graph.facebook.com/v12.0/me",
             params={"access_token": self.object.config[Channel.CONFIG_AUTH_TOKEN]},
         )
 
@@ -183,7 +183,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         if long_lived_auth_token == "":  # pragma: no cover
             raise Exception("Empty user access token!")
 
-        url = f"https://graph.facebook.com/v7.0/{fb_user_id}/accounts"
+        url = f"https://graph.facebook.com/v12.0/{fb_user_id}/accounts"
         params = {"access_token": long_lived_auth_token}
 
         response = requests.get(url, params=params)
@@ -203,7 +203,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         if page_access_token == "":  # pragma: no cover
             raise Exception("Empty page access token!")
 
-        url = f"https://graph.facebook.com/v7.0/{page_id}/subscribed_apps"
+        url = f"https://graph.facebook.com/v12.0/{page_id}/subscribed_apps"
         params = {"access_token": page_access_token}
         data = {
             "subscribed_fields": "messages,message_deliveries,messaging_optins,messaging_optouts,messaging_postbacks,message_reads,messaging_referrals,messaging_handovers"

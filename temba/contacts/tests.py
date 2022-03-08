@@ -37,7 +37,6 @@ from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
-    MigrationTest,
     TembaNonAtomicTest,
     TembaTest,
     matchers,
@@ -97,7 +96,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING
         )
 
-        with self.assertNumQueries(62):
+        with self.assertNumQueries(61):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
@@ -1127,35 +1126,39 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # can't create group as viewer
         self.login(self.user)
-        response = self.client.post(url, dict(name="Spammers"))
+        response = self.client.post(url, {"name": "Spammers"})
         self.assertLoginRedirect(response)
 
         self.login(self.admin)
 
         # try to create a contact group whose name is only whitespace
-        response = self.client.post(url, dict(name="  "))
+        response = self.client.post(url, {"name": "  "})
         self.assertFormError(response, "form", "name", "This field is required.")
 
         # try to create a contact group whose name begins with reserved character
-        response = self.client.post(url, dict(name="+People"))
+        response = self.client.post(url, {"name": "+People"})
         self.assertFormError(response, "form", "name", "Group name must not be blank or begin with + or -")
 
         # try to create with name that's already taken
-        response = self.client.post(url, dict(name="Customers"))
+        response = self.client.post(url, {"name": "Customers"})
+        self.assertFormError(response, "form", "name", "Name is used by another group")
+
+        # try to create with name that's already taken by a system group
+        response = self.client.post(url, {"name": "blocked"})
         self.assertFormError(response, "form", "name", "Name is used by another group")
 
         # create with valid name (that will be trimmed)
-        response = self.client.post(url, dict(name="first  "))
+        response = self.client.post(url, {"name": "first  "})
         self.assertNoFormErrors(response)
         ContactGroup.user_groups.get(org=self.org, name="first")
 
         # create a group with preselected contacts
-        self.client.post(url, dict(name="Everybody", preselected_contacts="%d,%d" % (self.joe.pk, self.frank.pk)))
+        self.client.post(url, {"name": "Everybody", "preselected_contacts": f"{self.joe.id},{self.frank.id}"})
         group = ContactGroup.user_groups.get(org=self.org, name="Everybody")
         self.assertEqual(set(group.contacts.all()), {self.joe, self.frank})
 
         # create a dynamic group using a query
-        self.client.post(url, dict(name="Frank", group_query="tel = 1234"))
+        self.client.post(url, {"name": "Frank", "group_query": "tel = 1234"})
 
         ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
 
@@ -1165,7 +1168,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         for i in range(10):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
 
-        response = self.client.post(url, dict(name="People"))
+        response = self.client.post(url, {"name": "People"})
         self.assertNoFormErrors(response)
         ContactGroup.user_groups.get(org=self.org, name="People")
 
@@ -1176,7 +1179,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             ContactGroup.create_static(self.org, self.admin, "group%d" % i)
 
         self.assertEqual(10, ContactGroup.user_groups.all().count())
-        response = self.client.post(url, dict(name="People"))
+        response = self.client.post(url, {"name": "People"})
         self.assertFormError(
             response,
             "form",
@@ -1525,8 +1528,11 @@ class ContactTest(TembaTest):
         self.assertEqual(3, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
         self.assertEqual(1, TicketCount.get_all(self.org, Ticket.STATUS_CLOSED))
 
-        # first try a regular release and make sure our urns are anonymized
-        contact.release(self.admin, full=False)
+        # first try releasing with _full_release patched so we can check the state of the contact before the task
+        # to do a full release has kicked off
+        with patch("temba.contacts.models.Contact._full_release"):
+            contact.release(self.admin)
+
         self.assertEqual(2, contact.urns.all().count())
         for urn in contact.urns.all():
             uuid.UUID(urn.path, version=4)
@@ -5350,6 +5356,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
         self.login(self.admin)
         url = reverse("contacts.contactgroup_create")
         self.client.post(url, dict(name="Adults", group_query="age > 30"))
+        self.assertNoFormErrors(response)
 
         time.sleep(5)
 
@@ -5373,6 +5380,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
         # update the query
         url = reverse("contacts.contactgroup_update", args=[adults.id])
         self.client.post(url, dict(name="Adults", query="age > 18"))
+        self.assertNoFormErrors(response)
 
         # need to wait at least 10 seconds because mailroom will wait that long to give indexer time to catch up if it
         # sees recently modified contacts
@@ -6222,136 +6230,3 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
-
-
-class FullReleaseDeletedContacts(MigrationTest):
-    app = "contacts"
-    migrate_from = "0149_populate_current_flow"
-    migrate_to = "0150_full_release_deleted_contacts"
-
-    def setUpBeforeMigration(self, apps):
-        # create a contact with a message
-        self.old_contact = self.create_contact("Jose", phone="+12065552000")
-        self.create_incoming_msg(self.old_contact, "hola mundo")
-        urn = self.old_contact.get_urn()
-
-        self.create_ticket(self.org.ticketers.get(), self.old_contact, "Hi")
-
-        self.ivr_flow = self.get_flow("ivr")
-        self.msg_flow = self.get_flow("favorites_v13")
-
-        self.create_incoming_call(self.msg_flow, self.old_contact)
-
-        # steal his urn into a new contact
-        self.contact = self.create_contact("Joe", urns=["twitter:tweettweet"], fields={"gender": "Male", "age": 40})
-        urn.contact = self.contact
-        urn.save(update_fields=("contact",))
-        self.create_channel_event(
-            self.channel, str(self.contact.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
-        )
-
-        self.group = self.create_group("Test Group", contacts=[self.contact])
-
-        self.contact2 = self.create_contact("Billy", urns=["twitter:billy"])
-
-        # create scheduled and regular broadcasts which send to both contacts
-        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
-        self.bcast1 = self.create_broadcast(
-            self.admin, "Test", contacts=[self.contact, self.contact2], schedule=schedule
-        )
-        self.bcast2 = self.create_broadcast(self.admin, "Test", contacts=[self.contact, self.contact2])
-
-        flow_nodes = self.msg_flow.get_definition()["nodes"]
-        color_prompt = flow_nodes[0]
-        color_split = flow_nodes[2]
-        beer_prompt = flow_nodes[3]
-        beer_split = flow_nodes[5]
-        name_prompt = flow_nodes[6]
-        name_split = flow_nodes[7]
-        (
-            MockSessionWriter(self.contact, self.msg_flow)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(color_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(self.contact, "red"))
-            .visit(beer_prompt)
-            .send_msg("Good choice, I like Red too! What is your favorite beer?", self.channel)
-            .visit(beer_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(self.contact, "primus"))
-            .visit(name_prompt)
-            .send_msg("Lastly, what is your name?", self.channel)
-            .visit(name_split)
-            .wait()
-            .save()
-        )
-
-        campaign = Campaign.create(self.org, self.admin, "Reminders", self.group)
-        joined = ContactField.get_or_create(
-            self.org, self.admin, "joined", "Joined On", value_type=ContactField.TYPE_DATETIME
-        )
-
-        event = CampaignEvent.create_message_event(self.org, self.admin, campaign, joined, 2, unit="D", message="Hi")
-        EventFire.objects.create(event=event, contact=self.contact, scheduled=timezone.now() + timedelta(days=2))
-
-        self.create_incoming_call(self.msg_flow, self.contact)
-
-        # give contact an open and a closed ticket
-        self.create_ticket(self.org.ticketers.get(), self.contact, "Hi")
-        self.create_ticket(self.org.ticketers.get(), self.contact, "Hi", closed_on=timezone.now())
-        bcast_ticket = self.create_ticket(self.org.ticketers.get(), self.contact, "Hi All")
-        self.bcast2.ticket = bcast_ticket
-        self.bcast2.save()
-
-        self.assertEqual(1, self.group.contacts.all().count())
-        self.assertEqual(1, self.contact.connections.all().count())
-        self.assertEqual(2, self.contact.addressed_broadcasts.all().count())
-        self.assertEqual(2, self.contact.urns.all().count())
-        self.assertEqual(2, self.contact.runs.all().count())
-        self.assertEqual(7, self.contact.msgs.all().count())
-        self.assertEqual(2, len(self.contact.fields))
-        self.assertEqual(1, self.contact.campaign_fires.count())
-
-        self.assertEqual(3, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
-        self.assertEqual(1, TicketCount.get_all(self.org, Ticket.STATUS_CLOSED))
-
-        self.contact.release(self.admin, full=False)
-        self.contact2.release(self.admin, full=False)
-
-    def test_migration(self):
-        self.contact.refresh_from_db()
-        self.contact2.refresh_from_db()
-        self.old_contact.refresh_from_db()
-        self.bcast2.refresh_from_db()
-
-        self.assertEqual(0, self.group.contacts.all().count())
-        self.assertEqual(0, self.contact.connections.all().count())
-        self.assertEqual(0, self.contact.addressed_broadcasts.all().count())
-        self.assertEqual(0, self.contact.urns.all().count())
-        self.assertEqual(0, self.contact.runs.all().count())
-        self.assertEqual(0, self.contact.msgs.all().count())
-        self.assertEqual(0, self.contact.campaign_fires.count())
-        # tickets deleted (only for this contact)
-        self.assertEqual(0, self.contact.tickets.count())
-        self.assertEqual(1, TicketCount.get_all(self.org, Ticket.STATUS_OPEN))
-        self.assertEqual(0, TicketCount.get_all(self.org, Ticket.STATUS_CLOSED))
-        # contact who used to own our urn had theirs released too
-        self.assertEqual(0, self.old_contact.connections.all().count())
-        self.assertEqual(0, self.old_contact.msgs.all().count())
-        self.assertIsNone(self.contact.fields)
-        self.assertIsNone(self.contact.name)
-        # nope, we aren't paranoid or anything
-        Org.objects.get(id=self.org.id)
-        Flow.objects.get(id=self.msg_flow.id)
-        Flow.objects.get(id=self.ivr_flow.id)
-        self.assertEqual(1, Ticket.objects.count())
-
-        self.bcast2.refresh_from_db()
-        self.assertIsNone(self.bcast2.ticket)
-        self.assertEqual(0, self.contact.tickets.count())
-
-        self.assertEqual(1, self.old_contact.tickets.count())
-
-        # make sure we only applied the full release migration on the contact with a ticket that were half deleted
-        self.assertEqual(1, self.contact2.addressed_broadcasts.all().count())

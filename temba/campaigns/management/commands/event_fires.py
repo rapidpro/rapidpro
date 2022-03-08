@@ -23,8 +23,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         unfired = EventFire.objects.filter(fired=None).select_related("event").order_by("scheduled", "id")[:50]
 
-        self.stdout.write(f"Fire       | Event                            | Contact    | Scheduled")
-        self.stdout.write(f"-----------|----------------------------------|------------|--------------")
+        self.stdout.write("Fire       | Event                            | Contact    | Scheduled")
+        self.stdout.write("-----------|----------------------------------|------------|--------------")
 
         now = timezone.now()
 

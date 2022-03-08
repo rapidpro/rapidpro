@@ -32,18 +32,6 @@ from .tasks import squash_msgcounts
 from .templatetags.sms import as_icon
 
 
-def archiver_delete(msg):
-    """
-    Simulates deletion of a message by archiver
-    """
-    for log in msg.channel_logs.all():
-        log.release()
-
-    msg.delete_reason = Msg.DELETE_FOR_ARCHIVE
-    msg.save(update_fields=("delete_reason",))
-    super(Msg, msg).delete()
-
-
 class MsgTest(TembaTest):
     def setUp(self):
         super().setUp()
@@ -1358,7 +1346,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(36):
             self.client.get(inbox_url)
 
         response = self.assertListFetch(
@@ -1437,7 +1425,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             flows_url, allow_viewers=True, allow_editors=True, context_objects=[msg2, msg1]
         )
 
-        self.assertEqual(("label",), response.context["actions"])
+        self.assertEqual(("archive", "label"), response.context["actions"])
 
     def test_archived(self):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
@@ -1454,7 +1442,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(36):
             self.client.get(archived_url)
 
         response = self.assertListFetch(
@@ -1497,7 +1485,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(39):
             self.client.get(outbox_url)
 
         # messages sorted by created_on
@@ -1559,7 +1547,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(41):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
@@ -1586,7 +1574,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(40):
             self.client.get(failed_url)
 
         response = self.assertListFetch(
@@ -1700,7 +1688,7 @@ class BroadcastTest(TembaTest):
         # a Twitter channel
         self.twitter = self.create_channel("TT", "Twitter", "nyaruka")
 
-    def run_msg_release_test(self, tc):
+    def test_delete(self):
         label = Label.get_or_create(self.org, self.user, "Labeled")
 
         # create some incoming messages
@@ -1740,86 +1728,35 @@ class BroadcastTest(TembaTest):
         self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 1)
 
         self.org.clear_credit_cache()
-        self.assertEqual(self.org.get_credits_used(), 10)
-        self.assertEqual(self.org.get_credits_remaining(), 990)
+        self.assertEqual(10, self.org.get_credits_used())
+        self.assertEqual(990, self.org.get_credits_remaining())
 
         # delete all our messages save for our flow incoming message
         for m in Msg.objects.exclude(id=msg_in3.id):
-            if tc["delete_reason"] == Msg.DELETE_FOR_ARCHIVE:
-                archiver_delete(m)
-            else:
-                m.delete()
+            m.delete()
 
         # broadcasts should be unaffected
-        self.assertEqual(Broadcast.objects.count(), tc["broadcast_count"])
+        self.assertEqual(2, Broadcast.objects.count())
 
         # credit usage remains the same
         self.org.clear_credit_cache()
-        self.assertEqual(self.org.get_credits_used(), tc["credits_used"])
-        self.assertEqual(self.org.get_credits_remaining(), tc["credits_remaining"])
+        self.assertEqual(10, self.org.get_credits_used())
+        self.assertEqual(990, self.org.get_credits_remaining())
 
         # check system label counts have been updated
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_INBOX], tc["inbox_count"])
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FLOWS], tc["flow_count"])
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], tc["sent_count"])
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], tc["failed_count"])
+        self.assertEqual(0, SystemLabel.get_counts(self.org)[SystemLabel.TYPE_INBOX])
+        self.assertEqual(1, SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FLOWS])
+        self.assertEqual(0, SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT])
+        self.assertEqual(0, SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED])
 
         # check user label
-        self.assertEqual(LabelCount.get_totals([label])[label], tc["label_count"])
+        self.assertEqual(0, LabelCount.get_totals([label])[label])
 
         # but daily channel counts should be unchanged
-        self.assertEqual(
-            ChannelCount.get_day_count(self.channel, ChannelCount.INCOMING_MSG_TYPE, today), tc["sms_incoming_count"]
-        )
-        self.assertEqual(
-            ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), tc["sms_outgoing_count"]
-        )
-        self.assertEqual(
-            ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today),
-            tc["twitter_incoming_count"],
-        )
-        self.assertEqual(
-            ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today),
-            tc["twitter_outgoing_count"],
-        )
-
-    def test_delete_by_archiver(self):
-        self.run_msg_release_test(
-            {
-                "delete_reason": Msg.DELETE_FOR_ARCHIVE,
-                "broadcast_count": 2,
-                "label_count": 0,
-                "inbox_count": 0,
-                "flow_count": 1,
-                "sent_count": 0,
-                "failed_count": 0,
-                "credits_used": 10,
-                "credits_remaining": 990,
-                "sms_incoming_count": 3,
-                "sms_outgoing_count": 6,
-                "twitter_incoming_count": 0,
-                "twitter_outgoing_count": 1,
-            }
-        )
-
-    def test_delete_by_user(self):
-        self.run_msg_release_test(
-            {
-                "delete_reason": Msg.DELETE_FOR_USER,
-                "broadcast_count": 2,
-                "label_count": 0,
-                "inbox_count": 0,
-                "flow_count": 1,
-                "sent_count": 0,
-                "failed_count": 0,
-                "credits_used": 10,
-                "credits_remaining": 990,
-                "sms_incoming_count": 3,
-                "sms_outgoing_count": 6,
-                "twitter_incoming_count": 0,
-                "twitter_outgoing_count": 1,
-            }
-        )
+        self.assertEqual(3, ChannelCount.get_day_count(self.channel, ChannelCount.INCOMING_MSG_TYPE, today))
+        self.assertEqual(6, ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today))
+        self.assertEqual(0, ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today))
+        self.assertEqual(1, ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today))
 
     def test_model(self):
         broadcast1 = Broadcast.create(
@@ -2265,32 +2202,18 @@ class LabelTest(TembaTest):
 
         # can't label outgoing messages
         msg5 = self.create_outgoing_msg(self.joe, "Message")
-        self.assertRaises(ValueError, label.toggle_label, [msg5], add=True)
+        self.assertRaises(AssertionError, label.toggle_label, [msg5], add=True)
 
         # can't get a count of a folder
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        self.assertRaises(ValueError, folder.get_visible_count)
+        self.assertRaises(AssertionError, folder.get_visible_count)
 
-        # archive one of our messages, should change count
+        # squashing shouldn't affect counts
         self.assertEqual(LabelCount.get_totals([label])[label], 2)
 
-        archiver_delete(msg1)
-
-        self.assertEqual(LabelCount.get_totals([label])[label], 1)
-
-        # squash and check once more
         squash_msgcounts()
 
-        self.assertEqual(LabelCount.get_totals([label])[label], 1)
-
-        # do a hard deletion
-        msg3.delete()
-
-        self.assertEqual(LabelCount.get_totals([label])[label], 0)
-
-        squash_msgcounts()
-
-        self.assertEqual(LabelCount.get_totals([label])[label], 0)
+        self.assertEqual(LabelCount.get_totals([label])[label], 2)
 
     def test_get_messages_and_hierarchy(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")
@@ -2676,23 +2599,6 @@ class SystemLabelTest(TembaTest):
 
         # we should only have one system label per type
         self.assertEqual(SystemLabelCount.objects.all().count(), 7)
-
-        # archive one of our inbox messages
-        archiver_delete(msg1)
-
-        self.assertEqual(
-            SystemLabel.get_counts(self.org),
-            {
-                SystemLabel.TYPE_INBOX: 1,
-                SystemLabel.TYPE_FLOWS: 0,
-                SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 1,
-                SystemLabel.TYPE_SENT: 1,
-                SystemLabel.TYPE_FAILED: 1,
-                SystemLabel.TYPE_SCHEDULED: 2,
-                SystemLabel.TYPE_CALLS: 1,
-            },
-        )
 
 
 class TagsTest(TembaTest):

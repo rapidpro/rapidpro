@@ -9,26 +9,25 @@ from unittest.mock import PropertyMock, patch
 import pytz
 from django_redis import get_redis_connection
 from openpyxl import load_workbook
-from smartmin.tests import SmartminTestMixin
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import checks
-from django.core.management import CommandError, call_command
 from django.db import connection, models
 from django.forms import ValidationError
-from django.test import TestCase, TransactionTestCase, override_settings
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
 
 from celery.app.task import Task
 
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
+from temba.campaigns.models import Campaign
+from temba.contacts.models import Contact, ExportContactsTask
 from temba.flows.models import Flow, FlowRun
-from temba.orgs.models import Org
-from temba.tests import ESMockWithScroll, TembaTest, matchers
+from temba.tests import TembaTest, matchers
+from temba.triggers.models import Trigger
 from temba.utils import json, uuid
-from temba.utils.templatetags.temba import format_datetime
+from temba.utils.templatetags.temba import format_datetime, icon
 
 from . import chunk_list, countries, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
@@ -118,12 +117,12 @@ class InitTest(TembaTest):
     def test_sizeof_fmt(self):
         self.assertEqual("512.0 b", sizeof_fmt(512))
         self.assertEqual("1.0 Kb", sizeof_fmt(1024))
-        self.assertEqual("1.0 Mb", sizeof_fmt(1024 ** 2))
-        self.assertEqual("1.0 Gb", sizeof_fmt(1024 ** 3))
-        self.assertEqual("1.0 Tb", sizeof_fmt(1024 ** 4))
-        self.assertEqual("1.0 Pb", sizeof_fmt(1024 ** 5))
-        self.assertEqual("1.0 Eb", sizeof_fmt(1024 ** 6))
-        self.assertEqual("1.0 Zb", sizeof_fmt(1024 ** 7))
+        self.assertEqual("1.0 Mb", sizeof_fmt(1024**2))
+        self.assertEqual("1.0 Gb", sizeof_fmt(1024**3))
+        self.assertEqual("1.0 Tb", sizeof_fmt(1024**4))
+        self.assertEqual("1.0 Pb", sizeof_fmt(1024**5))
+        self.assertEqual("1.0 Eb", sizeof_fmt(1024**6))
+        self.assertEqual("1.0 Zb", sizeof_fmt(1024**7))
 
     def test_str_to_bool(self):
         self.assertFalse(str_to_bool(None))
@@ -252,11 +251,6 @@ class TimezonesTest(TembaTest):
 
 class TemplateTagTest(TembaTest):
     def test_icon(self):
-        from temba.campaigns.models import Campaign
-        from temba.triggers.models import Trigger
-        from temba.flows.models import Flow
-        from temba.utils.templatetags.temba import icon
-
         campaign = Campaign.create(self.org, self.admin, "Test Campaign", self.create_group("Test group", []))
         flow = Flow.create(self.org, self.admin, "Test Flow")
         trigger = Trigger.objects.create(
@@ -899,43 +893,6 @@ class MiddlewareTest(TembaTest):
         user_settings.save(update_fields=("language",))
 
         assert_text("Créez visuellement des applications mobiles")
-
-
-class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
-    def test_command(self):
-        self.create_anonymous_user()
-
-        with ESMockWithScroll():
-            call_command("test_db", num_orgs=3, num_contacts=30, seed=1234)
-
-        org1, org2, org3 = tuple(Org.objects.order_by("id"))
-
-        def assertOrgCounts(qs, counts):
-            self.assertEqual([qs.filter(org=o).count() for o in (org1, org2, org3)], counts)
-
-        self.assertEqual(
-            User.objects.exclude(username__in=["AnonymousUser", "root", "rapidpro_flow", "temba_flow"]).count(), 12
-        )
-        assertOrgCounts(ContactField.user_fields.all(), [6, 6, 6])
-        assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
-        assertOrgCounts(Contact.objects.all(), [10, 11, 9])
-
-        org_1_active_contacts = ContactGroup.system_groups.get(org=org1, name="Active")
-
-        self.assertEqual(org_1_active_contacts.contacts.count(), 9)
-        self.assertEqual(
-            list(ContactGroupCount.objects.filter(group=org_1_active_contacts).values_list("count")), [(9,)]
-        )
-
-        # same seed should generate objects with same UUIDs
-        self.assertEqual("f2a3f8c5-e831-4df3-b046-8d8cdb90f178", ContactGroup.user_groups.order_by("id").first().uuid)
-
-        # check if contact fields are serialized
-        self.assertIsNotNone(Contact.objects.first().fields)
-
-        # check generate can't be run again on a now non-empty database
-        with self.assertRaises(CommandError):
-            call_command("test_db", num_orgs=3, num_contacts=30, seed=1234)
 
 
 class JsonModelTestDefaultNull(models.Model):

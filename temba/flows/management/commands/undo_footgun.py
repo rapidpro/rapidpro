@@ -36,7 +36,7 @@ class Command(BaseCommand):
             if input(f"Undo {desc}? [y/N]: ") != "y":
                 return
 
-        self.stdout.write(f"Fetching run ids... ", ending="")
+        self.stdout.write("Fetching run ids... ", ending="")
         run_ids = list(start.runs.values_list("id", flat=True))
         self.stdout.write(f"found {len(run_ids)}")
 

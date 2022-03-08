@@ -4,6 +4,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 from temba.tests import MockResponse, TembaTest
+from temba.triggers.models import Trigger
 from temba.utils import json
 
 from ...models import Channel
@@ -80,11 +81,11 @@ class FacebookTypeTest(TembaTest):
             },
         )
         mock_get.assert_any_call(
-            "https://graph.facebook.com/v7.0/098765/accounts", params={"access_token": f"long-life-user-{token}"}
+            "https://graph.facebook.com/v12.0/098765/accounts", params={"access_token": f"long-life-user-{token}"}
         )
 
         mock_post.assert_any_call(
-            "https://graph.facebook.com/v7.0/123456/subscribed_apps",
+            "https://graph.facebook.com/v12.0/123456/subscribed_apps",
             data={
                 "subscribed_fields": "messages,message_deliveries,messaging_optins,messaging_optouts,messaging_postbacks,message_reads,messaging_referrals,messaging_handovers"
             },
@@ -119,7 +120,7 @@ class FacebookTypeTest(TembaTest):
         self.channel.release(self.admin)
 
         mock_delete.assert_called_once_with(
-            "https://graph.facebook.com/v7.0/12345/subscribed_apps", params={"access_token": "09876543"}
+            "https://graph.facebook.com/v12.0/12345/subscribed_apps", params={"access_token": "09876543"}
         )
 
     @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
@@ -183,13 +184,55 @@ class FacebookTypeTest(TembaTest):
             },
         )
         mock_get.assert_any_call(
-            "https://graph.facebook.com/v7.0/098765/accounts", params={"access_token": f"long-life-user-{token}"}
+            "https://graph.facebook.com/v12.0/098765/accounts", params={"access_token": f"long-life-user-{token}"}
         )
 
         mock_post.assert_any_call(
-            "https://graph.facebook.com/v7.0/12345/subscribed_apps",
+            "https://graph.facebook.com/v12.0/12345/subscribed_apps",
             data={
                 "subscribed_fields": "messages,message_deliveries,messaging_optins,messaging_optouts,messaging_postbacks,message_reads,messaging_referrals,messaging_handovers"
             },
             params={"access_token": f"page-long-life-{token}"},
         )
+
+    def test_new_conversation_triggers(self):
+        flow = self.create_flow()
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
+
+            trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow, channel=self.channel)
+
+            mock_post.assert_called_once_with(
+                "https://graph.facebook.com/v12.0/me/messenger_profile",
+                json={"get_started": {"payload": "get_started"}},
+                headers={"Content-Type": "application/json"},
+                params={"access_token": "09876543"},
+            )
+            mock_post.reset_mock()
+
+        with patch("requests.delete") as mock_post:
+            mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
+
+            trigger.archive(self.admin)
+
+            mock_post.assert_called_once_with(
+                "https://graph.facebook.com/v12.0/me/messenger_profile",
+                json={"fields": ["get_started"]},
+                headers={"Content-Type": "application/json"},
+                params={"access_token": "09876543"},
+            )
+            mock_post.reset_mock()
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
+
+            trigger.restore(self.admin)
+
+            mock_post.assert_called_once_with(
+                "https://graph.facebook.com/v12.0/me/messenger_profile",
+                json={"get_started": {"payload": "get_started"}},
+                headers={"Content-Type": "application/json"},
+                params={"access_token": "09876543"},
+            )
+            mock_post.reset_mock()

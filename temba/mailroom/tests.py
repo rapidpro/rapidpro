@@ -452,7 +452,7 @@ class MailroomQueueTest(TembaTest):
         r = get_redis_connection()
 
         # noop, this event isn't handled by mailroom
-        self.assertEqual(0, r.zcard(f"handler:active"))
+        self.assertEqual(0, r.zcard("handler:active"))
         self.assertEqual(0, r.zcard(f"handler:{self.org.id}"))
         self.assertEqual(0, r.llen(f"c:{self.org.id}:{event.contact_id}"))
 
@@ -648,7 +648,7 @@ class MailroomQueueTest(TembaTest):
 
         run = FlowRun.objects.get(contact=jim)
         session = run.session
-        run.release("U")
+        run.delete()
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
@@ -907,7 +907,7 @@ class EventTest(TembaTest):
             {
                 "type": "campaign_fired",
                 "created_on": fire.fired.isoformat(),
-                "campaign": {"id": campaign.id, "name": "Welcomes"},
+                "campaign": {"id": campaign.id, "name": "Welcomes", "uuid": campaign.uuid},
                 "campaign_event": {
                     "id": event.id,
                     "offset_display": "1 week after",

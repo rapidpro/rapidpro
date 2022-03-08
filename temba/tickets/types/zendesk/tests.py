@@ -143,9 +143,9 @@ class ZendeskTypeTest(TembaTest):
                 "channelback_files": True,
                 "push_client_id": "temba",
                 "urls": {
-                    "admin_ui": f"https://app.rapidpro.io/tickets/types/zendesk/admin_ui",
-                    "channelback_url": f"https://app.rapidpro.io/mr/tickets/types/zendesk/channelback",
-                    "event_callback_url": f"https://app.rapidpro.io/mr/tickets/types/zendesk/event_callback",
+                    "admin_ui": "https://app.rapidpro.io/tickets/types/zendesk/admin_ui",
+                    "channelback_url": "https://app.rapidpro.io/mr/tickets/types/zendesk/channelback",
+                    "event_callback_url": "https://app.rapidpro.io/mr/tickets/types/zendesk/event_callback",
                 },
             },
             response.json(),

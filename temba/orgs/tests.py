@@ -471,7 +471,7 @@ class UserTest(TembaTest):
 
     @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_confirm_access(self):
-        confirm_url = reverse("users.confirm_access") + f"?next=/msg/inbox/"
+        confirm_url = reverse("users.confirm_access") + "?next=/msg/inbox/"
         failed_url = reverse("users.user_failed")
 
         # try to access before logging in
@@ -3205,7 +3205,7 @@ class OrgTest(TembaTest):
         sub_org.refresh_from_db()
         self.assertEqual("New Sub Org Name", sub_org.name)
 
-        self.assertEqual(response.url, f"/org/sub_orgs/")
+        self.assertEqual(response.url, "/org/sub_orgs/")
 
         # edit our sub org's details in a spa view
         response = self.client.post(
@@ -3368,19 +3368,19 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_menu(self):
         self.login(self.admin)
-        self.assertMenu(reverse("orgs.org_menu"), 6)
+        self.assertMenu(reverse("orgs.org_menu"), 7)
         self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 14)
 
         menu_url = reverse("orgs.org_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=True)
         menu = response.json()["results"]
-        self.assertEqual(6, len(menu))
+        self.assertEqual(7, len(menu))
 
-        # agents should only see tickets, settings, and support
+        # agents should only see tickets and settings
         self.login(self.agent)
         response = self.client.get(menu_url)
         menu = response.json()["results"]
-        self.assertEqual(3, len(menu))
+        self.assertEqual(2, len(menu))
 
     def test_workspace(self):
         response = self.assertListFetch(

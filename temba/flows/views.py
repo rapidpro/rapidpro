@@ -24,7 +24,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_str
@@ -151,7 +151,7 @@ class FlowRunCRUDL(SmartCRUDL):
         success_message = None
 
         def post(self, request, *args, **kwargs):
-            self.get_object().release(FlowRun.DELETE_FOR_USER)
+            self.get_object().delete()
             return HttpResponse()
 
 
@@ -932,7 +932,7 @@ class FlowCRUDL(SmartCRUDL):
             label = FlowLabel.objects.get(uuid=self.kwargs["uuid"])
             children = label.children.all()
             if children:  # pragma: needs cover
-                return [l for l in FlowLabel.objects.filter(parent=label)] + [label]
+                return [lb for lb in FlowLabel.objects.filter(parent=label)] + [label]
             else:
                 return [label]
 
@@ -1082,20 +1082,26 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export Definition"), href=f"{reverse('orgs.org_export')}?flow={flow.id}"))
-            if self.has_org_perm("flows.flow_export_translation"):
-                links.append(
-                    dict(
-                        id="export-translation",
-                        title=_("Export Translation"),
-                        href=f"{reverse('flows.flow_export_translation', args=[self.object.pk])}",
-                        modax=_("Export Translation"),
-                    )
-                )
 
-            if self.has_org_perm("flows.flow_import_translation"):
-                links.append(
-                    dict(title=_("Import Translation"), href=reverse("flows.flow_import_translation", args=[flow.id]))
-                )
+            # limit PO export/import to non-archived flows since mailroom doesn't know about archived flows
+            if not self.object.is_archived:
+                if self.has_org_perm("flows.flow_export_translation"):
+                    links.append(
+                        dict(
+                            id="export-translation",
+                            title=_("Export Translation"),
+                            href=f"{reverse('flows.flow_export_translation', args=[self.object.pk])}",
+                            modax=_("Export Translation"),
+                        )
+                    )
+
+                if self.has_org_perm("flows.flow_import_translation"):
+                    links.append(
+                        dict(
+                            title=_("Import Translation"),
+                            href=reverse("flows.flow_import_translation", args=[flow.id]),
+                        )
+                    )
 
             user = self.get_user()
             if user.is_superuser or user.is_staff:
@@ -1181,26 +1187,25 @@ class FlowCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(download_url)
 
-    class DownloadTranslation(OrgObjPermsMixin, SmartListView):
+    class DownloadTranslation(OrgPermsMixin, SmartListView):
         """
         Download link for PO translation files extracted from flows by mailroom
         """
 
-        def get_object_org(self):
-            self.flows = Flow.objects.filter(id__in=self.request.GET.getlist("flow"), is_active=True)
-            flow_orgs = {flow.org for flow in self.flows}
-            return self.flows[0].org if len(flow_orgs) == 1 else None
-
         def get(self, request, *args, **kwargs):
-            org = self.request.user.get_org()
+            org = self.request.org
+            flow_ids = self.request.GET.getlist("flow")
+            flows = org.flows.filter(id__in=flow_ids, is_active=True)
+            if len(flows) != len(flow_ids):
+                raise Http404()
 
             language = request.GET.get("language", "")
-            filename = slugify_with(self.flows[0].name) if len(self.flows) == 1 else "flows"
+            filename = slugify_with(flows[0].name) if len(flows) == 1 else "flows"
             if language:
                 filename += f".{language}"
             filename += ".po"
 
-            po = Flow.export_translation(org, self.flows, language)
+            po = Flow.export_translation(org, flows, language)
 
             response = HttpResponse(po, content_type="text/x-gettext-translation")
             response["Content-Disposition"] = f'attachment; filename="{filename}"'

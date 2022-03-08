@@ -2640,12 +2640,11 @@ class APITest(TembaTest):
         reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
         color.labels.add(reporting)
 
-        # make it look like joe completed a the color flow
+        # make it look like joe completed the color flow
         run = FlowRun.objects.create(org=self.org, flow=color, contact=self.joe)
-        run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
+        run.status = FlowRun.STATUS_COMPLETED
         run.exited_on = timezone.now()
-        run.is_active = False
-        run.save(update_fields=("exit_type", "exited_on", "modified_on", "is_active"))
+        run.save(update_fields=("status", "exited_on", "modified_on"))
 
         # flow belong to other org
         self.create_flow(org=self.org2, name="Other")
@@ -3007,6 +3006,10 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"name": "reporters"})
         self.assertResponseError(response, "name", "This field must be unique.")
 
+        # try to create another group with same name as a system group..
+        response = self.postJSON(url, "uuid=%s" % reporters.uuid, {"name": "blocked"})
+        self.assertResponseError(response, "name", "This field must be unique.")
+
         # it's fine if a group in another org has that name
         response = self.postJSON(url, None, {"name": "Spammers"})
         self.assertEqual(response.status_code, 201)
@@ -3253,7 +3256,7 @@ class APITest(TembaTest):
                 "archived": msg.visibility == "A",
                 "visibility": msg_visibility,
                 "text": msg.text,
-                "labels": [dict(name=l.name, uuid=l.uuid) for l in msg.labels.all()],
+                "labels": [{"name": lb.name, "uuid": lb.uuid} for lb in msg.labels.all()],
                 "attachments": [{"content_type": a.content_type, "url": a.url} for a in msg.get_attachments()],
                 "created_on": format_datetime(msg.created_on),
                 "sent_on": format_datetime(msg.sent_on),

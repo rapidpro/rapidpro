@@ -89,4 +89,4 @@ class DTOneClientTest(TembaTest):
         with self.assertRaises(DTOneClient.Exception) as error:
             self.client.get_balances()
 
-        self.assertEqual(str(error.exception), f"Unauthorized")
+        self.assertEqual(str(error.exception), "Unauthorized")

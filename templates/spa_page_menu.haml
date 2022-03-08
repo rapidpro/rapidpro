@@ -113,9 +113,12 @@
 :javascript
 
   document.querySelector("html").addEventListener("click", function(event) {
-    var classes = document.querySelector(".more").classList;
-    if (classes.contains("open")) {
-      classes.remove("open");
+    var more = document.querySelector(".more");
+    if (more) {
+      var classes = more.classList;
+      if (classes.contains("open")) {
+        classes.remove("open");
+      }
     }
   });
 
@@ -132,30 +135,23 @@
     }
   }
 
-  function showModax(header, endpoint) {
-    const modax = document.querySelector("temba-modax#gear-modax");
-    modax.header = header;
-    modax.endpoint = endpoint;
-    modax.headers = { "TEMBA-SPA": 1}
-    modax.open = true;
-  }
-
   function handleMoreToggle(event) {
-    var classes = document.querySelector(".more").classList;
-    if (classes.contains("open")) {
-      classes.remove("open");
-    } else {
-      classes.add("open");
+    var more = document.querySelector(".more");
+    if (more) {
+      var classes = more.classList;
+      if (classes.contains("open")) {
+        classes.remove("open");
+      } else {
+        classes.add("open");
+      }
+      event.stopPropagation();
+      event.preventDefault();
     }
-    event.stopPropagation();
-    event.preventDefault();
   }
 
 -with gear_links=view.get_gear_links
 
   -if gear_links
-    %temba-modax#gear-modax
-
     .flex.h-full
       -with link=gear_links|first
         .header-button.flex.flex-column.items-center.px-4{onclick:'handleMenuClicked(event)', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}'}
