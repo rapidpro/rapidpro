@@ -33,24 +33,20 @@ from .models import Trigger
 class FlowParamsMixin:
     def pre_save(self, obj, *args, **kwargs):
         obj = super().pre_save(obj, *args, **kwargs)
-        obj.org = self.request.user.get_org()
-
-        flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
-        flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
-
-        params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
-        obj.extra = params if params else None
-
+        obj.extra = self.flow_params
         return obj
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        obj = self.get_object()
-        if obj.extra:
-            context["flow_parameters_fields"] = "|".join([f"@trigger.params.{key}" for key in obj.extra.keys()])
-            context["flow_parameters_values"] = "|".join(obj.extra.values())
-        params_context = flow_params_context(self.request)
-        context.update(params_context)
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(*args, **kwargs)
+        try:
+            obj = self.get_object()
+            if obj.extra:
+                context["flow_parameters_fields"] = "|".join([f"@trigger.params.{key}" for key in obj.extra.keys()])
+                context["flow_parameters_values"] = "|".join(obj.extra.values())
+            params_context = flow_params_context(self.request)
+            context.update(params_context)
+        except AttributeError:
+            pass
         return context
 
     @property
@@ -436,6 +432,7 @@ class TriggerCRUDL(SmartCRUDL):
                 flow,
                 groups=groups,
                 exclude_groups=exclude_groups,
+                extra=self.flow_params,
                 **self.get_create_kwargs(user, form.cleaned_data),
             )
 
@@ -471,6 +468,7 @@ class TriggerCRUDL(SmartCRUDL):
                 groups=groups,
                 exclude_groups=exclude_groups,
                 keyword=keyword,
+                extra=self.flow_params,
             )
 
             response = self.render_to_response(self.get_context_data(form=form))

@@ -120,6 +120,15 @@
                         -else
                           -trans "is not scheduled"
 
+                      -if obj.extra
+                        |
+                        -trans "Contains "
+                        - if org_perms.triggers.trigger_update
+                          %a.update-trigger{ data-object-id: "{{ obj.id }}", onclick:"updateTrigger(event, {{obj.id}})" }
+                            -trans "flow parameters"
+                        - else
+                          -trans "Contains flow parameters"
+
                     %td(onclick="handleRowSelection(this)" width="250px")
                       -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all
 
