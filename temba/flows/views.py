@@ -2856,7 +2856,7 @@ class FlowCRUDL(SmartCRUDL):
                 contacts = list(omnibox["contacts"])
 
             analytics.track(
-                self.request.user.username,
+                self.request.user,
                 "temba.flow_broadcast",
                 dict(contacts=len(contacts), groups=len(groups), query=contact_query),
             )
@@ -2867,8 +2867,8 @@ class FlowCRUDL(SmartCRUDL):
                 groups,
                 contacts,
                 contact_query,
-                restart_participants=form.cleaned_data["restart_participants"],
-                include_active=form.cleaned_data["include_active"],
+                include_active=not form.cleaned_data["exclude_in_other"],
+                restart_participants=not form.cleaned_data["exclude_reruns"],
                 params=flow_params,
             )
 
