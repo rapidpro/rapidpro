@@ -1,3 +1,7 @@
+v7.2.1
+----------
+ * Update locale files
+
 v7.2.0
 ----------
  * Disallow PO export/import for archived flows because mailroom doesn't know about them
