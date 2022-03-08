@@ -11,7 +11,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-11-11 19:13+0000\n"
+"POT-Creation-Date: 2022-03-08 15:56+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: trendspotter <jirka.p@volny.cz>, 2021\n"
 "Language-Team: Czech (https://www.transifex.com/rapidpro/teams/226/cs/)\n"
@@ -178,20 +178,43 @@ msgstr "Pouze kontakty v této skupině budou zahrnuty do událostí této kampa
 msgid "Name"
 msgstr "Název"
 
+msgid "Active"
+msgstr "Aktivní"
+
+msgid "Archived"
+msgstr "Archivované"
+
+#, fuzzy
+#| msgid "Campaign"
+msgid "New Campaign"
+msgstr "Kampaň"
+
 msgid "Export"
 msgstr "Export"
 
-msgid "Add Event"
-msgstr "Přidat Událost"
+msgid "New Event"
+msgstr "Nová událost"
 
 msgid "Edit"
 msgstr "Upravit"
 
-msgid "Update Campaign"
+#, fuzzy
+#| msgid "Update Campaign"
+msgid "Edit Campaign"
 msgstr "Aktualizovat kampaň"
 
 msgid "Service"
 msgstr "Služba"
+
+#, fuzzy
+#| msgid "Campaigns"
+msgid "Active Campaigns"
+msgstr "Kampaně"
+
+#, fuzzy
+#| msgid "Archived Contacts"
+msgid "Archived Campaigns"
+msgstr "Archivované kontakty"
 
 msgid "Campaign archived"
 msgstr "Kampaň archivována"
@@ -217,7 +240,9 @@ msgstr "Vyberte pole s datem, na kterém bude tato událost založena"
 msgid "Select hour for delivery"
 msgstr "Zvolte hodinu doručení"
 
-msgid "Stop it and start this event"
+#, fuzzy
+#| msgid "Stop it and start this event"
+msgid "Stop it and run this flow"
 msgstr "Zastavit a spustit tuto událost"
 
 msgid "Skip this event"
@@ -249,14 +274,27 @@ msgstr "Ahoj @contact.name! Toto je jen přátelská připomínka, abyste použi
 msgid "Default"
 msgstr "Výchozí"
 
-msgid "Update Event"
-msgstr "Aktualizace události"
+msgid "This is a background flow. When it triggers, it will run it for all contacts without interruption."
+msgstr ""
+
+#, fuzzy
+#| msgid "Send History"
+msgid "Event History"
+msgstr "Historie odesílání"
+
+#, fuzzy
+#| msgid "Add Event"
+msgid "Edit Event"
+msgstr "Přidat Událost"
 
 msgid "Delete Event"
 msgstr "Smazat událost"
 
 msgid "Delete"
 msgstr "Smazat"
+
+msgid "Save"
+msgstr "Uložit"
 
 msgid "Default Encoding"
 msgstr "Výchozí kódování"
@@ -1108,6 +1146,19 @@ msgstr "Tento koncový bod by měl být zavolán pomocí příkazu POST společn
 msgid "This endpoint should be called with a POST by Infobip when a message has been to the final recipient. (delivery reports) You can set the delivery callback URL on your Infobip account by contacting your sales agent."
 msgstr "Tento koncový bod by měl být zavolán pomocí příkazu POST společností Infobip, když je zpráva doručena konečnému příjemci. (zprávy o doručení) URL zpětného volání o doručení můžete nastavit na svém účtu Infobipu u svého obchodního zástupce."
 
+msgid "Reconnect Instagram Business Account"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users."
+msgid "Add an %(link)s bot to send and receive messages on behalf of a business Instagram account."
+msgstr "Přidání bota %(link)s pro odesílání a přijímání zpráv uživatelům služby Rocket.Chat."
+
+#, fuzzy
+#| msgid "Sorry your Facebook channel could not be connected. Please try again"
+msgid "Sorry your Instagram channel could not be connected. Please try again"
+msgstr "Je nám líto, ale váš kanál na Facebooku se nepodařilo připojit. Zkuste to prosím znovu"
+
 #, python-format
 msgid "Connect your %(link)s instance that you have already connected to an SMSC."
 msgstr "Připojte instanci %(link)s, kterou jste již připojili k SMSC."
@@ -1180,7 +1231,9 @@ msgstr "Heslo, které se použije pro ověření do aplikace Junebug."
 msgid "The token Junebug should use to authenticate"
 msgstr "Token, který by měl program Junebug použít k ověření."
 
-msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+#, fuzzy
+#| msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp</a>"
 msgstr "Aktivujte si v aplikaci Kaleyra vlastní podnikový účet WhatsApp a komunikujte se svými kontakty. <a href=\"https://www.kaleyra.com/whatsapp/\">Zjistěte více o aplikaci Kaleyra WhatsApp"
 
 msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
@@ -2097,6 +2150,9 @@ msgstr "Nelze získat přístup k wit.ai pomocí pověření, zkontrolujte to pr
 msgid "Connect"
 msgstr "Připojit"
 
+msgid "Add Classifier"
+msgstr "Přidat klasifikátor"
+
 msgid "Your classifier has been deleted."
 msgstr "Váš klasifikátor byl odstraněn."
 
@@ -2120,6 +2176,11 @@ msgstr "Telefonní číslo"
 
 msgid "Facebook identifier"
 msgstr "Identifikátor Facebooku"
+
+#, fuzzy
+#| msgid "Telegram identifier"
+msgid "Instagram identifier"
+msgstr "Identifikátor Telegram"
 
 msgid "Twitter handle"
 msgstr "Twitter handle"
@@ -2311,17 +2372,11 @@ msgstr "Query"
 msgid "Only contacts matching this query will belong to this group."
 msgstr "Do této skupiny budou patřit pouze kontakty odpovídající tomuto dotazu."
 
-msgid "Active"
-msgstr "Aktivní"
-
 msgid "Blocked"
 msgstr "Blokované"
 
 msgid "Stopped"
 msgstr "Zastavené"
-
-msgid "Archived"
-msgstr "Archivované"
 
 #, python-brace-format
 msgid "{label} for this contact"
@@ -2357,9 +2412,6 @@ msgstr "Volitelně: Vyberte skupiny, které se mají zobrazit v exportu"
 
 msgid "Include group membership only for these groups. (Leave blank to ignore group memberships)."
 msgstr "Zahrňte členství ve skupině pouze pro tyto skupiny. (Pro ignorování členství ve skupinách nechte prázdné)."
-
-msgid "Smart Groups"
-msgstr "Chytré skupiny"
 
 msgid "Fields"
 msgstr "Pole"
@@ -2469,6 +2521,9 @@ msgstr "Typ hodnot, které budou uloženy v tomto poli."
 msgid "Manage Contact Fields"
 msgstr "Správa kontaktních polí"
 
+msgid "All"
+msgstr "Vše"
+
 #, python-format
 msgid "Cannot create a new field as limit is %(limit)s."
 msgstr "Nelze vytvořit nové pole, protože limit je %(limit)s."
@@ -2520,48 +2575,6 @@ msgstr "Telefonní hovor"
 msgid "Background"
 msgstr "Pozadí"
 
-msgid "The name for this flow"
-msgstr "Název tohoto toku"
-
-msgid "Minutes of inactivity that will cause expiration from flow"
-msgstr "Minuty nečinnosti, které způsobí vypršení toku."
-
-msgid "Ignore keyword triggers while in this flow"
-msgstr "Ignorování spouštěčů klíčových slov v tomto toku"
-
-msgid "The authoring language, additional languages can be added later"
-msgstr "Autorizační jazyk, další jazyky lze přidat později."
-
-msgid "Flow"
-msgstr "Tok"
-
-msgid "Flows"
-msgstr "Toky"
-
-msgid "Archive delete"
-msgstr "Odstranění archivu"
-
-msgid "User delete"
-msgstr "Odstranění uživatele"
-
-msgid "The JSON flow definition"
-msgstr "Definice toku ve formátu JSON"
-
-msgid "The flow version this definition is in"
-msgstr "Toková verze této definice je v"
-
-msgid "Revision number for this definition"
-msgstr "Číslo revize této definice"
-
-msgid "The flows to export"
-msgstr "Toky pro export"
-
-msgid "Any configuration options for this flow export"
-msgstr "Veškeré možnosti konfigurace pro tento export toku"
-
-msgid "Starting"
-msgstr "Začíná"
-
 msgid "After 5 minutes"
 msgstr "Po 5 minutách"
 
@@ -2606,6 +2619,54 @@ msgstr "Po 2 týdnech"
 
 msgid "After 30 days"
 msgstr "Po 30 dnech"
+
+msgid "After 1 minute"
+msgstr "Po 1 minutě"
+
+msgid "After 2 minutes"
+msgstr "Po 2 minutách"
+
+msgid "After 3 minutes"
+msgstr "Po 3 minutách"
+
+msgid "After 4 minutes"
+msgstr "Po 4 minutách"
+
+msgid "The name for this flow"
+msgstr "Název tohoto toku"
+
+msgid "Minutes of inactivity that will cause expiration from flow"
+msgstr "Minuty nečinnosti, které způsobí vypršení toku."
+
+msgid "Ignore keyword triggers while in this flow"
+msgstr "Ignorování spouštěčů klíčových slov v tomto toku"
+
+msgid "The authoring language, additional languages can be added later"
+msgstr "Autorizační jazyk, další jazyky lze přidat později."
+
+msgid "Flow"
+msgstr "Tok"
+
+msgid "Flows"
+msgstr "Toky"
+
+msgid "The JSON flow definition"
+msgstr "Definice toku ve formátu JSON"
+
+msgid "The flow version this definition is in"
+msgstr "Toková verze této definice je v"
+
+msgid "Revision number for this definition"
+msgstr "Číslo revize této definice"
+
+msgid "The flows to export"
+msgstr "Toky pro export"
+
+msgid "Any configuration options for this flow export"
+msgstr "Veškeré možnosti konfigurace pro tento export toku"
+
+msgid "Starting"
+msgstr "Začíná"
 
 #, python-format
 msgid "\"%(keyword)s\" must be a single word, less than %(limit)d characters, containing only letter and numbers"
@@ -2720,12 +2781,6 @@ msgstr "Neplatný jazyk."
 msgid "Include translations in this language."
 msgstr "Zahrnout překlady v tomto jazyce."
 
-msgid "Include Arguments"
-msgstr "Zahrnout argumenty"
-
-msgid "Include arguments to tests on splits"
-msgstr "Zahrnout argumenty do testů na rozdělení"
-
 msgid "PO translation file"
 msgstr "Soubor překladu PO"
 
@@ -2761,12 +2816,6 @@ msgstr "Pouze ti co odpověděli"
 msgid "Only export results for contacts which responded"
 msgstr "Exportovat pouze výsledky kontaktů, které odpověděly"
 
-msgid "Include Messages"
-msgstr "Včetně zpráv"
-
-msgid "Export all messages sent and received in this flow"
-msgstr "Exportovat všechny zprávy odeslané a přijaté v tomto toku"
-
 #, python-brace-format
 msgid "You can only include up to {ExportFlowResultsTask.MAX_CONTACT_FIELDS_COLS} contact fields in your export"
 msgstr "Do exportu můžete zahrnout pouze maximálně {ExportFlowResultsTask.MAX_CONTACT_FIELDS_COLS} kontaktních polí."
@@ -2775,8 +2824,8 @@ msgstr "Do exportu můžete zahrnout pouze maximálně {ExportFlowResultsTask.MA
 msgid "You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
 msgstr "Do exportu můžete zahrnout pouze skupiny do výše {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} pro členství ve skupině."
 
-msgid "Download Results"
-msgstr "Výsledky ke stažení"
+msgid "Download"
+msgstr "Stáhnout"
 
 msgid "Sunday"
 msgstr "Neděle"
@@ -2799,23 +2848,21 @@ msgstr "Pátek"
 msgid "Saturday"
 msgstr "Sobota"
 
-msgid "Download"
-msgstr "Stáhnout"
-
-msgid "Enter contacts and groups to start below"
-msgstr "Níže zadejte kontakty a skupiny, které chcete spustit"
-
-msgid "Search for contacts to start"
-msgstr "Vyhledávání kontaktů pro zahájení"
-
-msgid "Select contacts or groups to start in the flow"
-msgstr "Vyberte kontakty nebo skupiny, které chcete spustit v toku"
-
-msgid "Select contact and groups"
-msgstr "Vybrat kontakt a skupiny"
+msgid "Download Results"
+msgstr "Výsledky ke stažení"
 
 msgid "Enter contact query"
 msgstr "Zadejte dotaz na kontakt"
+
+#, fuzzy
+#| msgid "Expire inactive contacts"
+msgid "Exclude inactive contacts"
+msgstr "Vypršení neaktivních kontaktů"
+
+#, fuzzy
+#| msgid "Any contacts who have gone through this flow in the last 90 days will not be started again."
+msgid "Any contacts who have not sent a message in the last 90 days will not be started."
+msgstr "Kontakty, které prošly tímto tokem v posledních 90 dnech, nebudou znovu spuštěny."
 
 msgid "Exclude contacts currently in a flow"
 msgstr "Vyloučit kontakty, které jsou aktuálně v toku"
@@ -2845,9 +2892,6 @@ msgstr "Tento tok nezadává téma Facebooku. Tento tok můžete spustit, ale ko
 
 msgid "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr "Tento tok nepoužívá šablony zpráv. Tento tok můžete i nadále spustit, ale kontakty aplikace WhatsApp, které v posledních 24 hodinách neodeslaly žádnou příchozí zprávu, ji nemusí přijmout."
-
-msgid "Please read the options below carefully as they have changed recently."
-msgstr "Pozorně si přečtěte níže uvedené možnosti, protože se nedávno změnily."
 
 msgid "The message template {ref['name']} does not exist on your account and cannot be sent."
 msgstr "Šablona zprávy {ref['name']} na vašem účtu neexistuje a nelze ji odeslat."
@@ -2887,23 +2931,8 @@ msgstr "Hodnota"
 msgid "Manage Globals"
 msgstr "Správa globálních parametrů"
 
-msgid "All"
-msgstr "Vše"
-
 msgid "Unused"
 msgstr "Nepoužité"
-
-msgid "After 1 minute"
-msgstr "Po 1 minutě"
-
-msgid "After 2 minutes"
-msgstr "Po 2 minutách"
-
-msgid "After 3 minutes"
-msgstr "Po 3 minutách"
-
-msgid "After 4 minutes"
-msgstr "Po 4 minutách"
 
 msgid "Never"
 msgstr "Nikdy"
@@ -2927,7 +2956,7 @@ msgid "Error"
 msgstr "Chyba"
 
 msgid "Resent"
-msgstr ""
+msgstr "Znovu odeslat"
 
 msgid "The date for the oldest message to export"
 msgstr "Datum nejstarší zprávy, která se má exportovat"
@@ -3019,6 +3048,14 @@ msgstr "Datum zahájení nesmí být v budoucnosti."
 msgid "End date can't be before start date"
 msgstr "Datum ukončení nesmí být před datem zahájení"
 
+#, fuzzy
+#| msgid "Schedule"
+msgid "Scheduled"
+msgstr "Rozvrh"
+
+msgid "Labels"
+msgstr "Štítky"
+
 msgid "Flow Messages"
 msgstr "Zprávy o toku"
 
@@ -3071,20 +3108,10 @@ msgstr "Váš štítek byl smazán."
 msgid "Your label folder has been deleted."
 msgstr "Vaše složka se štítky byla odstraněna."
 
-msgid "Agent Name"
-msgstr "Jméno agenta"
-
-msgid "Your Chatbase agent's name."
-msgstr "Jméno vašeho agenta Chatbase."
-
-msgid "The chatbase agent's API Key."
-msgstr "Klíč API agenta chatbase."
-
-msgid "Version"
-msgstr "Verze"
-
-msgid "Missing agent name or API key."
-msgstr "Chybí jméno agenta nebo klíč API."
+#, fuzzy
+#| msgid "Recipients"
+msgid "Incidents"
+msgstr "Příjemci"
 
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr "Zdá se, že váš klíč a tajný klíč API DT One jsou neplatné. Zkontrolujte je prosím znovu a zkuste to znovu."
@@ -3429,6 +3456,58 @@ msgstr "Dvoufaktorové ověřování"
 msgid "Two-factor authentication backup tokens changed."
 msgstr "Změna záložních tokenů dvoufaktorového ověřování."
 
+#, fuzzy
+#| msgid "Account SID"
+msgid "Account"
+msgstr "Account SID"
+
+msgid "Security"
+msgstr ""
+
+#, fuzzy
+#| msgid "Enable"
+msgid "Enable 2FA"
+msgstr "Povolit"
+
+#, fuzzy
+#| msgid "Login"
+msgid "Logins"
+msgstr "Přihlášení"
+
+#, fuzzy
+#| msgid "Classifier"
+msgid "Classifiers"
+msgstr "Klasifikátor"
+
+msgid "Zapier"
+msgstr ""
+
+#, fuzzy
+#| msgid "Interactions"
+msgid "Integrations"
+msgstr "Interakce"
+
+#, fuzzy
+#| msgid "Archive"
+msgid "Archives"
+msgstr "Archiv"
+
+#, fuzzy
+#| msgid "Flows"
+msgid "Flow Runs"
+msgstr "Toky"
+
+#, fuzzy
+#| msgid "Workspaces"
+msgid "Child Workspaces"
+msgstr "Pracovní prostory"
+
+msgid "Tickets"
+msgstr "Tikety"
+
+msgid "Triggers"
+msgstr "Spouštěče"
+
 msgid "The import file"
 msgstr "Importní soubor"
 
@@ -3570,6 +3649,11 @@ msgstr "Pracovní prostor musí mít alespoň jednoho správce."
 msgid "Manage Logins"
 msgstr "Správa přihlašovacích údajů"
 
+#, fuzzy
+#| msgid "Workspace"
+msgid "Edit Workspace"
+msgstr "Pracovní prostor"
+
 msgid "Dashboard"
 msgstr "Ovládací panel"
 
@@ -3628,17 +3712,8 @@ msgstr "Vytvořit účet pracovního prostoru"
 msgid "Sign Up"
 msgstr "Zaregistrovat se"
 
-msgid "Save"
-msgstr "Uložit"
-
-msgid "New Event"
-msgstr "Nová událost"
-
 msgid "Your Account"
 msgstr "Váš účet"
-
-msgid "Add Classifier"
-msgstr "Přidat klasifikátor"
 
 msgid "Add Ticketing Service"
 msgstr "Přidání služby přiřazení tiketů"
@@ -3840,7 +3915,7 @@ msgid "English"
 msgstr "Angličtina"
 
 msgid "Czech"
-msgstr ""
+msgstr "Čeština"
 
 msgid "Spanish"
 msgstr "Španělština"
@@ -3849,7 +3924,7 @@ msgid "French"
 msgstr "Francouzština"
 
 msgid "Mongolian"
-msgstr ""
+msgstr "Mongolština"
 
 msgid "Portuguese"
 msgstr "Portugalština"
@@ -3937,9 +4012,6 @@ msgstr "Pro tuto subdoménu je již nakonfigurována služba ticketingu."
 
 msgid "Unable to request OAuth token."
 msgstr "Nelze vyžádat token OAuth."
-
-msgid "Tickets"
-msgstr "Tikety"
 
 msgid "The display name of this account"
 msgstr "Zobrazovaný název tohoto účtu"
@@ -4072,7 +4144,7 @@ msgid "Excludes contacts in these groups."
 msgstr "Vyloučí kontakty v těchto skupinách."
 
 msgid "Must be a single word containing only letters and numbers, or a single emoji character."
-msgstr ""
+msgstr "Musí to být jedno slovo obsahující pouze písmena a číslice nebo jeden znak emoji."
 
 msgid "Can't include and exclude the same group."
 msgstr "Nelze zahrnout a vyloučit stejnou skupinu."
@@ -4105,8 +4177,10 @@ msgstr "Zpráva, která se odešle jako odpověď po připojení ke skupině (ne
 msgid "Create Trigger"
 msgstr "Vytvořit spouštěč"
 
-msgid "Triggers"
-msgstr "Spouštěče"
+#, fuzzy
+#| msgid "Archived Triggers"
+msgid "Active Triggers"
+msgstr "Archivované spouštěče"
 
 msgid "Archived Triggers"
 msgstr "Archivované spouštěče"
@@ -4509,7 +4583,7 @@ msgid "No Matching calls"
 msgstr "Žádné odpovídající výzvy"
 
 msgid "No calls"
-msgstr ""
+msgstr "Žádná volání"
 
 msgid "Contact"
 msgstr "Kontakt"
@@ -4804,6 +4878,9 @@ msgstr "%(brand)s může používat váš telefon se systémem Android k odesíl
 msgid "Due to restrictions Android has on applications that send SMS messages, we cannot distribute the %(brand)s application through the Play Store. You will need to download the application manually and install it using the steps below."
 msgstr "Vzhledem k omezením systému Android pro aplikace, které odesílají zprávy SMS, nemůžeme aplikaci %(brand)s distribuovat prostřednictvím Obchodu Play Store. Aplikaci si musíte stáhnout ručně a nainstalovat ji podle níže uvedených kroků."
 
+msgid "Version"
+msgstr "Verze"
+
 msgid "was released on"
 msgstr "byl vydán"
 
@@ -5046,6 +5123,27 @@ msgstr "Své číslo <a href=\"http://infobip.com\">Infobip</a> můžete připoj
 #, python-format
 msgid "After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want to push a message to %(brand)s."
 msgstr "Po připojení vaší služby poskytneme adresy URL pro koncové body, které bude InfoBip volat, když bude chtít odeslat zprávu do %(brand)s."
+
+#, fuzzy, python-format
+#| msgid "You can connect your Facebook page to %(name)s in just a few simple steps."
+msgid "You can connect your Instagram business account to %(name)s in just a few simple steps."
+msgstr "Svou stránku Facebooku můžete připojit k %(name)s v několika jednoduchých krocích."
+
+msgid "The page must be linked to your instagram business account, so check how to link"
+msgstr ""
+
+msgid "Add Instagram Business Account"
+msgstr ""
+
+#, fuzzy
+#| msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
+msgid "Error with token, you need to reconnect the Instagram Business Account by clicking the button below"
+msgstr "Chyba s tokenem, musíte znovu připojit stránku na Facebooku kliknutím na tlačítko níže."
+
+#, fuzzy
+#| msgid "Error reconnecting Facebook page. Please retry"
+msgid "Error reconnecting Instagram Business Account. Please retry"
+msgstr "Chyba při opětovném připojení stránky na Facebooku. Zkuste to prosím znovu"
 
 #, python-format
 msgid "You can connect a <a href=\"https://jiochat.com\">JioChat Channel</a> to your %(name)s workspace to automate sending and receiving JioChat messages."
@@ -5295,6 +5393,11 @@ msgstr "Záměry jsou automaticky synchronizovány každých 5 minut"
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr "Tyto kontakty byly odstraněny ze všech skupin a lze je trvale odstranit."
 
+#, fuzzy
+#| msgid "Export only messages from these contact groups. (Leave blank to export all messages)."
+msgid "All inbound messages from these contacts are ignored. They have also been removed from all groups."
+msgstr "Exportovat pouze zprávy z těchto skupin kontaktů. (Pro export všech zpráv ponechte prázdné pole)."
+
 #, python-format
 msgid "You are about to delete <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr "Chystáte se odstranit <span class='font-normal'>%(object)s</span>. Nebude možné to vrátit zpět. Jste si jisti?"
@@ -5388,6 +5491,16 @@ msgstr "Začalo"
 msgid "Message labelled as"
 msgstr "Zpráva označená jako"
 
+#, fuzzy
+#| msgid "Message labelled as"
+msgid "Message deleted by user"
+msgstr "Zpráva označená jako"
+
+#, fuzzy
+#| msgid "Message labelled as"
+msgid "Message deleted by sender"
+msgstr "Zpráva označená jako"
+
 #, python-format
 msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>"
 msgstr "Výsledek běhu <b>%(name)s</b> aktualizován na <b>%(value)s</b> s kategorií <b>%(category)s</b>"
@@ -5442,6 +5555,9 @@ msgstr "Vytvořit kontakt"
 msgid "Create Group"
 msgstr "Vytvořit skupinu"
 
+msgid "Smart Groups"
+msgstr "Chytré skupiny"
+
 msgid "Remove From Group"
 msgstr "Odebrat ze skupiny"
 
@@ -5459,9 +5575,24 @@ msgid_plural ""
 "\n"
 "                  "
 msgstr[0] ""
+"\n"
+" %(results_count)s nalezený kontakt odpovídá <i>%(search)s</i>.\n"
+"        "
 msgstr[1] ""
+"\n"
+"                      %(results_count)s nalezené kontakty odpovídají <i>%(search)s</i>.\n"
+"\n"
+"                  "
 msgstr[2] ""
+"\n"
+"                      %(results_count)s nalezených kontaktů odpovídá <i>%(search)s</i>.\n"
+"\n"
+"                  "
 msgstr[3] ""
+"\n"
+"                      %(results_count)s nalezených kontaktů odpovídá <i>%(search)s</i>.\n"
+"\n"
+"                  "
 
 msgid "To view more than 10,000 search results, save it as a group."
 msgstr "Chcete-li zobrazit více než 10 000 výsledků vyhledávání, uložte je jako skupinu."
@@ -5496,7 +5627,9 @@ msgstr "Historie"
 msgid "Full"
 msgstr "Plný"
 
-msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
+#, fuzzy
+#| msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
+msgid "These contacts have opted out and you can no longer send them messages, but inbound messages will unstop them. They have also been removed from all groups."
 msgstr "Tyto kontakty se odhlásily a již jim nelze posílat zprávy, byly odstraněny ze všech skupin."
 
 msgid "Add Connection"
@@ -5736,8 +5869,50 @@ msgstr "Denní čas"
 msgid "Interrupted, Expired and Failed"
 msgstr "Přerušeno, vypršelo a selhalo"
 
+msgid "Wow, that's a lot!"
+msgstr ""
+
+msgid "You've selected a lot of contacts to send this flow to. Depending on your channel it could take days to reach everybody. We recommend limiting your selection to contacts who are more likely to respond."
+msgstr ""
+
+#, fuzzy
+#| msgid "all contacts"
+msgid "All Contacts"
+msgstr "všechny kontakty"
+
+msgid "Selecting this option will negatively affect your response rate and reputation on some channels."
+msgstr ""
+
+#, fuzzy
+#| msgid "Responded"
+msgid "Responders"
+msgstr "Odpověděl"
+
+msgid "Quickly reach contacts who have responded in the last 90 days. This will give you better response rates and reputation on some channels."
+msgstr ""
+
+#, fuzzy
+#| msgid "Responded"
+msgid "Recommended"
+msgstr "Odpověděl"
+
 msgid "You can still test your flow using the simulator by clicking the phone icon on the right."
 msgstr "Tok můžete stále testovat pomocí simulátoru kliknutím na ikonu telefonu vpravo."
+
+msgid "Warning!"
+msgstr "Varování!"
+
+msgid "We've identified potential issues you might run into starting this flow. Please review the following before continuing."
+msgstr ""
+
+msgid "Enter contacts and groups to start below"
+msgstr "Níže zadejte kontakty a skupiny, které chcete spustit"
+
+msgid "Search for contacts to start"
+msgstr "Vyhledávání kontaktů pro zahájení"
+
+msgid "This option is no longer recommended and will be removed. Thankfully, there is a better way!"
+msgstr ""
 
 #, python-format
 msgid ""
@@ -5822,7 +5997,12 @@ msgstr "Je nám líto, ale tento tok nelze exportovat, protože odkazuje na jin�
 msgid "Back to Flow"
 msgstr "Zpět na tok"
 
-msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
+msgid "Flow exports will include the results for each contact that has passed through the flow. You may optionally include up to 10 contact fields and URN types whose values will also be exported with each run."
+msgstr ""
+
+#, fuzzy
+#| msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
+msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations. Note that split arguments will not be included in the translation file and should be translated from the editor if necessary."
 msgstr "Vytáhne funkcí <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> z toku PO soubor, který lze později znovu importovat s aktualizovanými překlady."
 
 msgid "Remove Label"
@@ -5866,9 +6046,6 @@ msgstr "Vytvořit štítek"
 
 msgid "Create Flow"
 msgstr "Vytvořit tok"
-
-msgid "Labels"
-msgstr "Štítky"
 
 msgid "Webhook Call Log"
 msgstr "webhook protokolu volání"
@@ -5959,6 +6136,11 @@ msgstr[3] "<b>%(count)s</b> běhů"
 
 msgid "No flow starts"
 msgstr "Žádné zahájení toku"
+
+#, fuzzy
+#| msgid "Your Privacy"
+msgid "Privacy"
+msgstr "Vaše soukromí"
 
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Určitě chcete pokračovat? Toto nelze vrátit zpět."
@@ -6074,9 +6256,24 @@ msgid_plural ""
 "\n"
 "      "
 msgstr[0] ""
+"\n"
+"        %(count)s smazaná skupina\n"
+"      "
 msgstr[1] ""
+"\n"
+"        %(count)s smazané skupiny\n"
+"\n"
+"      "
 msgstr[2] ""
+"\n"
+"        %(count)s smazaných skupin\n"
+"\n"
+"      "
 msgstr[3] ""
+"\n"
+"        %(count)s smazaných skupin\n"
+"\n"
+"      "
 
 #, python-format
 msgid ""
@@ -6089,12 +6286,27 @@ msgid_plural ""
 "\n"
 "      "
 msgstr[0] ""
+"\n"
+"        %(count)s smazaný kontakt\n"
+"      "
 msgstr[1] ""
+"\n"
+"        %(count)s smazané kontakty\n"
+"\n"
+"      "
 msgstr[2] ""
+"\n"
+"        %(count)s smazaných kontaktů\n"
+"\n"
+"      "
 msgstr[3] ""
+"\n"
+"        %(count)s smazaných kontaktů\n"
+"\n"
+"      "
 
 msgid "Deleted"
-msgstr ""
+msgstr "Smazáno"
 
 #, python-format
 msgid "%(count)s result"
@@ -6164,10 +6376,10 @@ msgid "Numeric Value:"
 msgstr "Číselná hodnota:"
 
 msgid "Delete Selected Messages"
-msgstr ""
+msgstr "Smazat vybrané zprávy"
 
 msgid "Are you sure you want to delete the selected messages? This cannot be undone."
-msgstr ""
+msgstr "Opravdu chcete vybrané zprávy odstranit? Tento krok nelze vrátit zpět."
 
 msgid "Create Folder"
 msgstr "Vytvořit složku"
@@ -6220,30 +6432,55 @@ msgstr[3] "Použito v %(num_flows)s tocích:"
 msgid "No matching messages."
 msgstr "Žádné odpovídající zprávy."
 
-msgid "Hi there!"
-msgstr "Ahoj!"
-
-msgid "Your contact export is ready."
+msgid "Hi"
 msgstr ""
 
-#, python-format
-msgid "Download the Excel file here: %(url)s"
+msgid "If you have any questions we are always here to help."
 msgstr ""
 
 msgid "Thanks"
-msgstr ""
+msgstr "Děkujeme"
+
+msgid "Your contact export is ready."
+msgstr "Export kontaktů je připraven."
 
 #, python-format
-msgid "The %(brand)s Team "
-msgstr "Tým %(brand)s"
-
-msgid "Your message export is ready"
-msgstr ""
+msgid "Download the Excel file here: %(url)s"
+msgstr "Soubor Excel ke stažení zde: %(url)s"
 
 msgid "Your message export is ready."
 msgstr "Váš export zpráv je připraven."
 
 msgid "Your export of results for the following flows is ready."
+msgstr "Export výsledků pro následující toky je připraven."
+
+#, fuzzy
+#| msgid "Outgoing"
+msgid "Ongoing"
+msgstr "Odchozí"
+
+msgid "None"
+msgstr "Žádný"
+
+#, fuzzy
+#| msgid "Preview"
+msgid "Previous"
+msgstr "Náhled"
+
+#, fuzzy
+#| msgid "Sorry, your workspace is currently flagged. To re-enable starting flows and sending messages, please contact support."
+msgid ""
+"\n"
+"  Your workspace has been flagged due to suspicious activity. To re-enable starting flows and sending messages, please\n"
+"  contact support.\n"
+msgstr "Omlouváme se, ale váš pracovní prostor je momentálně označen. Chcete-li znovu povolit spouštění toků a odesílání zpráv, kontaktujte prosím podporu."
+
+#, python-format
+msgid ""
+"\n"
+"  Some webhook calls from your flows are taking too long to respond or failing too frequently. If the problem persists\n"
+"  these calls will be temporarily disabled. You can check the <a href=\"%(logs_url)s\">webhook call log</a> to see which\n"
+"  calls are the problem.\n"
 msgstr ""
 
 msgid "Your workspace is suspended and no longer processing messages."
@@ -6260,9 +6497,6 @@ msgstr "Chystáte se odstranit"
 
 msgid "There is no way to undo this. Are you sure?"
 msgstr "To nelze nijak vrátit zpět. Jste si jisti?"
-
-msgid "None"
-msgstr "Žádný"
 
 #, python-format
 msgid ""
@@ -6626,115 +6860,23 @@ msgstr ""
 "Jméno: %(cc_name)s\n"
 "Kreditní karta:  %(cc_type)s X %(cc_last4)s\n"
 
-#, python-format
-msgid ""
-"\n"
-"\n"
-"<br/>\n"
-"Hi from %(hostname)s,\n"
-"<br/>\n"
-"<br/>\n"
-"Someone has requested that the password for this email address be reset.\n"
-"<br/>\n"
-"<br/>\n"
-"Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
-"<br/>\n"
-"<a href='%(brand_link)s%(path)s'>Reset password</a>.\n"
-"<br/>\n"
-"<br/>\n"
-"If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
-"<br/>\n"
-"Thank you.\n"
-"<br/>\n"
-"<br/>\n"
-"Please do not reply to this email.\n"
-"<br/>\n"
-"<br/>\n"
+#, fuzzy
+#| msgid "Hi there!"
+msgid "Hi there"
+msgstr "Ahoj!"
+
+msgid "Someone has requested that the password for this email address be reset."
 msgstr ""
-"\n"
-"<br/>\n"
-"Ahoj z %(hostname)s,\n"
-"<br/>\n"
-"<br/>\n"
-"Někdo požádal o resetování hesla pro tuto e-mailovou adresu.\n"
-"<br/>\n"
-"<br/>\n"
-"Kliknutím na následující odkaz můžete obnovit heslo k účtu : %(account_name)s\n"
-"<br/>\n"
-"<a href='%(brand_link)s%(path)s'>Obnovení hesla</a>.\n"
-"<br/>\n"
-"<br/>\n"
-"Pokud jste o to nepožádali, neznepokojujte se, tento e-mail byl zaslán pouze vám a váš účet zůstává v bezpečí.\n"
-"<br/>\n"
-"Děkujeme vám.\n"
-"<br/>\n"
-"<br/>\n"
-"Na tento e-mail prosím neodpovídejte.\n"
-"<br/>\n"
-"<br/>\n"
 
 #, python-format
-msgid ""
-"\n"
-"\n"
-"Hi from %(hostname)s,\n"
-"\n"
-"Someone has requested that the password for this email address be reset.\n"
-"\n"
-"Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
-"\n"
-"%(brand_link)s%(path)s\n"
-"\n"
-"If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
-"\n"
-"Thank you.\n"
-"\n"
-"Please do not reply to this email.\n"
-"\n"
+msgid "Clicking on the following link will allow you to reset the password for the account %(email)s:"
 msgstr ""
-"\n"
-"Dobrý den, z %(hostname)s ,\n"
-"\n"
-"Někdo požádal o resetování hesla pro tuto e-mailovou adresu.\n"
-"\n"
-"Kliknutím na následující odkaz můžete obnovit heslo k účtu %(account_name)s: \n"
-"\n"
-"%(brand_link)s%(path)s\n"
-"\n"
-"Pokud jste o to nepožádali, nemějte obavy, tento e-mail byl zaslán pouze vám a váš účet zůstává v bezpečí.\n"
-"\n"
-"Děkujeme vám.\n"
-"\n"
-"Na tento e-mail prosím neodpovídejte.\n"
-"\n"
 
-#, python-format
-msgid "Connected to your Chatbase account as agent <b>%(agent)s</b>."
-msgstr "Připojení k účtu Chatbase jako agent <b>%(agent)s</b>."
+msgid "If you did not request this, don't worry, this email has only been sent to you and your account remains secure."
+msgstr ""
 
-msgid "Connect your Chatbase account."
-msgstr "Připojte svůj účet Chatbase."
-
-msgid "Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences and better understand your users. To signup for an account, visit"
-msgstr "Připojení účtu Chatbase vám umožní monitorovat bota, opravovat nefunkční zkušenosti a lépe porozumět uživatelům. Chcete-li se přihlásit k účtu, navštivte"
-
-msgid "Your Chatbase account is connected to the Agent"
-msgstr "Váš účet Chatbase je připojen k agentovi"
-
-msgid "If you no longer want it connected, you can"
-msgstr "Pokud již nechcete, aby byl připojen, můžete."
-
-msgid "disconnect"
-msgstr "odpojit"
-
-msgid "your Chatbase account. Doing so will interrupt the data sent to your Chatbase console."
-msgstr "svůj účet na Chatbase. Tím se přeruší odesílání dat do konzole Chatbase."
-
-msgid "Disconnect Chatbase"
-msgstr "Odpojení Chatbase"
-
-msgid "This will disconnect your Chatbase account. Are you sure you want to proceed?"
-msgstr "Tím odpojíte svůj účet Chatbase. Jste si jisti, že chcete pokračovat?"
+msgid "Thank you. Please do not reply to this email."
+msgstr ""
 
 msgid "Connected to your DT One account."
 msgstr "Připojení k účtu DT One."
@@ -6922,9 +7064,6 @@ msgstr "Importovat toky a kampaně"
 
 msgid "If you have an export file with flows and or campaigns, select it below to import it into your workspace."
 msgstr "Pokud máte exportní soubor s toky a kampaněmi, vyberte jej níže a importujte jej do pracovního prostoru."
-
-msgid "Warning!"
-msgstr "Varování!"
 
 msgid "If you have flows or campaigns with the same names or UUIDs as the ones you are importing they will be replaced and all history for them will be lost."
 msgstr "Pokud máte toky nebo kampaně se stejnými názvy nebo UUID jako ty, které importujete, budou nahrazeny a veškerá jejich historie bude ztracena."
@@ -7152,6 +7291,19 @@ msgstr "Děkujeme za podporu %(brand)s."
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Doplňkové kredity, díky za snahu %(brand)s."
 
+#, fuzzy
+#| msgid "Your Account"
+msgid "User Account"
+msgstr "Váš účet"
+
+#, python-format
+msgid ""
+"\n"
+"        %(brand)s recommends that you enable <temba-anchor href=\"%(otp_url)s\">two factor</temba-anchor> authentication.\n"
+"\n"
+"      "
+msgstr ""
+
 msgid "Confirm your current password to save these changes"
 msgstr "Potvrzení aktuálního hesla pro uložení těchto změn"
 
@@ -7190,7 +7342,17 @@ msgstr "Chcete-li povolit dvoufaktorové ověřování při přihlašování, po
 msgid "Two-factor authentication is <b>disabled</b>."
 msgstr "Dvoufaktorové ověřování je <b>zakázáno</b>."
 
-msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
+msgid "Your account is currently secured with two-factor authentication."
+msgstr ""
+
+#, fuzzy
+#| msgid "Use Backup Token"
+msgid "Backup Tokens"
+msgstr "Použít záložní token"
+
+#, fuzzy
+#| msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
+msgid "Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
 msgstr "V současné době je pro vaše přihlášení povoleno dvoufaktorové ověřování. Níže jsou uvedeny vaše záložní tokeny, které můžete použít, pokud ztratíte přístup k zařízení, pomocí kterého jste nastavili dvoufaktorové ověřování. Každý token lze použít pouze jednou a tokeny, které již byly použity, jsou zobrazeny s čárou. Tyto tokeny byste měli zaznamenat na bezpečném místě."
 
 msgid "You can generate new backup tokens but remember that the current tokens will be no longer be usable if you do this."
@@ -7880,3 +8042,162 @@ msgstr "Šablony jsou z vašeho účtu synchronizovány každých 15 minut."
 
 msgid "No synced templates at this time."
 msgstr "V současné době nejsou k dispozici žádné synchronizované šablony."
+
+#~ msgid "Update Event"
+#~ msgstr "Aktualizace události"
+
+#~ msgid "Archive delete"
+#~ msgstr "Odstranění archivu"
+
+#~ msgid "User delete"
+#~ msgstr "Odstranění uživatele"
+
+#~ msgid "Include Arguments"
+#~ msgstr "Zahrnout argumenty"
+
+#~ msgid "Include arguments to tests on splits"
+#~ msgstr "Zahrnout argumenty do testů na rozdělení"
+
+#~ msgid "Include Messages"
+#~ msgstr "Včetně zpráv"
+
+#~ msgid "Export all messages sent and received in this flow"
+#~ msgstr "Exportovat všechny zprávy odeslané a přijaté v tomto toku"
+
+#~ msgid "Select contacts or groups to start in the flow"
+#~ msgstr "Vyberte kontakty nebo skupiny, které chcete spustit v toku"
+
+#~ msgid "Select contact and groups"
+#~ msgstr "Vybrat kontakt a skupiny"
+
+#~ msgid "Please read the options below carefully as they have changed recently."
+#~ msgstr "Pozorně si přečtěte níže uvedené možnosti, protože se nedávno změnily."
+
+#~ msgid "Agent Name"
+#~ msgstr "Jméno agenta"
+
+#~ msgid "Your Chatbase agent's name."
+#~ msgstr "Jméno vašeho agenta Chatbase."
+
+#~ msgid "The chatbase agent's API Key."
+#~ msgstr "Klíč API agenta chatbase."
+
+#~ msgid "Missing agent name or API key."
+#~ msgstr "Chybí jméno agenta nebo klíč API."
+
+#, python-format
+#~ msgid "The %(brand)s Team "
+#~ msgstr "Tým %(brand)s"
+
+#~ msgid "Your message export is ready"
+#~ msgstr "Váš export zpráv je připraven"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "\n"
+#~ "<br/>\n"
+#~ "Hi from %(hostname)s,\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Someone has requested that the password for this email address be reset.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
+#~ "<br/>\n"
+#~ "<a href='%(brand_link)s%(path)s'>Reset password</a>.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
+#~ "<br/>\n"
+#~ "Thank you.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Please do not reply to this email.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ msgstr ""
+#~ "\n"
+#~ "<br/>\n"
+#~ "Ahoj z %(hostname)s,\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Někdo požádal o resetování hesla pro tuto e-mailovou adresu.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Kliknutím na následující odkaz můžete obnovit heslo k účtu : %(account_name)s\n"
+#~ "<br/>\n"
+#~ "<a href='%(brand_link)s%(path)s'>Obnovení hesla</a>.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Pokud jste o to nepožádali, neznepokojujte se, tento e-mail byl zaslán pouze vám a váš účet zůstává v bezpečí.\n"
+#~ "<br/>\n"
+#~ "Děkujeme vám.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Na tento e-mail prosím neodpovídejte.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "\n"
+#~ "Hi from %(hostname)s,\n"
+#~ "\n"
+#~ "Someone has requested that the password for this email address be reset.\n"
+#~ "\n"
+#~ "Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
+#~ "\n"
+#~ "%(brand_link)s%(path)s\n"
+#~ "\n"
+#~ "If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
+#~ "\n"
+#~ "Thank you.\n"
+#~ "\n"
+#~ "Please do not reply to this email.\n"
+#~ "\n"
+#~ msgstr ""
+#~ "\n"
+#~ "Dobrý den, z %(hostname)s ,\n"
+#~ "\n"
+#~ "Někdo požádal o resetování hesla pro tuto e-mailovou adresu.\n"
+#~ "\n"
+#~ "Kliknutím na následující odkaz můžete obnovit heslo k účtu %(account_name)s: \n"
+#~ "\n"
+#~ "%(brand_link)s%(path)s\n"
+#~ "\n"
+#~ "Pokud jste o to nepožádali, nemějte obavy, tento e-mail byl zaslán pouze vám a váš účet zůstává v bezpečí.\n"
+#~ "\n"
+#~ "Děkujeme vám.\n"
+#~ "\n"
+#~ "Na tento e-mail prosím neodpovídejte.\n"
+#~ "\n"
+
+#, python-format
+#~ msgid "Connected to your Chatbase account as agent <b>%(agent)s</b>."
+#~ msgstr "Připojení k účtu Chatbase jako agent <b>%(agent)s</b>."
+
+#~ msgid "Connect your Chatbase account."
+#~ msgstr "Připojte svůj účet Chatbase."
+
+#~ msgid "Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences and better understand your users. To signup for an account, visit"
+#~ msgstr "Připojení účtu Chatbase vám umožní monitorovat bota, opravovat nefunkční zkušenosti a lépe porozumět uživatelům. Chcete-li se přihlásit k účtu, navštivte"
+
+#~ msgid "Your Chatbase account is connected to the Agent"
+#~ msgstr "Váš účet Chatbase je připojen k agentovi"
+
+#~ msgid "If you no longer want it connected, you can"
+#~ msgstr "Pokud již nechcete, aby byl připojen, můžete."
+
+#~ msgid "disconnect"
+#~ msgstr "odpojit"
+
+#~ msgid "your Chatbase account. Doing so will interrupt the data sent to your Chatbase console."
+#~ msgstr "svůj účet na Chatbase. Tím se přeruší odesílání dat do konzole Chatbase."
+
+#~ msgid "Disconnect Chatbase"
+#~ msgstr "Odpojení Chatbase"
+
+#~ msgid "This will disconnect your Chatbase account. Are you sure you want to proceed?"
+#~ msgstr "Tím odpojíte svůj účet Chatbase. Jste si jisti, že chcete pokračovat?"

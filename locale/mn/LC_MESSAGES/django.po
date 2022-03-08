@@ -11,7 +11,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-11-11 19:13+0000\n"
+"POT-Creation-Date: 2022-03-08 15:56+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Amarbayan Altangerel <amarbayan.altangerel@gmail.com>, 2021\n"
 "Language-Team: Mongolian (https://www.transifex.com/rapidpro/teams/226/mn/)\n"
@@ -162,20 +162,43 @@ msgstr "Зөвхөн энэ бүлэгт байдаг харилцагчид э�
 msgid "Name"
 msgstr "Нэр"
 
+msgid "Active"
+msgstr "Идэвхтэй"
+
+msgid "Archived"
+msgstr "Архивлагдсан"
+
+#, fuzzy
+#| msgid "Campaign"
+msgid "New Campaign"
+msgstr "Ко.ажил"
+
 msgid "Export"
 msgstr "Экспорт"
 
-msgid "Add Event"
-msgstr "Үйл ажиллагаа нэмэх"
+msgid "New Event"
+msgstr "Шинэ үйл ажиллагаа"
 
 msgid "Edit"
 msgstr "Засварлах"
 
-msgid "Update Campaign"
+#, fuzzy
+#| msgid "Update Campaign"
+msgid "Edit Campaign"
 msgstr "Компанит ажлыг өөрчлөх"
 
 msgid "Service"
 msgstr "Үйлчилгээ"
+
+#, fuzzy
+#| msgid "Campaigns"
+msgid "Active Campaigns"
+msgstr "Ко.ажлууд"
+
+#, fuzzy
+#| msgid "Archived Contacts"
+msgid "Archived Campaigns"
+msgstr "Архивлагдсан харилцагчид"
 
 msgid "Campaign archived"
 msgstr "Архивласан Компанит ажил"
@@ -201,7 +224,9 @@ msgstr "Энэ үйл ажиллагааг эхлүүлэх он сарын та
 msgid "Select hour for delivery"
 msgstr "Хүргэлтийн цагийг сонгоно уу"
 
-msgid "Stop it and start this event"
+#, fuzzy
+#| msgid "Stop it and start this event"
+msgid "Stop it and run this flow"
 msgstr "Үүнийг зогсоож, энэ үйл ажиллагааг эхлүүлээрэй"
 
 msgid "Skip this event"
@@ -233,14 +258,27 @@ msgstr "Сайн байна уу @contact.name! Энэ бол зүгээр л б
 msgid "Default"
 msgstr "Өгөгдмөл"
 
-msgid "Update Event"
-msgstr "Үйл ажиллагааг өөрчлөх"
+msgid "This is a background flow. When it triggers, it will run it for all contacts without interruption."
+msgstr ""
+
+#, fuzzy
+#| msgid "Send History"
+msgid "Event History"
+msgstr "Түүхийг илгээх"
+
+#, fuzzy
+#| msgid "Add Event"
+msgid "Edit Event"
+msgstr "Үйл ажиллагаа нэмэх"
 
 msgid "Delete Event"
 msgstr "Үйл ажиллагааг устгах"
 
 msgid "Delete"
 msgstr "Устгах"
+
+msgid "Save"
+msgstr "Хадгалах"
 
 msgid "Default Encoding"
 msgstr "Өгөгдсөн кодчилол"
@@ -1092,6 +1130,19 @@ msgstr "Таны дугаар руу шинэ мессеж ирэх үед эн�
 msgid "This endpoint should be called with a POST by Infobip when a message has been to the final recipient. (delivery reports) You can set the delivery callback URL on your Infobip account by contacting your sales agent."
 msgstr "Энэ эцсийн цэгийг Infobip -ээс POST ашиглан дуудлага хүлээн авагч руу илгээсэн байх ёстой. (хүргэлтийн тайлан) Та борлуулалтын төлөөлөгчтэйгээ холбоо барьж Infobip акауынтныхаа буцааж дуудах URL -г тохируулж болно."
 
+msgid "Reconnect Instagram Business Account"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users."
+msgid "Add an %(link)s bot to send and receive messages on behalf of a business Instagram account."
+msgstr "Rocket.Chat-н хэрэглэгчдэд мессеж илгээх, хүлээн авах %(link)s bot нэмнэ үү."
+
+#, fuzzy
+#| msgid "Sorry your Facebook channel could not be connected. Please try again"
+msgid "Sorry your Instagram channel could not be connected. Please try again"
+msgstr "Уучлаарай, таны Facebook суваг холбогдох боломжгүй байна. Дахин оролдоно уу"
+
 #, python-format
 msgid "Connect your %(link)s instance that you have already connected to an SMSC."
 msgstr "SMSC-д аль хэдийн холбогдсон %(link)s -ийнхээ акаунтаа холбоно уу."
@@ -1164,7 +1215,9 @@ msgstr "Junebug-д нэвтрэх нууц үг"
 msgid "The token Junebug should use to authenticate"
 msgstr "Junebug-т ашиглах баталгаажуулах токен"
 
-msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+#, fuzzy
+#| msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp</a>"
 msgstr "Харилцагчидтайгаа харилцахын тулд Kaleyra дахь өөрийн WhatsApp акаунтаа идэвхжүүлээрэй. <a href=\"https://www.kaleyra.com/whatsapp/\">Kaleyra WhatsApp-н талаар дэлгэрэнгүй үзэх </a>"
 
 msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
@@ -2081,6 +2134,9 @@ msgstr "Энэхүү итгэмжлэхтэй wit.ai-руу хандаж чад�
 msgid "Connect"
 msgstr "Холбох"
 
+msgid "Add Classifier"
+msgstr "Ангилагч нэмэх"
+
 msgid "Your classifier has been deleted."
 msgstr "Таны ангилагчийг устгасан байна."
 
@@ -2104,6 +2160,11 @@ msgstr "Утасны дугаар"
 
 msgid "Facebook identifier"
 msgstr "Facebook таних тэмдэг"
+
+#, fuzzy
+#| msgid "Telegram identifier"
+msgid "Instagram identifier"
+msgstr "Telegram таних тэмдэг"
 
 msgid "Twitter handle"
 msgstr "Twitter handle"
@@ -2295,17 +2356,11 @@ msgstr "Асуулга"
 msgid "Only contacts matching this query will belong to this group."
 msgstr "Зөвхөн энэ асуулгад нийцсэн харилцагчид энэ бүлэгт харьяалагдах болно."
 
-msgid "Active"
-msgstr "Идэвхтэй"
-
 msgid "Blocked"
 msgstr "Блоклосон"
 
 msgid "Stopped"
 msgstr "Зогссон"
-
-msgid "Archived"
-msgstr "Архивлагдсан"
 
 #, python-brace-format
 msgid "{label} for this contact"
@@ -2341,9 +2396,6 @@ msgstr "Нэмэлт: Экспортдоо харуулах бүлгүүдийг
 
 msgid "Include group membership only for these groups. (Leave blank to ignore group memberships)."
 msgstr "Зөвхөн эдгээр бүлгүүдэд бүлгийн гишүүнчлэл оруулах. (Бүлгийн гишүүнчлэл хамаагүй байх бол хоосон орхино уу)."
-
-msgid "Smart Groups"
-msgstr "Ухаалаг бүлгүүд"
 
 msgid "Fields"
 msgstr "Талбарууд"
@@ -2453,6 +2505,9 @@ msgstr "Энэ талбарт хадгалагдах утгуудын төрөл
 msgid "Manage Contact Fields"
 msgstr "Холбоо барих талбаруудыг удирдах"
 
+msgid "All"
+msgstr "Бүгд"
+
 #, python-format
 msgid "Cannot create a new field as limit is %(limit)s."
 msgstr "Хязгаар %(limit)s тул шинэ талбар үүсгэх боломжгүй."
@@ -2504,48 +2559,6 @@ msgstr "Утасны дуудлага"
 msgid "Background"
 msgstr "Арын боловсруулалт"
 
-msgid "The name for this flow"
-msgstr "Энэ урсгалын нэр"
-
-msgid "Minutes of inactivity that will cause expiration from flow"
-msgstr "Урсгал дуусах шалтгаан болох идэвхгүй байдлын минут"
-
-msgid "Ignore keyword triggers while in this flow"
-msgstr "Энэ урсгалд түлхүүр үгийн ажиллуулах схем-г үл тоогоорой"
-
-msgid "The authoring language, additional languages can be added later"
-msgstr "Зохиогчийн хэл, нэмэлт хэлийг дараа нь нэмж болно"
-
-msgid "Flow"
-msgstr "Урсгал"
-
-msgid "Flows"
-msgstr "Урсгалууд"
-
-msgid "Archive delete"
-msgstr "Архивыг устгах"
-
-msgid "User delete"
-msgstr "Хэрэглэгч устгах"
-
-msgid "The JSON flow definition"
-msgstr "JSON урсгалын тодорхойлолт"
-
-msgid "The flow version this definition is in"
-msgstr "Энэхүү тодорхойлолтын оршиж байгаа урсгалын хувилбар"
-
-msgid "Revision number for this definition"
-msgstr "Энэхүү тодорхойлолтын засварын дугаар"
-
-msgid "The flows to export"
-msgstr "Экспортлох урсгалууд"
-
-msgid "Any configuration options for this flow export"
-msgstr "Энэ урсгалыг экспортлох тохиргооны сонголтууд"
-
-msgid "Starting"
-msgstr "Эхэлж байна"
-
 msgid "After 5 minutes"
 msgstr "5 минутын дараа"
 
@@ -2590,6 +2603,54 @@ msgstr "2 долоон хоногийн дараа"
 
 msgid "After 30 days"
 msgstr "30 өдрийн дараа"
+
+msgid "After 1 minute"
+msgstr "1 минутын дараа"
+
+msgid "After 2 minutes"
+msgstr "2 минутын дараа"
+
+msgid "After 3 minutes"
+msgstr "3 минутын дараа"
+
+msgid "After 4 minutes"
+msgstr "4 минутын дараа"
+
+msgid "The name for this flow"
+msgstr "Энэ урсгалын нэр"
+
+msgid "Minutes of inactivity that will cause expiration from flow"
+msgstr "Урсгал дуусах шалтгаан болох идэвхгүй байдлын минут"
+
+msgid "Ignore keyword triggers while in this flow"
+msgstr "Энэ урсгалд түлхүүр үгийн ажиллуулах схем-г үл тоогоорой"
+
+msgid "The authoring language, additional languages can be added later"
+msgstr "Зохиогчийн хэл, нэмэлт хэлийг дараа нь нэмж болно"
+
+msgid "Flow"
+msgstr "Урсгал"
+
+msgid "Flows"
+msgstr "Урсгалууд"
+
+msgid "The JSON flow definition"
+msgstr "JSON урсгалын тодорхойлолт"
+
+msgid "The flow version this definition is in"
+msgstr "Энэхүү тодорхойлолтын оршиж байгаа урсгалын хувилбар"
+
+msgid "Revision number for this definition"
+msgstr "Энэхүү тодорхойлолтын засварын дугаар"
+
+msgid "The flows to export"
+msgstr "Экспортлох урсгалууд"
+
+msgid "Any configuration options for this flow export"
+msgstr "Энэ урсгалыг экспортлох тохиргооны сонголтууд"
+
+msgid "Starting"
+msgstr "Эхэлж байна"
 
 #, python-format
 msgid "\"%(keyword)s\" must be a single word, less than %(limit)d characters, containing only letter and numbers"
@@ -2704,12 +2765,6 @@ msgstr "Зөвшөөрөгдсөн хэл биш байна."
 msgid "Include translations in this language."
 msgstr "Энэ хэл дээрх орчуулгыг оруулна уу."
 
-msgid "Include Arguments"
-msgstr "Аргументуудыг оруулах"
-
-msgid "Include arguments to tests on splits"
-msgstr "Туршилтанд аргументуудыг оруулах"
-
 msgid "PO translation file"
 msgstr "PO орчуулгын файл"
 
@@ -2745,12 +2800,6 @@ msgstr "Зөвхөн хариулсанууд нь"
 msgid "Only export results for contacts which responded"
 msgstr "Зөвхөн хариу өгсөн харилцагчдын үр дүнг экспортлох"
 
-msgid "Include Messages"
-msgstr "Мессежийг оруулах"
-
-msgid "Export all messages sent and received in this flow"
-msgstr "Энэ урсгалаар илгээсэн болон хүлээн авсан бүх мессежийг экспортлох"
-
 #, python-brace-format
 msgid "You can only include up to {ExportFlowResultsTask.MAX_CONTACT_FIELDS_COLS} contact fields in your export"
 msgstr "Та экспортод зөвхөн {ExportFlowResultsTask.MAX_CONTACT_FIELDS_COLS} хүртэлх харилцах талбар оруулах боломжтой"
@@ -2759,8 +2808,8 @@ msgstr "Та экспортод зөвхөн {ExportFlowResultsTask.MAX_CONTACT_
 msgid "You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
 msgstr "Та экспортод бүлгийн гишүүнчлэлд зөвхөн {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} хүртэл бүлэг оруулах боломжтой"
 
-msgid "Download Results"
-msgstr "Үр дүнг татаж авах"
+msgid "Download"
+msgstr "Татаж авах"
 
 msgid "Sunday"
 msgstr "Ням"
@@ -2783,23 +2832,21 @@ msgstr "Бааса"
 msgid "Saturday"
 msgstr "Бямба"
 
-msgid "Download"
-msgstr "Татаж авах"
-
-msgid "Enter contacts and groups to start below"
-msgstr "Доор эхлэхийн тулд холбоо барих хүмүүс болон бүлгүүдийг оруулна уу"
-
-msgid "Search for contacts to start"
-msgstr "Эхлэхийн тулд харилцагчдаа хайж олоорой"
-
-msgid "Select contacts or groups to start in the flow"
-msgstr "Урсгалыг эхлүүлэхийн тулд харилцагчид эсвэл бүлгүүдийг сонгоно уу"
-
-msgid "Select contact and groups"
-msgstr "Харилцагч болон бүлгээ сонгоно уу"
+msgid "Download Results"
+msgstr "Үр дүнг татаж авах"
 
 msgid "Enter contact query"
 msgstr "Харилцагчийнхаа асуулгыг оруулна уу"
+
+#, fuzzy
+#| msgid "Expire inactive contacts"
+msgid "Exclude inactive contacts"
+msgstr "Идэвхгүй харилцагчдын хугацааг дуусгах"
+
+#, fuzzy
+#| msgid "Any contacts who have gone through this flow in the last 90 days will not be started again."
+msgid "Any contacts who have not sent a message in the last 90 days will not be started."
+msgstr "Сүүлийн 90 хоногт энэ урсгалаар явсан харилцагчдыг дахин эхлүүлэхгүй."
 
 msgid "Exclude contacts currently in a flow"
 msgstr "Одоогоор урсгалд байгаа харилцагчдыг хасах"
@@ -2829,9 +2876,6 @@ msgstr "Энэ урсгал нь Facebook-ийн ямар ч сэдэв зааг
 
 msgid "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr "Энэ урсгал нь ямар ч мессеж загвар ашигладаггүй. Та энэ урсгалыг эхлүүлж болно, гэхдээ сүүлийн 24 цагийн дотор мессеж илгээгээгүй WhatsApp харилцагчид үүнийг хүлээж авахгүй байж магадгүй юм."
-
-msgid "Please read the options below carefully as they have changed recently."
-msgstr "Саяхан өөрчлөгдсөн тул доорх сонголтуудыг анхааралтай уншина уу."
 
 msgid "The message template {ref['name']} does not exist on your account and cannot be sent."
 msgstr "Мессежийн загвар {ref ['name']} нь таны бүртгэлд байхгүй тул илгээх боломжгүй."
@@ -2871,23 +2915,8 @@ msgstr "Утга"
 msgid "Manage Globals"
 msgstr "Глобалуудаа удирдах"
 
-msgid "All"
-msgstr "Бүгд"
-
 msgid "Unused"
 msgstr "Ашиглаагүй"
-
-msgid "After 1 minute"
-msgstr "1 минутын дараа"
-
-msgid "After 2 minutes"
-msgstr "2 минутын дараа"
-
-msgid "After 3 minutes"
-msgstr "3 минутын дараа"
-
-msgid "After 4 minutes"
-msgstr "4 минутын дараа"
 
 msgid "Never"
 msgstr "Хэзээ ч үгүй"
@@ -3003,6 +3032,14 @@ msgstr "Эхлэх огноо ирээдүйд байж болохгүй."
 msgid "End date can't be before start date"
 msgstr "Дуусах огноо эхлэх өдрөөс өмнө байж болохгүй"
 
+#, fuzzy
+#| msgid "Schedule"
+msgid "Scheduled"
+msgstr "Хуваарь"
+
+msgid "Labels"
+msgstr "Шошгонууд"
+
 msgid "Flow Messages"
 msgstr "Урсгал мессежүүд"
 
@@ -3055,20 +3092,10 @@ msgstr "Таны шошгыг устгасан байна."
 msgid "Your label folder has been deleted."
 msgstr "Таны шошгонуудын фолдер устсан байна."
 
-msgid "Agent Name"
-msgstr "Агентын нэр"
-
-msgid "Your Chatbase agent's name."
-msgstr "Таны Chatbase агентын нэр."
-
-msgid "The chatbase agent's API Key."
-msgstr "Chatbase агентын API түлхүүр."
-
-msgid "Version"
-msgstr "Хувилбар"
-
-msgid "Missing agent name or API key."
-msgstr "Агентын нэр эсвэл API түлхүүр дутуу байна."
+#, fuzzy
+#| msgid "Recipients"
+msgid "Incidents"
+msgstr "Хүлээн авагчид"
 
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr "Таны DT One API түлхүүр ба нууцлал нь хүчингүй байна. Шалгаад дахин оролдоно уу."
@@ -3413,6 +3440,58 @@ msgstr "Хоёр-алхамт баталгаажуулалт"
 msgid "Two-factor authentication backup tokens changed."
 msgstr "Хоёр-алхамт баталгаажуулалтын нөөцөлсөн token өөрчлөгдсөн байна."
 
+#, fuzzy
+#| msgid "Account SID"
+msgid "Account"
+msgstr "Account SID"
+
+msgid "Security"
+msgstr ""
+
+#, fuzzy
+#| msgid "Enable"
+msgid "Enable 2FA"
+msgstr "Идэвхжүүлэх"
+
+#, fuzzy
+#| msgid "Login"
+msgid "Logins"
+msgstr "Нэвтрэх"
+
+#, fuzzy
+#| msgid "Classifier"
+msgid "Classifiers"
+msgstr "Ангилагч"
+
+msgid "Zapier"
+msgstr ""
+
+#, fuzzy
+#| msgid "Interactions"
+msgid "Integrations"
+msgstr "Харилцаа холбоо"
+
+#, fuzzy
+#| msgid "Archive"
+msgid "Archives"
+msgstr "Архив"
+
+#, fuzzy
+#| msgid "Flows"
+msgid "Flow Runs"
+msgstr "Урсгалууд"
+
+#, fuzzy
+#| msgid "Workspaces"
+msgid "Child Workspaces"
+msgstr "Ажлын талбарууд"
+
+msgid "Tickets"
+msgstr "Тасалбар"
+
+msgid "Triggers"
+msgstr "Ажиллуулагчид"
+
 msgid "The import file"
 msgstr "Импортлогдсон файл"
 
@@ -3554,6 +3633,11 @@ msgstr "Ажлын талбар нь дор хаяж нэг админтай б�
 msgid "Manage Logins"
 msgstr "Нэвтрэлтийг удирдах"
 
+#, fuzzy
+#| msgid "Workspace"
+msgid "Edit Workspace"
+msgstr "Ажлын талбар"
+
 msgid "Dashboard"
 msgstr "Хяналтын самбар"
 
@@ -3612,17 +3696,8 @@ msgstr "Ажлын талбарын акаунт үүсгэх"
 msgid "Sign Up"
 msgstr "Бүртгүүлэх"
 
-msgid "Save"
-msgstr "Хадгалах"
-
-msgid "New Event"
-msgstr "Шинэ үйл ажиллагаа"
-
 msgid "Your Account"
 msgstr "Таны акаунт"
-
-msgid "Add Classifier"
-msgstr "Ангилагч нэмэх"
 
 msgid "Add Ticketing Service"
 msgstr "Тасалбарын үйлчилгээ нэмэх"
@@ -3922,9 +3997,6 @@ msgstr "Энэ дэд домэйнд тохируулсан тасалбарын
 msgid "Unable to request OAuth token."
 msgstr "OAuth token хүсэх боломжгүй байна."
 
-msgid "Tickets"
-msgstr "Тасалбар"
-
 msgid "The display name of this account"
 msgstr "Энэ акаунтны харагдах нэр"
 
@@ -4087,8 +4159,10 @@ msgstr "Тэд бүлэгт элссэний дараа хариу илгээх 
 msgid "Create Trigger"
 msgstr "Ажиллуулагч үүсгэх"
 
-msgid "Triggers"
-msgstr "Ажиллуулагчид"
+#, fuzzy
+#| msgid "Archived Triggers"
+msgid "Active Triggers"
+msgstr "Архивласан ажиллуулагчид"
 
 msgid "Archived Triggers"
 msgstr "Архивласан ажиллуулагчид"
@@ -4764,6 +4838,9 @@ msgstr "%(brand)s нь таны Андройд утсыг ашиглан тан�
 msgid "Due to restrictions Android has on applications that send SMS messages, we cannot distribute the %(brand)s application through the Play Store. You will need to download the application manually and install it using the steps below."
 msgstr "Андройд SMS мессеж илгээдэг аппликейшнд хязгаарлалт тавьдаг тул бид %(brand)s програмыг Play Store -ээр дамжуулан түгээх боломжгүй. Та програмыг гараар татаж аваад доорх алхмуудыг ашиглан суулгах хэрэгтэй болно."
 
+msgid "Version"
+msgstr "Хувилбар"
+
 msgid "was released on"
 msgstr "нээлтээ хийсэн"
 
@@ -5006,6 +5083,27 @@ msgstr "Та энд өөрийн дугаар, хэрэглэгчийн нэр, 
 #, python-format
 msgid "After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want to push a message to %(brand)s."
 msgstr "Танай үйлчилгээг холбосны дараа бид InfoBip-д %(brand)s-рүү мессеж илгээх эцсийн цэгүүдийн URL-г өгөх болно."
+
+#, fuzzy, python-format
+#| msgid "You can connect your Facebook page to %(name)s in just a few simple steps."
+msgid "You can connect your Instagram business account to %(name)s in just a few simple steps."
+msgstr "Та өөрийн фэйсбүүк хуудсыг %(name)s -тэй холбох хэдхэн энгийн алхамаар холбох боломжтой."
+
+msgid "The page must be linked to your instagram business account, so check how to link"
+msgstr ""
+
+msgid "Add Instagram Business Account"
+msgstr ""
+
+#, fuzzy
+#| msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
+msgid "Error with token, you need to reconnect the Instagram Business Account by clicking the button below"
+msgstr "Token алдаа гарсан тул та доорх товчлуур дээр дарж фэйсбүүк хуудсыг дахин холбох хэрэгтэй"
+
+#, fuzzy
+#| msgid "Error reconnecting Facebook page. Please retry"
+msgid "Error reconnecting Instagram Business Account. Please retry"
+msgstr "Фэйсбүүк хуудсыг дахин холбоход алдаа гарлаа. Дахин оролдоно у"
 
 #, python-format
 msgid "You can connect a <a href=\"https://jiochat.com\">JioChat Channel</a> to your %(name)s workspace to automate sending and receiving JioChat messages."
@@ -5255,6 +5353,11 @@ msgstr "Зорилго нь 5 минут тутамд автоматаар хо�
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr "Эдгээр харилцагчдыг бүх бүлгээс хассан бөгөөд бүр мөсөн устгах боломжтой."
 
+#, fuzzy
+#| msgid "Export only messages from these contact groups. (Leave blank to export all messages)."
+msgid "All inbound messages from these contacts are ignored. They have also been removed from all groups."
+msgstr "Зөвхөн эдгээр харилцагчдийн бүлгээс мессеж экспортлох. (Бүх мессежүүдийг экспортлохын тулд хоосон орхино уу)."
+
 #, python-format
 msgid "You are about to delete <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr "Та <span class='font-normal'> %(object)s устгах гэж байна. </span> Үүнийг буцаах арга байхгүй. Итгэлтэй байна уу?"
@@ -5348,6 +5451,16 @@ msgstr "Эхэлсэн"
 msgid "Message labelled as"
 msgstr "Дараах байдлаар шошголсон мессеж"
 
+#, fuzzy
+#| msgid "Message labelled as"
+msgid "Message deleted by user"
+msgstr "Дараах байдлаар шошголсон мессеж"
+
+#, fuzzy
+#| msgid "Message labelled as"
+msgid "Message deleted by sender"
+msgstr "Дараах байдлаар шошголсон мессеж"
+
 #, python-format
 msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>"
 msgstr "Гүйлтийн <b>%(name)s </b> үр дүнг <b>%(value)s </b> болгож, <b>%(category)s </b> ангиллаар шинэчилсэн"
@@ -5402,6 +5515,9 @@ msgstr "Харилцагч үүсгэх"
 msgid "Create Group"
 msgstr "Бүлэг үүсгэх"
 
+msgid "Smart Groups"
+msgstr "Ухаалаг бүлгүүд"
+
 msgid "Remove From Group"
 msgstr "Бүлгээс хасах"
 
@@ -5454,7 +5570,9 @@ msgstr "Түүх"
 msgid "Full"
 msgstr "Бүрэн"
 
-msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
+#, fuzzy
+#| msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
+msgid "These contacts have opted out and you can no longer send them messages, but inbound messages will unstop them. They have also been removed from all groups."
 msgstr "Эдгээр харилцагчид татгалзсан бөгөөд та тэдэнд цаашид мессеж илгээх боломжгүй, бүх бүлгээс хассан болно."
 
 msgid "Add Connection"
@@ -5674,8 +5792,50 @@ msgstr "Өдрийн цаг"
 msgid "Interrupted, Expired and Failed"
 msgstr "Тасалдсан, хугацаа нь дууссан, болон амжилтгүй болсон"
 
+msgid "Wow, that's a lot!"
+msgstr ""
+
+msgid "You've selected a lot of contacts to send this flow to. Depending on your channel it could take days to reach everybody. We recommend limiting your selection to contacts who are more likely to respond."
+msgstr ""
+
+#, fuzzy
+#| msgid "all contacts"
+msgid "All Contacts"
+msgstr "бүх харилцагчид"
+
+msgid "Selecting this option will negatively affect your response rate and reputation on some channels."
+msgstr ""
+
+#, fuzzy
+#| msgid "Responded"
+msgid "Responders"
+msgstr "Хариулсан"
+
+msgid "Quickly reach contacts who have responded in the last 90 days. This will give you better response rates and reputation on some channels."
+msgstr ""
+
+#, fuzzy
+#| msgid "Responded"
+msgid "Recommended"
+msgstr "Хариулсан"
+
 msgid "You can still test your flow using the simulator by clicking the phone icon on the right."
 msgstr "Та симулятор ашиглан баруун талын утасны дүрс дээр дарж урсгалаа туршиж үзэх боломжтой."
+
+msgid "Warning!"
+msgstr "Анхааруулга!"
+
+msgid "We've identified potential issues you might run into starting this flow. Please review the following before continuing."
+msgstr ""
+
+msgid "Enter contacts and groups to start below"
+msgstr "Доор эхлэхийн тулд холбоо барих хүмүүс болон бүлгүүдийг оруулна уу"
+
+msgid "Search for contacts to start"
+msgstr "Эхлэхийн тулд харилцагчдаа хайж олоорой"
+
+msgid "This option is no longer recommended and will be removed. Thankfully, there is a better way!"
+msgstr ""
 
 #, python-format
 msgid ""
@@ -5750,7 +5910,12 @@ msgstr "Уучлаарай, энэ урсгалыг өөр урсгал руу �
 msgid "Back to Flow"
 msgstr "Урсгал руу буцах"
 
-msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
+msgid "Flow exports will include the results for each contact that has passed through the flow. You may optionally include up to 10 contact fields and URN types whose values will also be exported with each run."
+msgstr ""
+
+#, fuzzy
+#| msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
+msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations. Note that split arguments will not be included in the translation file and should be translated from the editor if necessary."
 msgstr "<a href=\"https://en.wikipedia.org/wiki/Gettext\"> gettext </a> PO файлыг урсгалаас гаргаж аваад дараа нь шинэчилсэн орчуулгатай дахин импортлох боломжтой."
 
 msgid "Remove Label"
@@ -5794,9 +5959,6 @@ msgstr "Шошго үүсгэх"
 
 msgid "Create Flow"
 msgstr "Урсгал үүсгэх"
-
-msgid "Labels"
-msgstr "Шошгонууд"
 
 msgid "Webhook Call Log"
 msgstr "Webhook дуудлагын бүртгэл"
@@ -5885,6 +6047,11 @@ msgstr[1] "<b>%(count)s</b> гүйлтүүд"
 
 msgid "No flow starts"
 msgstr "Ямар ч урсгал эхлэхгүй"
+
+#, fuzzy
+#| msgid "Your Privacy"
+msgid "Privacy"
+msgstr "Таны хувийн нууцлал"
 
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Үргэлжлүүлмээр байна уу? Үүнийг буцаах боломжгүй."
@@ -6124,8 +6291,14 @@ msgstr[1] "%(num_flows)s урсгалууд ашигладаг:"
 msgid "No matching messages."
 msgstr "Тохирох мессеж байхгүй."
 
-msgid "Hi there!"
-msgstr "Сайн байна уу!"
+msgid "Hi"
+msgstr ""
+
+msgid "If you have any questions we are always here to help."
+msgstr ""
+
+msgid "Thanks"
+msgstr ""
 
 msgid "Your contact export is ready."
 msgstr ""
@@ -6134,20 +6307,39 @@ msgstr ""
 msgid "Download the Excel file here: %(url)s"
 msgstr ""
 
-msgid "Thanks"
-msgstr ""
-
-#, python-format
-msgid "The %(brand)s Team "
-msgstr "%(brand)s баг "
-
-msgid "Your message export is ready"
-msgstr ""
-
 msgid "Your message export is ready."
 msgstr "Таны мессеж экспортлоход бэлэн боллоо."
 
 msgid "Your export of results for the following flows is ready."
+msgstr ""
+
+#, fuzzy
+#| msgid "Outgoing"
+msgid "Ongoing"
+msgstr "Гарч буй"
+
+msgid "None"
+msgstr "None"
+
+#, fuzzy
+#| msgid "Preview"
+msgid "Previous"
+msgstr "Урьдчилан үзэх"
+
+#, fuzzy
+#| msgid "Sorry, your workspace is currently flagged. To re-enable starting flows and sending messages, please contact support."
+msgid ""
+"\n"
+"  Your workspace has been flagged due to suspicious activity. To re-enable starting flows and sending messages, please\n"
+"  contact support.\n"
+msgstr "Уучлаарай, таны ажлын талбар одоогоор дарцаглагдсан байна. Урсгал болон мессеж илгээлтийг дахин идэвхжүүлэхийн тулд оператортой холбоо барина уу."
+
+#, python-format
+msgid ""
+"\n"
+"  Some webhook calls from your flows are taking too long to respond or failing too frequently. If the problem persists\n"
+"  these calls will be temporarily disabled. You can check the <a href=\"%(logs_url)s\">webhook call log</a> to see which\n"
+"  calls are the problem.\n"
 msgstr ""
 
 msgid "Your workspace is suspended and no longer processing messages."
@@ -6164,9 +6356,6 @@ msgstr "Та устгах гэж байна"
 
 msgid "There is no way to undo this. Are you sure?"
 msgstr "Үүнийг буцаах арга байхгүй. Итгэлтэй байна уу?"
-
-msgid "None"
-msgstr "None"
 
 #, python-format
 msgid ""
@@ -6537,119 +6726,23 @@ msgstr ""
 "\n"
 "\n"
 
-#, python-format
-msgid ""
-"\n"
-"\n"
-"<br/>\n"
-"Hi from %(hostname)s,\n"
-"<br/>\n"
-"<br/>\n"
-"Someone has requested that the password for this email address be reset.\n"
-"<br/>\n"
-"<br/>\n"
-"Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
-"<br/>\n"
-"<a href='%(brand_link)s%(path)s'>Reset password</a>.\n"
-"<br/>\n"
-"<br/>\n"
-"If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
-"<br/>\n"
-"Thank you.\n"
-"<br/>\n"
-"<br/>\n"
-"Please do not reply to this email.\n"
-"<br/>\n"
-"<br/>\n"
+#, fuzzy
+#| msgid "Hi there!"
+msgid "Hi there"
+msgstr "Сайн байна уу!"
+
+msgid "Someone has requested that the password for this email address be reset."
 msgstr ""
-"\n"
-"\n"
-"<br/>\n"
-"Сайн байна уу %(hostname)s-с байна,\n"
-"<br/>\n"
-"<br/>\n"
-"Хэн нэгэн энэ имэйл хаягийн нууц үгийг шинэчлэх хүсэлт гаргалаа.\n"
-"<br/>\n"
-"<br/>\n"
-"Дараах линк дээр дарахад акаунтны нууц үгийг шинэчлэх боломжтой болно %(account_name)s:\n"
-"<br/>\n"
-"<a href='%(brand_link)s%(path)s'>Нууц үг шинэчлэх</a>.\n"
-"<br/>\n"
-"<br/>\n"
-"Хэрэв та хүсэлт тавиагүй бол санаа зовох хэрэггүй, энэ имэйлийг зөвхөн танд илгээсэн бөгөөд таны акаунт аюулгүй хэвээр байна.\n"
-"<br/>\n"
-"Баярлалаа.\n"
-"<br/>\n"
-"<br/>\n"
-"Энэ имэйлд хариу бичихгүй байхыг хүсье.\n"
-"<br/>\n"
-"<br/>\n"
 
 #, python-format
-msgid ""
-"\n"
-"\n"
-"Hi from %(hostname)s,\n"
-"\n"
-"Someone has requested that the password for this email address be reset.\n"
-"\n"
-"Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
-"\n"
-"%(brand_link)s%(path)s\n"
-"\n"
-"If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
-"\n"
-"Thank you.\n"
-"\n"
-"Please do not reply to this email.\n"
-"\n"
+msgid "Clicking on the following link will allow you to reset the password for the account %(email)s:"
 msgstr ""
-"\n"
-"\n"
-"Сайн байна уу %(hostname)s-с байна,\n"
-"\n"
-"Хэн нэгэн энэ имэйл хаягийн нууц үгийг шинэчлэх хүсэлт гаргалаа.\n"
-"\n"
-"Дараах линк дээр дарахад акаунтны нууц үгийг шинэчлэх боломжтой болно %(account_name)s:\n"
-"\n"
-"\n"
-"<a href='%(brand_link)s%(path)s'>Нууц үг шинэчлэх</a>.\n"
-"\n"
-"Хэрэв та хүсэлт тавиагүй бол санаа зовох хэрэггүй, энэ имэйлийг зөвхөн танд илгээсэн бөгөөд таны акаунт аюулгүй хэвээр байна.\n"
-"\n"
-"Баярлалаа.\n"
-"\n"
-"Энэ имэйлд хариу бичихгүй байхыг хүсье.\n"
-"\n"
-"\n"
 
-#, python-format
-msgid "Connected to your Chatbase account as agent <b>%(agent)s</b>."
-msgstr "Таны Chatbase акаунттай <b>%(agent)s </b> агентаар холбогдсон."
+msgid "If you did not request this, don't worry, this email has only been sent to you and your account remains secure."
+msgstr ""
 
-msgid "Connect your Chatbase account."
-msgstr "Chatbase акаунтаа холбоно уу."
-
-msgid "Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences and better understand your users. To signup for an account, visit"
-msgstr "Chatbase акаунтаа холбосноор та ботоо хянах, эвдэрсэн зүйлсээ засах, хэрэглэгчдээ илүү сайн ойлгох боломжтой болно. Бүртгүүлэхийн тулд, зочилно уу"
-
-msgid "Your Chatbase account is connected to the Agent"
-msgstr "Таны Chatbase акаунт Агентэд холбогдсон байна"
-
-msgid "If you no longer want it connected, you can"
-msgstr "Хэрэв та үүнийг холбохыг хүсэхгүй байгаа бол, та Chatbase акаунтаа"
-
-msgid "disconnect"
-msgstr "салгаж"
-
-msgid "your Chatbase account. Doing so will interrupt the data sent to your Chatbase console."
-msgstr "болно. Ингэснээр таны Chatbase консол руу илгээсэн өгөгдлийг тасалдуулах болно."
-
-msgid "Disconnect Chatbase"
-msgstr "Chatbase-г салгах"
-
-msgid "This will disconnect your Chatbase account. Are you sure you want to proceed?"
-msgstr "Энэ нь таны Chatbase акаунтыг салгах болно. Та үргэлжлүүлэхдээ итгэлтэй байна уу?"
+msgid "Thank you. Please do not reply to this email."
+msgstr ""
 
 msgid "Connected to your DT One account."
 msgstr "Таны DT One акаунттай холбогдсон байна."
@@ -6832,9 +6925,6 @@ msgstr "Урсгал болон Ко.ажил импортлох"
 
 msgid "If you have an export file with flows and or campaigns, select it below to import it into your workspace."
 msgstr "Хэрэв танд урсгал болон компанит ажилтай экспортын файл байгаа бол түүнийгээ ажлын талбарт оруулахын тулд доороос сонгоно уу."
-
-msgid "Warning!"
-msgstr "Анхааруулга!"
 
 msgid "If you have flows or campaigns with the same names or UUIDs as the ones you are importing they will be replaced and all history for them will be lost."
 msgstr "Хэрэв таны импорт хийж буй нэртэй эсвэл UUID -тэй ижил урсгал эсвэл компанит ажил байгаа бол тэдгээр нь солигдож, бүх түүх нь устах болно."
@@ -7060,6 +7150,19 @@ msgstr "%(brand)s-г дэмжиж байгаад баярлалаа."
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Нэмэлт нэгж, %(brand)s-г туршиж үзсэнд баярлалаа."
 
+#, fuzzy
+#| msgid "Your Account"
+msgid "User Account"
+msgstr "Таны акаунт"
+
+#, python-format
+msgid ""
+"\n"
+"        %(brand)s recommends that you enable <temba-anchor href=\"%(otp_url)s\">two factor</temba-anchor> authentication.\n"
+"\n"
+"      "
+msgstr ""
+
 msgid "Confirm your current password to save these changes"
 msgstr "Эдгээр өөрчлөлтийг хадгалахын тулд одоогийн нууц үгээ баталгаажуулна уу"
 
@@ -7101,7 +7204,17 @@ msgstr "Нэвтрэх явцад хоёр алхамт баталгаажуул
 msgid "Two-factor authentication is <b>disabled</b>."
 msgstr "Хоёр алхамт баталгаажуулалтыг <b> идэвхгүй болгосон </b>."
 
-msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
+msgid "Your account is currently secured with two-factor authentication."
+msgstr ""
+
+#, fuzzy
+#| msgid "Use Backup Token"
+msgid "Backup Tokens"
+msgstr "Нөөц Токен ашиглах"
+
+#, fuzzy
+#| msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
+msgid "Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
 msgstr "Одоогоор таны нэвтрэлтэнд хоёр алхамт баталгаажуулалт идэвхижсэн байна. Хэрэв та хоёр хүчин алхамт баталгаажуулалтыг тохируулсан төхөөрөмжид хандах эрхээ алдсан бол дараах байдлаар ашиглаж болох нөөц токенуудыг доор харуулав. Токен бүрийг зөвхөн нэг удаа ашиглах боломжтой бөгөөд аль хэдийн ашигласан токенуудыг дарсан байдлаар харуулав. Та эдгээр токенуудыг аюулгүй газар хадгалах ёстой."
 
 msgid "You can generate new backup tokens but remember that the current tokens will be no longer be usable if you do this."
@@ -7806,3 +7919,163 @@ msgstr "Загваруудыг 15 минут тутамд таны акаунт�
 
 msgid "No synced templates at this time."
 msgstr "Одоогоор холболт хийсэн загвар байхгүй байна."
+
+#~ msgid "Update Event"
+#~ msgstr "Үйл ажиллагааг өөрчлөх"
+
+#~ msgid "Archive delete"
+#~ msgstr "Архивыг устгах"
+
+#~ msgid "User delete"
+#~ msgstr "Хэрэглэгч устгах"
+
+#~ msgid "Include Arguments"
+#~ msgstr "Аргументуудыг оруулах"
+
+#~ msgid "Include arguments to tests on splits"
+#~ msgstr "Туршилтанд аргументуудыг оруулах"
+
+#~ msgid "Include Messages"
+#~ msgstr "Мессежийг оруулах"
+
+#~ msgid "Export all messages sent and received in this flow"
+#~ msgstr "Энэ урсгалаар илгээсэн болон хүлээн авсан бүх мессежийг экспортлох"
+
+#~ msgid "Select contacts or groups to start in the flow"
+#~ msgstr "Урсгалыг эхлүүлэхийн тулд харилцагчид эсвэл бүлгүүдийг сонгоно уу"
+
+#~ msgid "Select contact and groups"
+#~ msgstr "Харилцагч болон бүлгээ сонгоно уу"
+
+#~ msgid "Please read the options below carefully as they have changed recently."
+#~ msgstr "Саяхан өөрчлөгдсөн тул доорх сонголтуудыг анхааралтай уншина уу."
+
+#~ msgid "Agent Name"
+#~ msgstr "Агентын нэр"
+
+#~ msgid "Your Chatbase agent's name."
+#~ msgstr "Таны Chatbase агентын нэр."
+
+#~ msgid "The chatbase agent's API Key."
+#~ msgstr "Chatbase агентын API түлхүүр."
+
+#~ msgid "Missing agent name or API key."
+#~ msgstr "Агентын нэр эсвэл API түлхүүр дутуу байна."
+
+#, python-format
+#~ msgid "The %(brand)s Team "
+#~ msgstr "%(brand)s баг "
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "\n"
+#~ "<br/>\n"
+#~ "Hi from %(hostname)s,\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Someone has requested that the password for this email address be reset.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
+#~ "<br/>\n"
+#~ "<a href='%(brand_link)s%(path)s'>Reset password</a>.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
+#~ "<br/>\n"
+#~ "Thank you.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Please do not reply to this email.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ msgstr ""
+#~ "\n"
+#~ "\n"
+#~ "<br/>\n"
+#~ "Сайн байна уу %(hostname)s-с байна,\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Хэн нэгэн энэ имэйл хаягийн нууц үгийг шинэчлэх хүсэлт гаргалаа.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Дараах линк дээр дарахад акаунтны нууц үгийг шинэчлэх боломжтой болно %(account_name)s:\n"
+#~ "<br/>\n"
+#~ "<a href='%(brand_link)s%(path)s'>Нууц үг шинэчлэх</a>.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Хэрэв та хүсэлт тавиагүй бол санаа зовох хэрэггүй, энэ имэйлийг зөвхөн танд илгээсэн бөгөөд таны акаунт аюулгүй хэвээр байна.\n"
+#~ "<br/>\n"
+#~ "Баярлалаа.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+#~ "Энэ имэйлд хариу бичихгүй байхыг хүсье.\n"
+#~ "<br/>\n"
+#~ "<br/>\n"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "\n"
+#~ "Hi from %(hostname)s,\n"
+#~ "\n"
+#~ "Someone has requested that the password for this email address be reset.\n"
+#~ "\n"
+#~ "Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
+#~ "\n"
+#~ "%(brand_link)s%(path)s\n"
+#~ "\n"
+#~ "If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
+#~ "\n"
+#~ "Thank you.\n"
+#~ "\n"
+#~ "Please do not reply to this email.\n"
+#~ "\n"
+#~ msgstr ""
+#~ "\n"
+#~ "\n"
+#~ "Сайн байна уу %(hostname)s-с байна,\n"
+#~ "\n"
+#~ "Хэн нэгэн энэ имэйл хаягийн нууц үгийг шинэчлэх хүсэлт гаргалаа.\n"
+#~ "\n"
+#~ "Дараах линк дээр дарахад акаунтны нууц үгийг шинэчлэх боломжтой болно %(account_name)s:\n"
+#~ "\n"
+#~ "\n"
+#~ "<a href='%(brand_link)s%(path)s'>Нууц үг шинэчлэх</a>.\n"
+#~ "\n"
+#~ "Хэрэв та хүсэлт тавиагүй бол санаа зовох хэрэггүй, энэ имэйлийг зөвхөн танд илгээсэн бөгөөд таны акаунт аюулгүй хэвээр байна.\n"
+#~ "\n"
+#~ "Баярлалаа.\n"
+#~ "\n"
+#~ "Энэ имэйлд хариу бичихгүй байхыг хүсье.\n"
+#~ "\n"
+#~ "\n"
+
+#, python-format
+#~ msgid "Connected to your Chatbase account as agent <b>%(agent)s</b>."
+#~ msgstr "Таны Chatbase акаунттай <b>%(agent)s </b> агентаар холбогдсон."
+
+#~ msgid "Connect your Chatbase account."
+#~ msgstr "Chatbase акаунтаа холбоно уу."
+
+#~ msgid "Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences and better understand your users. To signup for an account, visit"
+#~ msgstr "Chatbase акаунтаа холбосноор та ботоо хянах, эвдэрсэн зүйлсээ засах, хэрэглэгчдээ илүү сайн ойлгох боломжтой болно. Бүртгүүлэхийн тулд, зочилно уу"
+
+#~ msgid "Your Chatbase account is connected to the Agent"
+#~ msgstr "Таны Chatbase акаунт Агентэд холбогдсон байна"
+
+#~ msgid "If you no longer want it connected, you can"
+#~ msgstr "Хэрэв та үүнийг холбохыг хүсэхгүй байгаа бол, та Chatbase акаунтаа"
+
+#~ msgid "disconnect"
+#~ msgstr "салгаж"
+
+#~ msgid "your Chatbase account. Doing so will interrupt the data sent to your Chatbase console."
+#~ msgstr "болно. Ингэснээр таны Chatbase консол руу илгээсэн өгөгдлийг тасалдуулах болно."
+
+#~ msgid "Disconnect Chatbase"
+#~ msgstr "Chatbase-г салгах"
+
+#~ msgid "This will disconnect your Chatbase account. Are you sure you want to proceed?"
+#~ msgstr "Энэ нь таны Chatbase акаунтыг салгах болно. Та үргэлжлүүлэхдээ итгэлтэй байна уу?"
