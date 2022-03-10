@@ -15,9 +15,6 @@ from ...views import ClaimViewMixin
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         user_access_token = forms.CharField(min_length=32, required=True, help_text=_("The User Access Token"))
-        fb_user_id = forms.CharField(
-            required=True, help_text=_("The Facebook User ID of the admin that connected the channel")
-        )
         page_name = forms.CharField(required=True, help_text=_("The name of the Facebook page"))
         page_id = forms.IntegerField(required=True, help_text="The Facebook Page ID")
 
@@ -26,32 +23,18 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 auth_token = self.cleaned_data["user_access_token"]
                 name = self.cleaned_data["page_name"]
                 page_id = self.cleaned_data["page_id"]
-                fb_user_id = self.cleaned_data["fb_user_id"]
 
-                app_id = settings.FACEBOOK_APPLICATION_ID
-                app_secret = settings.FACEBOOK_APPLICATION_SECRET
-
-                # get user long lived access token
-                url = "https://graph.facebook.com/oauth/access_token"
-                params = {
-                    "grant_type": "fb_exchange_token",
-                    "client_id": app_id,
-                    "client_secret": app_secret,
-                    "fb_exchange_token": auth_token,
-                }
+                url = "https://graph.facebook.com/v12.0/debug_token"
+                params = {"access_token": auth_token, "input_token": auth_token}
 
                 response = requests.get(url, params=params)
-
                 if response.status_code != 200:  # pragma: no cover
-                    raise Exception("Failed to get a user long lived token")
+                    raise Exception("Failed to get user ID")
 
-                long_lived_auth_token = response.json().get("access_token", "")
-
-                if long_lived_auth_token == "":  # pragma: no cover
-                    raise Exception("Empty user access token!")
+                fb_user_id = response.json().get("data", dict()).get("user_id")
 
                 url = f"https://graph.facebook.com/v12.0/{fb_user_id}/accounts"
-                params = {"access_token": long_lived_auth_token}
+                params = {"access_token": auth_token}
 
                 response = requests.get(url, params=params)
 

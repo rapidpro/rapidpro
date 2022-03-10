@@ -14,7 +14,7 @@ class InstagramTypeTest(TembaTest):
         super().setUp()
 
         self.token = "x" * 200
-        self.long_life_user_token = f"page-long-life-{self.token}"
+        self.long_life_page_token = f"page-long-life-{self.token}"
         self.channel = Channel.create(
             self.org,
             self.user,
@@ -27,12 +27,12 @@ class InstagramTypeTest(TembaTest):
             config={"auth_token": "09876543", "page_id": "123456"},
         )
 
-    @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
+    @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID")
     @patch("requests.post")
     @patch("requests.get")
     def test_claim(self, mock_get, mock_post):
         mock_get.side_effect = [
-            MockResponse(200, json.dumps({"access_token": self.long_life_user_token})),
+            MockResponse(200, json.dumps({"data": {"user_id": "098765"}})),
             MockResponse(
                 200,
                 json.dumps(
@@ -41,7 +41,7 @@ class InstagramTypeTest(TembaTest):
                             {
                                 "name": "Temba",
                                 "id": "123456",
-                                "access_token": self.long_life_user_token,
+                                "access_token": self.long_life_page_token,
                             }
                         ]
                     }
@@ -70,7 +70,6 @@ class InstagramTypeTest(TembaTest):
         self.assertEqual(response.context["claim_url"], url)
 
         post_data = response.context["form"].initial
-        post_data["fb_user_id"] = "098765"
         post_data["user_access_token"] = self.token
         post_data["page_id"] = "123456"
         post_data["page_name"] = "Temba"
@@ -79,7 +78,7 @@ class InstagramTypeTest(TembaTest):
 
         # assert our channel got created
         channel = Channel.objects.get(address="1234567", channel_type="IG")  # address is ig user
-        self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], self.long_life_user_token)
+        self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], self.long_life_page_token)
         self.assertEqual(channel.config[Channel.CONFIG_PAGE_NAME], "Temba")
         self.assertEqual(channel.address, "1234567")
 
@@ -89,35 +88,30 @@ class InstagramTypeTest(TembaTest):
         )
 
         mock_get.assert_any_call(
-            "https://graph.facebook.com/oauth/access_token",
-            params={
-                "grant_type": "fb_exchange_token",
-                "client_id": "FB_APP_ID",
-                "client_secret": "FB_APP_SECRET",
-                "fb_exchange_token": self.token,
-            },
+            "https://graph.facebook.com/v12.0/debug_token",
+            params={"input_token": self.token, "access_token": self.token},
         )
 
         mock_get.assert_any_call(
             "https://graph.facebook.com/v12.0/098765/accounts",
-            params={"access_token": self.long_life_user_token},
+            params={"access_token": self.token},
         )
 
         mock_post.assert_any_call(
             "https://graph.facebook.com/v12.0/123456/subscribed_apps",
             data={"subscribed_fields": "messages,messaging_postbacks"},
-            params={"access_token": self.long_life_user_token},
+            params={"access_token": self.long_life_page_token},
         )
 
         mock_get.assert_any_call(
             "https://graph.facebook.com/123456?fields=instagram_business_account",
             params={
-                "access_token": self.long_life_user_token,
+                "access_token": self.long_life_page_token,
             },
         )
 
         mock_get.side_effect = [
-            MockResponse(200, json.dumps({"access_token": self.long_life_user_token})),
+            MockResponse(200, json.dumps({"data": {"user_id": "098765"}})),
             Exception("blah"),
         ]
 
@@ -127,7 +121,6 @@ class InstagramTypeTest(TembaTest):
         self.assertEqual(response.context["claim_url"], url)
 
         post_data = response.context["form"].initial
-        post_data["fb_user_id"] = "098765"
         post_data["user_access_token"] = self.token
         post_data["page_id"] = "123456"
         post_data["page_name"] = "Temba"
@@ -172,7 +165,7 @@ class InstagramTypeTest(TembaTest):
 
         mock_get.side_effect = [
             MockResponse(200, json.dumps({"id": "12345"})),
-            MockResponse(200, json.dumps({"access_token": self.long_life_user_token})),
+            MockResponse(200, json.dumps({"access_token": self.long_life_page_token})),
             MockResponse(
                 200,
                 json.dumps(
@@ -181,7 +174,7 @@ class InstagramTypeTest(TembaTest):
                             {
                                 "name": "Temba",
                                 "id": "123456",
-                                "access_token": self.long_life_user_token,
+                                "access_token": self.long_life_page_token,
                             }
                         ]
                     }
@@ -203,7 +196,7 @@ class InstagramTypeTest(TembaTest):
 
         # assert our channel got created
         channel = Channel.objects.get(address="019283", channel_type="IG")
-        self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], self.long_life_user_token)
+        self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], self.long_life_page_token)
         self.assertEqual(channel.config[Channel.CONFIG_PAGE_NAME], "Temba")
         self.assertEqual(channel.address, "019283")
 
@@ -224,11 +217,11 @@ class InstagramTypeTest(TembaTest):
 
         mock_get.assert_any_call(
             "https://graph.facebook.com/v12.0/098765/accounts",
-            params={"access_token": self.long_life_user_token},
+            params={"access_token": self.long_life_page_token},
         )
 
         mock_post.assert_any_call(
             "https://graph.facebook.com/v12.0/123456/subscribed_apps",
             data={"subscribed_fields": "messages,messaging_postbacks"},
-            params={"access_token": self.long_life_user_token},
+            params={"access_token": self.long_life_page_token},
         )
