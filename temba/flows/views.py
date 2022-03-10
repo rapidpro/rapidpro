@@ -1409,13 +1409,12 @@ class FlowCRUDL(SmartCRUDL):
         def derive_initial(self):
             flow_ids = self.request.GET.get("ids", None)
             if flow_ids:  # pragma: needs cover
-                return dict(
-                    flows=Flow.objects.filter(
-                        org=self.request.user.get_org(), is_active=True, id__in=flow_ids.split(",")
-                    )
-                )
+                return {"flows": self.request.org.flows.filter(is_active=True, id__in=flow_ids.split(","))}
             else:
-                return dict()
+                return {}
+
+        def derive_exclude(self):
+            return ["extra_urns"] if self.request.org.is_anon else []
 
         def form_valid(self, form):
             user = self.request.user

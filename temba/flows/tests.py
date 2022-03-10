@@ -4143,6 +4143,7 @@ class ExportFlowResultsTest(TembaTest):
                 [
                     "Contact UUID",
                     "ID",
+                    "Scheme",
                     "Name",
                     "Started",
                     "Modified",
@@ -4161,6 +4162,7 @@ class ExportFlowResultsTest(TembaTest):
                     self.contact.uuid,
                     f"{self.contact.id:010d}",
                     "Eric",
+                    "tel",
                     run1.created_on,
                     run1.modified_on,
                     run1.exited_on,
