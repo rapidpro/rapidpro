@@ -657,7 +657,7 @@ class MsgCRUDL(SmartCRUDL):
             # stuff in any pending broadcasts
             context["pending_broadcasts"] = (
                 Broadcast.objects.filter(
-                    org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING], schedule=None, is_active=True
+                    org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING], schedule=None
                 )
                 .select_related("org")
                 .prefetch_related("groups", "contacts", "urns")

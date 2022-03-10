@@ -1569,7 +1569,9 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # 'Created On' system field must be selectable in the form
         contact_fields = [field.key for field in response.context["form"].fields["relative_to"].queryset]
-        self.assertEqual(contact_fields, ["created_on", "last_seen_on", "planting_date", "registered"])
+        self.assertEqual(
+            contact_fields, ["created_on", "last_seen_on", "opt_out_datetime", "planting_date", "registered"]
+        )
 
         # translation in new language is optional
         response = self.assertUpdateSubmit(

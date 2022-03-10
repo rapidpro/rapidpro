@@ -69,9 +69,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             "bottom_padding": 20,
             "side_of_screen": "right",
         }
-        languages = org.languages.all().order_by("orgs")
-        for lang in languages:
-            lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+        for lang in org.flow_languages:
+            lang_alpha = pycountry.languages.get(alpha_3=lang)
             if not hasattr(lang_alpha, "alpha_2"):
                 continue
 

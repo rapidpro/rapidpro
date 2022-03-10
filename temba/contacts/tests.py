@@ -2094,7 +2094,7 @@ class ContactTest(TembaTest):
 
         # fetch our contact history
         self.login(self.admin)
-        with self.assertNumQueries(52):
+        with self.assertNumQueries(53):
             response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -4201,7 +4201,8 @@ class ContactFieldTest(TembaTest):
                         "Adam Sumner",
                         "eng",
                         contact2.created_on,
-                        "" "Active, Poppin Tags",
+                        "",
+                        "Active, Poppin Tags",
                         "",
                         "",
                         "",
@@ -4218,8 +4219,8 @@ class ContactFieldTest(TembaTest):
                         "",
                         "One",
                     ],
-                    [str(contact3.id), contact3.uuid, "Luol Deng", "", contact3.created_on, "Active", "", "", "", ""],
-                    [str(contact4.id), contact4.uuid, "Stephen", "", contact4.created_on, "Active", "", "", "", ""],
+                    [str(contact3.id), contact3.uuid, "Luol Deng", "", contact3.created_on, "", "Active", "", "", ""],
+                    [str(contact4.id), contact4.uuid, "Stephen", "", contact4.created_on, "", "Active", "", "", ""],
                 ],
                 tz=self.org.timezone,
             )
@@ -4615,7 +4616,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"label": "???", "value_type": "T", "show_in_table": True},
-            form_errors={"label": "Can only contain letters, numbers and hypens."},
+            form_errors={"label": "Can only contain letters, numbers and hyphens."},
         )
 
         # try to submit with something that would be an invalid key
@@ -4689,7 +4690,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(
             update_url,
             {"label": "???", "value_type": "N", "show_in_table": True},
-            form_errors={"label": "Can only contain letters, numbers and hypens."},
+            form_errors={"label": "Can only contain letters, numbers and hyphens."},
             object_unchanged=self.age,
         )
 

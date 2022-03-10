@@ -1971,17 +1971,6 @@ class ContactFieldCRUDL(SmartCRUDL):
         permission = "contacts.contactfield_read"
         queryset = ContactField.user_fields
 
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            context["dep_flows"] = list(self.object.dependent_flows.filter(is_active=True, is_system=False).all())
-            context["dep_campaignevents"] = list(
-                self.object.campaign_events.filter(is_active=True).select_related("campaign").all()
-            )
-            context["dep_groups"] = list(self.object.contactgroup_set.filter(is_active=True).all())
-
-            return context
-
 
 class ContactImportCRUDL(SmartCRUDL):
     model = ContactImport
