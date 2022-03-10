@@ -185,9 +185,9 @@ def squash_migrations(step: int):
         last_mig = get_app_migration_modules("sql")[-1]
         mig_path = f"temba/sql/migrations/{last_mig}.py"
         mig_num = last_mig[:4]
-        shutil.copy2("../temba/sql/current_functions.sql", f"temba/sql/migrations/{mig_num}_functions.sql")
-        shutil.copy2("../temba/sql/current_indexes.sql", f"temba/sql/migrations/{mig_num}_indexes.sql")
-        shutil.copy2("../temba/sql/current_triggers.sql", f"temba/sql/migrations/{mig_num}_triggers.sql")
+        shutil.copy2("temba/sql/current_functions.sql", f"temba/sql/migrations/{mig_num}_functions.sql")
+        shutil.copy2("temba/sql/current_indexes.sql", f"temba/sql/migrations/{mig_num}_indexes.sql")
+        shutil.copy2("temba/sql/current_triggers.sql", f"temba/sql/migrations/{mig_num}_triggers.sql")
         ops = f'InstallSQL("{mig_num}_functions"), InstallSQL("{mig_num}_indexes"), InstallSQL("{mig_num}_triggers")'
 
         def transform(data):
