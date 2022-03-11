@@ -3689,8 +3689,7 @@ class ExportFlowResultsTest(TembaTest):
 
         with self.mockReadOnly(assert_models=readonly_models):
             response = self.client.post(reverse("flows.flow_export_results"), form)
-
-        self.assertEqual(response.status_code, 302)
+            self.assertEqual(response.status_code, 302)
 
         task = ExportFlowResultsTask.objects.order_by("-id").first()
         self.assertIsNotNone(task)
@@ -4134,6 +4133,14 @@ class ExportFlowResultsTest(TembaTest):
                 .save()
             ).session.runs.get()
 
+            # we don't show URNs field
+            self.login(self.admin)
+            response = self.client.get(reverse("flows.flow_export_results"))
+            self.assertEqual(
+                ["flows", "group_memberships", "contact_fields", "responded_only", "loc"],
+                list(response.context["form"].fields.keys()),
+            )
+
             workbook = self._export(flow)
             self.assertEqual(1, len(workbook.worksheets))
             sheet_runs = workbook.worksheets[0]
@@ -4161,8 +4168,8 @@ class ExportFlowResultsTest(TembaTest):
                 [
                     self.contact.uuid,
                     f"{self.contact.id:010d}",
-                    "Eric",
                     "tel",
+                    "Eric",
                     run1.created_on,
                     run1.modified_on,
                     run1.exited_on,

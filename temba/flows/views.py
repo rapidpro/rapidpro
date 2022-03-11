@@ -1440,7 +1440,7 @@ class FlowCRUDL(SmartCRUDL):
                     flows,
                     contact_fields=form.cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS],
                     responded_only=responded_only,
-                    extra_urns=form.cleaned_data[ExportFlowResultsTask.EXTRA_URNS],
+                    extra_urns=form.cleaned_data.get(ExportFlowResultsTask.EXTRA_URNS, []),
                     group_memberships=form.cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS],
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
