@@ -4999,7 +4999,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
             self.create_contact(name, urns=urns, fields=fields)
 
         def q(query):
-            results = search_contacts(self.org, query, group=self.org.active_contacts_group)
+            results = search_contacts(self.org, query, group=self.org.cached_active_contacts_group)
             return results.total
 
         db_config = connection.settings_dict
