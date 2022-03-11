@@ -24,9 +24,8 @@
       %input#user-access-token(type="text" name="user_access_token")
 
 
--block fb-scripts
+-block extra-script
   {{ block.super }}
-  #fb-root
 
   :javascript
     window.fbAsyncInit = function() {
@@ -37,10 +36,7 @@
       });
     };
 
-  <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk/debug.js"></script>
-
--block extra-script
-  {{ block.super }}
+  <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
 
   :javascript
     $(document).ready(function(){
