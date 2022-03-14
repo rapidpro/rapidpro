@@ -78,10 +78,10 @@
         return res;
       }, {});
 
-      var accessToken = result.long_lived_token
+      var accessToken = result.long_lived_token;
       if (accessToken) {
         getFBPages(accessToken);
-      };
+      }
 
       $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e){
         $("#user-access-token").val($(this).data("fb-access-token"));
