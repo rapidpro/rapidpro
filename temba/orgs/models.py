@@ -2171,6 +2171,34 @@ class Org(SmartModel):
             return False
         return True
 
+    @property
+    def twilio_stats(self):
+        tw = self.get_twilio_client()
+        if not tw:
+            return {}
+
+        curr_year, curr_month = timezone.now().timetuple()[:2]
+        start_year, start_month = (curr_year - 1, curr_month + 1) if curr_month < 12 else (curr_year, 1)
+        start_date = timezone.datetime(start_year, start_month, 1)
+        records = tw.api.usage.records.monthly.stream(start_date=start_date)
+        allowed_categories = [
+            "sms-inbound",
+            "sms-outbound",
+            "mms-inbound",
+            "mms-outbound",
+            "calls-inbound",
+            "calls-outbound",
+        ]
+        result_stats = dict(**{category: list() for category in allowed_categories})
+        for record in records:
+            if record.category in allowed_categories:
+                result_stats[record.category].append((record.start_date, record.count))
+
+        # sort records in each category
+        for category in allowed_categories:
+            result_stats[category] = sorted(result_stats[category], key=lambda r: r[0])
+        return result_stats
+
 
 # ===================== monkey patch User class with a few extra functions ========================
 
