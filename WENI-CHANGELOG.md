@@ -1,3 +1,7 @@
+1.1.7-rapidpro-7.0.4
+----------
+ * Added LogRocket in place of Hotjar
+
 1.1.6-rapidpro-7.0.4
 ----------
  * Add subscribed_apps permission for Instagram Channel
