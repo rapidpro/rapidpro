@@ -336,7 +336,7 @@ LOGIN_REDIRECT_URL = env("LOGIN_REDIRECT_URL", default="/msg/inbox/")
 TEMPLATES[0]["OPTIONS"]["context_processors"] += [
     "temba.context_processors_weni.use_weni_layout",
     "temba.context_processors_weni.weni_announcement",
-    "temba.context_processors_weni.hotjar",
+    "temba.context_processors_weni.logrocket",
     "temba.context_processors_weni.show_sidemenu",
 ]
 WENI_DOMAINS = {"weni": env("WENI_DOMAIN", default="weni.ai")}
@@ -353,8 +353,9 @@ ANNOUNCEMENT_RIGHT = env("ANNOUNCEMENT_RIGHT")
 ANNOUNCEMENT_LINK = env("ANNOUNCEMENT_LINK")
 ANNOUNCEMENT_BUTTON = env("ANNOUNCEMENT_BUTTON")
 
-# Hotjar
-HOTJAR_IDS = env.dict('HOTJAR_IDS')
+# LOGROCKET
+LOGROCKET_IDS = env.dict("LOGROCKET_IDS")
+PARENT_IFRAME_DOMAIN = env("PARENT_IFRAME_DOMAIN")
 
 # ------------------------------------------------------------------------------------------
 # Production-only: Adjust depending on your proxy

@@ -29,6 +29,6 @@ def weni_announcement(request):
     }
 
 
-def hotjar(request):
+def logrocket(request):
     domain = ".".join(request.get_host().split(":")[0].split(".")[-2:])
-    return {"hotjar_id": settings.HOTJAR_IDS.get(domain, "")}
+    return {"parent_iframe_domain": settings.PARENT_IFRAME_DOMAIN,"logrocket_id": settings.LOGROCKET_IDS.get(domain, "")}
