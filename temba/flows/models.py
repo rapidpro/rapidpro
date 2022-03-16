@@ -1554,7 +1554,7 @@ class FlowRevision(SmartModel):
 
     @classmethod
     def validate_legacy_definition(cls, definition):
-        if definition["flow_type"] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
+        if definition.get("flow_type") not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
             raise ValueError("unsupported flow type")
 
         # should always have a base_language
