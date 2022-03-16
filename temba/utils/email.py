@@ -38,15 +38,6 @@ def is_valid_address(address):
     return True
 
 
-def link_components(request=None, user=None):
-    """
-    Context provider for email templates
-    """
-    protocol = "https" if request.is_secure() else "http"
-    hostname = request.branding["domain"]
-    return {"protocol": protocol, "hostname": hostname}
-
-
 def send_simple_email(recipients, subject, body, from_email=None):
     """
     Sends a simple text email to the given recipients

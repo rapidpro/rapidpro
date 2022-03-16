@@ -71,9 +71,9 @@
                 Found {{ results_count }} globals matching <i>{{search}}</i>.
 
           -block pre-table
-            %temba-modax{ id:'update-global', header:'{{_("Update Global")|escapejs}}' }
-            %temba-modax{ id:'delete-global', header:'{{_("Delete Global")|escapejs}}'}
-            %temba-modax{ id:'uses-global', header:'{{_("Global Details")|escapejs}}'}
+            %temba-modax(id='update-global' header='{{_("Update Global")|escapejs}}')
+            %temba-modax(id='delete-global' header='{{_("Delete Global")|escapejs}}')
+            %temba-modax(id='usages-global' header='{{_("Usages")|escapejs}}')
 
           %table.list.object-list.lined{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
             %tbody
@@ -87,9 +87,9 @@
                     {{ obj.value|truncatechars:128 }}
                   %td.w-12
                     .flex.text-center
-                      -with usage_count=obj.get_usage_count
+                      -with usage_count=obj.usage_count
                         -if usage_count
-                          .uses(onclick='event.stopPropagation(); showDetailGlobalModal({{ obj.id }}, "{{ obj.name }}");')
+                          .uses(onclick='event.stopPropagation(); showGlobalUsagesModal("{{ obj.uuid }}");')
                             .lbl.linked
                               {% blocktrans trimmed count counter=usage_count %}
                                 {{counter}} Use
@@ -99,7 +99,7 @@
 
                   %td.w-10
                     -if org_perms.globals.global_delete
-                      .pl-2.pt-1.delete-link.linked.text-gray-400{style:"visibility:hidden", onclick:"event.stopPropagation(); showDeleteGlobalModal({{obj.id}});"}
+                      .pl-2.pt-1.delete-link.linked.text-gray-400(style="visibility:hidden" onclick='event.stopPropagation(); showDeleteGlobalModal("{{obj.uuid}}");')
                         %span.icon-close
               -empty
                 %tr.empty_list
@@ -117,15 +117,15 @@
       modax.open = true;
     }
 
-    function showDeleteGlobalModal(id) {
+    function showDeleteGlobalModal(uuid) {
       var modax = document.querySelector('#delete-global');
-      modax.endpoint = `/global/delete/${id}/`;
+      modax.endpoint = `/global/delete/${uuid}/`;
       modax.open = true;
     }
 
-    function showDetailGlobalModal(id, label) {
-      var modax = document.querySelector('#uses-global');
-      modax.endpoint = `/global/detail/${id}/`
+    function showGlobalUsagesModal(uuid) {
+      var modax = document.querySelector('#usages-global');
+      modax.endpoint = `/global/usages/${uuid}/`
       modax.open = true;
     }
 

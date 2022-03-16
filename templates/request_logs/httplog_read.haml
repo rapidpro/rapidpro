@@ -46,11 +46,11 @@
           {{ object.url }}
 
         %td
-          .text-right.whitespace-no-wrap
+          .text-right.whitespace-nowrap
             {{log.created_on|date:"M j, Y g:i:s a"}}
 
         %td
-          .text-right.whitespace-no-wrap.mr-3
+          .text-right.whitespace-nowrap.mr-3
             -trans "Took"
             {{ object.request_time|default:"0"|intcomma }}ms
 

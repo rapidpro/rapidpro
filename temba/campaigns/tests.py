@@ -10,7 +10,7 @@ from django.utils import timezone
 from temba.contacts.models import ContactField
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
-from temba.orgs.models import Language, Org
+from temba.orgs.models import Org
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 
 from .models import Campaign, CampaignEvent, EventFire
@@ -41,6 +41,7 @@ class CampaignTest(TembaTest):
 
     @mock_mailroom
     def test_model(self, mr_mocks):
+
         campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
 
         flow = self.create_flow()
@@ -54,7 +55,7 @@ class CampaignTest(TembaTest):
 
         self.assertEqual("Reminders", campaign.name)
         self.assertEqual(f'Campaign[uuid={campaign.uuid}, name="Reminders"]', str(campaign))
-        self.assertEqual(f'Event[relative_to=planting_date, offset=1, flow="Color Flow"]', str(event1))
+        self.assertEqual(f'Event[relative_to=planting_date, offset=1, flow="Test Flow"]', str(event1))
         self.assertEqual([event1, event2], list(campaign.get_events()))
 
         campaign.schedule_events_async()
@@ -261,7 +262,7 @@ class CampaignTest(TembaTest):
 
         # create an unfired fire and release its event
         EventFire.objects.create(event=second_event, contact=self.farmer1, scheduled=trim_date)
-        second_event.release()
+        second_event.release(self.admin)
 
         # trim our events, one fired and one inactive onfired
         trim_event_fires_task()
@@ -269,220 +270,6 @@ class CampaignTest(TembaTest):
         # should now have only one event, e2
         e = EventFire.objects.get()
         self.assertEqual(e.id, e2.id)
-
-    def test_message_event_editing(self):
-        # update the planting date for our contacts
-        self.set_contact_field(self.farmer1, "planting_date", "1/10/2020")
-
-        # ok log in as an org
-        self.login(self.admin)
-
-        # create a campaign
-        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
-
-        # go create an event that based on a message
-        url = "%s?campaign=%d" % (reverse("campaigns.campaignevent_create"), campaign.id)
-        response = self.client.get(url)
-        self.assertIn("base", response.context["form"].fields)
-
-        # should be no language list
-        self.assertNotContains(response, "show_language")
-
-        # set our primary language to Achinese
-        ace = Language.objects.create(
-            org=self.org, name="Achinese", iso_code="ace", created_by=self.admin, modified_by=self.admin
-        )
-
-        self.org.primary_language = ace
-        self.org.save(update_fields=("primary_language",))
-
-        # now we should have ace as our primary
-        response = self.client.get(url)
-
-        self.assertNotIn("base", response.context["form"].fields)
-        self.assertIn("ace", response.context["form"].fields)
-
-        # add second language
-        spa = Language.objects.create(
-            org=self.org, name="Spanish", iso_code="spa", created_by=self.admin, modified_by=self.admin
-        )
-
-        response = self.client.get(url)
-
-        self.assertNotIn("base", response.context["form"].fields)
-        self.assertIn("ace", response.context["form"].fields)
-        self.assertIn("spa", response.context["form"].fields)
-
-        # and our language list should be there
-        self.assertContains(response, "show_language")
-
-        self.org.primary_language = None
-        self.org.save(update_fields=("primary_language",))
-
-        response = self.client.get(url)
-
-        self.assertIn("base", response.context["form"].fields)
-        self.assertIn("spa", response.context["form"].fields)
-        self.assertIn("ace", response.context["form"].fields)
-        self.assertEqual(3, len(response.context["form"].fields["message_start_mode"].choices))
-
-        response = self.client.post(
-            f"{reverse('campaigns.campaignevent_create')}?campaign={campaign.id}",
-            {
-                "relative_to": self.planting_date.id,
-                "event_type": "M",
-                "base": "This is my message",
-                "spa": "hola",
-                "direction": "B",
-                "offset": 1,
-                "unit": "W",
-                "flow_to_start": "",
-                "delivery_hour": 13,
-                "message_start_mode": "I",
-            },
-        )
-
-        # should be redirected back to our campaign read page
-        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.id]))
-
-        # should have one event, which created a corresponding flow
-        event = CampaignEvent.objects.filter(is_active=True).first()
-
-        self.assertEqual(event.offset, -1)
-        self.assertEqual(event.delivery_hour, 13)
-        self.assertEqual(event.unit, "W")
-        self.assertEqual(event.event_type, "M")
-        self.assertEqual(event.start_mode, "I")
-
-        self.assertEqual(event.get_message(contact=self.farmer1), "This is my message")
-        self.assertEqual(event.get_message(contact=self.farmer2), "hola")
-        self.assertEqual(event.get_message(), "This is my message")
-
-        self.assertTrue(event.flow.is_system)
-        self.assertTrue(event.flow.base_language, "base")
-        self.assertEqual(event.flow.flow_type, Flow.TYPE_BACKGROUND)
-
-        flow_json = event.flow.get_definition()
-        action_uuid = flow_json["nodes"][0]["actions"][0]["uuid"]
-
-        self.assertEqual(
-            {
-                "uuid": str(event.flow.uuid),
-                "name": f"Single Message ({event.id})",
-                "spec_version": "13.0.0",
-                "revision": 1,
-                "expire_after_minutes": 10080,
-                "language": "base",
-                "type": "messaging_background",
-                "localization": {"spa": {action_uuid: {"text": ["hola"]}}},
-                "nodes": [
-                    {
-                        "uuid": matchers.UUID4String(),
-                        "actions": [{"uuid": action_uuid, "type": "send_msg", "text": "This is my message"}],
-                        "exits": [{"uuid": matchers.UUID4String()}],
-                    }
-                ],
-            },
-            flow_json,
-        )
-
-        url = reverse("campaigns.campaignevent_update", args=[event.id])
-
-        # update the event to be passive
-        response = self.client.post(
-            url,
-            {
-                "relative_to": self.planting_date.id,
-                "event_type": "M",
-                "base": "This is my message",
-                "spa": "hola",
-                "direction": "B",
-                "offset": 1,
-                "unit": "W",
-                "flow_to_start": "",
-                "delivery_hour": 13,
-                "message_start_mode": "P",
-            },
-        )
-
-        self.assertEqual(response.status_code, 302)
-        event = CampaignEvent.objects.filter(is_active=True).first()
-
-        self.assertEqual(event.offset, -1)
-        self.assertEqual(event.delivery_hour, 13)
-        self.assertEqual(event.unit, "W")
-        self.assertEqual(event.event_type, "M")
-        self.assertEqual(event.start_mode, "P")
-
-        url = reverse("campaigns.campaignevent_update", args=[event.id])
-        response = self.client.get(url)
-
-        self.assertEqual("This is my message", response.context["form"].fields["base"].initial)
-        self.assertEqual("hola", response.context["form"].fields["spa"].initial)
-        self.assertEqual("", response.context["form"].fields["ace"].initial)
-        self.assertEqual(2, len(response.context["form"].fields["flow_start_mode"].choices))
-
-        # 'Created On' system field must be selectable in the form
-        contact_fields = [field.key for field in response.context["form"].fields["relative_to"].queryset]
-        self.assertEqual(contact_fields, ["created_on", "last_seen_on", "opt_out_datetime", "planting_date"])
-
-        # promote spanish to our primary language
-        self.org.primary_language = spa
-        self.org.save()
-
-        # the base language needs to stay present since it's the true backdown
-        response = self.client.get(url)
-        self.assertIn("base", response.context["form"].fields)
-        self.assertEqual("This is my message", response.context["form"].fields["base"].initial)
-        self.assertEqual("hola", response.context["form"].fields["spa"].initial)
-        self.assertEqual("", response.context["form"].fields["ace"].initial)
-
-        # now we save our new settings
-        response = self.client.post(
-            url,
-            {
-                "relative_to": self.planting_date.id,
-                "event_type": "M",
-                "base": "Required",
-                "spa": "This is my spanish @fields.planting_date",
-                "ace": "",
-                "direction": "B",
-                "offset": 1,
-                "unit": "W",
-                "flow_to_start": "",
-                "delivery_hour": 13,
-            },
-        )
-
-        self.assertEqual(response.status_code, 302)
-        event.flow.refresh_from_db()
-
-        # we should retain 'base' as our base language
-        self.assertEqual("base", event.flow.base_language)
-
-        # now we can remove our primary language
-        self.org.primary_language = None
-        self.org.save(update_fields=("primary_language",))
-
-        # and still get the same settings, (it should use the base of the flow instead of just base here)
-        event = CampaignEvent.objects.all().order_by("id").last()
-        url = reverse("campaigns.campaignevent_update", args=[event.id])
-        response = self.client.get(url)
-
-        self.assertIn("base", response.context["form"].fields)
-        self.assertEqual(response.context["form"].fields["spa"].initial, "This is my spanish @fields.planting_date")
-        self.assertEqual(response.context["form"].fields["ace"].initial, "")
-
-        # our single message flow should have a dependency on planting_date
-        event.flow.refresh_from_db()
-        self.assertEqual(event.flow.field_dependencies.count(), 1)
-
-        # delete the event
-        self.client.post(reverse("campaigns.campaignevent_delete", args=[event.id]), dict())
-        self.assertFalse(CampaignEvent.objects.filter(id=event.id).first().is_active)
-
-        # our single message flow should be released and take its dependencies with it
-        self.assertEqual(event.flow.field_dependencies.count(), 0)
 
     @mock_mailroom
     def test_views(self, mr_mocks):
@@ -769,7 +556,7 @@ class CampaignTest(TembaTest):
         )
 
         for e in CampaignEvent.objects.filter(flow=self.reminder2_flow.pk):
-            e.release()
+            e.release(self.admin)
 
         # archive the campaign
         post_data = dict(action="archive", objects=campaign.pk)
@@ -1127,7 +914,7 @@ class CampaignTest(TembaTest):
             ContactField.get_or_create(self.org, self.admin, "planting_date", value_type=ContactField.TYPE_TEXT)
 
         # release our campaign event
-        event.release()
+        event.release(self.admin)
 
         # should be able to change our field type now
         ContactField.get_or_create(self.org, self.admin, "planting_date", value_type=ContactField.TYPE_TEXT)
@@ -1188,7 +975,7 @@ class CampaignTest(TembaTest):
             "Don't forget to brush your teeth",
         )
 
-        flow.archive()
+        flow.archive(self.admin)
         campaign.is_archived = True
         campaign.save()
 
@@ -1437,6 +1224,25 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         return campaign
 
+    def test_create(self):
+        group = self.create_group("Reporters", contacts=[])
+
+        create_url = reverse("campaigns.campaign_create")
+
+        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "group"])
+
+        # try to submit with no data
+        self.assertCreateSubmit(
+            create_url, {}, form_errors={"name": "This field is required.", "group": "This field is required."}
+        )
+
+        # submit with valid data
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "Reminders", "group": group.id},
+            new_obj_query=Campaign.objects.filter(name="Reminders", group=group),
+        )
+
     def test_read(self):
         group = self.create_group("Reporters", contacts=[])
         campaign = self.create_campaign(self.org, "Welcomes", group)
@@ -1485,12 +1291,15 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
     @mock_mailroom
     def test_update(self, mr_mocks):
         group1 = self.create_group("Reporters", contacts=[])
-        group2 = self.create_group("Testers", contacts=[])
+        group2 = self.create_group("Testers", query="tester=1")
+
         campaign = self.create_campaign(self.org, "Welcomes", group1)
 
         update_url = reverse("campaigns.campaign_update", args=[campaign.id])
 
-        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["name", "group"])
+        self.assertUpdateFetch(
+            update_url, allow_viewers=False, allow_editors=True, form_fields={"name": "Welcomes", "group": group1.id}
+        )
 
         # try to submit with empty name
         self.assertUpdateSubmit(
@@ -1507,8 +1316,8 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("Greetings", campaign.name)
         self.assertEqual(group1, campaign.group)
 
-        # group didn't change so shouldn't have queued any tasks to reschedule events
-        self.assertEqual(0, len(mr_mocks.queued_batch_tasks))
+        # group didn't change so should only have dynamic group creation queued
+        self.assertEqual(1, len(mr_mocks.queued_batch_tasks))
 
         # submit with group change
         self.assertUpdateSubmit(update_url, {"name": "Greetings", "group": group2.id}, success_status=200)
@@ -1518,7 +1327,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(group2, campaign.group)
 
         # should have a task queued to reschedule the campaign's event
-        self.assertEqual(1, len(mr_mocks.queued_batch_tasks))
+        self.assertEqual(2, len(mr_mocks.queued_batch_tasks))
         self.assertEqual(
             {
                 "type": "schedule_campaign_event",
@@ -1526,7 +1335,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
                 "task": {"campaign_event_id": campaign.events.filter(is_active=True).get().id, "org_id": self.org.id},
                 "queued_on": matchers.Datetime(),
             },
-            mr_mocks.queued_batch_tasks[0],
+            mr_mocks.queued_batch_tasks[1],
         )
 
     def test_list(self):
@@ -1544,7 +1353,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
 
-class CampaignEventCRUDLTest(TembaTest):
+class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
@@ -1566,25 +1375,240 @@ class CampaignEventCRUDLTest(TembaTest):
         return campaign
 
     def test_read(self):
-        event1 = self.campaign1.events.order_by("id").first()
-        other_org_event1 = self.other_org_campaign.events.order_by("id").first()
+        event = self.campaign1.events.order_by("id").first()
+        read_url = reverse("campaigns.campaignevent_read", args=[event.id])
 
-        read_url = reverse("campaigns.campaignevent_read", args=[event1.id])
+        response = self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=event)
 
-        # can't view event if not logged in
-        response = self.client.get(read_url)
-        self.assertLoginRedirect(response)
-
-        self.login(self.admin)
-
-        response = self.client.get(read_url)
         self.assertContains(response, "Welcomes")
         self.assertContains(response, "1 week after")
         self.assertContains(response, "Registered")
 
-        # can't view event from other org
-        response = self.client.get(reverse("campaigns.campaignevent_read", args=[other_org_event1.id]))
-        self.assertLoginRedirect(response)
+    def test_create(self):
+        farmer1 = self.create_contact("Rob Jasper", phone="+250788111111")
+        farmer2 = self.create_contact("Mike Gordon", phone="+250788222222", language="spa")
+        self.create_contact("Trey Anastasio", phone="+250788333333")
+        farmers = self.create_group("Farmers", [farmer1, farmer2])
+
+        # create a contact field for our planting date
+        planting_date = self.create_field("planting_date", "Planting Date", ContactField.TYPE_DATETIME)
+
+        # update the planting date for our contacts
+        self.set_contact_field(farmer1, "planting_date", "1/10/2020")
+
+        # create a campaign for our farmers group
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", farmers)
+
+        create_url = f"{reverse('campaigns.campaignevent_create')}?campaign={campaign.id}"
+
+        non_lang_fields = [
+            "event_type",
+            "relative_to",
+            "offset",
+            "unit",
+            "delivery_hour",
+            "direction",
+            "flow_to_start",
+            "flow_start_mode",
+            "message_start_mode",
+        ]
+
+        # org has no languages so only translation option is base
+        response = self.assertCreateFetch(
+            create_url, allow_viewers=False, allow_editors=True, form_fields=non_lang_fields + ["base"]
+        )
+        self.assertEqual(3, len(response.context["form"].fields["message_start_mode"].choices))
+
+        # can create an event with just a base translation
+        response = self.assertCreateSubmit(
+            create_url,
+            {
+                "relative_to": planting_date.id,
+                "event_type": "M",
+                "base": "This is my message",
+                "direction": "A",
+                "offset": 1,
+                "unit": "W",
+                "flow_to_start": "",
+                "delivery_hour": 13,
+                "message_start_mode": "I",
+            },
+            new_obj_query=CampaignEvent.objects.filter(campaign=campaign, event_type="M"),
+        )
+
+        event1 = CampaignEvent.objects.get(campaign=campaign)
+        self.assertEqual({"base": "This is my message"}, event1.message)
+
+        # now add some languages to our orgs
+        self.org.set_flow_languages(self.admin, ["fra", "spa"])
+        self.org2.set_flow_languages(self.admin, ["fra", "spa"])
+
+        response = self.assertCreateFetch(
+            create_url, allow_viewers=False, allow_editors=True, form_fields=non_lang_fields + ["fra", "spa"]
+        )
+
+        # and our language list should be there
+        self.assertContains(response, "show_language")
+
+        # have to submit translation for primary language
+        response = self.assertCreateSubmit(
+            create_url,
+            {
+                "relative_to": planting_date.id,
+                "event_type": "M",
+                "fra": "",
+                "spa": "hola",
+                "direction": "B",
+                "offset": 2,
+                "unit": "W",
+                "flow_to_start": "",
+                "delivery_hour": 13,
+                "message_start_mode": "I",
+            },
+            form_errors={"__all__": "A message is required for 'French'"},
+        )
+
+        response = self.assertCreateSubmit(
+            create_url,
+            {
+                "relative_to": planting_date.id,
+                "event_type": "M",
+                "fra": "bonjour",
+                "spa": "hola",
+                "direction": "B",
+                "offset": 2,
+                "unit": "W",
+                "flow_to_start": "",
+                "delivery_hour": 13,
+                "message_start_mode": "I",
+            },
+            new_obj_query=CampaignEvent.objects.filter(campaign=campaign, event_type="M", offset=-2),
+        )
+
+        # should be redirected back to our campaign read page
+        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.id]))
+
+        event = CampaignEvent.objects.get(campaign=campaign, event_type="M", offset=-2)
+        self.assertEqual(-2, event.offset)
+        self.assertEqual(13, event.delivery_hour)
+        self.assertEqual("W", event.unit)
+        self.assertEqual("M", event.event_type)
+        self.assertEqual("I", event.start_mode)
+
+        self.assertEqual("bonjour", event.get_message(contact=farmer1))
+        self.assertEqual("hola", event.get_message(contact=farmer2))
+        self.assertEqual("bonjour", event.get_message())
+
+        self.assertTrue(event.flow.is_system)
+        self.assertEqual("fra", event.flow.base_language)
+        self.assertEqual(Flow.TYPE_BACKGROUND, event.flow.flow_type)
+
+        flow_json = event.flow.get_definition()
+        action_uuid = flow_json["nodes"][0]["actions"][0]["uuid"]
+
+        self.assertEqual(
+            {
+                "uuid": str(event.flow.uuid),
+                "name": f"Single Message ({event.id})",
+                "spec_version": "13.0.0",
+                "revision": 1,
+                "expire_after_minutes": 10080,
+                "language": "fra",
+                "type": "messaging_background",
+                "localization": {"spa": {action_uuid: {"text": ["hola"]}}},
+                "nodes": [
+                    {
+                        "uuid": matchers.UUID4String(),
+                        "actions": [{"uuid": action_uuid, "type": "send_msg", "text": "bonjour"}],
+                        "exits": [{"uuid": matchers.UUID4String()}],
+                    }
+                ],
+            },
+            flow_json,
+        )
+
+        update_url = reverse("campaigns.campaignevent_update", args=[event.id])
+
+        # update the event to be passive
+        response = self.assertUpdateSubmit(
+            update_url,
+            {
+                "relative_to": planting_date.id,
+                "event_type": "M",
+                "fra": "bonjour",
+                "spa": "hola",
+                "direction": "B",
+                "offset": 3,
+                "unit": "W",
+                "flow_to_start": "",
+                "delivery_hour": 13,
+                "message_start_mode": "P",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        event = CampaignEvent.objects.get(is_active=True, offset=-3)
+
+        self.assertEqual(-3, event.offset)
+        self.assertEqual(13, event.delivery_hour)
+        self.assertEqual("W", event.unit)
+        self.assertEqual("M", event.event_type)
+        self.assertEqual("P", event.start_mode)
+
+        update_url = reverse("campaigns.campaignevent_update", args=[event.id])
+
+        # and add new language to org
+        self.org.set_flow_languages(self.admin, ["fra", "spa", "kin"])
+
+        response = self.client.get(update_url)
+
+        self.assertEqual("bonjour", response.context["form"].fields["fra"].initial)
+        self.assertEqual("hola", response.context["form"].fields["spa"].initial)
+        self.assertEqual("", response.context["form"].fields["kin"].initial)
+        self.assertEqual(2, len(response.context["form"].fields["flow_start_mode"].choices))
+
+        # 'Created On' system field must be selectable in the form
+        contact_fields = [field.key for field in response.context["form"].fields["relative_to"].queryset]
+        self.assertEqual(
+            contact_fields, ["created_on", "last_seen_on", "opt_out_datetime", "planting_date", "registered"]
+        )
+
+        # translation in new language is optional
+        response = self.assertUpdateSubmit(
+            update_url,
+            {
+                "relative_to": planting_date.id,
+                "event_type": "M",
+                "fra": "Required",
+                "spa": "This is my spanish @fields.planting_date",
+                "kin": "",
+                "direction": "B",
+                "offset": 1,
+                "unit": "W",
+                "flow_to_start": "",
+                "delivery_hour": 13,
+            },
+        )
+
+        event.flow.refresh_from_db()
+
+        # we should retain 'base' as our base language
+        self.assertEqual("fra", event.flow.base_language)
+
+        # update org languages to something not including the flow's base language
+        self.org.set_flow_languages(self.admin, ["por", "spa"])
+
+        event = CampaignEvent.objects.all().order_by("id").last()
+        update_url = reverse("campaigns.campaignevent_update", args=[event.id])
+
+        # should get new org primary language but also base language of flow
+        response = self.assertUpdateFetch(
+            update_url, allow_viewers=False, allow_editors=True, form_fields=non_lang_fields + ["por", "spa", "fra"]
+        )
+
+        self.assertEqual(response.context["form"].fields["por"].initial, "")
+        self.assertEqual(response.context["form"].fields["spa"].initial, "This is my spanish @fields.planting_date")
+        self.assertEqual(response.context["form"].fields["fra"].initial, "Required")
 
     def test_update(self):
         event1, event2 = self.campaign1.events.order_by("id")
@@ -1671,3 +1695,32 @@ class CampaignEventCRUDLTest(TembaTest):
         other_org_event1.refresh_from_db()
         self.assertEqual("F", other_org_event1.event_type)
         self.assertTrue(other_org_event1.is_active)
+
+    def test_delete(self):
+        # update event to have a field dependency
+        event = self.campaign1.events.get(offset=1)
+        update_url = reverse("campaigns.campaignevent_update", args=[event.id])
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "relative_to": event.relative_to.id,
+                "event_type": "M",
+                "eng": "This is my message @fields.registered",
+                "direction": "A",
+                "offset": 1,
+                "unit": "W",
+                "flow_to_start": "",
+                "delivery_hour": 13,
+            },
+        )
+
+        event = self.campaign1.events.get(offset=1, is_active=True)
+
+        self.assertEqual(1, event.flow.field_dependencies.count())
+
+        # delete the event
+        self.client.post(reverse("campaigns.campaignevent_delete", args=[event.id]), dict())
+        self.assertFalse(CampaignEvent.objects.filter(id=event.id).first().is_active)
+
+        # our single message flow should be released and take its dependencies with it
+        self.assertEqual(event.flow.field_dependencies.count(), 0)

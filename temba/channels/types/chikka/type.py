@@ -20,7 +20,7 @@ class ChikkaType(ChannelType):
 
     claim_blurb = _(
         "If you are based in the Phillipines, you can integrate with Chikka to send and receive "
-        "messages on your shortcode."
+        "messages on your short code."
     )
     claim_view = ClaimView
 

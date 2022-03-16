@@ -1,0 +1,12 @@
+-extends 'smartmin/form.html'
+-load i18n
+
+-block fields
+  {{block.super}}
+  %h5.embedded-data-catch_all.hidden
+    -trans "Flow Parameters"
+  #embedded-data-catch_all.hidden
+    #embed-container-catch_all
+
+-block summary
+  -trans "Start a flow after receiving a message that doesn't match any keywords."

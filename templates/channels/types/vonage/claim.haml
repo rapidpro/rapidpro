@@ -1,5 +1,5 @@
 -extends "channels/channel_claim_number.html"
--load temba i18n
+-load i18n
 
 -block country-select
   %temba-select#country(name="country" label='{{_("Country")|escapejs}}')
@@ -7,4 +7,4 @@
       %temba-option(name="{{country.label}}" value="{{country.key}}")
 
 -block search-pattern
-  %temba-textinput#area-code(type="text" maxlength="7" name="area_code" label='{{_("Pattern")}}')            
+  %temba-textinput#pattern(type="text" maxlength="7" name="pattern" label='{{_("Pattern")|escapejs}}')

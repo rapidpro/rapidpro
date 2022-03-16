@@ -204,6 +204,7 @@ class BroadcastWriteSerializer(WriteSerializer):
     urns = fields.URNListField(required=False)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
+    ticket = fields.TicketField(required=False)
 
     def validate(self, data):
         if not (data.get("urns") or data.get("contacts") or data.get("groups")):
@@ -228,6 +229,7 @@ class BroadcastWriteSerializer(WriteSerializer):
             contacts=self.validated_data.get("contacts", []),
             urns=self.validated_data.get("urns", []),
             template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
+            ticket=self.validated_data.get("ticket"),
         )
 
         # send it
@@ -667,13 +669,17 @@ class ContactFieldReadSerializer(ReadSerializer):
     }
 
     value_type = serializers.SerializerMethodField()
+    pinned = serializers.SerializerMethodField()
 
     def get_value_type(self, obj):
         return self.VALUE_TYPES[obj.value_type]
 
+    def get_pinned(self, obj):
+        return obj.show_in_table
+
     class Meta:
         model = ContactField
-        fields = ("key", "label", "value_type")
+        fields = ("key", "label", "value_type", "pinned")
 
 
 class ContactFieldWriteSerializer(WriteSerializer):
@@ -1412,6 +1418,7 @@ class TemplateReadSerializer(ReadSerializer):
                 {
                     "language": translation.language,
                     "content": translation.content,
+                    "namespace": translation.namespace,
                     "variable_count": translation.variable_count,
                     "status": translation.get_status_display(),
                     "channel": {"uuid": translation.channel.uuid, "name": translation.channel.name},
@@ -1446,15 +1453,48 @@ class TicketReadSerializer(ReadSerializer):
 
     ticketer = fields.TicketerField()
     contact = fields.ContactField()
+    assignee = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     opened_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    closed_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_assignee(self, obj):
+        return (
+            {"id": obj.assignee.id, "first_name": obj.assignee.first_name, "last_name": obj.assignee.last_name}
+            if obj.assignee
+            else None
+        )
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
 
     class Meta:
         model = Ticket
-        fields = ("uuid", "ticketer", "contact", "status", "subject", "body", "opened_on")
+        fields = ("uuid", "ticketer", "assignee", "contact", "status", "subject", "body", "opened_on", "closed_on")
+
+
+class TicketWriteSerializer(WriteSerializer):
+    STATUSES = {"open": Ticket.STATUS_OPEN, "closed": Ticket.STATUS_CLOSED}
+
+    status = serializers.CharField(
+        required=True,
+    )
+
+    def validate_status(self, value):
+        return self.STATUSES[value]
+
+    def save(self):
+        """
+        Update our ticket
+        """
+        status = self.validated_data.get("status")
+        if self.instance:
+            if status == Ticket.STATUS_CLOSED:
+                Ticket.bulk_close(self.context["org"], self.context["user"], [self.instance])
+            elif status == Ticket.STATUS_OPEN:
+                Ticket.bulk_reopen(self.context["org"], self.context["user"], [self.instance])
+
+        return self.instance
 
 
 class WorkspaceReadSerializer(ReadSerializer):
@@ -1476,10 +1516,10 @@ class WorkspaceReadSerializer(ReadSerializer):
         return obj.default_country_code
 
     def get_languages(self, obj):
-        return [l.iso_code for l in obj.languages.order_by("iso_code")]
+        return obj.flow_languages
 
     def get_primary_language(self, obj):
-        return obj.primary_language.iso_code if obj.primary_language else None
+        return obj.flow_languages[0] if obj.flow_languages else None
 
     def get_timezone(self, obj):
         return str(obj.timezone)

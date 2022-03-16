@@ -1,10 +1,11 @@
+from django.conf.urls import url
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel, ChannelType
 from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
-from .views import ClaimView, UpdateForm
+from .views import ClaimView, SearchView, UpdateForm
 
 RECOMMENDED_COUNTRIES = {
     "US",
@@ -102,3 +103,6 @@ class VonageType(ChannelType):
         if app_id:
             client = channel.org.get_vonage_client()
             client.delete_application(app_id)
+
+    def get_urls(self):
+        return [self.get_claim_url(), url(r"^search$", SearchView.as_view(), name="search")]

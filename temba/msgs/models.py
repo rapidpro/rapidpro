@@ -14,7 +14,7 @@ from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Prefetch, Sum
+from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -24,7 +24,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
-from temba.orgs.models import Language, Org, TopUp
+from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, extract_constants, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -109,12 +109,12 @@ class Broadcast(models.Model):
     raw_urns = ArrayField(models.TextField(), null=True)
 
     # message content
-    text = TranslatableField(
-        max_length=MAX_TEXT_LEN, verbose_name="Translations", help_text=_("The localized versions of the message text")
-    )
+    base_language = models.CharField(max_length=4)
+    text = TranslatableField(max_length=MAX_TEXT_LEN)
     media = TranslatableField(max_length=2048, null=True)
 
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
+    ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, related_name="broadcasts")
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=INITIALIZING)
 
@@ -123,32 +123,10 @@ class Broadcast(models.Model):
     # used for repeating scheduled broadcasts
     parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
 
-    # language used for contacts who don't have a language
-    base_language = models.CharField(max_length=4)
-
-    is_active = models.BooleanField(default=True)
-
-    created_by = models.ForeignKey(
-        User,
-        null=True,
-        on_delete=models.PROTECT,
-        related_name="%(app_label)s_%(class)s_creations",
-        help_text="The user which originally created this item",
-    )
-
-    created_on = models.DateTimeField(
-        default=timezone.now, blank=True, editable=False, db_index=True, help_text=_("When this broadcast was created")
-    )
-
-    modified_by = models.ForeignKey(
-        User,
-        null=True,
-        on_delete=models.PROTECT,
-        related_name="%(app_label)s_%(class)s_modifications",
-        help_text="The user which last modified this item",
-    )
-
-    modified_on = models.DateTimeField(auto_now=True, help_text="When this item was last modified")
+    created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
+    created_on = models.DateTimeField(default=timezone.now, db_index=True)  # TODO remove index
+    modified_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_modifications")
+    modified_on = models.DateTimeField(default=timezone.now)
 
     # whether this broadcast should send to all URNs for each contact
     send_all = models.BooleanField(default=False)
@@ -168,6 +146,7 @@ class Broadcast(models.Model):
         contact_ids: List[int] = None,
         base_language: str = None,
         channel: Channel = None,
+        ticket=None,
         media: Dict = None,
         send_all: bool = False,
         quick_replies: List[Dict] = None,
@@ -177,12 +156,12 @@ class Broadcast(models.Model):
     ):
         # for convenience broadcasts can still be created with single translation and no base_language
         if isinstance(text, str):
-            base_language = org.primary_language.iso_code if org.primary_language else "base"
+            base_language = org.flow_languages[0] if org.flow_languages else "base"
             text = {base_language: text}
 
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
         assert base_language in text, "base_language doesn't exist in text translations"
-        assert not media or base_language in media, "base _language doesn't exist in media translations"
+        assert not media or base_language in media, "base_language doesn't exist in media translations"
 
         if quick_replies:
             for quick_reply in quick_replies:
@@ -199,6 +178,7 @@ class Broadcast(models.Model):
         broadcast = cls.objects.create(
             org=org,
             channel=channel,
+            ticket=ticket,
             send_all=send_all,
             base_language=base_language,
             text=text,
@@ -230,20 +210,25 @@ class Broadcast(models.Model):
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
 
-    def get_default_text(self):
+    def get_text(self, contact=None):
         """
-        Gets the appropriate display text for the broadcast without a contact
+        Gets the text that will be sent. If contact is provided and their language is a valid flow language and there's
+        a translation for it then that will be used (used when rendering upcoming scheduled broadcasts).
         """
-        return self.text[self.base_language]
 
-    def get_translated_text(self, contact, org=None):
-        """
-        Gets the appropriate translation for the given contact
-        """
-        preferred_languages = self._get_preferred_languages(contact, org)
-        return Language.get_localized_text(self.text, preferred_languages)
+        if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
+            if contact.language in self.text:
+                return self.text[contact.language]
+
+        if self.org.flow_languages and self.org.flow_languages[0] in self.text:  # try org primary language
+            return self.text[self.org.flow_languages[0]]
+
+        return self.text[self.base_language]  # should always be a base language translation
 
     def release(self):
+        for child in self.children.all():
+            child.release()
+
         for msg in self.msgs.all():
             msg.release()
 
@@ -284,30 +269,18 @@ class Broadcast(models.Model):
                 bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
                 RelatedModel.objects.bulk_create(bulk_contacts)
 
-    def _get_preferred_languages(self, contact=None, org=None):
-        """
-        Gets the ordered list of language preferences for the given contact
-        """
-        org = org or self.org  # org object can be provided to allow caching of org languages
-        preferred_languages = []
-
-        # if contact has a language and it's a valid org language, it has priority
-        if contact is not None and contact.language and contact.language in org.get_language_codes():
-            preferred_languages.append(contact.language)
-
-        if org.primary_language:
-            preferred_languages.append(org.primary_language.iso_code)
-
-        preferred_languages.append(self.base_language)
-
-        return preferred_languages
-
     def get_template_state(self):
         metadata = self.metadata or {}
         return metadata.get(Broadcast.METADATA_TEMPLATE_STATE, Broadcast.TEMPLATE_STATE_LEGACY)
 
     def __str__(self):  # pragma: no cover
         return f"Broadcast[id={self.id}, text={self.text}]"
+
+    class Meta:
+        indexes = [
+            # used by the broadcasts API endpoint
+            models.Index(name="msgs_broadcasts_org_created_id", fields=["org", "-created_on", "-id"]),
+        ]
 
 
 class Attachment(object):
@@ -443,9 +416,9 @@ class Msg(models.Model):
 
     modified_on = models.DateTimeField(null=True, blank=True, auto_now=True)
 
-    sent_on = models.DateTimeField(null=True, blank=True)
+    sent_on = models.DateTimeField(null=True)
 
-    queued_on = models.DateTimeField(null=True, blank=True)
+    queued_on = models.DateTimeField(null=True)
 
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
 
@@ -467,8 +440,8 @@ class Msg(models.Model):
     # the number of times this message has errored (outgoing only)
     error_count = models.IntegerField(default=0)
 
-    # when we'll next try to send this message (outgoing only)
-    next_attempt = models.DateTimeField(auto_now_add=True)
+    # when we'll next try to send this message (only set for retries after an error)
+    next_attempt = models.DateTimeField(null=True)
 
     # the id of this message on the other side of its channel
     external_id = models.CharField(max_length=255, null=True, blank=True)
@@ -732,41 +705,6 @@ class Msg(models.Model):
 
         mailroom.queue_msg_handling(self)
 
-    def resend(self):
-        """
-        Resends this message by creating a clone and triggering a send of that clone
-        """
-        now = timezone.now()
-        (topup_id, amount) = self.org.decrement_credit()  # costs 1 credit to resend message
-
-        # see if we should use a new channel
-        channel = self.org.get_send_channel(contact_urn=self.contact_urn)
-
-        cloned = Msg.objects.create(
-            org=self.org,
-            channel=channel,
-            contact=self.contact,
-            contact_urn=self.contact_urn,
-            created_on=now,
-            modified_on=now,
-            text=self.text,
-            response_to=self.response_to,
-            direction=self.direction,
-            topup_id=topup_id,
-            status=PENDING,
-            broadcast=self.broadcast,
-            metadata=self.metadata,
-        )
-
-        # mark ourselves as resent
-        self.status = RESENT
-        self.topup = None
-        self.save()
-
-        # send our message
-        self.org.trigger_send([cloned])
-        return cloned
-
     def as_task_json(self):
         """
         Used internally to serialize to JSON when queueing messages in Redis
@@ -914,8 +852,24 @@ class Msg(models.Model):
 
     @classmethod
     def apply_action_resend(cls, user, msgs):
-        for msg in msgs:
-            msg.resend()
+        if msgs:
+            mailroom.get_client().msg_resend(msgs[0].org.id, [m.id for m in msgs])
+
+    class Meta:
+        indexes = [
+            # used for finding errored messages to retry
+            models.Index(
+                name="msgs_next_attempt_out_errored",
+                fields=["next_attempt", "created_on", "id"],
+                condition=Q(direction=OUTGOING, status=ERRORED, next_attempt__isnull=False),
+            ),
+            # used for view of sent messages
+            models.Index(
+                name="msgs_outgoing_visible_sent",
+                fields=["org", "-sent_on", "-id"],
+                condition=Q(direction="O", visibility="V", status__in=("W", "S", "D")),
+            ),
+        ]
 
 
 class BroadcastMsgCount(SquashableModel):
@@ -923,7 +877,7 @@ class BroadcastMsgCount(SquashableModel):
     Maintains count of how many msgs are tied to a broadcast
     """
 
-    SQUASH_OVER = ("broadcast_id",)
+    squash_over = ("broadcast_id",)
 
     broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
@@ -944,8 +898,7 @@ class BroadcastMsgCount(SquashableModel):
 
     @classmethod
     def get_count(cls, broadcast):
-        count = BroadcastMsgCount.objects.filter(broadcast=broadcast).aggregate(count_sum=Sum("count"))["count_sum"]
-        return count if count else 0
+        return cls.sum(broadcast.counts.all())
 
     def __str__(self):  # pragma: needs cover
         return f"BroadcastMsgCount[{self.broadcast_id}:{self.count}]"
@@ -961,7 +914,7 @@ STOP_WORDS = (
 )
 
 
-class SystemLabel(object):
+class SystemLabel:
     TYPE_INBOX = "I"
     TYPE_FLOWS = "W"
     TYPE_FLOW_VOICE = "V"
@@ -1062,15 +1015,12 @@ class SystemLabelCount(SquashableModel):
     Counts of messages/broadcasts/calls maintained by database level triggers
     """
 
-    SQUASH_OVER = ("org_id", "label_type", "is_archived")
+    squash_over = ("org_id", "label_type", "is_archived")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="system_labels")
-
     label_type = models.CharField(max_length=1, choices=SystemLabel.TYPE_CHOICES)
-
-    is_archived = models.BooleanField(default=False, help_text=_("Whether this count is for archived messages"))
-
-    count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
+    is_archived = models.BooleanField(default=False)
+    count = models.IntegerField(default=0)
 
     @classmethod
     def get_squash_query(cls, distinct_set):
@@ -1112,7 +1062,7 @@ class UserLabelManager(models.Manager):
         return super().get_queryset().filter(label_type=Label.TYPE_LABEL)
 
 
-class Label(TembaModel):
+class Label(TembaModel, DependencyMixin):
     """
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.
@@ -1128,15 +1078,8 @@ class Label(TembaModel):
     TYPE_CHOICES = ((TYPE_FOLDER, "Folder of labels"), (TYPE_LABEL, "Regular label"))
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs_labels")
-
-    name = models.CharField(
-        max_length=MAX_NAME_LEN, verbose_name=_("Name"), help_text=_("Choose a name for your label")
-    )
-
-    folder = models.ForeignKey(
-        "Label", on_delete=models.PROTECT, verbose_name=_("Folder"), null=True, related_name="children"
-    )
-
+    name = models.CharField(max_length=MAX_NAME_LEN)
+    folder = models.ForeignKey("Label", on_delete=models.PROTECT, null=True, related_name="children")
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL)
 
     # define some custom managers to do the filtering of label types for us
@@ -1269,24 +1212,18 @@ class Label(TembaModel):
         return self.label_type == Label.TYPE_FOLDER
 
     def release(self, user):
+        assert not self.has_child_labels(), "can't release non-empty label folder"
 
-        dependent_flows_count = self.dependent_flows.count()
-        if dependent_flows_count > 0:
-            raise ValueError(f"Cannot delete Label: {self.name}, used by {dependent_flows_count} flows")
+        if not self.is_folder():
+            super().release(user)  # releases flow dependencies
 
-        # release our children if we are a folder
-        if self.is_folder():
-            if self.has_child_labels():
-                raise ValueError(f"Cannot delete Folder: {self.name}, since it is a parent to other labels")
-
-        else:
+            # delete labellings of messages with this label (not the actual messages)
             Msg.labels.through.objects.filter(label=self).delete()
 
         self.counts.all().delete()
 
         self.is_active = False
         self.modified_by = user
-        self.modified_on = timezone.now()
         self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
     def __str__(self):
@@ -1300,13 +1237,11 @@ class LabelCount(SquashableModel):
     Counts of user labels maintained by database level triggers
     """
 
-    SQUASH_OVER = ("label_id", "is_archived")
+    squash_over = ("label_id", "is_archived")
 
     label = models.ForeignKey(Label, on_delete=models.PROTECT, related_name="counts")
-
-    is_archived = models.BooleanField(default=False, help_text=_("Whether this count is for archived messages"))
-
-    count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
+    is_archived = models.BooleanField(default=False)
+    count = models.IntegerField(default=0)
 
     @classmethod
     def get_squash_query(cls, distinct_set):

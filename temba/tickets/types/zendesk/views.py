@@ -109,7 +109,7 @@ class ConnectView(BaseConnectView):
             org=self.org,
             user=self.request.user,
             ticketer_type=ZendeskType.slug,
-            name=f"Zendesk ({subdomain})",
+            name=subdomain,
             config=config,
         )
 
@@ -129,8 +129,8 @@ class ConfigureView(ComponentFormMixin, OrgPermsMixin, SmartReadView):
 
     def get_gear_links(self):
         links = []
-        if self.has_org_perm("tickets.ticket_filter"):
-            links.append(dict(title=_("Tickets"), href=reverse("tickets.ticket_filter", args=[self.object.uuid])))
+        if self.has_org_perm("tickets.ticket_list"):
+            links.append(dict(title=_("Tickets"), href=reverse("tickets.ticket_list")))
         return links
 
     def get_context_data(self, **kwargs):

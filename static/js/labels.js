@@ -46,6 +46,7 @@ function getObjectRowLabels(objectId) {
 function runActionOnObjectRows(action) {
     var objectIds = getCheckedIds();
     jQuery.ajaxSettings.traditional = true;
+    
     fetchPJAXContent('', '#pjax', {
         postData: { objects: objectIds, action: action, pjax: 'true' },
         onSuccess: function (data, textStatus) {

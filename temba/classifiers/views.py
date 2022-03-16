@@ -1,18 +1,11 @@
-from smartmin.views import (
-    SmartCRUDL,
-    SmartDeleteView,
-    SmartFormView,
-    SmartReadView,
-    SmartTemplateView,
-    SmartUpdateView,
-)
+from smartmin.views import SmartCRUDL, SmartFormView, SmartReadView, SmartTemplateView, SmartUpdateView
 
 from django.contrib import messages
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.views import ComponentFormMixin
 
 from .models import Classifier
@@ -48,30 +41,10 @@ class ClassifierCRUDL(SmartCRUDL):
     model = Classifier
     actions = ("read", "connect", "delete", "sync")
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        slug_url_kwarg = "uuid"
+    class Delete(DependencyDeleteModal):
         cancel_url = "uuid@classifiers.classifier_read"
-        title = _("Delete Classifier")
-        success_message = ""
-        submit_button_name = _("Delete")
-        fields = ("uuid",)
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["used_by_flows"] = self.get_object().dependent_flows.all()[:5]
-            return context
-
-        def get_success_url(self):
-            return reverse("orgs.org_home")
-
-        def post(self, request, *args, **kwargs):
-            classifier = self.get_object()
-            classifier.release()
-
-            messages.info(request, _("Your classifier has been deleted."))
-            response = HttpResponse()
-            response["Temba-Success"] = self.get_success_url()
-            return response
+        success_url = "@orgs.org_home"
+        success_message = _("Your classifier has been deleted.")
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"

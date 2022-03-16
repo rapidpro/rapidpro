@@ -1,60 +1,34 @@
 -extends 'smartmin/form.html'
-
--load i18n humanize
+-load i18n humanize smartmin
 
 -block fields
-  -load smartmin
   .title
     -trans "Schedule"
 
   .mb-3
     -trans "Select when you would like the message to be sent"
 
-  #schedule-options
-    -if object.get_broadcast
-      #schedule-options
-        -render_field 'start_datetime'
-      #recurrence
-        .repeat-period
-          -render_field 'repeat_period'
-        .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hidden{%endif%}'}
-          -render_field 'repeat_days_of_week'
+  -include 'includes/schedule_fields.haml' with form=form
 
 -block summary
   -if object.next_fire
     .flex
       .schedule-summary
-        -spaceless
-          -if object.get_broadcast
-            -trans "The next message will be sent on"
-            <b>{{ object.next_fire|naturaltime }}</b>.
+        -if object.get_broadcast
+          -blocktrans trimmed with when=object.next_fire|naturaltime
+            The next message will be sent <b>{{ when }}</b>.
 
-        -if not object.repeat_period == 'O'
-          -if object.repeat_period == 'W'
-            -trans "It will repeat every"
-            -with object.get_repeat_days_display|length as day_count
-              -for day in object.get_repeat_days_display
-                {% if forloop.last and day_count > 1 %} and {%endif%}
-                %b
-                  {{day}}{% if not forloop.last and day_count > 2%}, {%endif%}
-
-            -trans "at around the same time."
-          -elif object.repeat_period == 'M'
-            -trans "It will repeat every"
-            %b
-              month
-            -trans "on the"
-            {{ object.repeat_day_of_month|ordinal }}.
-
-          -else
-            -trans "It will repeat"
-            %b
-              {{object.get_repeat_period_display|lower}}
-            -trans "at around the same time."
-        -else
-          -trans "It will "
-          %b
-            -trans "not repeat"
+        -if object.repeat_period == 'M'
+          -blocktrans trimmed with date=object.repeat_day_of_month|ordinal
+            It will repeat every <b>month</b> on the {{ date }}.
+        -elif object.repeat_period == 'W'
+          -trans "It will repeat every"
+          {% for day in object.get_repeat_days_display %}<b>{{ day }}</b>{{ forloop|oxford }}{% endfor %}
+          -trans "at around the same time."
+        -elif object.repeat_period == 'D'
+          -trans "It will repeat <d>daily</b> at around the same time."
+        -elif object.repeat_period == 'O'
+          -trans "It will <b>not repeat</b>."
 
       .unschedule.ml-8
         .button-light(onclick="unschedule(event)" href="{% url 'schedules.schedule_update' object.id %}?start_datetime=&repeat_period=O")
@@ -68,7 +42,7 @@
     %input.button-primary{type:'submit', value:'Schedule'}
 
 -block extra-script
-  {{block.super}}
+  {{ block.super }}
   :javascript
     function unschedule(event) {
       event.stopPropagation();
@@ -77,14 +51,15 @@
     }
 
     function wireRepeatListener() {
-      var repeatPeriod = document.querySelector("#id_repeat_period");      
+      var repeatPeriod = document.querySelector("#id_repeat_period");
+      var repeatDays = document.querySelector(".repeat-days-container");
       if (repeatPeriod) {
         repeatPeriod.addEventListener("change", function(event){
           var currentRepeat = event.currentTarget.values[0].value;
-          if (currentRepeat == 'W') {
-            document.querySelector(".weekly-repeat-options").classList.remove("hidden");
+          if (currentRepeat === 'W') {
+            repeatDays.classList.remove("hidden");
           } else {
-            document.querySelector(".weekly-repeat-options").classList.add("hidden");
+            repeatDays.classList.add("hidden");
           }
         });
       } else {

@@ -89,7 +89,7 @@ class LinkCRUDL(SmartCRUDL):
             return context
 
         def save(self, obj):
-            analytics.track(self.request.user.username, "temba.link_created", dict(name=obj.name))
+            analytics.track(self.request.user, "temba.link_created", dict(name=obj.name))
             org = self.request.user.get_org()
             self.object = Link.create(
                 org=org,
@@ -274,7 +274,7 @@ class LinkCRUDL(SmartCRUDL):
                 if previous_export and previous_export.created_on < timezone.now() - timedelta(
                     hours=24
                 ):  # pragma: needs cover
-                    analytics.track(self.request.user.username, "temba.link_exported")
+                    analytics.track(self.request.user, "temba.link_exported")
 
                 export = ExportLinksTask.create(org, user, link)
 
