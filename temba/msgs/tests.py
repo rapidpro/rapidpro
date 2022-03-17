@@ -426,10 +426,10 @@ class MsgTest(TembaTest):
         self.assertEqual("Foo", label1.name)
 
         # test deleting the label
-        response = self.client.get(reverse("msgs.label_delete", args=[label1.id]))
+        response = self.client.get(reverse("msgs.label_delete", args=[label1.uuid]))
         self.assertEqual(200, response.status_code)
 
-        response = self.client.post(reverse("msgs.label_delete", args=[label1.id]))
+        response = self.client.post(reverse("msgs.label_delete", args=[label1.uuid]))
         label1.refresh_from_db()
 
         self.assertTrue(response.has_header("Temba-Success"))
