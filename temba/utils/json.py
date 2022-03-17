@@ -1,6 +1,7 @@
 import datetime
 import decimal
 import json
+import re
 
 import psycopg2.extensions
 import psycopg2.extras
@@ -18,12 +19,12 @@ def load(value):
     return json.load(value, parse_float=decimal.Decimal)
 
 
-def loads(value):
+def loads(value, object_hook=None):
     """
     Converts the passed in string to a JSON dictionary. The dictionary passed back will be ordered
     and decimal values will be represented as a decimal.Decimal.
     """
-    return json.loads(value, parse_float=decimal.Decimal)
+    return json.loads(value, object_hook=object_hook, parse_float=decimal.Decimal)
 
 
 def dumps(value, *args, **kwargs):
@@ -45,6 +46,20 @@ def encode_datetime(dt, micros=False):
     as_utc = dt.astimezone(pytz.utc)
     as_str = as_utc.strftime("%Y-%m-%dT%H:%M:%S.%f")
     return (as_str if micros else as_str[:-3]) + "Z"
+
+
+DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
+DATETIME_FORMAT_REGEX = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
+
+
+def decode_datetime(value):
+    if isinstance(value, dict) or isinstance(value, list):
+        for k, v in value.items() if isinstance(value, dict) else enumerate(value):
+            if isinstance(v, str) and DATETIME_FORMAT_REGEX.match(v):
+                value[k] = datetime.datetime.strptime(v.removesuffix("Z"), DATETIME_FORMAT)
+            if isinstance(v, dict) or isinstance(v, list):
+                decode_datetime(v)
+    return value
 
 
 class TembaEncoder(json.JSONEncoder):

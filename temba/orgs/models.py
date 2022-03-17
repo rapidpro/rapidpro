@@ -44,7 +44,7 @@ from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary
 from temba.utils import chunk_list, json, languages
-from temba.utils.cache import get_cacheable_result
+from temba.utils.cache import get_cacheable_result, redis_cached_property
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.legacy.dates import str_to_datetime
@@ -2171,7 +2171,7 @@ class Org(SmartModel):
             return False
         return True
 
-    @property
+    @redis_cached_property
     def twilio_stats(self):
         tw = self.get_twilio_client()
         if not tw:
@@ -2192,11 +2192,8 @@ class Org(SmartModel):
         result_stats = dict(**{category: list() for category in allowed_categories})
         for record in records:
             if record.category in allowed_categories:
-                result_stats[record.category].append((record.start_date, record.count))
-
-        # sort records in each category
-        for category in allowed_categories:
-            result_stats[category] = sorted(result_stats[category], key=lambda r: r[0])
+                start_datetime = timezone.datetime(record.start_date.year, record.start_date.month, 1)
+                result_stats[record.category].append((start_datetime, record.count))
         return result_stats
 
 

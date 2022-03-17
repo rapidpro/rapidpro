@@ -1045,6 +1045,7 @@ CELERYBEAT_SCHEDULE = {
         "task": "analytics__auto_collect_flow_results_data",
         "schedule": crontab(hour=5, minute=30),
     },
+    "preload-twilio-statistic": {"task": "cache_twilio_stats_task", "schedule": timedelta(hours=1)},
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
