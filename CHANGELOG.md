@@ -1,3 +1,16 @@
+v7.2.3
+----------
+ * Add empty versions of squashed migrations to be implemented in 7.3
+
+v7.2.2
+----------
+ * Updated translations from Transifex
+ * Fix searching on calls list page
+
+v7.2.1
+----------
+ * Update locale files
+
 v7.2.0
 ----------
  * Disallow PO export/import for archived flows because mailroom doesn't know about them
