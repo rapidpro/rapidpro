@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("orgs", "0092_org_api_rates"),
+        ("orgs", "0093_squashed"),
     ]
 
     operations = [
