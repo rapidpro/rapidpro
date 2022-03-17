@@ -1,3 +1,7 @@
+v7.2.3
+----------
+ * Add empty versions of squashed migrations to be implemented in 7.3
+
 v7.2.2
 ----------
  * Updated translations from Transifex
