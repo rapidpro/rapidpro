@@ -1,3 +1,8 @@
+v7.2.2
+----------
+ * Updated translations from Transifex
+ * Fix searching on calls list page
+
 v7.2.1
 ----------
  * Update locale files
