@@ -1,3 +1,8 @@
+v7.3.0
+----------
+ * Add countries supported by Africastalking
+ * Replace empty squashed migrations with real ones
+
 v7.2.4
 ----------
  * Update stable versions in README
