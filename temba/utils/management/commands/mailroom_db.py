@@ -293,7 +293,7 @@ class Command(BaseCommand):
 
         for g in spec["groups"]:
             if g.get("query"):
-                group = ContactGroup.create_dynamic(org, user, g["name"], g["query"], evaluate=False)
+                group = ContactGroup.create_smart(org, user, g["name"], g["query"], evaluate=False)
             else:
                 group = ContactGroup.create_static(org, user, g["name"])
             group.uuid = g["uuid"]

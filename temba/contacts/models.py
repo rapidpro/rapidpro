@@ -985,7 +985,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Updates the static groups for this contact to match the provided list
         """
-        assert not [g for g in groups if g.is_dynamic], "can't update membership of a dynamic group"
+        assert not [g for g in groups if g.is_smart], "can't update membership of a smart group"
 
         current = self.user_groups.filter(query=None)
 
@@ -1089,7 +1089,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     def block(self, user):
         """
-        Blocks this contact removing it from all non-dynamic groups
+        Blocks this contact removing it from all non-smart groups
         """
 
         Contact.bulk_change_status(user, [self], modifiers.Status.BLOCKED)
@@ -1105,7 +1105,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     def archive(self, user):
         """
-        Blocks this contact removing it from all non-dynamic groups
+        Blocks this contact removing it from all non-smart groups
         """
 
         Contact.bulk_change_status(user, [self], modifiers.Status.ARCHIVED)
@@ -1113,7 +1113,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     def restore(self, user):
         """
-        Restores a contact to active, re-adding them to any dynamic groups they belong to
+        Restores a contact to active, re-adding them to any smart groups they belong to
         """
 
         Contact.bulk_change_status(user, [self], modifiers.Status.ACTIVE)
@@ -1136,7 +1136,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 urn.channel = None
                 urn.save(update_fields=("identity", "path", "scheme", "channel"))
 
-            # remove from all static and dynamic groups
+            # remove from all user groups
             for group in self.user_groups.all():
                 group.contacts.remove(self)
 
@@ -1477,7 +1477,7 @@ class UserContactGroupManager(models.Manager):
 
 class ContactGroup(TembaModel, DependencyMixin):
     """
-    A static or dynamic group of contacts
+    A group of contacts whose membership can be manual or query based
     """
 
     MAX_NAME_LEN = 64
@@ -1499,31 +1499,19 @@ class ContactGroup(TembaModel, DependencyMixin):
     STATUS_INITIALIZING = "I"  # group has been created but not yet (re)evaluated
     STATUS_EVALUATING = "V"  # a task is currently (re)evaluating this group
     STATUS_READY = "R"  # group is ready for use
-
-    # single char flag, human readable name, API readable name
-    STATUS_CONFIG = (
-        (STATUS_INITIALIZING, _("Initializing"), "initializing"),
-        (STATUS_EVALUATING, _("Evaluating"), "evaluating"),
-        (STATUS_READY, _("Ready"), "ready"),
+    STATUS_CHOICES = (
+        (STATUS_INITIALIZING, _("Initializing")),
+        (STATUS_EVALUATING, _("Evaluating")),
+        (STATUS_READY, _("Ready")),
     )
 
-    STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
-
-    REEVALUATE_LOCK_KEY = "contactgroup_reevaluating_%d"
-
-    EXPORT_UUID = "uuid"
-    EXPORT_NAME = "name"
-    EXPORT_QUERY = "query"
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="all_groups")
-
     name = models.CharField(max_length=MAX_NAME_LEN)
-
     group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED)
-
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
-
     contacts = models.ManyToManyField(Contact, related_name="all_groups")
+
+    is_system = models.BooleanField(null=True)  # not user created, doesn't count against limits
 
     # fields used by smart groups
     query = models.TextField(null=True)
@@ -1544,24 +1532,28 @@ class ContactGroup(TembaModel, DependencyMixin):
 
         org.all_groups.create(
             name="Active",
+            is_system=True,
             group_type=ContactGroup.TYPE_ACTIVE,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
         org.all_groups.create(
             name="Blocked",
+            is_system=True,
             group_type=ContactGroup.TYPE_BLOCKED,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
         org.all_groups.create(
             name="Stopped",
+            is_system=True,
             group_type=ContactGroup.TYPE_STOPPED,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
         org.all_groups.create(
             name="Archived",
+            is_system=True,
             group_type=ContactGroup.TYPE_ARCHIVED,
             created_by=org.created_by,
             modified_by=org.modified_by,
@@ -1575,17 +1567,17 @@ class ContactGroup(TembaModel, DependencyMixin):
         return cls.user_groups.filter(name__iexact=cls.clean_name(name), org=org, is_active=True).first()
 
     @classmethod
-    def get_user_groups(cls, org, dynamic=None, ready_only=True):
+    def get_user_groups(cls, org, smart=None, ready_only=True):
         """
-        Gets all user groups for the given org - optionally filtering by dynamic vs static
+        Gets all user groups for the given org - optionally filtering by smart vs static
         """
         groups = cls.user_groups.filter(org=org, is_active=True)
-        if dynamic is not None:
-            groups = groups.filter(query=None) if dynamic is False else groups.exclude(query=None)
+        if smart is not None:
+            groups = groups.filter(query=None) if smart is False else groups.exclude(query=None)
         if ready_only:
             groups = groups.filter(status=ContactGroup.STATUS_READY)
 
-        # put our dynamic groups first, then alpha sort
+        # put our smart groups first, then alpha sort
         groups = groups.annotate(has_query=Count("query")).select_related("org").order_by("-has_query", Upper("name"))
         return groups
 
@@ -1605,7 +1597,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         assert name, "can't create group without a name"
 
         if query:
-            return cls.create_dynamic(org, user, name, query, parsed_query=parsed_query)
+            return cls.create_smart(org, user, name, query, parsed_query=parsed_query)
         else:
             return cls.create_static(org, user, name)
 
@@ -1617,12 +1609,11 @@ class ContactGroup(TembaModel, DependencyMixin):
         return cls._create(org, user, name, status=status)
 
     @classmethod
-    def create_dynamic(cls, org, user, name, query, evaluate=True, parsed_query=None):
+    def create_smart(cls, org, user, name, query, evaluate=True, parsed_query=None):
         """
-        Creates a dynamic group with the given query, e.g. gender=M
+        Creates a smart group with the given query, e.g. gender=M
         """
-        if not query:
-            raise ValueError("Query cannot be empty for a smart group")
+        assert query, "query can't be empty for a smart group"
 
         group = cls._create(org, user, name, ContactGroup.STATUS_INITIALIZING, query=query)
         group.update_query(query=query, reevaluate=evaluate, parsed=parsed_query)
@@ -1639,7 +1630,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         name = cls.get_unique_name(org, base_name=name)
 
         return cls.user_groups.create(
-            org=org, name=name, query=query, status=status, created_by=user, modified_by=user
+            org=org, name=name, query=query, status=status, is_system=False, created_by=user, modified_by=user
         )
 
     @classmethod
@@ -1684,17 +1675,17 @@ class ContactGroup(TembaModel, DependencyMixin):
 
     @property
     def icon(self) -> str:
-        return "atom" if self.is_dynamic else "users"
+        return "atom" if self.is_smart else "users"
 
     def get_attrs(self):
         return {"icon": self.icon}
 
     def update_query(self, query, reevaluate=True, parsed=None):
         """
-        Updates the query for a dynamic group
+        Updates the query for a smart group
         """
 
-        if not self.is_dynamic:
+        if not self.is_smart:
             raise ValueError("Cannot update query on a non-smart group")
         if self.status == ContactGroup.STATUS_EVALUATING:
             raise ValueError("Cannot update query on a group which is currently re-evaluating")
@@ -1801,7 +1792,7 @@ class ContactGroup(TembaModel, DependencyMixin):
             EventFire.objects.filter(id__in=id_batch).delete()
 
     @property
-    def is_dynamic(self):
+    def is_smart(self):
         return self.query is not None
 
     @property
@@ -1817,9 +1808,9 @@ class ContactGroup(TembaModel, DependencyMixin):
         """
 
         for group_def in group_defs:
-            group_uuid = group_def.get(ContactGroup.EXPORT_UUID)
-            group_name = group_def.get(ContactGroup.EXPORT_NAME)
-            group_query = group_def.get(ContactGroup.EXPORT_QUERY)
+            group_uuid = group_def.get("uuid")
+            group_name = group_def.get("name")
+            group_query = group_def.get("query")
 
             parsed_query = None
             if group_query:
@@ -1834,14 +1825,10 @@ class ContactGroup(TembaModel, DependencyMixin):
             dependency_mapping[group_uuid] = str(group.uuid)
 
     def as_export_ref(self):
-        return {ContactGroup.EXPORT_UUID: str(self.uuid), ContactGroup.EXPORT_NAME: self.name}
+        return {"uuid": str(self.uuid), "name": self.name}
 
     def as_export_def(self):
-        return {
-            ContactGroup.EXPORT_UUID: str(self.uuid),
-            ContactGroup.EXPORT_NAME: self.name,
-            ContactGroup.EXPORT_QUERY: self.query,
-        }
+        return {"uuid": str(self.uuid), "name": self.name, "query": self.query}
 
     def __str__(self):
         return self.name

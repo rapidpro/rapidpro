@@ -2026,7 +2026,7 @@ class APITest(TembaTest):
 
         # try to add a contact to a dynamic group
         response = self.postJSON(url, "uuid=%s" % jean.uuid, {"groups": [dyn_group.uuid]})
-        self.assertResponseError(response, "groups", "Contact group must not be dynamic: %s" % dyn_group.uuid)
+        self.assertResponseError(response, "groups", "Contact group must not be query based: %s" % dyn_group.uuid)
 
         # try to give a contact more than 100 URNs
         response = self.postJSON(url, "uuid=%s" % jean.uuid, {"urns": ["twitter:bob%d" % u for u in range(101)]})
@@ -2351,7 +2351,7 @@ class APITest(TembaTest):
 
         # try to add to a dynamic group
         response = self.postJSON(url, None, {"contacts": [contact1.uuid], "action": "add", "group": "Developers"})
-        self.assertResponseError(response, "group", "Contact group must not be dynamic: Developers")
+        self.assertResponseError(response, "group", "Contact group must not be query based: Developers")
 
         # add contact 3 to a group by its UUID
         response = self.postJSON(url, None, {"contacts": [contact3.uuid], "action": "add", "group": group.uuid})

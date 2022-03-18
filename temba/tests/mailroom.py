@@ -479,7 +479,7 @@ def update_urns_locally(contact, urns: list[str]):
 def update_groups_locally(contact, group_uuids, add: bool):
     groups = ContactGroup.user_groups.filter(uuid__in=group_uuids)
     for group in groups:
-        assert not group.is_dynamic, "can't add/remove contacts from smart groups"
+        assert not group.is_smart, "can't add/remove contacts from smart groups"
         if add:
             group.contacts.add(contact)
         else:

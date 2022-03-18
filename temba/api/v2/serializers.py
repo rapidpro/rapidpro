@@ -742,7 +742,11 @@ class ContactGroupReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     count = serializers.SerializerMethodField()
 
-    STATUSES = extract_constants(ContactGroup.STATUS_CONFIG)
+    STATUSES = {
+        ContactGroup.STATUS_INITIALIZING: "initializing",
+        ContactGroup.STATUS_EVALUATING: "evaluating",
+        ContactGroup.STATUS_READY: "ready",
+    }
 
     def get_status(self, obj):
         return self.STATUSES[obj.status]
