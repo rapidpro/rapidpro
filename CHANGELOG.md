@@ -1,3 +1,21 @@
+v7.3.0
+----------
+ * Add countries supported by Africastalking
+ * Replace empty squashed migrations with real ones
+
+v7.2.4
+----------
+ * Update stable versions in README
+
+v7.2.3
+----------
+ * Add empty versions of squashed migrations to be implemented in 7.3
+
+v7.2.2
+----------
+ * Updated translations from Transifex
+ * Fix searching on calls list page
+
 v7.2.1
 ----------
  * Update locale files
