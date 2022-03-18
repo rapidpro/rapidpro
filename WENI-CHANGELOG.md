@@ -1,3 +1,7 @@
+1.1.8-rapidpro-7.0.4
+----------
+ * Added option to exclude channels from claim view when not in the Weni Flows design
+
 1.1.7-rapidpro-7.0.4
 ----------
  * Added LogRocket in place of Hotjar
