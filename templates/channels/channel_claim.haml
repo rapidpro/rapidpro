@@ -19,16 +19,17 @@
 
     -if recommended_channels
       -for ch_type in recommended_channels
-        .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
-          .relative
-            .text-base.absolute.text-gray-100.bg-icon(class="{{ ch_type.icon }}")
-          
-          .flex.flex-col.mx-20.relative
-            .title
-              {{ch_type.name}}
+        -if use_weni_layout or ch_type.code not in old_design_excluded_channels_codes
+          .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
+            .relative
+              .text-base.absolute.text-gray-100.bg-icon(class="{{ ch_type.icon }}")
+            
+            .flex.flex-col.mx-20.relative
+              .title
+                {{ch_type.name}}
 
-            .mt-2
-              {% include ch_type.get_claim_blurb %}
+              .mt-2
+                {% include ch_type.get_claim_blurb %}
 
     -else
       .card.link(href="{% url 'channels.types.android.claim' %}" onclick="goto(event, this)")
@@ -49,14 +50,15 @@
         -trans "Social Network Channels"
 
       -for ch_type in channel_types.SOCIAL_MEDIA
-        .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
-          .relative
-            .text-base.absolute.text-gray-100.bg-icon{class:"{{ ch_type.icon }}"}
-          .flex.flex-col.mx-20.relative
-            .title
-              {{ch_type.name}}
-            .mt-2
-              {% include ch_type.get_claim_blurb %}
+        -if use_weni_layout or ch_type.code not in old_design_excluded_channels_codes
+          .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
+            .relative
+              .text-base.absolute.text-gray-100.bg-icon{class:"{{ ch_type.icon }}"}
+            .flex.flex-col.mx-20.relative
+              .title
+                {{ch_type.name}}
+              .mt-2
+                {% include ch_type.get_claim_blurb %}
 
       .title.mb-4.mt-8
         -trans "SMS and Voice Channels"
@@ -76,28 +78,30 @@
                 to get started.
 
       -for ch_type in channel_types.PHONE
-        .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
-          .relative
-            .text-base.absolute.text-gray-100.bg-icon{class:"{{ ch_type.icon }}"}
-          .flex.flex-col.mx-20.relative
-            .title
-              {{ch_type.name}}
-            .mt-2
-              {% include ch_type.get_claim_blurb %}
+        -if use_weni_layout or ch_type.code not in old_design_excluded_channels_codes
+          .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
+            .relative
+              .text-base.absolute.text-gray-100.bg-icon{class:"{{ ch_type.icon }}"}
+            .flex.flex-col.mx-20.relative
+              .title
+                {{ch_type.name}}
+              .mt-2
+                {% include ch_type.get_claim_blurb %}
 
 
       .title.mt-8
         -trans "API Channels"
 
       -for ch_type in channel_types.API
-        .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
-          .relative
-            .text-base.absolute.text-gray-100.bg-icon{class:"{{ ch_type.icon }}"}
-          .flex.flex-col.mx-20.relative
-            .title
-              {{ch_type.name}}
-            .mt-2
-              {% include ch_type.get_claim_blurb %}
+        -if use_weni_layout or ch_type.code not in old_design_excluded_channels_codes
+          .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
+            .relative
+              .text-base.absolute.text-gray-100.bg-icon{class:"{{ ch_type.icon }}"}
+            .flex.flex-col.mx-20.relative
+              .title
+                {{ch_type.name}}
+              .mt-2
+                {% include ch_type.get_claim_blurb %}
 
       -if only_regional_channels
 

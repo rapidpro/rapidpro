@@ -338,6 +338,7 @@ TEMPLATES[0]["OPTIONS"]["context_processors"] += [
     "temba.context_processors_weni.weni_announcement",
     "temba.context_processors_weni.logrocket",
     "temba.context_processors_weni.show_sidemenu",
+    "temba.context_processors_weni.old_design_excluded_channels_codes",
 ]
 WENI_DOMAINS = {"weni": env("WENI_DOMAIN", default="weni.ai")}
 
@@ -397,3 +398,6 @@ INFINITY_PLAN = "infinity"
 # User reset password limit
 USER_RECOVER_TIME_INTERVAL = env.int("USER_RECOVER_TIME_INTERVAL", default=12)
 USER_RECOVER_MAX_ATTEMPTS = env.int("USER_RECOVER_MAX_ATTEMPTS", default=5)
+
+# Channel that should not be displayed in the old design
+OLD_DESIGN_EXCLUDED_CHANNELS_CODES =  env.list("OLD_DESIGN_EXCLUDED_CHANNELS_CODES", default=["TG","WWC","IG"]) 

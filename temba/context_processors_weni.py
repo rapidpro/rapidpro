@@ -32,3 +32,7 @@ def weni_announcement(request):
 def logrocket(request):
     domain = ".".join(request.get_host().split(":")[0].split(".")[-2:])
     return {"parent_iframe_domain": settings.PARENT_IFRAME_DOMAIN,"logrocket_id": settings.LOGROCKET_IDS.get(domain, "")}
+
+
+def old_design_excluded_channels_codes(request):
+    return {"old_design_excluded_channels_codes": settings.OLD_DESIGN_EXCLUDED_CHANNELS_CODES}
