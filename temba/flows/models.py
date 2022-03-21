@@ -1692,7 +1692,11 @@ class ExportFlowResultsTask(BaseExportTask):
             columns.append("Submitted By")
 
         columns.append("Contact UUID")
-        columns.append("ID" if self.org.is_anon else "URN")
+        if self.org.is_anon:
+            columns.append("ID")
+            columns.append("Scheme")
+        else:
+            columns.append("URN")
 
         for extra_urn in extra_urn_columns:
             columns.append(extra_urn["label"])
@@ -1889,10 +1893,14 @@ class ExportFlowResultsTask(BaseExportTask):
                 results_by_key = {key: result for key, result in run_values.items()}
 
             # generate contact info columns
-            contact_values = [
-                contact.uuid,
-                f"{contact.id:010d}" if self.org.is_anon else contact.get_urn_display(org=self.org, formatted=False),
-            ]
+            contact_values = [contact.uuid]
+
+            if self.org.is_anon:
+                contact_urns = contact.get_urns()
+                contact_values.append(f"{contact.id:010d}")
+                contact_values.append(contact_urns[0].scheme if contact_urns else "")
+            else:
+                contact_values.append(contact.get_urn_display(org=self.org, formatted=False))
 
             for extra_urn_column in extra_urn_columns:
                 urn_display = contact.get_urn_display(org=self.org, formatted=False, scheme=extra_urn_column["scheme"])
