@@ -251,8 +251,8 @@ class ContactGroupField(TembaModelField):
     def to_internal_value(self, data):
         obj = super().to_internal_value(data)
 
-        if not self.allow_dynamic and obj.is_dynamic:
-            raise serializers.ValidationError("Contact group must not be dynamic: %s" % data)
+        if not self.allow_dynamic and obj.is_smart:
+            raise serializers.ValidationError("Contact group must not be query based: %s" % data)
 
         return obj
 

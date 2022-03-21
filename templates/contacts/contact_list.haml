@@ -108,7 +108,7 @@
               -trans "Smart Groups"
             .inner-scroll
               -for group in groups
-                -if group.is_dynamic
+                -if group.is_smart
                   .lp-nav-item(onclick="goto(event)" href='{% url "contacts.contact_filter" group.uuid %}' class="{% if current_group.id == group.pk %}font-normal selected{% endif %}")
                     .name.pointer-events-none
                       {{group.label}}
@@ -120,7 +120,7 @@
               -trans "Groups"
             .inner-scroll
               -for group in groups
-                -if not group.is_dynamic
+                -if not group.is_smart
                   .lp-nav-item(class="{% if current_group.id == group.pk %}font-normal selected{% endif %}")
                     .name(onclick="goto(event)" href='{% url "contacts.contact_filter" group.uuid %}')
                       {{group.label}}
@@ -170,7 +170,7 @@
 
                             %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
                               -for group in groups
-                                -if not group.is_dynamic
+                                -if not group.is_smart
                                   %li
                                     .lbl-menu(href='#' onclick='addContactToGroup({{group.pk}})' data-id='{{group.pk}}')
                                       .flex.items-center.py-1.hover-linked

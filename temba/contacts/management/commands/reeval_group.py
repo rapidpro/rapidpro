@@ -16,7 +16,7 @@ class Command(BaseCommand):
         group = ContactGroup.user_groups.filter(uuid=group_uuid).first()
         if not group:
             raise CommandError("no such group")
-        if not group.is_dynamic:
+        if not group.is_smart:
             raise CommandError("group is not a smart group")
 
         self.stdout.write(

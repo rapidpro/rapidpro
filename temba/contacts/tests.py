@@ -114,7 +114,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                     "uuid": str(creating.uuid),
                     "pk": creating.id,
                     "label": "Group being created",
-                    "is_dynamic": False,
+                    "is_smart": False,
                     "is_ready": False,
                     "count": 0,
                 },
@@ -122,7 +122,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                     "uuid": str(survey_audience.uuid),
                     "pk": survey_audience.id,
                     "label": "Survey Audience",
-                    "is_dynamic": False,
+                    "is_smart": False,
                     "is_ready": True,
                     "count": 0,
                 },
@@ -130,7 +130,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                     "uuid": str(unsatisfied.uuid),
                     "pk": unsatisfied.id,
                     "label": "Unsatisfied Customers",
-                    "is_dynamic": False,
+                    "is_smart": False,
                     "is_ready": True,
                     "count": 0,
                 },
@@ -677,7 +677,7 @@ class ContactGroupTest(TembaTest):
         self.assertRaises(ValueError, ContactGroup.create_static, self.org, self.admin, "   ")
 
     @mock_mailroom
-    def test_create_dynamic(self, mr_mocks):
+    def test_create_smart(self, mr_mocks):
         age = ContactField.get_or_create(self.org, self.admin, "age", value_type=ContactField.TYPE_NUMBER)
         gender = ContactField.get_or_create(self.org, self.admin, "gender", priority=10)
 
@@ -685,7 +685,7 @@ class ContactGroupTest(TembaTest):
         query = '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
         mr_mocks.parse_query(query, fields=[age, gender])
 
-        group = ContactGroup.create_dynamic(self.org, self.admin, "Group two", query)
+        group = ContactGroup.create_smart(self.org, self.admin, "Group two", query)
         group.refresh_from_db()
 
         self.assertEqual(group.query, query)
@@ -707,11 +707,11 @@ class ContactGroupTest(TembaTest):
             group.update_query("age ~ Mary")
 
         # can't create a dynamic group with empty query
-        self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Empty", "")
+        self.assertRaises(AssertionError, ContactGroup.create_smart, self.org, self.admin, "Empty", "")
 
         # can't create a dynamic group with id attribute
         mr_mocks.parse_query("id = 123", allow_as_group=False)
-        self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Bose", "id = 123")
+        self.assertRaises(ValueError, ContactGroup.create_smart, self.org, self.admin, "Bose", "id = 123")
 
         # dynamic group should not have remove to group button
         self.login(self.admin)
@@ -732,7 +732,7 @@ class ContactGroupTest(TembaTest):
     def test_get_or_create(self):
         group = ContactGroup.get_or_create(self.org, self.user, " first ")
         self.assertEqual(group.name, "first")
-        self.assertFalse(group.is_dynamic)
+        self.assertFalse(group.is_smart)
 
         # name look up is case insensitive
         self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "  FIRST"), group)
@@ -751,12 +751,12 @@ class ContactGroupTest(TembaTest):
         deleted.is_active = False
         deleted.save()
 
-        dynamic = ContactGroup.create_dynamic(self.org, self.admin, "Dynamic", "gender=M")
-        ContactGroup.user_groups.filter(id=dynamic.id).update(status=ContactGroup.STATUS_READY)
+        males = ContactGroup.create_smart(self.org, self.admin, "Males", "gender=M")
+        ContactGroup.user_groups.filter(id=males.id).update(status=ContactGroup.STATUS_READY)
 
-        self.assertEqual(set(ContactGroup.get_user_groups(self.org)), {static, dynamic})
-        self.assertEqual(set(ContactGroup.get_user_groups(self.org, dynamic=False)), {static})
-        self.assertEqual(set(ContactGroup.get_user_groups(self.org, dynamic=True)), {dynamic})
+        self.assertEqual(set(ContactGroup.get_user_groups(self.org)), {static, males})
+        self.assertEqual(set(ContactGroup.get_user_groups(self.org, smart=False)), {static})
+        self.assertEqual(set(ContactGroup.get_user_groups(self.org, smart=True)), {males})
 
     def test_is_valid_name(self):
         self.assertTrue(ContactGroup.is_valid_name("x"))
@@ -1106,7 +1106,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         query = "name ~ Joe"
         mr_mocks.parse_query(query, fields=[])
 
-        smart_group = ContactGroup.create_dynamic(self.org, self.admin, "Smart Group", "name ~ Joe")
+        smart_group = ContactGroup.create_smart(self.org, self.admin, "Smart Group", "name ~ Joe")
 
         # fetch only smart groups
         list_url = f"{reverse('contacts.contactgroup_list')}?type=smart"

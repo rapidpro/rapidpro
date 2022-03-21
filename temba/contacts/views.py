@@ -113,7 +113,7 @@ class RemoveFromGroupForm(forms.Form):
         contact = data["contact"]
         group = data["group"]
 
-        assert not group.is_dynamic, "can't manually add/remove contacts for a dynamic group"
+        assert not group.is_smart, "can't manually add/remove contacts for a query based group"
 
         # remove contact from group
         Contact.bulk_change_group(self.user, [contact], group, add=False)
@@ -225,8 +225,8 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         )
 
     def derive_refresh(self):
-        # dynamic groups that are reevaluating should refresh every 2 seconds
-        if self.group.is_dynamic and self.group.status != ContactGroup.STATUS_READY:
+        # smart groups that are reevaluating should refresh every 2 seconds
+        if self.group.is_smart and self.group.status != ContactGroup.STATUS_READY:
             return 2000
 
         return None
@@ -334,7 +334,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
             return qs
 
     def get_bulk_action_labels(self):
-        return ContactGroup.get_user_groups(org=self.get_user().get_org(), dynamic=False)
+        return ContactGroup.get_user_groups(org=self.get_user().get_org(), smart=False)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -384,7 +384,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
                     "uuid": g.uuid,
                     "label": g.name,
                     "count": group_counts[g],
-                    "is_dynamic": g.is_dynamic,
+                    "is_smart": g.is_smart,
                     "is_ready": g.status == ContactGroup.STATUS_READY,
                 }
             )
@@ -514,7 +514,7 @@ class UpdateContactForm(ContactForm):
         )
 
         self.fields["groups"].initial = self.instance.user_groups.all()
-        self.fields["groups"].queryset = ContactGroup.get_user_groups(self.user.get_org(), dynamic=False)
+        self.fields["groups"].queryset = ContactGroup.get_user_groups(self.user.get_org(), smart=False)
         self.fields["groups"].help_text = _("The groups which this contact belongs to")
 
     class Meta:
@@ -1272,7 +1272,7 @@ class ContactCRUDL(SmartCRUDL):
             return links
 
         def get_bulk_actions(self):
-            return ("block", "archive") if self.group.is_dynamic else ("block", "label", "unlabel")
+            return ("block", "archive") if self.group.is_smart else ("block", "label", "unlabel")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1558,13 +1558,13 @@ class ContactGroupCRUDL(SmartCRUDL):
         def derive_menu(self):
             org = self.request.user.get_org()
             dynamic_groups = (
-                ContactGroup.get_user_groups(org, dynamic=True, ready_only=False)
+                ContactGroup.get_user_groups(org, smart=True, ready_only=False)
                 .select_related("org")
                 .order_by(Upper("name"))
             )
 
             groups = (
-                ContactGroup.get_user_groups(org, dynamic=False, ready_only=False)
+                ContactGroup.get_user_groups(org, smart=False, ready_only=False)
                 .select_related("org")
                 .order_by(Upper("name"))
             )
@@ -1644,7 +1644,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             preselected_contacts = self.form.cleaned_data.get("preselected_contacts")
 
             if query:
-                self.object = ContactGroup.create_dynamic(org, user, name, query)
+                self.object = ContactGroup.create_smart(org, user, name, query)
             else:
                 self.object = ContactGroup.create_static(org, user, name)
 
@@ -1671,7 +1671,7 @@ class ContactGroupCRUDL(SmartCRUDL):
         success_message = ""
 
         def derive_fields(self):
-            return ("name", "query") if self.get_object().is_dynamic else ("name",)
+            return ("name", "query") if self.get_object().is_smart else ("name",)
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -2112,7 +2112,7 @@ class ContactImportCRUDL(SmartCRUDL):
                     self.columns.append(column)
 
                     self.fields["new_group_name"].initial = self.instance.get_default_group_name()
-                    self.fields["existing_group"].queryset = ContactGroup.get_user_groups(org, dynamic=False).order_by(
+                    self.fields["existing_group"].queryset = ContactGroup.get_user_groups(org, smart=False).order_by(
                         "name"
                     )
 
