@@ -3040,3 +3040,95 @@ def get_flow_user(org):
             __flow_users[username] = flow_user
 
     return flow_user
+
+
+class StudioFlowStart(models.Model):
+    STATUS_PENDING = "P"
+    STATUS_STARTING = "S"
+    STATUS_COMPLETE = "C"
+    STATUS_FAILED = "F"
+
+    STATUS_CHOICES = (
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_STARTING, _("Starting")),
+        (STATUS_COMPLETE, _("Complete")),
+        (STATUS_FAILED, _("Failed")),
+    )
+
+    # the uuid of this start
+    uuid = models.UUIDField(unique=True, default=uuid4)
+
+    # the org the flow belongs to
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="studio_flow_starts")
+
+    # the channel number from which will be used as from parameter
+    channel = models.CharField(max_length=64)
+
+    # the flow that should be started
+    flow_sid = models.CharField(max_length=64)
+
+    # the current status of this flow start
+    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
+
+    # the groups that should be considered for start in this flow
+    groups = models.ManyToManyField(ContactGroup)
+
+    # the individual contacts that should be considered for start in this flow
+    contacts = models.ManyToManyField(Contact)
+
+    # additional data about stored
+    metadata = JSONField(default=dict)
+
+    # who created this flow start
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="studio_flow_starts"
+    )
+
+    # when this flow start was created
+    created_on = models.DateTimeField(default=timezone.now, editable=False)
+
+    # when this flow start was last modified
+    modified_on = models.DateTimeField(default=timezone.now, editable=False)
+
+    @classmethod
+    def create(
+        cls,
+        org,
+        user,
+        flow_sid,
+        channel,
+        groups=(),
+        contacts=(),
+        urns=(),
+    ):
+        start = StudioFlowStart.objects.create(
+            org=org,
+            flow_sid=flow_sid,
+            channel=channel,
+            created_by=user,
+        )
+
+        for urn in urns:
+            contact = Contact.from_urn(org, urn)
+            if contact:
+                start.contacts.add(contact)
+
+        for contact in contacts:
+            start.contacts.add(contact)
+
+        for group in groups:
+            start.groups.add(group)
+
+        return start
+
+    def async_start(self):
+        on_transaction_commit(lambda: mailroom.queue_studio_flow_start(self))
+
+    def release(self):
+        with transaction.atomic():
+            self.groups.clear()
+            self.contacts.clear()
+            self.delete()
+
+    def __str__(self):  # pragma: no cover
+        return f"StudioFlowStart[id={self.id}, flow={self.flow_sid}]"

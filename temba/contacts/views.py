@@ -1060,6 +1060,16 @@ class ContactCRUDL(SmartCRUDL):
             if self.has_org_perm("contacts.contactfield_list"):
                 links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
 
+            if self.org.get_twilio_client() and self.has_org_perm("flows.flow_launch"):
+                links.append(
+                    dict(
+                        id="start-studio-flow",
+                        title=_("Start Studio Flow"),
+                        modax=_("Launch Studio Flow"),
+                        href=reverse("flows.flow_launch_studio_flow"),
+                    )
+                )
+
             if self.has_org_perm("contacts.contact_export"):
                 links.append(
                     dict(
@@ -1093,6 +1103,21 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
+        def get_gear_links(self):
+            links = []
+
+            if self.has_org_perm("contacts.contact_export"):
+                links.append(
+                    dict(
+                        id="export-contacts",
+                        title=_("Export"),
+                        modax=_("Export Contacts"),
+                        href=self.derive_export_url(),
+                    )
+                )
+
+            return links
+
     class Stopped(ContactListView):
         title = _("Stopped Contacts")
         template_name = "contacts/contact_stopped.haml"
@@ -1105,6 +1130,21 @@ class ContactCRUDL(SmartCRUDL):
             context = super().get_context_data(*args, **kwargs)
             context["reply_disabled"] = True
             return context
+
+        def get_gear_links(self):
+            links = []
+
+            if self.has_org_perm("contacts.contact_export"):
+                links.append(
+                    dict(
+                        id="export-contacts",
+                        title=_("Export"),
+                        modax=_("Export Contacts"),
+                        href=self.derive_export_url(),
+                    )
+                )
+
+            return links
 
     class Archived(ContactListView):
         title = _("Archived Contacts")
@@ -1127,10 +1167,22 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
+
             if self.has_org_perm("contacts.contact_delete"):
                 links.append(
                     dict(title=_("Delete All"), style="btn-default", js_class="contacts-btn-delete-all", href="#")
                 )
+
+            if self.has_org_perm("contacts.contact_export"):
+                links.append(
+                    dict(
+                        id="export-contacts",
+                        title=_("Export"),
+                        modax=_("Export Contacts"),
+                        href=self.derive_export_url(),
+                    )
+                )
+
             return links
 
     class Filter(ContactListView, OrgObjPermsMixin):

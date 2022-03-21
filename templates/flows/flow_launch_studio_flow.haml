@@ -1,0 +1,67 @@
+-extends 'includes/modax.html'
+-load humanize
+-load smartmin
+-load i18n
+
+-block fields
+  -if warnings
+    -for warning in warnings
+      .mb-4
+        %temba-alert{level: "warning"}
+          %div= warning
+
+  .field
+    - render_field 'flow'
+
+  .field
+    - render_field 'omnibox'
+
+  .field.channel-field
+    - render_field 'channel'
+
+  .no-channel-available.hidden
+    %temba-alert{level: "warning"}
+      There is no channel to be selected to launch the flow.
+
+-block form-buttons
+  -if send_channel
+    .form-actions
+      %input.btn.btn-primary{type:"submit", value:"{{ submit_button_name }}"}
+
+-block modal-script
+  {{block.super}}
+  :javascript
+    var flows = JSON.parse('{{ flow_numbers|escapejs }}');
+    var numbers = JSON.parse('{{ numbers|escapejs }}');
+    var modalBody = document.querySelector("#start-studio-flow").shadowRoot
+    var flowSelector = modalBody.querySelector("#id_flow");
+    var numberSelector = modalBody.querySelector("#id_channel");
+    var getNumberOptions = (flowSID) => {
+      if (flowSID) {
+        let filters = flows.filter((fm) => fm[0] === flowSID).map((fm) => fm[1]);
+        let filtered = numbers.filter((nm) => filters.includes(nm[0]));
+        return filtered.sort(nm => nm[0]).map((nm) => {return {value: nm[0], name: nm[1]};});
+      } else {
+        return numbers.sort(nm => nm[0]).map((nm) => {return {value: nm[0], name: nm[1]};});
+      }
+    }
+    flowSelector.addEventListener("change", () => {
+      if (flowSelector.values.length > 0) {
+        numberSelector.staticOptions = getNumberOptions(flowSelector.values[0].value);
+        numberSelector.values = [];
+      } else {
+        numberSelector.staticOptions = getNumberOptions();
+        numberSelector.values = [];
+      }
+
+      // hide channel field if no options and show message about it
+      if (numberSelector.staticOptions.length > 0) {
+        modalBody.querySelector(".channel-field").classList.remove("hidden");
+        modalBody.querySelector(".no-channel-available").classList.add("hidden");
+        document.querySelector("#start-studio-flow").primaryName = "OK";
+      } else {
+        modalBody.querySelector(".channel-field").classList.add("hidden");
+        modalBody.querySelector(".no-channel-available").classList.remove("hidden");
+        document.querySelector("#start-studio-flow").primaryName = "";
+      }
+    });
