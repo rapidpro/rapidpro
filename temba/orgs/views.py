@@ -2823,6 +2823,7 @@ class OrgCRUDL(SmartCRUDL):
 
             obj.created_by = self.user
             obj.modified_by = self.user
+            obj.slug = Org.get_unique_slug(self.form.cleaned_data["name"])
             obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
             obj.language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
             obj.plan = self.request.branding.get("default_plan", settings.DEFAULT_PLAN)
