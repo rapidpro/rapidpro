@@ -1,3 +1,10 @@
+v7.3.1
+----------
+ * Add is_system field to ContactGroup and rename 'dynamic' to 'smart'
+ * Return 404 from edit_sub_org if org doesn't exist
+ * Use live JS SDK for FBA and IG refresh token views
+ * Add scheme to flow results exports
+
 v7.3.0
 ----------
  * Add countries supported by Africastalking
