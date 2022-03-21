@@ -3098,7 +3098,7 @@ class OrgTest(TembaTest):
         self.assertEqual(1999, sub_org.get_credits_remaining())
         self.assertEqual(0, self.org.get_credits_remaining())
 
-    def test_sub_org_ui(self):
+    def test_edit_sub_org(self):
         self.login(self.admin)
 
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
@@ -3228,6 +3228,16 @@ class OrgTest(TembaTest):
 
         response = self.client.get(reverse("orgs.topup_list"))
         self.assertContains(response, "600 Credits")
+
+        # if org doesn't exist, 404
+        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org=3464374")
+        self.assertEqual(404, response.status_code)
+
+        self.login(self.admin2)
+
+        # same if it's not a child of the request org
+        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}")
+        self.assertEqual(404, response.status_code)
 
     def test_account_value(self):
 

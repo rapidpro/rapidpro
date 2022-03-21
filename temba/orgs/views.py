@@ -43,7 +43,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError
 from django.db.models import ExpressionWrapper, F, IntegerField, Q, Sum
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import resolve_url
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -3402,7 +3402,6 @@ class OrgCRUDL(SmartCRUDL):
         success_url = "@orgs.org_sub_orgs"
 
         def get_success_url(self):
-
             if self.is_spa():
                 org_id = self.request.GET.get("org")
                 return f"{reverse('orgs.org_manage_accounts_sub_org')}?org={org_id}"
@@ -3410,8 +3409,10 @@ class OrgCRUDL(SmartCRUDL):
             return super().get_success_url()
 
         def get_object(self, *args, **kwargs):
-            org_id = self.request.GET.get("org")
-            return Org.objects.filter(id=org_id, parent=self.request.user.get_org()).first()
+            try:
+                return self.request.org.children.get(id=int(self.request.GET.get("org")))
+            except Org.DoesNotExist:
+                raise Http404(_("No such child workspace"))
 
     class TransferCredits(MultiOrgMixin, ModalMixin, InferOrgMixin, SmartFormView):
         class TransferForm(forms.Form):

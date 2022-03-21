@@ -379,13 +379,7 @@ class Org(SmartModel):
         null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
     )
 
-    parent = models.ForeignKey(
-        "orgs.Org",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        help_text=_("The parent org that manages this org"),
-    )
+    parent = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, null=True, related_name="children")
 
     # when this org was released and when it was actually deleted
     released_on = models.DateTimeField(null=True)
