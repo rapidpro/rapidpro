@@ -777,10 +777,8 @@ class UpdateWebChatForm(UpdateChannelForm):
 
             self.fields["google_font"].initial = config.get("google_font", "")
 
-            languages = self.object.org.languages.all().order_by("orgs")
-
-            for lang in languages:
-                lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+            for lang in self.object.org.flow_languages:
+                lang_alpha = pycountry.languages.get(alpha_3=lang)
                 if not hasattr(lang_alpha, "alpha_2"):
                     continue
 
@@ -887,16 +885,15 @@ class UpdateWebChatForm(UpdateChannelForm):
         )
 
         org = self.object.org
-        languages = org.languages.all().order_by("orgs")
-        for lang in languages:
-            lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+        for lang in org.flow_languages:
+            lang_alpha = pycountry.languages.get(alpha_3=lang)
             if not hasattr(lang_alpha, "alpha_2"):
                 continue
 
             self.add_config_field(
                 f"welcome_message_{lang_alpha.alpha_2}",
                 forms.CharField(
-                    label=_(f"Welcome Message {lang.name}"),
+                    label=_(f"Welcome Message {lang_alpha.name}"),
                     required=False,
                     widget=forms.Textarea(attrs={"style": "height: 110px"}),
                 ),
@@ -931,15 +928,15 @@ class UpdateWebChatForm(UpdateChannelForm):
         )
 
         # Unfortunately, duplicated "for" here because of the frontend implementation
-        for lang in languages:
-            lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+        for lang in org.flow_languages:
+            lang_alpha = pycountry.languages.get(alpha_3=lang)
             if not hasattr(lang_alpha, "alpha_2"):
                 continue
 
             self.add_config_field(
                 f"inputtext_placeholder_{lang_alpha.alpha_2}",
                 forms.CharField(
-                    label=_(f"Input Text Placeholder {lang.name}"),
+                    label=_(f"Input Text Placeholder {lang_alpha.name}"),
                     required=False,
                     widget=forms.Textarea(attrs={"style": "height: 110px"}),
                 ),
@@ -1562,11 +1559,11 @@ class ChannelCRUDL(SmartCRUDL):
                 context["widget_compiled_file"] = settings.WIDGET_COMPILED_FILE
 
                 context_languages = []
-                for lang in self.object.org.languages.all().order_by("orgs"):
-                    lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+                for lang in self.object.org.flow_languages:
+                    lang_alpha = pycountry.languages.get(alpha_3=lang)
                     if not hasattr(lang_alpha, "alpha_2"):
                         continue
-                    context_languages.append(dict(name=lang.name, iso_code=lang_alpha.alpha_2))
+                    context_languages.append(dict(name=lang_alpha.name, iso_code=lang_alpha.alpha_2))
                 context["languages"] = context_languages
 
             return context
@@ -1834,9 +1831,8 @@ class ChannelCRUDL(SmartCRUDL):
                 welcome_message_i18n = {}
                 input_placeholder_i18n = {}
 
-                languages = self.object.org.languages.all().order_by("orgs")
-                for lang in languages:
-                    lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+                for lang in self.object.org.flow_languages:
+                    lang_alpha = pycountry.languages.get(alpha_3=lang)
                     if not hasattr(lang_alpha, "alpha_2"):
                         continue
 
