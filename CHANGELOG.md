@@ -1,3 +1,8 @@
+v7.3.3
+----------
+ * Check all org groups when creating unique group names
+ * Make ContactGroup.is_system non-null and switch to using to distinguish between system and user groups
+
 v7.3.2
 ----------
  * Data migration to populate ContactGroup.is_system
