@@ -197,10 +197,7 @@
       - if ivr_count
         .stats-switch
           .msgs-stats-label.active
-            - if msg_segments_count
-              Segments
-            - else
-              Messages
+            Messages
           .stats-sep
             |
           .ivr-stats-label
@@ -209,79 +206,41 @@
       .msgs-stats.active
         .card.pt-8
           %div#channel-msgs-chart
-
-        - if msg_segments_count
-          .minutes-disclaimer.mb-4
-            Please note: When you send a SMS message over 160 characters, the message will be split. Large messages are
-            segmented into 153 character segments and sent individually, then rebuilt by the recipient's device. For
-            example, a 161-character message will be sent as two messages, one with 153 characters and the second with 8
-            characters. This is how CCL is billed and therefore how you are billed.
-
         %table.list.lined
           %thead
             %tr
               %th
                 -trans "Month"
-              - if msg_segments_count
-                %th
-                  -trans "Incoming Segments"
-                %th
-                  -trans "Outgoing Segments"
-                %th
-                  -trans "Total Segments"
-              - else
-                %th
-                  -trans "Incoming Text Messages"
-                %th
-                  -trans "Outgoing Text Messages"
-                %th
-                  -trans "Total Text Messages"
+              %th
+                -trans "Incoming Text Messages"
+              %th
+                -trans "Outgoing Text Messages"
+              %th
+                -trans "Total Text Messages"
           %tbody
             -for month_data in message_stats_table
               %tr
                 %td
                   = month_data.month_start|utc|date:"F Y"
-                - if msg_segments_count
-                  %td
-                    = month_data.incoming_messages_segments_count|intcomma
-                  %td
-                    = month_data.outgoing_messages_segments_count|intcomma
-                  %td
-                    = month_data.incoming_messages_segments_count|intcomma|add:month_data.outgoing_messages_segments_count|intcomma
-                - else
-                  %td
-                    = month_data.incoming_messages_count|intcomma
-                  %td
-                    = month_data.outgoing_messages_count|intcomma
-                  %td
-                    = month_data.incoming_messages_count|intcomma|add:month_data.outgoing_messages_count|intcomma
+                %td
+                  = month_data.incoming_messages_count|intcomma
+                %td
+                  = month_data.outgoing_messages_count|intcomma
+                %td
+                  = month_data.incoming_messages_count|intcomma|add:month_data.outgoing_messages_count|intcomma
             %tr
-              - if msg_segments_count
-                %td
-                  %b
-                    -trans "Total"
-                %td
-                  %b
-                    = total_incoming_messages_segments_count|intcomma
-                %td
-                  %b
-                    = total_outgoing_messages_segments_count|intcomma
-                %td
-                  %b
-                    = total_incoming_messages_segments_count|intcomma|add:total_outgoing_messages_segments_count|intcomma
-              -else
-                %td
-                  %b
-                    -trans "Total"
-                %td
-                  %b
-                    = total_incoming_messages_count|intcomma
-                %td
-                  %b
-                    = total_outgoing_messages_count|intcomma
-                %td
-                  %b
-                    = total_incoming_messages_count|intcomma|add:total_outgoing_messages_count|intcomma
+              %td
+                %b
+                  -trans "Total"
+              %td
+                %b
+                  = total_incoming_messages_count|intcomma
+              %td
+                %b
+                  = total_outgoing_messages_count|intcomma
+              %td
+                %b
+                  = total_incoming_messages_count|intcomma|add:total_outgoing_messages_count|intcomma
       .ivr-stats
         .card.pt-8
           %div#channel-ivr-chart
@@ -480,13 +439,7 @@
               type: 'column'
             },
             yAxis: {
-              title: {
-                {% if msg_segments_count %}
-                text: '{{ _("Segments")|escapejs }}'
-                {% else %}
-                text: '{{ _("Messages")|escapejs }}'
-                {% endif %}
-              },
+              title: {text: '{{ _("Messages")|escapejs }}'},
               opposite: true,
               min: 0,
               allowDecimals: false

@@ -1055,9 +1055,6 @@ class Channel(TembaModel, DependencyMixin):
     def get_msg_count(self):
         return self.get_count([ChannelCount.INCOMING_MSG_TYPE, ChannelCount.OUTGOING_MSG_TYPE])
 
-    def get_msg_segments_count(self):
-        return self.get_count([ChannelCount.INCOMING_MSG_SEGMENT_TYPE, ChannelCount.OUTGOING_MSG_SEGMENT_TYPE])
-
     def get_ivr_count(self):
         return self.get_count([ChannelCount.INCOMING_IVR_TYPE, ChannelCount.OUTGOING_IVR_TYPE])
 
@@ -1107,8 +1104,6 @@ class ChannelCount(SquashableModel):
 
     INCOMING_MSG_TYPE = "IM"  # Incoming message
     OUTGOING_MSG_TYPE = "OM"  # Outgoing message
-    INCOMING_MSG_SEGMENT_TYPE = "IMS"  # Incoming message
-    OUTGOING_MSG_SEGMENT_TYPE = "OMS"  # Outgoing message
     INCOMING_IVR_TYPE = "IV"  # Incoming IVR step
     OUTGOING_IVR_TYPE = "OV"  # Outgoing IVR step
     SUCCESS_LOG_TYPE = "LS"  # ChannelLog record
@@ -1117,8 +1112,6 @@ class ChannelCount(SquashableModel):
     COUNT_TYPE_CHOICES = (
         (INCOMING_MSG_TYPE, _("Incoming Message")),
         (OUTGOING_MSG_TYPE, _("Outgoing Message")),
-        (INCOMING_MSG_SEGMENT_TYPE, _("Incoming Message Segments")),
-        (OUTGOING_MSG_SEGMENT_TYPE, _("Outgoing Message Segments")),
         (INCOMING_IVR_TYPE, _("Incoming Voice")),
         (OUTGOING_IVR_TYPE, _("Outgoing Voice")),
         (SUCCESS_LOG_TYPE, _("Success Log Record")),
