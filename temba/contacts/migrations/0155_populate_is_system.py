@@ -28,10 +28,14 @@ def populate_group_is_system(apps, schema_editor):
         print(f"Populated is_system on {num_updated} contact groups")
 
 
+def reverse(apps, schema_editor):
+    pass
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
         ("contacts", "0154_contactgroup_is_system"),
     ]
 
-    operations = [migrations.RunPython(populate_group_is_system)]
+    operations = [migrations.RunPython(populate_group_is_system, reverse)]
