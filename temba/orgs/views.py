@@ -414,22 +414,37 @@ class OrgGrantForm(forms.ModelForm):
     first_name = forms.CharField(
         help_text=_("The first name of the workspace administrator"),
         max_length=User._meta.get_field("first_name").max_length,
+        widget=InputWidget(attrs={"placeholder": _("First name")}),
     )
     last_name = forms.CharField(
         help_text=_("Your last name of the workspace administrator"),
         max_length=User._meta.get_field("last_name").max_length,
+        widget=InputWidget(attrs={"placeholder": _("Last name")}),
     )
     email = forms.EmailField(
-        help_text=_("Their email address"), max_length=User._meta.get_field("username").max_length
+        help_text=_("Their email address"),
+        max_length=User._meta.get_field("username").max_length,
+        widget=InputWidget(attrs={"placeholder": _("name@domain.com")}),
     )
-    timezone = TimeZoneFormField(help_text=_("The timezone for the workspace"))
     password = forms.CharField(
-        widget=forms.PasswordInput,
         required=False,
         help_text=_("Their password, at least eight letters please. (leave blank for existing login)"),
+        widget=InputWidget(attrs={"password": True, "placeholder": _("Password")}),
     )
-    name = forms.CharField(label=_("Workspace"), help_text=_("The name of the new workspace"))
-    credits = forms.ChoiceField(choices=(), help_text=_("The initial number of credits granted to this workspace"))
+    timezone = TimeZoneFormField(
+        help_text=_("The timezone for the workspace"),
+        widget=SelectWidget,
+    )
+    name = forms.CharField(
+        label=_("Workspace"),
+        help_text=_("The name of the new workspace"),
+        widget=InputWidget(attrs={"widget_only": False, "placeholder": _("My Company, Inc.")}),
+    )
+    credits = forms.ChoiceField(
+        choices=(),
+        help_text=_("The initial number of credits granted to this workspace"),
+        widget=SelectWidget,
+    )
 
     def __init__(self, *args, **kwargs):
         branding = kwargs["branding"]
