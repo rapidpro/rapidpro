@@ -1,3 +1,7 @@
+v7.3.2
+----------
+ * Data migration to populate ContactGroup.is_system
+
 v7.3.1
 ----------
  * Add is_system field to ContactGroup and rename 'dynamic' to 'smart'
