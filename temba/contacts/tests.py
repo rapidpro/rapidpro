@@ -96,7 +96,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING
         )
 
-        with self.assertNumQueries(61):
+        with self.assertNumQueries(58):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
@@ -799,20 +799,20 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), set())
 
     @mock_mailroom
-    def test_system_group_counts(self, mr_mocks):
+    def test_status_group_counts(self, mr_mocks):
         # start with no contacts
         for contact in Contact.objects.all():
             contact.release(self.admin)
             contact.delete()
 
-        counts = ContactGroup.get_status_group_counts(self.org)
+        counts = Contact.get_status_counts(self.org)
         self.assertEqual(
             counts,
             {
-                ContactGroup.TYPE_DB_ACTIVE: 0,
-                ContactGroup.TYPE_DB_BLOCKED: 0,
-                ContactGroup.TYPE_DB_STOPPED: 0,
-                ContactGroup.TYPE_DB_ARCHIVED: 0,
+                Contact.STATUS_ACTIVE: 0,
+                Contact.STATUS_BLOCKED: 0,
+                Contact.STATUS_STOPPED: 0,
+                Contact.STATUS_ARCHIVED: 0,
             },
         )
 
@@ -821,14 +821,14 @@ class ContactGroupTest(TembaTest):
         ba = self.create_contact("B.A.", phone="0783835003")
         murdock = self.create_contact("Murdock", phone="0783835004")
 
-        counts = ContactGroup.get_status_group_counts(self.org)
+        counts = Contact.get_status_counts(self.org)
         self.assertEqual(
             counts,
             {
-                ContactGroup.TYPE_DB_ACTIVE: 4,
-                ContactGroup.TYPE_DB_BLOCKED: 0,
-                ContactGroup.TYPE_DB_STOPPED: 0,
-                ContactGroup.TYPE_DB_ARCHIVED: 0,
+                Contact.STATUS_ACTIVE: 4,
+                Contact.STATUS_BLOCKED: 0,
+                Contact.STATUS_STOPPED: 0,
+                Contact.STATUS_ARCHIVED: 0,
             },
         )
 
@@ -839,14 +839,14 @@ class ContactGroupTest(TembaTest):
         ba.stop(self.user)
         ba.stop(self.user)
 
-        counts = ContactGroup.get_status_group_counts(self.org)
+        counts = Contact.get_status_counts(self.org)
         self.assertEqual(
             counts,
             {
-                ContactGroup.TYPE_DB_ACTIVE: 1,
-                ContactGroup.TYPE_DB_BLOCKED: 2,
-                ContactGroup.TYPE_DB_STOPPED: 1,
-                ContactGroup.TYPE_DB_ARCHIVED: 0,
+                Contact.STATUS_ACTIVE: 1,
+                Contact.STATUS_BLOCKED: 2,
+                Contact.STATUS_STOPPED: 1,
+                Contact.STATUS_ARCHIVED: 0,
             },
         )
 
@@ -861,14 +861,14 @@ class ContactGroupTest(TembaTest):
         squash_contactgroupcounts()
         self.assertEqual(ContactGroupCount.objects.all().count(), 3)
 
-        counts = ContactGroup.get_status_group_counts(self.org)
+        counts = Contact.get_status_counts(self.org)
         self.assertEqual(
             counts,
             {
-                ContactGroup.TYPE_DB_ACTIVE: 3,
-                ContactGroup.TYPE_DB_BLOCKED: 0,
-                ContactGroup.TYPE_DB_STOPPED: 0,
-                ContactGroup.TYPE_DB_ARCHIVED: 0,
+                Contact.STATUS_ACTIVE: 3,
+                Contact.STATUS_BLOCKED: 0,
+                Contact.STATUS_STOPPED: 0,
+                Contact.STATUS_ARCHIVED: 0,
             },
         )
 
@@ -1598,12 +1598,12 @@ class ContactTest(TembaTest):
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_ARCHIVED])
 
         self.assertEqual(
-            ContactGroup.get_status_group_counts(self.org),
+            Contact.get_status_counts(self.org),
             {
-                ContactGroup.TYPE_DB_ACTIVE: 4,
-                ContactGroup.TYPE_DB_BLOCKED: 0,
-                ContactGroup.TYPE_DB_STOPPED: 0,
-                ContactGroup.TYPE_DB_ARCHIVED: 0,
+                Contact.STATUS_ACTIVE: 4,
+                Contact.STATUS_BLOCKED: 0,
+                Contact.STATUS_STOPPED: 0,
+                Contact.STATUS_ARCHIVED: 0,
             },
         )
 
@@ -1619,12 +1619,12 @@ class ContactTest(TembaTest):
 
         # and added to stopped group
         self.assertEqual(
-            ContactGroup.get_status_group_counts(self.org),
+            Contact.get_status_counts(self.org),
             {
-                ContactGroup.TYPE_DB_ACTIVE: 3,
-                ContactGroup.TYPE_DB_BLOCKED: 0,
-                ContactGroup.TYPE_DB_STOPPED: 1,
-                ContactGroup.TYPE_DB_ARCHIVED: 0,
+                Contact.STATUS_ACTIVE: 3,
+                Contact.STATUS_BLOCKED: 0,
+                Contact.STATUS_STOPPED: 1,
+                Contact.STATUS_ARCHIVED: 0,
             },
         )
         self.assertEqual(set(static_group.contacts.all()), set())
@@ -1638,12 +1638,12 @@ class ContactTest(TembaTest):
 
         # and that he's been removed from the all and failed groups, and added to the blocked group
         self.assertEqual(
-            ContactGroup.get_status_group_counts(self.org),
+            Contact.get_status_counts(self.org),
             {
-                ContactGroup.TYPE_DB_ACTIVE: 3,
-                ContactGroup.TYPE_DB_BLOCKED: 1,
-                ContactGroup.TYPE_DB_STOPPED: 0,
-                ContactGroup.TYPE_DB_ARCHIVED: 0,
+                Contact.STATUS_ACTIVE: 3,
+                Contact.STATUS_BLOCKED: 1,
+                Contact.STATUS_STOPPED: 0,
+                Contact.STATUS_ARCHIVED: 0,
             },
         )
 
@@ -1665,12 +1665,12 @@ class ContactTest(TembaTest):
         self.assertTrue(self.joe.is_active)
 
         self.assertEqual(
-            ContactGroup.get_status_group_counts(self.org),
+            Contact.get_status_counts(self.org),
             {
-                ContactGroup.TYPE_DB_ACTIVE: 3,
-                ContactGroup.TYPE_DB_BLOCKED: 0,
-                ContactGroup.TYPE_DB_STOPPED: 0,
-                ContactGroup.TYPE_DB_ARCHIVED: 1,
+                Contact.STATUS_ACTIVE: 3,
+                Contact.STATUS_BLOCKED: 0,
+                Contact.STATUS_STOPPED: 0,
+                Contact.STATUS_ARCHIVED: 1,
             },
         )
 
@@ -1683,12 +1683,12 @@ class ContactTest(TembaTest):
 
         # and that he's been removed from the blocked group, and put back in the all and failed groups
         self.assertEqual(
-            ContactGroup.get_status_group_counts(self.org),
+            Contact.get_status_counts(self.org),
             {
-                ContactGroup.TYPE_DB_ACTIVE: 4,
-                ContactGroup.TYPE_DB_BLOCKED: 0,
-                ContactGroup.TYPE_DB_STOPPED: 0,
-                ContactGroup.TYPE_DB_ARCHIVED: 0,
+                Contact.STATUS_ACTIVE: 4,
+                Contact.STATUS_BLOCKED: 0,
+                Contact.STATUS_STOPPED: 0,
+                Contact.STATUS_ARCHIVED: 0,
             },
         )
 
@@ -1700,12 +1700,12 @@ class ContactTest(TembaTest):
         self.assertFalse(self.joe.is_active)
 
         self.assertEqual(
-            ContactGroup.get_status_group_counts(self.org),
+            Contact.get_status_counts(self.org),
             {
-                ContactGroup.TYPE_DB_ACTIVE: 3,
-                ContactGroup.TYPE_DB_BLOCKED: 0,
-                ContactGroup.TYPE_DB_STOPPED: 0,
-                ContactGroup.TYPE_DB_ARCHIVED: 0,
+                Contact.STATUS_ACTIVE: 3,
+                Contact.STATUS_BLOCKED: 0,
+                Contact.STATUS_STOPPED: 0,
+                Contact.STATUS_ARCHIVED: 0,
             },
         )
 
@@ -1730,12 +1730,12 @@ class ContactTest(TembaTest):
         self.joe.stop(self.user)
 
         self.assertEqual(
-            ContactGroup.get_status_group_counts(self.org),
+            Contact.get_status_counts(self.org),
             {
-                ContactGroup.TYPE_DB_ACTIVE: 3,
-                ContactGroup.TYPE_DB_BLOCKED: 0,
-                ContactGroup.TYPE_DB_STOPPED: 0,
-                ContactGroup.TYPE_DB_ARCHIVED: 0,
+                Contact.STATUS_ACTIVE: 3,
+                Contact.STATUS_BLOCKED: 0,
+                Contact.STATUS_STOPPED: 0,
+                Contact.STATUS_ARCHIVED: 0,
             },
         )
 
@@ -1745,12 +1745,12 @@ class ContactTest(TembaTest):
 
         # check joe goes into the appropriate groups
         self.assertEqual(
-            ContactGroup.get_status_group_counts(self.org),
+            Contact.get_status_counts(self.org),
             {
-                ContactGroup.TYPE_DB_ACTIVE: 3,
-                ContactGroup.TYPE_DB_BLOCKED: 0,
-                ContactGroup.TYPE_DB_STOPPED: 1,
-                ContactGroup.TYPE_DB_ARCHIVED: 0,
+                Contact.STATUS_ACTIVE: 3,
+                Contact.STATUS_BLOCKED: 0,
+                Contact.STATUS_STOPPED: 1,
+                Contact.STATUS_ARCHIVED: 0,
             },
         )
 

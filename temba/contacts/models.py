@@ -757,6 +757,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         return self.all_groups.filter(is_system=False)
 
+    @classmethod
+    def get_status_counts(cls, org) -> dict:
+        """
+        Returns the counts for each contact status for the given org
+        """
+        groups = ContactGroup.all_groups.filter(org=org, group_type__in=ContactGroup.CONTACT_STATUS_TYPES)
+        return {g.group_type: count for g, count in ContactGroupCount.get_totals(groups).items()}
+
     def get_scheduled_messages(self):
         from temba.msgs.models import SystemLabel
 
@@ -1497,6 +1505,8 @@ class ContactGroup(TembaModel, DependencyMixin):
         (TYPE_SMART, "Smart"),
     )
 
+    CONTACT_STATUS_TYPES = [TYPE_DB_ACTIVE, TYPE_DB_BLOCKED, TYPE_DB_STOPPED, TYPE_DB_ARCHIVED]
+
     STATUS_INITIALIZING = "I"  # group has been created but not yet (re)evaluated
     STATUS_EVALUATING = "V"  # a task is currently (re)evaluating this group
     STATUS_READY = "R"  # group is ready for use
@@ -1727,17 +1737,6 @@ class ContactGroup(TembaModel, DependencyMixin):
         if reevaluate:
             on_transaction_commit(lambda: queue_populate_dynamic_group(self))
 
-    @classmethod
-    def get_status_group_counts(cls, org, group_types=None):
-        """
-        Gets all system label counts by type for the given org
-        """
-        groups = cls.system_groups.filter(org=org)
-        if group_types:
-            groups = groups.filter(group_type__in=group_types)
-
-        return {g.group_type: g.get_member_count() for g in groups}
-
     def get_member_count(self):
         """
         Returns the number of active and non-test contacts in the group
@@ -1859,13 +1858,6 @@ class ContactGroupCount(SquashableModel):
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
 
-    ALL_STATUS_TYPES = [
-        ContactGroup.TYPE_DB_ACTIVE,
-        ContactGroup.TYPE_DB_BLOCKED,
-        ContactGroup.TYPE_DB_STOPPED,
-        ContactGroup.TYPE_DB_ARCHIVED,
-    ]
-
     @classmethod
     def get_squash_query(cls, distinct_set):
         sql = """
@@ -1881,14 +1873,7 @@ class ContactGroupCount(SquashableModel):
         return sql, (distinct_set.group_id,) * 2
 
     @classmethod
-    def total_for_org(cls, org):
-        count = cls.objects.filter(group__org=org, group__group_type__in=ContactGroupCount.ALL_STATUS_TYPES).aggregate(
-            count=Sum("count")
-        )
-        return count["count"] if count["count"] else 0
-
-    @classmethod
-    def get_totals(cls, groups):
+    def get_totals(cls, groups) -> dict:
         """
         Gets total counts for all the given groups
         """

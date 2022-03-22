@@ -459,15 +459,6 @@ class Org(SmartModel):
 
         return r.lock(lock_key, ORG_LOCK_TTL)
 
-    def has_contacts(self):
-        """
-        Gets whether this org has any contacts
-        """
-        from temba.contacts.models import ContactGroup
-
-        counts = ContactGroup.get_status_group_counts(self)
-        return sum(counts.values()) > 0
-
     def get_integrations(self, category: IntegrationType.Category) -> list:
         """
         Returns the connected integrations on this org of the given category
@@ -732,6 +723,11 @@ class Org(SmartModel):
         from temba.contacts.models import ContactGroup
 
         return self.all_groups.get(group_type=ContactGroup.TYPE_DB_ACTIVE)
+
+    def get_contact_count(self) -> int:
+        from temba.contacts.models import Contact
+
+        return sum(Contact.get_status_counts(self).values())
 
     @cached_property
     def default_ticket_topic(self):
