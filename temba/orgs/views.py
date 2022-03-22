@@ -59,7 +59,6 @@ from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
-from temba.contacts.models import ContactGroupCount
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
@@ -2385,7 +2384,7 @@ class OrgCRUDL(SmartCRUDL):
             return ""
 
         def get_contacts(self, obj):
-            return ContactGroupCount.total_for_org(obj)
+            return obj.get_contact_count()
 
         def get_credits(self, obj):
             credits = obj.get_credits_remaining()

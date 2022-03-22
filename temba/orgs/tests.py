@@ -3754,7 +3754,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check default org content was created correctly
         system_fields = list(org.contactfields(manager="system_fields").order_by("key").values_list("key", flat=True))
-        system_groups = list(org.all_groups(manager="system_groups").order_by("name").values_list("name", flat=True))
+        system_groups = list(org.all_groups.filter(is_system=True).order_by("name").values_list("name", flat=True))
         sample_flows = list(org.flows.order_by("name").values_list("name", flat=True))
         internal_ticketer = org.ticketers.get()
 

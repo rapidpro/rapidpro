@@ -755,7 +755,15 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Define Contact.user_groups to only refer to user groups
         """
-        return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
+        return self.all_groups.filter(is_system=False)
+
+    @classmethod
+    def get_status_counts(cls, org) -> dict:
+        """
+        Returns the counts for each contact status for the given org
+        """
+        groups = ContactGroup.all_groups.filter(org=org, group_type__in=ContactGroup.CONTACT_STATUS_TYPES)
+        return {g.group_type: count for g, count in ContactGroupCount.get_totals(groups).items()}
 
     def get_scheduled_messages(self):
         from temba.msgs.models import SystemLabel
@@ -1465,14 +1473,9 @@ class ContactURN(models.Model):
         ]
 
 
-class SystemContactGroupManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().exclude(group_type=ContactGroup.TYPE_USER_DEFINED)
-
-
 class UserContactGroupManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED, is_active=True)
+        return super().get_queryset().filter(is_system=False, is_active=True)
 
 
 class ContactGroup(TembaModel, DependencyMixin):
@@ -1482,19 +1485,22 @@ class ContactGroup(TembaModel, DependencyMixin):
 
     MAX_NAME_LEN = 64
 
-    TYPE_ACTIVE = "A"
-    TYPE_BLOCKED = "B"
-    TYPE_STOPPED = "S"
-    TYPE_ARCHIVED = "V"
-    TYPE_USER_DEFINED = "U"
-
+    TYPE_DB_ACTIVE = "A"  # maintained by db trigger on status=A
+    TYPE_DB_BLOCKED = "B"  # maintained by db trigger on status=B
+    TYPE_DB_STOPPED = "S"  # maintained by db trigger on status=S
+    TYPE_DB_ARCHIVED = "V"  # maintained by db trigger on status=V
+    TYPE_MANUAL = "M"  # manual membership changes
+    TYPE_SMART = "Q"  # maintained by engine using query
     TYPE_CHOICES = (
-        (TYPE_ACTIVE, "Active"),
-        (TYPE_BLOCKED, "Blocked"),
-        (TYPE_STOPPED, "Stopped"),
-        (TYPE_ARCHIVED, "Archived"),
-        (TYPE_USER_DEFINED, "User Defined Groups"),
+        (TYPE_DB_ACTIVE, "Active"),
+        (TYPE_DB_BLOCKED, "Blocked"),
+        (TYPE_DB_STOPPED, "Stopped"),
+        (TYPE_DB_ARCHIVED, "Archived"),
+        (TYPE_MANUAL, "Manual"),
+        (TYPE_SMART, "Smart"),
     )
+
+    CONTACT_STATUS_TYPES = [TYPE_DB_ACTIVE, TYPE_DB_BLOCKED, TYPE_DB_STOPPED, TYPE_DB_ARCHIVED]
 
     STATUS_INITIALIZING = "I"  # group has been created but not yet (re)evaluated
     STATUS_EVALUATING = "V"  # a task is currently (re)evaluating this group
@@ -1507,11 +1513,11 @@ class ContactGroup(TembaModel, DependencyMixin):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="all_groups")
     name = models.CharField(max_length=MAX_NAME_LEN)
-    group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED)
+    group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MANUAL)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
     contacts = models.ManyToManyField(Contact, related_name="all_groups")
 
-    is_system = models.BooleanField(null=True)  # not user created, doesn't count against limits
+    is_system = models.BooleanField()  # not user created, doesn't count against limits
 
     # fields used by smart groups
     query = models.TextField(null=True)
@@ -1519,7 +1525,6 @@ class ContactGroup(TembaModel, DependencyMixin):
 
     # define some custom managers to do the filtering of user / system groups for us
     all_groups = models.Manager()
-    system_groups = SystemContactGroupManager()
     user_groups = UserContactGroupManager()
 
     @classmethod
@@ -1528,33 +1533,33 @@ class ContactGroup(TembaModel, DependencyMixin):
         Creates our system groups for the given organization so that we can keep track of counts etc..
         """
 
-        assert not org.all_groups(manager="system_groups").exists(), "org already has system groups"
+        assert not org.all_groups.filter(is_system=True).exists(), "org already has system groups"
 
         org.all_groups.create(
             name="Active",
+            group_type=ContactGroup.TYPE_DB_ACTIVE,
             is_system=True,
-            group_type=ContactGroup.TYPE_ACTIVE,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
         org.all_groups.create(
             name="Blocked",
+            group_type=ContactGroup.TYPE_DB_BLOCKED,
             is_system=True,
-            group_type=ContactGroup.TYPE_BLOCKED,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
         org.all_groups.create(
             name="Stopped",
+            group_type=ContactGroup.TYPE_DB_STOPPED,
             is_system=True,
-            group_type=ContactGroup.TYPE_STOPPED,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
         org.all_groups.create(
             name="Archived",
+            group_type=ContactGroup.TYPE_DB_ARCHIVED,
             is_system=True,
-            group_type=ContactGroup.TYPE_ARCHIVED,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
@@ -1630,7 +1635,14 @@ class ContactGroup(TembaModel, DependencyMixin):
         name = cls.get_unique_name(org, base_name=name)
 
         return cls.user_groups.create(
-            org=org, name=name, query=query, status=status, is_system=False, created_by=user, modified_by=user
+            org=org,
+            name=name,
+            group_type=cls.TYPE_SMART if query else cls.TYPE_MANUAL,
+            is_system=False,
+            query=query,
+            status=status,
+            created_by=user,
+            modified_by=user,
         )
 
     @classmethod
@@ -1638,7 +1650,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         count = 0
         while True:
             name = f"{base_name} {count}" if count else base_name
-            if not cls.get_user_group_by_name(org, name):
+            if not org.all_groups.filter(name=name).exists():
                 return name
             count += 1
 
@@ -1718,17 +1730,6 @@ class ContactGroup(TembaModel, DependencyMixin):
         # start background task to re-evaluate who belongs in this group
         if reevaluate:
             on_transaction_commit(lambda: queue_populate_dynamic_group(self))
-
-    @classmethod
-    def get_system_group_counts(cls, org, group_types=None):
-        """
-        Gets all system label counts by type for the given org
-        """
-        groups = cls.system_groups.filter(org=org)
-        if group_types:
-            groups = groups.filter(group_type__in=group_types)
-
-        return {g.group_type: g.get_member_count() for g in groups}
 
     def get_member_count(self):
         """
@@ -1851,13 +1852,6 @@ class ContactGroupCount(SquashableModel):
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
 
-    COUNTED_TYPES = [
-        ContactGroup.TYPE_ACTIVE,
-        ContactGroup.TYPE_BLOCKED,
-        ContactGroup.TYPE_STOPPED,
-        ContactGroup.TYPE_ARCHIVED,
-    ]
-
     @classmethod
     def get_squash_query(cls, distinct_set):
         sql = """
@@ -1873,14 +1867,7 @@ class ContactGroupCount(SquashableModel):
         return sql, (distinct_set.group_id,) * 2
 
     @classmethod
-    def total_for_org(cls, org):
-        count = cls.objects.filter(group__org=org, group__group_type__in=ContactGroupCount.COUNTED_TYPES).aggregate(
-            count=Sum("count")
-        )
-        return count["count"] if count["count"] else 0
-
-    @classmethod
-    def get_totals(cls, groups):
+    def get_totals(cls, groups) -> dict:
         """
         Gets total counts for all the given groups
         """

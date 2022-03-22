@@ -340,15 +340,13 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         context = super().get_context_data(**kwargs)
 
         org = self.request.user.get_org()
-        counts = ContactGroup.get_system_group_counts(org)
+        counts = Contact.get_status_counts(org)
 
         folders = [
-            dict(count=counts[ContactGroup.TYPE_ACTIVE], label=_("Active"), url=reverse("contacts.contact_list")),
-            dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse("contacts.contact_blocked")),
-            dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url=reverse("contacts.contact_stopped")),
-            dict(
-                count=counts[ContactGroup.TYPE_ARCHIVED], label=_("Archived"), url=reverse("contacts.contact_archived")
-            ),
+            dict(count=counts[Contact.STATUS_ACTIVE], label=_("Active"), url=reverse("contacts.contact_list")),
+            dict(count=counts[Contact.STATUS_BLOCKED], label=_("Blocked"), url=reverse("contacts.contact_blocked")),
+            dict(count=counts[Contact.STATUS_STOPPED], label=_("Stopped"), url=reverse("contacts.contact_stopped")),
+            dict(count=counts[Contact.STATUS_ARCHIVED], label=_("Archived"), url=reverse("contacts.contact_archived")),
         ]
 
         # resolve the paginated object list so we can initialize a cache of URNs
@@ -358,7 +356,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         context["contacts"] = contacts
         context["groups"] = self.get_user_groups(org)
         context["folders"] = folders
-        context["has_contacts"] = contacts or org.has_contacts()
+        context["has_contacts"] = contacts or org.get_contact_count() > 0
         context["search_error"] = self.search_error
         context["folder_count"] = counts[self.system_group] if self.system_group else None
 
@@ -576,11 +574,11 @@ class ContactCRUDL(SmartCRUDL):
     class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
         def render_to_response(self, context, **response_kwargs):
             org = self.request.user.get_org()
-            counts = ContactGroup.get_system_group_counts(org)
+            counts = Contact.get_status_counts(org)
             menu = [
                 dict(
                     id="active",
-                    count=counts[ContactGroup.TYPE_ACTIVE],
+                    count=counts[Contact.STATUS_ACTIVE],
                     name=_("Active"),
                     href=reverse("contacts.contact_list"),
                     icon="user",
@@ -588,19 +586,19 @@ class ContactCRUDL(SmartCRUDL):
                 self.create_divider(),
                 dict(
                     id="blocked",
-                    count=counts[ContactGroup.TYPE_BLOCKED],
+                    count=counts[Contact.STATUS_BLOCKED],
                     name=_("Blocked"),
                     href=reverse("contacts.contact_blocked"),
                 ),
                 dict(
                     id="stopped",
-                    count=counts[ContactGroup.TYPE_STOPPED],
+                    count=counts[Contact.STATUS_STOPPED],
                     name=_("Stopped"),
                     href=reverse("contacts.contact_stopped"),
                 ),
                 dict(
                     id="archived",
-                    count=counts[ContactGroup.TYPE_ARCHIVED],
+                    count=counts[Contact.STATUS_ARCHIVED],
                     name=_("Archived"),
                     href=reverse("contacts.contact_archived"),
                 ),
@@ -1088,7 +1086,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class List(ContactListView):
         title = _("Contacts")
-        system_group = ContactGroup.TYPE_ACTIVE
+        system_group = ContactGroup.TYPE_DB_ACTIVE
 
         def get_bulk_actions(self):
             return ("label", "block", "archive") if self.has_org_perm("contacts.contact_update") else ()
@@ -1164,7 +1162,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class Blocked(ContactListView):
         title = _("Blocked Contacts")
-        system_group = ContactGroup.TYPE_BLOCKED
+        system_group = ContactGroup.TYPE_DB_BLOCKED
 
         def get_bulk_actions(self):
             return ("restore", "archive") if self.has_org_perm("contacts.contact_update") else ()
@@ -1177,7 +1175,7 @@ class ContactCRUDL(SmartCRUDL):
     class Stopped(ContactListView):
         title = _("Stopped Contacts")
         template_name = "contacts/contact_stopped.haml"
-        system_group = ContactGroup.TYPE_STOPPED
+        system_group = ContactGroup.TYPE_DB_STOPPED
 
         def get_bulk_actions(self):
             return ("restore", "archive") if self.has_org_perm("contacts.contact_update") else ()
@@ -1190,7 +1188,7 @@ class ContactCRUDL(SmartCRUDL):
     class Archived(ContactListView):
         title = _("Archived Contacts")
         template_name = "contacts/contact_archived.haml"
-        system_group = ContactGroup.TYPE_ARCHIVED
+        system_group = ContactGroup.TYPE_DB_ARCHIVED
         bulk_action_permissions = {"delete": "contacts.contact_delete"}
 
         def get_bulk_actions(self):
@@ -1620,7 +1618,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             group_type = self.request.GET.get("type", "")
             org = self.request.user.get_org()
             qs = super().get_queryset(**kwargs)
-            qs = qs.filter(group_type=ContactGroup.TYPE_USER_DEFINED, org=org, is_active=True)
+            qs = qs.filter(org=org, is_system=False, is_active=True)
 
             if group_type == "smart":
                 qs = qs.exclude(query=None)
