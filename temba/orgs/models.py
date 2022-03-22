@@ -465,8 +465,8 @@ class Org(SmartModel):
         """
         from temba.contacts.models import ContactGroup
 
-        counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ACTIVE, ContactGroup.TYPE_BLOCKED))
-        return (counts[ContactGroup.TYPE_ACTIVE] + counts[ContactGroup.TYPE_BLOCKED]) > 0
+        counts = ContactGroup.get_status_group_counts(self)
+        return sum(counts.values()) > 0
 
     def get_integrations(self, category: IntegrationType.Category) -> list:
         """
@@ -731,7 +731,7 @@ class Org(SmartModel):
     def active_contacts_group(self):
         from temba.contacts.models import ContactGroup
 
-        return self.all_groups(manager="system_groups").get(group_type=ContactGroup.TYPE_ACTIVE)
+        return self.all_groups.get(group_type=ContactGroup.TYPE_DB_ACTIVE)
 
     @cached_property
     def default_ticket_topic(self):

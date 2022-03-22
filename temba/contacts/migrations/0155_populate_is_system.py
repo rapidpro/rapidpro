@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def populate_group_is_system(apps, schema_editor):
+def populate_group_is_system(apps, schema_editor):  # pragma: no cover
     ContactGroup = apps.get_model("contacts", "ContactGroup")
 
     num_updated = 0
@@ -28,7 +28,7 @@ def populate_group_is_system(apps, schema_editor):
         print(f"Populated is_system on {num_updated} contact groups")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

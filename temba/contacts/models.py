@@ -755,7 +755,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Define Contact.user_groups to only refer to user groups
         """
-        return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
+        return self.all_groups.filter(is_system=False)
 
     def get_scheduled_messages(self):
         from temba.msgs.models import SystemLabel
@@ -1467,12 +1467,12 @@ class ContactURN(models.Model):
 
 class SystemContactGroupManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().exclude(group_type=ContactGroup.TYPE_USER_DEFINED)
+        return super().get_queryset().filter(is_system=True)
 
 
 class UserContactGroupManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED, is_active=True)
+        return super().get_queryset().filter(is_system=False, is_active=True)
 
 
 class ContactGroup(TembaModel, DependencyMixin):
@@ -1482,18 +1482,19 @@ class ContactGroup(TembaModel, DependencyMixin):
 
     MAX_NAME_LEN = 64
 
-    TYPE_ACTIVE = "A"
-    TYPE_BLOCKED = "B"
-    TYPE_STOPPED = "S"
-    TYPE_ARCHIVED = "V"
-    TYPE_USER_DEFINED = "U"
-
+    TYPE_DB_ACTIVE = "A"  # maintained by db trigger on status=A
+    TYPE_DB_BLOCKED = "B"  # maintained by db trigger on status=B
+    TYPE_DB_STOPPED = "S"  # maintained by db trigger on status=S
+    TYPE_DB_ARCHIVED = "V"  # maintained by db trigger on status=V
+    TYPE_MANUAL = "M"  # manual membership changes
+    TYPE_SMART = "Q"  # maintained by engine using query
     TYPE_CHOICES = (
-        (TYPE_ACTIVE, "Active"),
-        (TYPE_BLOCKED, "Blocked"),
-        (TYPE_STOPPED, "Stopped"),
-        (TYPE_ARCHIVED, "Archived"),
-        (TYPE_USER_DEFINED, "User Defined Groups"),
+        (TYPE_DB_ACTIVE, "Active"),
+        (TYPE_DB_BLOCKED, "Blocked"),
+        (TYPE_DB_STOPPED, "Stopped"),
+        (TYPE_DB_ARCHIVED, "Archived"),
+        (TYPE_MANUAL, "Manual"),
+        (TYPE_SMART, "Smart"),
     )
 
     STATUS_INITIALIZING = "I"  # group has been created but not yet (re)evaluated
@@ -1507,11 +1508,11 @@ class ContactGroup(TembaModel, DependencyMixin):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="all_groups")
     name = models.CharField(max_length=MAX_NAME_LEN)
-    group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED)
+    group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MANUAL)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
     contacts = models.ManyToManyField(Contact, related_name="all_groups")
 
-    is_system = models.BooleanField(null=True)  # not user created, doesn't count against limits
+    is_system = models.BooleanField()  # not user created, doesn't count against limits
 
     # fields used by smart groups
     query = models.TextField(null=True)
@@ -1532,29 +1533,29 @@ class ContactGroup(TembaModel, DependencyMixin):
 
         org.all_groups.create(
             name="Active",
+            group_type=ContactGroup.TYPE_DB_ACTIVE,
             is_system=True,
-            group_type=ContactGroup.TYPE_ACTIVE,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
         org.all_groups.create(
             name="Blocked",
+            group_type=ContactGroup.TYPE_DB_BLOCKED,
             is_system=True,
-            group_type=ContactGroup.TYPE_BLOCKED,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
         org.all_groups.create(
             name="Stopped",
+            group_type=ContactGroup.TYPE_DB_STOPPED,
             is_system=True,
-            group_type=ContactGroup.TYPE_STOPPED,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
         org.all_groups.create(
             name="Archived",
+            group_type=ContactGroup.TYPE_DB_ARCHIVED,
             is_system=True,
-            group_type=ContactGroup.TYPE_ARCHIVED,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
@@ -1630,7 +1631,14 @@ class ContactGroup(TembaModel, DependencyMixin):
         name = cls.get_unique_name(org, base_name=name)
 
         return cls.user_groups.create(
-            org=org, name=name, query=query, status=status, is_system=False, created_by=user, modified_by=user
+            org=org,
+            name=name,
+            group_type=cls.TYPE_SMART if query else cls.TYPE_MANUAL,
+            is_system=False,
+            query=query,
+            status=status,
+            created_by=user,
+            modified_by=user,
         )
 
     @classmethod
@@ -1720,7 +1728,7 @@ class ContactGroup(TembaModel, DependencyMixin):
             on_transaction_commit(lambda: queue_populate_dynamic_group(self))
 
     @classmethod
-    def get_system_group_counts(cls, org, group_types=None):
+    def get_status_group_counts(cls, org, group_types=None):
         """
         Gets all system label counts by type for the given org
         """
@@ -1851,11 +1859,11 @@ class ContactGroupCount(SquashableModel):
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
 
-    COUNTED_TYPES = [
-        ContactGroup.TYPE_ACTIVE,
-        ContactGroup.TYPE_BLOCKED,
-        ContactGroup.TYPE_STOPPED,
-        ContactGroup.TYPE_ARCHIVED,
+    ALL_STATUS_TYPES = [
+        ContactGroup.TYPE_DB_ACTIVE,
+        ContactGroup.TYPE_DB_BLOCKED,
+        ContactGroup.TYPE_DB_STOPPED,
+        ContactGroup.TYPE_DB_ARCHIVED,
     ]
 
     @classmethod
@@ -1874,7 +1882,7 @@ class ContactGroupCount(SquashableModel):
 
     @classmethod
     def total_for_org(cls, org):
-        count = cls.objects.filter(group__org=org, group__group_type__in=ContactGroupCount.COUNTED_TYPES).aggregate(
+        count = cls.objects.filter(group__org=org, group__group_type__in=ContactGroupCount.ALL_STATUS_TYPES).aggregate(
             count=Sum("count")
         )
         return count["count"] if count["count"] else 0
