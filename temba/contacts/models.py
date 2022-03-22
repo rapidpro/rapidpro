@@ -1650,7 +1650,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         count = 0
         while True:
             name = f"{base_name} {count}" if count else base_name
-            if not cls.get_user_group_by_name(org, name):
+            if not org.all_groups.filter(name=name).exists():
                 return name
             count += 1
 
