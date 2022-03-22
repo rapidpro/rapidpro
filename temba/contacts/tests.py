@@ -103,7 +103,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertIsNone(response.context["search_error"])
         self.assertEqual([], list(response.context["actions"]))
 
-        active_contacts = ContactGroup.system_groups.get(org=self.org, group_type="A")
+        active_contacts = self.org.active_contacts_group
         survey_audience = ContactGroup.user_groups.get(org=self.org, name="Survey Audience")
         unsatisfied = ContactGroup.user_groups.get(org=self.org, name="Unsatisfied Customers")
 

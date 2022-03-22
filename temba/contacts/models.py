@@ -1473,11 +1473,6 @@ class ContactURN(models.Model):
         ]
 
 
-class SystemContactGroupManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(is_system=True)
-
-
 class UserContactGroupManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(is_system=False, is_active=True)
@@ -1530,7 +1525,6 @@ class ContactGroup(TembaModel, DependencyMixin):
 
     # define some custom managers to do the filtering of user / system groups for us
     all_groups = models.Manager()
-    system_groups = SystemContactGroupManager()
     user_groups = UserContactGroupManager()
 
     @classmethod
@@ -1539,7 +1533,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         Creates our system groups for the given organization so that we can keep track of counts etc..
         """
 
-        assert not org.all_groups(manager="system_groups").exists(), "org already has system groups"
+        assert not org.all_groups.filter(is_system=True).exists(), "org already has system groups"
 
         org.all_groups.create(
             name="Active",
