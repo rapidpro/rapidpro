@@ -75,6 +75,7 @@ from temba.utils.email import is_valid_address, send_template_email
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
     CheckboxWidget,
+    CompletionTextarea,
     InputWidget,
     SelectMultipleWidget,
     SelectWidget,
@@ -413,22 +414,37 @@ class OrgGrantForm(forms.ModelForm):
     first_name = forms.CharField(
         help_text=_("The first name of the workspace administrator"),
         max_length=User._meta.get_field("first_name").max_length,
+        widget=InputWidget(attrs={"placeholder": _("First name")}),
     )
     last_name = forms.CharField(
         help_text=_("Your last name of the workspace administrator"),
         max_length=User._meta.get_field("last_name").max_length,
+        widget=InputWidget(attrs={"placeholder": _("Last name")}),
     )
     email = forms.EmailField(
-        help_text=_("Their email address"), max_length=User._meta.get_field("username").max_length
+        help_text=_("Their email address"),
+        max_length=User._meta.get_field("username").max_length,
+        widget=InputWidget(attrs={"placeholder": _("name@domain.com")}),
     )
-    timezone = TimeZoneFormField(help_text=_("The timezone for the workspace"))
     password = forms.CharField(
-        widget=forms.PasswordInput,
         required=False,
         help_text=_("Their password, at least eight letters please. (leave blank for existing login)"),
+        widget=InputWidget(attrs={"password": True, "placeholder": _("Password")}),
     )
-    name = forms.CharField(label=_("Workspace"), help_text=_("The name of the new workspace"))
-    credits = forms.ChoiceField(choices=(), help_text=_("The initial number of credits granted to this workspace"))
+    timezone = TimeZoneFormField(
+        help_text=_("The timezone for the workspace"),
+        widget=SelectWidget,
+    )
+    name = forms.CharField(
+        label=_("Workspace"),
+        help_text=_("The name of the new workspace"),
+        widget=InputWidget(attrs={"widget_only": False, "placeholder": _("My Company, Inc.")}),
+    )
+    credits = forms.ChoiceField(
+        choices=(),
+        help_text=_("The initial number of credits granted to this workspace"),
+        widget=SelectWidget,
+    )
 
     def __init__(self, *args, **kwargs):
         branding = kwargs["branding"]
@@ -1065,6 +1081,7 @@ class OrgCRUDL(SmartCRUDL):
         "send_invite",
         "translations",
         "translate",
+        "opt_out_message",
     )
 
     model = Org
@@ -2821,6 +2838,7 @@ class OrgCRUDL(SmartCRUDL):
 
             obj.created_by = self.user
             obj.modified_by = self.user
+            obj.slug = Org.get_unique_slug(self.form.cleaned_data["name"])
             obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
             obj.language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
             obj.plan = self.request.branding.get("default_plan", settings.DEFAULT_PLAN)
@@ -3594,6 +3612,8 @@ class OrgCRUDL(SmartCRUDL):
                 if vonage_client:  # pragma: needs cover
                     formax.add_section("vonage", reverse("orgs.org_vonage_account"), icon="icon-vonage")
 
+            formax.add_section("opt_out_message", reverse("orgs.org_opt_out_message"), icon="icon-bubble-dots-2")
+
             if self.has_org_perm("classifiers.classifier_read"):
                 classifiers = org.classifiers.filter(is_active=True).order_by("created_on")
                 for classifier in classifiers:
@@ -4038,6 +4058,57 @@ class OrgCRUDL(SmartCRUDL):
             else:
                 try:
                     current_config.pop("translator_service")
+                except KeyError:
+                    pass
+            org.config = current_config
+            org.save(update_fields=["config"])
+            return super().form_valid(form)
+
+    class OptOutMessage(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+        class OptOutMessageForm(forms.ModelForm):
+            message = forms.CharField(
+                required=False,
+                label=_("Message"),
+                widget=CompletionTextarea(
+                    attrs={
+                        "style": "--textarea-height:110px",
+                        "placeholder": _("Type the message here"),
+                        "widget_only": True,
+                    }
+                ),
+            )
+
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs["org"]
+                del kwargs["org"]
+                super().__init__(*args, **kwargs)
+
+            class Meta:
+                model = Org
+                fields = ("message",)
+
+        success_message = ""
+        form_class = OptOutMessageForm
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+            org = self.derive_org()
+            initial["message"] = (org.config or {}).get("opt_out_message_back")
+            return initial
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.user.get_org()
+            return kwargs
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+            current_config = org.config or {}
+            if form.cleaned_data.get("message"):
+                current_config.update(dict(opt_out_message_back=form.cleaned_data.get("message")))
+            else:
+                try:
+                    current_config.pop("opt_out_message_back")
                 except KeyError:
                     pass
             org.config = current_config

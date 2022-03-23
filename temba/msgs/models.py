@@ -457,8 +457,6 @@ class Msg(models.Model):
 
     metadata = JSONAsTextField(null=True, default=dict)
 
-    segments = models.PositiveSmallIntegerField(null=True)
-
     # why this message is being deleted - determines what happens with counts
     delete_reason = models.CharField(null=True, max_length=1, choices=DELETE_CHOICES)
 

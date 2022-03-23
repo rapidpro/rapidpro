@@ -2111,7 +2111,7 @@ class Org(SmartModel):
             languages_map = {"fra": "fr", "deu": "de", "zho": "zh"}
             if lang == "base":
                 nonlocal self
-                lang = self.primary_language.iso_code if self.primary_language else "eng"
+                lang = self.flow_languages[0] if self.flow_languages else "eng"
             return languages_map.get(lang, lang)
 
         target_lang, source_lang = tuple(map(convert_language, (target_lang, source_lang)))

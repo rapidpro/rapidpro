@@ -374,6 +374,21 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
 
         return rendered
 
+    def get_gear_links(self):
+        links = []
+
+        if self.has_org_perm("contacts.contact_export"):
+            links.append(
+                dict(
+                    id="export-contacts",
+                    title=_("Export"),
+                    modax=_("Export Contacts"),
+                    href=self.derive_export_url(),
+                )
+            )
+
+        return links
+
 
 class ContactForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
@@ -1060,15 +1075,17 @@ class ContactCRUDL(SmartCRUDL):
             if self.has_org_perm("contacts.contactfield_list"):
                 links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
 
-            if self.has_org_perm("contacts.contact_export"):
+            if self.org.get_twilio_client() and self.has_org_perm("flows.flow_launch"):
                 links.append(
                     dict(
-                        id="export-contacts",
-                        title=_("Export"),
-                        modax=_("Export Contacts"),
-                        href=self.derive_export_url(),
+                        id="start-studio-flow",
+                        title=_("Start Studio Flow"),
+                        modax=_("Launch Studio Flow"),
+                        href=reverse("flows.flow_launch_studio_flow"),
                     )
                 )
+
+            links.extend(super().get_gear_links())
             return links
 
         def get_context_data(self, *args, **kwargs):
@@ -1127,10 +1144,13 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
+
             if self.has_org_perm("contacts.contact_delete"):
                 links.append(
                     dict(title=_("Delete All"), style="btn-default", js_class="contacts-btn-delete-all", href="#")
                 )
+
+            links.extend(super().get_gear_links())
             return links
 
     class Filter(ContactListView, OrgObjPermsMixin):

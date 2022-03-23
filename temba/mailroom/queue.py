@@ -30,6 +30,7 @@ class ContactEvent(Enum):
 
 class BatchTask(Enum):
     START_FLOW = "start_flow"
+    START_STUDIO_FLOW = "start_studio_flow"
     SEND_BROADCAST = "send_broadcast"
     INTERRUPT_SESSIONS = "interrupt_sessions"
     POPULATE_DYNAMIC_GROUP = "populate_dynamic_group"
@@ -144,6 +145,25 @@ def queue_flow_start(start):
     }
 
     _queue_batch_task(org_id, BatchTask.START_FLOW, task, HIGH_PRIORITY)
+
+
+def queue_studio_flow_start(start):
+    """
+    Queues the passed in flow start for starting by mailroom
+    """
+
+    org_id = start.org_id
+
+    task = {
+        "org_id": org_id,
+        "start_id": start.id,
+        "flow_sid": start.flow_sid,
+        "contact_ids": list(start.contacts.values_list("id", flat=True)),
+        "group_ids": list(start.groups.values_list("id", flat=True)),
+        "channel": start.channel,
+    }
+
+    _queue_batch_task(org_id, BatchTask.START_STUDIO_FLOW, task, HIGH_PRIORITY)
 
 
 def queue_contact_import_batch(batch):
