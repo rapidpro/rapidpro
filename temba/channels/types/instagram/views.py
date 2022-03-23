@@ -102,6 +102,11 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         context = super().get_context_data(**kwargs)
         context["claim_url"] = reverse("channels.types.instagram.claim")
         context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
+
+        claim_error = None
+        if context["form"].errors:
+            claim_error = context["form"].errors["__all__"][0]
+        context["claim_error"] = claim_error
         return context
 
     def form_valid(self, form):

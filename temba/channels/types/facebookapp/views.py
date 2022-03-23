@@ -71,7 +71,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 self.cleaned_data["name"] = name
 
             except Exception:
-                raise forms.ValidationError(_("Sorry your Facebook channel could not be connected. Please try again"))
+                raise forms.ValidationError(
+                    _("Sorry your Facebook channel could not be connected. Please try again"), code="invalid"
+                )
 
             return self.cleaned_data
 
@@ -81,6 +83,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         context = super().get_context_data(**kwargs)
         context["claim_url"] = reverse("channels.types.facebookapp.claim")
         context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
+
+        claim_error = None
+        if context["form"].errors:
+            claim_error = context["form"].errors["__all__"][0]
+        context["claim_error"] = claim_error
+
         return context
 
     def form_valid(self, form):
