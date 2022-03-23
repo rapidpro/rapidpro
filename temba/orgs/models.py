@@ -2127,8 +2127,7 @@ class Org(SmartModel):
                     return response.json()["data"]["translations"][0]["translatedText"], 200
                 except KeyError:
                     pass
-            response_json = response.json()
-            return response_json.get("error", {}).get("message"), 404
+            return None, 404
 
         def deepl_translate(_text, _target_lang, _source_lang, _api_key):
             body = {"text": _text, "target_lang": _target_lang}
