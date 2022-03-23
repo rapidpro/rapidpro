@@ -27,7 +27,7 @@ class InstagramTypeTest(TembaTest):
             config={"auth_token": "09876543", "page_id": "123456"},
         )
 
-    @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID")
+    @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
     @patch("requests.post")
     @patch("requests.get")
     def test_claim(self, mock_get, mock_post):
@@ -89,7 +89,7 @@ class InstagramTypeTest(TembaTest):
 
         mock_get.assert_any_call(
             "https://graph.facebook.com/v12.0/debug_token",
-            params={"input_token": self.token, "access_token": self.token},
+            params={"input_token": self.token, "access_token": "FB_APP_ID|FB_APP_SECRET"},
         )
 
         mock_get.assert_any_call(

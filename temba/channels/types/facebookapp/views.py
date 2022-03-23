@@ -24,8 +24,11 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 name = self.cleaned_data["page_name"]
                 page_id = self.cleaned_data["page_id"]
 
+                app_id = settings.FACEBOOK_APPLICATION_ID
+                app_secret = settings.FACEBOOK_APPLICATION_SECRET
+
                 url = "https://graph.facebook.com/v12.0/debug_token"
-                params = {"access_token": auth_token, "input_token": auth_token}
+                params = {"access_token": f"{app_id}|{app_secret}", "input_token": auth_token}
 
                 response = requests.get(url, params=params)
                 if response.status_code != 200:  # pragma: no cover
