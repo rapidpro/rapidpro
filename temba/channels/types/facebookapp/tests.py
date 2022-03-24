@@ -26,7 +26,7 @@ class FacebookTypeTest(TembaTest):
             config={"auth_token": "09876543"},
         )
 
-    @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID")
+    @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
     @patch("requests.post")
     @patch("requests.get")
     def test_claim(self, mock_get, mock_post):
@@ -72,7 +72,7 @@ class FacebookTypeTest(TembaTest):
 
         mock_get.assert_any_call(
             "https://graph.facebook.com/v12.0/debug_token",
-            params={"input_token": token, "access_token": token},
+            params={"input_token": token, "access_token": "FB_APP_ID|FB_APP_SECRET"},
         )
         mock_get.assert_any_call("https://graph.facebook.com/v12.0/098765/accounts", params={"access_token": token})
 

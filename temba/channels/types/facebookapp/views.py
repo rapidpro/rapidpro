@@ -24,8 +24,11 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 name = self.cleaned_data["page_name"]
                 page_id = self.cleaned_data["page_id"]
 
+                app_id = settings.FACEBOOK_APPLICATION_ID
+                app_secret = settings.FACEBOOK_APPLICATION_SECRET
+
                 url = "https://graph.facebook.com/v12.0/debug_token"
-                params = {"access_token": auth_token, "input_token": auth_token}
+                params = {"access_token": f"{app_id}|{app_secret}", "input_token": auth_token}
 
                 response = requests.get(url, params=params)
                 if response.status_code != 200:  # pragma: no cover
@@ -68,7 +71,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 self.cleaned_data["name"] = name
 
             except Exception:
-                raise forms.ValidationError(_("Sorry your Facebook channel could not be connected. Please try again"))
+                raise forms.ValidationError(
+                    _("Sorry your Facebook channel could not be connected. Please try again"), code="invalid"
+                )
 
             return self.cleaned_data
 
@@ -78,6 +83,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         context = super().get_context_data(**kwargs)
         context["claim_url"] = reverse("channels.types.facebookapp.claim")
         context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
+
+        claim_error = None
+        if context["form"].errors:
+            claim_error = context["form"].errors["__all__"][0]
+        context["claim_error"] = claim_error
+
         return context
 
     def form_valid(self, form):
