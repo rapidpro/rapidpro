@@ -4,7 +4,7 @@ import time
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import PropertyMock, call, patch
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import iso8601
 import pytz
@@ -37,6 +37,7 @@ from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     TembaNonAtomicTest,
     TembaTest,
     matchers,
@@ -6229,3 +6230,70 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
+
+
+class UpdateGroupTypeMigrationTest(MigrationTest):
+    app = "contacts"
+    migrate_from = "0156_alter_contactgroup_group_type_and_more"
+    migrate_to = "0157_update_group_type"
+
+    def setUpBeforeMigration(self, apps):
+        Org = apps.get_model("orgs", "Org")
+        User = apps.get_model("auth", "User")
+        ContactGroup = apps.get_model("contacts", "ContactGroup")
+
+        user = User.objects.first()
+        org = Org.objects.create(
+            name="New Org",
+            is_active=True,
+            created_on=timezone.now(),
+            created_by=user,
+            modified_on=timezone.now(),
+            modified_by=user,
+        )
+
+        self.manual_group = ContactGroup.all_groups.create(
+            uuid=uuid4(),
+            org=org,
+            name="Reporters",
+            group_type="U",
+            is_system=False,
+            is_active=True,
+            created_on=timezone.now(),
+            created_by=user,
+            modified_on=timezone.now(),
+            modified_by=user,
+        )
+        self.query_group = ContactGroup.all_groups.create(
+            uuid=uuid4(),
+            org=org,
+            name="Testers",
+            group_type="U",
+            query="tester = Yes",
+            is_system=False,
+            is_active=True,
+            created_on=timezone.now(),
+            created_by=user,
+            modified_on=timezone.now(),
+            modified_by=user,
+        )
+        self.newer_group = ContactGroup.all_groups.create(
+            uuid=uuid4(),
+            org=org,
+            name="Analysts",
+            group_type="M",  # already correct
+            is_system=False,
+            is_active=True,
+            created_on=timezone.now(),
+            created_by=user,
+            modified_on=timezone.now(),
+            modified_by=user,
+        )
+
+    def test_migration(self):
+        self.manual_group.refresh_from_db()
+        self.assertEqual(ContactGroup.TYPE_MANUAL, self.manual_group.group_type)
+        self.query_group.refresh_from_db()
+        self.assertEqual(ContactGroup.TYPE_SMART, self.query_group.group_type)
+        self.newer_group.refresh_from_db()
+        self.assertEqual(ContactGroup.TYPE_MANUAL, self.newer_group.group_type)
