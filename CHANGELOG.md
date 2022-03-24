@@ -1,3 +1,7 @@
+v7.3.4
+----------
+ * Merge pull request #3734 from nyaruka/FB-IG-claim
+
 v7.3.3
 ----------
  * Check all org groups when creating unique group names
