@@ -89,6 +89,9 @@
       var accessToken = result.long_lived_token;
       if (accessToken) {
         getFBPages(accessToken);
+      } else {
+        accessToken = result.access_token;
+        getFBPages(accessToken);
       }
 
       $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e){
