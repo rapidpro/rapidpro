@@ -1,3 +1,7 @@
+v7.3.5
+----------
+ * Data migration to update group_type=U to M|Q
+
 v7.3.4
 ----------
  * Merge pull request #3734 from nyaruka/FB-IG-claim
