@@ -105,8 +105,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([], list(response.context["actions"]))
 
         active_contacts = self.org.active_contacts_group
-        survey_audience = ContactGroup.user_groups.get(org=self.org, name="Survey Audience")
-        unsatisfied = ContactGroup.user_groups.get(org=self.org, name="Unsatisfied Customers")
+        survey_audience = ContactGroup.objects.get(org=self.org, name="Survey Audience")
+        unsatisfied = ContactGroup.objects.get(org=self.org, name="Unsatisfied Customers")
 
         self.assertEqual(
             response.context["groups"],
@@ -745,19 +745,20 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.name, "first")
 
     @mock_mailroom
-    def test_get_user_groups(self, mr_mocks):
+    def test_get_groups(self, mr_mocks):
         self.create_field("gender", "Gender")
-        static = ContactGroup.create_static(self.org, self.admin, "Static")
+        manual = ContactGroup.create_static(self.org, self.admin, "Static")
         deleted = ContactGroup.create_static(self.org, self.admin, "Deleted")
         deleted.is_active = False
         deleted.save()
 
+        females = ContactGroup.create_smart(self.org, self.admin, "Females", "gender=F")
         males = ContactGroup.create_smart(self.org, self.admin, "Males", "gender=M")
-        ContactGroup.user_groups.filter(id=males.id).update(status=ContactGroup.STATUS_READY)
+        ContactGroup.objects.filter(id=males.id).update(status=ContactGroup.STATUS_READY)
 
-        self.assertEqual(set(ContactGroup.get_user_groups(self.org)), {static, males})
-        self.assertEqual(set(ContactGroup.get_user_groups(self.org, smart=False)), {static})
-        self.assertEqual(set(ContactGroup.get_user_groups(self.org, smart=True)), {males})
+        self.assertEqual(set(ContactGroup.get_groups(self.org)), {manual, females, males})
+        self.assertEqual(set(ContactGroup.get_groups(self.org, manual_only=True)), {manual})
+        self.assertEqual(set(ContactGroup.get_groups(self.org, ready_only=True)), {manual, males})
 
     def test_is_valid_name(self):
         self.assertTrue(ContactGroup.is_valid_name("x"))
@@ -775,27 +776,27 @@ class ContactGroupTest(TembaTest):
         group = self.create_group("Cool kids")
         group.contacts.add(self.joe, self.frank)
 
-        self.assertEqual(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 2)
+        self.assertEqual(ContactGroup.objects.get(pk=group.pk).get_member_count(), 2)
 
         group.contacts.add(self.mary)
 
-        self.assertEqual(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 3)
+        self.assertEqual(ContactGroup.objects.get(pk=group.pk).get_member_count(), 3)
 
         group.contacts.remove(self.mary)
 
-        self.assertEqual(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 2)
+        self.assertEqual(ContactGroup.objects.get(pk=group.pk).get_member_count(), 2)
 
         # blocking a contact removes them from all user groups
         self.joe.block(self.user)
 
-        group = ContactGroup.user_groups.get(pk=group.pk)
+        group = ContactGroup.objects.get(pk=group.pk)
         self.assertEqual(group.get_member_count(), 1)
         self.assertEqual(set(group.contacts.all()), {self.frank})
 
         # releasing removes from all user groups
         self.frank.release(self.user)
 
-        group = ContactGroup.user_groups.get(pk=group.pk)
+        group = ContactGroup.objects.get(pk=group.pk)
         self.assertEqual(group.get_member_count(), 0)
         self.assertEqual(set(group.contacts.all()), set())
 
@@ -932,7 +933,7 @@ class ContactGroupTest(TembaTest):
         response = self.client.post(delete_url, dict())
         self.assertEqual(302, response.status_code)
         response = self.client.post(delete_url, dict(), follow=True)
-        self.assertTrue(ContactGroup.user_groups.get(pk=group.pk).is_active)
+        self.assertTrue(ContactGroup.objects.get(pk=group.pk).is_active)
         self.assertEqual(response.request["PATH_INFO"], reverse("contacts.contact_filter", args=[group.uuid]))
 
         # archive a trigger
@@ -942,7 +943,7 @@ class ContactGroupTest(TembaTest):
         response = self.client.post(delete_url, dict())
         self.assertEqual(302, response.status_code)
         response = self.client.post(delete_url, dict(), follow=True)
-        self.assertTrue(ContactGroup.user_groups.get(pk=group.pk).is_active)
+        self.assertTrue(ContactGroup.objects.get(pk=group.pk).is_active)
         self.assertEqual(response.request["PATH_INFO"], reverse("contacts.contact_filter", args=[group.uuid]))
 
         trigger.is_archived = True
@@ -951,7 +952,7 @@ class ContactGroupTest(TembaTest):
         self.client.post(delete_url, {})
 
         # group should have is_active = False and all its triggers
-        self.assertIsNone(ContactGroup.user_groups.filter(pk=group.pk).first())
+        self.assertFalse(ContactGroup.objects.get(pk=group.pk).is_active)
         self.assertFalse(ContactGroup.objects.get(pk=group.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
@@ -993,13 +994,13 @@ class ContactGroupTest(TembaTest):
         from temba.flows.models import Flow
 
         flow = Flow.objects.filter(name="Dependencies").first()
-        cats = ContactGroup.user_groups.filter(name="Cat Facts").first()
+        cats = ContactGroup.objects.filter(name="Cat Facts").first()
         delete_url = reverse("contacts.contactgroup_delete", args=[cats.pk])
 
         # can't delete if it is a dependency
         response = self.client.post(delete_url, dict())
         self.assertEqual(302, response.status_code)
-        self.assertTrue(ContactGroup.user_groups.get(id=cats.id).is_active)
+        self.assertTrue(ContactGroup.objects.get(id=cats.id).is_active)
 
         # get the dependency details
         response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
@@ -1014,7 +1015,7 @@ class ContactGroupTest(TembaTest):
         self.assertNotContains(response, "Dependencies")
 
         response = self.client.post(delete_url, dict(), HTTP_X_PJAX=True)
-        self.assertIsNone(ContactGroup.user_groups.filter(id=cats.id).first())
+        self.assertFalse(ContactGroup.objects.get(id=cats.id).is_active)
 
     def test_delete_with_campaign_dependencies(self):
         block_group = self.create_group("one that blocks")
@@ -1033,7 +1034,7 @@ class ContactGroupTest(TembaTest):
         # can't delete if it is a dependency
         response = self.client.post(delete_url, dict())
         self.assertRedirect(response, f"/contact/filter/{block_group.uuid}/")
-        self.assertTrue(ContactGroup.user_groups.get(id=block_group.id).is_active)
+        self.assertTrue(ContactGroup.objects.get(id=block_group.id).is_active)
 
 
 class ElasticSearchLagTest(TembaTest):
@@ -1101,7 +1102,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # let's delete it and make sure it's gone
         self.client.post(list_url, {"action": "delete", "objects": group.id})
-        self.assertFalse(ContactGroup.user_groups.filter(id=group.id).exists())
+        self.assertFalse(ContactGroup.objects.get(id=group.id).is_active)
 
         query = "name ~ Joe"
         mr_mocks.parse_query(query, fields=[])
@@ -1150,19 +1151,19 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         # create with valid name (that will be trimmed)
         response = self.client.post(url, {"name": "first  "})
         self.assertNoFormErrors(response)
-        ContactGroup.user_groups.get(org=self.org, name="first")
+        ContactGroup.objects.get(org=self.org, name="first")
 
         # create a group with preselected contacts
         self.client.post(url, {"name": "Everybody", "preselected_contacts": f"{self.joe.id},{self.frank.id}"})
-        group = ContactGroup.user_groups.get(org=self.org, name="Everybody")
+        group = ContactGroup.objects.get(org=self.org, name="Everybody")
         self.assertEqual(set(group.contacts.all()), {self.joe, self.frank})
 
         # create a dynamic group using a query
         self.client.post(url, {"name": "Frank", "group_query": "tel = 1234"})
 
-        ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
+        ContactGroup.objects.get(org=self.org, name="Frank", query="tel = 1234")
 
-        for group in ContactGroup.user_groups.all():
+        for group in ContactGroup.objects.filter(is_system=False):
             group.release(self.admin)
 
         for i in range(10):
@@ -1170,15 +1171,15 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.post(url, {"name": "People"})
         self.assertNoFormErrors(response)
-        ContactGroup.user_groups.get(org=self.org, name="People")
+        ContactGroup.objects.get(org=self.org, name="People")
 
-        for group in ContactGroup.user_groups.all():
+        for group in ContactGroup.objects.filter(is_system=False):
             group.release(self.admin)
 
         for i in range(10):
             ContactGroup.create_static(self.org, self.admin, "group%d" % i)
 
-        self.assertEqual(10, ContactGroup.user_groups.all().count())
+        self.assertEqual(10, ContactGroup.objects.filter(is_active=True, is_system=False).count())
         response = self.client.post(url, {"name": "People"})
         self.assertFormError(
             response,
@@ -1194,7 +1195,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.client.post(reverse("contacts.contactgroup_create"), dict(name="First Group"))
 
         # assert it was created
-        ContactGroup.user_groups.get(name="First Group")
+        ContactGroup.objects.get(name="First Group")
 
         # try to create another group with the same name, but a dynamic query, should fail
         response = self.client.post(
@@ -1240,7 +1241,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         url = reverse("contacts.contactgroup_update", args=[dynamic_group.id])
 
         # mark our group as ready
-        ContactGroup.user_groups.filter(id=dynamic_group.id).update(status=ContactGroup.STATUS_READY)
+        ContactGroup.objects.filter(id=dynamic_group.id).update(status=ContactGroup.STATUS_READY)
 
         # update both name and query, form should fail, because query is not parsable
         mr_mocks.error("error at !", code="unexpected_token", extra={"token": "!"})
@@ -1290,7 +1291,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_usages(self):
         flow = self.get_flow("dependencies", name="Dependencies")
-        group = ContactGroup.user_groups.get(name="Cat Facts")
+        group = ContactGroup.objects.get(name="Cat Facts")
 
         campaign1 = Campaign.create(self.org, self.admin, "Planting Reminders", group)
         campaign2 = Campaign.create(self.org, self.admin, "Deleted", group)
@@ -1817,7 +1818,7 @@ class ContactTest(TembaTest):
         nobody = self.create_group("Nobody", [])
 
         men = self.create_group("Men", query="gender=M")
-        ContactGroup.user_groups.filter(id=men.id).update(status=ContactGroup.STATUS_READY)
+        ContactGroup.objects.filter(id=men.id).update(status=ContactGroup.STATUS_READY)
 
         # a group which is being re-evaluated and shouldn't appear in any omnibox results
         unready = self.create_group("Group being re-evaluated...", query="gender=M")
@@ -2675,7 +2676,7 @@ class ContactTest(TembaTest):
 
         # this manager cannot operate on this organization
         self.assertEqual(302, response.status_code)
-        self.assertEqual(3, self.joe.user_groups.count())
+        self.assertEqual(3, self.joe.get_groups().count())
         self.client.logout()
 
         # login as a manager of kLab
@@ -2685,21 +2686,24 @@ class ContactTest(TembaTest):
         response = self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": klab.id})
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(2, self.joe.user_groups.count())
+        self.assertEqual(2, self.joe.get_groups().count())
 
         # try removing it again, should noop
         response = self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": klab.id})
         self.assertEqual(200, response.status_code)
-        self.assertEqual(2, self.joe.user_groups.count())
+        self.assertEqual(2, self.joe.get_groups().count())
 
         # try removing from non-existent group
         response = self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": 2341533})
         self.assertEqual(200, response.status_code)
-        self.assertEqual(2, self.joe.user_groups.count())
+        self.assertEqual(2, self.joe.get_groups().count())
 
-        # try removing from dynamic group (shouldnt happen, UI doesnt allow this)
-        with self.assertRaises(AssertionError):
-            self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": planters.id})
+        # try removing from a smart group (shouldn't happen, UI doesn't allow this)
+        response = self.client.post(
+            read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": planters.id}
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(2, self.joe.get_groups().count())
 
         # can't view contact in another org
         response = self.client.get(reverse("contacts.contact_read", args=[self.other_org_contact.uuid]))
@@ -2806,7 +2810,7 @@ class ContactTest(TembaTest):
         self.just_joe = self.create_group("Just Joe", [self.joe])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
-        self.joe_and_frank = ContactGroup.user_groups.get(pk=self.joe_and_frank.pk)
+        self.joe_and_frank = ContactGroup.objects.get(id=self.joe_and_frank.id)
 
         # try to list contacts as a user not in the organization
         self.login(self.user1)
@@ -2876,7 +2880,7 @@ class ContactTest(TembaTest):
         response = self.client.post(update_url, dict(name="New Test"))
         self.assertRedirect(response, filter_url)
 
-        group = ContactGroup.user_groups.get(pk=group.pk)
+        group = ContactGroup.objects.get(id=group.id)
         self.assertEqual("New Test", group.name)
 
         # post to our delete url
@@ -2915,15 +2919,15 @@ class ContactTest(TembaTest):
         joe_and_frank_filter_url = reverse("contacts.contact_filter", args=[self.joe_and_frank.uuid])
 
         # now test when the action with some data missing
-        self.assertEqual(self.joe.user_groups.filter(is_active=True).count(), 2)
+        self.assertEqual(self.joe.get_groups().count(), 2)
 
         self.client.post(joe_and_frank_filter_url, {"action": "label", "objects": self.joe.id, "add": True})
 
-        self.assertEqual(self.joe.user_groups.filter(is_active=True).count(), 2)
+        self.assertEqual(self.joe.get_groups().count(), 2)
 
         self.client.post(joe_and_frank_filter_url, {"action": "label", "objects": self.joe.id, "add": False})
 
-        self.assertEqual(self.joe.user_groups.filter(is_active=True).count(), 2)
+        self.assertEqual(self.joe.get_groups().count(), 2)
 
         # now block Joe
         self.client.post(list_url, {"action": "block", "objects": self.joe.id}, follow=True)
@@ -3085,7 +3089,7 @@ class ContactTest(TembaTest):
 
         self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
 
-        self.assertEqual(set(self.joe.user_groups.all()), {self.just_joe})
+        self.assertEqual(set(self.joe.get_groups()), {self.just_joe})
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="+250781111111"))
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="+250786666666"))
 
@@ -3094,7 +3098,7 @@ class ContactTest(TembaTest):
 
         self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
 
-        self.assertEqual(set(self.joe.user_groups.all()), set())
+        self.assertEqual(set(self.joe.get_groups()), set())
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="+250781111111"))
         self.assertFalse(ContactURN.objects.filter(contact=self.joe, path="+250786666666"))
 
@@ -5361,7 +5365,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
         time.sleep(5)
 
         # check that it was created with the right counts
-        adults = ContactGroup.user_groups.get(org=self.org, name="Adults")
+        adults = ContactGroup.objects.get(org=self.org, name="Adults")
         self.assertEqual(69, adults.get_member_count())
 
         # create a campaign and event on this group
@@ -6064,7 +6068,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "Import"})
         self.assertRedirect(response, read_url)
 
-        new_group = ContactGroup.user_groups.get(name="Import")
+        new_group = ContactGroup.objects.get(name="Import")
         imp.refresh_from_db()
         self.assertEqual(new_group, imp.group)
 

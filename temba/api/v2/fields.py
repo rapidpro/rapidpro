@@ -240,7 +240,6 @@ class ContactFieldField(TembaModelField):
 
 class ContactGroupField(TembaModelField):
     model = ContactGroup
-    model_manager = "user_groups"
     lookup_fields = ("uuid", "name")
     ignore_case_for_fields = ("name",)
 
@@ -255,6 +254,9 @@ class ContactGroupField(TembaModelField):
             raise serializers.ValidationError("Contact group must not be query based: %s" % data)
 
         return obj
+
+    def get_queryset(self):
+        return ContactGroup.get_groups(org=self.context["org"])
 
 
 class FlowField(TembaModelField):

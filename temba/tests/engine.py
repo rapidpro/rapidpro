@@ -370,10 +370,10 @@ class MockSessionWriter:
 
     def _handle_contact_groups_changed(self, event):
         for group in event.get("groups_added", []):
-            ContactGroup.user_groups.get(uuid=group["uuid"]).contacts.add(self.contact)
+            ContactGroup.objects.get(uuid=group["uuid"]).contacts.add(self.contact)
 
         for group in event.get("groups_removed", []):
-            ContactGroup.user_groups.get(uuid=group["uuid"]).contacts.remove(self.contact)
+            ContactGroup.objects.get(uuid=group["uuid"]).contacts.remove(self.contact)
 
     def _handle_contact_status_changed(self, event):
         self.contact.status = CONTACT_STATUSES[event["status"]]

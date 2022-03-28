@@ -49,7 +49,7 @@ def omnibox_query(org, **kwargs):
 
     # this lookup returns a ContactGroup queryset
     elif group_uuids:
-        return ContactGroup.user_groups.filter(org=org, uuid__in=group_uuids.split(",")).order_by("name")
+        return ContactGroup.get_groups(org).filter(uuid__in=group_uuids.split(",")).order_by("name")
 
     # this lookup returns a ContactURN queryset
     elif urn_ids:
@@ -81,7 +81,7 @@ def omnibox_mixed_search(org, query, types):
     results = []
 
     if SEARCH_ALL_GROUPS in search_types or SEARCH_STATIC_GROUPS in search_types:
-        groups = ContactGroup.get_user_groups(org, ready_only=True)
+        groups = ContactGroup.get_groups(org, ready_only=True)
 
         # exclude dynamic groups if not searching all groups
         if SEARCH_ALL_GROUPS not in search_types:

@@ -387,7 +387,7 @@ class FlowMigrationTest(TembaTest):
         migrated = migrate_to_version_11_6(flow_json, flow)
         migrated_groups = get_legacy_groups(migrated)
         for uuid, name in migrated_groups.items():
-            self.assertTrue(ContactGroup.user_groups.filter(uuid=uuid, name=name).exists(), msg="Group UUID mismatch")
+            self.assertTrue(ContactGroup.objects.filter(uuid=uuid, name=name).exists(), msg="Group UUID mismatch")
 
     def test_migrate_to_11_5(self):
         flow_json = self.get_flow_json("migrate_to_11_5")
@@ -1071,18 +1071,18 @@ class FlowMigrationTest(TembaTest):
             error = 'Failure migrating group names "%s" forward from v%s'
             flow = self.get_flow("favorites_bad_group_name_v%s" % v)
             self.assertIsNotNone(flow, "Failure importing favorites from v%s" % v)
-            self.assertTrue(ContactGroup.user_groups.filter(name="Contacts < 25").exists(), error % ("< 25", v))
-            self.assertTrue(ContactGroup.user_groups.filter(name="Contacts > 100").exists(), error % ("> 100", v))
+            self.assertTrue(ContactGroup.objects.filter(name="Contacts < 25").exists(), error % ("< 25", v))
+            self.assertTrue(ContactGroup.objects.filter(name="Contacts > 100").exists(), error % ("> 100", v))
 
-            ContactGroup.user_groups.all().delete()
+            ContactGroup.objects.filter(is_system=False).delete()
             self.assertEqual(Flow.CURRENT_SPEC_VERSION, flow.version_number)
             flow.release(self.admin)
 
     def test_migrate_malformed_groups(self):
         flow = self.get_flow("malformed_groups")
         self.assertIsNotNone(flow)
-        self.assertTrue(ContactGroup.user_groups.filter(name="Contacts < 25").exists())
-        self.assertTrue(ContactGroup.user_groups.filter(name="Unknown").exists())
+        self.assertTrue(ContactGroup.objects.filter(name="Contacts < 25").exists())
+        self.assertTrue(ContactGroup.objects.filter(name="Unknown").exists())
 
 
 class MigrationUtilsTest(TembaTest):

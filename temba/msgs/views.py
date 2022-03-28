@@ -486,11 +486,11 @@ class ExportForm(Form):
     )
 
     groups = forms.ModelMultipleChoiceField(
-        queryset=ContactGroup.user_groups.none(),
+        queryset=ContactGroup.objects.none(),
         required=False,
         label=_("Groups"),
         widget=SelectMultipleWidget(
-            attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to show in your export")}
+            attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to include in your export")}
         ),
     )
 
@@ -499,11 +499,7 @@ class ExportForm(Form):
         self.user = user
 
         self.fields["export_all"].choices = self.LABEL_CHOICES if label else self.SYSTEM_LABEL_CHOICES
-
-        self.fields["groups"].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
-        self.fields["groups"].help_text = _(
-            "Export only messages from these contact groups. " "(Leave blank to export all messages)."
-        )
+        self.fields["groups"].queryset = ContactGroup.get_groups(self.user.get_org())
 
     def clean(self):
         cleaned_data = super().clean()

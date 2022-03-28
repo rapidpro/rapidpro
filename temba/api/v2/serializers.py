@@ -513,7 +513,7 @@ class ContactReadSerializer(ReadSerializer):
         if not obj.is_active:
             return []
 
-        groups = obj.prefetched_user_groups if hasattr(obj, "prefetched_user_groups") else obj.user_groups.all()
+        groups = obj.prefetched_groups if hasattr(obj, "prefetched_groups") else obj.get_groups()
         return [{"uuid": g.uuid, "name": g.name} for g in groups]
 
     def get_contact_fields(self, obj):
@@ -776,7 +776,7 @@ class ContactGroupWriteSerializer(WriteSerializer):
         org = self.context["org"]
         org_active_groups_limit = org.get_limit(Org.LIMIT_GROUPS)
 
-        group_count = ContactGroup.user_groups.filter(org=self.context["org"]).count()
+        group_count = org.groups.filter(is_system=False, is_active=True).count()
         if group_count >= org_active_groups_limit:
             raise serializers.ValidationError(
                 "This org has %s groups and the limit is %s. "
