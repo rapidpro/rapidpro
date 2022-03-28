@@ -325,7 +325,7 @@ class Command(BaseCommand):
         self._log(f"Creating {len(spec['campaigns'])} campaigns... ")
 
         for c in spec["campaigns"]:
-            group = ContactGroup.all_groups.get(org=org, name=c["group"])
+            group = ContactGroup.objects.get(org=org, name=c["group"])
             campaign = Campaign.objects.create(
                 name=c["name"],
                 group=group,

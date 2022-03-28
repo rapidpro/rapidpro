@@ -755,14 +755,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Define Contact.user_groups to only refer to user groups
         """
-        return self.all_groups.filter(is_system=False)
+        return self.groups.filter(is_system=False)
 
     @classmethod
     def get_status_counts(cls, org) -> dict:
         """
         Returns the counts for each contact status for the given org
         """
-        groups = ContactGroup.all_groups.filter(org=org, group_type__in=ContactGroup.CONTACT_STATUS_TYPES)
+        groups = org.groups.filter(group_type__in=ContactGroup.CONTACT_STATUS_TYPES)
         return {g.group_type: count for g, count in ContactGroupCount.get_totals(groups).items()}
 
     def get_scheduled_messages(self):
@@ -1511,11 +1511,11 @@ class ContactGroup(TembaModel, DependencyMixin):
         (STATUS_READY, _("Ready")),
     )
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="all_groups")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="groups")
     name = models.CharField(max_length=MAX_NAME_LEN)
     group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MANUAL)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
-    contacts = models.ManyToManyField(Contact, related_name="all_groups")
+    contacts = models.ManyToManyField(Contact, related_name="groups")
 
     is_system = models.BooleanField()  # not user created, doesn't count against limits
 
@@ -1524,7 +1524,7 @@ class ContactGroup(TembaModel, DependencyMixin):
     query_fields = models.ManyToManyField(ContactField, related_name="dependent_groups")
 
     # define some custom managers to do the filtering of user / system groups for us
-    all_groups = models.Manager()
+    objects = models.Manager()
     user_groups = UserContactGroupManager()
 
     @classmethod
@@ -1533,36 +1533,41 @@ class ContactGroup(TembaModel, DependencyMixin):
         Creates our system groups for the given organization so that we can keep track of counts etc..
         """
 
-        assert not org.all_groups.filter(is_system=True).exists(), "org already has system groups"
+        assert not org.groups.filter(is_system=True).exists(), "org already has system groups"
 
-        org.all_groups.create(
+        org.groups.create(
             name="Active",
             group_type=ContactGroup.TYPE_DB_ACTIVE,
             is_system=True,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
-        org.all_groups.create(
+        org.groups.create(
             name="Blocked",
             group_type=ContactGroup.TYPE_DB_BLOCKED,
             is_system=True,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
-        org.all_groups.create(
+        org.groups.create(
             name="Stopped",
             group_type=ContactGroup.TYPE_DB_STOPPED,
             is_system=True,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
-        org.all_groups.create(
+        org.groups.create(
             name="Archived",
             group_type=ContactGroup.TYPE_DB_ARCHIVED,
             is_system=True,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
+
+    @classmethod
+    def get_groups(cls, org: Org, manual_only=False):
+        types = (cls.TYPE_MANUAL,) if manual_only else (cls.TYPE_MANUAL, cls.TYPE_SMART)
+        return ContactGroup.objects.filter(org=org, group_type__in=types, is_active=True)
 
     @classmethod
     def get_user_group_by_name(cls, org, name):
@@ -1650,7 +1655,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         count = 0
         while True:
             name = f"{base_name} {count}" if count else base_name
-            if not org.all_groups.filter(name=name).exists():
+            if not org.groups.filter(name=name).exists():
                 return name
             count += 1
 
@@ -2001,7 +2006,7 @@ class ExportContactsTask(BaseExportTask):
         for batch_ids in chunk_list(contact_ids, 1000):
             # fetch all the contacts for our batch
             batch_contacts = (
-                Contact.objects.filter(id__in=batch_ids).prefetch_related("org", "all_groups").using("readonly")
+                Contact.objects.filter(id__in=batch_ids).prefetch_related("org", "groups").using("readonly")
             )
 
             # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
@@ -2019,7 +2024,7 @@ class ExportContactsTask(BaseExportTask):
 
                 group_values = []
                 if include_group_memberships:
-                    contact_groups_ids = [g.id for g in contact.all_groups.all()]
+                    contact_groups_ids = [g.id for g in contact.groups.all()]
                     for col in range(len(group_fields)):
                         field = group_fields[col]
                         group_values.append(field["group_id"] in contact_groups_ids)

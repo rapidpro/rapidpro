@@ -722,7 +722,7 @@ class Org(SmartModel):
     def active_contacts_group(self):
         from temba.contacts.models import ContactGroup
 
-        return self.all_groups.get(group_type=ContactGroup.TYPE_DB_ACTIVE)
+        return self.groups.get(group_type=ContactGroup.TYPE_DB_ACTIVE)
 
     def get_contact_count(self) -> int:
         from temba.contacts.models import Contact
@@ -1725,7 +1725,7 @@ class Org(SmartModel):
             contactfield.delete()
 
         # delete our groups
-        for group in self.all_groups.all():
+        for group in self.groups.all():
             group.release(user, immediate=True)
             group.delete()
 

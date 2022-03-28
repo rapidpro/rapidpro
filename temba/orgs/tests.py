@@ -779,7 +779,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             channel=self.channel,
             keyword="favorites",
         )
-        parent_trigger.groups.add(self.parent_org.all_groups.all().first())
+        parent_trigger.groups.add(self.parent_org.groups.all().first())
 
         FlowStart.objects.create(org=self.parent_org, flow=parent_flow)
 
@@ -791,7 +791,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             channel=self.child_channel,
             keyword="color",
         )
-        child_trigger.groups.add(self.child_org.all_groups.all().first())
+        child_trigger.groups.add(self.child_org.groups.all().first())
 
         # use a credit on each
         self.create_outgoing_msg(parent_contact, "Hola hija!", channel=self.channel)
@@ -928,7 +928,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
                 # contacts, groups
                 self.assertFalse(Contact.objects.filter(org=org).exists())
-                self.assertFalse(ContactGroup.all_groups.filter(org=org).exists())
+                self.assertFalse(ContactGroup.objects.filter(org=org).exists())
 
                 # flows, campaigns
                 self.assertFalse(Flow.objects.filter(org=org).exists())
@@ -3754,7 +3754,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check default org content was created correctly
         system_fields = list(org.contactfields(manager="system_fields").order_by("key").values_list("key", flat=True))
-        system_groups = list(org.all_groups.filter(is_system=True).order_by("name").values_list("name", flat=True))
+        system_groups = list(org.groups.filter(is_system=True).order_by("name").values_list("name", flat=True))
         sample_flows = list(org.flows.order_by("name").values_list("name", flat=True))
         internal_ticketer = org.ticketers.get()
 

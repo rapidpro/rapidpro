@@ -1876,9 +1876,7 @@ class ExportFlowResultsTask(BaseExportTask):
         # get all the contacts referenced in this batch
         contact_uuids = {r["contact"]["uuid"] for r in runs}
         contacts = (
-            Contact.objects.filter(org=self.org, uuid__in=contact_uuids)
-            .prefetch_related("all_groups")
-            .using("readonly")
+            Contact.objects.filter(org=self.org, uuid__in=contact_uuids).prefetch_related("groups").using("readonly")
         )
         contacts_by_uuid = {str(c.uuid): c for c in contacts}
 
@@ -1907,7 +1905,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 contact_values.append(urn_display)
 
             contact_values.append(self.prepare_value(contact.name))
-            contact_groups_ids = [g.id for g in contact.all_groups.all()]
+            contact_groups_ids = [g.id for g in contact.groups.all()]
             for gr in groups:
                 contact_values.append(gr.id in contact_groups_ids)
 

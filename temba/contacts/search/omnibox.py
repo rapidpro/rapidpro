@@ -147,7 +147,7 @@ def omnibox_deserialize(org, omnibox):
     urns = [item["id"] for item in omnibox if item["type"] == "urn"] if not org.is_anon else []
 
     return {
-        "groups": ContactGroup.all_groups.filter(uuid__in=group_ids, org=org, is_active=True),
+        "groups": org.groups.filter(uuid__in=group_ids, is_active=True),
         "contacts": Contact.objects.filter(uuid__in=contact_ids, org=org, is_active=True),
         "urns": urns,
     }

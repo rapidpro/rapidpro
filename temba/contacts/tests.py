@@ -874,7 +874,7 @@ class ContactGroupTest(TembaTest):
         )
 
         # rebuild just our system contact group
-        all_contacts = ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_DB_ACTIVE)
+        all_contacts = self.org.active_contacts_group
         ContactGroupCount.populate_for_group(all_contacts)
 
         # assert our count is correct
@@ -952,7 +952,7 @@ class ContactGroupTest(TembaTest):
 
         # group should have is_active = False and all its triggers
         self.assertIsNone(ContactGroup.user_groups.filter(pk=group.pk).first())
-        self.assertFalse(ContactGroup.all_groups.get(pk=group.pk).is_active)
+        self.assertFalse(ContactGroup.objects.get(pk=group.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
 
@@ -982,7 +982,7 @@ class ContactGroupTest(TembaTest):
         self.assertContains(response, "document.location.href = '/contact/';")
 
         # group and campaign are no longer active
-        self.assertFalse(ContactGroup.all_groups.get(pk=a_group.pk).is_active)
+        self.assertFalse(ContactGroup.objects.get(pk=a_group.pk).is_active)
         self.assertFalse(Campaign.objects.get(pk=a_campaign.pk).is_active)
 
     def test_delete_fail_with_dependencies(self):

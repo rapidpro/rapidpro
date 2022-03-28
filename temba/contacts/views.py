@@ -134,7 +134,7 @@ class ContactGroupForm(forms.ModelForm):
         name = self.cleaned_data["name"].strip()
 
         # make sure the name isn't already taken
-        existing = ContactGroup.all_groups.filter(org=self.org, is_active=True, name__iexact=name).first()
+        existing = self.org.groups.filter(is_active=True, name__iexact=name).first()
         if existing and self.instance != existing:
             raise forms.ValidationError(_("Name is used by another group"))
 
@@ -212,7 +212,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         return self.derive_group()
 
     def derive_group(self):
-        return ContactGroup.all_groups.get(org=self.request.user.get_org(), group_type=self.system_group)
+        return self.request.org.groups.get(group_type=self.system_group)
 
     def derive_export_url(self):
         search = quote_plus(self.request.GET.get("search", ""))
@@ -328,7 +328,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
             qs = (
                 self.group.contacts.filter(org=self.request.user.get_org())
                 .order_by("-id")
-                .prefetch_related("org", "all_groups")
+                .prefetch_related("org", "groups")
             )
             patch_queryset_count(qs, self.group.get_member_count)
             return qs
@@ -686,7 +686,7 @@ class ContactCRUDL(SmartCRUDL):
             else:
                 group_memberships = form.cleaned_data["group_memberships"]
 
-                group = ContactGroup.all_groups.filter(org=org, uuid=group_uuid).first() if group_uuid else None
+                group = org.groups.filter(uuid=group_uuid).first() if group_uuid else None
 
                 previous_export = (
                     ExportContactsTask.objects.filter(org=org, created_by=user).order_by("-modified_on").first()

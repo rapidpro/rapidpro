@@ -101,7 +101,7 @@ class ContactGroupsChanged:
             if dry_run:
                 self.stdout.write(f"   - contact {contact.uuid} re-added to {', '.join([g.name for g in groups])}")
             else:
-                contact.all_groups.add(*groups)
+                contact.groups.add(*groups)
 
             for name in [g["name"] for g in event.get("groups_removed", [])]:
                 self.readds[name] += 1

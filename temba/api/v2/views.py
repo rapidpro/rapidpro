@@ -1420,7 +1420,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         if group_ref:
             group = ContactGroup.user_groups.filter(org=org).filter(Q(uuid=group_ref) | Q(name=group_ref)).first()
             if group:
-                queryset = queryset.filter(all_groups=group)
+                queryset = queryset.filter(groups=group)
             else:
                 queryset = queryset.filter(pk=-1)
 
@@ -1428,7 +1428,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         queryset = queryset.prefetch_related(
             Prefetch("org"),
             Prefetch(
-                "all_groups",
+                "groups",
                 queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk"),
                 to_attr="prefetched_user_groups",
             ),
