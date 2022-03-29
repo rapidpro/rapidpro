@@ -86,7 +86,7 @@
         return res;
       }, {});
 
-      var accessToken = result.long_lived_token;
+      var accessToken = result.long_lived_token || result.access_token;
       if (accessToken) {
         getFBPages(accessToken);
       }
