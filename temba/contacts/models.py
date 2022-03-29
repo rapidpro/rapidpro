@@ -1234,7 +1234,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             urn.org = contact.org
             getattr(contact, "_urns_cache").append(urn)
 
-    def get_groups(self, manual_only=False):
+    def get_groups(self, *, manual_only=False):
         """
         Gets the groups that this contact is a member of, excluding the status groups.
         """
@@ -1594,12 +1594,12 @@ class ContactGroup(TembaModel, DependencyMixin):
         if query:
             return cls.create_smart(org, user, name, query, parsed_query=parsed_query)
         else:
-            return cls.create_static(org, user, name)
+            return cls.create_manual(org, user, name)
 
     @classmethod
-    def create_static(cls, org, user, name, *, status=STATUS_READY):
+    def create_manual(cls, org, user, name, *, status=STATUS_READY):
         """
-        Creates a static group whose members will be manually added and removed
+        Creates a manual group whose members will be manually added and removed
         """
         return cls._create(org, user, name, status=status)
 
@@ -2305,7 +2305,7 @@ class ContactImport(SmartModel):
 
         # if user wants contacts added to a new group, create it
         if self.group_name and not self.group:
-            self.group = ContactGroup.create_static(self.org, self.created_by, name=self.group_name)
+            self.group = ContactGroup.create_manual(self.org, self.created_by, name=self.group_name)
             self.save(update_fields=("group",))
 
         # CSV reader expects str stream so wrap file

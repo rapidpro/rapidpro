@@ -339,7 +339,7 @@ class Trigger(SmartModel):
                 group = ContactGroup.get_group_by_name(org, spec["name"])
 
             if not group:
-                group = ContactGroup.create_static(org, user, spec["name"])  # pragma: needs cover
+                group = ContactGroup.create_manual(org, user, spec["name"])  # pragma: needs cover
 
             if not group.is_active:  # pragma: needs cover
                 group.is_active = True

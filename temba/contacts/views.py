@@ -96,8 +96,8 @@ HISTORY_INCLUDE_EVENTS = {
 
 
 class RemoveFromGroupForm(forms.Form):
-    contact = TembaChoiceField(Contact.objects.all())
-    group = TembaChoiceField(ContactGroup.objects.all())
+    contact = TembaChoiceField(Contact.objects.none())
+    group = TembaChoiceField(ContactGroup.objects.none())
 
     def __init__(self, *args, **kwargs):
         org = kwargs.pop("org")
@@ -1288,7 +1288,11 @@ class ContactCRUDL(SmartCRUDL):
 
         def derive_group(self):
             try:
-                return ContactGroup.objects.get(is_active=True, uuid=self.kwargs["group"])
+                return ContactGroup.objects.get(
+                    is_active=True,
+                    group_type__in=(ContactGroup.TYPE_MANUAL, ContactGroup.TYPE_SMART),
+                    uuid=self.kwargs["group"],
+                )
             except ContactGroup.DoesNotExist:
                 raise Http404("Group not found")
 
@@ -1630,7 +1634,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             if query:
                 self.object = ContactGroup.create_smart(org, user, name, query)
             else:
-                self.object = ContactGroup.create_static(org, user, name)
+                self.object = ContactGroup.create_manual(org, user, name)
 
                 if preselected_contacts:
                     preselected_ids = [int(c_id) for c_id in preselected_contacts.split(",") if c_id.isdigit()]

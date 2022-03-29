@@ -2943,7 +2943,7 @@ class APITest(TembaTest):
         ContactGroup.objects.filter(id=dynamic.id).update(status=ContactGroup.STATUS_EVALUATING)
 
         # an initializing group
-        ContactGroup.create_static(self.org, self.admin, "Initializing", status=ContactGroup.STATUS_INITIALIZING)
+        ContactGroup.create_manual(self.org, self.admin, "Initializing", status=ContactGroup.STATUS_INITIALIZING)
 
         # group belong to other org
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
@@ -3052,7 +3052,7 @@ class APITest(TembaTest):
             group.release(self.admin)
 
         for i in range(10):
-            ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
+            ContactGroup.create_manual(self.org2, self.admin2, "group%d" % i)
 
         response = self.postJSON(url, None, {"name": "Reporters"})
         self.assertEqual(response.status_code, 201)
@@ -3060,7 +3060,7 @@ class APITest(TembaTest):
         ContactGroup.objects.filter(is_system=False, is_active=True).delete()
 
         for i in range(10):
-            ContactGroup.create_static(self.org, self.admin, "group%d" % i)
+            ContactGroup.create_manual(self.org, self.admin, "group%d" % i)
 
         response = self.postJSON(url, None, {"name": "Reporters"})
         self.assertResponseError(

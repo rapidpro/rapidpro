@@ -134,7 +134,7 @@ class RegisterTriggerForm(BaseTriggerForm):
                 # we must get groups for this org only
                 group = ContactGroup.get_group_by_name(self.user.get_org(), value)
                 if not group:
-                    group = ContactGroup.create_static(self.user.get_org(), self.user, name=value)
+                    group = ContactGroup.create_manual(self.user.get_org(), self.user, name=value)
                 return group
 
             return super().clean(value)

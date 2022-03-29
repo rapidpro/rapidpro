@@ -187,7 +187,7 @@ class FlowTest(TembaTest):
         self.assertContains(response, "Appointment Followup")
 
         # check we can't see farmers
-        farmers = ContactGroup.create_static(self.org2, self.admin, "Farmers")
+        farmers = ContactGroup.create_manual(self.org2, self.admin, "Farmers")
         campaign2 = Campaign.create(self.org2, self.admin, Campaign.get_unique_name(self.org, "Reminders"), farmers)
 
         response = self.client.get(reverse("flows.flow_campaign", args=[campaign2.id]))

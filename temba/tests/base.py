@@ -241,7 +241,7 @@ class TembaTestMixin:
         if query:
             return ContactGroup.create_smart(org or self.org, self.user, name, query=query)
         else:
-            group = ContactGroup.create_static(org or self.org, self.user, name)
+            group = ContactGroup.create_manual(org or self.org, self.user, name)
             if contacts:
                 group.contacts.add(*contacts)
             return group

@@ -400,7 +400,7 @@ class Command(BaseCommand):
                 if g["query"]:
                     group = ContactGroup.create_smart(org, user, g["name"], g["query"], evaluate=False)
                 else:
-                    group = ContactGroup.create_static(org, user, g["name"])
+                    group = ContactGroup.create_manual(org, user, g["name"])
                 group.member = g["member"]
                 group.count = 0
                 org.cache["groups"].append(group)

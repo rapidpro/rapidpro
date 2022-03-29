@@ -93,7 +93,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         joe = self.create_contact("Joe", phone="123", fields={"age": "20", "home": "Kigali"})
         frank = self.create_contact("Frank", phone="124", fields={"age": "18"})
 
-        creating = ContactGroup.create_static(
+        creating = ContactGroup.create_manual(
             self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING
         )
 
@@ -663,8 +663,8 @@ class ContactGroupTest(TembaTest):
         self.frank = self.create_contact("Frank Smith", phone="1234")
         self.mary = self.create_contact("Mary Mo", phone="345", fields={"age": "21", "gender": "female"})
 
-    def test_create_static(self):
-        group = ContactGroup.create_static(self.org, self.admin, " group one ")
+    def test_create_manual(self):
+        group = ContactGroup.create_manual(self.org, self.admin, " group one ")
 
         self.assertEqual(group.org, self.org)
         self.assertEqual(group.name, "group one")
@@ -675,7 +675,7 @@ class ContactGroupTest(TembaTest):
         self.assertRaises(ValueError, group.update_query, "gender=M")
 
         # exception if group name is blank
-        self.assertRaises(ValueError, ContactGroup.create_static, self.org, self.admin, "   ")
+        self.assertRaises(ValueError, ContactGroup.create_manual, self.org, self.admin, "   ")
 
     @mock_mailroom
     def test_create_smart(self, mr_mocks):
@@ -747,8 +747,8 @@ class ContactGroupTest(TembaTest):
     @mock_mailroom
     def test_get_groups(self, mr_mocks):
         self.create_field("gender", "Gender")
-        manual = ContactGroup.create_static(self.org, self.admin, "Static")
-        deleted = ContactGroup.create_static(self.org, self.admin, "Deleted")
+        manual = ContactGroup.create_manual(self.org, self.admin, "Static")
+        deleted = ContactGroup.create_manual(self.org, self.admin, "Deleted")
         deleted.is_active = False
         deleted.save()
 
@@ -1098,7 +1098,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             list(response.context["actions"]),
         )
 
-        group = ContactGroup.create_static(self.org, self.admin, "My New Group")
+        group = ContactGroup.create_manual(self.org, self.admin, "My New Group")
 
         # let's delete it and make sure it's gone
         self.client.post(list_url, {"action": "delete", "objects": group.id})
@@ -1167,7 +1167,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             group.release(self.admin)
 
         for i in range(10):
-            ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
+            ContactGroup.create_manual(self.org2, self.admin2, "group%d" % i)
 
         response = self.client.post(url, {"name": "People"})
         self.assertNoFormErrors(response)
@@ -1177,7 +1177,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             group.release(self.admin)
 
         for i in range(10):
-            ContactGroup.create_static(self.org, self.admin, "group%d" % i)
+            ContactGroup.create_manual(self.org, self.admin, "group%d" % i)
 
         self.assertEqual(10, ContactGroup.objects.filter(is_active=True, is_system=False).count())
         response = self.client.post(url, {"name": "People"})

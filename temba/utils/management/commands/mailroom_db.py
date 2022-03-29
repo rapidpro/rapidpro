@@ -295,7 +295,7 @@ class Command(BaseCommand):
             if g.get("query"):
                 group = ContactGroup.create_smart(org, user, g["name"], g["query"], evaluate=False)
             else:
-                group = ContactGroup.create_static(org, user, g["name"])
+                group = ContactGroup.create_manual(org, user, g["name"])
             group.uuid = g["uuid"]
             group.save(update_fields=["uuid"])
 
