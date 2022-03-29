@@ -1,4 +1,4 @@
-FROM greatnonprofits/ccl-base:v2.1
+FROM greatnonprofits/ccl-base:v3
 
 RUN wget https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem \
     -O /usr/local/share/ca-certificates/rds.crt
@@ -26,7 +26,7 @@ COPY docker/docker.settings /rapidpro/temba/settings.py
 
 RUN npm install
 
-RUN python3.6 manage.py collectstatic --noinput
+RUN python3.9 manage.py collectstatic --noinput
 
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 
@@ -38,7 +38,7 @@ RUN rm -f /rapidpro/temba/settings.pyc
 COPY docker/entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 
-RUN rm /usr/bin/python && ln -s /usr/bin/python3.6 /usr/bin/python
+RUN ln -s /usr/bin/python3.9 /usr/bin/python
 RUN rm -rf /tmp/* /var/tmp/*[~]$
 
 EXPOSE 8000
