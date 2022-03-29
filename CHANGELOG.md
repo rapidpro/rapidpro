@@ -1,3 +1,7 @@
+v7.3.6
+----------
+ * For FB / IG claim pages use expiring token if no long lived token is provided
+
 v7.3.5
 ----------
  * Data migration to update group_type=U to M|Q
