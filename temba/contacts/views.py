@@ -144,7 +144,7 @@ class ContactGroupForm(forms.ModelForm):
 
         org_active_group_limit = self.org.get_limit(Org.LIMIT_GROUPS)
 
-        groups_count = ContactGroup.get_groups(self.org).filter(is_system=False).count()
+        groups_count = ContactGroup.get_groups(self.org, user_only=True).count()
         if groups_count >= org_active_group_limit:
             raise forms.ValidationError(
                 _(

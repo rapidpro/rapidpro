@@ -776,7 +776,7 @@ class ContactGroupWriteSerializer(WriteSerializer):
         org = self.context["org"]
         org_active_groups_limit = org.get_limit(Org.LIMIT_GROUPS)
 
-        group_count = org.groups.filter(is_system=False, is_active=True).count()
+        group_count = ContactGroup.get_groups(org, user_only=True).count()
         if group_count >= org_active_groups_limit:
             raise serializers.ValidationError(
                 "This org has %s groups and the limit is %s. "
