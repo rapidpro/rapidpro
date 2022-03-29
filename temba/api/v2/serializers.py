@@ -740,6 +740,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
 class ContactGroupReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
+    system = serializers.ReadOnlyField(source="is_system")
     count = serializers.SerializerMethodField()
 
     STATUSES = {
@@ -757,7 +758,7 @@ class ContactGroupReadSerializer(ReadSerializer):
 
     class Meta:
         model = ContactGroup
-        fields = ("uuid", "name", "query", "status", "count")
+        fields = ("uuid", "name", "query", "status", "system", "count")
 
 
 class ContactGroupWriteSerializer(WriteSerializer):

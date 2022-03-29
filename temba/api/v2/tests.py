@@ -2963,6 +2963,7 @@ class APITest(TembaTest):
                     "name": "Big Group",
                     "query": 'isdeveloper = "NO"',
                     "status": "evaluating",
+                    "system": False,
                     "count": 0,
                 },
                 {
@@ -2970,9 +2971,17 @@ class APITest(TembaTest):
                     "name": "Developers",
                     "query": 'isdeveloper = "YES"',
                     "status": "ready",
+                    "system": False,
                     "count": 0,
                 },
-                {"uuid": customers.uuid, "name": "Customers", "query": None, "status": "ready", "count": 1},
+                {
+                    "uuid": customers.uuid,
+                    "name": "Customers",
+                    "query": None,
+                    "status": "ready",
+                    "system": False,
+                    "count": 1,
+                },
             ],
         )
 
@@ -2999,7 +3008,14 @@ class APITest(TembaTest):
         reporters = ContactGroup.objects.get(name="Reporters")
         self.assertEqual(
             response.json(),
-            {"uuid": reporters.uuid, "name": "Reporters", "query": None, "status": "ready", "count": 0},
+            {
+                "uuid": reporters.uuid,
+                "name": "Reporters",
+                "query": None,
+                "status": "ready",
+                "system": False,
+                "count": 0,
+            },
         )
 
         # try to create another group with same name

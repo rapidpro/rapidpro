@@ -2094,6 +2094,9 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
      * **uuid** - the UUID of the group (string), filterable as `uuid`
      * **name** - the name of the group (string), filterable as `name`
+     * **query** - the query if a smart group (string)
+     * **status** - the status (one of "initializing", "evaluating" or "ready")
+     * **system** - whether this is a system group that can't be edited (bool)
      * **count** - the number of contacts in the group (int)
 
     Example:
@@ -2109,8 +2112,10 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
                 {
                     "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
                     "name": "Reporters",
-                    "count": 315,
-                    "query": null
+                    "query": null,
+                    "status": "ready",
+                    "system": false,
+                    "count": 315
                 },
                 ...
             ]
