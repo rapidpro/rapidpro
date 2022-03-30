@@ -1557,16 +1557,15 @@ class ContactGroup(TembaModel, DependencyMixin):
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
-        if settings.TESTING:  # TODO enable for production
-            org.groups.create(
-                name="Open Tickets",
-                group_type=ContactGroup.TYPE_SMART,
-                is_system=True,
-                query="tickets > 0",
-                status=cls.STATUS_READY,  # since this group will always be empty for new orgs
-                created_by=org.created_by,
-                modified_by=org.modified_by,
-            )
+        org.groups.create(
+            name="Open Tickets",
+            group_type=ContactGroup.TYPE_SMART,
+            is_system=True,
+            query="tickets > 0",
+            status=cls.STATUS_READY,  # since this group will always be empty for new orgs
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
 
     @classmethod
     def get_groups(cls, org: Org, *, manual_only=False, user_only=False, ready_only=False):

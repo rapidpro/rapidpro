@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def update_group_type(apps, schema_editor):
+def update_group_type(apps, schema_editor):  # pragma: no cover
     ContactGroup = apps.get_model("contacts", "ContactGroup")
     num_updated = 0
 
@@ -27,7 +27,7 @@ def update_group_type(apps, schema_editor):
         print(f"Updated group_type on {num_updated} contact groups")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
