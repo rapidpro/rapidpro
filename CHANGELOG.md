@@ -1,3 +1,7 @@
+v7.3.7
+----------
+ * Rework how we fetch contact groups
+
 v7.3.6
 ----------
  * For FB / IG claim pages use expiring token if no long lived token is provided
