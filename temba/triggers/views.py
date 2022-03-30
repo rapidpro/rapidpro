@@ -2,6 +2,7 @@ from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemp
 
 from django import forms
 from django.db.models import Min
+from django.db.models.functions import Upper
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _, ngettext_lazy
@@ -70,7 +71,7 @@ class BaseTriggerForm(forms.ModelForm):
 
         self.fields["flow"].queryset = flows.order_by("name")
 
-        groups = ContactGroup.get_groups(self.org)
+        groups = ContactGroup.get_groups(self.org).order_by(Upper("name"))
 
         self.fields["groups"].queryset = groups
         self.fields["exclude_groups"].queryset = groups
@@ -168,8 +169,8 @@ class RegisterTriggerForm(BaseTriggerForm):
         # on this form flow becomes the flow to be triggered from the generated flow and is optional
         self.fields["flow"].required = False
 
-        self.fields["action_join_group"].queryset = (
-            ContactGroup.get_groups(self.org, manual_only=True).filter().order_by("name")
+        self.fields["action_join_group"].queryset = ContactGroup.get_groups(self.org, manual_only=True).order_by(
+            Upper("name")
         )
         self.fields["action_join_group"].user = user
 
