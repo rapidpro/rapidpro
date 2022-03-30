@@ -1,3 +1,7 @@
+v7.3.8
+----------
+ * Fix fetching of groups from API when using separate readonly DB connection
+
 v7.3.7
 ----------
  * Rework how we fetch contact groups

@@ -1568,7 +1568,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         Gets the groups (excluding db trigger based status groups) for the given org
         """
         types = (cls.TYPE_MANUAL,) if manual_only else (cls.TYPE_MANUAL, cls.TYPE_SMART)
-        groups = org.groups.filter(group_type__in=types, is_active=True)
+        groups = cls.objects.filter(org=org, group_type__in=types, is_active=True)
 
         if user_only:
             groups = groups.filter(is_system=False)
