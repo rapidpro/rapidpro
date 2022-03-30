@@ -775,14 +775,16 @@ class ContactGroupWriteSerializer(WriteSerializer):
 
     def validate(self, data):
         org = self.context["org"]
-        org_active_groups_limit = org.get_limit(Org.LIMIT_GROUPS)
+        group_limit = org.get_limit(Org.LIMIT_GROUPS)
+
+        if self.instance and self.instance.is_system:
+            raise serializers.ValidationError("Cannot update a system group.")
 
         group_count = ContactGroup.get_groups(org, user_only=True).count()
-        if group_count >= org_active_groups_limit:
+        if group_count >= group_limit:
             raise serializers.ValidationError(
-                "This org has %s groups and the limit is %s. "
-                "You must delete existing ones before you can "
-                "create new ones." % (group_count, org_active_groups_limit)
+                f"This workspace has {group_count} groups and the limit is {group_limit}. "
+                f"You must delete existing ones before you can create new ones."
             )
         return data
 

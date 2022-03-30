@@ -2216,6 +2216,8 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             )
 
         instance = self.get_object()
+        if instance.is_system:
+            raise InvalidQueryError("Cannot delete a system group.")
 
         # if there are still dependencies, give up
         triggers = instance.triggers.filter(is_archived=False)

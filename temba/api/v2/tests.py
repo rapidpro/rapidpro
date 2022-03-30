@@ -2960,13 +2960,6 @@ class APITest(TembaTest):
             resp_json["results"],
             [
                 {
-                    "uuid": open_tickets.uuid,
-                    "name": "Open Tickets",
-                    "query": "tickets > 0",
-                    "status": "ready",
-                    "count": 0,
-                },
-                {
                     "uuid": dynamic.uuid,
                     "name": "Big Group",
                     "query": 'isdeveloper = "NO"',
@@ -2989,6 +2982,14 @@ class APITest(TembaTest):
                     "status": "ready",
                     "system": False,
                     "count": 1,
+                },
+                {
+                    "uuid": open_tickets.uuid,
+                    "name": "Open Tickets",
+                    "query": "tickets > 0",
+                    "status": "ready",
+                    "system": True,
+                    "count": 0,
                 },
             ],
         )
@@ -3053,7 +3054,12 @@ class APITest(TembaTest):
         reporters.refresh_from_db()
         self.assertEqual(reporters.name, "U-Reporters")
 
-        # can't update group from other org
+        # can't update a system group from other org
+        response = self.postJSON(url, "uuid=%s" % open_tickets.uuid, {"name": "Won't work"})
+        self.assertResponseError(response, "non_field_errors", "Cannot update a system group.")
+        self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
+
+        # can't update a group from other org
         response = self.postJSON(url, "uuid=%s" % spammers.uuid, {"name": "Won't work"})
         self.assert404(response)
 
@@ -3068,7 +3074,16 @@ class APITest(TembaTest):
         reporters.refresh_from_db()
         self.assertFalse(reporters.is_active)
 
-        # try to delete a group in another org
+        # can't delete a system group
+        response = self.deleteJSON(url, "uuid=%s" % open_tickets.uuid)
+        self.assertEqual(400, response.status_code)
+        self.assertEqual(
+            {"detail": "Cannot delete a system group."},
+            response.json(),
+        )
+        self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
+
+        # can't delete a group in another org
         response = self.deleteJSON(url, "uuid=%s" % spammers.uuid)
         self.assert404(response)
 
@@ -3090,7 +3105,7 @@ class APITest(TembaTest):
         self.assertResponseError(
             response,
             "non_field_errors",
-            "This org has 10 groups and the limit is 10. "
+            "This workspace has 10 groups and the limit is 10. "
             "You must delete existing ones before you can create new ones.",
         )
 
