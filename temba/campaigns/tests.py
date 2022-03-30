@@ -275,6 +275,8 @@ class CampaignTest(TembaTest):
 
     @mock_mailroom
     def test_views(self, mr_mocks):
+        open_tickets = self.org.groups.get(name="Open Tickets")
+
         # update the planting date for our contacts
         self.set_contact_field(self.farmer1, "planting_date", "1/10/2020")
 
@@ -290,14 +292,15 @@ class CampaignTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # groups shouldn't include the group that isn't ready
-        self.assertEqual(set(response.context["form"].fields["group"].queryset), {self.farmers})
+        self.assertEqual({open_tickets, self.farmers}, set(response.context["form"].fields["group"].queryset))
 
-        post_data = dict(name="Planting Reminders", group=self.farmers.pk)
-        response = self.client.post(reverse("campaigns.campaign_create"), post_data)
+        response = self.client.post(
+            reverse("campaigns.campaign_create"), {"name": "Planting Reminders", "group": self.farmers.id}
+        )
 
         # should redirect to read page for this campaign
         campaign = Campaign.objects.filter(is_active=True).first()
-        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.pk]))
+        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.id]))
 
         # go to the list page, should be there as well
         response = self.client.get(reverse("campaigns.campaign_list"))
@@ -312,16 +315,14 @@ class CampaignTest(TembaTest):
         self.assertNotContains(response, "Planting Reminders")
 
         # archive a campaign
-        post_data = dict(action="archive", objects=campaign.pk)
-        self.client.post(reverse("campaigns.campaign_list"), post_data)
+        self.client.post(reverse("campaigns.campaign_list"), {"action": "archive", "objects": campaign.id})
         response = self.client.get(reverse("campaigns.campaign_list"))
         self.assertNotContains(response, "Planting Reminders")
 
         # restore the campaign
         response = self.client.get(reverse("campaigns.campaign_archived"))
         self.assertContains(response, "Planting Reminders")
-        post_data = dict(action="restore", objects=campaign.pk)
-        self.client.post(reverse("campaigns.campaign_archived"), post_data)
+        self.client.post(reverse("campaigns.campaign_archived"), {"action": "restore", "objects": campaign.id})
         response = self.client.get(reverse("campaigns.campaign_archived"))
         self.assertNotContains(response, "Planting Reminders")
         response = self.client.get(reverse("campaigns.campaign_list"))

@@ -3753,15 +3753,15 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(topup.price, 0)
 
         # check default org content was created correctly
-        system_fields = list(org.contactfields(manager="system_fields").order_by("key").values_list("key", flat=True))
-        system_groups = list(org.groups.filter(is_system=True).order_by("name").values_list("name", flat=True))
-        sample_flows = list(org.flows.order_by("name").values_list("name", flat=True))
+        system_fields = set(org.contactfields(manager="system_fields").values_list("key", flat=True))
+        system_groups = set(org.groups.filter(is_system=True).values_list("name", flat=True))
+        sample_flows = set(org.flows.values_list("name", flat=True))
         internal_ticketer = org.ticketers.get()
 
-        self.assertEqual(["created_on", "id", "language", "last_seen_on", "name"], system_fields)
-        self.assertEqual(["Active", "Archived", "Blocked", "Stopped"], system_groups)
+        self.assertEqual({"created_on", "id", "language", "last_seen_on", "name"}, system_fields)
+        self.assertEqual({"Active", "Archived", "Blocked", "Stopped", "Open Tickets"}, system_groups)
         self.assertEqual(
-            ["Sample Flow - Order Status Checker", "Sample Flow - Satisfaction Survey", "Sample Flow - Simple Poll"],
+            {"Sample Flow - Order Status Checker", "Sample Flow - Satisfaction Survey", "Sample Flow - Simple Poll"},
             sample_flows,
         )
         self.assertEqual("RapidPro Tickets", internal_ticketer.name)

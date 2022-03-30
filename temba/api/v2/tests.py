@@ -2935,6 +2935,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         self.create_field("isdeveloper", "Is developer")
+        open_tickets = self.org.groups.get(name="Open Tickets")
         customers = self.create_group("Customers", [self.frank])
         developers = self.create_group("Developers", query='isdeveloper = "YES"')
         ContactGroup.objects.filter(id=developers.id).update(status=ContactGroup.STATUS_READY)
@@ -2958,6 +2959,13 @@ class APITest(TembaTest):
         self.assertEqual(
             resp_json["results"],
             [
+                {
+                    "uuid": open_tickets.uuid,
+                    "name": "Open Tickets",
+                    "query": "tickets > 0",
+                    "status": "ready",
+                    "count": 0,
+                },
                 {
                     "uuid": dynamic.uuid,
                     "name": "Big Group",

@@ -1529,6 +1529,7 @@ class ContactGroup(TembaModel, DependencyMixin):
             name="Active",
             group_type=ContactGroup.TYPE_DB_ACTIVE,
             is_system=True,
+            status=cls.STATUS_READY,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
@@ -1536,6 +1537,7 @@ class ContactGroup(TembaModel, DependencyMixin):
             name="Blocked",
             group_type=ContactGroup.TYPE_DB_BLOCKED,
             is_system=True,
+            status=cls.STATUS_READY,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
@@ -1543,6 +1545,7 @@ class ContactGroup(TembaModel, DependencyMixin):
             name="Stopped",
             group_type=ContactGroup.TYPE_DB_STOPPED,
             is_system=True,
+            status=cls.STATUS_READY,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
@@ -1550,17 +1553,20 @@ class ContactGroup(TembaModel, DependencyMixin):
             name="Archived",
             group_type=ContactGroup.TYPE_DB_ARCHIVED,
             is_system=True,
+            status=cls.STATUS_READY,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
-        # org.groups.create(
-        #    name="Open Tickets",
-        #    group_type=ContactGroup.TYPE_SMART,
-        #    is_system=True,
-        #    query="tickets > 0",
-        #    created_by=org.created_by,
-        #    modified_by=org.modified_by,
-        # )
+        if settings.TESTING:  # TODO enable for production
+            org.groups.create(
+                name="Open Tickets",
+                group_type=ContactGroup.TYPE_SMART,
+                is_system=True,
+                query="tickets > 0",
+                status=cls.STATUS_READY,  # since this group will always be empty for new orgs
+                created_by=org.created_by,
+                modified_by=org.modified_by,
+            )
 
     @classmethod
     def get_groups(cls, org: Org, *, manual_only=False, user_only=False, ready_only=False):

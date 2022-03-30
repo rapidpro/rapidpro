@@ -113,7 +113,7 @@
                     .name.pointer-events-none
                       {{ group.label }}
                       -if group.is_system
-                        .glyph.icon-two-factor.text-xs.opacity-50
+                        .glyph.icon-two-factor.text-xs.opacity-25
                     .count.pointer-events-none
                       {{ group.count | intcomma }}
 
@@ -127,7 +127,7 @@
                     .name(onclick="goto(event)" href='{% url "contacts.contact_filter" group.uuid %}')
                       {{ group.label }}
                       -if group.is_system
-                        .glyph.icon-two-factor.text-xs.opacity-50
+                        .glyph.icon-two-factor.text-xs.opacity-25
                     .count(onclick="goto(event)" href='{% url "contacts.contact_filter" group.uuid %}')
                       {{ group.count | intcomma }}
 
