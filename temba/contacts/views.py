@@ -227,7 +227,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     def derive_refresh(self):
         # smart groups that are reevaluating should refresh every 2 seconds
         if self.group.is_smart and self.group.status != ContactGroup.STATUS_READY:
-            return 2000
+            return 200000
 
         return None
 
@@ -371,7 +371,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         return context
 
     def get_groups(self, org):
-        groups = ContactGroup.get_groups(org).select_related("org").order_by(Upper("name"))
+        groups = ContactGroup.get_groups(org).select_related("org").order_by("-is_system", Upper("name"))
         group_counts = ContactGroupCount.get_totals(groups)
 
         rendered = []
@@ -383,6 +383,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
                     "label": g.name,
                     "count": group_counts[g],
                     "is_smart": g.is_smart,
+                    "is_system": g.is_system,
                     "is_ready": g.status == ContactGroup.STATUS_READY,
                 }
             )
@@ -1225,7 +1226,7 @@ class ContactCRUDL(SmartCRUDL):
             if self.has_org_perm("contacts.contactfield_list") and not is_spa:
                 links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
 
-            if self.has_org_perm("contacts.contactgroup_update"):
+            if not self.group.is_system and self.has_org_perm("contacts.contactgroup_update"):
                 links.append(
                     dict(
                         id="edit-group",
@@ -1254,7 +1255,7 @@ class ContactCRUDL(SmartCRUDL):
                 )
             )
 
-            if self.has_org_perm("contacts.contactgroup_delete"):
+            if not self.group.is_system and self.has_org_perm("contacts.contactgroup_delete"):
                 links.append(
                     dict(
                         id="delete-group",
@@ -1658,6 +1659,9 @@ class ContactGroupCRUDL(SmartCRUDL):
         success_url = "uuid@contacts.contact_filter"
         success_message = ""
 
+        def get_queryset(self):
+            return super().get_queryset().filter(is_system=False)
+
         def derive_fields(self):
             return ("name", "query") if self.get_object().is_smart else ("name",)
 
@@ -1687,6 +1691,9 @@ class ContactGroupCRUDL(SmartCRUDL):
         success_message = ""
         fields = ("uuid",)
         submit_button_name = _("Delete")
+
+        def get_queryset(self):
+            return super().get_queryset().filter(is_system=False)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

@@ -111,7 +111,9 @@
                 -if group.is_smart
                   .lp-nav-item(onclick="goto(event)" href='{% url "contacts.contact_filter" group.uuid %}' class="{% if current_group.id == group.pk %}font-normal selected{% endif %}")
                     .name.pointer-events-none
-                      {{group.label}}
+                      {{ group.label }}
+                      -if group.is_system
+                        .glyph.icon-two-factor.text-xs.opacity-50
                     .count.pointer-events-none
                       {{ group.count | intcomma }}
 
@@ -123,7 +125,9 @@
                 -if not group.is_smart
                   .lp-nav-item(class="{% if current_group.id == group.pk %}font-normal selected{% endif %}")
                     .name(onclick="goto(event)" href='{% url "contacts.contact_filter" group.uuid %}')
-                      {{group.label}}
+                      {{ group.label }}
+                      -if group.is_system
+                        .glyph.icon-two-factor.text-xs.opacity-50
                     .count(onclick="goto(event)" href='{% url "contacts.contact_filter" group.uuid %}')
                       {{ group.count | intcomma }}
 
