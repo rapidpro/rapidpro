@@ -3618,6 +3618,29 @@ class APITest(TembaTest):
             resp_json["results"][4],
         )
 
+        # can request without path data
+        response = self.fetchJSON(url, "paths=false", readonly_models={FlowRun})
+
+        self.assertEqual(200, response.status_code)
+        resp_json = response.json()
+        self.assertEqual(
+            {
+                "id": frank_run2.pk,
+                "uuid": str(frank_run2.uuid),
+                "flow": {"uuid": flow1.uuid, "name": "Colors"},
+                "contact": {"uuid": self.frank.uuid, "urn": "twitter:franky", "name": self.frank.name},
+                "start": None,
+                "responded": False,
+                "path": None,
+                "values": {},
+                "created_on": format_datetime(frank_run2.created_on),
+                "modified_on": format_datetime(frank_run2.modified_on),
+                "exited_on": None,
+                "exit_type": None,
+            },
+            resp_json["results"][2],
+        )
+
         # reversed
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url, "reverse=true")

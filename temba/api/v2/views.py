@@ -3112,6 +3112,11 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
 
         return self.filter_before_after(queryset, "modified_on")
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["include_paths"] = str_to_bool(self.request.query_params.get("paths", "true"))
+        return context
+
     @classmethod
     def get_read_explorer(cls):
         return {
