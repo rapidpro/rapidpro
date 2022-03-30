@@ -265,8 +265,7 @@ class Command(BaseCommand):
                 "fields": {},
                 "groups": [],
                 "status_groups": {
-                    g.group_type: g
-                    for g in ContactGroup.all_groups.filter(org=org, group_type__in=ContactGroup.CONTACT_STATUS_TYPES)
+                    g.group_type: g for g in org.groups.filter(group_type__in=ContactGroup.CONTACT_STATUS_TYPES)
                 },
             }
 
@@ -401,7 +400,7 @@ class Command(BaseCommand):
                 if g["query"]:
                     group = ContactGroup.create_smart(org, user, g["name"], g["query"], evaluate=False)
                 else:
-                    group = ContactGroup.create_static(org, user, g["name"])
+                    group = ContactGroup.create_manual(org, user, g["name"])
                 group.member = g["member"]
                 group.count = 0
                 org.cache["groups"].append(group)
@@ -444,7 +443,7 @@ class Command(BaseCommand):
         for org in orgs:
             user = org.cache["users"][0]
             for c in CAMPAIGNS:
-                group = ContactGroup.all_groups.get(org=org, name=c["group"])
+                group = org.groups.get(name=c["group"])
                 campaign = Campaign.objects.create(
                     name=c["name"], group=group, is_archived=False, org=org, created_by=user, modified_by=user
                 )

@@ -295,7 +295,7 @@ class Command(BaseCommand):
             if g.get("query"):
                 group = ContactGroup.create_smart(org, user, g["name"], g["query"], evaluate=False)
             else:
-                group = ContactGroup.create_static(org, user, g["name"])
+                group = ContactGroup.create_manual(org, user, g["name"])
             group.uuid = g["uuid"]
             group.save(update_fields=["uuid"])
 
@@ -325,7 +325,7 @@ class Command(BaseCommand):
         self._log(f"Creating {len(spec['campaigns'])} campaigns... ")
 
         for c in spec["campaigns"]:
-            group = ContactGroup.all_groups.get(org=org, name=c["group"])
+            group = ContactGroup.objects.get(org=org, name=c["group"])
             campaign = Campaign.objects.create(
                 name=c["name"],
                 group=group,
@@ -398,7 +398,7 @@ class Command(BaseCommand):
 
         for c in spec["contacts"]:
             values = {fields_by_key[key]: val for key, val in c.get("fields", {}).items()}
-            groups = list(ContactGroup.user_groups.filter(org=org, name__in=c.get("groups", [])))
+            groups = list(ContactGroup.objects.filter(org=org, name__in=c.get("groups", [])))
 
             contact = Contact.create(org, user, c["name"], language="", urns=c["urns"], fields=values, groups=groups)
             contact.uuid = c["uuid"]
@@ -413,7 +413,7 @@ class Command(BaseCommand):
         for g in spec["groups"]:
             size = int(g.get("size", 0))
             if size > 0:
-                group = ContactGroup.user_groups.get(org=org, name=g["name"])
+                group = ContactGroup.objects.get(org=org, name=g["name"])
 
                 contacts = []
                 for i in range(size):

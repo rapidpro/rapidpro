@@ -333,13 +333,13 @@ class Trigger(SmartModel):
             group = None
 
             if same_site:  # pragma: needs cover
-                group = ContactGroup.user_groups.filter(org=org, uuid=spec["uuid"]).first()
+                group = ContactGroup.get_groups(org).filter(uuid=spec["uuid"]).first()
 
             if not group:
-                group = ContactGroup.get_user_group_by_name(org, spec["name"])
+                group = ContactGroup.get_group_by_name(org, spec["name"])
 
             if not group:
-                group = ContactGroup.create_static(org, user, spec["name"])  # pragma: needs cover
+                group = ContactGroup.create_manual(org, user, spec["name"])  # pragma: needs cover
 
             if not group.is_active:  # pragma: needs cover
                 group.is_active = True

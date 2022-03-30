@@ -1283,7 +1283,7 @@ class ExportMessagesTask(BaseExportTask):
             messages = messages.filter(created_on__lte=end_date)
 
         if self.groups.all():
-            messages = messages.filter(contact__all_groups__in=self.groups.all())
+            messages = messages.filter(contact__groups__in=self.groups.all())
 
         messages = messages.order_by("created_on").using("readonly")
         if last_created_on:

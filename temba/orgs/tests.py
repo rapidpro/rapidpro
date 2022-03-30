@@ -779,7 +779,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             channel=self.channel,
             keyword="favorites",
         )
-        parent_trigger.groups.add(self.parent_org.all_groups.all().first())
+        parent_trigger.groups.add(self.parent_org.groups.all().first())
 
         FlowStart.objects.create(org=self.parent_org, flow=parent_flow)
 
@@ -791,7 +791,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             channel=self.child_channel,
             keyword="color",
         )
-        child_trigger.groups.add(self.child_org.all_groups.all().first())
+        child_trigger.groups.add(self.child_org.groups.all().first())
 
         # use a credit on each
         self.create_outgoing_msg(parent_contact, "Hola hija!", channel=self.channel)
@@ -928,7 +928,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
                 # contacts, groups
                 self.assertFalse(Contact.objects.filter(org=org).exists())
-                self.assertFalse(ContactGroup.all_groups.filter(org=org).exists())
+                self.assertFalse(ContactGroup.objects.filter(org=org).exists())
 
                 # flows, campaigns
                 self.assertFalse(Flow.objects.filter(org=org).exists())
@@ -3754,7 +3754,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check default org content was created correctly
         system_fields = list(org.contactfields(manager="system_fields").order_by("key").values_list("key", flat=True))
-        system_groups = list(org.all_groups.filter(is_system=True).order_by("name").values_list("name", flat=True))
+        system_groups = list(org.groups.filter(is_system=True).order_by("name").values_list("name", flat=True))
         sample_flows = list(org.flows.order_by("name").values_list("name", flat=True))
         internal_ticketer = org.ticketers.get()
 
@@ -4506,7 +4506,7 @@ class BulkExportTest(TembaTest):
     def test_import_mixed_flow_versions(self):
         self.import_file("mixed_versions")
 
-        group = ContactGroup.user_groups.get(name="Survey Audience")
+        group = ContactGroup.objects.get(name="Survey Audience")
 
         child = Flow.objects.get(name="New Child")
         self.assertEqual(child.version_number, Flow.CURRENT_SPEC_VERSION)
@@ -4531,7 +4531,7 @@ class BulkExportTest(TembaTest):
         age = ContactField.user_fields.get(key="age", label="Age")  # created from expression reference
         gender = ContactField.user_fields.get(key="gender")  # created from action reference
 
-        farmers = ContactGroup.user_groups.get(name="Farmers")
+        farmers = ContactGroup.objects.get(name="Farmers")
         self.assertNotEqual(str(farmers.uuid), "967b469b-fd34-46a5-90f9-40430d6db2a4")  # created with new UUID
 
         self.assertEqual(set(parent.flow_dependencies.all()), {child})
@@ -4610,7 +4610,7 @@ class BulkExportTest(TembaTest):
             )
         for dep in [d for d in deps if d["type"] == "group"]:
             self.assertTrue(
-                ContactGroup.user_groups.filter(uuid=dep["uuid"]).exists(),
+                ContactGroup.objects.filter(uuid=dep["uuid"]).exists(),
                 msg=f"missing group[uuid={dep['uuid']}, name={dep['name']}]",
             )
 
@@ -4629,9 +4629,9 @@ class BulkExportTest(TembaTest):
         flow = Flow.objects.get(name="Cataclysmic")
         self.validate_flow_dependencies(flow.get_definition())
 
-        # we should have 5 groups (all static since we can only create static groups from group references)
-        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
-        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 5)
+        # we should have 5 non-system groups (all manual since we can only create manual groups from group references)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False).count(), 5)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False, group_type="M").count(), 5)
 
         # and so no fields created
         self.assertEqual(ContactField.user_fields.all().count(), 0)
@@ -4652,9 +4652,10 @@ class BulkExportTest(TembaTest):
         flow = Flow.objects.get(name="Cataclysmic")
         self.validate_flow_dependencies(flow.get_definition())
 
-        # we should have 5 groups (2 dynamic)
-        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
-        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 3)
+        # we should have 5 non-system groups (2 query based)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False).count(), 5)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False, group_type="M").count(), 3)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False, group_type="Q").count(), 2)
 
         # new fields should have been created for the dynamic groups
         likes_cats = ContactField.user_fields.get(key="likes_cats")
@@ -4666,11 +4667,11 @@ class BulkExportTest(TembaTest):
         self.assertEqual(facts_per_day.label, "Facts Per Day")
         self.assertEqual(facts_per_day.value_type, "T")
 
-        cat_fanciers = ContactGroup.user_groups.get(name="Cat Fanciers")
+        cat_fanciers = ContactGroup.objects.get(name="Cat Fanciers")
         self.assertEqual(cat_fanciers.query, 'likes_cats = "true"')
         self.assertEqual(set(cat_fanciers.query_fields.all()), {likes_cats})
 
-        cat_blasts = ContactGroup.user_groups.get(name="Cat Blasts")
+        cat_blasts = ContactGroup.objects.get(name="Cat Blasts")
         self.assertEqual(cat_blasts.query, "facts_per_day = 1")
         self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
@@ -4688,9 +4689,10 @@ class BulkExportTest(TembaTest):
         flow = Flow.objects.get(name="Cataclysmic")
         self.validate_flow_dependencies(flow.get_definition())
 
-        # we should have 5 groups (2 dynamic)
-        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
-        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 3)
+        # we should have 5 non-system groups (2 query based)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False).count(), 5)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False, group_type="M").count(), 3)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False, group_type="Q").count(), 2)
 
         # new fields should have been created for the dynamic groups
         likes_cats = ContactField.user_fields.get(key="likes_cats")
@@ -4702,11 +4704,11 @@ class BulkExportTest(TembaTest):
         self.assertEqual(facts_per_day.label, "Facts-Per-Day")
         self.assertEqual(facts_per_day.value_type, "N")
 
-        cat_fanciers = ContactGroup.user_groups.get(name="Cat Fanciers")
+        cat_fanciers = ContactGroup.objects.get(name="Cat Fanciers")
         self.assertEqual(cat_fanciers.query, 'likes_cats = "true"')
         self.assertEqual(set(cat_fanciers.query_fields.all()), {likes_cats})
 
-        cat_blasts = ContactGroup.user_groups.get(name="Cat Blasts")
+        cat_blasts = ContactGroup.objects.get(name="Cat Blasts")
         self.assertEqual(cat_blasts.query, "facts_per_day = 1")
         self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
@@ -4784,7 +4786,7 @@ class BulkExportTest(TembaTest):
             self.assertEqual(2, Trigger.objects.filter(org=self.org, trigger_type="K", is_archived=False).count())
             self.assertEqual(1, Trigger.objects.filter(org=self.org, trigger_type="C", is_archived=False).count())
             self.assertEqual(1, Trigger.objects.filter(org=self.org, trigger_type="M", is_archived=False).count())
-            self.assertEqual(3, ContactGroup.user_groups.filter(org=self.org).count())
+            self.assertEqual(3, ContactGroup.objects.filter(org=self.org, is_system=False).count())
             self.assertEqual(1, Label.label_objects.filter(org=self.org).count())
             self.assertEqual(
                 1, ContactField.user_fields.filter(org=self.org, value_type="D", label="Next Appointment").count()
@@ -4917,7 +4919,7 @@ class BulkExportTest(TembaTest):
         campaign.name = "A new campaign"
         campaign.save(update_fields=("name",))
 
-        group = ContactGroup.user_groups.get(name="Pending Appointments")
+        group = ContactGroup.objects.get(name="Pending Appointments")
         group.name = "A new group"
         group.save(update_fields=("name",))
 
@@ -4931,8 +4933,8 @@ class BulkExportTest(TembaTest):
         self.assertEqual("Appointment Schedule", Campaign.objects.filter(is_active=True).first().name)
 
         # except the group.. we don't mess with their names
-        self.assertFalse(ContactGroup.user_groups.filter(name="Pending Appointments").exists())
-        self.assertTrue(ContactGroup.user_groups.filter(name="A new group").exists())
+        self.assertFalse(ContactGroup.objects.filter(name="Pending Appointments").exists())
+        self.assertTrue(ContactGroup.objects.filter(name="A new group").exists())
 
         # let's rename our objects again
         flow.name = "A new name"
@@ -4952,7 +4954,7 @@ class BulkExportTest(TembaTest):
             9, Flow.objects.filter(org=self.org, is_archived=False, flow_type="M", is_system=False).count()
         )
         self.assertEqual(2, Campaign.objects.filter(org=self.org, is_archived=False).count())
-        self.assertEqual(4, ContactGroup.user_groups.filter(org=self.org).count())
+        self.assertEqual(4, ContactGroup.objects.filter(org=self.org, is_system=False).count())
 
         # now archive a flow
         register = Flow.objects.filter(name="Register Patient").first()

@@ -1852,12 +1852,12 @@ class APITest(TembaTest):
         self.assertIsNone(jaqen.language)
         self.assertEqual(Contact.STATUS_ACTIVE, jaqen.status)
         self.assertEqual(set(), set(jaqen.urns.all()))
-        self.assertEqual(set(), set(jaqen.user_groups.all()))
+        self.assertEqual(set(), set(jaqen.get_groups()))
         self.assertIsNone(jaqen.fields)
 
         # create a dynamic group
         dyn_group = self.create_group("Dynamic Group", query="name = Frank")
-        ContactGroup.user_groups.filter(id=dyn_group.id).update(status=ContactGroup.STATUS_READY)
+        ContactGroup.objects.filter(id=dyn_group.id).update(status=ContactGroup.STATUS_READY)
 
         # create with all fields
         response = self.postJSON(
@@ -1881,7 +1881,7 @@ class APITest(TembaTest):
         gender = ContactField.get_by_key(self.org, "gender")
         jean = Contact.objects.filter(name="Jean", language="fra").order_by("-pk").first()
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250783333333", "twitter:jean"})
-        self.assertEqual(set(jean.user_groups.all()), {group})
+        self.assertEqual(set(jean.get_groups()), {group})
         self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # try to create with group from other org
@@ -1917,7 +1917,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.name, "Jean")
         self.assertEqual(jean.language, "fra")
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250783333333", "twitter:jean"})
-        self.assertEqual(set(jean.user_groups.all()), {group})
+        self.assertEqual(set(jean.get_groups()), {group})
         self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # update by UUID and change all fields
@@ -1938,7 +1938,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.name, "Jason Undead")
         self.assertEqual(jean.language, "ita")
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250784444444"})
-        self.assertEqual(set(jean.user_groups.all()), set())
+        self.assertEqual(set(jean.get_groups()), set())
         self.assertEqual(jean.get_field_value(nickname), "Žan")
         self.assertEqual(jean.get_field_value(gender), "frog")
 
@@ -1953,7 +1953,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.name, "Jean II")
         self.assertEqual(jean.language, "eng")
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250784444444"})
-        self.assertEqual(set(jean.user_groups.all()), set())
+        self.assertEqual(set(jean.get_groups()), set())
         self.assertEqual(jean.get_field_value(nickname), "Žan")
 
         # update by uuid and remove all fields
@@ -2937,13 +2937,13 @@ class APITest(TembaTest):
         self.create_field("isdeveloper", "Is developer")
         customers = self.create_group("Customers", [self.frank])
         developers = self.create_group("Developers", query='isdeveloper = "YES"')
-        ContactGroup.user_groups.filter(id=developers.id).update(status=ContactGroup.STATUS_READY)
+        ContactGroup.objects.filter(id=developers.id).update(status=ContactGroup.STATUS_READY)
 
         dynamic = self.create_group("Big Group", query='isdeveloper = "NO"')
-        ContactGroup.user_groups.filter(id=dynamic.id).update(status=ContactGroup.STATUS_EVALUATING)
+        ContactGroup.objects.filter(id=dynamic.id).update(status=ContactGroup.STATUS_EVALUATING)
 
         # an initializing group
-        ContactGroup.create_static(self.org, self.admin, "Initializing", status=ContactGroup.STATUS_INITIALIZING)
+        ContactGroup.create_manual(self.org, self.admin, "Initializing", status=ContactGroup.STATUS_INITIALIZING)
 
         # group belong to other org
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
@@ -2996,7 +2996,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"name": "Reporters"})
         self.assertEqual(response.status_code, 201)
 
-        reporters = ContactGroup.user_groups.get(name="Reporters")
+        reporters = ContactGroup.objects.get(name="Reporters")
         self.assertEqual(
             response.json(),
             {"uuid": reporters.uuid, "name": "Reporters", "query": None, "status": "ready", "count": 0},
@@ -3048,19 +3048,19 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, "uuid=%s" % spammers.uuid)
         self.assert404(response)
 
-        for group in ContactGroup.user_groups.all():
+        for group in ContactGroup.objects.filter(is_system=False):
             group.release(self.admin)
 
         for i in range(10):
-            ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
+            ContactGroup.create_manual(self.org2, self.admin2, "group%d" % i)
 
         response = self.postJSON(url, None, {"name": "Reporters"})
         self.assertEqual(response.status_code, 201)
 
-        ContactGroup.user_groups.all().delete()
+        ContactGroup.objects.filter(is_system=False, is_active=True).delete()
 
         for i in range(10):
-            ContactGroup.create_static(self.org, self.admin, "group%d" % i)
+            ContactGroup.create_manual(self.org, self.admin, "group%d" % i)
 
         response = self.postJSON(url, None, {"name": "Reporters"})
         self.assertResponseError(
@@ -3070,7 +3070,7 @@ class APITest(TembaTest):
             "You must delete existing ones before you can create new ones.",
         )
 
-        group1 = ContactGroup.user_groups.filter(org=self.org, name="group1").first()
+        group1 = ContactGroup.objects.filter(org=self.org, name="group1").first()
         response = self.deleteJSON(url, "uuid=%s" % group1.uuid)
         self.assertEqual(response.status_code, 204)
 
@@ -3079,7 +3079,7 @@ class APITest(TembaTest):
         self.login(self.admin)
 
         flow = self.get_flow("dependencies")
-        cats = ContactGroup.user_groups.filter(name="Cat Facts").first()
+        cats = ContactGroup.objects.get(name="Cat Facts")
 
         trigger = Trigger.objects.create(
             org=self.org, flow=flow, keyword="block_group", created_by=self.admin, modified_by=self.admin
@@ -3101,7 +3101,7 @@ class APITest(TembaTest):
         self.get_flow("dependencies")
 
         flow = Flow.objects.get(name="Dependencies")
-        cats = ContactGroup.user_groups.filter(name="Cat Facts").first()
+        cats = ContactGroup.objects.get(name="Cat Facts")
 
         response = self.deleteJSON(url, "uuid=%s" % cats.uuid)
 

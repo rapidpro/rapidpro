@@ -602,13 +602,13 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             queryset = queryset.filter(id=broadcast_id)
 
         queryset = queryset.prefetch_related(
-            Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("pk")),
-            Prefetch("groups", queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk")),
+            Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("id")),
+            Prefetch("groups", queryset=ContactGroup.objects.only("uuid", "name").order_by("id")),
         )
 
         if not org.is_anon:
             queryset = queryset.prefetch_related(
-                Prefetch("urns", queryset=ContactURN.objects.only("scheme", "path", "display").order_by("pk"))
+                Prefetch("urns", queryset=ContactURN.objects.only("scheme", "path", "display").order_by("id"))
             )
 
         return self.filter_before_after(queryset, "created_on")
@@ -744,7 +744,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
-        queryset = queryset.prefetch_related(Prefetch("group", queryset=ContactGroup.user_groups.only("uuid", "name")))
+        queryset = queryset.prefetch_related(Prefetch("group", queryset=ContactGroup.objects.only("uuid", "name")))
 
         return queryset
 
@@ -1418,9 +1418,9 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         # filter by group name/uuid (optional)
         group_ref = params.get("group")
         if group_ref:
-            group = ContactGroup.user_groups.filter(org=org).filter(Q(uuid=group_ref) | Q(name=group_ref)).first()
+            group = ContactGroup.get_groups(org).filter(Q(uuid=group_ref) | Q(name=group_ref)).first()
             if group:
-                queryset = queryset.filter(all_groups=group)
+                queryset = queryset.filter(groups=group)
             else:
                 queryset = queryset.filter(pk=-1)
 
@@ -1428,9 +1428,9 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         queryset = queryset.prefetch_related(
             Prefetch("org"),
             Prefetch(
-                "all_groups",
-                queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk"),
-                to_attr="prefetched_user_groups",
+                "groups",
+                queryset=ContactGroup.get_groups(org).only("uuid", "name", "org").order_by("id"),
+                to_attr="prefetched_groups",
             ),
             Prefetch("current_flow"),
         )
@@ -2175,11 +2175,13 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     permission = "contacts.contactgroup_api"
     model = ContactGroup
-    model_manager = "user_groups"
     serializer_class = ContactGroupReadSerializer
     write_serializer_class = ContactGroupWriteSerializer
     pagination_class = CreatedOnCursorPagination
     exclusive_params = ("uuid", "name")
+
+    def derive_queryset(self):
+        return ContactGroup.get_groups(self.request.user.get_org())
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -3269,7 +3271,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
             Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("id")),
-            Prefetch("groups", queryset=ContactGroup.user_groups.only("uuid", "name").order_by("id")),
+            Prefetch("groups", queryset=ContactGroup.objects.only("uuid", "name").order_by("id")),
         )
 
         return self.filter_before_after(queryset, "modified_on")

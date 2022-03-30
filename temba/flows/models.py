@@ -966,7 +966,7 @@ class Flow(TembaModel):
             "field": ContactField.user_fields.filter(org=self.org, is_active=True, key__in=identifiers["field"]),
             "flow": self.org.flows.filter(is_active=True, uuid__in=identifiers["flow"]),
             "global": self.org.globals.filter(is_active=True, key__in=identifiers["global"]),
-            "group": ContactGroup.user_groups.filter(org=self.org, is_active=True, uuid__in=identifiers["group"]),
+            "group": ContactGroup.get_groups(self.org).filter(uuid__in=identifiers["group"]),
             "label": Label.label_objects.filter(org=self.org, uuid__in=identifiers["label"]),
             "template": self.org.templates.filter(uuid__in=identifiers["template"]),
             "ticketer": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["ticketer"]),
@@ -1740,9 +1740,7 @@ class ExportFlowResultsTask(BaseExportTask):
         contact_fields = (
             ContactField.user_fields.active_for_org(org=self.org).filter(id__in=contact_field_ids).using("readonly")
         )
-        groups = ContactGroup.user_groups.filter(
-            org=self.org, id__in=group_memberships, status=ContactGroup.STATUS_READY, is_active=True
-        ).using("readonly")
+        groups = ContactGroup.get_groups(self.org, ready_only=True).filter(id__in=group_memberships).using("readonly")
 
         # get all result saving nodes across all flows being exported
         show_submitted_by = False
@@ -1876,9 +1874,7 @@ class ExportFlowResultsTask(BaseExportTask):
         # get all the contacts referenced in this batch
         contact_uuids = {r["contact"]["uuid"] for r in runs}
         contacts = (
-            Contact.objects.filter(org=self.org, uuid__in=contact_uuids)
-            .prefetch_related("all_groups")
-            .using("readonly")
+            Contact.objects.filter(org=self.org, uuid__in=contact_uuids).prefetch_related("groups").using("readonly")
         )
         contacts_by_uuid = {str(c.uuid): c for c in contacts}
 
@@ -1907,7 +1903,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 contact_values.append(urn_display)
 
             contact_values.append(self.prepare_value(contact.name))
-            contact_groups_ids = [g.id for g in contact.all_groups.all()]
+            contact_groups_ids = [g.id for g in contact.groups.all()]
             for gr in groups:
                 contact_values.append(gr.id in contact_groups_ids)
 

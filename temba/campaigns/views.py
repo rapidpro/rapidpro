@@ -28,7 +28,7 @@ from .models import Campaign, CampaignEvent
 
 class CampaignForm(forms.ModelForm):
     group = TembaChoiceField(
-        queryset=ContactGroup.user_groups.none(),
+        queryset=ContactGroup.objects.none(),
         empty_label=None,
         widget=SelectWidget(attrs={"placeholder": _("Select group"), "searchable": True}),
         label=_("Group"),
@@ -38,7 +38,7 @@ class CampaignForm(forms.ModelForm):
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.fields["group"].queryset = ContactGroup.get_user_groups(user.get_org(), ready_only=False)
+        self.fields["group"].queryset = ContactGroup.get_groups(user.get_org())
 
     class Meta:
         model = Campaign
