@@ -925,9 +925,8 @@ class ContactGroupTest(TembaTest):
     def test_release(self, mr_mocks):
         group1 = self.create_group("Group One")
         group2 = self.create_group("Group One")
-        flow = self.create_flow()
 
-        # create a campaign based on group 1
+        # create a campaign based on group 1 - a hard dependency
         campaign = Campaign.create(self.org, self.admin, "Reminders", group1)
         joined = ContactField.get_or_create(
             self.org, self.admin, "joined", "Joined On", value_type=ContactField.TYPE_DATETIME
@@ -943,137 +942,20 @@ class ContactGroupTest(TembaTest):
         bcast2 = self.create_broadcast(self.admin, "Hi", groups=[group1, group2])
         bcast2.send_async()
 
+        # group still has a hard dependency so can't be released
+        with self.assertRaises(AssertionError):
+            group1.release(self.admin)
+
+        campaign.delete()
+
         group1.release(self.admin)
         group1.refresh_from_db()
 
         self.assertFalse(group1.is_active)
+        self.assertTrue(group1.name.startswith("deleted-"))
         self.assertEqual(0, EventFire.objects.count())  # event fires will have been deleted
         self.assertEqual({group2}, set(bcast1.groups.all()))  # removed from scheduled broadcast
         self.assertEqual({group1, group2}, set(bcast2.groups.all()))  # regular broadcast unchanged
-
-        self.login(self.admin)
-
-        group = self.create_group("Group One")
-        delete_url = reverse("contacts.contactgroup_delete", args=[group.id])
-
-        trigger = Trigger.objects.create(
-            org=self.org, flow=flow, keyword="join", created_by=self.admin, modified_by=self.admin
-        )
-        trigger.groups.add(group)
-
-        second_trigger = Trigger.objects.create(
-            org=self.org, flow=flow, keyword="register", created_by=self.admin, modified_by=self.admin
-        )
-        second_trigger.groups.add(group)
-
-        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
-        self.assertContains(response, 'This group is used by <a href="/trigger/">2 triggers<a>')
-
-        response = self.client.post(delete_url, dict())
-        self.assertEqual(302, response.status_code)
-        response = self.client.post(delete_url, dict(), follow=True)
-        self.assertTrue(ContactGroup.objects.get(pk=group.pk).is_active)
-        self.assertEqual(response.request["PATH_INFO"], reverse("contacts.contact_filter", args=[group.uuid]))
-
-        # archive a trigger
-        second_trigger.is_archived = True
-        second_trigger.save()
-
-        response = self.client.post(delete_url, dict())
-        self.assertEqual(302, response.status_code)
-        response = self.client.post(delete_url, dict(), follow=True)
-        self.assertTrue(ContactGroup.objects.get(pk=group.pk).is_active)
-        self.assertEqual(response.request["PATH_INFO"], reverse("contacts.contact_filter", args=[group.uuid]))
-
-        trigger.is_archived = True
-        trigger.save()
-
-        self.client.post(delete_url, {})
-
-        # group should have is_active = False and all its triggers
-        self.assertFalse(ContactGroup.objects.get(pk=group.pk).is_active)
-        self.assertFalse(ContactGroup.objects.get(pk=group.pk).is_active)
-        self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
-        self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
-
-    def test_group_release_deactivates_campaign(self):
-        a_group = self.create_group("one")
-        delete_url = reverse("contacts.contactgroup_delete", args=[a_group.pk])
-
-        self.get_flow("favorites")
-
-        self.login(self.admin)
-
-        post_data = dict(name="YAC - Yet another campaign", group=a_group.pk)
-        self.client.post(reverse("campaigns.campaign_create"), post_data)
-
-        a_campaign = Campaign.objects.first()
-
-        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
-        self.assertContains(response, "There is an active campaign using this group.")
-
-        # archive the campaign
-        self.client.post(reverse("campaigns.campaign_archive", args=(a_campaign.pk,)))
-
-        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
-        self.assertContains(response, "Are you sure?")
-
-        response = self.client.post(delete_url, dict(), HTTP_X_PJAX=True)
-        self.assertContains(response, "document.location.href = '/contact/';")
-
-        # group and campaign are no longer active
-        self.assertFalse(ContactGroup.objects.get(pk=a_group.pk).is_active)
-        self.assertFalse(Campaign.objects.get(pk=a_campaign.pk).is_active)
-
-    def test_delete_fail_with_dependencies(self):
-        self.login(self.admin)
-
-        self.get_flow("dependencies")
-
-        from temba.flows.models import Flow
-
-        flow = Flow.objects.filter(name="Dependencies").first()
-        cats = ContactGroup.objects.filter(name="Cat Facts").first()
-        delete_url = reverse("contacts.contactgroup_delete", args=[cats.pk])
-
-        # can't delete if it is a dependency
-        response = self.client.post(delete_url, dict())
-        self.assertEqual(302, response.status_code)
-        self.assertTrue(ContactGroup.objects.get(id=cats.id).is_active)
-
-        # get the dependency details
-        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Dependencies")
-
-        # remove it from our list of dependencies
-        flow.group_dependencies.remove(cats)
-
-        # now it should be gone
-        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
-        self.assertNotContains(response, "Dependencies")
-
-        response = self.client.post(delete_url, dict(), HTTP_X_PJAX=True)
-        self.assertFalse(ContactGroup.objects.get(id=cats.id).is_active)
-
-    def test_delete_with_campaign_dependencies(self):
-        block_group = self.create_group("one that blocks")
-
-        self.login(self.admin)
-
-        post_data = dict(name="Don't forget to ...", group=block_group.pk)
-        self.client.post(reverse("campaigns.campaign_create"), post_data)
-
-        delete_url = reverse("contacts.contactgroup_delete", args=[block_group.pk])
-
-        # users are notified that a group cannot be deleted
-        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
-        self.assertContains(response, "There is an active campaign using this group")
-
-        # can't delete if it is a dependency
-        response = self.client.post(delete_url, dict())
-        self.assertRedirect(response, f"/contact/filter/{block_group.uuid}/")
-        self.assertTrue(ContactGroup.objects.get(id=block_group.id).is_active)
 
 
 class ElasticSearchLagTest(TembaTest):
@@ -1345,46 +1227,71 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         campaign2.is_active = False
         campaign2.save(update_fields=("is_active",))
 
+        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="test1", groups=[group])
+        trigger2 = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="test2", exclude_groups=[group]
+        )
+
         usages_url = reverse("contacts.contactgroup_usages", args=[group.uuid])
 
         response = self.assertReadFetch(usages_url, allow_viewers=True, allow_editors=True, context_object=group)
 
         self.assertEqual(
-            {"flow": [flow], "campaign": [campaign1]},
+            {"flow": [flow], "campaign": [campaign1], "trigger": [trigger1, trigger2]},
             {t: list(qs) for t, qs in response.context["dependents"].items()},
         )
 
     def test_delete(self):
-        url = reverse("contacts.contactgroup_delete", args=[self.joe_and_frank.pk])
+        # create a group which isn't used by anything
+        group1 = self.create_group("Group 1", contacts=[])
 
-        # can't delete group as viewer
-        self.login(self.user)
-        response = self.client.post(url)
-        self.assertLoginRedirect(response)
+        # create a group which is used by a flow (soft)
+        group2 = self.create_group("Group 3", contacts=[])
+        flow1 = self.create_flow("Flow 1")
+        flow1.group_dependencies.add(group2)
 
-        # can as admin user
-        self.login(self.admin)
-        response = self.client.post(url, HTTP_X_PJAX=True)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "/contact/")
+        # create a group which is used by a flow (soft), a campaign (hard) and a trigger (hard)
+        group3 = self.create_group("Group 3", contacts=[])
+        flow2 = self.create_flow("Flow 2")
+        flow2.group_dependencies.add(group3)
+        Campaign.create(self.org, self.admin, "Planting Reminders", group3)
+        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keyword="test1", groups=[group3])
 
-        self.joe_and_frank.refresh_from_db()
-        self.assertFalse(self.joe_and_frank.is_active)
-        self.assertFalse(self.joe_and_frank.contacts.all())
+        delete_group1_url = reverse("contacts.contactgroup_delete", args=[group1.uuid])
+        delete_group2_url = reverse("contacts.contactgroup_delete", args=[group2.uuid])
+        delete_group3_url = reverse("contacts.contactgroup_delete", args=[group3.uuid])
 
-        # can't delete a system group
-        open_tickets = self.org.groups.get(name="Open Tickets")
-        response = self.client.post(reverse("contacts.contactgroup_delete", args=[open_tickets.id]))
-        self.assertEqual(404, response.status_code)
-        self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
+        # a group with no dependents can be deleted
+        response = self.assertDeleteFetch(delete_group1_url, allow_editors=True)
+        self.assertEqual({}, response.context["soft_dependents"])
+        self.assertEqual({}, response.context["hard_dependents"])
+        self.assertContains(response, "You are about to delete")
+        self.assertContains(response, "There is no way to undo this. Are you sure?")
 
-        # can't delete group from other org
-        response = self.client.post(reverse("contacts.contactgroup_delete", args=[self.other_org_group.id]))
-        self.assertLoginRedirect(response)
+        self.assertDeleteSubmit(delete_group1_url, object_deactivated=group1, success_status=200)
 
-        # check group is unchanged
-        self.other_org_group.refresh_from_db()
-        self.assertTrue(self.other_org_group.is_active)
+        # a group with only soft dependents can also be deleted but we give warnings
+        response = self.assertDeleteFetch(delete_group2_url, allow_editors=True)
+        self.assertEqual({"flow"}, set(response.context["soft_dependents"].keys()))
+        self.assertEqual({}, response.context["hard_dependents"])
+        self.assertContains(response, "is used by the following items but can still be deleted:")
+        self.assertContains(response, "Flow 1")
+        self.assertContains(response, "There is no way to undo this. Are you sure?")
+
+        self.assertDeleteSubmit(delete_group2_url, object_deactivated=group2, success_status=200)
+
+        # check that flow is now marked as having issues
+        flow1.refresh_from_db()
+        self.assertTrue(flow1.has_issues)
+        self.assertNotIn(group2, flow1.field_dependencies.all())
+
+        # a group with hard dependents can't be deleted
+        response = self.assertDeleteFetch(delete_group3_url, allow_editors=True)
+        self.assertEqual({"flow"}, set(response.context["soft_dependents"].keys()))
+        self.assertEqual({"campaign", "trigger"}, set(response.context["hard_dependents"].keys()))
+        self.assertContains(response, "can't be deleted as it is still used by the following items:")
+        self.assertContains(response, "Planting Reminders")
+        self.assertNotContains(response, "Delete")
 
 
 class ContactTest(TembaTest):
@@ -2930,7 +2837,6 @@ class ContactTest(TembaTest):
 
         # should have an edit button
         update_url = reverse("contacts.contactgroup_update", args=[group.pk])
-        delete_url = reverse("contacts.contactgroup_delete", args=[group.pk])
 
         self.assertContains(response, update_url)
         response = self.client.get(update_url)
@@ -2941,15 +2847,6 @@ class ContactTest(TembaTest):
 
         group = ContactGroup.objects.get(id=group.id)
         self.assertEqual("New Test", group.name)
-
-        # post to our delete url
-        response = self.client.post(delete_url, dict(), HTTP_X_PJAX=True)
-        self.assertEqual(200, response.status_code)
-
-        # make sure it is inactive
-        group.refresh_from_db()
-        self.assertFalse(group.is_active)
-        self.assertTrue(group.name.startswith("deleted-"))
 
         # remove Joe from the group
         self.client.post(
@@ -2978,15 +2875,15 @@ class ContactTest(TembaTest):
         joe_and_frank_filter_url = reverse("contacts.contact_filter", args=[self.joe_and_frank.uuid])
 
         # now test when the action with some data missing
-        self.assertEqual(self.joe.get_groups().count(), 2)
+        self.assertEqual(self.joe.get_groups().count(), 3)
 
         self.client.post(joe_and_frank_filter_url, {"action": "label", "objects": self.joe.id, "add": True})
 
-        self.assertEqual(self.joe.get_groups().count(), 2)
+        self.assertEqual(self.joe.get_groups().count(), 3)
 
         self.client.post(joe_and_frank_filter_url, {"action": "label", "objects": self.joe.id, "add": False})
 
-        self.assertEqual(self.joe.get_groups().count(), 2)
+        self.assertEqual(self.joe.get_groups().count(), 3)
 
         # now block Joe
         self.client.post(list_url, {"action": "block", "objects": self.joe.id}, follow=True)
@@ -4986,6 +4883,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         campaign_event.refresh_from_db()
         self.assertFalse(campaign_event.is_active)
 
+        # a field with hard dependents can't be deleted
         response = self.assertDeleteFetch(delete_age_url, allow_editors=True)
         self.assertEqual({"flow"}, set(response.context["soft_dependents"].keys()))
         self.assertEqual({"group"}, set(response.context["hard_dependents"].keys()))

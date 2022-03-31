@@ -1517,6 +1517,8 @@ class ContactGroup(TembaModel, DependencyMixin):
     query = models.TextField(null=True)
     query_fields = models.ManyToManyField(ContactField, related_name="dependent_groups")
 
+    soft_dependent_types = {"flow"}
+
     @classmethod
     def create_system_groups(cls, org):
         """
@@ -1744,6 +1746,7 @@ class ContactGroup(TembaModel, DependencyMixin):
     def get_dependents(self):
         dependents = super().get_dependents()
         dependents["campaign"] = self.campaigns.filter(is_active=True)
+        dependents["trigger"] = self.triggers.filter(is_active=True)
         return dependents
 
     def release(self, user, immediate: bool = False):
@@ -1752,6 +1755,8 @@ class ContactGroup(TembaModel, DependencyMixin):
         """
 
         from .tasks import release_group_task
+
+        super().release(user)
 
         self.name = f"deleted-{uuid4()}-{self.name}"[: self.MAX_NAME_LEN]
         self.is_active = False
