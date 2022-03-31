@@ -1,3 +1,9 @@
+v7.3.10
+----------
+ * Remove path from example result in runs API endpoint docs
+ * Prevent updating or deleting of system groups via the API or UI
+ * Add system property to groups endpoint and fix docs
+
 v7.3.9
 ----------
  * Remove IG channel beta gating
