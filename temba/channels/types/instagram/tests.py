@@ -61,7 +61,7 @@ class InstagramTypeTest(TembaTest):
 
         # check that claim page URL appears on claim list page
         response = self.client.get(reverse("channels.channel_claim"))
-        self.assertNotContains(response, url)
+        self.assertContains(response, url)
 
         # can fetch the claim page
         response = self.client.get(url)

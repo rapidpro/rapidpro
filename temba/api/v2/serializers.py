@@ -942,6 +942,9 @@ class FlowRunReadSerializer(ReadSerializer):
         return {"uuid": str(obj.start.uuid)} if obj.start else None
 
     def get_path(self, obj):
+        if not self.context["include_paths"]:
+            return None
+
         def convert_step(step):
             arrived_on = iso8601.parse_date(step[FlowRun.PATH_ARRIVED_ON])
             return {"node": step[FlowRun.PATH_NODE_UUID], "time": format_datetime(arrived_on)}
