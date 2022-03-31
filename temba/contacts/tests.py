@@ -93,11 +93,10 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         joe = self.create_contact("Joe", phone="123", fields={"age": "20", "home": "Kigali"})
         frank = self.create_contact("Frank", phone="124", fields={"age": "18"})
 
-        creating = ContactGroup.create_manual(
-            self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING
-        )
+        mr_mocks.contact_search('name != ""', contacts=[], allow_as_group=True)
+        smart = self.create_group("No Name", query='name = ""')
 
-        with self.assertNumQueries(58):
+        with self.assertNumQueries(56):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
@@ -109,46 +108,60 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         survey_audience = self.org.groups.get(name="Survey Audience")
         unsatisfied = self.org.groups.get(name="Unsatisfied Customers")
 
+        self.maxDiff = None
+
         self.assertEqual(
-            response.context["groups"],
             [
+                {"id": self.org.groups.get(group_type="A").id, "name": "Active", "count": 2, "url": "/contact/"},
                 {
-                    "uuid": str(open_tickets.uuid),
-                    "pk": open_tickets.id,
-                    "label": "Open Tickets",
-                    "is_smart": True,
-                    "is_system": True,
-                    "is_ready": True,
+                    "id": self.org.groups.get(group_type="B").id,
+                    "name": "Blocked",
                     "count": 0,
+                    "url": "/contact/blocked/",
                 },
                 {
-                    "uuid": str(creating.uuid),
-                    "pk": creating.id,
-                    "label": "Group being created",
-                    "is_smart": False,
-                    "is_system": False,
-                    "is_ready": False,
+                    "id": self.org.groups.get(group_type="S").id,
+                    "name": "Stopped",
                     "count": 0,
+                    "url": "/contact/stopped/",
                 },
                 {
-                    "uuid": str(survey_audience.uuid),
-                    "pk": survey_audience.id,
-                    "label": "Survey Audience",
-                    "is_smart": False,
-                    "is_system": False,
-                    "is_ready": True,
+                    "id": self.org.groups.get(group_type="V").id,
+                    "name": "Archived",
                     "count": 0,
+                    "url": "/contact/archived/",
                 },
                 {
-                    "uuid": str(unsatisfied.uuid),
-                    "pk": unsatisfied.id,
-                    "label": "Unsatisfied Customers",
-                    "is_smart": False,
-                    "is_system": False,
-                    "is_ready": True,
+                    "id": open_tickets.id,
+                    "name": "Open Tickets",
                     "count": 0,
+                    "url": f"/contact/filter/{open_tickets.uuid}/",
                 },
             ],
+            response.context["system_groups"],
+        )
+        self.assertEqual(
+            [
+                {"id": smart.id, "name": "No Name", "count": 0, "url": f"/contact/filter/{smart.uuid}/"},
+            ],
+            response.context["smart_groups"],
+        )
+        self.assertEqual(
+            [
+                {
+                    "id": survey_audience.id,
+                    "name": "Survey Audience",
+                    "count": 0,
+                    "url": f"/contact/filter/{survey_audience.uuid}/",
+                },
+                {
+                    "id": unsatisfied.id,
+                    "name": "Unsatisfied Customers",
+                    "count": 0,
+                    "url": f"/contact/filter/{unsatisfied.uuid}/",
+                },
+            ],
+            response.context["manual_groups"],
         )
 
         # fetch with spa flag

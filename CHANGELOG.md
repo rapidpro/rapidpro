@@ -1,3 +1,7 @@
+v7.3.9
+----------
+ * Remove IG channel beta gating
+
 v7.3.8
 ----------
  * Fix fetching of groups from API when using separate readonly DB connection
