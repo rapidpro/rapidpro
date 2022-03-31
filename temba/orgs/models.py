@@ -44,7 +44,7 @@ from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary
 from temba.utils import chunk_list, json, languages
-from temba.utils.cache import get_cacheable_result
+from temba.utils.cache import get_cacheable_result, redis_cached_property
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.legacy.dates import str_to_datetime
@@ -2170,6 +2170,31 @@ class Org(SmartModel):
         if not do_not_contact:
             return False
         return True
+
+    @redis_cached_property
+    def twilio_stats(self):
+        tw = self.get_twilio_client()
+        if not tw:
+            return {}
+
+        curr_year, curr_month = timezone.now().timetuple()[:2]
+        start_year, start_month = (curr_year - 1, curr_month + 1) if curr_month < 12 else (curr_year, 1)
+        start_date = timezone.datetime(start_year, start_month, 1)
+        records = tw.api.usage.records.monthly.stream(start_date=start_date)
+        allowed_categories = [
+            "sms-inbound",
+            "sms-outbound",
+            "mms-inbound",
+            "mms-outbound",
+            "calls-inbound",
+            "calls-outbound",
+        ]
+        result_stats = dict(**{category: list() for category in allowed_categories})
+        for record in records:
+            if record.category in allowed_categories:
+                start_datetime = timezone.datetime(record.start_date.year, record.start_date.month, 1)
+                result_stats[record.category].append((start_datetime, record.count))
+        return result_stats
 
 
 # ===================== monkey patch User class with a few extra functions ========================

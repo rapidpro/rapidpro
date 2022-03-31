@@ -4,7 +4,7 @@ import random
 import regex
 import smtplib
 import string
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict, namedtuple, defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from email.utils import parseaddr
@@ -1060,6 +1060,7 @@ class OrgCRUDL(SmartCRUDL):
         "clear_cache",
         "twilio_connect",
         "twilio_account",
+        "twilio_stats",
         "vonage_account",
         "vonage_connect",
         "plan",
@@ -3607,6 +3608,9 @@ class OrgCRUDL(SmartCRUDL):
                 twilio_client = org.get_twilio_client()
                 if twilio_client:  # pragma: needs cover
                     formax.add_section("twilio", reverse("orgs.org_twilio_account"), icon="icon-channel-twilio")
+                    formax.add_section(
+                        "twilio-stats", reverse("orgs.org_twilio_stats"), icon="icon-channel-twilio", action="link"
+                    )
 
                 vonage_client = org.get_vonage_client()
                 if vonage_client:  # pragma: needs cover
@@ -3737,6 +3741,37 @@ class OrgCRUDL(SmartCRUDL):
 
                 org.connect_twilio(account_sid, account_token, user)
                 return super().form_valid(form)
+
+    class TwilioStats(OrgPermsMixin, SmartTemplateView):
+        permission = "channels.channel_read"
+
+        def get_context_data(self, **kwargs):
+            org = self.org
+            twilio_client = org.get_twilio_client()
+            if not twilio_client:
+                return Http404
+
+            context_data = super().get_context_data(**kwargs)
+            origin_stats = org.twilio_stats
+            types = ["sms_in", "mms_in", "calls_in", "sms_out", "mms_out", "calls_out"]
+            table_stats = defaultdict(lambda: {t: 0 for t in types})
+            total_stats = {t: 0 for t in types}
+            for origin_category, items in origin_stats.items():
+                category = origin_category.removesuffix("bound").replace("-", "_")
+                for start, value in items:
+                    table_stats[start][category] = value
+                    total_stats[category] += int(value)
+
+            twilio_sid = twilio_client.account_sid
+            sid_length = len(twilio_sid)
+            context_data["twilio_token"] = "%s%s" % ("\u066D" * (sid_length - 16), twilio_sid[-16:])
+            context_data["total_stats"] = total_stats
+            context_data["twilio_stats"] = sorted(
+                map(lambda data: {"month_start": data[0], **data[1]}, table_stats.items()),
+                key=lambda data: data["month_start"],
+                reverse=True,
+            )
+            return context_data
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
