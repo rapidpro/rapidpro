@@ -1770,21 +1770,12 @@ class ContactGroup(TembaModel, DependencyMixin):
             on_transaction_commit(lambda: release_group_task.delay(self.id))
 
     def _full_release(self):
-        from temba.campaigns.models import EventFire
-        from temba.triggers.models import Trigger
-
         # detach from contact imports associated with this group
         ContactImport.objects.filter(group=self).update(group=None)
 
         # remove from any scheduled broadcasts
         for bc in self.addressed_broadcasts.exclude(schedule=None):
             bc.groups.remove(self)
-
-        # mark any triggers that operate only on this group as inactive
-        Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
-
-        # deactivate any campaigns that are based on this group
-        self.campaigns.filter(is_active=True).update(is_active=False, is_archived=True)
 
         # delete all counts for this group
         self.counts.all().delete()
@@ -1795,11 +1786,6 @@ class ContactGroup(TembaModel, DependencyMixin):
 
         for id_batch in chunk_list(group_contact_ids, 1000):
             ContactGroupContacts.objects.filter(id__in=id_batch).delete()
-
-        # delete any event fires related to our group
-        eventfire_ids = EventFire.objects.filter(event__campaign__group=self, fired=None).values_list("id", flat=True)
-        for id_batch in chunk_list(eventfire_ids, 1000):
-            EventFire.objects.filter(id__in=id_batch).delete()
 
     @property
     def is_smart(self):
