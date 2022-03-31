@@ -93,11 +93,10 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         joe = self.create_contact("Joe", phone="123", fields={"age": "20", "home": "Kigali"})
         frank = self.create_contact("Frank", phone="124", fields={"age": "18"})
 
-        creating = ContactGroup.create_manual(
-            self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING
-        )
+        mr_mocks.contact_search('name != ""', contacts=[], allow_as_group=True)
+        smart = self.create_group("No Name", query='name = ""')
 
-        with self.assertNumQueries(58):
+        with self.assertNumQueries(56):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
@@ -105,37 +104,64 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([], list(response.context["actions"]))
 
         active_contacts = self.org.active_contacts_group
-        survey_audience = ContactGroup.objects.get(org=self.org, name="Survey Audience")
-        unsatisfied = ContactGroup.objects.get(org=self.org, name="Unsatisfied Customers")
+        open_tickets = self.org.groups.get(name="Open Tickets")
+        survey_audience = self.org.groups.get(name="Survey Audience")
+        unsatisfied = self.org.groups.get(name="Unsatisfied Customers")
+
+        self.maxDiff = None
 
         self.assertEqual(
-            response.context["groups"],
             [
+                {"id": self.org.groups.get(group_type="A").id, "name": "Active", "count": 2, "url": "/contact/"},
                 {
-                    "uuid": str(creating.uuid),
-                    "pk": creating.id,
-                    "label": "Group being created",
-                    "is_smart": False,
-                    "is_ready": False,
+                    "id": self.org.groups.get(group_type="B").id,
+                    "name": "Blocked",
                     "count": 0,
+                    "url": "/contact/blocked/",
                 },
                 {
-                    "uuid": str(survey_audience.uuid),
-                    "pk": survey_audience.id,
-                    "label": "Survey Audience",
-                    "is_smart": False,
-                    "is_ready": True,
+                    "id": self.org.groups.get(group_type="S").id,
+                    "name": "Stopped",
                     "count": 0,
+                    "url": "/contact/stopped/",
                 },
                 {
-                    "uuid": str(unsatisfied.uuid),
-                    "pk": unsatisfied.id,
-                    "label": "Unsatisfied Customers",
-                    "is_smart": False,
-                    "is_ready": True,
+                    "id": self.org.groups.get(group_type="V").id,
+                    "name": "Archived",
                     "count": 0,
+                    "url": "/contact/archived/",
+                },
+                {
+                    "id": open_tickets.id,
+                    "name": "Open Tickets",
+                    "count": 0,
+                    "url": f"/contact/filter/{open_tickets.uuid}/",
                 },
             ],
+            response.context["system_groups"],
+        )
+        self.assertEqual(
+            [
+                {"id": smart.id, "name": "No Name", "count": 0, "url": f"/contact/filter/{smart.uuid}/"},
+            ],
+            response.context["smart_groups"],
+        )
+        self.assertEqual(
+            [
+                {
+                    "id": survey_audience.id,
+                    "name": "Survey Audience",
+                    "count": 0,
+                    "url": f"/contact/filter/{survey_audience.uuid}/",
+                },
+                {
+                    "id": unsatisfied.id,
+                    "name": "Unsatisfied Customers",
+                    "count": 0,
+                    "url": f"/contact/filter/{unsatisfied.uuid}/",
+                },
+            ],
+            response.context["manual_groups"],
         )
 
         # fetch with spa flag
@@ -389,6 +415,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
     @mock_mailroom
     def test_filter(self, mr_mocks):
+        open_tickets = self.org.groups.get(name="Open Tickets")
         joe = self.create_contact("Joe", phone="123")
         frank = self.create_contact("Frank", phone="124")
         self.create_contact("Bob", phone="125")
@@ -403,17 +430,28 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         group1_url = reverse("contacts.contact_filter", args=[group1.uuid])
         group2_url = reverse("contacts.contact_filter", args=[group2.uuid])
         group3_url = reverse("contacts.contact_filter", args=[group3.uuid])
+        open_tickets_url = reverse("contacts.contact_filter", args=[open_tickets.uuid])
 
         response = self.assertReadFetch(group1_url, allow_viewers=True, allow_editors=True)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "label", "unlabel"], list(response.context["actions"]))
+        self.assertContains(response, "Edit Group")
+        self.assertContains(response, "Delete Group")
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
 
         self.assertEqual([frank], list(response.context["object_list"]))
         self.assertEqual(["block", "archive"], list(response.context["actions"]))
         self.assertContains(response, "age &gt; 40")
+
+        # can access system group like any other except no options to edit or delete
+        response = self.assertReadFetch(open_tickets_url, allow_viewers=True, allow_editors=True)
+        self.assertEqual([], list(response.context["object_list"]))
+        self.assertEqual(["block", "archive"], list(response.context["actions"]))
+        self.assertContains(response, "tickets &gt; 0")
+        self.assertNotContains(response, "Edit Group")
+        self.assertNotContains(response, "Delete Group")
 
         # if a user tries to access a non-existent group, that's a 404
         response = self.requestView(reverse("contacts.contact_filter", args=["21343253"]), self.admin)
@@ -752,13 +790,14 @@ class ContactGroupTest(TembaTest):
         deleted.is_active = False
         deleted.save()
 
+        open_tickets = self.org.groups.get(name="Open Tickets")
         females = ContactGroup.create_smart(self.org, self.admin, "Females", "gender=F")
         males = ContactGroup.create_smart(self.org, self.admin, "Males", "gender=M")
         ContactGroup.objects.filter(id=males.id).update(status=ContactGroup.STATUS_READY)
 
-        self.assertEqual(set(ContactGroup.get_groups(self.org)), {manual, females, males})
+        self.assertEqual(set(ContactGroup.get_groups(self.org)), {open_tickets, manual, females, males})
         self.assertEqual(set(ContactGroup.get_groups(self.org, manual_only=True)), {manual})
-        self.assertEqual(set(ContactGroup.get_groups(self.org, ready_only=True)), {manual, males})
+        self.assertEqual(set(ContactGroup.get_groups(self.org, ready_only=True)), {open_tickets, manual, males})
 
     def test_is_valid_name(self):
         self.assertTrue(ContactGroup.is_valid_name("x"))
@@ -1213,6 +1252,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_update(self, mr_mocks):
         url = reverse("contacts.contactgroup_update", args=[self.joe_and_frank.id])
 
+        open_tickets = self.org.groups.get(name="Open Tickets")
         dynamic_group = self.create_group("Dynamic", query="tel is 1234")
 
         # can't create group as viewer
@@ -1279,6 +1319,13 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         dynamic_group.refresh_from_db()
         self.assertEqual(dynamic_group.name, "Frank2")
 
+        # try to update a system group
+        response = self.client.post(
+            reverse("contacts.contactgroup_update", args=[open_tickets.id]), {"name": "new name"}
+        )
+        self.assertEqual(404, response.status_code)
+        self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
+
         # try to update group in other org
         response = self.client.post(
             reverse("contacts.contactgroup_update", args=[self.other_org_group.id]), {"name": "new name"}
@@ -1324,6 +1371,12 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.joe_and_frank.refresh_from_db()
         self.assertFalse(self.joe_and_frank.is_active)
         self.assertFalse(self.joe_and_frank.contacts.all())
+
+        # can't delete a system group
+        open_tickets = self.org.groups.get(name="Open Tickets")
+        response = self.client.post(reverse("contacts.contactgroup_delete", args=[open_tickets.id]))
+        self.assertEqual(404, response.status_code)
+        self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
 
         # can't delete group from other org
         response = self.client.post(reverse("contacts.contactgroup_delete", args=[self.other_org_group.id]))
@@ -1814,6 +1867,7 @@ class ContactTest(TembaTest):
     def test_omnibox(self, mr_mocks, mock_search_contacts):
         # add a group with members and an empty group
         self.create_field("gender", "Gender")
+        open_tickets = self.org.groups.get(name="Open Tickets")
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
         nobody = self.create_group("Nobody", [])
 
@@ -1865,10 +1919,11 @@ class ContactTest(TembaTest):
 
             self.assertEqual(
                 [
-                    # all 3 groups A-Z
+                    # all 4 groups A-Z
                     {"id": joe_and_frank.uuid, "name": "Joe and Frank", "type": "group", "count": 2},
                     {"id": men.uuid, "name": "Men", "type": "group", "count": 0},
                     {"id": nobody.uuid, "name": "Nobody", "type": "group", "count": 0},
+                    {"id": open_tickets.uuid, "name": "Open Tickets", "type": "group", "count": 0},
                     # all 4 contacts A-Z
                     {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact", "urn": ""},
                     {"id": self.frank.uuid, "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
@@ -1916,10 +1971,11 @@ class ContactTest(TembaTest):
 
             self.assertEqual(
                 [
-                    # all 3 groups A-Z
+                    # all 4 groups A-Z
                     {"id": f"g-{joe_and_frank.uuid}", "text": "Joe and Frank", "extra": 2},
                     {"id": f"g-{men.uuid}", "text": "Men", "extra": 0},
                     {"id": f"g-{nobody.uuid}", "text": "Nobody", "extra": 0},
+                    {"id": f"g-{open_tickets.uuid}", "text": "Open Tickets", "extra": 0},
                     # 2 contacts A-Z
                     {"id": f"c-{self.billy.uuid}", "text": "Billy Nophone", "extra": ""},
                     {"id": f"c-{self.frank.uuid}", "text": "Frank Smith", "extra": "250782222222"},
@@ -1929,17 +1985,18 @@ class ContactTest(TembaTest):
 
         # apply type filters...
 
-        # g = just the 3 groups
+        # g = just the 4 groups
         self.assertEqual(
             [
                 {"id": f"g-{joe_and_frank.uuid}", "text": "Joe and Frank", "extra": 2},
                 {"id": f"g-{men.uuid}", "text": "Men", "extra": 0},
                 {"id": f"g-{nobody.uuid}", "text": "Nobody", "extra": 0},
+                {"id": f"g-{open_tickets.uuid}", "text": "Open Tickets", "extra": 0},
             ],
             omnibox_request("types=g"),
         )
 
-        # s = just the 2 non-dynamic (static) groups
+        # s = just the 2 non-query manual groups
         self.assertEqual(
             [
                 {"id": f"g-{joe_and_frank.uuid}", "text": "Joe and Frank", "extra": 2},
@@ -2032,10 +2089,11 @@ class ContactTest(TembaTest):
             mock_search_contacts.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
             self.assertEqual(
                 [
-                    # all 3 groups...
+                    # all 4 groups...
                     {"id": f"g-{joe_and_frank.uuid}", "text": "Joe and Frank", "extra": 2},
                     {"id": f"g-{men.uuid}", "text": "Men", "extra": 0},
                     {"id": f"g-{nobody.uuid}", "text": "Nobody", "extra": 0},
+                    {"id": f"g-{open_tickets.uuid}", "text": "Open Tickets", "extra": 0},
                     # 1 contact
                     {"id": f"c-{self.billy.uuid}", "text": "Billy Nophone"},
                     # no urns
@@ -2047,10 +2105,11 @@ class ContactTest(TembaTest):
             mock_search_contacts.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
             self.assertEqual(
                 [
-                    # all 3 groups A-Z
+                    # all 4 groups A-Z
                     {"id": joe_and_frank.uuid, "name": "Joe and Frank", "type": "group", "count": 2},
                     {"id": men.uuid, "name": "Men", "type": "group", "count": 0},
                     {"id": nobody.uuid, "name": "Nobody", "type": "group", "count": 0},
+                    {"id": open_tickets.uuid, "name": "Open Tickets", "type": "group", "count": 0},
                     # 1 contact
                     {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact"},
                 ],

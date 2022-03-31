@@ -227,7 +227,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     def derive_refresh(self):
         # smart groups that are reevaluating should refresh every 2 seconds
         if self.group.is_smart and self.group.status != ContactGroup.STATUS_READY:
-            return 2000
+            return 200000
 
         return None
 
@@ -340,25 +340,19 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         context = super().get_context_data(**kwargs)
 
         org = self.request.user.get_org()
-        counts = Contact.get_status_counts(org)
-
-        folders = [
-            dict(count=counts[Contact.STATUS_ACTIVE], label=_("Active"), url=reverse("contacts.contact_list")),
-            dict(count=counts[Contact.STATUS_BLOCKED], label=_("Blocked"), url=reverse("contacts.contact_blocked")),
-            dict(count=counts[Contact.STATUS_STOPPED], label=_("Stopped"), url=reverse("contacts.contact_stopped")),
-            dict(count=counts[Contact.STATUS_ARCHIVED], label=_("Archived"), url=reverse("contacts.contact_archived")),
-        ]
 
         # resolve the paginated object list so we can initialize a cache of URNs
         contacts = context["object_list"]
         Contact.bulk_urn_cache_initialize(contacts)
 
+        system_groups, smart_groups, manual_groups = self.get_groups(org)
+
         context["contacts"] = contacts
-        context["groups"] = self.get_groups(org)
-        context["folders"] = folders
+        context["system_groups"] = system_groups
+        context["smart_groups"] = smart_groups
+        context["manual_groups"] = manual_groups
         context["has_contacts"] = contacts or org.get_contact_count() > 0
         context["search_error"] = self.search_error
-        context["folder_count"] = counts[self.system_group] if self.system_group else None
 
         context["sort_direction"] = self.sort_direction
         context["sort_field"] = self.sort_field
@@ -370,24 +364,42 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
 
         return context
 
-    def get_groups(self, org):
-        groups = ContactGroup.get_groups(org).select_related("org").order_by(Upper("name"))
+    def get_groups(self, org) -> tuple:
+        # get all groups including status groups which one day will be regular smart+system groups
+        groups = org.groups.filter(is_active=True).select_related("org").order_by(Upper("name"))
         group_counts = ContactGroupCount.get_totals(groups)
 
-        rendered = []
-        for g in groups:
-            rendered.append(
-                {
-                    "pk": g.id,
-                    "uuid": g.uuid,
-                    "label": g.name,
-                    "count": group_counts[g],
-                    "is_smart": g.is_smart,
-                    "is_ready": g.status == ContactGroup.STATUS_READY,
-                }
-            )
+        system, smart, manual = [], [], []
 
-        return rendered
+        for group in groups:
+            obj = {
+                "id": group.id,
+                "name": group.name,
+                "count": group_counts[group],
+                "url": reverse("contacts.contact_filter", args=[group.uuid]),
+            }
+
+            if group.group_type == ContactGroup.TYPE_DB_ACTIVE:
+                obj.update({"name": _("Active"), "url": reverse("contacts.contact_list")})
+                system.append(obj)
+            elif group.group_type == ContactGroup.TYPE_DB_BLOCKED:
+                obj.update({"name": _("Blocked"), "url": reverse("contacts.contact_blocked")})
+                system.append(obj)
+            elif group.group_type == ContactGroup.TYPE_DB_STOPPED:
+                obj.update({"name": _("Stopped"), "url": reverse("contacts.contact_stopped")})
+                system.append(obj)
+            elif group.group_type == ContactGroup.TYPE_DB_ARCHIVED:
+                obj.update({"name": _("Archived"), "url": reverse("contacts.contact_archived")})
+                system.append(obj)
+            elif group.is_system:
+                system.append(obj)
+            elif group.group_type == ContactGroup.TYPE_SMART:
+                smart.append(obj)
+            else:
+                manual.append(obj)
+
+        # return system groups in the order we create them
+        return sorted(system, key=lambda g: g["id"]), smart, manual
 
 
 class ContactForm(forms.ModelForm):
@@ -1225,7 +1237,7 @@ class ContactCRUDL(SmartCRUDL):
             if self.has_org_perm("contacts.contactfield_list") and not is_spa:
                 links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
 
-            if self.has_org_perm("contacts.contactgroup_update"):
+            if not self.group.is_system and self.has_org_perm("contacts.contactgroup_update"):
                 links.append(
                     dict(
                         id="edit-group",
@@ -1254,7 +1266,7 @@ class ContactCRUDL(SmartCRUDL):
                 )
             )
 
-            if self.has_org_perm("contacts.contactgroup_delete"):
+            if not self.group.is_system and self.has_org_perm("contacts.contactgroup_delete"):
                 links.append(
                     dict(
                         id="delete-group",
@@ -1658,6 +1670,9 @@ class ContactGroupCRUDL(SmartCRUDL):
         success_url = "uuid@contacts.contact_filter"
         success_message = ""
 
+        def get_queryset(self):
+            return super().get_queryset().filter(is_system=False)
+
         def derive_fields(self):
             return ("name", "query") if self.get_object().is_smart else ("name",)
 
@@ -1687,6 +1702,9 @@ class ContactGroupCRUDL(SmartCRUDL):
         success_message = ""
         fields = ("uuid",)
         submit_button_name = _("Delete")
+
+        def get_queryset(self):
+            return super().get_queryset().filter(is_system=False)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

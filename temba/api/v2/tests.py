@@ -2935,6 +2935,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         self.create_field("isdeveloper", "Is developer")
+        open_tickets = self.org.groups.get(name="Open Tickets")
         customers = self.create_group("Customers", [self.frank])
         developers = self.create_group("Developers", query='isdeveloper = "YES"')
         ContactGroup.objects.filter(id=developers.id).update(status=ContactGroup.STATUS_READY)
@@ -2963,6 +2964,7 @@ class APITest(TembaTest):
                     "name": "Big Group",
                     "query": 'isdeveloper = "NO"',
                     "status": "evaluating",
+                    "system": False,
                     "count": 0,
                 },
                 {
@@ -2970,9 +2972,25 @@ class APITest(TembaTest):
                     "name": "Developers",
                     "query": 'isdeveloper = "YES"',
                     "status": "ready",
+                    "system": False,
                     "count": 0,
                 },
-                {"uuid": customers.uuid, "name": "Customers", "query": None, "status": "ready", "count": 1},
+                {
+                    "uuid": customers.uuid,
+                    "name": "Customers",
+                    "query": None,
+                    "status": "ready",
+                    "system": False,
+                    "count": 1,
+                },
+                {
+                    "uuid": open_tickets.uuid,
+                    "name": "Open Tickets",
+                    "query": "tickets > 0",
+                    "status": "ready",
+                    "system": True,
+                    "count": 0,
+                },
             ],
         )
 
@@ -2999,7 +3017,14 @@ class APITest(TembaTest):
         reporters = ContactGroup.objects.get(name="Reporters")
         self.assertEqual(
             response.json(),
-            {"uuid": reporters.uuid, "name": "Reporters", "query": None, "status": "ready", "count": 0},
+            {
+                "uuid": reporters.uuid,
+                "name": "Reporters",
+                "query": None,
+                "status": "ready",
+                "system": False,
+                "count": 0,
+            },
         )
 
         # try to create another group with same name
@@ -3029,7 +3054,12 @@ class APITest(TembaTest):
         reporters.refresh_from_db()
         self.assertEqual(reporters.name, "U-Reporters")
 
-        # can't update group from other org
+        # can't update a system group from other org
+        response = self.postJSON(url, "uuid=%s" % open_tickets.uuid, {"name": "Won't work"})
+        self.assertResponseError(response, "non_field_errors", "Cannot update a system group.")
+        self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
+
+        # can't update a group from other org
         response = self.postJSON(url, "uuid=%s" % spammers.uuid, {"name": "Won't work"})
         self.assert404(response)
 
@@ -3044,7 +3074,16 @@ class APITest(TembaTest):
         reporters.refresh_from_db()
         self.assertFalse(reporters.is_active)
 
-        # try to delete a group in another org
+        # can't delete a system group
+        response = self.deleteJSON(url, "uuid=%s" % open_tickets.uuid)
+        self.assertEqual(400, response.status_code)
+        self.assertEqual(
+            {"detail": "Cannot delete a system group."},
+            response.json(),
+        )
+        self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
+
+        # can't delete a group in another org
         response = self.deleteJSON(url, "uuid=%s" % spammers.uuid)
         self.assert404(response)
 
@@ -3066,7 +3105,7 @@ class APITest(TembaTest):
         self.assertResponseError(
             response,
             "non_field_errors",
-            "This org has 10 groups and the limit is 10. "
+            "This workspace has 10 groups and the limit is 10. "
             "You must delete existing ones before you can create new ones.",
         )
 
