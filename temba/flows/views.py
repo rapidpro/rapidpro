@@ -15,7 +15,6 @@ from smartmin.views import (
     SmartReadView,
     SmartTemplateView,
     SmartUpdateView,
-    smart_url,
 )
 
 from django import forms
@@ -43,7 +42,14 @@ from temba.flows.tasks import export_flow_results_task, update_session_wait_expi
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import IntegrationType, Org
-from temba.orgs.views import MenuMixin, ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import (
+    DependencyDeleteModal,
+    MenuMixin,
+    ModalMixin,
+    OrgFilterMixin,
+    OrgObjPermsMixin,
+    OrgPermsMixin,
+)
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
 from temba.utils.fields import CheckboxWidget, ContactSearchWidget, InputWidget, SelectMultipleWidget, SelectWidget
@@ -446,28 +452,10 @@ class FlowCRUDL(SmartCRUDL):
 
             return obj
 
-    class Delete(AllowOnlyActiveFlowMixin, ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        fields = ("id",)
+    class Delete(DependencyDeleteModal):
         cancel_url = "uuid@flows.flow_editor"
+        success_url = "@flows.flow_list"
         success_message = ""
-        submit_button_name = _("Delete")
-
-        def get_success_url(self):
-            return reverse("flows.flow_list")
-
-        def post(self, request, *args, **kwargs):
-            flow = self.get_object()
-            self.object = flow
-
-            flows = Flow.objects.filter(org=flow.org, flow_dependencies__in=[flow])
-            if flows.count():
-                return HttpResponseRedirect(smart_url(self.cancel_url, flow))
-
-            # do the actual deletion
-            flow.release(self.request.user)
-
-            # we can't just redirect so as to make our modal do the right thing
-            return self.render_modal_response()
 
     class Copy(OrgObjPermsMixin, SmartUpdateView):
         fields = []
@@ -1073,7 +1061,7 @@ class FlowCRUDL(SmartCRUDL):
                     dict(
                         id="delete-flow",
                         title=_("Delete"),
-                        href=f"{reverse('flows.flow_delete', args=[self.object.pk])}",
+                        href=f"{reverse('flows.flow_delete', args=[self.object.uuid])}",
                         modax=_("Delete Flow"),
                     )
                 )

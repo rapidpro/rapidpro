@@ -29,7 +29,7 @@ from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.msgs.models import Label
-from temba.orgs.models import Org
+from temba.orgs.models import DependencyMixin, Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
@@ -68,7 +68,7 @@ FLOW_LOCK_TTL = 60  # 1 minute
 FLOW_LOCK_KEY = "org:%d:lock:flow:%d:definition"
 
 
-class Flow(TembaModel):
+class Flow(TembaModel, DependencyMixin):
 
     CONTACT_CREATION = "contact_creation"
     CONTACT_PER_RUN = "run"
@@ -207,6 +207,8 @@ class Flow(TembaModel):
     ticketer_dependencies = models.ManyToManyField(Ticketer, related_name="dependent_flows")
     topic_dependencies = models.ManyToManyField(Topic, related_name="dependent_topics")
     user_dependencies = models.ManyToManyField(User, related_name="dependent_users")
+
+    soft_dependent_types = {"flow", "campaign_event", "trigger"}  # it's all soft for flows
 
     @classmethod
     def create(
@@ -980,11 +982,19 @@ class Flow(TembaModel):
             m2m.clear()
             m2m.add(*objects)
 
+    def get_dependents(self):
+        dependents = super().get_dependents()
+        dependents["campaign_event"] = self.campaign_events.filter(is_active=True)
+        dependents["trigger"] = self.triggers.filter(is_active=True)
+        return dependents
+
     def release(self, user, *, interrupt_sessions: bool = True):
         """
         Releases this flow, marking it inactive. We interrupt all flow runs in a background process.
         We keep FlowRevisions and FlowStarts however.
         """
+
+        super().release(user)
 
         self.is_active = False
         self.modified_by = user
