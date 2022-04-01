@@ -424,11 +424,36 @@ class TriggerTest(TembaTest):
 
         self.assertEqual(Trigger.objects.count(), 0)
         self.assertEqual(Schedule.objects.count(), 0)
-        self.assertEqual(ContactGroup.user_groups.count(), 1)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False).count(), 1)
         self.assertEqual(Flow.objects.count(), 1)
 
 
 class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_menu(self):
+
+        self.login(self.admin)
+        menu_url = reverse("triggers.trigger_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+        self.assertEqual(4, len(menu))
+
+        # create a trigger with no groups
+        create_url = reverse("triggers.trigger_create_keyword")
+        flow = self.create_flow("My Flow", flow_type=Flow.TYPE_MESSAGE)
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "start", "flow": flow.id, "match_type": "F"},
+            new_obj_query=Trigger.objects.filter(keyword="start", flow=flow),
+            success_status=200,
+        )
+
+        menu_url = reverse("triggers.trigger_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+
+        # our keyword trigger should force a keywords section
+        self.assertEqual(5, len(menu))
+
     def test_create(self):
         create_url = reverse("triggers.trigger_create")
         create_new_convo_url = reverse("triggers.trigger_create_new_conversation")
@@ -458,6 +483,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_create_keyword(self):
         create_url = reverse("triggers.trigger_create_keyword")
+        open_tickets = self.org.groups.get(name="Open Tickets")
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
         flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
 
@@ -479,8 +505,10 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
 
         # group options are any group
-        self.assertEqual([group1, group2], list(response.context["form"].fields["groups"].queryset))
-        self.assertEqual([group1, group2], list(response.context["form"].fields["exclude_groups"].queryset))
+        self.assertEqual([group1, group2, open_tickets], list(response.context["form"].fields["groups"].queryset))
+        self.assertEqual(
+            [group1, group2, open_tickets], list(response.context["form"].fields["exclude_groups"].queryset)
+        )
 
         # try a keyword with spaces
         self.assertCreateSubmit(
@@ -957,6 +985,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_create_catchall(self):
         create_url = reverse("triggers.trigger_create_catchall")
+        open_tickets = self.org.groups.get(name="Open Tickets")
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
         flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
 
@@ -978,7 +1007,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
 
         # group options are any group
-        self.assertEqual([group1, group2], list(response.context["form"].fields["groups"].queryset))
+        self.assertEqual([group1, group2, open_tickets], list(response.context["form"].fields["groups"].queryset))
 
         # create a trigger with no groups
         self.assertCreateSubmit(

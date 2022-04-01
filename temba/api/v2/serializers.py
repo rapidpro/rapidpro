@@ -487,6 +487,7 @@ class ClassifierReadSerializer(ReadSerializer):
 class ContactReadSerializer(ReadSerializer):
     name = serializers.SerializerMethodField()
     language = serializers.SerializerMethodField()
+    flow = fields.FlowField(source="current_flow")
     urns = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
     fields = serializers.SerializerMethodField("get_contact_fields")
@@ -512,7 +513,7 @@ class ContactReadSerializer(ReadSerializer):
         if not obj.is_active:
             return []
 
-        groups = obj.prefetched_user_groups if hasattr(obj, "prefetched_user_groups") else obj.user_groups.all()
+        groups = obj.prefetched_groups if hasattr(obj, "prefetched_groups") else obj.get_groups()
         return [{"uuid": g.uuid, "name": g.name} for g in groups]
 
     def get_contact_fields(self, obj):
@@ -539,6 +540,7 @@ class ContactReadSerializer(ReadSerializer):
             "urns",
             "groups",
             "fields",
+            "flow",
             "blocked",
             "stopped",
             "created_on",
@@ -738,9 +740,14 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
 class ContactGroupReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
+    system = serializers.ReadOnlyField(source="is_system")
     count = serializers.SerializerMethodField()
 
-    STATUSES = extract_constants(ContactGroup.STATUS_CONFIG)
+    STATUSES = {
+        ContactGroup.STATUS_INITIALIZING: "initializing",
+        ContactGroup.STATUS_EVALUATING: "evaluating",
+        ContactGroup.STATUS_READY: "ready",
+    }
 
     def get_status(self, obj):
         return self.STATUSES[obj.status]
@@ -751,14 +758,14 @@ class ContactGroupReadSerializer(ReadSerializer):
 
     class Meta:
         model = ContactGroup
-        fields = ("uuid", "name", "query", "status", "count")
+        fields = ("uuid", "name", "query", "status", "system", "count")
 
 
 class ContactGroupWriteSerializer(WriteSerializer):
     name = serializers.CharField(
         required=True,
         max_length=ContactGroup.MAX_NAME_LEN,
-        validators=[UniqueForOrgValidator(queryset=ContactGroup.user_groups.filter(is_active=True), ignore_case=True)],
+        validators=[UniqueForOrgValidator(queryset=ContactGroup.objects.filter(is_active=True), ignore_case=True)],
     )
 
     def validate_name(self, value):
@@ -768,14 +775,16 @@ class ContactGroupWriteSerializer(WriteSerializer):
 
     def validate(self, data):
         org = self.context["org"]
-        org_active_groups_limit = org.get_limit(Org.LIMIT_GROUPS)
+        group_limit = org.get_limit(Org.LIMIT_GROUPS)
 
-        group_count = ContactGroup.user_groups.filter(org=self.context["org"]).count()
-        if group_count >= org_active_groups_limit:
+        if self.instance and self.instance.is_system:
+            raise serializers.ValidationError("Cannot update a system group.")
+
+        group_count = ContactGroup.get_groups(org, user_only=True).count()
+        if group_count >= group_limit:
             raise serializers.ValidationError(
-                "This org has %s groups and the limit is %s. "
-                "You must delete existing ones before you can "
-                "create new ones." % (group_count, org_active_groups_limit)
+                f"This workspace has {group_count} groups and the limit is {group_limit}. "
+                f"You must delete existing ones before you can create new ones."
             )
         return data
 
@@ -877,7 +886,7 @@ class FlowReadSerializer(ReadSerializer):
         return self.FLOW_TYPES.get(obj.flow_type)
 
     def get_labels(self, obj):
-        return [{"uuid": l.uuid, "name": l.name} for l in obj.labels.all()]
+        return [{"uuid": lb.uuid, "name": lb.name} for lb in obj.labels.all()]
 
     def get_runs(self, obj):
         stats = obj.get_run_stats()
@@ -933,6 +942,9 @@ class FlowRunReadSerializer(ReadSerializer):
         return {"uuid": str(obj.start.uuid)} if obj.start else None
 
     def get_path(self, obj):
+        if not self.context["include_paths"]:
+            return None
+
         def convert_step(step):
             arrived_on = iso8601.parse_date(step[FlowRun.PATH_ARRIVED_ON])
             return {"node": step[FlowRun.PATH_NODE_UUID], "time": format_datetime(arrived_on)}
@@ -1183,10 +1195,9 @@ class MsgReadSerializer(ReadSerializer):
         Msg.STATUS_RESENT: "resent",
     }
     TYPES = {Msg.TYPE_INBOX: "inbox", Msg.TYPE_FLOW: "flow", Msg.TYPE_IVR: "ivr"}
-    VISIBILITIES = {
+    VISIBILITIES = {  # deleted messages should never be exposed over API
         Msg.VISIBILITY_VISIBLE: "visible",
         Msg.VISIBILITY_ARCHIVED: "archived",
-        Msg.VISIBILITY_DELETED: "deleted",
     }
 
     broadcast = serializers.SerializerMethodField()
@@ -1324,12 +1335,12 @@ class MsgBulkActionSerializer(WriteSerializer):
                 label.toggle_label(messages, add=False)
         else:
             for msg in messages:
-                if action == self.ARCHIVE:
+                if action == self.ARCHIVE and msg.visibility == Msg.VISIBILITY_VISIBLE:
                     msg.archive()
-                elif action == self.RESTORE:
+                elif action == self.RESTORE and msg.visibility == Msg.VISIBILITY_ARCHIVED:
                     msg.restore()
-                elif action == self.DELETE:
-                    msg.release()
+                elif action == self.DELETE and msg.visibility in (Msg.VISIBILITY_VISIBLE, Msg.VISIBILITY_ARCHIVED):
+                    msg.delete(soft=True)
 
         return BulkActionFailure(missing_message_ids) if missing_message_ids else None
 

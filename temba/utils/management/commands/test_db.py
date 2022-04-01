@@ -13,7 +13,7 @@ import pytz
 from django_redis import get_redis_connection
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core.management import BaseCommand, CommandError
 from django.db import connection
 from django.utils import timezone
@@ -166,7 +166,11 @@ class Command(BaseCommand):
         r.flushdb()
         self._log(self.style.SUCCESS("OK") + "\n")
 
+        # create root user and a customer support user
         superuser = User.objects.create_superuser("root", "root@nyaruka.com", password)
+
+        support = User.objects.create_user("support@nyaruka.com", "support@nyaruka.com", password, is_staff=True)
+        support.groups.add(Group.objects.get(name="Customer Support"))
 
         country, locations = self.load_locations(LOCATIONS_DUMP)
         orgs = self.create_orgs(superuser, country, num_orgs)
@@ -244,6 +248,7 @@ class Command(BaseCommand):
                     created_on=self.db_begins_on,
                     created_by=superuser,
                     modified_by=superuser,
+                    is_anon=(o % 2 != 0),  # org 1 non-anon, org 2 anon etc
                 )
             )
         Org.objects.bulk_create(orgs)
@@ -259,7 +264,9 @@ class Command(BaseCommand):
                 "users": [],
                 "fields": {},
                 "groups": [],
-                "system_groups": {g.group_type: g for g in ContactGroup.system_groups.filter(org=org)},
+                "status_groups": {
+                    g.group_type: g for g in org.groups.filter(group_type__in=ContactGroup.CONTACT_STATUS_TYPES)
+                },
             }
 
         self._log(self.style.SUCCESS("OK") + "\n")
@@ -391,9 +398,9 @@ class Command(BaseCommand):
             user = org.cache["users"][0]
             for g in GROUPS:
                 if g["query"]:
-                    group = ContactGroup.create_dynamic(org, user, g["name"], g["query"], evaluate=False)
+                    group = ContactGroup.create_smart(org, user, g["name"], g["query"], evaluate=False)
                 else:
-                    group = ContactGroup.create_static(org, user, g["name"])
+                    group = ContactGroup.create_manual(org, user, g["name"])
                 group.member = g["member"]
                 group.count = 0
                 org.cache["groups"].append(group)
@@ -436,7 +443,7 @@ class Command(BaseCommand):
         for org in orgs:
             user = org.cache["users"][0]
             for c in CAMPAIGNS:
-                group = ContactGroup.all_groups.get(org=org, name=c["group"])
+                group = org.groups.get(name=c["group"])
                 campaign = Campaign.objects.create(
                     name=c["name"], group=group, is_archived=False, org=org, created_by=user, modified_by=user
                 )
@@ -564,7 +571,7 @@ class Command(BaseCommand):
                     # work out which groups this contact belongs to
                     if c["is_active"]:
                         if c["status"] == Contact.STATUS_ACTIVE:
-                            c["groups"].append(org.cache["system_groups"][ContactGroup.TYPE_ACTIVE])
+                            c["groups"].append(org.cache["status_groups"][ContactGroup.TYPE_DB_ACTIVE])
 
                             # let each user group decide if it is taking this contact
                             for g in org.cache["groups"]:
@@ -572,9 +579,9 @@ class Command(BaseCommand):
                                     c["groups"].append(g)
 
                         elif c["status"] == Contact.STATUS_BLOCKED:
-                            c["groups"].append(org.cache["system_groups"][ContactGroup.TYPE_BLOCKED])
+                            c["groups"].append(org.cache["status_groups"][ContactGroup.TYPE_DB_BLOCKED])
                         elif c["status"] == Contact.STATUS_STOPPED:
-                            c["groups"].append(org.cache["system_groups"][ContactGroup.TYPE_STOPPED])
+                            c["groups"].append(org.cache["status_groups"][ContactGroup.TYPE_DB_STOPPED])
 
                     # track changes to group counts
                     for g in c["groups"]:

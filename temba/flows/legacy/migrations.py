@@ -469,7 +469,7 @@ def migrate_to_version_11_6(json_flow, flow=None):
 
             # we haven't been mapped yet (also, non-uuid groups can't be mapped)
             if "uuid" not in group or group["uuid"] not in uuid_map and group.get("name"):
-                group_instance = ContactGroup.get_user_group_by_name(flow.org, group["name"])
+                group_instance = ContactGroup.get_group_by_name(flow.org, group["name"])
                 if group_instance:
                     # map group references that started with a uuid
                     if "uuid" in group:
@@ -710,9 +710,9 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
         # figure out which rulesets are date or location
         for rs in flow.get("rule_sets", []):
             rs_type = None
-            for rule in rs.get("rules", []):
+            for rule in rs.get("rules", []):  # pragma: no cover
                 test = rule.get("test", {}).get("type")
-                if not test:  # pragma: no cover
+                if not test:
                     continue
                 elif test == "true":
                     continue
@@ -974,7 +974,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     def remap_group(ele):
         from temba.contacts.models import ContactGroup
 
-        return replace_with_uuid(ele, ContactGroup.user_groups, group_id_map, create_dict=True)
+        return replace_with_uuid(ele, ContactGroup.objects, group_id_map, create_dict=True)
 
     def remap_campaign(ele):
         from temba.campaigns.models import Campaign

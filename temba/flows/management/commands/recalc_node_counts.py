@@ -3,14 +3,17 @@ from collections import defaultdict
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from temba.flows.models import Flow, FlowNodeCount
+from temba.flows.models import Flow, FlowNodeCount, FlowRun
 
 
 def recalc_node_counts(flow):
     node_counts = defaultdict(int)
 
     all_runs = (
-        flow.runs.filter(is_active=True).exclude(current_node_uuid=None).only("id", "current_node_uuid").order_by("id")
+        flow.runs.filter(status__in=(FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING))
+        .exclude(current_node_uuid=None)
+        .only("id", "current_node_uuid")
+        .order_by("id")
     )
     max_id = 0
 

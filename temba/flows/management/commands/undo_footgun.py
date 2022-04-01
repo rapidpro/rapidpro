@@ -36,7 +36,7 @@ class Command(BaseCommand):
             if input(f"Undo {desc}? [y/N]: ") != "y":
                 return
 
-        self.stdout.write(f"Fetching run ids... ", ending="")
+        self.stdout.write("Fetching run ids... ", ending="")
         run_ids = list(start.runs.values_list("id", flat=True))
         self.stdout.write(f"found {len(run_ids)}")
 
@@ -84,7 +84,7 @@ class ContactGroupsChanged:
     def undo(self, contact: Contact, event: dict, dry_run: bool):
         uuids_added = [g["uuid"] for g in event.get("groups_added", [])]
         if uuids_added:
-            groups = ContactGroup.user_groups.filter(uuid__in=uuids_added)
+            groups = ContactGroup.objects.filter(uuid__in=uuids_added)
             memberships = ContactGroup.contacts.through.objects.filter(contact=contact, contactgroup__in=groups)
             if dry_run:
                 names = [m.contactgroup.name for m in memberships]
@@ -97,11 +97,11 @@ class ContactGroupsChanged:
 
         uuids_removed = [g["uuid"] for g in event.get("groups_removed", [])]
         if uuids_removed:
-            groups = ContactGroup.user_groups.filter(uuid__in=uuids_removed)
+            groups = ContactGroup.objects.filter(uuid__in=uuids_removed)
             if dry_run:
                 self.stdout.write(f"   - contact {contact.uuid} re-added to {', '.join([g.name for g in groups])}")
             else:
-                contact.all_groups.add(*groups)
+                contact.groups.add(*groups)
 
             for name in [g["name"] for g in event.get("groups_removed", [])]:
                 self.readds[name] += 1
@@ -115,4 +115,26 @@ class ContactGroupsChanged:
             self.stdout.write(f" > '{name}': {count}")
 
 
-UNDO_CLASSES = {"contact_groups_changed": ContactGroupsChanged}
+class ContactStatusChanged:
+    def __init__(self, stdout):
+        self.stdout = stdout
+        self.num_reverts = 0
+
+    def undo(self, contact: Contact, event: dict, dry_run: bool):
+        new_status = event["status"]
+        if dry_run:
+            self.stdout.write(f"   - contact {contact.uuid} reverted from {new_status} to active")
+        else:
+            contact.status = Contact.STATUS_ACTIVE
+            contact.save(update_fields=("status",))
+
+        self.num_reverts += 1
+
+    def print_summary(self):
+        self.stdout.write(f"Reverted contacts to active status: {self.num_reverts}")
+
+
+UNDO_CLASSES = {
+    "contact_groups_changed": ContactGroupsChanged,
+    "contact_status_changed": ContactStatusChanged,
+}

@@ -43,7 +43,7 @@
         %tr.campaign-event{valign:'center', data-event-id:'{{event.pk}}'}
 
           %td.whitespace-nowrap
-            %a(href="{% url 'campaigns.campaignevent_read' event.pk %}")
+            %a(href="{% url 'campaigns.campaignevent_read' event.campaign.uuid event.pk %}")
               {{ event.offset_display }} {{ event.relative_to.label }}
 
           %td.w-full

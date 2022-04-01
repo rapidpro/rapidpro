@@ -144,6 +144,13 @@ class TestClient(MailroomClient):
         org = Org.objects.get(id=org_id)
         user = get_anonymous_user()
 
+        try:
+            urn = URN.normalize(urn, org.default_country_code)
+            if not URN.validate(urn, org.default_country_code):
+                raise ValueError()
+        except ValueError:
+            raise MailroomException("contact/resolve", None, {"error": "invalid URN"})
+
         contact_urn = ContactURN.lookup(org, urn)
         if contact_urn:
             contact = contact_urn.contact
@@ -351,11 +358,13 @@ def apply_modifiers(org, user, contacts, modifiers: list):
         contacts.update(modified_by=user, modified_on=timezone.now(), **fields)
         if clear_groups:
             for c in contacts:
-                for g in c.user_groups.all():
+                for g in c.get_groups():
                     g.contacts.remove(c)
 
 
-def create_contact_locally(org, user, name, language, urns, fields, group_uuids, last_seen_on=None):
+def create_contact_locally(
+    org, user, name, language, urns, fields, group_uuids, status=Contact.STATUS_ACTIVE, last_seen_on=None
+):
     orphaned_urns = {}
 
     for urn in urns:
@@ -373,6 +382,7 @@ def create_contact_locally(org, user, name, language, urns, fields, group_uuids,
         created_by=user,
         modified_by=user,
         created_on=timezone.now(),
+        status=status,
         last_seen_on=last_seen_on,
     )
     update_urns_locally(contact, urns)
@@ -418,7 +428,7 @@ def update_field_locally(user, contact, key, value, label=None):
             )
 
     # very simplified version of mailroom's campaign event scheduling
-    events = CampaignEvent.objects.filter(relative_to=field, campaign__group__in=contact.user_groups.all())
+    events = CampaignEvent.objects.filter(relative_to=field, campaign__group__in=contact.groups.all())
     for event in events:
         EventFire.objects.filter(contact=contact, event=event).delete()
         date_value = parse_datetime(org, value)
@@ -467,9 +477,9 @@ def update_urns_locally(contact, urns: list[str]):
 
 
 def update_groups_locally(contact, group_uuids, add: bool):
-    groups = ContactGroup.user_groups.filter(uuid__in=group_uuids)
+    groups = ContactGroup.objects.filter(uuid__in=group_uuids)
     for group in groups:
-        assert not group.is_dynamic, "can't add/remove contacts from smart groups"
+        assert group.group_type == ContactGroup.TYPE_MANUAL, "can only add/remove contacts to/from manual groups"
         if add:
             group.contacts.add(contact)
         else:

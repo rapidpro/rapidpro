@@ -19,10 +19,9 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, models, transaction
 from django.db.models import Count, F, Max, Q, Sum, Value
-from django.db.models.functions import Concat
-from django.db.models.functions.text import Upper
+from django.db.models.functions import Concat, Lower
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
@@ -70,10 +69,12 @@ class URN:
     FRESHCHAT_SCHEME = "freshchat"
     ROCKETCHAT_SCHEME = "rocketchat"
     DISCORD_SCHEME = "discord"
+    INSTAGRAM_SCHEME = "instagram"
 
     SCHEME_CHOICES = (
         (TEL_SCHEME, _("Phone number")),
         (FACEBOOK_SCHEME, _("Facebook identifier")),
+        (INSTAGRAM_SCHEME, _("Instagram identifier")),
         (TWITTER_SCHEME, _("Twitter handle")),
         (TWITTERID_SCHEME, _("Twitter ID")),
         (VIBER_SCHEME, _("Viber identifier")),
@@ -187,8 +188,8 @@ class URN:
             except ValidationError:
                 return False
 
-        # facebook uses integer ids or temp ref ids
-        elif scheme == cls.FACEBOOK_SCHEME:
+        # facebook use integer ids or temp ref ids
+        elif scheme in [cls.FACEBOOK_SCHEME]:
             # we don't validate facebook refs since they come from the outside
             if URN.is_path_fb_ref(path):
                 return True
@@ -201,8 +202,8 @@ class URN:
                 except ValueError:
                     return False
 
-        # telegram and whatsapp use integer ids
-        elif scheme in [cls.TELEGRAM_SCHEME, cls.WHATSAPP_SCHEME]:
+        # telegram, whatsapp and instagram use integer ids
+        elif scheme in [cls.TELEGRAM_SCHEME, cls.WHATSAPP_SCHEME, cls.INSTAGRAM_SCHEME]:
             return regex.match(r"^[0-9]+$", path, regex.V0)
 
         # validate Viber URNS look right (this is a guess)
@@ -665,7 +666,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     fields = JSONField(null=True)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
-
+    current_flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
     ticket_count = models.IntegerField(default=0)
 
     # user that last modified this contact
@@ -690,6 +691,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     UUID = "uuid"
     GROUPS = "groups"
     ID = "id"
+    SCHEME = "scheme"
 
     RESERVED_ATTRIBUTES = {
         ID,
@@ -698,6 +700,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         LANGUAGE,
         GROUPS,
         UUID,
+        SCHEME,
         CREATED_ON,
         "created_by",
         "modified_by",
@@ -730,7 +733,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Resolves a contact and URN from a channel interaction. Only used for relayer endpoints.
         """
-        response = mailroom.get_client().contact_resolve(channel.org_id, channel.id, urn)
+        try:
+            response = mailroom.get_client().contact_resolve(channel.org_id, channel.id, urn)
+        except mailroom.MailroomException as e:
+            raise ValueError(e.response.get("error"))
+
         contact = Contact.objects.get(id=response["contact"]["id"])
         contact_urn = ContactURN.objects.get(id=response["urn"]["id"])
         return contact, contact_urn
@@ -742,18 +749,19 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         return "%010d" % self.id
 
-    @property
-    def user_groups(self):
+    @classmethod
+    def get_status_counts(cls, org) -> dict:
         """
-        Define Contact.user_groups to only refer to user groups
+        Returns the counts for each contact status for the given org
         """
-        return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
+        groups = org.groups.filter(group_type__in=ContactGroup.CONTACT_STATUS_TYPES)
+        return {g.group_type: count for g, count in ContactGroupCount.get_totals(groups).items()}
 
     def get_scheduled_messages(self):
         from temba.msgs.models import SystemLabel
 
         contact_urns = self.get_urns()
-        contact_groups = self.user_groups.all()
+        contact_groups = self.groups.all()
         now = timezone.now()
 
         scheduled_broadcasts = SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED)
@@ -772,12 +780,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.flows.models import FlowExit
         from temba.ivr.models import IVRCall
         from temba.mailroom.events import get_event_time
-        from temba.msgs.models import Msg
         from temba.tickets.models import TicketEvent
 
         msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
-            .exclude(visibility=Msg.VISIBILITY_DELETED)
             .order_by("-created_on")
             .select_related("channel", "contact_urn", "broadcast")
             .prefetch_related("channel_logs")[:limit]
@@ -979,9 +985,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Updates the static groups for this contact to match the provided list
         """
-        assert not [g for g in groups if g.is_dynamic], "can't update membership of a dynamic group"
+        assert all([g for g in groups if g.group_type == ContactGroup.TYPE_MANUAL]), "can only update manual groups"
 
-        current = self.user_groups.filter(query=None)
+        current = self.groups.filter(group_type=ContactGroup.TYPE_MANUAL)
 
         # figure out our diffs, what groups need to be added or removed
         to_remove = [g for g in current if g not in groups]
@@ -1083,7 +1089,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     def block(self, user):
         """
-        Blocks this contact removing it from all non-dynamic groups
+        Blocks this contact removing it from all non-smart groups
         """
 
         Contact.bulk_change_status(user, [self], modifiers.Status.BLOCKED)
@@ -1099,7 +1105,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     def archive(self, user):
         """
-        Blocks this contact removing it from all non-dynamic groups
+        Blocks this contact removing it from all non-smart groups
         """
 
         Contact.bulk_change_status(user, [self], modifiers.Status.ARCHIVED)
@@ -1107,16 +1113,19 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     def restore(self, user):
         """
-        Restores a contact to active, re-adding them to any dynamic groups they belong to
+        Restores a contact to active, re-adding them to any smart groups they belong to
         """
 
         Contact.bulk_change_status(user, [self], modifiers.Status.ACTIVE)
         self.refresh_from_db()
 
-    def release(self, user, *, full=True, immediately=False):
+    def release(self, user, *, immediately=False):
         """
-        Marks this contact for deletion
+        Releases this contact. Note that we clear all identifying data but don't hard delete the contact because we need
+        to expose deleted contacts over the API to allow external systems to know that contacts have been deleted.
         """
+        from .tasks import full_release_contact
+
         with transaction.atomic():
             # prep our urns for deletion so our old path creates a new urn
             for urn in self.urns.all():
@@ -1127,8 +1136,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 urn.channel = None
                 urn.save(update_fields=("identity", "path", "scheme", "channel"))
 
-            # remove from all static and dynamic groups
-            for group in self.user_groups.all():
+            # remove from non-db trigger groups
+            for group in self.get_groups():
                 group.contacts.remove(self)
 
             # delete any unfired campaign event fires
@@ -1145,23 +1154,25 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.modified_by = user
             self.save(update_fields=("name", "is_active", "fields", "modified_by", "modified_on"))
 
-        # if we are removing everything do so
-        if full:
-            if immediately:
-                self._full_release()
-            else:
-                from .tasks import full_release_contact
-
-                full_release_contact.delay(self.id)
+        # the hard work of removing everything this contact owns can be given to a celery task
+        if immediately:
+            self._full_release()
+        else:
+            on_transaction_commit(lambda: full_release_contact.delay(self.id))
 
     def _full_release(self):
+        """
+        Deletes everything owned by this contact
+        """
+
         with transaction.atomic():
-            self.ticket_events.all().delete()
-            self.tickets.all().delete()
+            # release our tickets
+            for ticket in self.tickets.all():
+                ticket.delete()
 
             # release our messages
             for msg in self.msgs.all():
-                msg.release()
+                msg.delete()
 
             # any urns currently owned by us
             for urn in self.urns.all():
@@ -1170,7 +1181,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 # these could include messages that began life
                 # on a different contact
                 for msg in urn.msgs.all():
-                    msg.release()
+                    msg.delete()
 
                 # same thing goes for connections
                 for conn in urn.connections.all():
@@ -1182,12 +1193,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for event in self.channel_events.all():  # pragma: needs cover
                 event.release()
 
-            # release our runs too
             for run in self.runs.all():
-                run.release()
+                run.delete(interrupt=False)  # don't try interrupting sessions that are about to be deleted
 
             for session in self.sessions.all():
-                session.release()
+                session.delete()
 
             for conn in self.connections.all():  # pragma: needs cover
                 conn.release()
@@ -1223,6 +1233,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             contact = contact_map[urn.contact_id]
             urn.org = contact.org
             getattr(contact, "_urns_cache").append(urn)
+
+    def get_groups(self, *, manual_only=False):
+        """
+        Gets the groups that this contact is a member of, excluding the status groups.
+        """
+        types = (ContactGroup.TYPE_MANUAL,) if manual_only else (ContactGroup.TYPE_MANUAL, ContactGroup.TYPE_SMART)
+        return self.groups.filter(group_type__in=types, is_active=True)
 
     def get_urns(self):
         """
@@ -1303,7 +1320,12 @@ class ContactURN(models.Model):
     """
 
     # schemes that support "new conversation" triggers
-    SCHEMES_SUPPORTING_NEW_CONVERSATION = {URN.FACEBOOK_SCHEME, URN.VIBER_SCHEME, URN.TELEGRAM_SCHEME}
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {
+        URN.FACEBOOK_SCHEME,
+        URN.VIBER_SCHEME,
+        URN.TELEGRAM_SCHEME,
+        URN.INSTAGRAM_SCHEME,
+    }
     SCHEMES_SUPPORTING_REFERRALS = {URN.FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     # mailroom sets priorites like 1000, 999, ...
@@ -1450,74 +1472,50 @@ class ContactURN(models.Model):
         ]
 
 
-class SystemContactGroupManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().exclude(group_type=ContactGroup.TYPE_USER_DEFINED)
-
-
-class UserContactGroupManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED, is_active=True)
-
-
 class ContactGroup(TembaModel, DependencyMixin):
     """
-    A static or dynamic group of contacts
+    A group of contacts whose membership can be manual or query based
     """
 
     MAX_NAME_LEN = 64
 
-    TYPE_ACTIVE = "A"
-    TYPE_BLOCKED = "B"
-    TYPE_STOPPED = "S"
-    TYPE_ARCHIVED = "V"
-    TYPE_USER_DEFINED = "U"
-
+    TYPE_DB_ACTIVE = "A"  # maintained by db trigger on status=A
+    TYPE_DB_BLOCKED = "B"  # maintained by db trigger on status=B
+    TYPE_DB_STOPPED = "S"  # maintained by db trigger on status=S
+    TYPE_DB_ARCHIVED = "V"  # maintained by db trigger on status=V
+    TYPE_MANUAL = "M"  # manual membership changes
+    TYPE_SMART = "Q"  # maintained by engine using query
     TYPE_CHOICES = (
-        (TYPE_ACTIVE, "Active"),
-        (TYPE_BLOCKED, "Blocked"),
-        (TYPE_STOPPED, "Stopped"),
-        (TYPE_ARCHIVED, "Archived"),
-        (TYPE_USER_DEFINED, "User Defined Groups"),
+        (TYPE_DB_ACTIVE, "Active"),
+        (TYPE_DB_BLOCKED, "Blocked"),
+        (TYPE_DB_STOPPED, "Stopped"),
+        (TYPE_DB_ARCHIVED, "Archived"),
+        (TYPE_MANUAL, "Manual"),
+        (TYPE_SMART, "Smart"),
     )
+
+    CONTACT_STATUS_TYPES = [TYPE_DB_ACTIVE, TYPE_DB_BLOCKED, TYPE_DB_STOPPED, TYPE_DB_ARCHIVED]
 
     STATUS_INITIALIZING = "I"  # group has been created but not yet (re)evaluated
     STATUS_EVALUATING = "V"  # a task is currently (re)evaluating this group
     STATUS_READY = "R"  # group is ready for use
-
-    # single char flag, human readable name, API readable name
-    STATUS_CONFIG = (
-        (STATUS_INITIALIZING, _("Initializing"), "initializing"),
-        (STATUS_EVALUATING, _("Evaluating"), "evaluating"),
-        (STATUS_READY, _("Ready"), "ready"),
+    STATUS_CHOICES = (
+        (STATUS_INITIALIZING, _("Initializing")),
+        (STATUS_EVALUATING, _("Evaluating")),
+        (STATUS_READY, _("Ready")),
     )
 
-    STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
-
-    REEVALUATE_LOCK_KEY = "contactgroup_reevaluating_%d"
-
-    EXPORT_UUID = "uuid"
-    EXPORT_NAME = "name"
-    EXPORT_QUERY = "query"
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="all_groups")
-
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="groups")
     name = models.CharField(max_length=MAX_NAME_LEN)
-
-    group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED)
-
+    group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MANUAL)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
+    contacts = models.ManyToManyField(Contact, related_name="groups")
 
-    contacts = models.ManyToManyField(Contact, related_name="all_groups")
+    is_system = models.BooleanField()  # not user created, doesn't count against limits
 
     # fields used by smart groups
     query = models.TextField(null=True)
     query_fields = models.ManyToManyField(ContactField, related_name="dependent_groups")
-
-    # define some custom managers to do the filtering of user / system groups for us
-    all_groups = models.Manager()
-    system_groups = SystemContactGroupManager()
-    user_groups = UserContactGroupManager()
 
     @classmethod
     def create_system_groups(cls, org):
@@ -1525,64 +1523,82 @@ class ContactGroup(TembaModel, DependencyMixin):
         Creates our system groups for the given organization so that we can keep track of counts etc..
         """
 
-        assert not org.all_groups(manager="system_groups").exists(), "org already has system groups"
+        assert not org.groups.filter(is_system=True).exists(), "org already has system groups"
 
-        org.all_groups.create(
+        org.groups.create(
             name="Active",
-            group_type=ContactGroup.TYPE_ACTIVE,
+            group_type=ContactGroup.TYPE_DB_ACTIVE,
+            is_system=True,
+            status=cls.STATUS_READY,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
-        org.all_groups.create(
+        org.groups.create(
             name="Blocked",
-            group_type=ContactGroup.TYPE_BLOCKED,
+            group_type=ContactGroup.TYPE_DB_BLOCKED,
+            is_system=True,
+            status=cls.STATUS_READY,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
-        org.all_groups.create(
+        org.groups.create(
             name="Stopped",
-            group_type=ContactGroup.TYPE_STOPPED,
+            group_type=ContactGroup.TYPE_DB_STOPPED,
+            is_system=True,
+            status=cls.STATUS_READY,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
-        org.all_groups.create(
+        org.groups.create(
             name="Archived",
-            group_type=ContactGroup.TYPE_ARCHIVED,
+            group_type=ContactGroup.TYPE_DB_ARCHIVED,
+            is_system=True,
+            status=cls.STATUS_READY,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
+        if settings.TESTING:  # TODO enable for production
+            org.groups.create(
+                name="Open Tickets",
+                group_type=ContactGroup.TYPE_SMART,
+                is_system=True,
+                query="tickets > 0",
+                status=cls.STATUS_READY,  # since this group will always be empty for new orgs
+                created_by=org.created_by,
+                modified_by=org.modified_by,
+            )
 
     @classmethod
-    def get_user_group_by_name(cls, org, name):
+    def get_groups(cls, org: Org, *, manual_only=False, user_only=False, ready_only=False):
+        """
+        Gets the groups (excluding db trigger based status groups) for the given org
+        """
+        types = (cls.TYPE_MANUAL,) if manual_only else (cls.TYPE_MANUAL, cls.TYPE_SMART)
+        groups = cls.objects.filter(org=org, group_type__in=types, is_active=True)
+
+        if user_only:
+            groups = groups.filter(is_system=False)
+        if ready_only:
+            groups = groups.filter(status=cls.STATUS_READY)
+
+        return groups
+
+    @classmethod
+    def get_group_by_name(cls, org, name):
         """
         Returns the user group with the passed in name
         """
-        return cls.user_groups.filter(name__iexact=cls.clean_name(name), org=org, is_active=True).first()
-
-    @classmethod
-    def get_user_groups(cls, org, dynamic=None, ready_only=True):
-        """
-        Gets all user groups for the given org - optionally filtering by dynamic vs static
-        """
-        groups = cls.user_groups.filter(org=org, is_active=True)
-        if dynamic is not None:
-            groups = groups.filter(query=None) if dynamic is False else groups.exclude(query=None)
-        if ready_only:
-            groups = groups.filter(status=ContactGroup.STATUS_READY)
-
-        # put our dynamic groups first, then alpha sort
-        groups = groups.annotate(has_query=Count("query")).select_related("org").order_by("-has_query", Upper("name"))
-        return groups
+        return cls.get_groups(org).filter(name__iexact=cls.clean_name(name)).first()
 
     @classmethod
     def get_or_create(cls, org, user, name, query=None, uuid=None, parsed_query=None):
         existing = None
 
         if uuid:
-            existing = ContactGroup.user_groups.filter(uuid=uuid, org=org, is_active=True).first()
+            existing = org.groups.filter(uuid=uuid, is_active=True).first()
 
         if not existing and name:
-            existing = ContactGroup.get_user_group_by_name(org, name)
+            existing = cls.get_group_by_name(org, name)
 
         if existing:
             return existing
@@ -1590,24 +1606,23 @@ class ContactGroup(TembaModel, DependencyMixin):
         assert name, "can't create group without a name"
 
         if query:
-            return cls.create_dynamic(org, user, name, query, parsed_query=parsed_query)
+            return cls.create_smart(org, user, name, query, parsed_query=parsed_query)
         else:
-            return cls.create_static(org, user, name)
+            return cls.create_manual(org, user, name)
 
     @classmethod
-    def create_static(cls, org, user, name, *, status=STATUS_READY):
+    def create_manual(cls, org, user, name, *, status=STATUS_READY):
         """
-        Creates a static group whose members will be manually added and removed
+        Creates a manual group whose members will be manually added and removed
         """
         return cls._create(org, user, name, status=status)
 
     @classmethod
-    def create_dynamic(cls, org, user, name, query, evaluate=True, parsed_query=None):
+    def create_smart(cls, org, user, name, query, evaluate=True, parsed_query=None):
         """
-        Creates a dynamic group with the given query, e.g. gender=M
+        Creates a smart group with the given query, e.g. gender=M
         """
-        if not query:
-            raise ValueError("Query cannot be empty for a smart group")
+        assert query, "query can't be empty for a smart group"
 
         group = cls._create(org, user, name, ContactGroup.STATUS_INITIALIZING, query=query)
         group.update_query(query=query, reevaluate=evaluate, parsed=parsed_query)
@@ -1623,8 +1638,15 @@ class ContactGroup(TembaModel, DependencyMixin):
         # look for name collision and append count if necessary
         name = cls.get_unique_name(org, base_name=name)
 
-        return cls.user_groups.create(
-            org=org, name=name, query=query, status=status, created_by=user, modified_by=user
+        return cls.objects.create(
+            org=org,
+            name=name,
+            group_type=cls.TYPE_SMART if query else cls.TYPE_MANUAL,
+            is_system=False,
+            query=query,
+            status=status,
+            created_by=user,
+            modified_by=user,
         )
 
     @classmethod
@@ -1632,7 +1654,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         count = 0
         while True:
             name = f"{base_name} {count}" if count else base_name
-            if not cls.get_user_group_by_name(org, name):
+            if not org.groups.filter(name=name).exists():
                 return name
             count += 1
 
@@ -1669,17 +1691,17 @@ class ContactGroup(TembaModel, DependencyMixin):
 
     @property
     def icon(self) -> str:
-        return "atom" if self.is_dynamic else "users"
+        return "atom" if self.group_type == self.TYPE_SMART else "users"
 
-    def get_icon(self):
-        return self.icon
+    def get_attrs(self):
+        return {"icon": self.icon}
 
     def update_query(self, query, reevaluate=True, parsed=None):
         """
-        Updates the query for a dynamic group
+        Updates the query for a smart group
         """
 
-        if not self.is_dynamic:
+        if self.group_type != self.TYPE_SMART:
             raise ValueError("Cannot update query on a non-smart group")
         if self.status == ContactGroup.STATUS_EVALUATING:
             raise ValueError("Cannot update query on a group which is currently re-evaluating")
@@ -1713,17 +1735,6 @@ class ContactGroup(TembaModel, DependencyMixin):
         if reevaluate:
             on_transaction_commit(lambda: queue_populate_dynamic_group(self))
 
-    @classmethod
-    def get_system_group_counts(cls, org, group_types=None):
-        """
-        Gets all system label counts by type for the given org
-        """
-        groups = cls.system_groups.filter(org=org)
-        if group_types:
-            groups = groups.filter(group_type__in=group_types)
-
-        return {g.group_type: g.get_member_count() for g in groups}
-
     def get_member_count(self):
         """
         Returns the number of active and non-test contacts in the group
@@ -1735,19 +1746,23 @@ class ContactGroup(TembaModel, DependencyMixin):
         dependents["campaign"] = self.campaigns.filter(is_active=True)
         return dependents
 
-    def release(self, user):
+    def release(self, user, immediate: bool = False):
         """
         Releases this group, removing all contacts and marking as inactive
         """
 
         from .tasks import release_group_task
 
+        self.name = f"deleted-{uuid4()}-{self.name}"[: self.MAX_NAME_LEN]
         self.is_active = False
         self.modified_by = user
-        self.save(update_fields=("is_active", "modified_by"))
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
-        # do the hard work of actually clearing out contacts etc in a background task
-        on_transaction_commit(lambda: release_group_task.delay(self.id))
+        if immediate:
+            self._full_release()
+        else:
+            # do the hard work of actually clearing out contacts etc in a background task
+            on_transaction_commit(lambda: release_group_task.delay(self.id))
 
     def _full_release(self):
         from temba.campaigns.models import EventFire
@@ -1782,7 +1797,7 @@ class ContactGroup(TembaModel, DependencyMixin):
             EventFire.objects.filter(id__in=id_batch).delete()
 
     @property
-    def is_dynamic(self):
+    def is_smart(self):
         return self.query is not None
 
     @property
@@ -1798,9 +1813,9 @@ class ContactGroup(TembaModel, DependencyMixin):
         """
 
         for group_def in group_defs:
-            group_uuid = group_def.get(ContactGroup.EXPORT_UUID)
-            group_name = group_def.get(ContactGroup.EXPORT_NAME)
-            group_query = group_def.get(ContactGroup.EXPORT_QUERY)
+            group_uuid = group_def.get("uuid")
+            group_name = group_def.get("name")
+            group_query = group_def.get("query")
 
             parsed_query = None
             if group_query:
@@ -1815,14 +1830,10 @@ class ContactGroup(TembaModel, DependencyMixin):
             dependency_mapping[group_uuid] = str(group.uuid)
 
     def as_export_ref(self):
-        return {ContactGroup.EXPORT_UUID: str(self.uuid), ContactGroup.EXPORT_NAME: self.name}
+        return {"uuid": str(self.uuid), "name": self.name}
 
     def as_export_def(self):
-        return {
-            ContactGroup.EXPORT_UUID: str(self.uuid),
-            ContactGroup.EXPORT_NAME: self.name,
-            ContactGroup.EXPORT_QUERY: self.query,
-        }
+        return {"uuid": str(self.uuid), "name": self.name, "query": self.query}
 
     def __str__(self):
         return self.name
@@ -1830,6 +1841,8 @@ class ContactGroup(TembaModel, DependencyMixin):
     class Meta:
         verbose_name = _("Group")
         verbose_name_plural = _("Groups")
+
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_contact_group_names")]
 
 
 class ContactGroupCount(SquashableModel):
@@ -1842,13 +1855,6 @@ class ContactGroupCount(SquashableModel):
 
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
-
-    COUNTED_TYPES = [
-        ContactGroup.TYPE_ACTIVE,
-        ContactGroup.TYPE_BLOCKED,
-        ContactGroup.TYPE_STOPPED,
-        ContactGroup.TYPE_ARCHIVED,
-    ]
 
     @classmethod
     def get_squash_query(cls, distinct_set):
@@ -1865,14 +1871,7 @@ class ContactGroupCount(SquashableModel):
         return sql, (distinct_set.group_id,) * 2
 
     @classmethod
-    def total_for_org(cls, org):
-        count = cls.objects.filter(group__org=org, group__group_type__in=ContactGroupCount.COUNTED_TYPES).aggregate(
-            count=Sum("count")
-        )
-        return count["count"] if count["count"] else 0
-
-    @classmethod
-    def get_totals(cls, groups):
+    def get_totals(cls, groups) -> dict:
         """
         Gets total counts for all the given groups
         """
@@ -1929,7 +1928,10 @@ class ExportContactsTask(BaseExportTask):
 
         # anon orgs also get an ID column that is just the PK
         if self.org.is_anon:
-            fields = [dict(label="ID", key=ContactField.KEY_ID, field=None, urn_scheme=None)] + fields
+            fields = [
+                dict(label="ID", key=ContactField.KEY_ID, field=None, urn_scheme=None),
+                dict(label="Scheme", key=Contact.SCHEME, field=None, urn_scheme=None),
+            ] + fields
 
         scheme_counts = dict()
         if not self.org.is_anon:
@@ -2003,7 +2005,7 @@ class ExportContactsTask(BaseExportTask):
         for batch_ids in chunk_list(contact_ids, 1000):
             # fetch all the contacts for our batch
             batch_contacts = (
-                Contact.objects.filter(id__in=batch_ids).prefetch_related("org", "all_groups").using("readonly")
+                Contact.objects.filter(id__in=batch_ids).prefetch_related("org", "groups").using("readonly")
             )
 
             # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
@@ -2021,7 +2023,7 @@ class ExportContactsTask(BaseExportTask):
 
                 group_values = []
                 if include_group_memberships:
-                    contact_groups_ids = [g.id for g in contact.all_groups.all()]
+                    contact_groups_ids = [g.id for g in contact.groups.all()]
                     for col in range(len(group_fields)):
                         field = group_fields[col]
                         group_values.append(field["group_id"] in contact_groups_ids)
@@ -2065,6 +2067,9 @@ class ExportContactsTask(BaseExportTask):
             return contact.last_seen_on
         elif field["key"] == ContactField.KEY_ID:
             return str(contact.id)
+        elif field["key"] == Contact.SCHEME:
+            contact_urns = contact.get_urns()
+            return contact_urns[0].scheme if contact_urns else ""
         elif field["urn_scheme"] is not None:
             contact_urns = contact.get_urns()
             scheme_urns = []
@@ -2146,6 +2151,7 @@ class ContactImport(SmartModel):
         seen_uuids = set()
         seen_urns = set()
         num_records = 0
+
         for raw_row in data:
             row = cls._parse_row(raw_row, len(mappings))
             uuid, urns = cls._extract_uuid_and_urns(row, mappings)
@@ -2162,8 +2168,10 @@ class ContactImport(SmartModel):
                     )
                 seen_urns.add(urn)
 
+            if uuid or urns:  # if we have a UUID or URN on this row it's an importable record
+                num_records += 1
+
             # check if we exceed record limit
-            num_records += 1
             if num_records > ContactImport.MAX_RECORDS:
                 raise ValidationError(
                     _("Import files can contain a maximum of %(max)d records."),
@@ -2311,7 +2319,7 @@ class ContactImport(SmartModel):
 
         # if user wants contacts added to a new group, create it
         if self.group_name and not self.group:
-            self.group = ContactGroup.create_static(self.org, self.created_by, name=self.group_name)
+            self.group = ContactGroup.create_manual(self.org, self.created_by, name=self.group_name)
             self.save(update_fields=("group",))
 
         # CSV reader expects str stream so wrap file
@@ -2323,20 +2331,12 @@ class ContactImport(SmartModel):
 
         urns = []
         batches = []
-        record_num = 0
-        for row_batch in chunk_list(data, ContactImport.BATCH_SIZE):
-            batch_specs = []
-            batch_start = record_num
 
-            for raw_row in row_batch:
-                row = self._parse_row(raw_row, len(self.mappings), tz=self.org.timezone)
-                spec = self._row_to_spec(row)
-                batch_specs.append(spec)
-                record_num += 1
+        for batch_specs, batch_start, batch_end in self._batches_generator(data):
+            batches.append(self.batches.create(specs=batch_specs, record_start=batch_start, record_end=batch_end))
 
+            for spec in batch_specs:
                 urns.extend(spec.get("urns", []))
-
-            batches.append(self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num))
 
         # set redis key which mailroom batch tasks can decrement to know when import has completed
         r = get_redis_connection()
@@ -2349,6 +2349,33 @@ class ContactImport(SmartModel):
         # flag org if the set of imported URNs looks suspicious
         if not self.org.is_verified() and self._detect_spamminess(urns):
             self.org.flag()
+
+    def _batches_generator(self, row_iter):
+        """
+        Generator which takes an iterable of raw rows and returns tuples of 1. a batches of specs, 2. the record index
+        at which the batch starts, 3. the record number at which the batch ends
+        """
+        record = 0
+        batch_specs = []
+        batch_start = record
+        row = 1  # 1-based rows like Excel uses
+
+        for raw_row in row_iter:
+            row_data = self._parse_row(raw_row, len(self.mappings), tz=self.org.timezone)
+            spec = self._row_to_spec(row_data)
+            row += 1
+            if spec:
+                spec["_import_row"] = row
+                batch_specs.append(spec)
+                record += 1
+
+            if len(batch_specs) == ContactImport.BATCH_SIZE:
+                yield batch_specs, batch_start, record
+                batch_specs = []
+                batch_start = record
+
+        if batch_specs:
+            yield batch_specs, batch_start, record
 
     def get_info(self):
         """
@@ -2441,6 +2468,10 @@ class ContactImport(SmartModel):
                     spec["fields"] = {}
                 key = mapping["key"]
                 spec["fields"][key] = value
+
+        # Make sure the row has a UUID or URNs
+        if not spec.get("uuid", "") and not spec.get("urns", []):
+            return {}
 
         return spec
 

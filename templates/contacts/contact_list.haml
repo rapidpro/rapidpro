@@ -85,12 +85,12 @@
               -trans "Import Contacts"
 
           .lp-nav.upper
-            -for folder in folders
-              .lp-nav-item(class="{% if request.path == folder.url %}font-normal selected{% endif %}")
-                .name(onclick="goto(event)" href='{{folder.url}}')
-                  {{folder.label}}
-                .count(onclick="goto(event)" href='{{folder.url}}')
-                  {{ folder.count | intcomma }}
+            -for group in system_groups
+              .lp-nav-item(onclick="goto(event)" href='{{ group.url }}' class="{% if request.path == group.url %}font-normal selected{% endif %}")
+                .name.pointer-events-none
+                  {{ group.name }}
+                .count.pointer-events-none
+                  {{ group.count | intcomma }}
           
           .secondary-buttons.mb-6
             -if org_perms.contacts.contact_create
@@ -107,25 +107,23 @@
             .font-normal.uppercase.text-xs.pb-1.text-gray-500
               -trans "Smart Groups"
             .inner-scroll
-              -for group in groups
-                -if group.is_dynamic
-                  .lp-nav-item(onclick="goto(event)" href='{% url "contacts.contact_filter" group.uuid %}' class="{% if current_group.id == group.pk %}font-normal selected{% endif %}")
-                    .name.pointer-events-none
-                      {{group.label}}
-                    .count.pointer-events-none
-                      {{ group.count | intcomma }}
+              -for group in smart_groups
+                .lp-nav-item(onclick="goto(event)" href='{{ group.url }}' class="{% if request.path == group.url %}font-normal selected{% endif %}")
+                  .name.pointer-events-none
+                    {{ group.name }}
+                  .count.pointer-events-none
+                    {{ group.count | intcomma }}
 
           .lp-nav.lower
             .font-normal.uppercase.text-xs.text-gray-500.pb-1
               -trans "Groups"
             .inner-scroll
-              -for group in groups
-                -if not group.is_dynamic
-                  .lp-nav-item(class="{% if current_group.id == group.pk %}font-normal selected{% endif %}")
-                    .name(onclick="goto(event)" href='{% url "contacts.contact_filter" group.uuid %}')
-                      {{group.label}}
-                    .count(onclick="goto(event)" href='{% url "contacts.contact_filter" group.uuid %}')
-                      {{ group.count | intcomma }}
+              -for group in manual_groups
+                .lp-nav-item(onclick="goto(event)" href='{{ group.url }}' class="{% if request.path == group.url %}font-normal selected{% endif %}")
+                  .name.pointer-events-none
+                    {{ group.name }}
+                  .count.pointer-events-none
+                    {{ group.count | intcomma }}
 
           .flex-grow
         .right.overflow-x-hidden.p-2.-mt-1
@@ -170,7 +168,7 @@
 
                             %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
                               -for group in groups
-                                -if not group.is_dynamic
+                                -if not group.is_smart
                                   %li
                                     .lbl-menu(href='#' onclick='addContactToGroup({{group.pk}})' data-id='{{group.pk}}')
                                       .flex.items-center.py-1.hover-linked
@@ -222,7 +220,7 @@
               .shadow.rounded-lg
                 -include "contacts/contact_list_include.haml"
 
-              .flex.flex-col(class="{%if not is_spa%}mb-16{%endif%}")
+              .flex.flex-col(class="{%if not is_spa%}mb-16 mt-3{%endif%}")
                 -include "includes/pagination.haml"
 
                 -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000

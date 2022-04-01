@@ -187,7 +187,7 @@ class MailroomClientTest(TembaTest):
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/po/export",
             headers={"User-Agent": "Temba"},
-            json={"org_id": self.org.id, "flow_ids": [123, 234], "language": "spa", "exclude_arguments": False},
+            json={"org_id": self.org.id, "flow_ids": [123, 234], "language": "spa"},
         )
 
     def test_po_import(self):
@@ -452,7 +452,7 @@ class MailroomQueueTest(TembaTest):
         r = get_redis_connection()
 
         # noop, this event isn't handled by mailroom
-        self.assertEqual(0, r.zcard(f"handler:active"))
+        self.assertEqual(0, r.zcard("handler:active"))
         self.assertEqual(0, r.zcard(f"handler:{self.org.id}"))
         self.assertEqual(0, r.llen(f"c:{self.org.id}:{event.contact_id}"))
 
@@ -648,7 +648,7 @@ class MailroomQueueTest(TembaTest):
 
         run = FlowRun.objects.get(contact=jim)
         session = run.session
-        run.release("U")
+        run.delete()
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
@@ -718,7 +718,7 @@ class EventTest(TembaTest):
         contact1 = self.create_contact("Jim", phone="0979111111")
         contact2 = self.create_contact("Bob", phone="0979222222")
 
-        msg_in = self.create_incoming_msg(contact1, "Hello", external_id="12345")
+        msg_in = self.create_incoming_msg(contact1, "Hello", external_id="12345", attachments=["image:http://a.jpg"])
 
         self.assertEqual(
             {
@@ -729,10 +729,58 @@ class EventTest(TembaTest):
                     "id": msg_in.id,
                     "urn": "tel:+250979111111",
                     "text": "Hello",
+                    "attachments": ["image:http://a.jpg"],
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     "external_id": "12345",
                 },
                 "msg_type": "I",
+                "visibility": "V",
+                "logs_url": None,
+            },
+            Event.from_msg(self.org, self.admin, msg_in),
+        )
+
+        msg_in.visibility = Msg.VISIBILITY_DELETED_BY_USER
+        msg_in.save(update_fields=("visibility",))
+
+        self.assertEqual(
+            {
+                "type": "msg_received",
+                "created_on": matchers.ISODate(),
+                "msg": {
+                    "uuid": str(msg_in.uuid),
+                    "id": msg_in.id,
+                    "urn": "tel:+250979111111",
+                    "text": "",
+                    "attachments": [],
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "external_id": "12345",
+                },
+                "msg_type": "I",
+                "visibility": "D",
+                "logs_url": None,
+            },
+            Event.from_msg(self.org, self.admin, msg_in),
+        )
+
+        msg_in.visibility = Msg.VISIBILITY_DELETED_BY_SENDER
+        msg_in.save(update_fields=("visibility",))
+
+        self.assertEqual(
+            {
+                "type": "msg_received",
+                "created_on": matchers.ISODate(),
+                "msg": {
+                    "uuid": str(msg_in.uuid),
+                    "id": msg_in.id,
+                    "urn": "tel:+250979111111",
+                    "text": "",
+                    "attachments": [],
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "external_id": "12345",
+                },
+                "msg_type": "I",
+                "visibility": "X",
                 "logs_url": None,
             },
             Event.from_msg(self.org, self.admin, msg_in),
@@ -757,7 +805,7 @@ class EventTest(TembaTest):
                     "quick_replies": ["yes", "no"],
                 },
                 "status": "E",
-                "logs_url": f"/channels/channellog/read/{log.id}/",
+                "logs_url": f"/channels/channellog/read/{log.channel.uuid}/{log.id}/",
             },
             Event.from_msg(self.org, self.admin, msg_out),
         )
@@ -859,7 +907,7 @@ class EventTest(TembaTest):
             {
                 "type": "campaign_fired",
                 "created_on": fire.fired.isoformat(),
-                "campaign": {"id": campaign.id, "name": "Welcomes"},
+                "campaign": {"id": campaign.id, "name": "Welcomes", "uuid": campaign.uuid},
                 "campaign_event": {
                     "id": event.id,
                     "offset_display": "1 week after",

@@ -14,8 +14,8 @@ class Command(BaseCommand):
 
     from django_redis import get_redis_connection
     r = get_redis_connection()
-    r.sismember("campaign_event_2021_09_10", "123456789")  # returns true
-    r.srem("campaign_event_2021_09_10", "123456789")  # allows mailroom to re-fire event
+    r.sismember("campaign_event:2022-01-03", "123456789")  # returns true
+    r.srem("campaign_event:2022-01-03", "123456789")  # allows mailroom to re-fire event
     """
 
     help = "Lists unfired campaign events"
@@ -23,8 +23,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         unfired = EventFire.objects.filter(fired=None).select_related("event").order_by("scheduled", "id")[:50]
 
-        self.stdout.write(f"Fire       | Event                            | Contact    | Scheduled")
-        self.stdout.write(f"-----------|----------------------------------|------------|--------------")
+        self.stdout.write("Fire       | Event                            | Contact    | Scheduled")
+        self.stdout.write("-----------|----------------------------------|------------|--------------")
 
         now = timezone.now()
 

@@ -98,7 +98,7 @@ html {
   --icon-color: var(--text-color);
   --icon-color-hover: var(--icon-color);
   
-  --transition-speed: 200ms;
+  --transition-speed: 250ms;
   --event-padding: 0.5em 1em;
   --temba-select-selected-padding: 9px;
   --temba-select-selected-line-height: 16px;
@@ -130,6 +130,7 @@ html {
 
   --menu-padding: 1em;
   --bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
 }
 
 temba-button {
@@ -173,4 +174,25 @@ temba-select:focus {
   margin-top: 28px;
   margin-bottom: 28px;
   margin-left: -13px;
+}
+
+.input {
+  border-radius: var(--curvature-widget);
+  cursor: text;
+  background: var(--color-widget-bg);
+  border: 1px solid var(--color-widget-border);
+  transition: all ease-in-out 200ms;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  box-shadow: var(--widget-box-shadow);
+  caret-color: var(--input-caret);
+  padding: var(--temba-textinput-padding);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-focus);
+  background: var(--color-widget-bg-focused);
+  box-shadow: var(--widget-box-shadow-focused);
 }

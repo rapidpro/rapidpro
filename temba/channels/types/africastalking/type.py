@@ -1,4 +1,4 @@
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
@@ -53,17 +53,26 @@ class AfricasTalkingType(ChannelType):
     )
 
     available_timezones = [
-        "Africa/Nairobi",
-        "Africa/Kampala",
-        "Africa/Dar_es_Salaam",
-        "Africa/Kigali",
-        "Africa/Addis_Ababa",
-        "Africa/Lagos",
         "Africa/Abidjan",
-        "Africa/Ouagadougou",
-        "Africa/Lusaka",
-        "Africa/Lilongwe",
+        "Africa/Accra",
+        "Africa/Addis_Ababa",
+        "Africa/Blantyre",
+        "Africa/Dakar",
+        "Africa/Dar_es_Salaam",
+        "Africa/Douala",
+        "Africa/Gabarone",
+        "Africa/Harare",
         "Africa/Johannesburg",
+        "Africa/Kampala",
+        "Africa/Kigali",
+        "Africa/Lagos",
+        "Africa/Lusaka",
+        "Africa/Maseru",
+        "Africa/Mbabane",
+        "Africa/Nairobi",
+        "Africa/Ouagadougou",
+        "Africa/Porto-Novo",
+        "Africa/Windhoek",
     ]
 
     def is_recommended_to(self, user):

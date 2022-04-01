@@ -9,7 +9,7 @@ from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration, ignore_logger
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from celery.schedules import crontab
 
@@ -42,6 +42,8 @@ if TESTING:
 
 ADMINS = (("RapidPro", "code@yourdomain.io"),)
 MANAGERS = ADMINS
+
+USE_DEPRECATED_PYTZ = True
 
 # -----------------------------------------------------------------------------------
 # Location support
@@ -188,7 +190,6 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.request",
                 "temba.context_processors.branding",
-                "temba.context_processors.analytics",
                 "temba.context_processors.config",
                 "temba.orgs.context_processors.user_group_perms_processor",
                 "temba.channels.views.channel_status_processor",
@@ -351,6 +352,7 @@ BRANDING = {
         "title": _("Visually build nationally scalable mobile applications"),
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
         "credits": _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."),
+        "support_widget": False,
     }
 }
 DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
@@ -372,9 +374,9 @@ PERMISSIONS = {
     "api.resthook": ("api", "list"),
     "api.webhookevent": ("api",),
     "api.resthooksubscriber": ("api",),
-    "campaigns.campaign": ("api", "archived", "archive", "activate"),
+    "campaigns.campaign": ("api", "archived", "archive", "activate", "menu"),
     "campaigns.campaignevent": ("api",),
-    "classifiers.classifier": ("connect", "api", "sync"),
+    "classifiers.classifier": ("connect", "api", "sync", "menu"),
     "classifiers.intent": ("api",),
     "contacts.contact": (
         "api",
@@ -403,6 +405,7 @@ PERMISSIONS = {
     "globals.global": ("api", "unused"),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
     "orgs.org": (
+        "account",
         "accounts",
         "smtp_server",
         "api",
@@ -444,6 +447,7 @@ PERMISSIONS = {
         "twilio_connect",
         "two_factor",
         "token",
+        "workspace",
     ),
     "channels.channel": (
         "api",
@@ -478,7 +482,8 @@ PERMISSIONS = {
         "import_translation",
         "export_results",
         "filter",
-        "recent_messages",
+        "menu",
+        "recent_contacts",
         "results",
         "revisions",
         "run_table",
@@ -511,7 +516,7 @@ PERMISSIONS = {
     "tickets.ticket": ("api", "assign", "assignee", "menu", "note"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "tickets.topic": ("api",),
-    "triggers.trigger": ("archived", "type"),
+    "triggers.trigger": ("archived", "type", "menu"),
 }
 
 
@@ -580,6 +585,7 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_read",
         "classifiers.classifier_delete",
         "classifiers.classifier_list",
+        "classifiers.classifier_menu",
         "classifiers.classifier_sync",
         "classifiers.intent_api",
         "contacts.contact_api",
@@ -613,7 +619,9 @@ GROUP_PERMISSIONS = {
         "locations.adminboundary_api",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
-        "notifications.notification_list",
+        "notifications.notification.*",
+        "notifications.incident.*",
+        "orgs.org_account",
         "orgs.org_accounts",
         "orgs.org_smtp_server",
         "orgs.org_api",
@@ -645,6 +653,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_twilio_connect",
         "orgs.org_two_factor",
         "orgs.org_token",
+        "orgs.org_workspace",
         "orgs.topup_list",
         "orgs.topup_read",
         "channels.channel_api",
@@ -714,6 +723,7 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_api",
         "classifiers.classifier_read",
         "classifiers.classifier_list",
+        "classifiers.classifier_menu",
         "classifiers.intent_api",
         "contacts.contact_api",
         "contacts.contact_archive",
@@ -747,6 +757,7 @@ GROUP_PERMISSIONS = {
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
         "notifications.notification_list",
+        "orgs.org_account",
         "orgs.org_api",
         "orgs.org_download",
         "orgs.org_export",
@@ -758,6 +769,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_spa",
         "orgs.org_two_factor",
         "orgs.org_token",
+        "orgs.org_workspace",
         "orgs.topup_list",
         "orgs.topup_read",
         "channels.channel_api",
@@ -809,11 +821,13 @@ GROUP_PERMISSIONS = {
     "Viewers": (
         "campaigns.campaign_archived",
         "campaigns.campaign_list",
+        "campaigns.campaign_menu",
         "campaigns.campaign_read",
         "campaigns.campaignevent_read",
         "classifiers.classifier_api",
         "classifiers.classifier_read",
         "classifiers.classifier_list",
+        "classifiers.classifier_menu",
         "classifiers.intent_api",
         "contacts.contact_archived",
         "contacts.contact_blocked",
@@ -836,6 +850,7 @@ GROUP_PERMISSIONS = {
         "locations.adminboundary_geometry",
         "locations.adminboundary_alias",
         "notifications.notification_list",
+        "orgs.org_account",
         "orgs.org_download",
         "orgs.org_export",
         "orgs.org_home",
@@ -843,6 +858,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_profile",
         "orgs.org_spa",
         "orgs.org_two_factor",
+        "orgs.org_workspace",
         "orgs.topup_list",
         "orgs.topup_read",
         "channels.channel_list",
@@ -859,8 +875,9 @@ GROUP_PERMISSIONS = {
         "flows.flow_export_results",
         "flows.flow_filter",
         "flows.flow_list",
+        "flows.flow_menu",
         "flows.flow_editor",
-        "flows.flow_recent_messages",
+        "flows.flow_recent_contacts",
         "flows.flow_results",
         "flows.flow_revisions",
         "flows.flow_run_table",
@@ -887,6 +904,7 @@ GROUP_PERMISSIONS = {
         "tickets.topic_api",
         "triggers.trigger_archived",
         "triggers.trigger_list",
+        "triggers.trigger_menu",
         "triggers.trigger_type",
     ),
     "Agents": (
@@ -904,6 +922,7 @@ GROUP_PERMISSIONS = {
         "tickets.ticket_menu",
         "tickets.ticket_note",
         "tickets.topic_api",
+        "orgs.org_account",
         "orgs.org_home",
         "orgs.org_menu",
         "orgs.org_profile",
@@ -996,7 +1015,6 @@ CELERY_BEAT_SCHEDULE = {
     "delete-orgs": {"task": "delete_orgs_task", "schedule": crontab(hour=4, minute=0)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
     "resolve-twitter-ids-task": {"task": "resolve_twitter_ids_task", "schedule": timedelta(seconds=900)},
-    "retry-errored-messages": {"task": "retry_errored_messages", "schedule": timedelta(seconds=60)},
     "refresh-jiochat-access-tokens": {"task": "refresh_jiochat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": crontab(hour=6, minute=0)},
@@ -1040,7 +1058,6 @@ REST_FRAMEWORK = {
         "v2.messages": "2500/hour",
         "v2.broadcasts": "36000/hour",
         "v2.runs": "2500/hour",
-        "v2.api": "2500/hour",
     },
     "PAGE_SIZE": 250,
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
@@ -1079,11 +1096,6 @@ for brand in BRANDING.values():
 
 ######
 # DANGER: only turn this on if you know what you are doing!
-#         could cause messages to be sent to live customer aggregators
-SEND_MESSAGES = False
-
-######
-# DANGER: only turn this on if you know what you are doing!
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
 
@@ -1092,7 +1104,6 @@ SEND_RECEIPTS = True
 
 INTEGRATION_TYPES = [
     "temba.orgs.integrations.dtone.DTOneType",
-    "temba.orgs.integrations.chatbase.ChatbaseType",
 ]
 
 CLASSIFIER_TYPES = [
@@ -1174,6 +1185,11 @@ CHANNEL_TYPES = [
     "temba.channels.types.android.AndroidType",
     "temba.channels.types.discord.DiscordType",
     "temba.channels.types.rocketchat.RocketChatType",
+    "temba.channels.types.instagram.InstagramType",
+]
+
+ANALYTICS_TYPES = [
+    "temba.utils.analytics.ConsoleBackend",
 ]
 
 # set of ISO-639-3 codes of languages to allow in addition to all ISO-639-1 languages
@@ -1191,25 +1207,13 @@ SESSION_CACHE_ALIAS = "default"
 TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY", "MISSING_TWITTER_API_KEY")
 TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET", "MISSING_TWITTER_API_SECRET")
 
-# Segment.io key for analytics
-SEGMENT_IO_KEY = os.environ.get("SEGMENT_IO_KEY", "")
-
-# Intercom token and app_id for support
-INTERCOM_APP_ID = os.environ.get("INTERCOM_APP_ID" "")
-INTERCOM_TOKEN = os.environ.get("INTERCOM_TOKEN", "")
-
 # Google analytics tracking ID
 GOOGLE_TRACKING_ID = os.environ.get("GOOGLE_TRACKING_ID", "")
-
-# Librato for gauge support
-LIBRATO_USER = os.environ.get("LIBRATO_USER", "")
-LIBRATO_TOKEN = os.environ.get("LIBRATO_TOKEN", "")
 
 MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
 
 ZENDESK_CLIENT_ID = os.environ.get("ZENDESK_CLIENT_ID", "")
 ZENDESK_CLIENT_SECRET = os.environ.get("ZENDESK_CLIENT_SECRET", "")
-
 
 # -----------------------------------------------------------------------------------
 #

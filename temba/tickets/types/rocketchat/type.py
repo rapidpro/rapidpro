@@ -1,4 +1,4 @@
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.tickets.models import TicketerType
 from temba.tickets.types.rocketchat.views import ConnectView

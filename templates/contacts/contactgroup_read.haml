@@ -22,25 +22,25 @@
                 {{ broadcast.text }}
 
               %td.status
-                -ifequal broadcast.status 'P'
+                -if broadcast.status == 'P'
                   -if broadcast.created|timesince >= "0 hour, 5 minutes"
                     .glyph.icon-bubble-dots-2.queued
                   -else
                     .glyph.icon-bubble-dots-2.queued_instantly
-                -ifequal broadcast.status 'Q'
+                -elif broadcast.status == 'Q'
                   -if broadcast.created_on|timesince >= "0 hour, 5 minutes"
                     .glyph.icon-bubble-dots-2.queued
                   -else
                     .glyph.icon-bubble-dots-2.queued_instantly
-                -ifequal broadcast.status 'S'
+                -elif broadcast.status == 'S'
                   .glyph.icon-bubble-3.sent
-                -ifequal broadcast.status 'D'
+                -elif broadcast.status == 'D'
                   .glyph.icon-bubble-check.delivered
-                -ifequal boadcast.status 'H'
+                -elif boadcast.status == 'H'
                   .glyph.icon-bubble-3.handled
-                -ifequal broadcast.status 'E'
+                -elif broadcast.status == 'E'
                   .glyph.icon-bubble-notification.errored
-                -ifequal broadcast.status 'F'
+                -elif broadcast.status == 'F'
                   .glyph.icon-bubble-notification.failed
               %td.created
                 {% short_datetime broadcast.created_on %}

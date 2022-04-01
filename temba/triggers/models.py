@@ -3,7 +3,7 @@ from smartmin.models import SmartModel
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup
@@ -333,13 +333,13 @@ class Trigger(SmartModel):
             group = None
 
             if same_site:  # pragma: needs cover
-                group = ContactGroup.user_groups.filter(org=org, uuid=spec["uuid"]).first()
+                group = ContactGroup.get_groups(org).filter(uuid=spec["uuid"]).first()
 
             if not group:
-                group = ContactGroup.get_user_group_by_name(org, spec["name"])
+                group = ContactGroup.get_group_by_name(org, spec["name"])
 
             if not group:
-                group = ContactGroup.create_static(org, user, spec["name"])  # pragma: needs cover
+                group = ContactGroup.create_manual(org, user, spec["name"])  # pragma: needs cover
 
             if not group.is_active:  # pragma: needs cover
                 group.is_active = True

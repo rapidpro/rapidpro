@@ -338,6 +338,17 @@ table.padded {
 table.list {
   @apply w-full shadow rounded-lg overflow-hidden bg-white;
 
+  &.scrolled {
+    @apply rounded-none !important;
+    @apply shadow-none !important;
+  }
+
+  tr:first-child {
+    td {
+      border-top:none;
+    }
+  }
+
   tr {
     &.checked {
       td, td:hover {
@@ -693,8 +704,23 @@ code {
       box-shadow: var(--widget-box-shadow-focused);
     }
 
+    &.action-summary, &.action-link {
+      @apply border border-gray-400 shadow-none bg-transparent;
+
+      background-color: rgba(0,0,0,.015);
+
+      .formax-summary {
+        @apply py-6 !important;
+        @apply bg-transparent;
+      }
+
+      .formax-icon {
+        @apply bg-transparent;
+      }
+    }
+
     &.action-summary:hover {
-      @apply shadow;
+      @apply shadow-none;
 
       .formax-icon {
         @apply cursor;

@@ -29,7 +29,7 @@
         -else
           &nbsp;triggered
 
-        %a(href='{%url "campaigns.campaignevent_read" event.campaign_event.id %}')
+        %a(href='{%url "campaigns.campaignevent_read" event.campaign.uuid event.campaign_event.id %}')
           {{ event.campaign_event.offset_display }} {{ event.campaign_event.relative_to.name }}
 
       -elif event.type == 'channel_event'
@@ -144,11 +144,18 @@
       -elif event.type == 'msg_created' or event.type == 'msg_received' or event.type == "ivr_created"
         .activity-message
           .activity-body
-            -if event.msg.text
-              .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
-                {{ event.msg.text }}
-            -for attachment in event.msg.attachments
-              {% attachment_button attachment %}
+            -if event.visibility == 'D'
+              .italic.opacity-50
+                -trans "Message deleted by user"
+            -elif event.visibility == 'X'
+              .italic.opacity-50
+                -trans "Message deleted by sender"
+            -else
+              -if event.msg.text
+                .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
+                  {{ event.msg.text }}
+              -for attachment in event.msg.attachments
+                {% attachment_button attachment %}
 
       -elif event.type == 'run_result_changed'
         -blocktrans trimmed with name=event.name category=event.category value=event.value

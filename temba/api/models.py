@@ -10,7 +10,7 @@ from django.contrib.auth.models import Group, User
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import Org, OrgRole
 from temba.utils.cache import get_cacheable_attr

@@ -14,7 +14,7 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.db.models import Prefetch, Q
 from django.http import HttpResponse, JsonResponse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEvent
@@ -602,13 +602,13 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             queryset = queryset.filter(id=broadcast_id)
 
         queryset = queryset.prefetch_related(
-            Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("pk")),
-            Prefetch("groups", queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk")),
+            Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("id")),
+            Prefetch("groups", queryset=ContactGroup.objects.only("uuid", "name").order_by("id")),
         )
 
         if not org.is_anon:
             queryset = queryset.prefetch_related(
-                Prefetch("urns", queryset=ContactURN.objects.only("scheme", "path", "display").order_by("pk"))
+                Prefetch("urns", queryset=ContactURN.objects.only("scheme", "path", "display").order_by("id"))
             )
 
         return self.filter_before_after(queryset, "created_on")
@@ -744,7 +744,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
-        queryset = queryset.prefetch_related(Prefetch("group", queryset=ContactGroup.user_groups.only("uuid", "name")))
+        queryset = queryset.prefetch_related(Prefetch("group", queryset=ContactGroup.objects.only("uuid", "name")))
 
         return queryset
 
@@ -1270,7 +1270,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
      * **language** - the preferred language of the contact (string).
      * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
      * **groups** - the UUIDs of any groups the contact is part of (array of objects), filterable as `group` with group name or UUID.
-     * **fields** - any contact fields on this contact (dictionary).
+     * **fields** - any contact fields on this contact (object).
+     * **flow** - the flow that the contact is currently in, if any (object).
      * **blocked** - whether the contact is blocked (boolean).
      * **stopped** - whether the contact is stopped, i.e. has opted out (boolean).
      * **created_on** - when this contact was created (datetime).
@@ -1296,7 +1297,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
                 "fields": {
                   "nickname": "Macklemore",
                   "side_kick": "Ryan Lewis"
-                }
+                },
+                "flow": {"uuid": "c1bc5fcf-3e27-4265-97bf-f6c3a385c2d6", "name": "Registration"},
                 "blocked": false,
                 "stopped": false,
                 "created_on": "2015-11-11T13:05:57.457742Z",
@@ -1340,7 +1342,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             "fields": {
               "nickname": "Macklemore",
               "side_kick": "Ryan Lewis"
-            }
+            },
+            "flow": null,
             "blocked": false,
             "stopped": false,
             "created_on": "2015-11-11T13:05:57.457742Z",
@@ -1415,9 +1418,9 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         # filter by group name/uuid (optional)
         group_ref = params.get("group")
         if group_ref:
-            group = ContactGroup.user_groups.filter(org=org).filter(Q(uuid=group_ref) | Q(name=group_ref)).first()
+            group = ContactGroup.get_groups(org).filter(Q(uuid=group_ref) | Q(name=group_ref)).first()
             if group:
-                queryset = queryset.filter(all_groups=group)
+                queryset = queryset.filter(groups=group)
             else:
                 queryset = queryset.filter(pk=-1)
 
@@ -1425,10 +1428,11 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         queryset = queryset.prefetch_related(
             Prefetch("org"),
             Prefetch(
-                "all_groups",
-                queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk"),
-                to_attr="prefetched_user_groups",
+                "groups",
+                queryset=ContactGroup.get_groups(org).only("uuid", "name", "org").order_by("id"),
+                to_attr="prefetched_groups",
             ),
+            Prefetch("current_flow"),
         )
 
         return self.filter_before_after(queryset, "modified_on")
@@ -2090,6 +2094,9 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
      * **uuid** - the UUID of the group (string), filterable as `uuid`
      * **name** - the name of the group (string), filterable as `name`
+     * **query** - the query if a smart group (string)
+     * **status** - the status (one of "initializing", "evaluating" or "ready")
+     * **system** - whether this is a system group that can't be edited (bool)
      * **count** - the number of contacts in the group (int)
 
     Example:
@@ -2105,8 +2112,10 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
                 {
                     "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
                     "name": "Reporters",
-                    "count": 315,
-                    "query": null
+                    "query": null,
+                    "status": "ready",
+                    "system": false,
+                    "count": 315
                 },
                 ...
             ]
@@ -2171,11 +2180,13 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     permission = "contacts.contactgroup_api"
     model = ContactGroup
-    model_manager = "user_groups"
     serializer_class = ContactGroupReadSerializer
     write_serializer_class = ContactGroupWriteSerializer
     pagination_class = CreatedOnCursorPagination
     exclusive_params = ("uuid", "name")
+
+    def derive_queryset(self):
+        return ContactGroup.get_groups(self.request.user.get_org())
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -2205,6 +2216,8 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             )
 
         instance = self.get_object()
+        if instance.is_system:
+            raise InvalidQueryError("Cannot delete a system group.")
 
         # if there are still dependencies, give up
         triggers = instance.triggers.filter(is_archived=False)
@@ -2540,7 +2553,9 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             else:
                 return self.model.objects.filter(pk=-1)
         else:
-            return self.model.objects.filter(org=org).exclude(visibility=Msg.VISIBILITY_DELETED).exclude(msg_type=None)
+            return self.model.objects.filter(
+                org=org, visibility__in=(Msg.VISIBILITY_VISIBLE, Msg.VISIBILITY_ARCHIVED)
+            ).exclude(msg_type=None)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -2991,7 +3006,6 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **start** - the UUID of the flow start (object)
      * **responded** - whether the contact responded (boolean), filterable as `responded`.
-     * **path** - the contact's path through the flow nodes (array of objects)
      * **values** - values generated by rulesets in the flow (array of objects).
      * **created_on** - the datetime when this run was started (datetime).
      * **modified_on** - when this run was last modified (datetime), filterable as `before` and `after`.
@@ -3019,12 +3033,6 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                     "name": "Bob McFlow"
                 },
                 "responded": true,
-                "path": [
-                    {"node": "27a86a1b-6cc4-4ae3-b73d-89650966a82f", "time": "2015-11-11T13:05:50.457742Z"},
-                    {"node": "fc32aeb0-ac3e-42a8-9ea7-10248fdf52a1", "time": "2015-11-11T13:03:51.635662Z"},
-                    {"node": "93a624ad-5440-415e-b49f-17bf42754acb", "time": "2015-11-11T13:03:52.532151Z"},
-                    {"node": "4c9cb68d-474f-4b9a-b65e-c2aa593a3466", "time": "2015-11-11T13:05:57.576056Z"}
-                ],
                 "values": {
                     "color": {
                         "value": "blue",
@@ -3104,6 +3112,11 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         )
 
         return self.filter_before_after(queryset, "modified_on")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["include_paths"] = str_to_bool(self.request.query_params.get("paths", "true"))
+        return context
 
     @classmethod
     def get_read_explorer(cls):
@@ -3264,7 +3277,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
             Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("id")),
-            Prefetch("groups", queryset=ContactGroup.user_groups.only("uuid", "name").order_by("id")),
+            Prefetch("groups", queryset=ContactGroup.objects.only("uuid", "name").order_by("id")),
         )
 
         return self.filter_before_after(queryset, "modified_on")

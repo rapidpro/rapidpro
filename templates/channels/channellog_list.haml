@@ -41,7 +41,8 @@
                     %td
                       -trans "Channel interaction"
                     %td.clickable
-                      %a{ href:'{% url "channels.channellog_read" obj.id %}' }= obj.description
+                      .hover-linked(onclick="goto(event)" href='{% url "channels.channellog_read" obj.channel.uuid obj.id %}')
+                        {{obj.description}}
                     %td
                       %span
                         {{ obj.request_time|default:"0"|intcomma }}ms
@@ -51,14 +52,16 @@
 
                 -else
                   %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
-                    %td.clickable
+                    %td
                       -if obj.msg and obj.msg.contact
-                        %a{ href:'{% url "contacts.contact_read" obj.msg.contact.uuid %}' }
+
+                        .hover-linked(onclick="goto(event)" href='{% url "contacts.contact_read" obj.msg.contact.uuid %}')
                           {{obj.msg.contact_urn.get_display}}
                       -else
                         -trans "Channel interaction"
-                    %td.clickable
-                      %a{ href:'{% url "channels.channellog_read" obj.id %}' }= obj.description
+                    %td
+                      .hover-linked(onclick="goto(event)" href='{% url "channels.channellog_read" obj.channel.uuid obj.id %}')
+                        {{obj.description}}
                     %td
                       %span
                         {{ obj.request_time|default:"0"|intcomma }}ms

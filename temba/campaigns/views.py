@@ -1,26 +1,34 @@
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
+from smartmin.views import (
+    SmartCreateView,
+    SmartCRUDL,
+    SmartDeleteView,
+    SmartListView,
+    SmartReadView,
+    SmartTemplateView,
+    SmartUpdateView,
+)
 
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.http import Http404, HttpResponseRedirect
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Msg
-from temba.orgs.views import ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import MenuMixin, ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import languages
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget, TembaChoiceField
-from temba.utils.views import BulkActionMixin
+from temba.utils.views import BulkActionMixin, SpaMixin
 
 from .models import Campaign, CampaignEvent
 
 
 class CampaignForm(forms.ModelForm):
     group = TembaChoiceField(
-        queryset=ContactGroup.user_groups.none(),
+        queryset=ContactGroup.objects.none(),
         empty_label=None,
         widget=SelectWidget(attrs={"placeholder": _("Select group"), "searchable": True}),
         label=_("Group"),
@@ -30,7 +38,7 @@ class CampaignForm(forms.ModelForm):
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.fields["group"].queryset = ContactGroup.get_user_groups(user.get_org(), ready_only=False)
+        self.fields["group"].queryset = ContactGroup.get_groups(user.get_org())
 
     class Meta:
         model = Campaign
@@ -41,7 +49,55 @@ class CampaignForm(forms.ModelForm):
 
 class CampaignCRUDL(SmartCRUDL):
     model = Campaign
-    actions = ("create", "read", "update", "list", "archived", "archive", "activate")
+    actions = ("create", "read", "update", "list", "archived", "archive", "activate", "menu")
+
+    class Menu(MenuMixin, SmartTemplateView):
+        def derive_menu(self):
+
+            org = self.request.user.get_org()
+            campaigns = Campaign.objects.filter(org=org)
+            menu = []
+
+            menu.append(
+                self.create_menu_item(
+                    name=_("Active"),
+                    icon="campaign",
+                    href="campaigns.campaign_list",
+                )
+            )
+
+            menu.append(
+                self.create_menu_item(
+                    menu_id="archived-campaigns",
+                    name=_("Archived"),
+                    icon="archive",
+                    href="campaigns.campaign_archived",
+                )
+            )
+
+            active = campaigns.filter(is_archived=False, is_active=True).order_by("name")
+
+            menu.append(self.create_divider())
+
+            menu.append(
+                self.create_modax_button(
+                    name=_("New Campaign"),
+                    href="campaigns.campaign_create",
+                )
+            )
+            if active:
+                menu.append(self.create_divider())
+
+            for campaign in active:
+                menu.append(
+                    self.create_menu_item(
+                        name=campaign.name,
+                        menu_id=f"{campaign.uuid}",
+                        count=len(campaign.get_events()),
+                        href=reverse("campaigns.campaign_read", args=[campaign.pk]),
+                    )
+                )
+            return menu
 
     class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         fields = ("name", "group")
@@ -79,7 +135,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class Read(OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         def derive_title(self):
             return self.object.name
 
@@ -109,9 +165,9 @@ class CampaignCRUDL(SmartCRUDL):
                     links.append(
                         dict(
                             id="event-add",
-                            title=_("Add Event"),
+                            title=_("New Event"),
                             href=f"{reverse('campaigns.campaignevent_create')}?campaign={self.object.pk}",
-                            modax=_("Add Event"),
+                            modax=_("New Event"),
                         )
                     )
                 if self.has_org_perm("orgs.org_export"):
@@ -125,7 +181,7 @@ class CampaignCRUDL(SmartCRUDL):
                             id="campaign-update",
                             title=_("Edit"),
                             href=reverse("campaigns.campaign_update", args=[self.object.pk]),
-                            modax=_("Update Campaign"),
+                            modax=_("Edit Campaign"),
                         )
                     )
 
@@ -166,7 +222,7 @@ class CampaignCRUDL(SmartCRUDL):
             kwargs["user"] = self.request.user
             return kwargs
 
-    class BaseList(OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+    class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         fields = ("name", "group")
         default_template = "campaigns/campaign_list.html"
         default_order = ("-modified_on",)
@@ -202,6 +258,9 @@ class CampaignCRUDL(SmartCRUDL):
         bulk_actions = ("archive",)
         search_fields = ("name__icontains", "group__name__icontains")
 
+        def derive_title(self):
+            return _("Active Campaigns")
+
         def get_queryset(self, *args, **kwargs):
             qs = super().get_queryset(*args, **kwargs)
             qs = qs.filter(is_active=True, is_archived=False)
@@ -210,6 +269,9 @@ class CampaignCRUDL(SmartCRUDL):
     class Archived(BaseList):
         fields = ("name",)
         bulk_actions = ("restore",)
+
+        def derive_title(self):
+            return _("Archived Campaigns")
 
         def get_queryset(self, *args, **kwargs):
             qs = super().get_queryset(*args, **kwargs)
@@ -261,7 +323,11 @@ class CampaignEventForm(forms.ModelForm):
         required=False,
         empty_label=None,
         widget=SelectWidget(
-            attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
+            attrs={
+                "placeholder": _("Select a flow to start"),
+                "widget_only": True,
+                "searchable": True,
+            }
         ),
     )
 
@@ -286,7 +352,7 @@ class CampaignEventForm(forms.ModelForm):
 
     flow_start_mode = forms.ChoiceField(
         choices=(
-            (CampaignEvent.MODE_INTERRUPT, _("Stop it and start this event")),
+            (CampaignEvent.MODE_INTERRUPT, _("Stop it and run this flow")),
             (CampaignEvent.MODE_SKIP, _("Skip this event")),
         ),
         required=False,
@@ -370,7 +436,11 @@ class CampaignEventForm(forms.ModelForm):
             obj.flow = self.cleaned_data["flow_to_start"]
             obj.start_mode = self.cleaned_data["flow_start_mode"]
 
-    def __init__(self, user, *args, **kwargs):
+            # force passive mode for user-selected background flows
+            if obj.flow.flow_type == Flow.TYPE_BACKGROUND:
+                obj.start_mode = CampaignEvent.MODE_PASSIVE
+
+    def __init__(self, user, event, *args, **kwargs):
         self.user = user
         super().__init__(*args, **kwargs)
 
@@ -384,11 +454,14 @@ class CampaignEventForm(forms.ModelForm):
         flow = self.fields["flow_to_start"]
         flow.queryset = Flow.objects.filter(
             org=self.user.get_org(),
-            flow_type__in=[Flow.TYPE_MESSAGE, Flow.TYPE_VOICE],
+            flow_type__in=[Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND],
             is_active=True,
             is_archived=False,
             is_system=False,
         ).order_by("name")
+
+        if event and event.flow and event.flow.flow_type == Flow.TYPE_BACKGROUND:
+            flow.widget.attrs["info_text"] = CampaignEventCRUDL.BACKGROUND_WARNING
 
         message = self.instance.message or {}
         self.languages = []
@@ -471,7 +544,18 @@ class CampaignEventCRUDL(SmartCRUDL):
     model = CampaignEvent
     actions = ("create", "delete", "read", "update")
 
-    class Read(OrgObjPermsMixin, SmartReadView):
+    BACKGROUND_WARNING = _(
+        "This is a background flow. When it triggers, it will run it for all contacts without interruption."
+    )
+
+    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<campaign_uuid>[0-9a-f-]+)/(?P<pk>\d+)/$" % (path, action)
+
+        def derive_title(self):
+            return _("Event History")
+
         def pre_process(self, request, *args, **kwargs):
             event = self.get_object()
             if not event.is_active:
@@ -509,7 +593,7 @@ class CampaignEventCRUDL(SmartCRUDL):
                         id="event-update",
                         title=_("Edit"),
                         href=reverse("campaigns.campaignevent_update", args=[campaign_event.pk]),
-                        modax=_("Update Event"),
+                        modax=_("Edit Event"),
                     )
                 )
 
@@ -550,7 +634,7 @@ class CampaignEventCRUDL(SmartCRUDL):
     class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         success_message = ""
         form_class = CampaignEventForm
-        submit_button_name = _("Update Event")
+        submit_button_name = _("Save")
 
         default_fields = [
             "event_type",
@@ -572,13 +656,16 @@ class CampaignEventCRUDL(SmartCRUDL):
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
+            kwargs["event"] = self.object
             return kwargs
 
         def get_object_org(self):
             return self.get_object().campaign.org
 
         def get_context_data(self, **kwargs):
-            return super().get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
+            context["background_warning"] = CampaignEventCRUDL.BACKGROUND_WARNING
+            return context
 
         def derive_fields(self):
 
@@ -647,7 +734,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             return obj
 
         def get_success_url(self):
-            return reverse("campaigns.campaignevent_read", args=[self.object.pk])
+            return reverse("campaigns.campaignevent_read", args=[self.object.campaign.uuid, self.object.pk])
 
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
 
@@ -665,7 +752,12 @@ class CampaignEventCRUDL(SmartCRUDL):
         form_class = CampaignEventForm
         success_message = ""
         template_name = "campaigns/campaignevent_update.haml"
-        submit_button_name = _("Add Event")
+        submit_button_name = _("Save")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["background_warning"] = CampaignEventCRUDL.BACKGROUND_WARNING
+            return context
 
         def pre_process(self, request, *args, **kwargs):
             campaign_id = request.GET.get("campaign", None)
@@ -697,6 +789,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
+            kwargs["event"] = None
             return kwargs
 
         def derive_initial(self):

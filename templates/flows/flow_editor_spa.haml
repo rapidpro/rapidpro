@@ -4,18 +4,25 @@
 -block extra-style
   {{block.super}}
   :css
-    .spa-container {
-      padding: 0px;
+    .spa-content {
+      padding: 0;
     }
 
+    .more .submenu {
+      top: 2.5em !important;
+      right: 0.5em !important;
+    }
 
-    #canvas-container > div, #canvas:after {
-      background-color: #eeeeee;
+    #rp-flow-editor #simulator {
+      top: 20px !important;
+      right: 1em;
     }
 
     #grid {
-      overflow-y: auto;
+      overflow: auto;
       z-index: 0;
+      border: 1px solid #e7e7e7;
+      border-radius: var(--curvature);
     }
 
     #simulator-tab {
@@ -30,6 +37,9 @@
       margin-top: 0.5rem;
     }
 
+    .spa-footer {
+      display:none;
+    }
 
 -block alert-messages
   -if is_starting or messages or user_org.is_suspended
@@ -42,22 +52,10 @@
 
 -block page-container
 
+  :javascript
+    document.querySelector("temba-menu").collapsed = true;
+
   %temba-modax#send-message-modal{ header:"Send Message" }
-
-  .flex.flex-col
-    .flex.px-6.pb-2.mt-2
-      .title.flex-grow
-        .flex.page-title
-          -if flow.flow_type == 'V'
-            .icon-phone.mt-2.mr-6
-          -elif flow.flow_type == 'S'
-            .icon-mobile.mt-2.mr-6
-          .ml-0
-            {{title}}
-      .menu
-        -include "spa_page_menu.haml"
-
-
 
   %temba-dialog.hide#confirm-language(header='{{_("Change Language")|escapejs}}' primaryButtonName='{{_("Update")|escapejs}}')
     .p-6.body
@@ -68,5 +66,5 @@
         communication with that contact will default to <b>{{ language }}</b>.
 
   #grid
-    <temba-loading units="10" size="8"></temba-loading>
+    <temba-loading class="editor-loader" units="10" size="8"></temba-loading>
     #rp-flow-editor

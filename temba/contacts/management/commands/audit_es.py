@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from temba.contacts.models import Contact, ContactGroup
+from temba.contacts.search import parse_query
 from temba.orgs.models import Org
 from temba.utils import json
 
@@ -18,12 +19,23 @@ class Command(BaseCommand):  # pragma: no cover
         parser.add_argument(
             "--contact", type=str, action="store", dest="contact_uuid", help="UUID of contact to check"
         )
+        parser.add_argument("--query", type=str, action="store", dest="query", help="Contact query to check")
 
-    def handle(self, org_id: int, group_uuid: str, contact_uuid: str, *args, **kwargs):
+    def handle(self, org_id: int, group_uuid: str, contact_uuid: str, query: str, *args, **kwargs):
         self.es = ElasticClient(settings.ELASTICSEARCH_URL)
 
+        if query and not org_id:
+            raise CommandError("Can't specify query without org")
+
         if org_id:
-            self.compare_org(org_id)
+            org = Org.objects.filter(id=org_id, is_active=True).first()
+            if not org:
+                raise CommandError("No such org")
+
+            if query:
+                self.show_query(org, query)
+            else:
+                self.compare_org(org)
         elif group_uuid:
             self.compare_group(group_uuid)
         elif contact_uuid:
@@ -31,12 +43,8 @@ class Command(BaseCommand):  # pragma: no cover
         else:
             raise CommandError("Must specify --org or --group or --contact")
 
-    def compare_org(self, org_id: int):
-        org = Org.objects.filter(id=org_id, is_active=True).first()
-        if not org:
-            raise CommandError("No such org")
-
-        for group in org.all_groups.filter(is_active=True):
+    def compare_org(self, org):
+        for group in org.groups.filter(is_active=True):
             db_count = group.get_member_count()
             es_count = self.es.count(
                 "contacts", {"query": {"bool": {"filter": [{"term": {"groups": str(group.uuid)}}]}}}
@@ -48,7 +56,7 @@ class Command(BaseCommand):  # pragma: no cover
                 )
 
     def compare_group(self, group_uuid: str):
-        group = ContactGroup.all_groups.filter(uuid=group_uuid, is_active=True).first()
+        group = ContactGroup.objects.filter(uuid=group_uuid, is_active=True).first()
         if not group:
             raise CommandError("No such group")
 
@@ -93,7 +101,8 @@ class Command(BaseCommand):  # pragma: no cover
             "last_seen_on": db_contact.last_seen_on,
             "urns": [{"scheme": u.scheme, "path": u.path} for u in db_contact.urns.all()],
             "fields": db_contact.fields,
-            "groups": [str(g.uuid) for g in db_contact.all_groups.all()],
+            "groups": [str(g.uuid) for g in db_contact.groups.all()],
+            "flow": str(db_contact.current_flow.uuid) if db_contact.current_flow else None,
         }
 
         self.stdout.write("========================= DB =========================")
@@ -126,6 +135,10 @@ class Command(BaseCommand):  # pragma: no cover
             raise CommandError(f"ES search for contact with UUID returned {len(hits)} results")
 
         return hits[0]["_source"]
+
+    def show_query(self, org, query: str):
+        parsed = parse_query(org, query, group=org.active_contacts_group)
+        self.stdout.write(json.dumps(parsed.elastic_query, indent=2))
 
 
 class ElasticClient:

@@ -53,6 +53,10 @@
       transition: all 200ms ease-in;
     }
 
+    temba-menu {
+      height: 100%;
+    }
+    
     @media only screen and (max-width: 850px) {
       .ticket-list {
         flex-basis: 200px; 
@@ -110,6 +114,8 @@
           updateTicketList();
         }                    
       }     
+
+      updatePageTitle();
     }
 
     function updateTicketList() {
@@ -120,7 +126,7 @@
       var tickets = document.querySelector("temba-ticket-list");
       var chat = document.querySelector("temba-contact-chat");
 
-      // if we have auto selecting, don't clear the chat
+      // if we have auto selecting, dont clear the chat
       var ticketsEndpoint = `/ticket/folder/${folder}/${status}/${initialTicket || ''}`;
       if (ticketsEndpoint != tickets.endpoint) {
         if (!tickets.nextSelection) {
@@ -262,7 +268,7 @@
       .page.flex-grow  
         .flex.widget-container(style="{% if is_spa%}margin:0;padding:0;height:100%{%else%}height:100vh; margin-top:-121px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;{%endif%}")
           -if not is_spa
-            .folders.mb-4
+            .folders
               %temba-menu(endpoint="{%url 'orgs.org_menu'%}" submenu="tickets" onchange="handleTicketsMenuChanged(event)" value="tickets/{{folder}}")
           
           .ticket-list.flex.flex-col(class="{% if is_spa%} {% else %}m-4 pt-4 mr-2{%endif%}")

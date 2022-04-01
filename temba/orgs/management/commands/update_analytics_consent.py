@@ -11,7 +11,6 @@ class Command(BaseCommand):  # pragma: no cover
     help = "Updates consent status for each user"
 
     def handle(self, *args, **options):
-        analytics.init_analytics()
         count = 0
         consented = 0
 
@@ -22,10 +21,10 @@ class Command(BaseCommand):  # pragma: no cover
 
             # update their policy consent
             if Policy.get_policies_needing_consent(user):
-                analytics.change_consent(user.email, False)
+                analytics.change_consent(user, False)
             else:
                 consented += 1
-                analytics.change_consent(user.email, True)
+                analytics.change_consent(user, True)
 
             time.sleep(0.1)
             count += 1

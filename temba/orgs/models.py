@@ -33,7 +33,7 @@ from django.db.models import Count, F, Prefetch, Q, Sum
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.archives.models import Archive
@@ -346,6 +346,8 @@ class Org(SmartModel):
 
     limits = JSONField(default=dict)
 
+    api_rates = JSONField(default=dict)
+
     is_anon = models.BooleanField(
         default=False, help_text=_("Whether this organization anonymizes the phone numbers of contacts within it")
     )
@@ -377,13 +379,7 @@ class Org(SmartModel):
         null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
     )
 
-    parent = models.ForeignKey(
-        "orgs.Org",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        help_text=_("The parent org that manages this org"),
-    )
+    parent = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, null=True, related_name="children")
 
     # when this org was released and when it was actually deleted
     released_on = models.DateTimeField(null=True)
@@ -463,15 +459,6 @@ class Org(SmartModel):
 
         return r.lock(lock_key, ORG_LOCK_TTL)
 
-    def has_contacts(self):
-        """
-        Gets whether this org has any contacts
-        """
-        from temba.contacts.models import ContactGroup
-
-        counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ACTIVE, ContactGroup.TYPE_BLOCKED))
-        return (counts[ContactGroup.TYPE_ACTIVE] + counts[ContactGroup.TYPE_BLOCKED]) > 0
-
     def get_integrations(self, category: IntegrationType.Category) -> list:
         """
         Returns the connected integrations on this org of the given category
@@ -499,20 +486,36 @@ class Org(SmartModel):
         return int(self.limits.get(limit_type, settings.ORG_LIMIT_DEFAULTS.get(limit_type)))
 
     def flag(self):
+        """
+        Flags this org for suspicious activity
+        """
+        from temba.notifications.models import Incident
+
         self.is_flagged = True
         self.save(update_fields=("is_flagged", "modified_on"))
 
+        Incident.flagged(self)  # create incident which will notify admins
+
     def unflag(self):
-        self.is_flagged = False
-        self.save(update_fields=("is_flagged", "modified_on"))
+        """
+        Unflags this org if they previously were flagged
+        """
+
+        from temba.notifications.models import Incident
+
+        if self.is_flagged:
+            self.is_flagged = False
+            self.save(update_fields=("is_flagged", "modified_on"))
+
+            Incident.flagged(self).end()
 
     def verify(self):
         """
         Unflags org and marks as verified so it won't be flagged automatically in future
         """
-        self.is_flagged = False
+        self.unflag()
         self.config[Org.CONFIG_VERIFIED] = True
-        self.save(update_fields=("is_flagged", "config", "modified_on"))
+        self.save(update_fields=("config", "modified_on"))
 
     def is_verified(self):
         """
@@ -587,8 +590,8 @@ class Org(SmartModel):
 
     @classmethod
     def export_definitions(cls, site_link, components, include_fields=True, include_groups=True):
-        from temba.contacts.models import ContactField
         from temba.campaigns.models import Campaign
+        from temba.contacts.models import ContactField
         from temba.flows.models import Flow
         from temba.triggers.models import Trigger
 
@@ -680,14 +683,14 @@ class Org(SmartModel):
         return self.get_channel(Channel.ROLE_RECEIVE, scheme=scheme)
 
     def get_call_channel(self):
-        from temba.contacts.models import URN
         from temba.channels.models import Channel
+        from temba.contacts.models import URN
 
         return self.get_channel(Channel.ROLE_CALL, scheme=URN.TEL_SCHEME)
 
     def get_answer_channel(self):
-        from temba.contacts.models import URN
         from temba.channels.models import Channel
+        from temba.contacts.models import URN
 
         return self.get_channel(Channel.ROLE_ANSWER, scheme=URN.TEL_SCHEME)
 
@@ -719,7 +722,12 @@ class Org(SmartModel):
     def active_contacts_group(self):
         from temba.contacts.models import ContactGroup
 
-        return self.all_groups(manager="system_groups").get(group_type=ContactGroup.TYPE_ACTIVE)
+        return self.groups.get(group_type=ContactGroup.TYPE_DB_ACTIVE)
+
+    def get_contact_count(self) -> int:
+        from temba.contacts.models import Contact
+
+        return sum(Contact.get_status_counts(self).values())
 
     @cached_property
     def default_ticket_topic(self):
@@ -734,31 +742,6 @@ class Org(SmartModel):
     @classmethod
     def get_possible_countries(cls):
         return AdminBoundary.objects.filter(level=0).order_by("name")
-
-    def trigger_send(self):
-        """
-        Triggers either our Android channels to sync, or for all our pending messages to be queued
-        to send.
-        """
-
-        from temba.channels.models import Channel
-        from temba.channels.types.android import AndroidType
-        from temba.msgs.models import Msg
-
-        # sync all pending channels
-        for channel in self.channels.filter(is_active=True, channel_type=AndroidType.code):  # pragma: needs cover
-            channel.trigger_sync()
-
-        # otherwise, send any pending messages on our channels
-        r = get_redis_connection()
-
-        key = "trigger_send_%d" % self.pk
-
-        # only try to send all pending messages if nobody is doing so already
-        if not r.get(key):
-            with r.lock(key, timeout=900):
-                pending = Channel.get_pending_messages(self)
-                Msg.send_messages(pending)
 
     def add_smtp_config(self, from_email, host, username, password, port, user):
         username = quote(username)
@@ -1474,7 +1457,7 @@ class Org(SmartModel):
         Generates a dict of all exportable flows and campaigns for this org with each object's immediate dependencies
         """
         from temba.campaigns.models import Campaign, CampaignEvent
-        from temba.contacts.models import ContactGroup, ContactField
+        from temba.contacts.models import ContactField, ContactGroup
         from temba.flows.models import Flow
 
         campaign_prefetches = (
@@ -1569,8 +1552,8 @@ class Org(SmartModel):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
-        from temba.middleware import BrandingMiddleware
         from temba.contacts.models import ContactField, ContactGroup
+        from temba.middleware import BrandingMiddleware
         from temba.tickets.models import Ticketer, Topic
 
         with transaction.atomic():
@@ -1686,6 +1669,7 @@ class Org(SmartModel):
         user = self.modified_by
 
         # delete notifications and exports
+        self.incidents.all().delete()
         self.notifications.all().delete()
         self.exportcontactstasks.all().delete()
         self.exportmessagestasks.all().delete()
@@ -1700,7 +1684,7 @@ class Org(SmartModel):
         # might be a lot of messages, batch this
         for id_batch in chunk_list(msg_ids, 1000):
             for msg in self.msgs.filter(id__in=id_batch):
-                msg.release()
+                msg.delete()
 
         # our system label counts
         self.system_labels.all().delete()
@@ -1729,7 +1713,7 @@ class Org(SmartModel):
 
         # delete our contacts
         for contact in self.contacts.all():
-            contact.release(user, full=True, immediately=True)
+            contact.release(user, immediately=True)
             contact.delete()
 
         # delete all our URNs
@@ -1741,8 +1725,8 @@ class Org(SmartModel):
             contactfield.delete()
 
         # delete our groups
-        for group in self.all_groups.all():
-            group.release(user)
+        for group in self.groups.all():
+            group.release(user, immediate=True)
             group.delete()
 
         # delete our channels
@@ -2123,6 +2107,8 @@ class UserSettings(models.Model):
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
     two_factor_enabled = models.BooleanField(default=False)
     last_auth_on = models.DateTimeField(null=True)
+    external_id = models.CharField(max_length=128, null=True)
+    verification_token = models.CharField(max_length=64, null=True)
 
     @classmethod
     def get_or_create(cls, user):

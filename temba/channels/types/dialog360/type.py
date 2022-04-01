@@ -1,10 +1,9 @@
 import requests
 
-from django.conf.urls import url
 from django.forms import ValidationError
-from django.urls import reverse
+from django.urls import re_path, reverse
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.channels.types.dialog360.views import ClaimView
@@ -43,8 +42,8 @@ class Dialog360Type(ChannelType):
     def get_urls(self):
         return [
             self.get_claim_url(),
-            url(r"^(?P<uuid>[a-z0-9\-]+)/templates$", TemplatesView.as_view(), name="templates"),
-            url(r"^(?P<uuid>[a-z0-9\-]+)/sync_logs$", SyncLogsView.as_view(), name="sync_logs"),
+            re_path(r"^(?P<uuid>[a-z0-9\-]+)/templates$", TemplatesView.as_view(), name="templates"),
+            re_path(r"^(?P<uuid>[a-z0-9\-]+)/sync_logs$", SyncLogsView.as_view(), name="sync_logs"),
         ]
 
     def get_headers(self, channel):

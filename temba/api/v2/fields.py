@@ -240,7 +240,6 @@ class ContactFieldField(TembaModelField):
 
 class ContactGroupField(TembaModelField):
     model = ContactGroup
-    model_manager = "user_groups"
     lookup_fields = ("uuid", "name")
     ignore_case_for_fields = ("name",)
 
@@ -251,10 +250,13 @@ class ContactGroupField(TembaModelField):
     def to_internal_value(self, data):
         obj = super().to_internal_value(data)
 
-        if not self.allow_dynamic and obj.is_dynamic:
-            raise serializers.ValidationError("Contact group must not be dynamic: %s" % data)
+        if not self.allow_dynamic and obj.is_smart:
+            raise serializers.ValidationError("Contact group must not be query based: %s" % data)
 
         return obj
+
+    def get_queryset(self):
+        return ContactGroup.get_groups(org=self.context["org"])
 
 
 class FlowField(TembaModelField):
@@ -276,7 +278,9 @@ class MessageField(TembaModelField):
     require_exists = False
 
     def get_queryset(self):
-        return self.model.objects.filter(org=self.context["org"]).exclude(visibility=Msg.VISIBILITY_DELETED)
+        return self.model.objects.filter(
+            org=self.context["org"], visibility__in=(Msg.VISIBILITY_VISIBLE, Msg.VISIBILITY_ARCHIVED)
+        )
 
 
 class TicketerField(TembaModelField):

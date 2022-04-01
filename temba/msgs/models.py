@@ -12,16 +12,15 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction
+from django.db import models
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
-from temba.channels.courier import push_courier_msgs
-from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
@@ -202,7 +201,7 @@ class Broadcast(models.Model):
             child.release()
 
         for msg in self.msgs.all():
-            msg.release()
+            msg.delete()
 
         BroadcastMsgCount.objects.filter(broadcast=self).delete()
 
@@ -321,11 +320,13 @@ class Msg(models.Model):
 
     VISIBILITY_VISIBLE = "V"
     VISIBILITY_ARCHIVED = "A"
-    VISIBILITY_DELETED = "D"
+    VISIBILITY_DELETED_BY_USER = "D"
+    VISIBILITY_DELETED_BY_SENDER = "X"
     VISIBILITY_CHOICES = (
         (VISIBILITY_VISIBLE, "Visible"),
         (VISIBILITY_ARCHIVED, "Archived"),
-        (VISIBILITY_DELETED, "Deleted"),
+        (VISIBILITY_DELETED_BY_USER, "Deleted by user"),
+        (VISIBILITY_DELETED_BY_SENDER, "Deleted by sender"),
     )
 
     DIRECTION_IN = "I"
@@ -343,9 +344,18 @@ class Msg(models.Model):
         (TYPE_USSD, "USSD Message"),
     )
 
-    DELETE_FOR_ARCHIVE = "A"
-    DELETE_FOR_USER = "U"
-    DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
+    FAILED_SUSPENDED = "S"  # org was suspended
+    FAILED_LOOPING = "L"  # message looks like it's part of a loop
+    FAILED_ERROR_LIMIT = "E"  # courier tried to send the message but we reached error limit
+    FAILED_TOO_OLD = "O"  # message has been queued for too long and too late to send message
+    FAILED_NO_DESTINATION = "D"  # no compatible channel + URN destination found
+    FAILED_CHOICES = (
+        (FAILED_SUSPENDED, "Suspended"),
+        (FAILED_LOOPING, "Looping"),
+        (FAILED_ERROR_LIMIT, "Error Limit"),
+        (FAILED_TOO_OLD, "Too Old"),
+        (FAILED_NO_DESTINATION, "No Destination"),
+    )
 
     MEDIA_GPS = "geo"
     MEDIA_IMAGE = "image"
@@ -361,7 +371,8 @@ class Msg(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="msgs")
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="msgs", db_index=False)
     contact_urn = models.ForeignKey(ContactURN, on_delete=models.PROTECT, null=True, related_name="msgs")
-    broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, blank=True, related_name="msgs")
+    broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, related_name="msgs")
+    flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
 
     text = models.TextField()
     attachments = ArrayField(models.URLField(max_length=2048), null=True)
@@ -378,115 +389,22 @@ class Msg(models.Model):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
     visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE)
 
-    response_to = models.ForeignKey(
-        "Msg", on_delete=models.PROTECT, null=True, blank=True, related_name="responses", db_index=False
-    )
-
     labels = models.ManyToManyField("Label", related_name="msgs")
 
     # the number of actual messages the channel sent this as (outgoing only)
     msg_count = models.IntegerField(default=1)
 
-    # the number of times this message has errored (outgoing only)
-    error_count = models.IntegerField(default=0)
-
-    # when we'll next try to send this message (only set for retries after an error)
-    next_attempt = models.DateTimeField(null=True)
+    # sending issues (outgoing only)
+    error_count = models.IntegerField(default=0)  # number of times this message has errored
+    next_attempt = models.DateTimeField(null=True)  # when we'll next retry
+    failed_reason = models.CharField(null=True, max_length=1, choices=FAILED_CHOICES)  # why we've failed
 
     # the id of this message on the other side of its channel
-    external_id = models.CharField(max_length=255, null=True, blank=True)
+    external_id = models.CharField(max_length=255, null=True)
 
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
 
-    # used for IVR sessions on channels
-    connection = models.ForeignKey(
-        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="msgs", null=True
-    )
-
     metadata = JSONAsTextField(null=True, default=dict)
-
-    # why this message is being deleted - determines what happens with counts
-    delete_reason = models.CharField(null=True, max_length=1, choices=DELETE_CHOICES)
-
-    @classmethod
-    def send_messages(cls, all_msgs):
-        """
-        Adds the passed in messages to our sending queue, this will also update the status of the message to
-        queued.
-        :return:
-        """
-
-        from temba.channels.types.android import AndroidType
-
-        courier_batches = []
-
-        # we send in chunks of 1,000 to help with contention
-        for msgs in chunk_list(all_msgs, 1000):
-            # build our id list
-            msg_ids = set([m.id for m in msgs])
-
-            with transaction.atomic():
-                queued_on = timezone.now()
-                courier_msgs = []
-
-                # update them to queued
-                send_messages = (
-                    Msg.objects.filter(id__in=msg_ids)
-                    .exclude(channel__channel_type=AndroidType.code)
-                    .exclude(msg_type=cls.TYPE_IVR)
-                    .exclude(status=cls.STATUS_FAILED)
-                )
-                send_messages.update(status=cls.STATUS_QUEUED, queued_on=queued_on, modified_on=queued_on)
-
-                # now push each onto our queue
-                for msg in msgs:
-
-                    # in development mode, don't actual send any messages
-                    if not settings.SEND_MESSAGES:
-                        msg.status = cls.STATUS_WIRED
-                        msg.sent_on = timezone.now()
-                        msg.save(update_fields=("status", "sent_on"))
-                        logger.debug(f"FAKED SEND for [{msg.id}]")
-                        continue
-
-                    if (
-                        (msg.msg_type != cls.TYPE_IVR and msg.channel and not msg.channel.is_android())
-                        and msg.status != cls.STATUS_FAILED
-                        and msg.uuid
-                    ):
-                        courier_msgs.append(msg)
-                        continue
-
-                # ok, now batch up our courier msgs
-                last_contact = None
-                last_channel = None
-                task_msgs = []
-                for msg in courier_msgs:
-                    if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
-                        courier_batches.append(
-                            dict(
-                                channel=task_msgs[0].channel, msgs=task_msgs, high_priority=task_msgs[0].high_priority
-                            )
-                        )
-                        task_msgs = []
-
-                    last_contact = msg.contact_id
-                    last_channel = msg.channel_id
-                    task_msgs.append(msg)
-
-                # push any remaining courier msgs
-                if task_msgs:
-                    courier_batches.append(
-                        dict(channel=task_msgs[0].channel, msgs=task_msgs, high_priority=task_msgs[0].high_priority)
-                    )
-
-        # send our batches
-        on_transaction_commit(lambda: cls._send_courier_msg_batches(courier_batches))
-
-    @classmethod
-    def _send_courier_msg_batches(cls, batches):
-        for batch in batches:
-            push_courier_msgs(batch["channel"], batch["msgs"], batch["high_priority"])
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
@@ -518,7 +436,7 @@ class Msg(models.Model):
         )
 
         # fail our messages
-        failed_messages.update(status=cls.STATUS_FAILED, modified_on=timezone.now())
+        failed_messages.update(status=cls.STATUS_FAILED, failed_reason=Msg.FAILED_TOO_OLD, modified_on=timezone.now())
 
     def as_archive_json(self):
         """
@@ -537,7 +455,7 @@ class Msg(models.Model):
             "visibility": MsgReadSerializer.VISIBILITIES.get(self.visibility),
             "text": self.text,
             "attachments": [attachment.as_json() for attachment in Attachment.parse_all(self.attachments)],
-            "labels": [{"uuid": l.uuid, "name": l.name} for l in self.labels.all()],
+            "labels": [{"uuid": lb.uuid, "name": lb.name} for lb in self.labels.all()],
             "created_on": self.created_on.isoformat(),
             "sent_on": self.sent_on.isoformat() if self.sent_on else None,
         }
@@ -654,41 +572,6 @@ class Msg(models.Model):
 
         mailroom.queue_msg_handling(self)
 
-    def as_task_json(self):
-        """
-        Used internally to serialize to JSON when queueing messages in Redis
-        """
-        data = dict(
-            id=self.id,
-            org=self.org_id,
-            channel=self.channel_id,
-            broadcast=self.broadcast_id,
-            text=self.text,
-            urn_path=self.contact_urn.path,
-            urn=str(self.contact_urn),
-            contact=self.contact_id,
-            contact_urn=self.contact_urn_id,
-            error_count=self.error_count,
-            next_attempt=self.next_attempt,
-            status=self.status,
-            direction=self.direction,
-            attachments=self.attachments,
-            external_id=self.external_id,
-            response_to_id=self.response_to_id,
-            sent_on=self.sent_on,
-            queued_on=self.queued_on,
-            created_on=self.created_on,
-            modified_on=self.modified_on,
-            high_priority=self.high_priority,
-            metadata=self.metadata,
-            connection_id=self.connection_id,
-        )
-
-        if self.contact_urn.auth:  # pragma: no cover
-            data.update(dict(auth=self.contact_urn.auth))
-
-        return data
-
     def __str__(self):  # pragma: needs cover
         return self.text
 
@@ -731,8 +614,7 @@ class Msg(models.Model):
         """
         Archives this message
         """
-        if self.direction != self.DIRECTION_IN:
-            raise ValueError("Can only archive incoming non-test messages")
+        assert self.direction == self.DIRECTION_IN and self.visibility == Msg.VISIBILITY_VISIBLE
 
         self.visibility = self.VISIBILITY_ARCHIVED
         self.save(update_fields=("visibility", "modified_on"))
@@ -754,27 +636,28 @@ class Msg(models.Model):
         """
         Restores (i.e. un-archives) this message
         """
-        if self.direction != self.DIRECTION_IN:  # pragma: needs cover
-            raise ValueError("Can only restore incoming non-test messages")
+        assert self.direction == self.DIRECTION_IN and self.visibility == Msg.VISIBILITY_ARCHIVED
 
         self.visibility = self.VISIBILITY_VISIBLE
         self.save(update_fields=("visibility", "modified_on"))
 
-    def release(self, delete_reason=DELETE_FOR_USER):
+    def delete(self, soft: bool = False):
         """
-        Releases (i.e. deletes) this message
+        Deletes this message. This can be soft if messages are being deleted from the UI, or hard in the case of
+        contact or org removal.
         """
-        Msg.objects.filter(response_to=self).update(response_to=None)
+        if soft:
+            self.labels.clear()
 
-        for log in ChannelLog.objects.filter(msg=self):
-            log.release()
+            self.text = ""
+            self.attachments = []
+            self.visibility = Msg.VISIBILITY_DELETED_BY_USER
+            self.save(update_fields=("text", "attachments", "visibility"))
+        else:
+            for log in self.channel_logs.all():
+                log.release()
 
-        if delete_reason:
-            self.delete_reason = delete_reason
-            self.save(update_fields=["delete_reason"])
-
-        # delete this object
-        self.delete()
+            super().delete()
 
     @classmethod
     def apply_action_label(cls, user, msgs, label):
@@ -797,7 +680,7 @@ class Msg(models.Model):
     @classmethod
     def apply_action_delete(cls, user, msgs):
         for msg in msgs:
-            msg.release()
+            msg.delete(soft=True)
 
     @classmethod
     def apply_action_resend(cls, user, msgs):
@@ -979,16 +862,16 @@ class SystemLabelCount(SquashableModel):
         return sql, (distinct_set.org_id, distinct_set.label_type, distinct_set.is_archived) * 2
 
     @classmethod
-    def get_totals(cls, org, is_archived=False):
+    def get_totals(cls, org):
         """
         Gets all system label counts by type for the given org
         """
-        counts = cls.objects.filter(org=org, is_archived=is_archived)
+        counts = cls.objects.filter(org=org, is_archived=False)
         counts = counts.values_list("label_type").annotate(count_sum=Sum("count"))
         counts_by_type = {c[0]: c[1] for c in counts}
 
         # for convenience, include all label types
-        return {l: counts_by_type.get(l, 0) for l, n in SystemLabel.TYPE_CHOICES}
+        return {lb: counts_by_type.get(lb, 0) for lb, n in SystemLabel.TYPE_CHOICES}
 
     class Meta:
         index_together = ("org", "label_type")
@@ -1065,7 +948,7 @@ class Label(TembaModel, DependencyMixin):
         """
 
         labels_and_folders = list(Label.all_objects.filter(org=org, is_active=True).order_by(Upper("name")))
-        label_counts = LabelCount.get_totals([l for l in labels_and_folders if not l.is_folder()])
+        label_counts = LabelCount.get_totals([lb for lb in labels_and_folders if not lb.is_folder()])
 
         folder_nodes = {}
         all_nodes = []
@@ -1111,8 +994,7 @@ class Label(TembaModel, DependencyMixin):
         """
         Returns the count of visible, non-test message tagged with this label
         """
-        if self.is_folder():
-            raise ValueError("Message counts are not tracked for user folders")
+        assert not self.is_folder()
 
         return LabelCount.get_totals([self])[self]
 
@@ -1126,8 +1008,7 @@ class Label(TembaModel, DependencyMixin):
         changed = set()
 
         for msg in msgs:
-            if msg.direction != Msg.DIRECTION_IN:
-                raise ValueError("Can only apply labels to incoming messages")
+            assert msg.direction == Msg.DIRECTION_IN
 
             # if we are adding the label and this message doesnt have it, add it
             if add:
@@ -1199,17 +1080,17 @@ class LabelCount(SquashableModel):
         return sql, (distinct_set.label_id, distinct_set.is_archived) * 2
 
     @classmethod
-    def get_totals(cls, labels, is_archived=False):
+    def get_totals(cls, labels):
         """
         Gets total counts for all the given labels
         """
         counts = (
-            cls.objects.filter(label__in=labels, is_archived=is_archived)
+            cls.objects.filter(label__in=labels, is_archived=False)
             .values_list("label_id")
             .annotate(count_sum=Sum("count"))
         )
         counts_by_label_id = {c[0]: c[1] for c in counts}
-        return {l: counts_by_label_id.get(l.id, 0) for l in labels}
+        return {lb: counts_by_label_id.get(lb.id, 0) for lb in labels}
 
 
 class MsgIterator:
@@ -1402,7 +1283,7 @@ class ExportMessagesTask(BaseExportTask):
             messages = messages.filter(created_on__lte=end_date)
 
         if self.groups.all():
-            messages = messages.filter(contact__all_groups__in=self.groups.all())
+            messages = messages.filter(contact__groups__in=self.groups.all())
 
         messages = messages.order_by("created_on").using("readonly")
         if last_created_on:

@@ -1,7 +1,7 @@
 from django.db import models
 from django.db.models import Model
 from django.utils import timezone
-from django.utils.translation import ngettext, ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _, ngettext
 
 from temba import mailroom
 from temba.contacts.models import Contact, ContactField, ContactGroup
@@ -14,11 +14,6 @@ from temba.utils.models import TembaModel, TranslatableField
 
 class Campaign(TembaModel):
     MAX_NAME_LEN = 255
-
-    EXPORT_UUID = "uuid"
-    EXPORT_NAME = "name"
-    EXPORT_GROUP = "group"
-    EXPORT_EVENTS = "events"
 
     org = models.ForeignKey(Org, related_name="campaigns", on_delete=models.PROTECT)
     name = models.CharField(max_length=MAX_NAME_LEN)
@@ -75,34 +70,26 @@ class Campaign(TembaModel):
         imported = []
 
         for campaign_def in campaign_defs:
-            name = campaign_def[Campaign.EXPORT_NAME]
+            name = campaign_def["name"]
+            group_ref = campaign_def["group"]
             campaign = None
             group = None
 
-            # first check if we have the objects by UUID
+            # if export is from this site, lookup objects by UUID
             if same_site:
-                group = ContactGroup.user_groups.filter(
-                    uuid=campaign_def[Campaign.EXPORT_GROUP]["uuid"], org=org
-                ).first()
-                if group:  # pragma: needs cover
-                    group.name = campaign_def[Campaign.EXPORT_GROUP]["name"]
-                    group.save()
+                group = ContactGroup.get_or_create(org, user, group_ref["name"], uuid=group_ref["uuid"])
 
-                campaign = Campaign.objects.filter(org=org, uuid=campaign_def[Campaign.EXPORT_UUID]).first()
+                campaign = Campaign.objects.filter(org=org, uuid=campaign_def["uuid"]).first()
                 if campaign:  # pragma: needs cover
                     campaign.name = Campaign.get_unique_name(org, name, ignore=campaign)
                     campaign.save()
 
             # fall back to lookups by name
             if not group:
-                group = ContactGroup.get_user_group_by_name(org, campaign_def[Campaign.EXPORT_GROUP]["name"])
+                group = ContactGroup.get_or_create(org, user, group_ref["name"])
 
             if not campaign:
                 campaign = Campaign.objects.filter(org=org, name=name).first()
-
-            # all else fails, create the objects from scratch
-            if not group:
-                group = ContactGroup.create_static(org, user, campaign_def[Campaign.EXPORT_GROUP]["name"])
 
             if not campaign:
                 campaign_name = Campaign.get_unique_name(org, name)
@@ -116,7 +103,7 @@ class Campaign(TembaModel):
                 event.release(user)
 
             # fill our campaign with events
-            for event_spec in campaign_def[Campaign.EXPORT_EVENTS]:
+            for event_spec in campaign_def["events"]:
                 field_key = event_spec["relative_to"]["key"]
 
                 if field_key == "created_on":
@@ -233,10 +220,10 @@ class Campaign(TembaModel):
             events.append(event_definition)
 
         return {
-            Campaign.EXPORT_UUID: str(self.uuid),
-            Campaign.EXPORT_NAME: self.name,
-            Campaign.EXPORT_GROUP: self.group.as_export_ref(),
-            Campaign.EXPORT_EVENTS: events,
+            "uuid": str(self.uuid),
+            "name": self.name,
+            "group": self.group.as_export_ref(),
+            "events": events,
         }
 
     def get_sorted_events(self):

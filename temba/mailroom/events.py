@@ -79,7 +79,11 @@ class Event:
         """
 
         channel_log = obj.get_last_log()
-        logs_url = _url_for_user(org, user, "channels.channellog_read", args=[channel_log.id]) if channel_log else None
+        logs_url = (
+            _url_for_user(org, user, "channels.channellog_read", args=[channel_log.channel.uuid, channel_log.id])
+            if channel_log
+            else None
+        )
 
         if obj.direction == Msg.DIRECTION_IN:
             return {
@@ -88,6 +92,7 @@ class Event:
                 "msg": _msg_in(obj),
                 # additional properties
                 "msg_type": obj.msg_type,
+                "visibility": obj.visibility,
                 "logs_url": logs_url,
             }
         elif obj.broadcast and obj.broadcast.get_message_count() > 1:
@@ -201,7 +206,11 @@ class Event:
         return {
             "type": cls.TYPE_CAMPAIGN_FIRED,
             "created_on": get_event_time(obj).isoformat(),
-            "campaign": {"id": obj.event.campaign.id, "name": obj.event.campaign.name},
+            "campaign": {
+                "uuid": obj.event.campaign.uuid,
+                "id": obj.event.campaign.id,
+                "name": obj.event.campaign.name,
+            },
             "campaign_event": {
                 "id": obj.event.id,
                 "offset_display": obj.event.offset_display,
@@ -246,16 +255,17 @@ def _msg_out(obj) -> dict:
 
 
 def _base_msg(obj) -> dict:
+    redact = obj.visibility in (Msg.VISIBILITY_DELETED_BY_USER, Msg.VISIBILITY_DELETED_BY_SENDER)
     d = {
         "uuid": str(obj.uuid),
         "id": obj.id,
         "urn": str(obj.contact_urn) if obj.contact_urn else None,
-        "text": obj.text,
+        "text": obj.text if not redact else "",
     }
     if obj.channel:
         d["channel"] = {"uuid": str(obj.channel.uuid), "name": obj.channel.name}
     if obj.attachments:
-        d["attachments"] = obj.attachments
+        d["attachments"] = obj.attachments if not redact else []
 
     return d
 
