@@ -64,3 +64,19 @@ def incrby_existing(key, delta, r=None):
         "end"
     )
     r.eval(lua, 1, key, delta)
+
+
+class redis_cached_property:
+    def __init__(self, callable):
+        self.callable = callable
+
+    def __get__(self, instance, owner):
+        r = get_redis_connection()
+        cache_key = f"{owner.__name__}__{self.callable.__name__}__{hash(instance)}".lower()
+        cached = r.get(cache_key)
+        if cached is not None:
+            return json.loads(force_text(cached), object_hook=json.decode_datetime)
+
+        result = self.callable(instance)
+        r.set(cache_key, json.dumps(result), ex=4000)
+        return result

@@ -374,6 +374,21 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
 
         return rendered
 
+    def get_gear_links(self):
+        links = []
+
+        if self.has_org_perm("contacts.contact_export"):
+            links.append(
+                dict(
+                    id="export-contacts",
+                    title=_("Export"),
+                    modax=_("Export Contacts"),
+                    href=self.derive_export_url(),
+                )
+            )
+
+        return links
+
 
 class ContactForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
@@ -1070,15 +1085,7 @@ class ContactCRUDL(SmartCRUDL):
                     )
                 )
 
-            if self.has_org_perm("contacts.contact_export"):
-                links.append(
-                    dict(
-                        id="export-contacts",
-                        title=_("Export"),
-                        modax=_("Export Contacts"),
-                        href=self.derive_export_url(),
-                    )
-                )
+            links.extend(super().get_gear_links())
             return links
 
         def get_context_data(self, *args, **kwargs):
@@ -1103,21 +1110,6 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-        def get_gear_links(self):
-            links = []
-
-            if self.has_org_perm("contacts.contact_export"):
-                links.append(
-                    dict(
-                        id="export-contacts",
-                        title=_("Export"),
-                        modax=_("Export Contacts"),
-                        href=self.derive_export_url(),
-                    )
-                )
-
-            return links
-
     class Stopped(ContactListView):
         title = _("Stopped Contacts")
         template_name = "contacts/contact_stopped.haml"
@@ -1130,21 +1122,6 @@ class ContactCRUDL(SmartCRUDL):
             context = super().get_context_data(*args, **kwargs)
             context["reply_disabled"] = True
             return context
-
-        def get_gear_links(self):
-            links = []
-
-            if self.has_org_perm("contacts.contact_export"):
-                links.append(
-                    dict(
-                        id="export-contacts",
-                        title=_("Export"),
-                        modax=_("Export Contacts"),
-                        href=self.derive_export_url(),
-                    )
-                )
-
-            return links
 
     class Archived(ContactListView):
         title = _("Archived Contacts")
@@ -1173,16 +1150,7 @@ class ContactCRUDL(SmartCRUDL):
                     dict(title=_("Delete All"), style="btn-default", js_class="contacts-btn-delete-all", href="#")
                 )
 
-            if self.has_org_perm("contacts.contact_export"):
-                links.append(
-                    dict(
-                        id="export-contacts",
-                        title=_("Export"),
-                        modax=_("Export Contacts"),
-                        href=self.derive_export_url(),
-                    )
-                )
-
+            links.extend(super().get_gear_links())
             return links
 
     class Filter(ContactListView, OrgObjPermsMixin):

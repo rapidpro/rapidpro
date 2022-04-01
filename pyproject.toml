@@ -70,6 +70,7 @@ ua-parser = "^0.10.0"
 user-agents = "^2.2.0"
 pre-commit = "2.9.2"
 pandas = "^1.4.1"
+raven = "^6.10.0"
 
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"

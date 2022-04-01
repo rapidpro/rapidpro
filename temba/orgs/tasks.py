@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from celery.task import task
+from django_redis import get_redis_connection
 from parse_rest.connection import register
 from parse_rest.datatypes import Object
 
@@ -275,3 +276,14 @@ def delete_orgs_task():
             org.delete()
         except Exception:  # pragma: no cover
             logging.exception(f"exception while deleting {org.name}")
+
+
+@nonoverlapping_task(track_started=True, name="cache_twilio_stats_task")
+def cache_twilio_stats_task():
+    r = get_redis_connection()
+    for org in Org.objects.filter(is_active=True):
+        if org.get_twilio_client():
+            # remove previously saved stats from redis
+            r.delete("org__twilio_stats__%d" % org.id)
+            # call twilio_stats property to make 'redis_cached_property' work and store value in redis db
+            _ = org.twilio_stats

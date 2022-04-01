@@ -1,0 +1,86 @@
+-extends "smartmin/form.html"
+-load smartmin temba compress humanize channels i18n tz
+
+-block title
+  .flex.items-start.flex-col
+    .name
+      Twilio Usage Report
+
+-block subtitle
+  .flex.mt-2
+    .flex.flex-col
+      .channel_type
+        Twilio Account
+      .text-gray-500.text-base
+        = twilio_token
+      .text-gray-500.text-base
+
+-block summary
+  -blocktrans trimmed
+    Twilio Usage Report
+
+-block content
+  -block charts-zone
+    .msgs-stats.active
+      .minutes-disclaimer.mb-4
+        Please note: When you send a SMS message over 160 characters, the message will be split. Large messages are
+        segmented into 153 character segments and sent individually, then rebuilt by the recipient's device. For
+        example, a 161-character message will be sent as two messages, one with 153 characters and the second with 8
+        characters. This is how CCL is billed and therefore how you are billed.
+
+      %table.list.lined
+        %thead
+          %tr
+            %th
+              -trans "Month"
+            %th
+              -trans "In Messages"
+            %th
+              -trans "Out Messages"
+            %th
+              -trans "In MMS"
+            %th
+              -trans "Out MMS"
+            %th
+              -trans "In Voice"
+            %th
+              -trans "Out Voice"
+        %tbody
+          -for month_data in twilio_stats
+            %tr
+              %td
+                = month_data.month_start|date:"F Y"
+              %td
+                = month_data.sms_in
+              %td
+                = month_data.sms_out
+              %td
+                = month_data.mms_in
+              %td
+                = month_data.mms_out
+              %td
+                = month_data.calls_in
+              %td
+                = month_data.calls_out
+          %tr
+            %td
+              %b
+                -trans "Total"
+            %td
+              %b
+                = total_stats.sms_in
+            %td
+              %b
+                = total_stats.sms_out
+            %td
+              %b
+                = total_stats.mms_in
+            %td
+              %b
+                = total_stats.mms_out
+            %td
+              %b
+                = total_stats.calls_in
+            %td
+              %b
+                = total_stats.calls_out

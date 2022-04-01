@@ -4,7 +4,7 @@ import random
 import regex
 import smtplib
 import string
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict, namedtuple, defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from email.utils import parseaddr
@@ -75,11 +75,11 @@ from temba.utils.email import is_valid_address, send_template_email
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
     CheckboxWidget,
+    CompletionTextarea,
     InputWidget,
     SelectMultipleWidget,
     SelectWidget,
     TembaChoiceField,
-    CompletionTextarea,
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
@@ -414,22 +414,37 @@ class OrgGrantForm(forms.ModelForm):
     first_name = forms.CharField(
         help_text=_("The first name of the workspace administrator"),
         max_length=User._meta.get_field("first_name").max_length,
+        widget=InputWidget(attrs={"placeholder": _("First name")}),
     )
     last_name = forms.CharField(
         help_text=_("Your last name of the workspace administrator"),
         max_length=User._meta.get_field("last_name").max_length,
+        widget=InputWidget(attrs={"placeholder": _("Last name")}),
     )
     email = forms.EmailField(
-        help_text=_("Their email address"), max_length=User._meta.get_field("username").max_length
+        help_text=_("Their email address"),
+        max_length=User._meta.get_field("username").max_length,
+        widget=InputWidget(attrs={"placeholder": _("name@domain.com")}),
     )
-    timezone = TimeZoneFormField(help_text=_("The timezone for the workspace"))
     password = forms.CharField(
-        widget=forms.PasswordInput,
         required=False,
         help_text=_("Their password, at least eight letters please. (leave blank for existing login)"),
+        widget=InputWidget(attrs={"password": True, "placeholder": _("Password")}),
     )
-    name = forms.CharField(label=_("Workspace"), help_text=_("The name of the new workspace"))
-    credits = forms.ChoiceField(choices=(), help_text=_("The initial number of credits granted to this workspace"))
+    timezone = TimeZoneFormField(
+        help_text=_("The timezone for the workspace"),
+        widget=SelectWidget,
+    )
+    name = forms.CharField(
+        label=_("Workspace"),
+        help_text=_("The name of the new workspace"),
+        widget=InputWidget(attrs={"widget_only": False, "placeholder": _("My Company, Inc.")}),
+    )
+    credits = forms.ChoiceField(
+        choices=(),
+        help_text=_("The initial number of credits granted to this workspace"),
+        widget=SelectWidget,
+    )
 
     def __init__(self, *args, **kwargs):
         branding = kwargs["branding"]
@@ -1045,6 +1060,7 @@ class OrgCRUDL(SmartCRUDL):
         "clear_cache",
         "twilio_connect",
         "twilio_account",
+        "twilio_stats",
         "vonage_account",
         "vonage_connect",
         "plan",
@@ -2823,6 +2839,7 @@ class OrgCRUDL(SmartCRUDL):
 
             obj.created_by = self.user
             obj.modified_by = self.user
+            obj.slug = Org.get_unique_slug(self.form.cleaned_data["name"])
             obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
             obj.language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
             obj.plan = self.request.branding.get("default_plan", settings.DEFAULT_PLAN)
@@ -3591,6 +3608,9 @@ class OrgCRUDL(SmartCRUDL):
                 twilio_client = org.get_twilio_client()
                 if twilio_client:  # pragma: needs cover
                     formax.add_section("twilio", reverse("orgs.org_twilio_account"), icon="icon-channel-twilio")
+                    formax.add_section(
+                        "twilio-stats", reverse("orgs.org_twilio_stats"), icon="icon-channel-twilio", action="link"
+                    )
 
                 vonage_client = org.get_vonage_client()
                 if vonage_client:  # pragma: needs cover
@@ -3721,6 +3741,37 @@ class OrgCRUDL(SmartCRUDL):
 
                 org.connect_twilio(account_sid, account_token, user)
                 return super().form_valid(form)
+
+    class TwilioStats(OrgPermsMixin, SmartTemplateView):
+        permission = "channels.channel_read"
+
+        def get_context_data(self, **kwargs):
+            org = self.org
+            twilio_client = org.get_twilio_client()
+            if not twilio_client:
+                return Http404
+
+            context_data = super().get_context_data(**kwargs)
+            origin_stats = org.twilio_stats
+            types = ["sms_in", "mms_in", "calls_in", "sms_out", "mms_out", "calls_out"]
+            table_stats = defaultdict(lambda: {t: 0 for t in types})
+            total_stats = {t: 0 for t in types}
+            for origin_category, items in origin_stats.items():
+                category = origin_category.removesuffix("bound").replace("-", "_")
+                for start, value in items:
+                    table_stats[start][category] = value
+                    total_stats[category] += int(value)
+
+            twilio_sid = twilio_client.account_sid
+            sid_length = len(twilio_sid)
+            context_data["twilio_token"] = "%s%s" % ("\u066D" * (sid_length - 16), twilio_sid[-16:])
+            context_data["total_stats"] = total_stats
+            context_data["twilio_stats"] = sorted(
+                map(lambda data: {"month_start": data[0], **data[1]}, table_stats.items()),
+                key=lambda data: data["month_start"],
+                reverse=True,
+            )
+            return context_data
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
