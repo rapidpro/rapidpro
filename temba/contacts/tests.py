@@ -24,7 +24,7 @@ from django.utils import timezone
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.search import SearchException, SearchResults, search_contacts
+from temba.contacts.search import Metadata, SearchException, SearchResults, search_contacts
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowSession, FlowStart
 from temba.ivr.models import IVRCall
@@ -1912,9 +1912,12 @@ class ContactTest(TembaTest):
         with self.assertNumQueries(17):
             mock_search_contacts.side_effect = [
                 SearchResults(
-                    query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id]
+                    query="",
+                    total=4,
+                    contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
+                    metadata=Metadata(),
                 ),
-                SearchResults(query="", total=3, contact_ids=[]),
+                SearchResults(query="", total=3, contact_ids=[], metadata=Metadata()),
             ]
 
             self.assertEqual(
@@ -1935,8 +1938,8 @@ class ContactTest(TembaTest):
 
         with self.assertNumQueries(19):
             mock_search_contacts.side_effect = [
-                SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
-                SearchResults(query="", total=2, contact_ids=[self.voldemort.id, self.frank.id]),
+                SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=Metadata()),
+                SearchResults(query="", total=2, contact_ids=[self.voldemort.id, self.frank.id], metadata=Metadata()),
             ]
 
             self.assertEqual(
@@ -1965,8 +1968,8 @@ class ContactTest(TembaTest):
 
         with self.assertNumQueries(17):
             mock_search_contacts.side_effect = [
-                SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
-                SearchResults(query="", total=0, contact_ids=[]),
+                SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=Metadata()),
+                SearchResults(query="", total=0, contact_ids=[], metadata=Metadata()),
             ]
 
             self.assertEqual(
@@ -2007,9 +2010,14 @@ class ContactTest(TembaTest):
 
         mock_search_contacts.side_effect = [
             SearchResults(
-                query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id]
+                query="",
+                total=4,
+                contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
+                metadata=Metadata(),
             ),
-            SearchResults(query="", total=3, contact_ids=[self.voldemort.id, self.joe.id, self.frank.id]),
+            SearchResults(
+                query="", total=3, contact_ids=[self.voldemort.id, self.joe.id, self.frank.id], metadata=Metadata()
+            ),
         ]
         self.assertEqual(
             [
@@ -2026,8 +2034,8 @@ class ContactTest(TembaTest):
 
         # search for Frank by phone
         mock_search_contacts.side_effect = [
-            SearchResults(query="name ~ 222", total=0, contact_ids=[]),
-            SearchResults(query="urn ~ 222", total=1, contact_ids=[self.frank.id]),
+            SearchResults(query="name ~ 222", total=0, contact_ids=[], metadata=Metadata()),
+            SearchResults(query="urn ~ 222", total=1, contact_ids=[self.frank.id], metadata=Metadata()),
         ]
         self.assertEqual(
             [{"id": f"u-{frank_tel.id}", "text": "250782222222", "extra": "Frank Smith", "scheme": "tel"}],
@@ -2042,8 +2050,8 @@ class ContactTest(TembaTest):
 
         # search for Joe - match on last name and twitter handle
         mock_search_contacts.side_effect = [
-            SearchResults(query="name ~ blow", total=1, contact_ids=[self.joe.id]),
-            SearchResults(query="urn ~ blow", total=1, contact_ids=[self.joe.id]),
+            SearchResults(query="name ~ blow", total=1, contact_ids=[self.joe.id], metadata=Metadata()),
+            SearchResults(query="urn ~ blow", total=1, contact_ids=[self.joe.id], metadata=Metadata()),
         ]
         self.assertEqual(
             [
@@ -2086,7 +2094,9 @@ class ContactTest(TembaTest):
         )
 
         with AnonymousOrg(self.org):
-            mock_search_contacts.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
+            mock_search_contacts.side_effect = [
+                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=Metadata())
+            ]
             self.assertEqual(
                 [
                     # all 4 groups...
@@ -2102,7 +2112,9 @@ class ContactTest(TembaTest):
             )
 
             # same search but with v2 format
-            mock_search_contacts.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
+            mock_search_contacts.side_effect = [
+                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=Metadata())
+            ]
             self.assertEqual(
                 [
                     # all 4 groups A-Z
