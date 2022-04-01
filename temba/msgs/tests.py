@@ -290,6 +290,298 @@ class MsgTest(TembaTest):
             {"quick_replies": [{"eng": "Yes", "fra": "Oui"}, {"eng": "No"}], "template_state": "legacy"},
         )
 
+    def test_outbox(self):
+        self.login(self.admin)
+
+        contact = self.create_contact("", phone="250788382382")
+        broadcast1 = self.create_broadcast(self.admin, "How is it going?", contacts=[contact])
+
+        # put messages back into pending state
+        Msg.objects.filter(broadcast=broadcast1).update(status=PENDING)
+
+        (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
+
+        with self.assertNumQueries(35):
+            response = self.client.get(reverse("msgs.msg_outbox"))
+
+        self.assertEqual(1, response.context_data["folders"][4]["count"])  # Outbox
+        self.assertEqual(set(response.context_data["object_list"]), {msg1})
+
+        broadcast2 = self.create_broadcast(
+            self.admin, "kLab is an awesome place", contacts=[self.kevin], groups=[self.joe_and_frank]
+        )
+
+        Msg.objects.filter(broadcast=broadcast2).update(status=PENDING)
+        msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2).order_by("-created_on", "-id"))
+
+        broadcast3 = Broadcast.create(
+            self.channel.org, self.admin, "Pending broadcast", contacts=[self.kevin], status=QUEUED
+        )
+
+        broadcast4 = Broadcast.create(
+            self.channel.org, self.admin, "Scheduled broadcast", contacts=[self.kevin], status=QUEUED
+        )
+
+        broadcast4.schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
+        broadcast4.save(update_fields=["schedule"])
+
+        with self.assertNumQueries(37):
+            response = self.client.get(reverse("msgs.msg_outbox"))
+
+        self.assertEqual(5, response.context_data["folders"][4]["count"])  # Outbox
+        self.assertEqual(list(response.context_data["object_list"]), [msg4, msg3, msg2, msg1])
+        self.assertEqual(list(response.context_data["pending_broadcasts"]), [broadcast3])
+
+        response = self.client.get("%s?search=kevin" % reverse("msgs.msg_outbox"))
+        self.assertEqual(list(response.context_data["object_list"]), [Msg.objects.get(contact=self.kevin)])
+
+        response = self.client.get("%s?search=joe" % reverse("msgs.msg_outbox"))
+        self.assertEqual(list(response.context_data["object_list"]), [Msg.objects.get(contact=self.joe)])
+
+        response = self.client.get("%s?search=frank" % reverse("msgs.msg_outbox"))
+        self.assertEqual(list(response.context_data["object_list"]), [Msg.objects.get(contact=self.frank)])
+
+        response = self.client.get("%s?search=just" % reverse("msgs.msg_outbox"))
+        self.assertEqual(list(response.context_data["object_list"]), list())
+
+        response = self.client.get("%s?search=klab" % reverse("msgs.msg_outbox"))
+        self.assertEqual(list(response.context_data["object_list"]), [msg4, msg3, msg2])
+
+        # make sure variables that are replaced in text messages match as well
+        response = self.client.get("%s?search=durant" % reverse("msgs.msg_outbox"))
+        self.assertEqual(list(response.context_data["object_list"]), [Msg.objects.get(contact=self.kevin)])
+
+    def do_msg_action(self, url, msgs, action, label=None, label_add=True):
+        post_data = dict()
+        post_data["action"] = action
+        post_data["objects"] = [m.id for m in msgs]
+        post_data["label"] = label.pk if label else None
+        post_data["add"] = label_add
+        return self.client.post(url, post_data, follow=True)
+
+    def test_inbox(self):
+        inbox_url = reverse("msgs.msg_inbox")
+
+        msg1 = self.create_incoming_msg(self.joe, "message number 1")
+        msg2 = self.create_incoming_msg(self.joe, "message number 2")
+        msg3 = self.create_incoming_msg(self.joe, "message number 3")
+        self.create_incoming_msg(self.joe, "message number 4")
+        msg5 = self.create_incoming_msg(self.joe, "message number 5")
+        self.create_incoming_msg(self.joe, "message number 6", status=PENDING)
+
+        # visit inbox page  as a user not in the organization
+        self.login(self.non_org_user)
+        response = self.client.get(inbox_url)
+        self.assertEqual(302, response.status_code)
+
+        # visit inbox page as a manager of the organization
+        self.login(self.admin)
+        with self.assertNumQueries(32):
+            response = self.client.get(inbox_url + "?refresh=10000")
+
+        # make sure that we embed refresh script if View.refresh is set
+        self.assertContains(response, "function refresh")
+
+        self.assertEqual(response.context["refresh"], 20000)
+        self.assertEqual(response.context["object_list"].count(), 5)
+        self.assertEqual(response.context["folders"][0]["url"], "/msg/inbox/")
+        self.assertEqual(response.context["folders"][0]["count"], 5)
+        self.assertEqual(response.context["actions"], ("archive", "label"))
+
+        # visit inbox page as administrator
+        response = self.fetch_protected(inbox_url, self.admin)
+
+        self.assertEqual(response.context["object_list"].count(), 5)
+        self.assertEqual(response.context["actions"], ("archive", "label"))
+
+        # let's add some labels
+        folder = Label.get_or_create_folder(self.org, self.user, "folder")
+        label1 = Label.get_or_create(self.org, self.user, "label1", folder)
+        Label.get_or_create(self.org, self.user, "label2", folder)
+        label3 = Label.get_or_create(self.org, self.user, "label3")
+
+        # test labeling a messages
+        self.do_msg_action(inbox_url, [msg1, msg2], "label", label1)
+        self.assertEqual(set(label1.msgs.all()), {msg1, msg2})
+
+        # test removing a label
+        self.do_msg_action(inbox_url, [msg2], "label", label1, label_add=False)
+        self.assertEqual({msg1}, set(label1.msgs.all()))
+
+        # label more messages
+        self.do_msg_action(inbox_url, [msg1, msg2, msg3], "label", label3)
+        self.assertEqual({msg1}, set(label1.msgs.all()))
+        self.assertEqual({msg1, msg2, msg3}, set(label3.msgs.all()))
+
+        # update our label name
+        response = self.client.get(reverse("msgs.label_update", args=[label1.id]))
+
+        self.assertEqual(200, response.status_code)
+        self.assertIn("folder", response.context["form"].fields)
+
+        response = self.client.post(reverse("msgs.label_update", args=[label1.id]), {"name": "Foo"})
+        label1.refresh_from_db()
+
+        self.assertEqual(302, response.status_code)
+        self.assertEqual("Foo", label1.name)
+
+        # test deleting the label
+        response = self.client.get(reverse("msgs.label_delete", args=[label1.uuid]))
+        self.assertEqual(200, response.status_code)
+
+        response = self.client.post(reverse("msgs.label_delete", args=[label1.uuid]))
+        label1.refresh_from_db()
+
+        self.assertTrue(response.has_header("Temba-Success"))
+        self.assertFalse(label1.is_active)
+
+        # shouldn't have a remove on the update page
+
+        # test archiving a msg
+        self.assertEqual({label3}, set(msg1.labels.all()))
+
+        response = self.client.post(inbox_url, {"action": "archive", "objects": msg1.id}, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+
+        # now one msg is archived
+        self.assertEqual({msg1}, set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)))
+
+        # archiving doesn't remove labels
+        msg1.refresh_from_db()
+        self.assertEqual({label3}, set(msg1.labels.all()))
+
+        # visit the the archived messages page
+        archive_url = reverse("msgs.msg_archived")
+
+        # visit archived page  as a user not in the organization
+        self.login(self.non_org_user)
+        response = self.client.get(archive_url)
+        self.assertEqual(302, response.status_code)
+
+        # visit archived page as a manager of the organization
+        self.login(self.admin)
+        with self.assertNumQueries(29):
+            response = self.client.get(archive_url)
+
+        self.assertEqual(response.context["object_list"].count(), 1)
+        self.assertEqual(response.context["actions"], ("restore", "label", "delete"))
+
+        # check that the inbox does not contains archived messages
+
+        # visit inbox page as a user not in the organization
+        self.login(self.non_org_user)
+        response = self.client.get(inbox_url)
+        self.assertEqual(302, response.status_code)
+
+        # visit inbox page as an admin of the organization
+        response = self.fetch_protected(inbox_url, self.admin)
+
+        self.assertEqual(response.context["object_list"].count(), 4)
+        self.assertEqual(response.context["actions"], ("archive", "label"))
+
+        # test restoring an archived message back to inbox
+        post_data = dict(action="restore", objects=[msg1.pk])
+        self.client.post(archive_url, post_data, follow=True)
+        self.assertEqual(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED).count(), 0)
+
+        response = self.client.get(inbox_url)
+        self.assertEqual(Msg.objects.all().count(), 6)
+        self.assertEqual(response.context["object_list"].count(), 5)
+
+        # archiving a message removes it from the inbox
+        Msg.apply_action_archive(self.user, [msg1])
+
+        response = self.client.get(inbox_url)
+        self.assertEqual(response.context["object_list"].count(), 4)
+
+        # and moves it to the Archived page
+        response = self.client.get(archive_url)
+        self.assertEqual(response.context["object_list"].count(), 1)
+
+        # deleting it removes it from the Archived page
+        response = self.client.post(archive_url, dict(action="delete", objects=[msg1.pk]), follow=True)
+        self.assertEqual(response.context["object_list"].count(), 0)
+
+        # now check inbox as viewer user
+        response = self.fetch_protected(inbox_url, self.user)
+        self.assertEqual(response.context["object_list"].count(), 4)
+
+        # check that viewer user cannot label messages
+        post_data = dict(action="label", objects=[msg5.pk], label=label1.pk, add=True)
+        self.client.post(inbox_url, post_data, follow=True)
+        self.assertEqual(msg5.labels.all().count(), 0)
+
+        # or archive messages
+        self.assertEqual(Msg.objects.get(pk=msg5.pk).visibility, Msg.VISIBILITY_VISIBLE)
+        post_data = dict(action="archive", objects=[msg5.pk])
+        self.client.post(inbox_url, post_data, follow=True)
+        self.assertEqual(Msg.objects.get(pk=msg5.pk).visibility, Msg.VISIBILITY_VISIBLE)
+
+        # search on inbox just on the message text
+        response = self.client.get("%s?search=message" % inbox_url)
+        self.assertEqual(len(response.context_data["object_list"]), 4)
+
+        response = self.client.get("%s?search=5" % inbox_url)
+        self.assertEqual(len(response.context_data["object_list"]), 1)
+
+        # can search on contact field
+        response = self.client.get("%s?search=joe" % inbox_url)
+        self.assertEqual(len(response.context_data["object_list"]), 4)
+
+    def test_flows(self):
+        url = reverse("msgs.msg_flow")
+
+        msg1 = self.create_incoming_msg(self.joe, "test 1", msg_type="F")
+        msg2 = self.create_incoming_msg(self.joe, "test 2", msg_type="F")
+        msg3 = self.create_incoming_msg(self.joe, "test 3", msg_type="F")
+
+        # user not in org can't access
+        self.login(self.non_org_user)
+        self.assertRedirect(self.client.get(url), reverse("orgs.org_choose"))
+
+        # org viewer can
+        self.login(self.admin)
+
+        with self.assertNumQueries(32):
+            response = self.client.get(url)
+
+        self.assertEqual(set(response.context["object_list"]), {msg3, msg2, msg1})
+        self.assertEqual(response.context["actions"], ("label",))
+
+    def test_flow_voice(self):
+        self.login(self.admin)
+        flow_url_voice = reverse("msgs.msg_flow_voice")
+        flow_url_text = reverse("msgs.msg_flow")
+        self.create_incoming_msg(self.joe, "test 1", msg_type="V")
+        self.create_incoming_msg(self.joe, "test 1", msg_type="F")
+        self.create_incoming_msg(self.joe, "test 1", msg_type="V")
+
+        response_voice = self.client.get(flow_url_voice)
+        response_text = self.client.get(flow_url_text)
+
+        self.assertEqual(len(response_voice.context_data["object_list"]), 2)
+        self.assertEqual(len(response_text.context_data["object_list"]), 1)
+
+    def test_sent_voice(self):
+        self.login(self.admin)
+        sent_url_voice = reverse("msgs.msg_sent_voice")
+        sent_url_text = reverse("msgs.msg_sent")
+
+        self.create_outgoing_msg(self.joe, "test 1", msg_type="V", status="W")
+        self.create_outgoing_msg(self.joe, "test 1", msg_type="V", status="F")
+        self.create_outgoing_msg(self.joe, "test 1", msg_type="V", status="S")
+
+        self.create_outgoing_msg(self.joe, "test 1", msg_type="F", status="S")
+        self.create_outgoing_msg(self.joe, "test 1", msg_type="F", status="D")
+        self.create_outgoing_msg(self.joe, "test 1", msg_type="F", status="F")
+
+        response_voice = self.client.get(sent_url_voice)
+        response_text = self.client.get(sent_url_text)
+
+        self.assertEqual(len(response_voice.context_data["object_list"]), 2)
+        self.assertEqual(len(response_text.context_data["object_list"]), 2)
+
     def test_retry_errored(self):
         # change our default channel to external
         self.channel.channel_type = "EX"
@@ -1485,7 +1777,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertEqual(("restore", "label", "delete"), response.context["actions"])
-        self.assertEqual({"count": 3, "label": "Archived", "url": "/msg/archived/"}, response.context["folders"][2])
+        self.assertEqual({"count": 3, "label": "Archived", "url": "/msg/archived/"}, response.context["folders"][3])
 
         # test searching
         response = self.client.get(archived_url + "?search=joe")
@@ -1526,7 +1818,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertListFetch(outbox_url, allow_viewers=True, allow_editors=True, context_objects=[msg1])
 
         self.assertEqual((), response.context["actions"])
-        self.assertEqual({"count": 1, "label": "Outbox", "url": "/msg/outbox/"}, response.context["folders"][3])
+        self.assertEqual({"count": 1, "label": "Outbox", "url": "/msg/outbox/"}, response.context["folders"][4])
 
         # create another broadcast this time with 3 messages
         contact4 = self.create_contact("Kevin", phone="+250788000003")
@@ -1550,7 +1842,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # should see queued broadcast but not the scheduled one
-        self.assertEqual(5, response.context_data["folders"][3]["count"])  # Outbox (includes queued broadcast)
+        self.assertEqual(5, response.context_data["folders"][4]["count"])  # Outbox (includes queued broadcast)
         self.assertEqual([broadcast3], list(response.context_data["pending_broadcasts"]))
 
         response = self.client.get(outbox_url + "?search=kevin")
@@ -2644,6 +2936,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 0,
                 SystemLabel.TYPE_CALLS: 0,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2674,6 +2968,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 1,
                 SystemLabel.TYPE_CALLS: 1,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2703,6 +2999,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 2,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2726,6 +3024,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2746,6 +3046,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2765,6 +3067,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2785,6 +3089,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 
@@ -2802,6 +3108,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 0,
                 SystemLabel.TYPE_CALLS: 0,
+                SystemLabel.TYPE_FLOW_VOICE: 0,
+                SystemLabel.TYPE_SENT_VOICE: 0,
             },
         )
 

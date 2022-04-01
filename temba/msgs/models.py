@@ -915,9 +915,11 @@ STOP_WORDS = (
 class SystemLabel:
     TYPE_INBOX = "I"
     TYPE_FLOWS = "W"
+    TYPE_FLOW_VOICE = "V"
     TYPE_ARCHIVED = "A"
     TYPE_OUTBOX = "O"
     TYPE_SENT = "S"
+    TYPE_SENT_VOICE = "Z"
     TYPE_FAILED = "X"
     TYPE_SCHEDULED = "E"
     TYPE_CALLS = "C"
@@ -931,6 +933,8 @@ class SystemLabel:
         (TYPE_FAILED, "Failed"),
         (TYPE_SCHEDULED, "Scheduled"),
         (TYPE_CALLS, "Calls"),
+        (TYPE_FLOW_VOICE, "Voice Flows"),
+        (TYPE_SENT_VOICE, "Voice Sent"),
     )
 
     @classmethod
@@ -957,13 +961,22 @@ class SystemLabel:
         elif label_type == cls.TYPE_SENT:
             qs = Msg.objects.filter(
                 direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(WIRED, SENT, DELIVERED)
-            )
+            ).exclude(msg_type=IVR)
         elif label_type == cls.TYPE_FAILED:
             qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None).prefetch_related("groups", "contacts", "urns")
         elif label_type == cls.TYPE_CALLS:
             qs = ChannelEvent.objects.filter(event_type__in=ChannelEvent.CALL_TYPES)
+        elif label_type == cls.TYPE_FLOW_VOICE:
+            qs = Msg.objects.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=IVR)
+        elif label_type == cls.TYPE_SENT_VOICE:
+            qs = Msg.objects.filter(
+                direction=OUTGOING,
+                visibility=Msg.VISIBILITY_VISIBLE,
+                status__in=(WIRED, SENT, DELIVERED),
+                msg_type=IVR,
+            )
         else:  # pragma: needs cover
             raise ValueError("Invalid label type: %s" % label_type)
 
