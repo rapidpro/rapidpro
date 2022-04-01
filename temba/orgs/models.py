@@ -24,6 +24,7 @@ from pandas import read_csv, read_excel
 from requests import Session
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
+from twilio.base.exceptions import TwilioException
 from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
@@ -2180,7 +2181,11 @@ class Org(SmartModel):
         curr_year, curr_month = timezone.now().timetuple()[:2]
         start_year, start_month = (curr_year - 1, curr_month + 1) if curr_month < 12 else (curr_year, 1)
         start_date = timezone.datetime(start_year, start_month, 1)
-        records = tw.api.usage.records.monthly.stream(start_date=start_date)
+        try:
+            records = tw.api.usage.records.monthly.stream(start_date=start_date)
+        except TwilioException:
+            records = []
+
         allowed_categories = [
             "sms-inbound",
             "sms-outbound",
