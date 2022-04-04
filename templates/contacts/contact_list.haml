@@ -167,20 +167,19 @@
                               -trans "Groups"
 
                             %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
-                              -for group in groups
-                                -if not group.is_smart
-                                  %li
-                                    .lbl-menu(href='#' onclick='addContactToGroup({{group.pk}})' data-id='{{group.pk}}')
-                                      .flex.items-center.py-1.hover-linked
-                                        .glyph.message-label.label-checkbox
-                                        .name.px-2
-                                          {{ group.label }}
-                              - if org_perms.contacts.contactgroup_create
-                                - if groups
+                              -for group in manual_groups
+                                %li
+                                  .lbl-menu(href='#' onclick='addContactToGroup({{ group.id }})' data-id='{{ group.id }}')
+                                    .flex.items-center.py-1.hover-linked
+                                      .glyph.message-label.label-checkbox
+                                      .name.px-2
+                                        {{ group.name }}
+                              -if org_perms.contacts.contactgroup_create
+                                -if manual_groups
                                   %li.separator.-mx-4.border-b.my-3
                                 %li
                                   .lbl-menu.add-group.hover-linked(onclick="handleAddGroupClicked()")
-                                    - trans "New Group..."
+                                    -trans "New Group..."
 
                         -if org_perms.msgs.broadcast_send and not reply_disabled
                           %temba-modax#send-message-modal(header='{{_("Send Message")|escapejs}}' endpoint="{% url 'msgs.broadcast_send' %}")
