@@ -1,3 +1,7 @@
+1.2.0-rapidpro-7.0.4
+----------
+ * Add ticketer Twilio Flex
+
 1.1.8-rapidpro-7.0.4
 ----------
  * Added option to exclude channels from claim view when not in the Weni Flows design
