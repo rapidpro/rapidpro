@@ -1,3 +1,7 @@
+v7.3.12
+----------
+ * Data migration to give every workspace an Open Tickets smart system group
+
 v7.3.11
 ----------
  * Fix bulk adding/removing to groups from contact list pages
