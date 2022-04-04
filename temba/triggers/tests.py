@@ -20,9 +20,14 @@ from .types import KeywordTriggerType
 class TriggerTest(TembaTest):
     def test_model(self):
         flow = self.create_flow()
-        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join")
+        keyword = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join")
+        catchall = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow)
 
-        self.assertEqual('Trigger[type=K, flow="Test Flow"]', str(trigger))
+        self.assertEqual("Keyword[join] → Test Flow", keyword.name)
+        self.assertEqual('Trigger[type=K, flow="Test Flow"]', str(keyword))
+
+        self.assertEqual("Catch All → Test Flow", catchall.name)
+        self.assertEqual('Trigger[type=C, flow="Test Flow"]', str(catchall))
 
     def test_archive_conflicts(self):
         flow = self.create_flow()

@@ -36,6 +36,9 @@ class TriggerType:
     # form class used for creation and updating
     form = None
 
+    def get_instance_name(self, trigger):
+        return f"{self.name} → {trigger.flow.name}"
+
     def export_def(self, trigger) -> dict:
         all_fields = {
             "trigger_type": trigger.trigger_type,
@@ -390,6 +393,10 @@ class Trigger(SmartModel):
     def type(self):
         return self.get_type(code=self.trigger_type)
 
+    @property
+    def name(self):
+        return self.type.get_instance_name(self)
+
     def release(self, user):
         """
         Releases this trigger
@@ -410,3 +417,7 @@ class Trigger(SmartModel):
 
     def __str__(self):
         return f'Trigger[type={self.trigger_type}, flow="{self.flow.name}"]'
+
+    class Meta:
+        verbose_name = _("Trigger")
+        verbose_name_plural = _("Triggers")

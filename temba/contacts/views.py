@@ -7,14 +7,12 @@ import iso8601
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
-    SmartDeleteView,
     SmartFormView,
     SmartListView,
     SmartReadView,
     SmartTemplateView,
     SmartUpdateView,
     SmartView,
-    smart_url,
 )
 
 from django import forms
@@ -1272,7 +1270,7 @@ class ContactCRUDL(SmartCRUDL):
                         id="delete-group",
                         title=_("Delete Group"),
                         modax=_("Delete Group"),
-                        href=reverse("contacts.contactgroup_delete", args=[self.group.id]),
+                        href=reverse("contacts.contactgroup_delete", args=[self.group.uuid]),
                     )
                 )
             return links
@@ -1696,48 +1694,10 @@ class ContactGroupCRUDL(SmartCRUDL):
     class Usages(DependencyUsagesModal):
         permission = "contacts.contactgroup_read"
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class Delete(DependencyDeleteModal):
         cancel_url = "uuid@contacts.contact_filter"
-        redirect_url = "@contacts.contact_list"
+        success_url = "@contacts.contact_list"
         success_message = ""
-        fields = ("uuid",)
-        submit_button_name = _("Delete")
-
-        def get_queryset(self):
-            return super().get_queryset().filter(is_system=False)
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            group = self.get_object()
-
-            context["triggers"] = group.triggers.filter(is_archived=False)
-            context["campaigns"] = group.campaigns.filter(is_archived=False)
-
-            return context
-
-        def get_success_url(self):
-            return reverse("contacts.contact_list")
-
-        def post(self, request, *args, **kwargs):
-            # we need a self.object for get_context_data
-            self.object = self.get_object()
-            group = self.object
-
-            # if there are still dependencies, give up
-            triggers = group.triggers.filter(is_archived=False)
-            if triggers.count() > 0:
-                return HttpResponseRedirect(smart_url(self.cancel_url, group))
-
-            if Flow.objects.filter(org=group.org, group_dependencies__in=[group]).exists():
-                return HttpResponseRedirect(smart_url(self.cancel_url, group))
-
-            if group.campaigns.filter(is_archived=False).exists():
-                return HttpResponseRedirect(smart_url(self.cancel_url, group))
-
-            group.release(self.request.user)
-
-            # we can't just redirect so as to make our modal do the right thing
-            return self.render_modal_response()
 
 
 class ContactFieldForm(forms.ModelForm):

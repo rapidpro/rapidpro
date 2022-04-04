@@ -1,5 +1,5 @@
 import logging
-from typing import NamedTuple
+from dataclasses import asdict, dataclass
 
 import requests
 
@@ -40,7 +40,8 @@ class FlowValidationException(MailroomException):
         return self.message
 
 
-class ContactSpec(NamedTuple):
+@dataclass
+class ContactSpec:
     """
     Describes a contact to be created
     """
@@ -137,7 +138,7 @@ class MailroomClient:
         payload = {
             "org_id": org_id,
             "user_id": user_id,
-            "contact": contact._asdict(),
+            "contact": asdict(contact),
         }
 
         return self._request("contact/create", payload)
@@ -147,7 +148,7 @@ class MailroomClient:
             "org_id": org_id,
             "user_id": user_id,
             "contact_ids": contact_ids,
-            "modifiers": [m.as_def() for m in modifiers],
+            "modifiers": [asdict(m) for m in modifiers],
         }
 
         return self._request("contact/modify", payload)
