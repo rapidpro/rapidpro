@@ -1211,8 +1211,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="runs", db_index=False)
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="runs")
-    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="runs")
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
+
+    # contact isn't an index because we have flows_flowrun_contact_inc_flow below
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="runs", db_index=False)
 
     # session this run belongs to (can be null if session has been trimmed)
     session = models.ForeignKey(FlowSession, on_delete=models.PROTECT, related_name="runs", null=True)
@@ -1298,6 +1300,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 condition=Q(status__in=("A", "W")),
                 include=("contact",),
             ),
+            models.Index(name="flows_flowrun_contact_inc_flow", fields=("contact",), include=("flow",)),
         ]
 
 
