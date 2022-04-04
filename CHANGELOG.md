@@ -1,3 +1,9 @@
+v7.3.11
+----------
+ * Fix bulk adding/removing to groups from contact list pages
+ * Convert groups into a soft dependency for flows
+ * Use dataclasses instead of NaamedTuples where appropriate
+
 v7.3.10
 ----------
  * Remove path from example result in runs API endpoint docs
