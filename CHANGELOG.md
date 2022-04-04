@@ -1,3 +1,7 @@
+v7.3.13
+----------
+ * Replace default index on FlowRun.contact with one that includes flow_id
+
 v7.3.12
 ----------
  * Data migration to give every workspace an Open Tickets smart system group
