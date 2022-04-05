@@ -1,3 +1,7 @@
+1.2.1-rapidpro-7.0.4
+----------
+ * Change refresh templates task schedule to 1h
+
 1.2.0-rapidpro-7.0.4
 ----------
  * Add ticketer Twilio Flex
