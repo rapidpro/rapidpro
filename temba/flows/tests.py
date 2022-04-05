@@ -1559,7 +1559,7 @@ class FlowTest(TembaTest):
         # can't delete already released flow
         self.assertEqual(response.status_code, 404)
 
-    def test_flow_delete(self):
+    def test_delete(self):
         flow = self.get_flow("favorites_v13")
         flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
@@ -1618,12 +1618,12 @@ class FlowTest(TembaTest):
         )
 
         # try to remove the flow, not logged in, no dice
-        response = self.client.post(reverse("flows.flow_delete", args=[flow.pk]))
+        response = self.client.post(reverse("flows.flow_delete", args=[flow.uuid]))
         self.assertLoginRedirect(response)
 
         # login as admin
         self.login(self.admin)
-        response = self.client.post(reverse("flows.flow_delete", args=[flow.pk]))
+        response = self.client.post(reverse("flows.flow_delete", args=[flow.uuid]))
         self.assertEqual(200, response.status_code)
 
         # flow should no longer be active
@@ -1640,7 +1640,7 @@ class FlowTest(TembaTest):
         trigger.refresh_from_db()
         self.assertFalse(trigger.is_active)
 
-    def test_flow_delete_with_dependencies(self):
+    def test_delete_with_dependencies(self):
         self.login(self.admin)
 
         self.get_flow("dependencies")
@@ -1704,24 +1704,21 @@ class FlowTest(TembaTest):
                 "Flow is missing dependency on %s (%s)" % (key, label),
             )
 
-        # deleting should fail since the 'Dependencies' flow depends on us
-        self.client.post(reverse("flows.flow_delete", args=[child.id]))
-        self.assertIsNotNone(Flow.objects.filter(id=child.id, is_active=True).first())
+        # we can delete our child flow and the parent ('Dependencies') will be marked as having issues
+        self.client.post(reverse("flows.flow_delete", args=[child.uuid]))
 
-        # remove our child dependency
-        parent = Flow.objects.filter(name="Dependencies").first()
-        parent.flow_dependencies.remove(child)
+        parent = Flow.objects.filter(name="Dependencies").get()
+        child.refresh_from_db()
 
-        # now the child can be deleted
-        self.client.post(reverse("flows.flow_delete", args=[child.id]))
-        self.assertIsNotNone(Flow.objects.filter(id=child.id, is_active=False).first())
+        self.assertFalse(child.is_active)
+        self.assertTrue(parent.has_issues)
+        self.assertNotIn(child, parent.flow_dependencies.all())
 
-        # deleting our parent flow should work
-        self.client.post(reverse("flows.flow_delete", args=[parent.id]))
-        self.assertIsNotNone(Flow.objects.filter(id=parent.id, is_active=False).first())
+        # deleting our parent flow should also work
+        self.client.post(reverse("flows.flow_delete", args=[parent.uuid]))
 
-        # our parent should no longer have any dependencies
         parent.refresh_from_db()
+        self.assertFalse(parent.is_active)
         self.assertEqual(0, parent.field_dependencies.all().count())
         self.assertEqual(0, parent.flow_dependencies.all().count())
         self.assertEqual(0, parent.group_dependencies.all().count())

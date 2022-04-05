@@ -341,7 +341,12 @@ class DependencyDeleteModal(DependencyModalMixin, ModalMixin, SmartDeleteView):
     submit_button_name = _("Delete")
     template_name = "orgs/dependency_delete_modal.haml"
 
-    type_warnings = {"flow": _("these may not work as expected"), "campaign_event": _("these will be removed")}
+    # warnings for soft dependencies
+    type_warnings = {
+        "flow": _("these may not work as expected"),  # always soft
+        "campaign_event": _("these will be removed"),  # soft for fields and flows
+        "trigger": _("these will be removed"),  # soft for flows
+    }
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
