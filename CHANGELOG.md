@@ -1,3 +1,7 @@
+v7.3.14
+----------
+ * Convert flows to be a soft dependency
+
 v7.3.13
 ----------
  * Replace default index on FlowRun.contact with one that includes flow_id
