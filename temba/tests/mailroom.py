@@ -21,7 +21,7 @@ from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
 from temba.tests.dates import parse_datetime
 from temba.tickets.models import Ticket, TicketEvent, Topic
-from temba.utils import format_number, get_anonymous_user, json
+from temba.utils import get_anonymous_user, json
 from temba.utils.cache import incrby_existing
 
 event_units = {
@@ -530,7 +530,8 @@ def serialize_field_value(contact, field, value):
         field_dict["datetime"] = timezone.localtime(dt_value, org.timezone).isoformat()
 
     if num_value is not None:
-        field_dict["number"] = format_number(num_value)
+        num_as_int = num_value.to_integral_value()
+        field_dict["number"] = int(num_as_int) if num_value == num_as_int else num_value
 
     if loc_value:
         if loc_value.level == AdminBoundary.LEVEL_STATE:

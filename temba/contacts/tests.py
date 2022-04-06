@@ -3392,17 +3392,12 @@ class ContactTest(TembaTest):
         # numeric field value
         self.set_contact_field(self.joe, "dog", "23.00")
         self.joe.refresh_from_db()
-        self.assertEqual(self.joe.fields, {dog_uuid: {"text": "23.00", "number": "23"}})
+        self.assertEqual(self.joe.fields, {dog_uuid: {"text": "23.00", "number": 23}})
 
         # numeric field value
         self.set_contact_field(self.joe, "dog", "37.27903")
         self.joe.refresh_from_db()
-        self.assertEqual(self.joe.fields, {dog_uuid: {"text": "37.27903", "number": "37.27903"}})
-
-        # numeric field values that could turn into shite due to normalization
-        self.set_contact_field(self.joe, "dog", "2300")
-        self.joe.refresh_from_db()
-        self.assertEqual(self.joe.fields, {dog_uuid: {"text": "2300", "number": "2300"}})
+        self.assertEqual(self.joe.fields, {dog_uuid: {"text": "37.27903", "number": Decimal("37.27903")}})
 
         # numeric field values that could be NaN, we don't support that
         self.set_contact_field(self.joe, "dog", "NaN")
