@@ -5269,7 +5269,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
         response = self.client.get("%s?sort_on=%s" % (url, "created_on"))
         self.assertEqual(response.context["object_list"][0].name, "Trey")  # first contact in the set
-        self.assertEqual(response.context["object_list"][0].fields[str(age.uuid)], {"text": "10", "number": "10"})
+        self.assertEqual(response.context["object_list"][0].fields[str(age.uuid)], {"text": "10", "number": 10})
 
         response = self.client.get("%s?sort_on=-%s" % (url, "created_on"))
         self.assertEqual(response.context["object_list"][0].name, "Id Contact")  # last contact in the set
