@@ -5079,6 +5079,10 @@ class ESIntegrationTest(TembaNonAtomicTest):
         ContactField.get_or_create(self.org, self.admin, "isureporter", "Is UReporter", value_type="T")
         ContactField.get_or_create(self.org, self.admin, "hasbirth", "Has Birth", value_type="T")
 
+        doctors = self.create_group("Doctors", contacts=[])
+        farmers = self.create_group("Farmers", contacts=[])
+        registration = self.create_flow("Registration")
+
         names = ["Trey", "Mike", "Paige", "Fish", "", None]
         districts = ["Gatsibo", "Kayônza", "Rwamagana", None]
         wards = ["Kageyo", "Kabara", "Bukure", None]
@@ -5114,11 +5118,14 @@ class ESIntegrationTest(TembaNonAtomicTest):
             if twitter:
                 urns.append(f"twitter:{twitter}")
 
-            self.create_contact(name, urns=urns, fields=fields)
-
-        def q(query):
-            results = search_contacts(self.org, query, group=self.org.active_contacts_group)
-            return results.total
+            c = self.create_contact(name, urns=urns, fields=fields)
+            if i % 3 == 0:
+                farmers.contacts.add(c)
+            if i % 7 == 0:
+                doctors.contacts.add(c)
+            if i % 10 == 0:
+                c.current_flow = registration
+                c.save(update_fields=("current_flow",))
 
         db_config = connection.settings_dict
         database_url = (
@@ -5134,7 +5141,11 @@ class ESIntegrationTest(TembaNonAtomicTest):
         )
         self.assertEqual(result.returncode, 0, "Command failed: %s\n\n%s" % (result.stdout, result.stderr))
 
-        # give ES some time to publish the results
+        def q(query):
+            results = search_contacts(self.org, query, group=self.org.active_contacts_group)
+            return results.total
+
+        # give mailroom some time to flush its cache and ES to publish the results
         time.sleep(5)
 
         self.assertEqual(q("trey"), 15)
@@ -5195,6 +5206,12 @@ class ESIntegrationTest(TembaNonAtomicTest):
         self.assertEqual(q('hasbirth = "no"'), 90)
         self.assertEqual(q("hasbirth = no"), 90)
         self.assertEqual(q("hasbirth = yes"), 0)
+
+        self.assertEqual(q('group = "farmers"'), 30)
+        self.assertEqual(q('group = "DOCTORS"'), 13)
+
+        self.assertEqual(q('flow = "registration"'), 9)
+        self.assertEqual(q('flow != ""'), 9)
 
         # boolean combinations
         self.assertEqual(q("name is trey or name is mike"), 30)
