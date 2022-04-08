@@ -134,11 +134,11 @@ class ContactGroupForm(forms.ModelForm):
         # make sure the name isn't already taken
         existing = self.org.groups.filter(is_active=True, name__iexact=name).first()
         if existing and self.instance != existing:
-            raise forms.ValidationError(_("Name is used by another group"))
+            raise forms.ValidationError(_("Already used by another group."))
 
         # and that the name is valid
         if not ContactGroup.is_valid_name(name):
-            raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
+            raise forms.ValidationError(_("Must not be blank or begin with + or -."))
 
         org_active_group_limit = self.org.get_limit(Org.LIMIT_GROUPS)
 
