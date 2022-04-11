@@ -1655,13 +1655,8 @@ class ContactGroup(TembaModel, DependencyMixin):
         """
         Generates a unique name based on the given base name
         """
-        count = 0
-        while True:
-            count_str = f" {count}"
-            name = f"{base_name[:cls.MAX_NAME_LEN - len(count_str)]}{count_str}" if count else base_name
-            if not org.groups.filter(name__iexact=name).exists():
-                return name
-            count += 1
+
+        return TembaModel.get_unique_name(org.groups.all(), base_name, cls.MAX_NAME_LEN)
 
     @classmethod
     def clean_name(cls, name):

@@ -439,14 +439,7 @@ class Flow(TembaModel, DependencyMixin):
         Generates a unique name based on the given base name
         """
         exclude_kwargs = {"id": ignore.id} if ignore else {}
-
-        count = 0
-        while True:
-            count_str = f" {count}"
-            name = f"{base_name[:cls.MAX_NAME_LEN-len(count_str)]}{count_str}" if count else base_name
-            if not org.flows.filter(name__iexact=name).exclude(**exclude_kwargs).exists():
-                return name
-            count += 1
+        return TembaModel.get_unique_name(org.flows.exclude(**exclude_kwargs), base_name, cls.MAX_NAME_LEN)
 
     @classmethod
     def apply_action_label(cls, user, flows, label):
