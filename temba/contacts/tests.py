@@ -1059,15 +1059,15 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try to create a contact group whose name begins with reserved character
         response = self.client.post(url, {"name": "+People"})
-        self.assertFormError(response, "form", "name", "Group name must not be blank or begin with + or -")
+        self.assertFormError(response, "form", "name", "Must not be blank or begin with + or -.")
 
         # try to create with name that's already taken
         response = self.client.post(url, {"name": "Customers"})
-        self.assertFormError(response, "form", "name", "Name is used by another group")
+        self.assertFormError(response, "form", "name", "Already used by another group.")
 
         # try to create with name that's already taken by a system group
         response = self.client.post(url, {"name": "blocked"})
-        self.assertFormError(response, "form", "name", "Name is used by another group")
+        self.assertFormError(response, "form", "name", "Already used by another group.")
 
         # create with valid name (that will be trimmed)
         response = self.client.post(url, {"name": "first  "})
@@ -1122,13 +1122,13 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             reverse("contacts.contactgroup_create"), dict(name="First Group", group_query="firsts")
         )
-        self.assertFormError(response, "form", "name", "Name is used by another group")
+        self.assertFormError(response, "form", "name", "Already used by another group.")
 
         # try to create another group with same name, not dynamic, same thing
         response = self.client.post(
             reverse("contacts.contactgroup_create"), dict(name="First Group", group_query="firsts")
         )
-        self.assertFormError(response, "form", "name", "Name is used by another group")
+        self.assertFormError(response, "form", "name", "Already used by another group.")
 
     @mock_mailroom
     def test_update(self, mr_mocks):
@@ -1150,7 +1150,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try to update name to start with reserved character
         response = self.client.post(url, dict(name="+People"))
-        self.assertFormError(response, "form", "name", "Group name must not be blank or begin with + or -")
+        self.assertFormError(response, "form", "name", "Must not be blank or begin with + or -.")
 
         # update with valid name (that will be trimmed)
         response = self.client.post(url, dict(name="new name   "))

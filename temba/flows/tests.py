@@ -1791,6 +1791,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_create(self):
         create_url = reverse("flows.flow_create")
+        self.create_flow("Registration")
 
         # don't show language if workspace doesn't have languages configured
         self.assertCreateFetch(
@@ -1825,6 +1826,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"name": "This field is required.", "base_language": "This field is required."},
         )
 
+        # try to submit with a name that is already used
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "Registration", "flow_type": "M", "base_language": "eng"},
+            form_errors={"name": "Already used by another flow."},
+        )
+
         response = self.assertCreateSubmit(
             create_url,
             {"name": "Flow 1", "flow_type": "M", "base_language": "eng"},
@@ -1848,7 +1856,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 "flow_type": Flow.TYPE_MESSAGE,
             },
             form_errors={
-                "keyword_triggers": '"toooooooooooooolong" must be a single word, less than 16 characters, containing only letter and numbers'
+                "keyword_triggers": "Must be single words, less than 16 characters, containing only letters and numbers."
             },
         )
 
@@ -1875,7 +1883,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 "keyword_triggers": ["test"],
                 "flow_type": Flow.TYPE_MESSAGE,
             },
-            form_errors={"keyword_triggers": 'The keyword "test" is already used for another flow'},
+            form_errors={"keyword_triggers": '"test" is already used for another flow.'},
         )
 
         # add a group to the existing trigger with that keyword
@@ -1931,18 +1939,20 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(response.context["has_flows"])
 
         # create a new regular flow
-        response = self.client.post(
-            reverse("flows.flow_create"), dict(name="Flow", flow_type=Flow.TYPE_MESSAGE), follow=True
-        )
-        flow1 = Flow.objects.get(org=self.org, name="Flow")
+        response = self.client.post(reverse("flows.flow_create"), {"name": "Flow 1", "flow_type": Flow.TYPE_MESSAGE})
+        self.assertEqual(302, response.status_code)
+
+        # check we've been redirected to the editor and we have a revision
+        flow1 = Flow.objects.get(org=self.org, name="Flow 1")
+        self.assertEqual(f"/flow/editor/{flow1.uuid}/", response.url)
         self.assertEqual(1, flow1.revisions.all().count())
+        self.assertEqual(Flow.TYPE_MESSAGE, flow1.flow_type)
+        self.assertEqual(10080, flow1.expires_after_minutes)
+
         # add a trigger on this flow
         Trigger.objects.create(
             org=self.org, keyword="unique", flow=flow1, created_by=self.admin, modified_by=self.admin
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(flow1.flow_type, Flow.TYPE_MESSAGE)
-        self.assertEqual(flow1.expires_after_minutes, 10080)
 
         # create a new surveyor flow
         self.client.post(
@@ -1975,15 +1985,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             response,
             "form",
             "keyword_triggers",
-            '"this is" must be a single word, less than 16 characters, containing only letter and numbers',
+            "Must be single words, less than 16 characters, containing only letters and numbers.",
         )
 
         # create a new flow with one existing keyword
         post_data = {"name": "Flow With Existing Keyword Triggers", "keyword_triggers": ["this", "is", "unique"]}
         response = self.client.post(reverse("flows.flow_create"), post_data)
-        self.assertFormError(
-            response, "form", "keyword_triggers", 'The keyword "unique" is already used for another flow'
-        )
+        self.assertFormError(response, "form", "keyword_triggers", '"unique" is already used for another flow.')
 
         # create another trigger so there are two in the way
         trigger = Trigger.objects.create(
@@ -1992,7 +2000,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.post(reverse("flows.flow_create"), post_data)
         self.assertFormError(
-            response, "form", "keyword_triggers", 'The keywords "this, unique" are already used for another flow'
+            response, "form", "keyword_triggers", '"this", "unique" are already used for another flow.'
         )
         trigger.delete()
 
@@ -2451,43 +2459,28 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("13.0.0", response.json()["definition"]["spec_version"])
 
     def test_save_revisions(self):
+        flow = self.create_flow("Go Flow")
+        revisions_url = reverse("flows.flow_revisions", args=[flow.uuid])
+
         self.login(self.admin)
-        self.client.post(reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE))
-        flow = Flow.objects.get(
-            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
-        )
-        response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
+        response = self.client.get(revisions_url)
         self.assertEqual(1, len(response.json()))
 
         definition = flow.revisions.all().first().definition
 
         # viewers can't save flows
         self.login(self.user)
-        response = self.client.post(
-            reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
-        )
+        response = self.client.post(revisions_url, definition, content_type="application/json")
         self.assertEqual(403, response.status_code)
 
         # check that we can create a new revision
         self.login(self.admin)
-        response = self.client.post(
-            reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
-        )
+        response = self.client.post(revisions_url, definition, content_type="application/json")
         new_revision = response.json()
         self.assertEqual(2, new_revision["revision"][Flow.DEFINITION_REVISION])
 
         # but we can't save our old revision
-        response = self.client.post(
-            reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
-        )
-        self.assertResponseError(
-            response, "description", "Your changes will not be saved until you refresh your browser"
-        )
-
-        # but we can't save our old revision
-        response = self.client.post(
-            reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
-        )
+        response = self.client.post(revisions_url, definition, content_type="application/json")
         self.assertResponseError(
             response, "description", "Your changes will not be saved until you refresh your browser"
         )
@@ -2495,9 +2488,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # or save an old version
         definition = flow.revisions.all().first().definition
         definition[Flow.DEFINITION_SPEC_VERSION] = "11.12"
-        response = self.client.post(
-            reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
-        )
+        response = self.client.post(revisions_url, definition, content_type="application/json")
         self.assertResponseError(response, "description", "Your flow has been upgraded to the latest version")
 
     def test_inactive_flow(self):
