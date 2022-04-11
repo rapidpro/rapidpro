@@ -5960,7 +5960,7 @@ class ContactImportTest(TembaTest):
         self.create_group("Testers", contacts=[])
         tests = [
             ("simple.csv", "Simple"),
-            ("testers.csv", "Testers 1"),  # group called Testers already exists
+            ("testers.csv", "Testers 2"),  # group called Testers already exists
             ("contact-imports.csv", "Contact Imports"),
             ("abc_@@é.csv", "Abc É"),
             ("a_@@é.csv", "Import"),  # would be too short
