@@ -77,18 +77,18 @@ class FlowTest(TembaTest):
         # ensure checking against existing flows is case-insensitive
         testing = self.create_flow("TESTING")
 
-        self.assertEqual("Testing 1", Flow.get_unique_name(self.org, "Testing"))
+        self.assertEqual("Testing 2", Flow.get_unique_name(self.org, "Testing"))
         self.assertEqual("Testing", Flow.get_unique_name(self.org, "Testing", ignore=testing))
         self.assertEqual("Testing", Flow.get_unique_name(self.org2, "Testing"))  # different org
 
-        self.create_flow("Testing 1")
+        self.create_flow("Testing 2")
 
-        self.assertEqual("Testing 2", Flow.get_unique_name(self.org, "Testing"))
+        self.assertEqual("Testing 3", Flow.get_unique_name(self.org, "Testing"))
 
         # ensure we don't exceed the name length limit
         self.create_flow("X" * 64)
 
-        self.assertEqual(f"{'X' * 62} 1", Flow.get_unique_name(self.org, "X" * 64))
+        self.assertEqual(f"{'X' * 62} 2", Flow.get_unique_name(self.org, "X" * 64))
 
     @patch("temba.mailroom.queue_interrupt")
     def test_archive(self, mock_queue_interrupt):

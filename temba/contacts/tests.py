@@ -805,17 +805,17 @@ class ContactGroupTest(TembaTest):
         # ensure checking against existing groups is case-insensitive
         self.create_group("TESTERS", contacts=[])
 
-        self.assertEqual("Testers 1", ContactGroup.get_unique_name(self.org, "Testers"))
+        self.assertEqual("Testers 2", ContactGroup.get_unique_name(self.org, "Testers"))
         self.assertEqual("Testers", ContactGroup.get_unique_name(self.org2, "Testers"))  # different org
 
-        self.create_group("Testers 1", contacts=[])
+        self.create_group("Testers 2", contacts=[])
 
-        self.assertEqual("Testers 2", ContactGroup.get_unique_name(self.org, "Testers"))
+        self.assertEqual("Testers 3", ContactGroup.get_unique_name(self.org, "Testers"))
 
         # ensure we don't exceed the name length limit
         self.create_group("X" * 64, contacts=[])
 
-        self.assertEqual(f"{'X' * 62} 1", ContactGroup.get_unique_name(self.org, "X" * 64))
+        self.assertEqual(f"{'X' * 62} 2", ContactGroup.get_unique_name(self.org, "X" * 64))
 
     def test_is_valid_name(self):
         self.assertTrue(ContactGroup.is_valid_name("x"))

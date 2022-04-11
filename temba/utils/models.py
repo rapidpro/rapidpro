@@ -285,10 +285,10 @@ class TembaModel(SmartModel):
         """
         Generates a unique name from the given base name that won't conflict with any named object in the given queryset
         """
-        count = 0
+        count = 1
         while True:
             count_str = f" {count}"
-            name = f"{base_name[:max_len - len(count_str)]}{count_str}" if count else base_name
+            name = f"{base_name[:max_len - len(count_str)]}{count_str}" if count > 1 else base_name
             if not qs.filter(name__iexact=name).exists():
                 return name
             count += 1

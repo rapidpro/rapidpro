@@ -25,25 +25,13 @@ class Campaign(TembaModel):
         return cls.objects.create(org=org, name=name, group=group, created_by=user, modified_by=user)
 
     @classmethod
-    def get_unique_name(cls, org, base_name, ignore=None):
+    def get_unique_name(cls, org, base_name: str, ignore=None) -> str:
         """
-        Generates a unique campaign name based on the given base name
+        Generates a unique name based on the given base name
         """
-        name = base_name[:255].strip()
-
-        count = 2
-        while True:
-            campaigns = Campaign.objects.filter(name=name, org=org, is_active=True)
-            if ignore:  # pragma: needs cover
-                campaigns = campaigns.exclude(pk=ignore.pk)
-
-            if not campaigns.exists():
-                break
-
-            name = "%s %d" % (base_name[:255].strip(), count)
-            count += 1
-
-        return name
+        exclude_kwargs = {"id": ignore.id} if ignore else {}
+        qs = org.campaigns.filter(is_active=True).exclude(**exclude_kwargs)
+        return TembaModel.get_unique_name(qs, base_name, cls.MAX_NAME_LEN)
 
     def recreate_events(self):
         """
