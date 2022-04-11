@@ -336,7 +336,7 @@ table.padded {
 }
 
 table.list{ 
-  @apply w-full shadow rounded-lg bg-white;
+  @apply w-full shadow rounded-lg bg-white overflow-hidden;
 
   &.scrolled {
     @apply rounded-none !important;
