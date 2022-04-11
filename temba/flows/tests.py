@@ -1787,7 +1787,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
-        self.assertEqual(3, len(menu))
+        self.assertEqual(5, len(menu))
 
     def test_create(self):
         create_url = reverse("flows.flow_create")
