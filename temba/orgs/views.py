@@ -1206,7 +1206,6 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 )
 
-
                 if self.has_org_perm("channels.channel_read"):
                     from temba.channels.views import get_channel_read_url
 
@@ -1224,14 +1223,12 @@ class OrgCRUDL(SmartCRUDL):
                             )
                         )
 
-
                     menu.append(self.create_menu_item(name=_("Channels"), items=items, inline=True))
                     menu.append(
                         self.create_menu_item(
                             menu_id="channel", name=_("Add Channel"), icon="channel", href="channels.channel_claim"
                         )
                     )
-
 
                 if self.has_org_perm("archives.archive_message"):
 
@@ -1245,11 +1242,10 @@ class OrgCRUDL(SmartCRUDL):
                             name=_("Flow Runs"),
                             icon="flow",
                             href=reverse("archives.archive_run"),
-                        )
+                        ),
                     ]
-                    
+
                     menu.append(self.create_menu_item(name=_("Archives"), items=items, inline=True))
-                    
 
                 child_orgs = Org.objects.filter(parent=org, is_active=True).order_by("name")
 

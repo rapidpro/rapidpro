@@ -605,24 +605,25 @@ class ContactCRUDL(SmartCRUDL):
                     "count": counts[Contact.STATUS_BLOCKED],
                     "name": _("Blocked"),
                     "href": reverse("contacts.contact_blocked"),
-                    "icon": "slash"
+                    "icon": "slash",
                 },
                 {
                     "id": "stopped",
                     "count": counts[Contact.STATUS_STOPPED],
                     "name": _("Stopped"),
                     "href": reverse("contacts.contact_stopped"),
-                    "icon": "x-octagon"
+                    "icon": "x-octagon",
                 },
-
             ]
 
-            menu.append({
+            menu.append(
+                {
                     "id": "import",
                     "icon": "publish",
                     "href": reverse("contacts.contactimport_create"),
                     "name": _("Import"),
-            })
+                }
+            )
 
             if self.has_org_perm("contacts.contactfield_list"):
                 count = len(ContactField.user_fields.active_for_org(org=org))
@@ -636,9 +637,7 @@ class ContactCRUDL(SmartCRUDL):
                     )
                 )
 
-            
             menu += [
-
                 self.create_divider(),
                 self.create_modax_button(
                     name=_("New Contact"),
@@ -651,37 +650,28 @@ class ContactCRUDL(SmartCRUDL):
                 self.create_divider(),
             ]
 
-
-
-
-            groups = ContactGroup.get_groups(org, ready_only=False).select_related("org").order_by("-group_type", Upper("name"))
+            groups = (
+                ContactGroup.get_groups(org, ready_only=False)
+                .select_related("org")
+                .order_by("-group_type", Upper("name"))
+            )
             group_counts = ContactGroupCount.get_totals(groups)
-            group_items = [
-            ]
+            group_items = []
 
             for g in groups:
-                group_items.append(self.create_menu_item(
-                    menu_id=g.uuid,
-                    name=g.name,
-                    icon="loader" if g.status != ContactGroup.STATUS_READY else "atom" if g.query else "",
-                    count=group_counts[g],
-                    href=reverse("contacts.contact_filter", args=[g.uuid]),
-                ))
+                group_items.append(
+                    self.create_menu_item(
+                        menu_id=g.uuid,
+                        name=g.name,
+                        icon="loader" if g.status != ContactGroup.STATUS_READY else "atom" if g.query else "",
+                        count=group_counts[g],
+                        href=reverse("contacts.contact_filter", args=[g.uuid]),
+                    )
+                )
 
             menu += [
-                {
-                    "id": "groups",
-                    "icon": "users",
-                    "name": _("Groups"),
-                    "items": group_items,
-                    "inline": True
-                },
-
+                {"id": "groups", "icon": "users", "name": _("Groups"), "items": group_items, "inline": True},
             ]
-
-                
-
-
 
             return JsonResponse({"results": menu})
 

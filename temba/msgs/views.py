@@ -191,11 +191,11 @@ class InboxView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         context["folders"] = folders
 
         context["labels_flat"] = (
-                    Label.all_objects.filter(org=org, is_active=True)
-                    .exclude(label_type=Label.TYPE_FOLDER)
-                    .order_by(Upper("name"))
-                )
-        
+            Label.all_objects.filter(org=org, is_active=True)
+            .exclude(label_type=Label.TYPE_FOLDER)
+            .order_by(Upper("name"))
+        )
+
         context["labels"] = Label.get_hierarchy(org)
         context["has_messages"] = (
             any(counts.values()) or Archive.objects.filter(org=org, archive_type=Archive.TYPE_MSG).exists()
@@ -600,7 +600,6 @@ class MsgCRUDL(SmartCRUDL):
                     self.create_divider(),
                 ]
 
-
                 label_items = []
                 label_counts = LabelCount.get_totals([lb for lb in labels])
                 for label in labels:
@@ -616,14 +615,14 @@ class MsgCRUDL(SmartCRUDL):
 
                 menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
                 menu.append(self.create_divider())
-                menu.append(self.create_modax_button(
+                menu.append(
+                    self.create_modax_button(
                         name=_("New Label"),
                         href="msgs.label_create",
                     )
                 )
 
                 return menu
-
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
 

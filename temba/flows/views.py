@@ -220,16 +220,15 @@ class FlowCRUDL(SmartCRUDL):
                         menu_id=label.uuid,
                         name=label.name,
                         href=reverse("flows.flow_filter", args=[label.uuid]),
-                        count=label.get_flows_count()
+                        count=label.get_flows_count(),
                     )
                 )
 
             menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
             menu.append(self.create_divider())
-            menu.append(self.create_modax_button(
-                    name=_("New Label"),
-                    href="flows.flowlabel_create",
-                    on_submit="handleCreateLabelModalSubmitted()"
+            menu.append(
+                self.create_modax_button(
+                    name=_("New Label"), href="flows.flowlabel_create", on_submit="handleCreateLabelModalSubmitted()"
                 )
             )
 
