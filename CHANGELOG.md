@@ -1,3 +1,9 @@
+v7.3.15
+----------
+ * Check name uniqueness on flow creation and updating
+ * Cleanup existing field validation on flow and group forms
+ * Do not fail to release a channel when we cannot reach the Facebook API for FB channels
+
 v7.3.14
 ----------
  * Convert flows to be a soft dependency
