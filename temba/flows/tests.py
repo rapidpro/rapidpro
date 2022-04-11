@@ -26,7 +26,7 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
@@ -5311,3 +5311,34 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+
+
+class UpdateDeletedFlowNamesMigrationTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0280_alter_flowrun_contact_and_more"
+    migrate_to = "0281_update_deleted_flow_names"
+
+    def setUpBeforeMigration(self, apps):
+        # create active flow
+        self.flow1 = self.create_flow("Test 1")
+
+        # create deleted flow that needs name update
+        self.flow2 = self.create_flow("Test 2")
+        self.flow2.is_active = False
+        self.flow2.save(update_fields=("is_active",))
+
+        # create deleted flow that doesn't need name update
+        self.flow3 = self.create_flow("deleted-ab2f2562-9696-4b35-8a39-6093051ea20a-Test 3")
+        self.flow3.is_active = False
+        self.flow3.save(update_fields=("is_active",))
+
+    def test_migration(self):
+        self.flow1.refresh_from_db()
+        self.assertEqual("Test 1", self.flow1.name)  # unchanged
+
+        self.flow2.refresh_from_db()
+        self.assertTrue(self.flow2.name.startswith("deleted-"))
+        self.assertTrue(self.flow2.name.endswith("-Test 2"))
+
+        self.flow3.refresh_from_db()
+        self.assertEqual("deleted-ab2f2562-9696-4b35-8a39-6093051ea20a-Test 3", self.flow3.name)  # unchanged
