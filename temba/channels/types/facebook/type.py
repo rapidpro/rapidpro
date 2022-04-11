@@ -70,5 +70,5 @@ class FacebookType(ChannelType):
             url, json=body, params={"access_token": access_token}, headers={"Content-Type": "application/json"}
         )
 
-        if response.status_code != 200:  # pragma: no cover
+        if payload and response.status_code != 200:  # pragma: no cover
             raise Exception("Unable to update call to action: %s" % response.text)
