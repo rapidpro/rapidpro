@@ -1791,7 +1791,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_create(self):
         create_url = reverse("flows.flow_create")
-        existing = self.create_flow("Registration")
+        self.create_flow("Registration")
 
         # don't show language if workspace doesn't have languages configured
         self.assertCreateFetch(
@@ -1830,7 +1830,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"name": "Registration", "flow_type": "M", "base_language": "eng"},
-            form_errors={"name": f'Already used by <a href="/flow/editor/{existing.uuid}/">another flow</a>.'},
+            form_errors={"name": "Already used by another flow."},
         )
 
         response = self.assertCreateSubmit(

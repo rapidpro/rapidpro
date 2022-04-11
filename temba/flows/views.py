@@ -28,7 +28,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.functional import cached_property
-from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
@@ -83,10 +82,10 @@ class BaseFlowForm(forms.ModelForm):
         # make sure the name isn't already taken
         existing = self.org.flows.filter(is_active=True, name__iexact=name).first()
         if existing and self.instance != existing:
-            existing_url = reverse("flows.flow_editor", args=[existing.uuid])
-            raise forms.ValidationError(
-                mark_safe(_('Already used by <a href="%(url)s">another flow</a>.') % {"url": existing_url})
-            )
+            # TODO include link to flow, requires https://github.com/nyaruka/temba-components/issues/159
+            # existing_url = reverse("flows.flow_editor", args=[existing.uuid])
+            # mark_safe(_('Already used by <a href="%(url)s">another flow</a>.') % {"url": existing_url})
+            raise forms.ValidationError(_("Already used by another flow."))
 
         return name
 
