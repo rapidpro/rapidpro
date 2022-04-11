@@ -159,7 +159,7 @@ class Flow(TembaModel, DependencyMixin):
         TYPE_SURVEY: 0,
     }
 
-    name = models.CharField(max_length=64, help_text=_("The name for this flow"))
+    name = models.CharField(max_length=MAX_NAME_LEN, help_text=_("The name for this flow"))
 
     labels = models.ManyToManyField("FlowLabel", related_name="flows")
 
@@ -979,9 +979,10 @@ class Flow(TembaModel, DependencyMixin):
 
         super().release(user)
 
+        self.name = f"deleted-{uuid4()}-{self.name}"[: self.MAX_NAME_LEN]
         self.is_active = False
         self.modified_by = user
-        self.save(update_fields=("is_active", "modified_by", "modified_on"))
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
         # release any campaign events that depend on this flow
         from temba.campaigns.models import CampaignEvent
