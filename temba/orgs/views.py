@@ -1026,16 +1026,19 @@ class MenuMixin(OrgPermsMixin):
     def create_divider(self):
         return {"type": "divider"}
 
-    def create_section(self, name):
-        return {"id": slugify(name), "name": name, "type": "section"}
+    def create_section(self, name, items=[]):
+        return {"id": slugify(name), "name": name, "type": "section", "items": items}
 
-    def create_modax_button(self, name, href, icon=None):
+    def create_modax_button(self, name, href, icon=None, on_submit=None):
         menu_item = {"id": slugify(name), "name": name, "type": "modax-button"}
         if href:
             if href[0] == "/":  # pragma: no cover
                 menu_item["href"] = href
             elif self.has_org_perm(href):
                 menu_item["href"] = reverse(href)
+
+        if on_submit:
+            menu_item["on_submit"] = on_submit
 
         if icon:  # pragma: no cover
             menu_item["icon"] = icon
@@ -1086,7 +1089,7 @@ class MenuMixin(OrgPermsMixin):
             menu_item["items"] = items
 
         # only include the menu item if we have somewhere to go
-        if "href" not in menu_item and "endpoint" not in menu_item:
+        if "href" not in menu_item and "endpoint" not in menu_item and not inline:
             return None
 
         return menu_item
@@ -1203,46 +1206,50 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 )
 
-                menu.append(self.create_section(_("Channels")))
 
                 if self.has_org_perm("channels.channel_read"):
                     from temba.channels.views import get_channel_read_url
 
+                    items = []
                     channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
                     for channel in channels:
                         icon = channel.get_type().icon.replace("icon-", "")
                         icon = icon.replace("power-cord", "box")
-                        menu.append(
+                        items.append(
                             self.create_menu_item(
-                                menu_id=f"ch-{channel.uuid}",
+                                menu_id=f"{channel.uuid}",
                                 name=channel.name,
                                 href=get_channel_read_url(channel),
                                 icon=icon,
                             )
                         )
 
+
+                    menu.append(self.create_menu_item(name=_("Channels"), items=items, inline=True))
                     menu.append(
                         self.create_menu_item(
                             menu_id="channel", name=_("Add Channel"), icon="channel", href="channels.channel_claim"
                         )
                     )
 
+
                 if self.has_org_perm("archives.archive_message"):
-                    menu.append(self.create_section(_("Archives")))
-                    menu.append(
+
+                    items = [
                         self.create_menu_item(
                             name=_("Messages"),
                             icon="message-square",
                             href=reverse("archives.archive_message"),
-                        )
-                    )
-                    menu.append(
+                        ),
                         self.create_menu_item(
                             name=_("Flow Runs"),
                             icon="flow",
                             href=reverse("archives.archive_run"),
                         )
-                    )
+                    ]
+                    
+                    menu.append(self.create_menu_item(name=_("Archives"), items=items, inline=True))
+                    
 
                 child_orgs = Org.objects.filter(parent=org, is_active=True).order_by("name")
 

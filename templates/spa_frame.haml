@@ -49,22 +49,10 @@
 
 
     .list-buttons-container {
-      position: fixed;
-      z-index: 1000;
-      height: inherit;
-      padding: 0.5em;
-      padding-top:1em;
-      background: rgba(0,0,0,.2);
-      border-radius: var(--curvature);
-      right: 20px;
-      transition: top 300ms var(--bounce);
-      top: -5em;
-      display: block;
-      box-shadow: var(--shadow);
+      --icon-color: #666;
     }
 
     .list-buttons-container.visible {
-      top: -1em;
     }
     
     .spa-container {
@@ -464,7 +452,7 @@
       menu.setSelection(selection);
 
       menu.addEventListener("temba-button-clicked", function(event) {
-        showModax(event.detail.title, event.detail.href);
+        showModax(event.detail.title, event.detail.href, event.detail.on_submit);
       });
   
       window.addEventListener('resize', function() {
@@ -478,17 +466,14 @@
       handleUpdateComplete();
     })
 
+    
     document.querySelector(".spa-content").addEventListener("click", function(evt) {
-      if (true) {
-        return;
-      }
-      
       var target = evt.target;
       if (target.href && target.href.indexOf("xlsx") > -1) {
         return;
       }
 
-      if((target.classList.contains("label-checkbox") || target.classList.contains("button-action")) && !target.classList.contains("no-loading")) {
+      if((target.classList.contains("show-loading") || target.classList.contains("label-checkbox") || target.classList.contains("button-action")) && !target.classList.contains("no-loading")) {
         showLoading();
       }
 
@@ -502,9 +487,11 @@
         evt.preventDefault();
 
         const url = new URL(a.href);
-        fetchURL(url.pathname + url.search)
+
+        fetchURL(url.pathname + url.search);
       } 
     });
+    
 
     document.querySelector(".spa-content").addEventListener("submit", function(evt) {
       var formEle = evt.target;
@@ -632,10 +619,6 @@
           behavior: 'smooth'}
         );
       }
-
-      // refresh our menu  
-      var menu = document.querySelector("temba-menu");
-      menu.refresh();
     }
 
     function gotoURL(urlToGo, urlToShow, ignoreEvents) {
@@ -708,8 +691,15 @@
       }
     }
 
-    function showModax(header, endpoint) {
-      const modax = document.querySelector("temba-modax#shared-modax");
+    function showModax(header, endpoint, onSubmit) {
+
+      var modax = document.querySelector("temba-modax#shared-modax");
+      if (onSubmit) {
+        modax["-temba-submitted"] = Function(onSubmit);
+      } else {
+        modax["-temba-submitted"] = undefined;
+      }
+
       modax.header = header;
       modax.endpoint = endpoint;
       modax.headers = { "TEMBA-SPA": 1}

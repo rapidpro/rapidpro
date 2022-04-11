@@ -593,34 +593,36 @@ class ContactCRUDL(SmartCRUDL):
                     "href": reverse("contacts.contact_list"),
                     "icon": "user",
                 },
-                self.create_divider(),
+                {
+                    "id": "archived",
+                    "icon": "archive",
+                    "count": counts[Contact.STATUS_ARCHIVED],
+                    "name": _("Archived"),
+                    "href": reverse("contacts.contact_archived"),
+                },
                 {
                     "id": "blocked",
                     "count": counts[Contact.STATUS_BLOCKED],
                     "name": _("Blocked"),
                     "href": reverse("contacts.contact_blocked"),
+                    "icon": "slash"
                 },
                 {
                     "id": "stopped",
                     "count": counts[Contact.STATUS_STOPPED],
                     "name": _("Stopped"),
                     "href": reverse("contacts.contact_stopped"),
+                    "icon": "x-octagon"
                 },
-                {
-                    "id": "archived",
-                    "count": counts[Contact.STATUS_ARCHIVED],
-                    "name": _("Archived"),
-                    "href": reverse("contacts.contact_archived"),
-                },
-                self.create_divider(),
-                {
-                    "id": "groups",
-                    "icon": "users",
-                    "name": _("Groups"),
-                    "endpoint": reverse("contacts.contactgroup_menu"),
-                    "count": ContactGroup.get_groups(org).count(),
-                },
+
             ]
+
+            menu.append({
+                    "id": "import",
+                    "icon": "publish",
+                    "href": reverse("contacts.contactimport_create"),
+                    "name": _("Import"),
+            })
 
             if self.has_org_perm("contacts.contactfield_list"):
                 count = len(ContactField.user_fields.active_for_org(org=org))
@@ -634,14 +636,52 @@ class ContactCRUDL(SmartCRUDL):
                     )
                 )
 
-            menu.append(
+            
+            menu += [
+
+                self.create_divider(),
+                self.create_modax_button(
+                    name=_("New Contact"),
+                    href="contacts.contact_create",
+                ),
+                self.create_modax_button(
+                    name=_("New Group"),
+                    href="contacts.contactgroup_create",
+                ),
+                self.create_divider(),
+            ]
+
+
+
+
+            groups = ContactGroup.get_groups(org, ready_only=False).select_related("org").order_by("-group_type", Upper("name"))
+            group_counts = ContactGroupCount.get_totals(groups)
+            group_items = [
+            ]
+
+            for g in groups:
+                group_items.append(self.create_menu_item(
+                    menu_id=g.uuid,
+                    name=g.name,
+                    icon="loader" if g.status != ContactGroup.STATUS_READY else "atom" if g.query else "",
+                    count=group_counts[g],
+                    href=reverse("contacts.contact_filter", args=[g.uuid]),
+                ))
+
+            menu += [
                 {
-                    "id": "import",
-                    "icon": "upload-cloud",
-                    "href": reverse("contacts.contactimport_create"),
-                    "name": _("Import"),
+                    "id": "groups",
+                    "icon": "users",
+                    "name": _("Groups"),
+                    "items": group_items,
+                    "inline": True
                 },
-            )
+
+            ]
+
+                
+
+
 
             return JsonResponse({"results": menu})
 
@@ -1095,7 +1135,7 @@ class ContactCRUDL(SmartCRUDL):
         system_group = ContactGroup.TYPE_DB_ACTIVE
 
         def get_bulk_actions(self):
-            return ("label", "block", "archive") if self.has_org_perm("contacts.contact_update") else ()
+            return ("block", "archive", "send") if self.has_org_perm("contacts.contact_update") else ()
 
         def get_gear_links(self):
             links = []
@@ -1132,26 +1172,6 @@ class ContactCRUDL(SmartCRUDL):
                         title=_("Export"),
                         modax=_("Export Contacts"),
                         href=self.derive_export_url(),
-                    )
-                )
-
-            if is_spa:
-
-                links.append(
-                    dict(
-                        id="create-contact",
-                        title=_("New Contact"),
-                        modax=_("New Contact"),
-                        href=reverse("contacts.contact_create"),
-                    )
-                )
-
-                links.append(
-                    dict(
-                        id="create-group",
-                        title=_("New Group"),
-                        modax=_("New Group"),
-                        href=reverse("contacts.contactgroup_create"),
                     )
                 )
 
@@ -1276,7 +1296,7 @@ class ContactCRUDL(SmartCRUDL):
             return links
 
         def get_bulk_actions(self):
-            return ("block", "archive") if self.group.is_smart else ("block", "label", "unlabel")
+            return ("block", "archive") if self.group.is_smart else ("block", "unlabel")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)

@@ -54,10 +54,7 @@ class CampaignCRUDL(SmartCRUDL):
     class Menu(MenuMixin, SmartTemplateView):
         def derive_menu(self):
 
-            org = self.request.user.get_org()
-            campaigns = Campaign.objects.filter(org=org)
             menu = []
-
             menu.append(
                 self.create_menu_item(
                     name=_("Active"),
@@ -75,28 +72,14 @@ class CampaignCRUDL(SmartCRUDL):
                 )
             )
 
-            active = campaigns.filter(is_archived=False, is_active=True).order_by("name")
-
             menu.append(self.create_divider())
-
             menu.append(
                 self.create_modax_button(
                     name=_("New Campaign"),
                     href="campaigns.campaign_create",
                 )
             )
-            if active:
-                menu.append(self.create_divider())
 
-            for campaign in active:
-                menu.append(
-                    self.create_menu_item(
-                        name=campaign.name,
-                        menu_id=f"{campaign.uuid}",
-                        count=len(campaign.get_events()),
-                        href=reverse("campaigns.campaign_read", args=[campaign.pk]),
-                    )
-                )
             return menu
 
     class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
