@@ -1,3 +1,10 @@
+v7.3.16
+----------
+ * Fix generating of unique flow, group and campaign names to respect case-insensitivity and max name length
+ * Add data migration to prefix names of previously deleted flows
+ * Prefix flow names with a UUID when deleted so they don't conflict with other flow names
+ * Remove warning about feature on flow start modal being removed
+
 v7.3.15
 ----------
  * Check name uniqueness on flow creation and updating
