@@ -2663,7 +2663,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @patch("temba.flows.views.uuid4")
     def test_upload_media_action(self, mock_uuid):
-        flow = self.get_flow("color_v13")
+        flow = self.create_flow()
         other_org_flow = self.create_flow(org=self.org2)
 
         action_url = reverse("flows.flow_upload_media_action", args=[flow.uuid])
@@ -2703,6 +2703,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             upload_url = reverse("flows.flow_upload_media_action", args=[other_org_flow.uuid])
             response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
             self.assertLoginRedirect(response)
+
+        self.clear_storage()
 
     def test_copy_view(self):
         flow = self.get_flow("color")
