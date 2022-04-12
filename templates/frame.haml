@@ -220,7 +220,7 @@
         -include 'includes/nav.html'
 
     -block interface-option
-      -if user.is_staff or True
+      -if user.is_staff
         #preview.text-center.px-3.text-sm.py-1(style='background:rgba(0,0,0,.75);z-index:10000;position:fixed;bottom:0px;width:100%;color:#fff')
           Preview the
           %span.linked(onclick="switchToNewInterface()")<
