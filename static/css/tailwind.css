@@ -1568,10 +1568,16 @@ table.list{
   width: 100%;
 }
 
+table.list.sticky th {
+      position: sticky;
+      top: 0;
+    }
+
 table.list.scrolled {
     border-radius: 0 !important;
     --tw-shadow: 0 0 #0000 !important;
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow) !important;
+    overflow: scroll !important;
   }
 
 table.list tr:first-child td {

@@ -65,7 +65,6 @@ class CampaignCRUDL(SmartCRUDL):
 
             menu.append(
                 self.create_menu_item(
-                    menu_id="archived-campaigns",
                     name=_("Archived"),
                     icon="archive",
                     href="campaigns.campaign_archived",

@@ -338,9 +338,17 @@ table.padded {
 table.list{ 
   @apply w-full shadow rounded-lg bg-white overflow-hidden;
 
+  &.sticky {
+    th {
+      position: sticky;
+      top: 0;
+    }
+  }
+
   &.scrolled {
     @apply rounded-none !important;
     @apply shadow-none !important;
+    @apply overflow-scroll !important;
   }
 
   tr:first-child {

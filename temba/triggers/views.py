@@ -228,7 +228,6 @@ class TriggerCRUDL(SmartCRUDL):
 
             menu.append(
                 self.create_menu_item(
-                    menu_id="archived-triggers",
                     name=_("Archived"),
                     icon="archive",
                     count=org_triggers.filter(is_archived=True).count(),

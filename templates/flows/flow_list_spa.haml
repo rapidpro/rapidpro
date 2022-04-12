@@ -22,66 +22,61 @@
 
     .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
       -include "includes/short_pagination.haml"
-      -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
-        .text-gray-400.text-sm.self-end.mt-2
-          -trans "To view more than 10,000 search results, save it as a group."
-      
-          
-    -block flow-list
-      .flex-grow.overflow-y-auto.shadow
-        %table.relative.list.object-list.lined.selectable.scrolled
-          -if object_list
-            %thead
-              %tr
-                -if org_perms.flows.flow_update
-                  %th
+                
+    .flex-grow.overflow-y-auto.shadow
+      %table.relative.list.object-list.lined.selectable.scrolled
+        -if object_list
+          %thead
+            %tr
+              -if org_perms.flows.flow_update
                 %th
-                %th
-                %th.whitespace-nowrap
-                  Runs / Completion
+              %th
+              %th
+              %th.whitespace-nowrap
+                Runs / Completion
 
-          %tbody
-            -for object in object_list
-              %tr.object-row.select-row(onclick='handleRowClicked(event)' data-uuid="{{object.uuid}}" data-object-id="{{object.id}}")
+        %tbody
+          -for object in object_list
+            %tr.object-row.select-row(onclick='handleRowClicked(event)' data-uuid="{{object.uuid}}" data-object-id="{{object.id}}")
 
-                -if org_perms.flows.flow_update
-                  %td.checkbox.object-row-checkbox(onclick="checkInner(event);")
-                    %temba-checkbox{onclick:"handleRowSelection(this)"}
+              -if org_perms.flows.flow_update
+                %td.checkbox.object-row-checkbox(onclick="checkInner(event);")
+                  %temba-checkbox{onclick:"handleRowSelection(this)"}
 
-                %td.w-full
-                  .flex.flex-wrap.flex-end
-                    .flex.inline.whitespace-nowrap
-                      -if object.flow_type == 'V'
-                        .icon-phone.mr-2.leading-snug
-                      -elif object.flow_type == 'S'
-                        .icon-mobile.mr-2.leading-snug
-                      .name.whitespace-normal
-                        {{ object.name }}
+              %td.w-full
+                .flex.flex-wrap.flex-end
+                  .flex.inline.whitespace-nowrap
+                    -if object.flow_type == 'V'
+                      .icon-phone.mr-2.leading-snug
+                    -elif object.flow_type == 'S'
+                      .icon-mobile.mr-2.leading-snug
+                    .name.whitespace-normal
+                      {{ object.name }}
 
-                %td
-                  .whitespace-no-break.flex.items-center.ml-2.justify-end
-                    -for label in object.labels.all
-                      .lbl.linked.ml-2{ onclick:"goto(event)", data-id: '{{label.id}}', data-uuid: '{{label.uuid}}', href:"{% url 'flows.flow_filter' label.uuid%}"}
-                        {{label.name}}
+              %td
+                .whitespace-no-break.flex.items-center.ml-2.justify-end
+                  -for label in object.labels.all
+                    .lbl.linked.ml-2{ onclick:"goto(event)", data-id: '{{label.id}}', data-uuid: '{{label.uuid}}', href:"{% url 'flows.flow_filter' label.uuid%}"}
+                      {{label.name}}
 
-                %td
-                  -if not object.is_archived
-                    .whitespace-no-break.flex.items-center.justify-end
-                      -if object.has_issues
-                        .icon-warning.mr-2(title='{{ _("Has issues")|escapejs }}')
+              %td
+                -if not object.is_archived
+                  .whitespace-no-break.flex.items-center.justify-end
+                    -if object.has_issues
+                      .icon-warning.mr-2(title='{{ _("Has issues")|escapejs }}')
 
-                      -if object.run_stats.total
-                        .linked.mr-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
-                          {{ object.run_stats.total|intcomma }}
+                    -if object.run_stats.total
+                      .linked.mr-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
+                        {{ object.run_stats.total|intcomma }}
 
-                        \/
-                        .text-center.linked.mx-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
-                          {{ object.run_stats.completion }}%
+                      \/
+                      .text-center.linked.mx-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
+                        {{ object.run_stats.completion }}%
 
-            -empty
-              %tr.empty_list
-                %td(colspan='99')
-                  -trans "No matching flows."
+          -empty
+            %tr.empty_list
+              %td(colspan='99')
+                -trans "No matching flows."
 
     -else
       -include "flows/empty_include.html"
