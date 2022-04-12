@@ -13,6 +13,10 @@ from .expressions import migrate_v7_template
 from .languages import iso6391_to_iso6393
 
 
+def label_to_slug(label):
+    return regex.sub(r"[^a-z0-9]+", "_", label.lower() if label else "", regex.V0)
+
+
 def migrate_to_version_11_12(json_flow, flow=None):
     """
     This removes actions with invalid channel references
@@ -503,7 +507,7 @@ def migrate_to_version_11_5(json_flow, flow=None):
     webhook_rulesets = set()
     non_webhook_rulesets = set()
     for r in rule_sets:
-        slug = Flow.label_to_slug(r["label"])
+        slug = label_to_slug(r["label"])
         if not slug:  # pragma: no cover
             continue
         if r["ruleset_type"] in ("webhook", "resthook"):
@@ -533,7 +537,7 @@ def migrate_to_version_11_4(json_flow, flow=None):
     """
     # figure out which rulesets aren't waits
     rule_sets = json_flow.get("rule_sets", [])
-    non_waiting = {Flow.label_to_slug(r["label"]) for r in rule_sets if not r["ruleset_type"].startswith("wait_")}
+    non_waiting = {label_to_slug(r["label"]) for r in rule_sets if not r["ruleset_type"].startswith("wait_")}
 
     # make a regex that matches a context reference to the .text on any result from these
     replace_pattern = r"flow\.(" + "|".join(non_waiting) + r")\.text"
@@ -724,7 +728,7 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
             if rs["label"] is None:
                 continue
 
-            key = Flow.label_to_slug(rs["label"])
+            key = label_to_slug(rs["label"])
 
             # any reference to this result value's time property needs wrapped in format_date
             replacements.append([r"@flow\.%s\.time" % key, r"@(format_date(flow.%s.time))" % key])

@@ -280,6 +280,19 @@ class TembaModel(SmartModel):
         help_text=_("The unique identifier for this object"),
     )
 
+    @staticmethod
+    def get_unique_name(qs, base_name: str, max_len: int) -> str:
+        """
+        Generates a unique name from the given base name that won't conflict with any named object in the given queryset
+        """
+        count = 1
+        while True:
+            count_str = f" {count}"
+            name = f"{base_name[:max_len - len(count_str)]}{count_str}" if count > 1 else base_name
+            if not qs.filter(name__iexact=name).exists():
+                return name
+            count += 1
+
     class Meta:
         abstract = True
 
