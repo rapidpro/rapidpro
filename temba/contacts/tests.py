@@ -798,6 +798,24 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(set(ContactGroup.get_groups(self.org, manual_only=True)), {manual})
         self.assertEqual(set(ContactGroup.get_groups(self.org, ready_only=True)), {open_tickets, manual, males})
 
+    def test_get_unique_name(self):
+        self.assertEqual("Testers", ContactGroup.get_unique_name(self.org, "Testers"))
+
+        # ensure checking against existing groups is case-insensitive
+        self.create_group("TESTERS", contacts=[])
+
+        self.assertEqual("Testers 2", ContactGroup.get_unique_name(self.org, "Testers"))
+        self.assertEqual("Testers", ContactGroup.get_unique_name(self.org2, "Testers"))  # different org
+
+        self.create_group("Testers 2", contacts=[])
+
+        self.assertEqual("Testers 3", ContactGroup.get_unique_name(self.org, "Testers"))
+
+        # ensure we don't exceed the name length limit
+        self.create_group("X" * 64, contacts=[])
+
+        self.assertEqual(f"{'X' * 62} 2", ContactGroup.get_unique_name(self.org, "X" * 64))
+
     def test_is_valid_name(self):
         self.assertTrue(ContactGroup.is_valid_name("x"))
         self.assertTrue(ContactGroup.is_valid_name("1"))
@@ -5939,7 +5957,7 @@ class ContactImportTest(TembaTest):
         self.create_group("Testers", contacts=[])
         tests = [
             ("simple.csv", "Simple"),
-            ("testers.csv", "Testers 1"),  # group called Testers already exists
+            ("testers.csv", "Testers 2"),  # group called Testers already exists
             ("contact-imports.csv", "Contact Imports"),
             ("abc_@@é.csv", "Abc É"),
             ("a_@@é.csv", "Import"),  # would be too short

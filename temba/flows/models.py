@@ -6,7 +6,6 @@ from datetime import datetime
 
 import iso8601
 import pytz
-import regex
 from django_redis import get_redis_connection
 from packaging.version import Version
 from smartmin.models import SmartModel
@@ -270,10 +269,6 @@ class Flow(TembaModel, DependencyMixin):
         return Flow.GOFLOW_TYPES.get(self.flow_type, "")
 
     @classmethod
-    def label_to_slug(cls, label):
-        return regex.sub(r"[^a-z0-9]+", "_", label.lower() if label else "", regex.V0)
-
-    @classmethod
     def create_join_group(cls, org, user, group, response=None, start_flow=None):
         """
         Creates a special 'join group' flow
@@ -362,7 +357,7 @@ class Flow(TembaModel, DependencyMixin):
 
             # if it's not of our world, let's try by name
             if not flow:
-                flow = org.flows.filter(is_active=True, name=flow_name).first()
+                flow = org.flows.filter(is_active=True, name__iexact=flow_name).first()
 
             if flow:
                 flow.name = Flow.get_unique_name(org, flow_name, ignore=flow)
@@ -439,25 +434,12 @@ class Flow(TembaModel, DependencyMixin):
         return {d["uuid"]: d for d in response["flows"]}
 
     @classmethod
-    def get_unique_name(cls, org, base_name, ignore=None):
+    def get_unique_name(cls, org, base_name: str, ignore=None) -> str:
         """
-        Generates a unique flow name based on the given base name
+        Generates a unique name based on the given base name
         """
-        name = base_name[:64].strip()
-
-        count = 2
-        while True:
-            flows = Flow.objects.filter(name=name, org=org, is_active=True)
-            if ignore:  # pragma: needs cover
-                flows = flows.exclude(pk=ignore.pk)
-
-            if not flows.exists():
-                break
-
-            name = "%s %d" % (base_name[:59].strip(), count)
-            count += 1
-
-        return name
+        exclude_kwargs = {"id": ignore.id} if ignore else {}
+        return TembaModel.get_unique_name(org.flows.exclude(**exclude_kwargs), base_name, cls.MAX_NAME_LEN)
 
     @classmethod
     def apply_action_label(cls, user, flows, label):
