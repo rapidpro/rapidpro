@@ -80,6 +80,14 @@ def icon(o):
 
 
 @register.filter
+def object_name(o):
+    """
+    Only needed until contact fields use name rather than label
+    """
+    return o.label if hasattr(o, "label") else o.name
+
+
+@register.filter
 def object_url(o):
     assert type(o) in OBJECT_URLS
 

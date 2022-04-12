@@ -12,7 +12,7 @@
       -for obj in dependents|slice:":5"
         %li
           %a(href="{{ obj|object_url }}")
-            {{ obj.name }}
+            {{ obj|object_name }}
       -with dependents_count=dependents|length
         -if dependents_count > 5
           %li

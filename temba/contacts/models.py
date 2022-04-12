@@ -51,45 +51,46 @@ class URN:
     """
 
     DELETED_SCHEME = "deleted"
+    DISCORD_SCHEME = "discord"
     EMAIL_SCHEME = "mailto"
     EXTERNAL_SCHEME = "ext"
     FACEBOOK_SCHEME = "facebook"
+    FCM_SCHEME = "fcm"
+    FRESHCHAT_SCHEME = "freshchat"
+    INSTAGRAM_SCHEME = "instagram"
     JIOCHAT_SCHEME = "jiochat"
     LINE_SCHEME = "line"
-    TEL_SCHEME = "tel"
+    ROCKETCHAT_SCHEME = "rocketchat"
     TELEGRAM_SCHEME = "telegram"
-    TWILIO_SCHEME = "twilio"
-    TWITTER_SCHEME = "twitter"
+    TEL_SCHEME = "tel"
     TWITTERID_SCHEME = "twitterid"
+    TWITTER_SCHEME = "twitter"
     VIBER_SCHEME = "viber"
     VK_SCHEME = "vk"
-    FCM_SCHEME = "fcm"
-    WHATSAPP_SCHEME = "whatsapp"
+    WEBCHAT_SCHEME = "webchat"
     WECHAT_SCHEME = "wechat"
-    FRESHCHAT_SCHEME = "freshchat"
-    ROCKETCHAT_SCHEME = "rocketchat"
-    DISCORD_SCHEME = "discord"
-    INSTAGRAM_SCHEME = "instagram"
+    WHATSAPP_SCHEME = "whatsapp"
 
     SCHEME_CHOICES = (
-        (TEL_SCHEME, _("Phone number")),
-        (FACEBOOK_SCHEME, _("Facebook identifier")),
-        (INSTAGRAM_SCHEME, _("Instagram identifier")),
-        (TWITTER_SCHEME, _("Twitter handle")),
-        (TWITTERID_SCHEME, _("Twitter ID")),
-        (VIBER_SCHEME, _("Viber identifier")),
-        (LINE_SCHEME, _("LINE identifier")),
-        (TELEGRAM_SCHEME, _("Telegram identifier")),
-        (EMAIL_SCHEME, _("Email address")),
-        (EXTERNAL_SCHEME, _("External identifier")),
-        (JIOCHAT_SCHEME, _("JioChat identifier")),
-        (WECHAT_SCHEME, _("WeChat identifier")),
-        (FCM_SCHEME, _("Firebase Cloud Messaging identifier")),
-        (WHATSAPP_SCHEME, _("WhatsApp identifier")),
-        (FRESHCHAT_SCHEME, _("Freshchat identifier")),
-        (VK_SCHEME, _("VK identifier")),
-        (ROCKETCHAT_SCHEME, _("RocketChat identifier")),
+        (TEL_SCHEME, _("Phone Number")),
         (DISCORD_SCHEME, _("Discord Identifier")),
+        (EMAIL_SCHEME, _("Email Address")),
+        (EXTERNAL_SCHEME, _("External Identifier")),
+        (FACEBOOK_SCHEME, _("Facebook Identifier")),
+        (FCM_SCHEME, _("Firebase Cloud Messaging Identifier")),
+        (FRESHCHAT_SCHEME, _("Freshchat Identifier")),
+        (INSTAGRAM_SCHEME, _("Instagram Handle")),
+        (JIOCHAT_SCHEME, _("JioChat Identifier")),
+        (LINE_SCHEME, _("LINE Identifier")),
+        (ROCKETCHAT_SCHEME, _("RocketChat Identifier")),
+        (TELEGRAM_SCHEME, _("Telegram Identifier")),
+        (TWITTERID_SCHEME, _("Twitter ID")),
+        (TWITTER_SCHEME, _("Twitter Handle")),
+        (VIBER_SCHEME, _("Viber Identifier")),
+        (VK_SCHEME, _("VK Identifier")),
+        (WECHAT_SCHEME, _("WeChat Identifier")),
+        (WEBCHAT_SCHEME, _("Webchat Identifier")),
+        (WHATSAPP_SCHEME, _("WhatsApp Identifier")),
     )
 
     VALID_SCHEMES = {s[0] for s in SCHEME_CHOICES}
@@ -360,7 +361,7 @@ class ContactField(SmartModel, DependencyMixin):
     """
 
     MAX_KEY_LEN = 36
-    MAX_LABEL_LEN = 36
+    MAX_NAME_LEN = 36
 
     FIELD_TYPE_SYSTEM = "S"
     FIELD_TYPE_USER = "U"
@@ -402,28 +403,23 @@ class ContactField(SmartModel, DependencyMixin):
     IMMUTABLE_FIELDS = (KEY_ID, KEY_CREATED_ON, KEY_LAST_SEEN_ON)
 
     SYSTEM_FIELDS = {
-        KEY_ID: dict(label="ID", value_type=TYPE_NUMBER),
-        KEY_NAME: dict(label="Name", value_type=TYPE_TEXT),
-        KEY_CREATED_ON: dict(label="Created On", value_type=TYPE_DATETIME),
-        KEY_LANGUAGE: dict(label="Language", value_type=TYPE_TEXT),
-        KEY_LAST_SEEN_ON: dict(label="Last Seen On", value_type=TYPE_DATETIME),
+        KEY_ID: {"name": "ID", "value_type": TYPE_NUMBER},
+        KEY_NAME: {"name": "Name", "value_type": TYPE_TEXT},
+        KEY_CREATED_ON: {"name": "Created On", "value_type": TYPE_DATETIME},
+        KEY_LANGUAGE: {"name": "Language", "value_type": TYPE_TEXT},
+        KEY_LAST_SEEN_ON: {"name": "Last Seen On", "value_type": TYPE_DATETIME},
     }
 
-    EXPORT_KEY = "key"
-    EXPORT_NAME = "name"
-    EXPORT_TYPE = "type"
-
     uuid = models.UUIDField(unique=True, default=uuid4)
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contactfields")
 
-    label = models.CharField(max_length=MAX_LABEL_LEN)
-
     key = models.CharField(max_length=MAX_KEY_LEN)
-
-    field_type = models.CharField(max_length=1, choices=FIELD_TYPE_CHOICES, default=FIELD_TYPE_USER)
-
+    label = models.CharField(max_length=MAX_NAME_LEN)  # TODO replace with name
+    name = models.CharField(max_length=MAX_NAME_LEN, null=True)
     value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT)
+
+    field_type = models.CharField(max_length=1, choices=FIELD_TYPE_CHOICES, default=FIELD_TYPE_USER)  # TODO replace
+    is_system = models.BooleanField(null=True)
 
     # how field is displayed in the UI
     show_in_table = models.BooleanField(default=False)
@@ -440,11 +436,13 @@ class ContactField(SmartModel, DependencyMixin):
     def create_system_fields(cls, org):
         assert not org.contactfields(manager="system_fields").exists(), "org already has system fields"
 
-        for key, spec in ContactField.SYSTEM_FIELDS.items():
+        for key, spec in cls.SYSTEM_FIELDS.items():
             org.contactfields.create(
-                field_type=ContactField.FIELD_TYPE_SYSTEM,
+                field_type=cls.FIELD_TYPE_SYSTEM,
+                is_system=True,
                 key=key,
-                label=spec["label"],
+                name=spec["name"],
+                label=spec["name"],
                 value_type=spec["value_type"],
                 show_in_table=False,
                 created_by=org.created_by,
@@ -452,11 +450,11 @@ class ContactField(SmartModel, DependencyMixin):
             )
 
     @classmethod
-    def make_key(cls, label):
+    def make_key(cls, name):
         """
-        Generates a key from a label. There is no guarantee that the key is valid so should be checked with is_valid_key
+        Generates a key from a name. There is no guarantee that the key is valid so should be checked with is_valid_key
         """
-        key = regex.sub(r"([^a-z0-9]+)", " ", label.lower(), regex.V0)
+        key = regex.sub(r"([^a-z0-9]+)", " ", name.lower(), regex.V0)
         return regex.sub(r"([^a-z0-9]+)", "_", key.strip(), regex.V0)
 
     @classmethod
@@ -468,26 +466,26 @@ class ContactField(SmartModel, DependencyMixin):
         return True
 
     @classmethod
-    def is_valid_label(cls, label):
-        label = label.strip()
-        return regex.match(r"^[A-Za-z0-9\- ]+$", label, regex.V0) and len(label) <= cls.MAX_LABEL_LEN
+    def is_valid_name(cls, name):
+        name = name.strip()
+        return regex.match(r"^[A-Za-z0-9\- ]+$", name, regex.V0) and len(name) <= cls.MAX_NAME_LEN
 
     @classmethod
-    def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None, priority=None):
+    def get_or_create(cls, org, user, key, name=None, show_in_table=None, value_type=None, priority=None):
         """
         Gets the existing contact field or creates a new field if it doesn't exist
 
         This method only applies to ContactField.user_fields
         """
-        if label:
-            label = label.strip()
+        if name:
+            name = name.strip()
 
         with org.lock_on(OrgLock.field, key):
             field = ContactField.user_fields.active_for_org(org=org).filter(key__iexact=key).first()
 
-            if not field and not key and label:
-                # try to lookup the existing field by label
-                field = ContactField.get_by_label(org, label)
+            if not field and not key and name:
+                # try to lookup the existing field by name
+                field = cls.get_by_name(org, name)
 
             # we have a field with a invalid key we should ignore it
             if field and not ContactField.is_valid_key(field.key):
@@ -501,9 +499,10 @@ class ContactField(SmartModel, DependencyMixin):
                     field.show_in_table = show_in_table
                     changed = True
 
-                # update our label if we were given one
-                if label and field.label != label:
-                    field.label = label
+                # update our name if we were given one
+                if name and field.label != name:
+                    field.label = name
+                    field.name = name
                     changed = True
 
                 # update our type if we were given one
@@ -527,11 +526,11 @@ class ContactField(SmartModel, DependencyMixin):
                     field.save()
 
             else:
-                # generate a label if we don't have one
-                if not label:
-                    label = unsnakify(key)
+                # generate a name if we don't have one
+                if not name:
+                    name = unsnakify(key)
 
-                label = cls.get_unique_label(org, label)
+                name = cls.get_unique_name(org, name)
 
                 if not value_type:
                     value_type = ContactField.TYPE_TEXT
@@ -545,10 +544,12 @@ class ContactField(SmartModel, DependencyMixin):
                 if not ContactField.is_valid_key(key):
                     raise ValueError("Field key %s has invalid characters or is a reserved field name" % key)
 
-                field = ContactField.user_fields.create(
-                    org=org,
+                field = org.contactfields.create(
                     key=key,
-                    label=label,
+                    label=name,
+                    name=name,
+                    field_type=cls.FIELD_TYPE_USER,
+                    is_system=False,
                     show_in_table=show_in_table,
                     value_type=value_type,
                     created_by=user,
@@ -559,25 +560,25 @@ class ContactField(SmartModel, DependencyMixin):
             return field
 
     @classmethod
-    def get_unique_label(cls, org, base_label, ignore=None):
+    def get_unique_name(cls, org, base_name: str) -> str:
         """
-        Generates a unique field label based on the given base label
+        Generates a unique name based on the given base name
         """
-        label = base_label[:64].strip()
+        name = base_name[:64].strip()
 
         count = 2
         while True:
-            if not ContactField.user_fields.filter(org=org, label=label, is_active=True).exists():
+            if not ContactField.user_fields.filter(org=org, label=name, is_active=True).exists():
                 break
 
-            label = "%s %d" % (base_label[:59].strip(), count)
+            name = "%s %d" % (base_name[:59].strip(), count)
             count += 1
 
-        return label
+        return name
 
     @classmethod
-    def get_by_label(cls, org, label):
-        return cls.user_fields.active_for_org(org=org).filter(label__iexact=label).first()
+    def get_by_name(cls, org, name):
+        return cls.user_fields.active_for_org(org=org).filter(label__iexact=name).first()
 
     @classmethod
     def get_by_key(cls, org, key):
@@ -587,30 +588,22 @@ class ContactField(SmartModel, DependencyMixin):
     def get_location_field(cls, org, value_type):
         return cls.user_fields.active_for_org(org=org).filter(value_type=value_type).first()
 
-    @property
-    def name(self):
-        return self.label
-
     @classmethod
     def import_fields(cls, org, user, field_defs):
         """
         Import fields from a list of exported fields
         """
 
-        db_types = {value: key for key, value in ContactField.ENGINE_TYPES.items()}
+        db_types = {value: key for key, value in cls.ENGINE_TYPES.items()}
 
         for field_def in field_defs:
-            field_key = field_def.get(ContactField.EXPORT_KEY)
-            field_name = field_def.get(ContactField.EXPORT_NAME)
-            field_type = field_def.get(ContactField.EXPORT_TYPE)
-            ContactField.get_or_create(org, user, key=field_key, label=field_name, value_type=db_types[field_type])
+            field_key = field_def.get("key")
+            field_name = field_def.get("name")
+            field_type = field_def.get("type")
+            cls.get_or_create(org, user, key=field_key, name=field_name, value_type=db_types[field_type])
 
     def as_export_def(self):
-        return {
-            ContactField.EXPORT_KEY: self.key,
-            ContactField.EXPORT_NAME: self.label,
-            ContactField.EXPORT_TYPE: ContactField.ENGINE_TYPES[self.value_type],
-        }
+        return {"key": self.key, "name": self.label, "type": self.ENGINE_TYPES[self.value_type]}
 
     def get_dependents(self):
         dependents = super().get_dependents()
@@ -684,26 +677,18 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     last_seen_on = models.DateTimeField(null=True)
 
-    NAME = "name"
-    FIRST_NAME = "first_name"
-    LANGUAGE = "language"
-    CREATED_ON = "created_on"
-    UUID = "uuid"
-    GROUPS = "groups"
-    ID = "id"
-    SCHEME = "scheme"
-
     RESERVED_ATTRIBUTES = {
-        ID,
-        NAME,
-        FIRST_NAME,
-        LANGUAGE,
-        GROUPS,
-        UUID,
-        SCHEME,
-        CREATED_ON,
-        "created_by",
-        "modified_by",
+        "id",
+        "uuid",
+        "name",
+        "first_name",
+        "language",
+        "group",
+        "flow",
+        "history",
+        "scheme",
+        "urn",
+        "created_on",
         "is",
         "has",
     }
@@ -1909,18 +1894,18 @@ class ExportContactsTask(BaseExportTask):
 
     def get_export_fields_and_schemes(self):
         fields = [
-            dict(label="Contact UUID", key=Contact.UUID, field=None, urn_scheme=None),
-            dict(label="Name", key=ContactField.KEY_NAME, field=None, urn_scheme=None),
-            dict(label="Language", key=ContactField.KEY_LANGUAGE, field=None, urn_scheme=None),
-            dict(label="Created On", key=ContactField.KEY_CREATED_ON, field=None, urn_scheme=None),
-            dict(label="Last Seen On", key=ContactField.KEY_LAST_SEEN_ON, field=None, urn_scheme=None),
+            dict(label="Contact UUID", key="uuid", field=None, urn_scheme=None),
+            dict(label="Name", key="name", field=None, urn_scheme=None),
+            dict(label="Language", key="language", field=None, urn_scheme=None),
+            dict(label="Created On", key="created_on", field=None, urn_scheme=None),
+            dict(label="Last Seen On", key="last_seen_on", field=None, urn_scheme=None),
         ]
 
         # anon orgs also get an ID column that is just the PK
         if self.org.is_anon:
             fields = [
-                dict(label="ID", key=ContactField.KEY_ID, field=None, urn_scheme=None),
-                dict(label="Scheme", key=Contact.SCHEME, field=None, urn_scheme=None),
+                dict(label="ID", key="id", field=None, urn_scheme=None),
+                dict(label="Scheme", key="scheme", field=None, urn_scheme=None),
             ] + fields
 
         scheme_counts = dict()
@@ -2045,19 +2030,19 @@ class ExportContactsTask(BaseExportTask):
         return exporter.save_file()
 
     def get_field_value(self, field: dict, contact: Contact):
-        if field["key"] == ContactField.KEY_NAME:
+        if field["key"] == "name":
             return contact.name
-        elif field["key"] == Contact.UUID:
+        elif field["key"] == "uuid":
             return contact.uuid
-        elif field["key"] == ContactField.KEY_LANGUAGE:
+        elif field["key"] == "language":
             return contact.language
-        elif field["key"] == ContactField.KEY_CREATED_ON:
+        elif field["key"] == "created_on":
             return contact.created_on
-        elif field["key"] == ContactField.KEY_LAST_SEEN_ON:
+        elif field["key"] == "last_seen_on":
             return contact.last_seen_on
-        elif field["key"] == ContactField.KEY_ID:
+        elif field["key"] == "id":
             return str(contact.id)
-        elif field["key"] == Contact.SCHEME:
+        elif field["key"] == "scheme":
             contact_urns = contact.get_urns()
             return contact_urns[0].scheme if contact_urns else ""
         elif field["urn_scheme"] is not None:
@@ -2202,10 +2187,10 @@ class ContactImport(SmartModel):
         """
 
         fields_by_key = {}
-        fields_by_label = {}
+        fields_by_name = {}
         for f in org.contactfields(manager="user_fields").filter(is_active=True):
             fields_by_key[f.key] = f
-            fields_by_label[f.label.lower()] = f
+            fields_by_name[f.label.lower()] = f
 
         mappings = []
 
@@ -2224,8 +2209,8 @@ class ContactImport(SmartModel):
             elif header_prefix == "field" and header_name:
                 field_key = ContactField.make_key(header_name)
 
-                # try to match by field label, then by key
-                field = fields_by_label.get(header_name.lower())
+                # try to match by field name, then by key
+                field = fields_by_name.get(header_name.lower())
                 if not field:
                     field = fields_by_key.get(field_key)
 
@@ -2304,7 +2289,7 @@ class ContactImport(SmartModel):
             mapping = item["mapping"]
             if mapping["type"] == "new_field":
                 ContactField.get_or_create(
-                    self.org, self.created_by, mapping["key"], label=mapping["name"], value_type=mapping["value_type"]
+                    self.org, self.created_by, mapping["key"], name=mapping["name"], value_type=mapping["value_type"]
                 )
 
         # if user wants contacts added to a new group, create it

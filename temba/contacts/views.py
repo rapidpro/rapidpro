@@ -1707,22 +1707,22 @@ class ContactFieldForm(forms.ModelForm):
         self.org = org
 
     def clean_label(self):
-        label = self.cleaned_data["label"]
+        name = self.cleaned_data["label"]
 
-        if not ContactField.is_valid_label(label):
+        if not ContactField.is_valid_name(name):
             raise forms.ValidationError(_("Can only contain letters, numbers and hypens."))
 
-        if not ContactField.is_valid_key(ContactField.make_key(label)):
+        if not ContactField.is_valid_key(ContactField.make_key(name)):
             raise forms.ValidationError(_("Can't be a reserved word."))
 
-        conflict = ContactField.user_fields.active_for_org(org=self.org).filter(label__iexact=label.lower())
+        conflict = ContactField.user_fields.active_for_org(org=self.org).filter(label__iexact=name.lower())
         if self.instance:
             conflict = conflict.exclude(id=self.instance.id)
 
         if conflict.exists():
             raise forms.ValidationError(_("Must be unique."))
 
-        return label
+        return name
 
     class Meta:
         model = ContactField
@@ -1856,8 +1856,8 @@ class ContactFieldCRUDL(SmartCRUDL):
             self.object = ContactField.get_or_create(
                 org=self.request.user.get_org(),
                 user=self.request.user,
-                key=ContactField.make_key(label=form.cleaned_data["label"]),
-                label=form.cleaned_data["label"],
+                key=ContactField.make_key(form.cleaned_data["label"]),
+                name=form.cleaned_data["label"],
                 value_type=form.cleaned_data["value_type"],
                 show_in_table=form.cleaned_data["show_in_table"],
             )
@@ -1879,7 +1879,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 org=self.request.user.get_org(),
                 user=self.request.user,
                 key=self.object.key,  # do not replace the key
-                label=form.cleaned_data["label"],
+                name=form.cleaned_data["label"],
                 value_type=form.cleaned_data["value_type"],
                 show_in_table=form.cleaned_data["show_in_table"],
                 priority=0,  # reset the priority, this will move CF to the bottom of the list
@@ -2119,7 +2119,7 @@ class ContactImportCRUDL(SmartCRUDL):
                                     params={"header": header},
                                 )
 
-                            if not ContactField.is_valid_label(field_name) or not ContactField.is_valid_key(field_key):
+                            if not ContactField.is_valid_name(field_name) or not ContactField.is_valid_key(field_key):
                                 raise forms.ValidationError(
                                     _("Field name for '%(header)s' is invalid or a reserved word."),
                                     params={"header": header},

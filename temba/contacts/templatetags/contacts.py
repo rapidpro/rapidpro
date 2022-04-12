@@ -15,7 +15,6 @@ URN_SCHEME_ICONS = {
     URN.TEL_SCHEME: "icon-phone",
     URN.TWITTER_SCHEME: "icon-twitter",
     URN.TWITTERID_SCHEME: "icon-twitter",
-    URN.TWILIO_SCHEME: "icon-twilio_original",
     URN.EMAIL_SCHEME: "icon-envelop",
     URN.FACEBOOK_SCHEME: "icon-facebook",
     URN.TELEGRAM_SCHEME: "icon-telegram",
