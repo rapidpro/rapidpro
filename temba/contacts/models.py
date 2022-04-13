@@ -2373,9 +2373,16 @@ class ContactImport(SmartModel):
                 )
 
         if not self.validate_carrier:
-            # create the destination group
-            self.group = ContactGroup.create_static(self.org, self.created_by, self.get_default_group_name())
-            self.save(update_fields=("group",))
+            # if user wants contacts added to a new group, create it
+            if self.group_name and not self.group:
+                self.group = ContactGroup.create_static(self.org, self.created_by, name=self.group_name)
+            # if group was not added from frontend then create one from default
+            elif not self.group:
+                # create the destination group
+                self.group = ContactGroup.create_static(self.org, self.created_by, self.get_default_group_name())
+
+            if self.group:
+                self.save(update_fields=("group",))
 
         # CSV reader expects str stream so wrap file
         file_type = self._get_file_type()
