@@ -2872,7 +2872,7 @@ class ContactTest(TembaTest):
 
         # now add back Joe to the group
         # self.client.post(
-            # list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": True}, follow=True
+        # list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": True}, follow=True
         # )
 
         self.assertEqual(len(self.just_joe.contacts.all()), 1)
