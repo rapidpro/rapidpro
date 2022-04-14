@@ -60,12 +60,12 @@ CHANNELS = (
     {"name": "Twitter", "channel_type": "TWT", "scheme": "twitter", "address": "my_handle"},
 )
 FIELDS = (
-    {"key": "gender", "label": "Gender", "value_type": ContactField.TYPE_TEXT},
-    {"key": "age", "label": "Age", "value_type": ContactField.TYPE_NUMBER},
-    {"key": "joined", "label": "Joined On", "value_type": ContactField.TYPE_DATETIME},
-    {"key": "ward", "label": "Ward", "value_type": ContactField.TYPE_WARD},
-    {"key": "district", "label": "District", "value_type": ContactField.TYPE_DISTRICT},
-    {"key": "state", "label": "State", "value_type": ContactField.TYPE_STATE},
+    {"key": "gender", "name": "Gender", "value_type": ContactField.TYPE_TEXT},
+    {"key": "age", "name": "Age", "value_type": ContactField.TYPE_NUMBER},
+    {"key": "joined", "name": "Joined On", "value_type": ContactField.TYPE_DATETIME},
+    {"key": "ward", "name": "Ward", "value_type": ContactField.TYPE_WARD},
+    {"key": "district", "name": "District", "value_type": ContactField.TYPE_DISTRICT},
+    {"key": "state", "name": "State", "value_type": ContactField.TYPE_STATE},
 )
 GROUPS = (
     {"name": "Reporters", "query": None, "member": 0.95},  # member is either a probability or callable
@@ -378,7 +378,9 @@ class Command(BaseCommand):
                 field = ContactField.user_fields.create(
                     org=org,
                     key=f["key"],
-                    label=f["label"],
+                    name=f["name"],
+                    label=f["name"],
+                    is_system=False,
                     value_type=f["value_type"],
                     show_in_table=True,
                     created_by=user,
