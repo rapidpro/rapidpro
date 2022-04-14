@@ -2,7 +2,7 @@
 -load smartmin sms temba compress humanize contacts i18n
 
 -block page-title
-  {{ object.offset_display }} {{ object.relative_to.label }}
+  {{ object.offset_display }} {{ object.relative_to.name }}
 
 -block title-icon
   .title-icon
@@ -11,7 +11,7 @@
 -block subtitle
 
   .event-details.p-4.bg-gray-200.rounded-lg.mb-6
-    {{ object.offset_display }} {{ object.relative_to.label }}
+    {{ object.offset_display }} {{ object.relative_to.name }}
 
 
 -block content

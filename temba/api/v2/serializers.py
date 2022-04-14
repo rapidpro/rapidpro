@@ -675,8 +675,12 @@ class ContactFieldReadSerializer(ReadSerializer):
         ContactField.TYPE_WARD: "ward",
     }
 
+    label = serializers.SerializerMethodField()
     value_type = serializers.SerializerMethodField()
     pinned = serializers.SerializerMethodField()
+
+    def get_label(self, obj):
+        return obj.name
 
     def get_value_type(self, obj):
         return self.VALUE_TYPES[obj.value_type]
