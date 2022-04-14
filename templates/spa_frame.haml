@@ -264,8 +264,9 @@
 
      
 -block full-page-script
-  %script{src:"{{ STATIC_URL }}js/labels.js?4"}
-  %script{src:"{{ STATIC_URL }}js/urls.js"}
+  %script(src="{{ STATIC_URL }}js/labels.js?4")
+  %script(src="{{ STATIC_URL }}js/urls.js")
+  %script(src="{{ STATIC_URL }}bower/highcharts/highcharts.js")
 
   :javascript
 
@@ -634,7 +635,7 @@
       });
     }
 
-    var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user).*/;
+    var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user|settings).*/;
 
     function handleNoPath(event) {
       var details = event.detail;
