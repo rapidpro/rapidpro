@@ -37,7 +37,6 @@ from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
-    MigrationTest,
     TembaNonAtomicTest,
     TembaTest,
     matchers,
@@ -45,7 +44,7 @@ from temba.tests import (
 )
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
-from temba.tickets.models import Ticket, TicketCount, Ticketer, Topic
+from temba.tickets.models import Ticket, TicketCount, Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_str, datetime_to_timestamp
@@ -2983,9 +2982,7 @@ class ContactTest(TembaTest):
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 0)
 
         # add an extra field to the org
-        ContactField.get_or_create(
-            self.org, self.user, "state", label="Home state", value_type=ContactField.TYPE_STATE
-        )
+        ContactField.get_or_create(self.org, self.user, "state", name="Home state", value_type=ContactField.TYPE_STATE)
         self.set_contact_field(self.joe, "state", " kiGali   citY ")  # should match "Kigali City"
 
         # check that the field appears on the update form
@@ -3178,7 +3175,7 @@ class ContactTest(TembaTest):
 
         # bad field
         contact_field = ContactField.user_fields.create(
-            org=self.org, key="language", label="User Language", created_by=self.admin, modified_by=self.admin
+            org=self.org, key="language", name="User Language", created_by=self.admin, modified_by=self.admin
         )
 
         response = self.client.post(
@@ -3476,7 +3473,7 @@ class ContactTest(TembaTest):
     def test_date_field(self):
         # create a new date field
         birth_date = ContactField.get_or_create(
-            self.org, self.admin, "birth_date", label="Birth Date", value_type=ContactField.TYPE_TEXT
+            self.org, self.admin, "birth_date", name="Birth Date", value_type=ContactField.TYPE_TEXT
         )
 
         # set a field on our contact
@@ -3546,7 +3543,7 @@ class ContactTest(TembaTest):
 
         # create a system field that is not supported
         field_iban = ContactField.system_fields.create(
-            org_id=self.org.id, key="iban", label="IBAN", created_by_id=self.admin.id, modified_by_id=self.admin.id
+            org_id=self.org.id, key="iban", name="IBAN", created_by_id=self.admin.id, modified_by_id=self.admin.id
         )
 
         self.assertRaises(AssertionError, joe.get_field_serialized, field_iban)
@@ -3725,7 +3722,7 @@ class ContactFieldTest(TembaTest):
         )
         self.assertTrue(another.show_in_table)
 
-        for key in Contact.RESERVED_FIELD_KEYS:
+        for key in ContactField.RESERVED_KEYS:
             with self.assertRaises(ValueError):
                 ContactField.get_or_create(self.org, self.admin, key, key, value_type=ContactField.TYPE_TEXT)
 
@@ -3742,7 +3739,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(groups_field.label, "Groups")
 
         # we should lookup the existing field by label
-        label_field = ContactField.get_or_create(self.org, self.admin, key=None, label="Groups")
+        label_field = ContactField.get_or_create(self.org, self.admin, key=None, name="Groups")
 
         self.assertEqual(label_field.key, "groups_field")
         self.assertEqual(label_field.label, "Groups")
@@ -3810,11 +3807,11 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_key("mailto"))
         self.assertFalse(ContactField.is_valid_key("a" * 37))  # too long
 
-    def test_is_valid_label(self):
-        self.assertTrue(ContactField.is_valid_label("Age"))
-        self.assertTrue(ContactField.is_valid_label("Age Now 2"))
-        self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
-        self.assertFalse(ContactField.is_valid_label("âge"))  # a-z only
+    def test_is_valid_name(self):
+        self.assertTrue(ContactField.is_valid_name("Age"))
+        self.assertTrue(ContactField.is_valid_name("Age Now 2"))
+        self.assertFalse(ContactField.is_valid_name("Age_Now"))  # can't have punctuation
+        self.assertFalse(ContactField.is_valid_name("âge"))  # a-z only
 
     @mock_mailroom
     def test_contact_export(self, mr_mocks):
@@ -4712,7 +4709,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             {"label": "Goats", "value_type": "N", "show_in_table": True},
             new_obj_query=ContactField.user_fields.filter(
-                org=self.org, label="Goats", value_type="N", show_in_table=True
+                org=self.org, name="Goats", value_type="N", show_in_table=True
             ),
             success_status=200,
         )
@@ -4724,7 +4721,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             {"label": "Age", "value_type": "N", "show_in_table": True},
             new_obj_query=ContactField.user_fields.filter(
-                org=self.org, label="Age", value_type="N", show_in_table=True, is_active=True
+                org=self.org, name="Age", value_type="N", show_in_table=True, is_active=True
             ),
             success_status=200,
         )
@@ -6233,60 +6230,3 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
-
-
-class OpenTicketsGroupMigrationTest(MigrationTest):
-    app = "contacts"
-    migrate_from = "0158_alter_contactgroup_managers_and_more"
-    migrate_to = "0159_open_tickets_sys_groups"
-
-    def setUpBeforeMigration(self, apps):
-        # create old org that won't have the group
-        self.old_org = Org.objects.create(
-            name="Old Org",
-            is_active=True,
-            created_on=timezone.now(),
-            created_by=self.admin,
-            modified_on=timezone.now(),
-            modified_by=self.admin,
-        )
-
-        # but does have a contact with an open ticket
-        ticketer = Ticketer.create(self.old_org, self.admin, "internal", "Tickets!", {})
-        topic = Topic.get_or_create(self.old_org, self.admin, "Sales")
-        self.contact1 = self.create_contact("Bob", urns=["twitter:bobby"])
-        self.contact2 = self.create_contact("Jim", urns=["twitter:jimmy"])
-        Ticket.objects.create(
-            org=self.old_org,
-            ticketer=ticketer,
-            contact=self.contact1,
-            topic=topic,
-            body="Where are my cookies?",
-            status="O",
-        )
-        Ticket.objects.create(
-            org=self.old_org,
-            ticketer=ticketer,
-            contact=self.contact2,
-            topic=topic,
-            body="Where are my cookies?",
-            status="C",
-        )
-
-        # create new org that already has it
-        self.new_org = Org.objects.create(
-            name="New Org",
-            is_active=True,
-            created_on=timezone.now(),
-            created_by=self.admin,
-            modified_on=timezone.now(),
-            modified_by=self.admin,
-        )
-        self.new_org.initialize()
-
-    def test_migration(self):
-        # old org now has group and it's correctly populated
-        old_org_open_tickets = self.old_org.groups.get(name="Open Tickets", group_type="Q", is_system=True)
-        self.assertEqual({self.contact1}, set(old_org_open_tickets.contacts.all()))
-
-        self.assertTrue(self.new_org.groups.filter(name="Open Tickets", group_type="Q", is_system=True).exists())

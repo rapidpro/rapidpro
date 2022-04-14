@@ -2581,8 +2581,8 @@ class APITest(TembaTest):
         self.assertResponseError(response, "value_type", '"video" is not a valid choice.')
 
         # try again with a label that would generate an invalid key
-        response = self.postJSON(url, None, {"label": "Created By", "value_type": "user"})
-        self.assertResponseError(response, "label", 'Generated key "created_by" is invalid or a reserved name.')
+        response = self.postJSON(url, None, {"label": "UUID", "value_type": "text"})
+        self.assertResponseError(response, "label", 'Generated key "uuid" is invalid or a reserved name.')
 
         # try again with a label that's already taken
         response = self.postJSON(url, None, {"label": "nick name", "value_type": "text"})

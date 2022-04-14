@@ -694,13 +694,13 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
     label = serializers.CharField(
         required=True,
-        max_length=ContactField.MAX_LABEL_LEN,
+        max_length=ContactField.MAX_NAME_LEN,
         validators=[UniqueForOrgValidator(ContactField.user_fields.filter(is_active=True), ignore_case=True)],
     )
     value_type = serializers.ChoiceField(required=True, choices=list(VALUE_TYPES.keys()))
 
     def validate_label(self, value):
-        if not ContactField.is_valid_label(value):
+        if not ContactField.is_valid_name(value):
             raise serializers.ValidationError("Can only contain letters, numbers and hypens.")
 
         key = ContactField.make_key(value)
@@ -727,15 +727,15 @@ class ContactFieldWriteSerializer(WriteSerializer):
         return data
 
     def save(self):
-        label = self.validated_data.get("label")
+        name = self.validated_data.get("label")
         value_type = self.validated_data.get("value_type")
 
         if self.instance:
             key = self.instance.key
         else:
-            key = ContactField.make_key(label)
+            key = ContactField.make_key(name)
 
-        return ContactField.get_or_create(self.context["org"], self.context["user"], key, label, value_type=value_type)
+        return ContactField.get_or_create(self.context["org"], self.context["user"], key, name, value_type=value_type)
 
 
 class ContactGroupReadSerializer(ReadSerializer):
