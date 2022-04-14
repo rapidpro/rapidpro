@@ -3722,7 +3722,7 @@ class ContactFieldTest(TembaTest):
         )
         self.assertTrue(another.show_in_table)
 
-        for key in Contact.RESERVED_FIELD_KEYS:
+        for key in ContactField.RESERVED_KEYS:
             with self.assertRaises(ValueError):
                 ContactField.get_or_create(self.org, self.admin, key, key, value_type=ContactField.TYPE_TEXT)
 

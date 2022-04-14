@@ -410,6 +410,32 @@ class ContactField(SmartModel, DependencyMixin):
         KEY_LAST_SEEN_ON: {"name": "Last Seen On", "value_type": TYPE_DATETIME},
     }
 
+    # can't create custom contact fields with these keys
+    RESERVED_KEYS = {
+        # contactql syntax
+        "has",
+        "is",
+        # searchable attributes in queries
+        "created_on",
+        "flow",
+        "group",
+        "history",
+        "id",
+        "language",
+        "last_seen_on",
+        "name",
+        "urn",
+        "uuid",
+        # @contact.* properties in expressions
+        "channel",
+        "fields",
+        "first_name",
+        "groups",
+        "tickets",
+        "timezone",
+        "urns",
+    }.union(URN.VALID_SCHEMES)
+
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contactfields")
 
@@ -461,7 +487,7 @@ class ContactField(SmartModel, DependencyMixin):
     def is_valid_key(cls, key):
         if not regex.match(r"^[a-z][a-z0-9_]*$", key, regex.V0):
             return False
-        if key in Contact.RESERVED_FIELD_KEYS or len(key) > cls.MAX_KEY_LEN:
+        if key in cls.RESERVED_KEYS or len(key) > cls.MAX_KEY_LEN:
             return False
         return True
 
@@ -676,25 +702,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     )
 
     last_seen_on = models.DateTimeField(null=True)
-
-    RESERVED_ATTRIBUTES = {
-        "id",
-        "uuid",
-        "name",
-        "first_name",
-        "language",
-        "group",
-        "flow",
-        "history",
-        "scheme",
-        "urn",
-        "created_on",
-        "is",
-        "has",
-    }
-
-    # can't create custom contact fields with these keys
-    RESERVED_FIELD_KEYS = RESERVED_ATTRIBUTES.union(URN.VALID_SCHEMES)
 
     # maximum number of contacts to release without using a background task
     BULK_RELEASE_IMMEDIATELY_LIMIT = 50
