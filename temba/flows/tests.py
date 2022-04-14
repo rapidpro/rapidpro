@@ -4915,6 +4915,10 @@ class FlowLabelTest(TembaTest):
         response = self.client.get(reverse("flows.flow_filter", args=[cat.uuid]))
         self.assertLoginRedirect(response)
 
+        # in the spa view, labels are flattened
+        response = self.client.get(reverse("flows.flow_filter", args=[label.uuid]), HTTP_TEMBA_SPA="1")
+        self.assertEqual(len(response.context["labels_flat"]), 7)
+
     def test_toggle_label(self):
         label = FlowLabel.create(self.org, "toggle me")
         flow = self.get_flow("favorites")
