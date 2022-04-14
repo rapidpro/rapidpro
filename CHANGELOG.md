@@ -1,3 +1,9 @@
+v7.3.19
+----------
+ * Correct set new ContactField fields in mailroom_db test_db commands
+ * Update version of codecov action as well as versions of rp-indexer and mailroom used by tests
+ * Data migration to populate name and is_system on ContactField
+
 v7.3.18
 ----------
  * Give contact fields a name and is_system db field
