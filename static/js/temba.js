@@ -15,7 +15,6 @@ function checkInner(event) {
 }
 
 function goto(event, ele) {
-    console.log(event);
     if (!ele) {
         ele = event.target;
     }
