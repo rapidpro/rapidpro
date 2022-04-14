@@ -3515,7 +3515,7 @@ class APITest(TembaTest):
                 self.assertEqual(starts_with, location[0 : len(starts_with)])
                 self.assertEqual(".%s" % ext, location[-4:])
 
-        assert_media_upload("%s/test_media/steve.marten.jpg" % settings.MEDIA_ROOT, "jpg")
+        assert_media_upload("%s/test_media/steve marten.jpg" % settings.MEDIA_ROOT, "jpg")
         assert_media_upload("%s/test_media/snow.mp4" % settings.MEDIA_ROOT, "mp4")
 
         # missing file

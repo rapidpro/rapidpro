@@ -2663,50 +2663,48 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @patch("temba.flows.views.uuid4")
     def test_upload_media_action(self, mock_uuid):
-        flow = self.get_flow("color_v13")
+        flow = self.create_flow()
         other_org_flow = self.create_flow(org=self.org2)
 
-        upload_media_action_url = reverse("flows.flow_upload_media_action", args=[flow.uuid])
+        action_url = reverse("flows.flow_upload_media_action", args=[flow.uuid])
 
-        def assert_media_upload(filename, expected_type, expected_path):
+        def assert_upload(filename, expected_type, expected_url):
             with open(filename, "rb") as data:
-                post_data = dict(file=data, action="", HTTP_X_FORWARDED_HTTPS="https")
-                response = self.client.post(upload_media_action_url, post_data)
+                response = self.client.post(action_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
 
                 self.assertEqual(response.status_code, 200)
                 actual_type = response.json()["type"]
                 actual_url = response.json()["url"]
-                self.assertEqual(actual_type, expected_type)
-                self.assertEqual(actual_url, expected_path)
+                self.assertEqual(expected_type, actual_type)
+                self.assertEqual(expected_url, actual_url)
 
         self.login(self.admin)
 
         mock_uuid.side_effect = ["11111-111-11", "22222-222-22", "33333-333-33", "44444-444-44"]
 
-        assert_media_upload(
-            f"{settings.MEDIA_ROOT}/test_media/steve.marten.jpg",
+        assert_upload(
+            f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg",
             "image/jpeg",
-            "%s/attachments/%d/%d/steps/%s/%s"
-            % (settings.STORAGE_URL, self.org.id, flow.id, "11111-111-11", "steve.marten.jpg"),
+            f"/media/attachments/{self.org.id}/{flow.id}/steps/11111-111-11/steve%20marten.jpg",
         )
-        assert_media_upload(
+        assert_upload(
             f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
             "video/mp4",
-            "%s/attachments/%d/%d/steps/%s/%s"
-            % (settings.STORAGE_URL, self.org.id, flow.id, "22222-222-22", "snow.mp4"),
+            f"/media/attachments/{self.org.id}/{flow.id}/steps/22222-222-22/snow.mp4",
         )
-        assert_media_upload(
+        assert_upload(
             f"{settings.MEDIA_ROOT}/test_media/snow.m4a",
             "audio/mp4",
-            "%s/attachments/%d/%d/steps/%s/%s"
-            % (settings.STORAGE_URL, self.org.id, flow.id, "33333-333-33", "snow.m4a"),
+            f"/media/attachments/{self.org.id}/{flow.id}/steps/33333-333-33/snow.m4a",
         )
 
         # can't upload for flow in other org
-        with open(f"{settings.MEDIA_ROOT}/test_media/steve.marten.jpg", "rb") as data:
+        with open(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "rb") as data:
             upload_url = reverse("flows.flow_upload_media_action", args=[other_org_flow.uuid])
-            response = self.client.post(upload_url, {"file": data, "action": "", "HTTP_X_FORWARDED_HTTPS": "https"})
+            response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
             self.assertLoginRedirect(response)
+
+        self.clear_storage()
 
     def test_copy_view(self):
         flow = self.get_flow("color")

@@ -15,6 +15,7 @@ class PublicFileStorage(DefaultStorage):
 
 public_file_storage = PublicFileStorage()
 public_file_storage.default_acl = "public-read"
+public_file_storage.querystring_auth = False  # don't include access token in attachment URLs
 
 _s3_client = None
 
