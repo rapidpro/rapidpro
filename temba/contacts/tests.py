@@ -37,6 +37,7 @@ from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     TembaNonAtomicTest,
     TembaTest,
     matchers,
@@ -6230,3 +6231,47 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
+
+
+class PopulateFieldNameAndIsSystemMigrationTest(MigrationTest):
+    app = "contacts"
+    migrate_from = "0160_contactfield_is_system_contactfield_name"
+    migrate_to = "0161_populate_field_name_and_is_system"
+
+    def setUpBeforeMigration(self, apps):
+        # create a user field which doesn't have name or is_system set
+        self.field1 = ContactField.all_fields.create(
+            org=self.org,
+            key="age",
+            label="Age",
+            name=None,
+            field_type="U",
+            is_system=None,
+            value_type="T",
+            created_by=self.user,
+            modified_by=self.user,
+            priority=1,
+        )
+
+        # create a system field which doesn't have name or is_system set
+        self.field2 = ContactField.all_fields.create(
+            org=self.org,
+            key="age",
+            label="Tickets",
+            name=None,
+            field_type="S",
+            is_system=None,
+            value_type="T",
+            created_by=self.user,
+            modified_by=self.user,
+            priority=1,
+        )
+
+    def test_migration(self):
+        self.field1.refresh_from_db()
+        self.assertEqual("Age", self.field1.name)
+        self.assertFalse(self.field1.is_system)
+
+        self.field2.refresh_from_db()
+        self.assertEqual("Tickets", self.field2.name)
+        self.assertTrue(self.field2.is_system)
