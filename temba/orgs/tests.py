@@ -3753,7 +3753,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(topup.price, 0)
 
         # check default org content was created correctly
-        system_fields = set(org.contactfields(manager="system_fields").values_list("key", flat=True))
+        system_fields = set(org.contactfields.filter(is_system=True).values_list("key", flat=True))
         system_groups = set(org.groups.filter(is_system=True).values_list("name", flat=True))
         sample_flows = set(org.flows.values_list("name", flat=True))
         internal_ticketer = org.ticketers.get()

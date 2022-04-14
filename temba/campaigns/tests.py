@@ -912,7 +912,7 @@ class CampaignTest(TembaTest):
 
     def test_import_created_on_event(self):
         campaign = Campaign.create(self.org, self.admin, "New contact reminders", self.farmers)
-        created_on = ContactField.system_fields.get(org=self.org, key="created_on")
+        created_on = self.org.contactfields.get(key="created_on")
 
         CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, relative_to=created_on, offset=3, unit="D", flow=self.reminder_flow
