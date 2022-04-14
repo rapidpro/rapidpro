@@ -1,3 +1,8 @@
+v7.3.18
+----------
+ * Give contact fields a name and is_system db field
+ * Update list of reserved keys for contact fields
+
 v7.3.17
 ----------
  * Fix uploading attachments to properly get uploaded URL
