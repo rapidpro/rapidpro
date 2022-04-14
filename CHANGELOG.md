@@ -1,3 +1,7 @@
+v7.3.17
+----------
+ * Fix uploading attachments to properly get uploaded URL
+
 v7.3.16
 ----------
  * Fix generating of unique flow, group and campaign names to respect case-insensitivity and max name length
