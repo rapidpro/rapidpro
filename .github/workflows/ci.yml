@@ -9,8 +9,8 @@ jobs:
       redis-version: '5.0.6'
       node-version: '10'
       elastic-version: '7.17.2'
-      rpindexer-version: '7.3.6'
-      mailroom-version: '7.3.5'
+      rpindexer-version: '7.3.7'
+      mailroom-version: '7.3.7'
       DJANGO_SETTINGS_MODULE: temba.settings_ci
     strategy:
       matrix:
@@ -96,6 +96,6 @@ jobs:
 
     - name: Upload coverage
       if: success()
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v2
       with:
         fail_ci_if_error: true
