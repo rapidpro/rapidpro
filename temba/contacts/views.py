@@ -285,7 +285,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
             )
 
     def get_queryset(self, **kwargs):
-        org = self.request.user.get_org()
+        org = self.request.org
         self.search_error = None
 
         # contact list views don't use regular field searching but use more complex contact searching
@@ -323,11 +323,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
                 return Contact.objects.none()
         else:
             # if user search is not defined, use DB to select contacts
-            qs = (
-                self.group.contacts.filter(org=self.request.user.get_org())
-                .order_by("-id")
-                .prefetch_related("org", "groups")
-            )
+            qs = self.group.contacts.filter(org=self.request.org).order_by("-id").prefetch_related("org", "groups")
             patch_queryset_count(qs, self.group.get_member_count)
             return qs
 
@@ -337,7 +333,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        org = self.request.user.get_org()
+        org = self.request.org
 
         # resolve the paginated object list so we can initialize a cache of URNs
         contacts = context["object_list"]
@@ -583,7 +579,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
         def render_to_response(self, context, **response_kwargs):
-            org = self.request.user.get_org()
+            org = self.request.org
             counts = Contact.get_status_counts(org)
             menu = [
                 {
@@ -870,7 +866,7 @@ class ContactCRUDL(SmartCRUDL):
             action = request.GET.get("action")
 
             if action == "remove_from_group":
-                form = RemoveFromGroupForm(self.request.POST, org=request.user.get_org(), user=request.user)
+                form = RemoveFromGroupForm(self.request.POST, org=request.org, user=request.user)
                 if form.is_valid():
                     return JsonResponse(form.execute())
                 else:
@@ -1043,7 +1039,7 @@ class ContactCRUDL(SmartCRUDL):
         template_name = "contacts/contact_list.haml"
 
         def get(self, request, *args, **kwargs):
-            org = self.request.user.get_org()
+            org = self.request.org
             query = self.request.GET.get("search", None)
             samples = int(self.request.GET.get("samples", 10))
 
@@ -1159,7 +1155,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            org = self.request.user.get_org()
+            org = self.request.org
 
             context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by(
                 "-show_in_table", "-priority", "pk"
@@ -1280,7 +1276,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            org = self.request.user.get_org()
+            org = self.request.org
 
             context["current_group"] = self.group
             context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
@@ -1321,7 +1317,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def pre_save(self, obj):
             obj = super().pre_save(obj)
-            obj.org = self.request.user.get_org()
+            obj.org = self.request.org
             return obj
 
         def save(self, obj):
@@ -1435,7 +1431,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            org = self.request.user.get_org()
+            org = self.request.org
             field_id = self.request.GET.get("field", 0)
             if field_id:
                 context["contact_field"] = org.contactfields(manager="user_fields").get(id=field_id)
@@ -1616,7 +1612,7 @@ class ContactGroupCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             self.group_counts = {}
             group_type = self.request.GET.get("type", "")
-            org = self.request.user.get_org()
+            org = self.request.org
             qs = super().get_queryset(**kwargs)
             qs = qs.filter(org=org, is_system=False, is_active=True)
 
@@ -1635,7 +1631,7 @@ class ContactGroupCRUDL(SmartCRUDL):
         submit_button_name = _("Create")
 
         def save(self, obj):
-            org = self.request.user.get_org()
+            org = self.request.org
             user = self.request.user
             name = self.form.cleaned_data.get("name")
             query = self.form.cleaned_data.get("group_query")
@@ -1751,7 +1747,7 @@ class ContactFieldListView(SpaMixin, OrgPermsMixin, SmartListView):
 
     def _get_static_context_data(self, **kwargs):
 
-        org = self.request.user.get_org()
+        org = self.request.org
         org_active_fields_limit = org.get_limit(Org.LIMIT_FIELDS)
         active_user_fields = self.queryset.filter(org=org, is_active=True)
         all_count = active_user_fields.count()
@@ -1785,7 +1781,7 @@ class ContactFieldListView(SpaMixin, OrgPermsMixin, SmartListView):
 
     def get_queryset(self, **kwargs):
         qs = super().get_queryset(**kwargs)
-        qs = qs.collect_usage().filter(org=self.request.user.get_org(), is_active=True)
+        qs = qs.collect_usage().filter(org=self.request.org, is_active=True)
 
         return qs
 
@@ -1802,7 +1798,7 @@ class ContactFieldCRUDL(SmartCRUDL):
     class Menu(OrgPermsMixin, SmartTemplateView):
         def render_to_response(self, context, **response_kwargs):
 
-            org = self.request.user.get_org()
+            org = self.request.org
             menu = []
 
             if self.has_org_perm("contacts.contactfield_list"):
@@ -1854,7 +1850,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             self.object = ContactField.get_or_create(
-                org=self.request.user.get_org(),
+                org=self.request.org,
                 user=self.request.user,
                 key=ContactField.make_key(form.cleaned_data["label"]),
                 name=form.cleaned_data["label"],
@@ -1876,7 +1872,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             self.object = ContactField.get_or_create(
-                org=self.request.user.get_org(),
+                org=self.request.org,
                 user=self.request.user,
                 key=self.object.key,  # do not replace the key
                 name=form.cleaned_data["label"],
@@ -1900,9 +1896,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                 with transaction.atomic():
                     for cfid, priority in post_data.items():
-                        ContactField.user_fields.filter(id=cfid, org=self.request.user.get_org()).update(
-                            priority=priority
-                        )
+                        ContactField.user_fields.filter(id=cfid, org=self.request.org).update(priority=priority)
 
                 return HttpResponse('{"status":"OK"}', status=200, content_type="application/json")
 
@@ -1922,7 +1916,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.user.get_org(), is_active=True, show_in_table=True)
+            qs = qs.filter(org=self.request.org, is_active=True, show_in_table=True)
 
             return qs
 
