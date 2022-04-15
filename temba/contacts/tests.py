@@ -2999,7 +2999,7 @@ class ContactTest(TembaTest):
         response = self.client.get(
             "%s?field=%s" % (reverse("contacts.contact_update_fields", args=[self.joe.id]), contact_field.id)
         )
-        self.assertEqual("Home state", response.context["contact_field"].label)
+        self.assertEqual("Home state", response.context["contact_field"].name)
 
         # grab our input field which is loaded async
         response = self.client.get(
@@ -4642,12 +4642,12 @@ class ContactFieldTest(TembaTest):
     def test_contactfield_priority(self):
         fields = ContactField.user_fields.filter(org=self.org).order_by("-priority", "id")
 
-        self.assertEqual(["Third", "First", "Second"], list(fields.values_list("label", flat=True)))
+        self.assertEqual(["Third", "First", "Second"], list(fields.values_list("name", flat=True)))
 
         # change field priority
         ContactField.get_or_create(org=self.org, user=self.user, key="first", priority=25)
 
-        self.assertEqual(["First", "Third", "Second"], list(fields.values_list("label", flat=True)))
+        self.assertEqual(["First", "Third", "Second"], list(fields.values_list("name", flat=True)))
 
 
 class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):

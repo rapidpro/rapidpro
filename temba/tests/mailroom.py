@@ -44,7 +44,7 @@ class Mocks:
     @staticmethod
     def _parse_query_response(query: str, elastic: dict, fields: list, allow_as_group: bool):
         def field_ref(f):
-            return {"key": f.key, "name": f.label} if isinstance(f, ContactField) else {"key": f}
+            return {"key": f.key, "name": f.name} if isinstance(f, ContactField) else {"key": f}
 
         return {
             "query": query,
@@ -76,7 +76,7 @@ class Mocks:
                 "metadata": {
                     "attributes": [],
                     "schemes": [],
-                    "fields": [{"key": f.key, "name": f.label} for f in fields],
+                    "fields": [{"key": f.key, "name": f.name} for f in fields],
                     "groups": [],
                     "allow_as_group": allow_as_group,
                 },

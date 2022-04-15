@@ -453,6 +453,8 @@ class ContactField(SmartModel, DependencyMixin):
                 show_in_table=False,
                 created_by=org.created_by,
                 modified_by=org.modified_by,
+                label=spec["name"],  # TODO remove
+                field_type=cls.FIELD_TYPE_SYSTEM,  # TODO remove
             )
 
     @classmethod
@@ -506,7 +508,7 @@ class ContactField(SmartModel, DependencyMixin):
                     changed = True
 
                 # update our name if we were given one
-                if name and field.label != name:
+                if name and field.name != name:
                     field.name = name
                     changed = True
 
@@ -558,6 +560,8 @@ class ContactField(SmartModel, DependencyMixin):
                     created_by=user,
                     modified_by=user,
                     priority=priority,
+                    label=name,  # TODO remove
+                    field_type=cls.FIELD_TYPE_USER,  # TODO remove
                 )
 
             return field
@@ -625,7 +629,7 @@ class ContactField(SmartModel, DependencyMixin):
         self.save(update_fields=("is_active", "modified_on", "modified_by"))
 
     def __str__(self):
-        return "%s" % self.name
+        return self.name
 
 
 class Contact(RequireUpdateFieldsMixin, TembaModel):
@@ -942,7 +946,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         mods = []
 
         for field, value in values.items():
-            field_ref = modifiers.FieldRef(key=field.key, name=field.label)
+            field_ref = modifiers.FieldRef(key=field.key, name=field.name)
             mods.append(modifiers.Field(field=field_ref, value=value))
 
         return mods
