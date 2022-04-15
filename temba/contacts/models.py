@@ -335,7 +335,6 @@ class UserContactFieldsManager(models.Manager):
 
     def create(self, **kwargs):
         kwargs["is_system"] = False
-        kwargs["field_type"] = ContactField.FIELD_TYPE_USER
 
         return super().create(**kwargs)
 
@@ -353,10 +352,6 @@ class ContactField(SmartModel, DependencyMixin):
 
     MAX_KEY_LEN = 36
     MAX_NAME_LEN = 36
-
-    FIELD_TYPE_SYSTEM = "S"
-    FIELD_TYPE_USER = "U"
-    FIELD_TYPE_CHOICES = ((FIELD_TYPE_SYSTEM, "System"), (FIELD_TYPE_USER, "User"))
 
     TYPE_TEXT = "T"
     TYPE_NUMBER = "N"
@@ -431,11 +426,8 @@ class ContactField(SmartModel, DependencyMixin):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contactfields")
 
     key = models.CharField(max_length=MAX_KEY_LEN)
-    label = models.CharField(max_length=MAX_NAME_LEN)  # TODO replace with name
     name = models.CharField(max_length=MAX_NAME_LEN, null=True)
     value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT)
-
-    field_type = models.CharField(max_length=1, choices=FIELD_TYPE_CHOICES, default=FIELD_TYPE_USER)  # TODO replace
     is_system = models.BooleanField(null=True)
 
     # how field is displayed in the UI
@@ -454,11 +446,9 @@ class ContactField(SmartModel, DependencyMixin):
 
         for key, spec in cls.SYSTEM_FIELDS.items():
             org.contactfields.create(
-                field_type=cls.FIELD_TYPE_SYSTEM,
                 is_system=True,
                 key=key,
                 name=spec["name"],
-                label=spec["name"],
                 value_type=spec["value_type"],
                 show_in_table=False,
                 created_by=org.created_by,
@@ -517,7 +507,6 @@ class ContactField(SmartModel, DependencyMixin):
 
                 # update our name if we were given one
                 if name and field.label != name:
-                    field.label = name
                     field.name = name
                     changed = True
 
@@ -562,9 +551,7 @@ class ContactField(SmartModel, DependencyMixin):
 
                 field = org.contactfields.create(
                     key=key,
-                    label=name,
                     name=name,
-                    field_type=cls.FIELD_TYPE_USER,
                     is_system=False,
                     show_in_table=show_in_table,
                     value_type=value_type,
