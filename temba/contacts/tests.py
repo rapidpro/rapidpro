@@ -175,7 +175,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(response.context["search"], "age = 18")
         self.assertEqual(response.context["save_dynamic_search"], True)
         self.assertIsNone(response.context["search_error"])
-        self.assertEqual(list(response.context["contact_fields"].values_list("label", flat=True)), ["Home", "Age"])
+        self.assertEqual(list(response.context["contact_fields"].values_list("name", flat=True)), ["Home", "Age"])
 
         mr_mocks.contact_search("age = 18", contacts=[frank], total=10020, allow_as_group=True)
 
