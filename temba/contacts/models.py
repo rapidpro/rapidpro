@@ -453,8 +453,6 @@ class ContactField(SmartModel, DependencyMixin):
                 show_in_table=False,
                 created_by=org.created_by,
                 modified_by=org.modified_by,
-                label=spec["name"],  # TODO remove
-                field_type=cls.FIELD_TYPE_SYSTEM,  # TODO remove
             )
 
     @classmethod
@@ -560,8 +558,6 @@ class ContactField(SmartModel, DependencyMixin):
                     created_by=user,
                     modified_by=user,
                     priority=priority,
-                    label=name,  # TODO remove
-                    field_type=cls.FIELD_TYPE_USER,  # TODO remove
                 )
 
             return field
