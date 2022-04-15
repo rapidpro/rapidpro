@@ -4528,7 +4528,7 @@ class BulkExportTest(TembaTest):
         parent = Flow.objects.get(name="All Dep Types")
         child = Flow.objects.get(name="New Child")
 
-        age = ContactField.user_fields.get(key="age", label="Age")  # created from expression reference
+        age = ContactField.user_fields.get(key="age", name="Age")  # created from expression reference
         gender = ContactField.user_fields.get(key="gender")  # created from action reference
 
         farmers = ContactGroup.objects.get(name="Farmers")
@@ -4662,9 +4662,9 @@ class BulkExportTest(TembaTest):
         facts_per_day = ContactField.user_fields.get(key="facts_per_day")
 
         # but without implicit fields in the export, the details aren't correct
-        self.assertEqual(likes_cats.label, "Likes Cats")
+        self.assertEqual(likes_cats.name, "Likes Cats")
         self.assertEqual(likes_cats.value_type, "T")
-        self.assertEqual(facts_per_day.label, "Facts Per Day")
+        self.assertEqual(facts_per_day.name, "Facts Per Day")
         self.assertEqual(facts_per_day.value_type, "T")
 
         cat_fanciers = ContactGroup.objects.get(name="Cat Fanciers")
@@ -4699,9 +4699,9 @@ class BulkExportTest(TembaTest):
         facts_per_day = ContactField.user_fields.get(key="facts_per_day")
 
         # and with implicit fields in the export, the details should be correct
-        self.assertEqual(likes_cats.label, "Really Likes Cats")
+        self.assertEqual(likes_cats.name, "Really Likes Cats")
         self.assertEqual(likes_cats.value_type, "T")
-        self.assertEqual(facts_per_day.label, "Facts-Per-Day")
+        self.assertEqual(facts_per_day.name, "Facts-Per-Day")
         self.assertEqual(facts_per_day.value_type, "N")
 
         cat_fanciers = ContactGroup.objects.get(name="Cat Fanciers")
