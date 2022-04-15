@@ -426,9 +426,9 @@ class ContactField(SmartModel, DependencyMixin):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contactfields")
 
     key = models.CharField(max_length=MAX_KEY_LEN)
-    name = models.CharField(max_length=MAX_NAME_LEN, null=True)
+    name = models.CharField(max_length=MAX_NAME_LEN)
     value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT)
-    is_system = models.BooleanField(null=True)
+    is_system = models.BooleanField()
 
     # how field is displayed in the UI
     show_in_table = models.BooleanField(default=False)
@@ -437,6 +437,10 @@ class ContactField(SmartModel, DependencyMixin):
     # model managers
     all_fields = models.Manager()  # this is the default manager
     user_fields = UserContactFieldsManager()
+
+    # TODO drop
+    label = models.CharField(max_length=MAX_NAME_LEN, null=True)
+    field_type = models.CharField(max_length=1, null=True)
 
     soft_dependent_types = {"flow", "campaign_event"}
 
