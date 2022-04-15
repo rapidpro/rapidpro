@@ -230,7 +230,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "archive", "send"], list(response.context["actions"]))
 
-        # we are considering removing group labeling
+        # TODO: group labeling as a feature is on probation
         # self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
         # self.assertIn(frank, survey_audience.contacts.all())
 

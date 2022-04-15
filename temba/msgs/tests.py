@@ -1396,6 +1396,14 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual({msg1}, set(label1.msgs.all()))
 
+        # can't label without a label object
+        response = self.requestView(
+            inbox_url,
+            self.editor,
+            post_data={"action": "label", "objects": [msg2.id], "add": False},
+        )
+        self.assertEqual({msg1}, set(label1.msgs.all()))
+
         # label more messages as admin
         self.requestView(
             inbox_url,
