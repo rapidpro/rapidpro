@@ -249,14 +249,17 @@ class TembaTestMixin:
     def create_label(self, name, org=None):
         return Label.get_or_create(org or self.org, self.user, name)
 
-    def create_field(self, key, label, value_type=ContactField.TYPE_TEXT, org=None):
-        return ContactField.user_fields.create(
+    def create_field(self, key, name, value_type=ContactField.TYPE_TEXT, org=None):
+        return ContactField.all_fields.create(
             org=org or self.org,
             key=key,
-            label=label,
+            name=name,
+            is_system=False,
             value_type=value_type,
             created_by=self.admin,
             modified_by=self.admin,
+            label=name,  # TODO remove
+            field_type=ContactField.FIELD_TYPE_SYSTEM,  # TODO remove
         )
 
     def create_incoming_msg(

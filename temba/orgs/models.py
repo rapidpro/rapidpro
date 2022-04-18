@@ -591,7 +591,6 @@ class Org(SmartModel):
     @classmethod
     def export_definitions(cls, site_link, components, include_fields=True, include_groups=True):
         from temba.campaigns.models import Campaign
-        from temba.contacts.models import ContactField
         from temba.flows.models import Flow
         from temba.triggers.models import Trigger
 
@@ -620,7 +619,7 @@ class Org(SmartModel):
                     groups.add(component.group)
                 if include_fields:
                     for event in component.events.all():
-                        if event.relative_to.field_type == ContactField.FIELD_TYPE_USER:
+                        if not event.relative_to.is_system:
                             fields.add(event.relative_to)
 
             elif isinstance(component, Trigger):

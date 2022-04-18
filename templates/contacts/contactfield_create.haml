@@ -1,11 +1,10 @@
 -extends 'includes/modax.html'
--load i18n
--load smartmin
+-load i18n smartmin
 
 -block fields
   .flex.items-start.flex-col
     .w-full
-      -render_field 'label'
+      -render_field 'name'
     .w-full
       -render_field 'value_type'
     

@@ -1704,7 +1704,7 @@ class ExportFlowResultsTask(BaseExportTask):
             columns.append("Group:%s" % gr.name)
 
         for cf in contact_fields:
-            columns.append("Field:%s" % cf.label)
+            columns.append("Field:%s" % cf.name)
 
         columns.append("Started")
         columns.append("Modified")

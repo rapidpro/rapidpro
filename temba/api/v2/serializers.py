@@ -675,8 +675,12 @@ class ContactFieldReadSerializer(ReadSerializer):
         ContactField.TYPE_WARD: "ward",
     }
 
+    label = serializers.SerializerMethodField()
     value_type = serializers.SerializerMethodField()
     pinned = serializers.SerializerMethodField()
+
+    def get_label(self, obj):
+        return obj.name
 
     def get_value_type(self, obj):
         return self.VALUE_TYPES[obj.value_type]
@@ -695,7 +699,11 @@ class ContactFieldWriteSerializer(WriteSerializer):
     label = serializers.CharField(
         required=True,
         max_length=ContactField.MAX_NAME_LEN,
-        validators=[UniqueForOrgValidator(ContactField.user_fields.filter(is_active=True), ignore_case=True)],
+        validators=[
+            UniqueForOrgValidator(
+                ContactField.user_fields.filter(is_active=True), ignore_case=True, model_field="name"
+            )
+        ],
     )
     value_type = serializers.ChoiceField(required=True, choices=list(VALUE_TYPES.keys()))
 

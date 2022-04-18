@@ -68,10 +68,10 @@
             .flex.flex-col.p-2
               .contact-field{data-id:'{{field.id}}'}
                 .contact-field-value.editable.cursor-pointer.hover-linked.font-bold.text-gray-600
-                  {{field.value|truncatechars:20}}      
+                  {{ field.value|truncatechars:20 }}
               .whitespace-nowrap.pr-12.contact-field{data-id:'{{field.id}}'}
                 .contact-field-value.tracking-wider.font-normal.text-xs
-                  {{field.label|title}}
+                  {{ field.name|title }}
         
       
 
@@ -129,11 +129,11 @@
           %td
             .whitespace-nowrap.pr-12.contact-field{data-id:'{{field.id}}'}
               .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
-                {{field.label|title}}
+                {{ field.name|title }}
           %td.w-full
             .contact-field{data-id:'{{field.id}}'}
               .contact-field-value.editable.cursor-pointer.hover-linked
-                {{field.value}}
+                {{ field.value }}
       
       -for urn in contact_urns
         -if not user_org.is_anon
