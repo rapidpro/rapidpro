@@ -699,7 +699,11 @@ class ContactFieldWriteSerializer(WriteSerializer):
     label = serializers.CharField(
         required=True,
         max_length=ContactField.MAX_NAME_LEN,
-        validators=[UniqueForOrgValidator(ContactField.user_fields.filter(is_active=True), ignore_case=True)],
+        validators=[
+            UniqueForOrgValidator(
+                ContactField.user_fields.filter(is_active=True), ignore_case=True, model_field="name"
+            )
+        ],
     )
     value_type = serializers.ChoiceField(required=True, choices=list(VALUE_TYPES.keys()))
 

@@ -2592,14 +2592,14 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"label": "Age", "value_type": "numeric"})
         self.assertEqual(response.status_code, 201)
 
-        age = ContactField.user_fields.get(org=self.org, label="Age", value_type="N", is_active=True)
+        age = ContactField.user_fields.get(org=self.org, name="Age", value_type="N", is_active=True)
 
         # update a field by its key
         response = self.postJSON(url, "key=age", {"label": "Real Age", "value_type": "datetime"})
         self.assertEqual(response.status_code, 200)
 
         age.refresh_from_db()
-        self.assertEqual(age.label, "Real Age")
+        self.assertEqual(age.name, "Real Age")
         self.assertEqual(age.value_type, "D")
 
         # try to update with key of deleted field
