@@ -33,6 +33,7 @@ from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
+from temba.utils.fields import validate_name
 from temba.utils.models import (
     JSONAsTextField,
     JSONField,
@@ -159,7 +160,7 @@ class Flow(TembaModel, DependencyMixin):
         TYPE_SURVEY: 0,
     }
 
-    name = models.CharField(max_length=MAX_NAME_LEN, help_text=_("The name for this flow"))
+    name = models.CharField(max_length=MAX_NAME_LEN, help_text=_("The name of this flow."), validators=[validate_name])
 
     labels = models.ManyToManyField("FlowLabel", related_name="flows")
 
@@ -345,7 +346,7 @@ class Flow(TembaModel, DependencyMixin):
             flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, 0)
 
             flow = None
-            flow_name = flow_name[:64].strip()
+            flow_name = flow_name[:64].strip().replace('"', "'").replace("\0", "")
 
             # ensure expires is valid for the flow type
             if not cls.is_valid_expires(flow_type, flow_expires):

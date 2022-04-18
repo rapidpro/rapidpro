@@ -31,6 +31,7 @@ from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Org, OrgLock
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
+from temba.utils.fields import validate_name
 from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
@@ -1498,7 +1499,7 @@ class ContactGroup(TembaModel, DependencyMixin):
     )
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="groups")
-    name = models.CharField(max_length=MAX_NAME_LEN)
+    name = models.CharField(max_length=MAX_NAME_LEN, validators=[validate_name])
     group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MANUAL)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
     contacts = models.ManyToManyField(Contact, related_name="groups")

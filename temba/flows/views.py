@@ -77,7 +77,7 @@ class BaseFlowForm(forms.ModelForm):
         self.branding = branding
 
     def clean_name(self):
-        name = self.cleaned_data["name"].strip()
+        name = self.cleaned_data["name"]
 
         # make sure the name isn't already taken
         existing = self.org.flows.filter(is_active=True, name__iexact=name).first()

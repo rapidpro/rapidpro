@@ -27,6 +27,23 @@ class InputWidget(forms.TextInput):
         return context
 
 
+def validate_name(value):
+    """
+    Validator for names of flows and their dependencies. Note that the model itself will validate that it's not blank
+    and doesn't exceed max_length.
+    """
+
+    if value != value.strip():
+        raise ValidationError(_("Cannot begin or end with whitespace."))
+
+    for ch in '"\\':
+        if ch in value:
+            raise ValidationError(_("Cannot contain the character: %(char)s"), params={"char": ch})
+
+    if "\0" in value:
+        raise ValidationError(_("Cannot contain null characters."))
+
+
 def validate_external_url(value):
     parsed = parse.urlparse(value)
 

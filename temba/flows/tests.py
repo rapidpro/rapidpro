@@ -1834,6 +1834,20 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"name": "This field is required.", "base_language": "This field is required."},
         )
 
+        # try to submit with a name that contains disallowed characters
+        self.assertCreateSubmit(
+            create_url,
+            {"name": '"Registration"', "flow_type": "M", "base_language": "eng"},
+            form_errors={"name": 'Cannot contain the character: "'},
+        )
+
+        # try to submit with a name that is too long
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "X" * 65, "flow_type": "M", "base_language": "eng"},
+            form_errors={"name": "Ensure this value has at most 64 characters (it has 65)."},
+        )
+
         # try to submit with a name that is already used
         self.assertCreateSubmit(
             create_url,

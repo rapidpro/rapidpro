@@ -129,26 +129,21 @@ class ContactGroupForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
     def clean_name(self):
-        name = self.cleaned_data["name"].strip()
+        name = self.cleaned_data["name"]
 
         # make sure the name isn't already taken
         existing = self.org.groups.filter(is_active=True, name__iexact=name).first()
         if existing and self.instance != existing:
             raise forms.ValidationError(_("Already used by another group."))
 
-        # and that the name is valid
-        if not ContactGroup.is_valid_name(name):
-            raise forms.ValidationError(_("Must not be blank or begin with + or -."))
-
-        org_active_group_limit = self.org.get_limit(Org.LIMIT_GROUPS)
+        group_limit = self.org.get_limit(Org.LIMIT_GROUPS)
 
         groups_count = ContactGroup.get_groups(self.org, user_only=True).count()
-        if groups_count >= org_active_group_limit:
+        if groups_count >= group_limit:
             raise forms.ValidationError(
                 _(
-                    "This org has %(count)d groups and the limit is %(limit)d. "
-                    "You must delete existing ones before you can "
-                    "create new ones." % dict(count=groups_count, limit=org_active_group_limit)
+                    "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you"
+                    " can create new ones." % dict(count=groups_count, limit=group_limit)
                 )
             )
 
