@@ -1658,7 +1658,7 @@ class FlowTest(TembaTest):
         voice = Flow.objects.filter(name="Voice Dependencies").first()
 
         contact_fields = (
-            {"key": "contact_age", "label": "Contact Age"},
+            {"key": "contact_age", "name": "Contact Age"},
             # fields based on parent and child references
             {"key": "top"},
             {"key": "bottom"},
@@ -1667,49 +1667,49 @@ class FlowTest(TembaTest):
             # url attachemnts
             {"key": "attachment"},
             # dynamic groups
-            {"key": "cat_breed", "label": "Cat Breed"},
+            {"key": "cat_breed", "name": "Cat Breed"},
             {"key": "organization"},
             # sending messages
             {"key": "recipient"},
             {"key": "message"},
             # sending emails
-            {"key": "email_message", "label": "Email Message"},
+            {"key": "email_message", "name": "Email Message"},
             {"key": "subject"},
             # trigger someone else
-            {"key": "other_phone", "label": "Other Phone"},
+            {"key": "other_phone", "name": "Other Phone"},
             # rules and localizations
             {"key": "rule"},
-            {"key": "french_rule", "label": "French Rule"},
-            {"key": "french_age", "label": "French Age"},
-            {"key": "french_fries", "label": "French Fries"},
+            {"key": "french_rule", "name": "French Rule"},
+            {"key": "french_age", "name": "French Age"},
+            {"key": "french_fries", "name": "French Fries"},
             # updating contacts
-            {"key": "favorite_cat", "label": "Favorite Cat"},
-            {"key": "next_cat_fact", "label": "Next Cat Fact"},
-            {"key": "last_cat_fact", "label": "Last Cat Fact"},
+            {"key": "favorite_cat", "name": "Favorite Cat"},
+            {"key": "next_cat_fact", "name": "Next Cat Fact"},
+            {"key": "last_cat_fact", "name": "Last Cat Fact"},
             # webhook urls
             {"key": "webhook"},
             # expression splits
-            {"key": "expression_split", "label": "Expression Split"},
+            {"key": "expression_split", "name": "Expression Split"},
             # voice says
-            {"key": "play_message", "label": "Play Message", "flow": voice},
-            {"key": "voice_rule", "label": "Voice Rule", "flow": voice},
+            {"key": "play_message", "name": "Play Message", "flow": voice},
+            {"key": "voice_rule", "name": "Voice Rule", "flow": voice},
             # voice plays (recordings)
-            {"key": "voice_recording", "label": "Voice Recording", "flow": voice},
+            {"key": "voice_recording", "name": "Voice Recording", "flow": voice},
         )
 
         for field_spec in contact_fields:
             key = field_spec.get("key")
-            label = field_spec.get("label", key.capitalize())
+            name = field_spec.get("name", key.capitalize())
             flow = field_spec.get("flow", parent)
 
             # make sure our field exists after import
-            field = ContactField.user_fields.filter(key=key, label=label).first()
-            self.assertIsNotNone(field, "Couldn't find field %s (%s)" % (key, label))
+            field = ContactField.user_fields.filter(key=key, name=name).first()
+            self.assertIsNotNone(field, "Couldn't find field %s (%s)" % (key, name))
 
             # and our flow is dependent on us
             self.assertIsNotNone(
                 flow.field_dependencies.filter(key__in=[key]).first(),
-                "Flow is missing dependency on %s (%s)" % (key, label),
+                "Flow is missing dependency on %s (%s)" % (key, name),
             )
 
         # we can delete our child flow and the parent ('Dependencies') will be marked as having issues
