@@ -702,18 +702,18 @@ class ContactGroupTest(TembaTest):
         self.mary = self.create_contact("Mary Mo", phone="345", fields={"age": "21", "gender": "female"})
 
     def test_create_manual(self):
-        group = ContactGroup.create_manual(self.org, self.admin, " group one ")
+        group = ContactGroup.create_manual(self.org, self.admin, "group one")
 
         self.assertEqual(group.org, self.org)
         self.assertEqual(group.name, "group one")
         self.assertEqual(group.created_by, self.admin)
         self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
-        # can't call update_query on a static group
-        self.assertRaises(ValueError, group.update_query, "gender=M")
+        # can't call update_query on a manual group
+        self.assertRaises(AssertionError, group.update_query, "gender=M")
 
-        # exception if group name is blank
-        self.assertRaises(ValueError, ContactGroup.create_manual, self.org, self.admin, "   ")
+        # assert failure if group name is blank
+        self.assertRaises(AssertionError, ContactGroup.create_manual, self.org, self.admin, "   ")
 
     @mock_mailroom
     def test_create_smart(self, mr_mocks):
@@ -765,16 +765,16 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.get_attrs(), {"icon": "atom"})
 
         # can't update query again while it is in this state
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AssertionError):
             group.update_query("age = 18")
 
     def test_get_or_create(self):
-        group = ContactGroup.get_or_create(self.org, self.user, " first ")
+        group = ContactGroup.get_or_create(self.org, self.user, "first")
         self.assertEqual(group.name, "first")
         self.assertFalse(group.is_smart)
 
         # name look up is case insensitive
-        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "  FIRST"), group)
+        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "FIRST"), group)
 
         # fetching by id shouldn't modify original group
         self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "Kigali", uuid=group.uuid), group)
@@ -816,17 +816,6 @@ class ContactGroupTest(TembaTest):
         self.create_group("X" * 64, contacts=[])
 
         self.assertEqual(f"{'X' * 62} 2", ContactGroup.get_unique_name(self.org, "X" * 64))
-
-    def test_is_valid_name(self):
-        self.assertTrue(ContactGroup.is_valid_name("x"))
-        self.assertTrue(ContactGroup.is_valid_name("1"))
-        self.assertTrue(ContactGroup.is_valid_name("x" * 64))
-        self.assertFalse(ContactGroup.is_valid_name(" "))
-        self.assertFalse(ContactGroup.is_valid_name(" x"))
-        self.assertFalse(ContactGroup.is_valid_name("x "))
-        self.assertFalse(ContactGroup.is_valid_name("+x"))
-        self.assertFalse(ContactGroup.is_valid_name("@x"))
-        self.assertFalse(ContactGroup.is_valid_name("x" * 65))
 
     @mock_mailroom
     def test_member_count(self, mr_mocks):
@@ -6049,7 +6038,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "new_group_name", "Required.")
 
         # try creating new group but providing an invalid name
-        response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "????"})
+        response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": '"Foo"'})
         self.assertFormError(response, "form", "new_group_name", "Invalid group name.")
 
         # try creating new group but providing a name of an existing group

@@ -35,7 +35,7 @@ from .celery import nonoverlapping_task
 from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
-from .fields import validate_external_url, validate_name
+from .fields import is_valid_name, validate_external_url, validate_name
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
@@ -1416,7 +1416,9 @@ class TestValidators(TestCase):
             ('hello "', 'Cannot contain the character: "'),
             ("hello \\", "Cannot contain the character: \\"),
             ("hello \0 world", "Cannot contain null characters."),
-            ("hello", None),
+            ("x" * 65, "Cannot be longer than 64 characters."),
+            ("hello world", None),
+            ("x" * 64, None),
         )
 
         for tc in cases:
@@ -1425,11 +1427,13 @@ class TestValidators(TestCase):
                     validate_name(tc[0])
 
                 self.assertEqual(tc[1], cm.exception.messages[0])
+                self.assertFalse(is_valid_name(tc[0]))
             else:
                 try:
                     validate_name(tc[0])
                 except Exception:
                     self.fail(f"unexpected validation error for '{tc[0]}'")
+                self.assertTrue(is_valid_name(tc[0]))
 
     def test_validate_external_url(self):
         cases = (

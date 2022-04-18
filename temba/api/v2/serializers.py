@@ -27,6 +27,7 @@ from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import extract_constants, json, on_transaction_commit
+from temba.utils.fields import validate_name
 
 from . import fields
 from .validators import UniqueForOrgValidator
@@ -765,13 +766,11 @@ class ContactGroupWriteSerializer(WriteSerializer):
     name = serializers.CharField(
         required=True,
         max_length=ContactGroup.MAX_NAME_LEN,
-        validators=[UniqueForOrgValidator(queryset=ContactGroup.objects.filter(is_active=True), ignore_case=True)],
+        validators=[
+            validate_name,
+            UniqueForOrgValidator(queryset=ContactGroup.objects.filter(is_active=True), ignore_case=True),
+        ],
     )
-
-    def validate_name(self, value):
-        if not ContactGroup.is_valid_name(value):
-            raise serializers.ValidationError("Name contains illegal characters.")
-        return value
 
     def validate(self, data):
         org = self.context["org"]
