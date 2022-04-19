@@ -1293,7 +1293,7 @@ def migrate_to_version_5(json_flow, flow=None):
 
 
 def cleanse_group_names(action):
-    def is_valid_name(name):
+    def is_valid_name(name):  # pragma: no cover
         if not name or name.strip() != name:
             return False
         if len(name) > 64:
