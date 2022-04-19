@@ -833,13 +833,13 @@ class ContactCRUDL(SmartCRUDL):
                 value = contact.get_field_value(field)
 
                 if field.show_in_table:
-                    if not (value):
+                    if not value:
                         display = MISSING_VALUE
                     else:
                         display = contact.get_field_display(field)
 
                     all_contact_fields.append(
-                        dict(id=field.id, label=field.name, value=display, show_in_table=field.show_in_table)
+                        dict(id=field.id, name=field.name, value=display, show_in_table=field.show_in_table)
                     )
 
                 else:
@@ -847,7 +847,7 @@ class ContactCRUDL(SmartCRUDL):
                     # add a contact field only if it has a value
                     if display:
                         all_contact_fields.append(
-                            dict(id=field.id, label=field.name, value=display, show_in_table=field.show_in_table)
+                            dict(id=field.id, name=field.name, value=display, show_in_table=field.show_in_table)
                         )
 
             context["all_contact_fields"] = all_contact_fields
