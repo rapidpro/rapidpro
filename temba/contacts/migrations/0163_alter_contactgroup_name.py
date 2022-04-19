@@ -8,7 +8,7 @@ import temba.utils.fields
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("contacts", "0161_populate_field_name_and_is_system"),
+        ("contacts", "0162_alter_contactfield_field_type_and_more"),
     ]
 
     operations = [
