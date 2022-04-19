@@ -9,15 +9,15 @@ from temba.utils.uuid import uuid4
 class ConnectView(BaseConnectView):
     class Form(BaseConnectView.Form):
         account_sid = forms.CharField(
-            label=_("Account SID"), help_text=_("ACCOUNT SID of a twilio account organization.")
+            label=_("Authentication User"), help_text=_("Account SID or API Key SID of a twilio account.")
         )
         auth_token = forms.CharField(
-            label=_("Auth Token"), help_text=_("Auth token of a twilio account organization.")
+            label=_("Authentication Password"), help_text=_("Auth token or API Key Secret of a twilio account.")
         )
-        chat_service_sid = forms.CharField(label=_("Chat Service SID"), help_text=_("SID of a Chat service."))
+        chat_service_sid = forms.CharField(label=_("Chat Service SID"), help_text=_("SID of a Chat service instance."))
         flex_flow_sid = forms.CharField(
             label=_("Flex Flow"),
-            help_text=_("SID of a Flex Flow (also called Flex Address) that is of the task type."),
+            help_text=_("a Flex Flow (also called Flex Address) that is of the task type."),
         )
         workspace_sid = forms.CharField(label=_("Workspace SID"), help_text=_("SID of a Workspace."))
 
