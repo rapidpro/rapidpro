@@ -940,8 +940,13 @@ class ContactGroupTest(TembaTest):
 
     @mock_mailroom
     def test_release(self, mr_mocks):
-        group1 = self.create_group("Group One")
-        group2 = self.create_group("Group One")
+        contact1 = self.create_contact("Bob", phone="+1234567111")
+        contact2 = self.create_contact("Jim", phone="+1234567222")
+        contact3 = self.create_contact("Jim", phone="+1234567333")
+        group1 = self.create_group("Group One", contacts=[contact1, contact2])
+        group2 = self.create_group("Group One", contacts=[contact2, contact3])
+
+        t1 = timezone.now()
 
         # create a campaign based on group 1 - a hard dependency
         campaign = Campaign.create(self.org, self.admin, "Reminders", group1)
@@ -973,6 +978,17 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(0, EventFire.objects.count())  # event fires will have been deleted
         self.assertEqual({group2}, set(bcast1.groups.all()))  # removed from scheduled broadcast
         self.assertEqual({group1, group2}, set(bcast2.groups.all()))  # regular broadcast unchanged
+
+        self.assertEqual(set(), set(group1.contacts.all()))
+        self.assertEqual({contact2, contact3}, set(group2.contacts.all()))  # unchanged
+
+        # check that contacts who were in the group have had their modified_on times updated
+        contact1.refresh_from_db()
+        contact2.refresh_from_db()
+        contact3.refresh_from_db()
+        self.assertGreater(contact1.modified_on, t1)
+        self.assertGreater(contact2.modified_on, t1)
+        self.assertLess(contact3.modified_on, t1)  # unchanged
 
 
 class ElasticSearchLagTest(TembaTest):
