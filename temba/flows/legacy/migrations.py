@@ -1293,8 +1293,12 @@ def migrate_to_version_5(json_flow, flow=None):
 
 
 def cleanse_group_names(action):
-    def is_valid_name(n):
-        return n and len(n) < 64
+    def is_valid_name(name):
+        if not name or name.strip() != name:
+            return False
+        if len(name) > 64:
+            return False
+        return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
     if action["type"] == "add_group" or action["type"] == "del_group":
         if "group" in action and "groups" not in action:
