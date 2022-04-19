@@ -258,8 +258,6 @@ class TembaTestMixin:
             value_type=value_type,
             created_by=self.admin,
             modified_by=self.admin,
-            label=name,  # TODO remove
-            field_type=ContactField.FIELD_TYPE_SYSTEM,  # TODO remove
         )
 
     def create_incoming_msg(

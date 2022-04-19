@@ -4,7 +4,7 @@ from django.db import migrations
 from django.db.models import Q
 
 
-def populate_field_name_and_is_system(apps, schema_editor):
+def populate_field_name_and_is_system(apps, schema_editor):  # pragma: no cover
     ContactField = apps.get_model("contacts", "ContactField")
 
     num_updated = 0
@@ -18,7 +18,7 @@ def populate_field_name_and_is_system(apps, schema_editor):
         print(f"Updated name and is_system for {num_updated} contact fields")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

@@ -335,7 +335,6 @@ class UserContactFieldsManager(models.Manager):
 
     def create(self, **kwargs):
         kwargs["is_system"] = False
-        kwargs["field_type"] = ContactField.FIELD_TYPE_USER
 
         return super().create(**kwargs)
 
@@ -353,10 +352,6 @@ class ContactField(SmartModel, DependencyMixin):
 
     MAX_KEY_LEN = 36
     MAX_NAME_LEN = 36
-
-    FIELD_TYPE_SYSTEM = "S"
-    FIELD_TYPE_USER = "U"
-    FIELD_TYPE_CHOICES = ((FIELD_TYPE_SYSTEM, "System"), (FIELD_TYPE_USER, "User"))
 
     TYPE_TEXT = "T"
     TYPE_NUMBER = "N"
@@ -431,12 +426,9 @@ class ContactField(SmartModel, DependencyMixin):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contactfields")
 
     key = models.CharField(max_length=MAX_KEY_LEN)
-    label = models.CharField(max_length=MAX_NAME_LEN)  # TODO replace with name
-    name = models.CharField(max_length=MAX_NAME_LEN, null=True)
+    name = models.CharField(max_length=MAX_NAME_LEN)
     value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT)
-
-    field_type = models.CharField(max_length=1, choices=FIELD_TYPE_CHOICES, default=FIELD_TYPE_USER)  # TODO replace
-    is_system = models.BooleanField(null=True)
+    is_system = models.BooleanField()
 
     # how field is displayed in the UI
     show_in_table = models.BooleanField(default=False)
@@ -445,6 +437,10 @@ class ContactField(SmartModel, DependencyMixin):
     # model managers
     all_fields = models.Manager()  # this is the default manager
     user_fields = UserContactFieldsManager()
+
+    # TODO drop
+    label = models.CharField(max_length=MAX_NAME_LEN, null=True)
+    field_type = models.CharField(max_length=1, null=True)
 
     soft_dependent_types = {"flow", "campaign_event"}
 
@@ -461,8 +457,6 @@ class ContactField(SmartModel, DependencyMixin):
                 show_in_table=False,
                 created_by=org.created_by,
                 modified_by=org.modified_by,
-                label=spec["name"],  # TODO remove
-                field_type=cls.FIELD_TYPE_SYSTEM,  # TODO remove
             )
 
     @classmethod
@@ -517,7 +511,6 @@ class ContactField(SmartModel, DependencyMixin):
 
                 # update our name if we were given one
                 if name and field.name != name:
-                    field.label = name  # TODO remove
                     field.name = name
                     changed = True
 
@@ -569,8 +562,6 @@ class ContactField(SmartModel, DependencyMixin):
                     created_by=user,
                     modified_by=user,
                     priority=priority,
-                    label=name,  # TODO remove
-                    field_type=cls.FIELD_TYPE_USER,  # TODO remove
                 )
 
             return field
