@@ -822,7 +822,7 @@ class ContactCRUDL(SmartCRUDL):
             # lookup all of our contact fields
             all_contact_fields = []
             fields = ContactField.user_fields.active_for_org(org=contact.org).order_by(
-                "-show_in_table", "-priority", "label", "pk"
+                "-show_in_table", "-priority", "name", "id"
             )
 
             for field in fields:
@@ -835,7 +835,7 @@ class ContactCRUDL(SmartCRUDL):
                         display = contact.get_field_display(field)
 
                     all_contact_fields.append(
-                        dict(id=field.id, label=field.label, value=display, show_in_table=field.show_in_table)
+                        dict(id=field.id, label=field.name, value=display, show_in_table=field.show_in_table)
                     )
 
                 else:
@@ -843,7 +843,7 @@ class ContactCRUDL(SmartCRUDL):
                     # add a contact field only if it has a value
                     if display:
                         all_contact_fields.append(
-                            dict(id=field.id, label=field.label, value=display, show_in_table=field.show_in_table)
+                            dict(id=field.id, label=field.name, value=display, show_in_table=field.show_in_table)
                         )
 
             context["all_contact_fields"] = all_contact_fields
@@ -1077,7 +1077,7 @@ class ContactCRUDL(SmartCRUDL):
             # add in our field defs
             field_keys = [f["key"] for f in summary["fields"]]
             summary["fields"] = {
-                str(f.uuid): {"label": f.label}
+                str(f.uuid): {"label": f.name}
                 for f in ContactField.user_fields.filter(org=org, key__in=field_keys, is_active=True)
             }
             return JsonResponse(summary)
@@ -1698,8 +1698,8 @@ class ContactFieldForm(forms.ModelForm):
 
         self.org = org
 
-    def clean_label(self):
-        name = self.cleaned_data["label"]
+    def clean_name(self):
+        name = self.cleaned_data["name"]
 
         if not ContactField.is_valid_name(name):
             raise forms.ValidationError(_("Can only contain letters, numbers and hypens."))
@@ -1707,7 +1707,7 @@ class ContactFieldForm(forms.ModelForm):
         if not ContactField.is_valid_key(ContactField.make_key(name)):
             raise forms.ValidationError(_("Can't be a reserved word."))
 
-        conflict = ContactField.user_fields.active_for_org(org=self.org).filter(label__iexact=name.lower())
+        conflict = ContactField.user_fields.active_for_org(org=self.org).filter(name__iexact=name.lower())
         if self.instance:
             conflict = conflict.exclude(id=self.instance.id)
 
@@ -1718,11 +1718,11 @@ class ContactFieldForm(forms.ModelForm):
 
     class Meta:
         model = ContactField
-        fields = ("label", "value_type", "show_in_table")
-        labels = {"label": _("Name"), "value_type": _("Data Type"), "show_in_table": _("Featured")}
+        fields = ("name", "value_type", "show_in_table")
+        labels = {"name": _("Name"), "value_type": _("Data Type"), "show_in_table": _("Featured")}
         help_texts = {"value_type": _("The type of the values that will be stored in this field.")}
         widgets = {
-            "label": InputWidget(attrs={"widget_only": False}),
+            "name": InputWidget(attrs={"widget_only": False}),
             "value_type": SelectWidget(attrs={"widget_only": False}),
             "show_in_table": CheckboxWidget(attrs={"widget_only": True}),
         }
@@ -1731,9 +1731,9 @@ class ContactFieldForm(forms.ModelForm):
 class ContactFieldListView(SpaMixin, OrgPermsMixin, SmartListView):
     queryset = ContactField.user_fields
     title = _("Manage Contact Fields")
-    fields = ("label", "show_in_table", "key", "value_type")
-    search_fields = ("label__icontains", "key__icontains")
-    default_order = ("label",)
+    fields = ("name", "show_in_table", "key", "value_type")
+    search_fields = ("name__icontains", "key__icontains")
+    default_order = ("name",)
 
     success_url = "@contacts.contactfield_list"
     link_fields = ()
@@ -1848,8 +1848,8 @@ class ContactFieldCRUDL(SmartCRUDL):
             self.object = ContactField.get_or_create(
                 org=self.request.org,
                 user=self.request.user,
-                key=ContactField.make_key(form.cleaned_data["label"]),
-                name=form.cleaned_data["label"],
+                key=ContactField.make_key(form.cleaned_data["name"]),
+                name=form.cleaned_data["name"],
                 value_type=form.cleaned_data["value_type"],
                 show_in_table=form.cleaned_data["show_in_table"],
             )
@@ -1871,7 +1871,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 org=self.request.org,
                 user=self.request.user,
                 key=self.object.key,  # do not replace the key
-                name=form.cleaned_data["label"],
+                name=form.cleaned_data["name"],
                 value_type=form.cleaned_data["value_type"],
                 show_in_table=form.cleaned_data["show_in_table"],
                 priority=0,  # reset the priority, this will move CF to the bottom of the list
@@ -1908,7 +1908,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
     class Featured(ContactFieldListView):
         search_fields = None  # search and reordering do not work together
-        default_order = ("-priority", "label")
+        default_order = ("-priority", "name")
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)

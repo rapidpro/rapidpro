@@ -37,7 +37,6 @@ from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
-    MigrationTest,
     TembaNonAtomicTest,
     TembaTest,
     matchers,
@@ -175,7 +174,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(response.context["search"], "age = 18")
         self.assertEqual(response.context["save_dynamic_search"], True)
         self.assertIsNone(response.context["search_error"])
-        self.assertEqual(list(response.context["contact_fields"].values_list("label", flat=True)), ["Home", "Age"])
+        self.assertEqual(list(response.context["contact_fields"].values_list("name", flat=True)), ["Home", "Age"])
 
         mr_mocks.contact_search("age = 18", contacts=[frank], total=10020, allow_as_group=True)
 
@@ -2992,7 +2991,7 @@ class ContactTest(TembaTest):
         response = self.client.get(
             "%s?field=%s" % (reverse("contacts.contact_update_fields", args=[self.joe.id]), contact_field.id)
         )
-        self.assertEqual("Home state", response.context["contact_field"].label)
+        self.assertEqual("Home state", response.context["contact_field"].name)
 
         # grab our input field which is loaded async
         response = self.client.get(
@@ -3536,8 +3535,8 @@ class ContactTest(TembaTest):
         self.assertEqual(joe.get_field_display(field_name), "Joe Blow")
 
         # create a system field that is not supported
-        field_iban = ContactField.system_fields.create(
-            org_id=self.org.id, key="iban", name="IBAN", created_by_id=self.admin.id, modified_by_id=self.admin.id
+        field_iban = ContactField.all_fields.create(
+            org=self.org, key="iban", name="IBAN", is_system=True, created_by=self.admin, modified_by=self.admin
         )
 
         self.assertRaises(AssertionError, joe.get_field_serialized, field_iban)
@@ -3694,21 +3693,21 @@ class ContactFieldTest(TembaTest):
     def test_get_or_create(self):
         join_date = ContactField.get_or_create(self.org, self.admin, "join_date")
         self.assertEqual(join_date.key, "join_date")
-        self.assertEqual(join_date.label, "Join Date")
+        self.assertEqual(join_date.name, "Join Date")
         self.assertEqual(join_date.value_type, ContactField.TYPE_TEXT)
 
         another = ContactField.get_or_create(
             self.org, self.admin, "another", "My Label", value_type=ContactField.TYPE_NUMBER
         )
         self.assertEqual(another.key, "another")
-        self.assertEqual(another.label, "My Label")
+        self.assertEqual(another.name, "My Label")
         self.assertEqual(another.value_type, ContactField.TYPE_NUMBER)
 
         another = ContactField.get_or_create(
             self.org, self.admin, "another", "Updated Label", value_type=ContactField.TYPE_DATETIME
         )
         self.assertEqual(another.key, "another")
-        self.assertEqual(another.label, "Updated Label")
+        self.assertEqual(another.name, "Updated Label")
         self.assertEqual(another.value_type, ContactField.TYPE_DATETIME)
 
         another = ContactField.get_or_create(
@@ -3722,21 +3721,21 @@ class ContactFieldTest(TembaTest):
 
         groups_field = ContactField.get_or_create(self.org, self.admin, "groups_field", "Groups Field")
         self.assertEqual(groups_field.key, "groups_field")
-        self.assertEqual(groups_field.label, "Groups Field")
+        self.assertEqual(groups_field.name, "Groups Field")
 
-        groups_field.label = "Groups"
+        groups_field.name = "Groups"
         groups_field.save()
 
         groups_field.refresh_from_db()
 
         self.assertEqual(groups_field.key, "groups_field")
-        self.assertEqual(groups_field.label, "Groups")
+        self.assertEqual(groups_field.name, "Groups")
 
-        # we should lookup the existing field by label
+        # we should lookup the existing field by name
         label_field = ContactField.get_or_create(self.org, self.admin, key=None, name="Groups")
 
         self.assertEqual(label_field.key, "groups_field")
-        self.assertEqual(label_field.label, "Groups")
+        self.assertEqual(label_field.name, "Groups")
         self.assertFalse(ContactField.user_fields.filter(key="groups"))
         self.assertEqual(label_field.pk, groups_field.pk)
 
@@ -3753,7 +3752,7 @@ class ContactFieldTest(TembaTest):
         # don't look up by label if we have a key
         created_field = ContactField.get_or_create(self.org, self.admin, "list", "Groups")
         self.assertEqual(created_field.key, "list")
-        self.assertEqual(created_field.label, "Groups 2")
+        self.assertEqual(created_field.name, "Groups 2")
 
         # this should be a different field
         self.assertFalse(created_field.pk == groups_field.pk)
@@ -3764,13 +3763,13 @@ class ContactFieldTest(TembaTest):
 
         field1 = ContactField.get_or_create(self.org, self.admin, "sport", "Games")
         self.assertEqual(field1.key, "sport")
-        self.assertEqual(field1.label, "Games")
+        self.assertEqual(field1.name, "Games")
 
         # should modify label to make it unique
         field2 = ContactField.get_or_create(self.org, self.admin, "play", "Games")
 
         self.assertEqual(field2.key, "play")
-        self.assertEqual(field2.label, "Games 2")
+        self.assertEqual(field2.name, "Games 2")
         self.assertNotEqual(field1.id, field2.id)
 
     def test_contact_templatetag(self):
@@ -4635,12 +4634,12 @@ class ContactFieldTest(TembaTest):
     def test_contactfield_priority(self):
         fields = ContactField.user_fields.filter(org=self.org).order_by("-priority", "id")
 
-        self.assertEqual(["Third", "First", "Second"], list(fields.values_list("label", flat=True)))
+        self.assertEqual(["Third", "First", "Second"], list(fields.values_list("name", flat=True)))
 
         # change field priority
         ContactField.get_or_create(org=self.org, user=self.user, key="first", priority=25)
 
-        self.assertEqual(["First", "Third", "Second"], list(fields.values_list("label", flat=True)))
+        self.assertEqual(["First", "Third", "Second"], list(fields.values_list("name", flat=True)))
 
 
 class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -4667,41 +4666,41 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         create_url = reverse("contacts.contactfield_create")
 
         self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=["label", "value_type", "show_in_table"]
+            create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "value_type", "show_in_table"]
         )
 
         # try to submit with empty name
         self.assertCreateSubmit(
             create_url,
-            {"label": "", "value_type": "T", "show_in_table": True},
-            form_errors={"label": "This field is required."},
+            {"name": "", "value_type": "T", "show_in_table": True},
+            form_errors={"name": "This field is required."},
         )
 
         # try to submit with invalid name
         self.assertCreateSubmit(
             create_url,
-            {"label": "???", "value_type": "T", "show_in_table": True},
-            form_errors={"label": "Can only contain letters, numbers and hypens."},
+            {"name": "???", "value_type": "T", "show_in_table": True},
+            form_errors={"name": "Can only contain letters, numbers and hypens."},
         )
 
         # try to submit with something that would be an invalid key
         self.assertCreateSubmit(
             create_url,
-            {"label": "UUID", "value_type": "T", "show_in_table": True},
-            form_errors={"label": "Can't be a reserved word."},
+            {"name": "UUID", "value_type": "T", "show_in_table": True},
+            form_errors={"name": "Can't be a reserved word."},
         )
 
         # try to submit with name of existing field
         self.assertCreateSubmit(
             create_url,
-            {"label": "AGE", "value_type": "N", "show_in_table": True},
-            form_errors={"label": "Must be unique."},
+            {"name": "AGE", "value_type": "N", "show_in_table": True},
+            form_errors={"name": "Must be unique."},
         )
 
         # submit with valid data
         self.assertCreateSubmit(
             create_url,
-            {"label": "Goats", "value_type": "N", "show_in_table": True},
+            {"name": "Goats", "value_type": "N", "show_in_table": True},
             new_obj_query=ContactField.user_fields.filter(
                 org=self.org, name="Goats", value_type="N", show_in_table=True
             ),
@@ -4713,7 +4712,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertCreateSubmit(
             create_url,
-            {"label": "Age", "value_type": "N", "show_in_table": True},
+            {"name": "Age", "value_type": "N", "show_in_table": True},
             new_obj_query=ContactField.user_fields.filter(
                 org=self.org, name="Age", value_type="N", show_in_table=True, is_active=True
             ),
@@ -4724,7 +4723,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         with override_settings(ORG_LIMIT_DEFAULTS={"fields": 2}):
             self.assertCreateSubmit(
                 create_url,
-                {"label": "Sheep", "value_type": "T", "show_in_table": True},
+                {"name": "Sheep", "value_type": "T", "show_in_table": True},
                 form_errors={"__all__": "Cannot create a new field as limit is 2."},
             )
 
@@ -4735,56 +4734,56 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={"label": "Age", "value_type": "N", "show_in_table": True},
+            form_fields={"name": "Age", "value_type": "N", "show_in_table": True},
         )
 
         # try submit without change
         self.assertUpdateSubmit(
-            update_url, {"label": "Age", "value_type": "N", "show_in_table": True}, success_status=200
+            update_url, {"name": "Age", "value_type": "N", "show_in_table": True}, success_status=200
         )
 
         # try to submit with empty name
         self.assertUpdateSubmit(
             update_url,
-            {"label": "", "value_type": "N", "show_in_table": True},
-            form_errors={"label": "This field is required."},
+            {"name": "", "value_type": "N", "show_in_table": True},
+            form_errors={"name": "This field is required."},
             object_unchanged=self.age,
         )
 
         # try to submit with invalid name
         self.assertUpdateSubmit(
             update_url,
-            {"label": "???", "value_type": "N", "show_in_table": True},
-            form_errors={"label": "Can only contain letters, numbers and hypens."},
+            {"name": "???", "value_type": "N", "show_in_table": True},
+            form_errors={"name": "Can only contain letters, numbers and hypens."},
             object_unchanged=self.age,
         )
 
         # try to submit with a name that is used by another field
         self.assertUpdateSubmit(
             update_url,
-            {"label": "GENDER", "value_type": "N", "show_in_table": True},
-            form_errors={"label": "Must be unique."},
+            {"name": "GENDER", "value_type": "N", "show_in_table": True},
+            form_errors={"name": "Must be unique."},
             object_unchanged=self.age,
         )
 
         # submit with different name and type
         self.assertUpdateSubmit(
-            update_url, {"label": "Age In Years", "value_type": "T", "show_in_table": False}, success_status=200
+            update_url, {"name": "Age In Years", "value_type": "T", "show_in_table": False}, success_status=200
         )
 
         self.age.refresh_from_db()
-        self.assertEqual("Age In Years", self.age.label)
+        self.assertEqual("Age In Years", self.age.name)
         self.assertEqual("T", self.age.value_type)
         self.assertFalse(self.age.show_in_table)
 
         # simulate an org which has reached the limit for fields - should still be able to update a field
         with override_settings(ORG_LIMIT_DEFAULTS={"fields": 2}):
             self.assertUpdateSubmit(
-                update_url, {"label": "Age 2", "value_type": "T", "show_in_table": True}, success_status=200
+                update_url, {"name": "Age 2", "value_type": "T", "show_in_table": True}, success_status=200
             )
 
         self.age.refresh_from_db()
-        self.assertEqual("Age 2", self.age.label)
+        self.assertEqual("Age 2", self.age.name)
 
     def test_list(self):
         list_url = reverse("contacts.contactfield_list")
@@ -6224,47 +6223,3 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
-
-
-class PopulateFieldNameAndIsSystemMigrationTest(MigrationTest):
-    app = "contacts"
-    migrate_from = "0160_contactfield_is_system_contactfield_name"
-    migrate_to = "0161_populate_field_name_and_is_system"
-
-    def setUpBeforeMigration(self, apps):
-        # create a user field which doesn't have name or is_system set
-        self.field1 = ContactField.all_fields.create(
-            org=self.org,
-            key="age",
-            label="Age",
-            name=None,
-            field_type="U",
-            is_system=None,
-            value_type="T",
-            created_by=self.user,
-            modified_by=self.user,
-            priority=1,
-        )
-
-        # create a system field which doesn't have name or is_system set
-        self.field2 = ContactField.all_fields.create(
-            org=self.org,
-            key="age",
-            label="Tickets",
-            name=None,
-            field_type="S",
-            is_system=None,
-            value_type="T",
-            created_by=self.user,
-            modified_by=self.user,
-            priority=1,
-        )
-
-    def test_migration(self):
-        self.field1.refresh_from_db()
-        self.assertEqual("Age", self.field1.name)
-        self.assertFalse(self.field1.is_system)
-
-        self.field2.refresh_from_db()
-        self.assertEqual("Tickets", self.field2.name)
-        self.assertTrue(self.field2.is_system)

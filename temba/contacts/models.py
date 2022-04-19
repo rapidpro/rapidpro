@@ -332,10 +332,10 @@ class UserContactFieldsQuerySet(models.QuerySet):
 
 class UserContactFieldsManager(models.Manager):
     def get_queryset(self):
-        return UserContactFieldsQuerySet(self.model, using=self._db).filter(field_type=ContactField.FIELD_TYPE_USER)
+        return UserContactFieldsQuerySet(self.model, using=self._db).filter(is_system=False)
 
     def create(self, **kwargs):
-        kwargs["field_type"] = ContactField.FIELD_TYPE_USER
+        kwargs["is_system"] = False
 
         return super().create(**kwargs)
 
@@ -346,16 +346,6 @@ class UserContactFieldsManager(models.Manager):
         return self.get_queryset().active_for_org(org=org)
 
 
-class SystemContactFieldsManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(field_type=ContactField.FIELD_TYPE_SYSTEM)
-
-    def create(self, **kwargs):
-        kwargs["field_type"] = ContactField.FIELD_TYPE_SYSTEM
-
-        return super().create(**kwargs)
-
-
 class ContactField(SmartModel, DependencyMixin):
     """
     A custom user field for contacts.
@@ -363,10 +353,6 @@ class ContactField(SmartModel, DependencyMixin):
 
     MAX_KEY_LEN = 36
     MAX_NAME_LEN = 36
-
-    FIELD_TYPE_SYSTEM = "S"
-    FIELD_TYPE_USER = "U"
-    FIELD_TYPE_CHOICES = ((FIELD_TYPE_SYSTEM, "System"), (FIELD_TYPE_USER, "User"))
 
     TYPE_TEXT = "T"
     TYPE_NUMBER = "N"
@@ -441,12 +427,9 @@ class ContactField(SmartModel, DependencyMixin):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contactfields")
 
     key = models.CharField(max_length=MAX_KEY_LEN)
-    label = models.CharField(max_length=MAX_NAME_LEN)  # TODO replace with name
-    name = models.CharField(max_length=MAX_NAME_LEN, null=True)
+    name = models.CharField(max_length=MAX_NAME_LEN)
     value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT)
-
-    field_type = models.CharField(max_length=1, choices=FIELD_TYPE_CHOICES, default=FIELD_TYPE_USER)  # TODO replace
-    is_system = models.BooleanField(null=True)
+    is_system = models.BooleanField()
 
     # how field is displayed in the UI
     show_in_table = models.BooleanField(default=False)
@@ -455,21 +438,22 @@ class ContactField(SmartModel, DependencyMixin):
     # model managers
     all_fields = models.Manager()  # this is the default manager
     user_fields = UserContactFieldsManager()
-    system_fields = SystemContactFieldsManager()
+
+    # TODO drop
+    label = models.CharField(max_length=MAX_NAME_LEN, null=True)
+    field_type = models.CharField(max_length=1, null=True)
 
     soft_dependent_types = {"flow", "campaign_event"}
 
     @classmethod
     def create_system_fields(cls, org):
-        assert not org.contactfields(manager="system_fields").exists(), "org already has system fields"
+        assert not org.contactfields.filter(is_system=True).exists(), "org already has system fields"
 
         for key, spec in cls.SYSTEM_FIELDS.items():
             org.contactfields.create(
-                field_type=cls.FIELD_TYPE_SYSTEM,
                 is_system=True,
                 key=key,
                 name=spec["name"],
-                label=spec["name"],
                 value_type=spec["value_type"],
                 show_in_table=False,
                 created_by=org.created_by,
@@ -527,8 +511,7 @@ class ContactField(SmartModel, DependencyMixin):
                     changed = True
 
                 # update our name if we were given one
-                if name and field.label != name:
-                    field.label = name
+                if name and field.name != name:
                     field.name = name
                     changed = True
 
@@ -573,9 +556,7 @@ class ContactField(SmartModel, DependencyMixin):
 
                 field = org.contactfields.create(
                     key=key,
-                    label=name,
                     name=name,
-                    field_type=cls.FIELD_TYPE_USER,
                     is_system=False,
                     show_in_table=show_in_table,
                     value_type=value_type,
@@ -595,7 +576,7 @@ class ContactField(SmartModel, DependencyMixin):
 
         count = 2
         while True:
-            if not ContactField.user_fields.filter(org=org, label=name, is_active=True).exists():
+            if not ContactField.user_fields.filter(org=org, name__iexact=name, is_active=True).exists():
                 break
 
             name = "%s %d" % (base_name[:59].strip(), count)
@@ -605,7 +586,7 @@ class ContactField(SmartModel, DependencyMixin):
 
     @classmethod
     def get_by_name(cls, org, name):
-        return cls.user_fields.active_for_org(org=org).filter(label__iexact=name).first()
+        return cls.user_fields.active_for_org(org=org).filter(name__iexact=name).first()
 
     @classmethod
     def get_by_key(cls, org, key):
@@ -630,7 +611,7 @@ class ContactField(SmartModel, DependencyMixin):
             cls.get_or_create(org, user, key=field_key, name=field_name, value_type=db_types[field_type])
 
     def as_export_def(self):
-        return {"key": self.key, "name": self.label, "type": self.ENGINE_TYPES[self.value_type]}
+        return {"key": self.key, "name": self.name, "type": self.ENGINE_TYPES[self.value_type]}
 
     def get_dependents(self):
         dependents = super().get_dependents()
@@ -649,7 +630,7 @@ class ContactField(SmartModel, DependencyMixin):
         self.save(update_fields=("is_active", "modified_on", "modified_by"))
 
     def __str__(self):
-        return "%s" % self.label
+        return self.name
 
 
 class Contact(RequireUpdateFieldsMixin, TembaModel):
@@ -876,7 +857,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Returns the JSON (as a dict) value for this field, or None if there is no value
         """
-        assert field.field_type == ContactField.FIELD_TYPE_USER, f"not supported for system field {field.key}"
+        assert not field.is_system, f"not supported for system field {field.key}"
 
         return self.fields.get(str(field.uuid)) if self.fields else None
 
@@ -901,7 +882,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Given the passed in contact field object, returns the value (as a string, decimal, datetime, AdminBoundary)
         for this contact or None.
         """
-        if field.field_type == ContactField.FIELD_TYPE_USER:
+        if not field.is_system:
             string_value = self.get_field_serialized(field)
             if string_value is None:
                 return None
@@ -915,7 +896,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             elif field.value_type in [ContactField.TYPE_STATE, ContactField.TYPE_DISTRICT, ContactField.TYPE_WARD]:
                 return AdminBoundary.get_by_path(self.org, string_value)
 
-        elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
+        else:
             if field.key == "created_on":
                 return self.created_on
             if field.key == "last_seen_on":
@@ -926,9 +907,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 return self.name
             else:
                 raise ValueError(f"System contact field '{field.key}' is not supported")
-
-        else:  # pragma: no cover
-            raise ValueError(f"Unhandled ContactField type '{field.field_type}'.")
 
     def get_field_display(self, field):
         """
@@ -969,7 +947,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         mods = []
 
         for field, value in values.items():
-            field_ref = modifiers.FieldRef(key=field.key, name=field.label)
+            field_ref = modifiers.FieldRef(key=field.key, name=field.name)
             mods.append(modifiers.Field(field=field_ref, value=value))
 
         return mods
@@ -1928,7 +1906,7 @@ class ExportContactsTask(BaseExportTask):
             fields.append(
                 dict(
                     field=contact_field,
-                    label="Field:%s" % contact_field.label,
+                    label="Field:%s" % contact_field.name,
                     key=contact_field.key,
                     urn_scheme=None,
                 )
@@ -2171,7 +2149,7 @@ class ContactImport(SmartModel):
         fields_by_name = {}
         for f in org.contactfields(manager="user_fields").filter(is_active=True):
             fields_by_key[f.key] = f
-            fields_by_name[f.label.lower()] = f
+            fields_by_name[f.name.lower()] = f
 
         mappings = []
 
@@ -2196,7 +2174,7 @@ class ContactImport(SmartModel):
                     field = fields_by_key.get(field_key)
 
                 if field:
-                    mapping = {"type": "field", "key": field.key, "name": field.label}
+                    mapping = {"type": "field", "key": field.key, "name": field.name}
                 else:
                     # can be created or selected in next step
                     mapping = {"type": "new_field", "key": field_key, "name": header_name, "value_type": "T"}

@@ -3753,7 +3753,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(topup.price, 0)
 
         # check default org content was created correctly
-        system_fields = set(org.contactfields(manager="system_fields").values_list("key", flat=True))
+        system_fields = set(org.contactfields.filter(is_system=True).values_list("key", flat=True))
         system_groups = set(org.groups.filter(is_system=True).values_list("name", flat=True))
         sample_flows = set(org.flows.values_list("name", flat=True))
         internal_ticketer = org.ticketers.get()
@@ -4528,7 +4528,7 @@ class BulkExportTest(TembaTest):
         parent = Flow.objects.get(name="All Dep Types")
         child = Flow.objects.get(name="New Child")
 
-        age = ContactField.user_fields.get(key="age", label="Age")  # created from expression reference
+        age = ContactField.user_fields.get(key="age", name="Age")  # created from expression reference
         gender = ContactField.user_fields.get(key="gender")  # created from action reference
 
         farmers = ContactGroup.objects.get(name="Farmers")
@@ -4662,9 +4662,9 @@ class BulkExportTest(TembaTest):
         facts_per_day = ContactField.user_fields.get(key="facts_per_day")
 
         # but without implicit fields in the export, the details aren't correct
-        self.assertEqual(likes_cats.label, "Likes Cats")
+        self.assertEqual(likes_cats.name, "Likes Cats")
         self.assertEqual(likes_cats.value_type, "T")
-        self.assertEqual(facts_per_day.label, "Facts Per Day")
+        self.assertEqual(facts_per_day.name, "Facts Per Day")
         self.assertEqual(facts_per_day.value_type, "T")
 
         cat_fanciers = ContactGroup.objects.get(name="Cat Fanciers")
@@ -4699,9 +4699,9 @@ class BulkExportTest(TembaTest):
         facts_per_day = ContactField.user_fields.get(key="facts_per_day")
 
         # and with implicit fields in the export, the details should be correct
-        self.assertEqual(likes_cats.label, "Really Likes Cats")
+        self.assertEqual(likes_cats.name, "Really Likes Cats")
         self.assertEqual(likes_cats.value_type, "T")
-        self.assertEqual(facts_per_day.label, "Facts-Per-Day")
+        self.assertEqual(facts_per_day.name, "Facts-Per-Day")
         self.assertEqual(facts_per_day.value_type, "N")
 
         cat_fanciers = ContactGroup.objects.get(name="Cat Fanciers")
@@ -4789,7 +4789,7 @@ class BulkExportTest(TembaTest):
             self.assertEqual(3, ContactGroup.objects.filter(org=self.org, is_system=False).count())
             self.assertEqual(1, Label.label_objects.filter(org=self.org).count())
             self.assertEqual(
-                1, ContactField.user_fields.filter(org=self.org, value_type="D", label="Next Appointment").count()
+                1, ContactField.user_fields.filter(org=self.org, value_type="D", name="Next Appointment").count()
             )
 
         # import all our bits

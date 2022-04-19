@@ -94,8 +94,8 @@ class Campaign(TembaModel):
             for event_spec in campaign_def["events"]:
                 field_key = event_spec["relative_to"]["key"]
 
-                if field_key == "created_on":
-                    relative_to = ContactField.system_fields.filter(org=org, key=field_key).first()
+                if field_key in ("created_on", "last_seen_on"):
+                    relative_to = org.contactfields.filter(key=field_key, is_system=True).first()
                 else:
                     relative_to = ContactField.get_or_create(
                         org, user, key=field_key, name=event_spec["relative_to"]["label"], value_type="D"
@@ -193,7 +193,7 @@ class Campaign(TembaModel):
                 event_type=event.event_type,
                 delivery_hour=event.delivery_hour,
                 message=event.message,
-                relative_to=dict(label=event.relative_to.label, key=event.relative_to.key),  # TODO should be key/name
+                relative_to=dict(label=event.relative_to.name, key=event.relative_to.key),  # TODO should be key/name
                 start_mode=event.start_mode,
             )
 

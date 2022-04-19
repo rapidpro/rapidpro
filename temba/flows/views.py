@@ -1321,7 +1321,7 @@ class FlowCRUDL(SmartCRUDL):
             contact_fields = forms.ModelMultipleChoiceField(
                 ContactField.user_fields.filter(id__lt=0),
                 required=False,
-                label=("Fields"),
+                label=_("Fields"),
                 widget=SelectMultipleWidget(
                     attrs={"placeholder": _("Optional: Fields to include"), "searchable": True}
                 ),
@@ -1349,7 +1349,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.user = user
                 self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.user_fields.active_for_org(
                     org=self.user.get_org()
-                ).order_by(Lower("label"))
+                ).order_by(Lower("name"))
 
                 self.fields[ExportFlowResultsTask.GROUP_MEMBERSHIPS].queryset = ContactGroup.get_groups(
                     self.user.get_org(), ready_only=True

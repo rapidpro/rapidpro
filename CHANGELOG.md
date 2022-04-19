@@ -1,3 +1,7 @@
+v7.3.20
+----------
+ * Stop reading ContactField.label and field_type
+
 v7.3.19
 ----------
  * Correct set new ContactField fields in mailroom_db test_db commands
