@@ -1,3 +1,8 @@
+1.2.2-rapidpro-7.0.4
+----------
+ * Update weni-rp-apps to 1.0.15
+ * Change twilioflex form labels and help text
+
 1.2.1-rapidpro-7.0.4
 ----------
  * Change refresh templates task schedule to 1h
