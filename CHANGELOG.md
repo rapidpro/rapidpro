@@ -1,3 +1,8 @@
+v7.3.23
+----------
+ * Add status to list of reserved field keys
+ * Migration to drop ContactField.label and field_type
+
 v7.3.22
 ----------
  * Update contact modified_on when deleting a group they belong to
