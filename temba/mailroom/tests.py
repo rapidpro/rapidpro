@@ -11,7 +11,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun, FlowStart
 from temba.ivr.models import IVRCall
-from temba.mailroom.client import ContactSpec, MailroomException, get_client
+from temba.mailroom.client import ContactSpec, Exclusions, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
@@ -94,6 +94,46 @@ class MailroomClientTest(TembaTest):
         self.assertEqual(("http://localhost:8090/mr/flow/change_language",), call[0])
         self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
         self.assertEqual({"flow": flow_def, "language": "spa"}, json.loads(call[1]["data"]))
+
+    def test_flow_preview_start(self):
+        with patch("requests.post") as mock_post:
+            mock_resp = {"query": 'group = "Farmers" AND status = "active"', "count": 2345, "sample": [123, 234]}
+            mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
+            preview = get_client().flow_preview_start(
+                self.org.id,
+                flow_id=12,
+                group_ids=[23],
+                contact_ids=[],
+                urns=[],
+                query="",
+                exclusions=Exclusions(non_active=True),
+                sample_size=3,
+            )
+
+            self.assertEqual(mock_resp, preview)
+
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/flow/preview_start",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual(
+            {
+                "org_id": self.org.id,
+                "flow_id": 12,
+                "group_ids": [23],
+                "contact_ids": [],
+                "urns": [],
+                "query": "",
+                "exclusions": {
+                    "non_active": True,
+                    "in_a_flow": False,
+                    "started_previously": False,
+                    "not_seen_recently": False,
+                },
+                "sample_size": 3,
+            },
+            json.loads(call[1]["data"]),
+        )
 
     def test_contact_modify(self):
         with patch("requests.post") as mock_post:

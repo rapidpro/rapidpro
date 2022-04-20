@@ -53,6 +53,14 @@ class ContactSpec:
     groups: list[str]
 
 
+@dataclass
+class Exclusions:
+    non_active: bool = False  # contacts who are blocked, stopped or archived
+    in_a_flow: bool = False  # contacts who are currently in a flow (including this one)
+    started_previously: bool = False  # contacts who have been in this flow in the last 90 days
+    not_seen_recently: bool = False  # contacts who have not been seen for more than 90 days
+
+
 class MailroomClient:
     """
     Basic web client for mailroom
@@ -112,6 +120,30 @@ class MailroomClient:
         payload = {"flow": flow, "dependency_mapping": dependency_mapping}
 
         return self._request("flow/clone", payload)
+
+    def flow_preview_start(
+        self,
+        org_id: int,
+        flow_id: int,
+        group_ids: list,
+        contact_ids: list,
+        urns: list,
+        query: str,
+        exclusions: Exclusions,
+        sample_size: int,
+    ):
+        payload = {
+            "org_id": org_id,
+            "flow_id": flow_id,
+            "group_ids": group_ids,
+            "contact_ids": contact_ids,
+            "urns": urns,
+            "query": query,
+            "exclusions": asdict(exclusions),
+            "sample_size": sample_size,
+        }
+
+        return self._request("flow/preview_start", payload, encode_json=True)
 
     def msg_resend(self, org_id, msg_ids):
         payload = {"org_id": org_id, "msg_ids": msg_ids}

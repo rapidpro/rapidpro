@@ -23,7 +23,7 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.mailroom import FlowValidationException
+from temba.mailroom import Exclusions, FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
@@ -1556,6 +1556,25 @@ class FlowTest(TembaTest):
 
         # fetching a flow with a group send shouldn't throw
         self.get_flow("group_send_flow")
+
+    @mock_mailroom
+    def test_preview_start(self, mr_mocks):
+        flow = self.create_flow()
+        contact1 = self.create_contact("Bob", phone="+1234567111")
+        contact2 = self.create_contact("Jim", phone="+1234567222")
+        doctors = self.create_group("Doctors", contacts=[contact1, contact2])
+
+        mr_mocks.flow_preview_start(
+            query='group = "Doctors" AND status = "active"', count=123, sample=[contact1.id, contact2.id]
+        )
+
+        query, count, sample = flow.preview_start(
+            groups=[doctors], contacts=[], urns=[], query="", exclusions=Exclusions(non_active=True)
+        )
+
+        self.assertEqual('group = "Doctors" AND status = "active"', query)
+        self.assertEqual(123, count)
+        self.assertEqual([contact1, contact2], list(sample))
 
     def test_flow_delete_of_inactive_flow(self):
         flow = self.get_flow("favorites")

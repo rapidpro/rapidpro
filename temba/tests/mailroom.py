@@ -16,7 +16,7 @@ from django.utils import timezone
 from temba.campaigns.models import CampaignEvent, EventFire
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.locations.models import AdminBoundary
-from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
+from temba.mailroom.client import ContactSpec, Exclusions, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
 from temba.tests.dates import parse_datetime
@@ -37,6 +37,7 @@ class Mocks:
         self.calls = defaultdict(list)
         self._parse_query = {}
         self._contact_search = {}
+        self._flow_preview_start = []
         self._errors = []
 
         self.queued_batch_tasks = []
@@ -83,6 +84,9 @@ class Mocks:
             }
 
         self._contact_search[query] = mock
+
+    def flow_preview_start(self, query: str, count: int, sample: list):
+        self._flow_preview_start.append({"query": query, "count": count, "sample": sample})
 
     def error(self, msg: str, code: str = None, extra: dict = None):
         """
@@ -184,6 +188,22 @@ class TestClient(MailroomClient):
         assert mock, f"missing contact_search mock for query '{query}'"
 
         return mock(offset, sort)
+
+    @_client_method
+    def flow_preview_start(
+        self,
+        org_id: int,
+        flow_id: int,
+        group_ids: list,
+        contact_ids: list,
+        urns: list,
+        query: str,
+        exclusions: Exclusions,
+        sample_size: int,
+    ):
+        assert self.mocks._flow_preview_start, "missing flow_preview_start mock"
+
+        return self.mocks._flow_preview_start.pop(0)
 
     @_client_method
     def ticket_assign(self, org_id, user_id, ticket_ids, assignee_id, note):

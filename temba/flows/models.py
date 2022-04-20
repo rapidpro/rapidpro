@@ -972,6 +972,26 @@ class Flow(TembaModel, DependencyMixin):
         dependents["trigger"] = self.triggers.filter(is_active=True)
         return dependents
 
+    def preview_start(self, groups, contacts, urns: list, query: str, exclusions) -> tuple:
+        """
+        Generates a preview of the given start as a tuple of
+            1) contact query of all recipients
+            2) total contact count
+            3) sample of the contacts
+        """
+        mr = mailroom.get_client()
+        response = mr.flow_preview_start(
+            self.org_id,
+            self.id,
+            group_ids=[g.id for g in groups],
+            contact_ids=[c.id for c in contacts],
+            urns=urns,
+            query=query,
+            exclusions=exclusions,
+            sample_size=3,
+        )
+        return response["query"], response["count"], self.org.contacts.filter(id__in=response["sample"]).order_by("id")
+
     def release(self, user, *, interrupt_sessions: bool = True):
         """
         Releases this flow, marking it inactive. We interrupt all flow runs in a background process.
