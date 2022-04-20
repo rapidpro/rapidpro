@@ -8,6 +8,8 @@ from django.core.validators import URLValidator
 from django.forms import ValidationError
 from django.utils.translation import gettext_lazy as _
 
+MAX_NAME_LEN = 64
+
 
 class JSONField(forms.Field):
     def to_python(self, value):
@@ -25,6 +27,34 @@ class InputWidget(forms.TextInput):
         if attrs.get("hide_label", False) and context.get("label", None):  # pragma: needs cover
             del context["label"]
         return context
+
+
+def is_valid_name(value):
+    try:
+        validate_name(value)
+        return True
+    except ValidationError:
+        return False
+
+
+def validate_name(value):
+    """
+    Validator for names of flows and their dependencies.
+    """
+
+    # model forms will add their own validator based on max_length but we need this for validating for imports etc
+    if len(value) > MAX_NAME_LEN:
+        raise ValidationError(_("Cannot be longer than %(limit)d characters."), params={"limit": MAX_NAME_LEN})
+
+    if value != value.strip():
+        raise ValidationError(_("Cannot begin or end with whitespace."))
+
+    for ch in '"\\':
+        if ch in value:
+            raise ValidationError(_("Cannot contain the character: %(char)s"), params={"char": ch})
+
+    if "\0" in value:
+        raise ValidationError(_("Cannot contain null characters."))
 
 
 def validate_external_url(value):

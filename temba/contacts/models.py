@@ -31,6 +31,7 @@ from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Org, OrgLock
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
+from temba.utils.fields import is_valid_name, validate_name
 from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
@@ -1476,7 +1477,7 @@ class ContactGroup(TembaModel, DependencyMixin):
     )
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="groups")
-    name = models.CharField(max_length=MAX_NAME_LEN)
+    name = models.CharField(max_length=MAX_NAME_LEN, validators=[validate_name])
     group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MANUAL)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
     contacts = models.ManyToManyField(Contact, related_name="groups")
@@ -1559,7 +1560,7 @@ class ContactGroup(TembaModel, DependencyMixin):
         """
         Returns the user group with the passed in name
         """
-        return cls.get_groups(org).filter(name__iexact=cls.clean_name(name)).first()
+        return cls.get_groups(org).filter(name__iexact=name).first()
 
     @classmethod
     def get_or_create(cls, org, user, name, query=None, uuid=None, parsed_query=None):
@@ -1601,10 +1602,7 @@ class ContactGroup(TembaModel, DependencyMixin):
 
     @classmethod
     def _create(cls, org, user, name, status, query=None):
-        name = cls.clean_name(name)
-
-        if not cls.is_valid_name(name):
-            raise ValueError(f"Invalid group name: {name}")
+        assert is_valid_name(name), "is not a valid group name"
 
         # look for name collision and append count if necessary
         name = cls.get_unique_name(org, base_name=name)
@@ -1629,25 +1627,6 @@ class ContactGroup(TembaModel, DependencyMixin):
         return TembaModel.get_unique_name(org.groups.all(), base_name, cls.MAX_NAME_LEN)
 
     @classmethod
-    def clean_name(cls, name):
-        """
-        Returns a normalized name for the passed in group name
-        """
-        return None if name is None else name.strip()[: cls.MAX_NAME_LEN]
-
-    @classmethod
-    def is_valid_name(cls, name):
-        # don't allow empty strings, blanks, initial or trailing whitespace
-        if not name or name.strip() != name:
-            return False
-
-        if len(name) > cls.MAX_NAME_LEN:
-            return False
-
-        # first character must be a word char
-        return regex.match(r"\w", name[0], flags=regex.UNICODE)
-
-    @classmethod
     def apply_action_delete(cls, user, groups):
         groups.update(is_active=False, modified_by=user)
 
@@ -1656,8 +1635,6 @@ class ContactGroup(TembaModel, DependencyMixin):
         for group in groups:
             # release each group in a background task
             on_transaction_commit(lambda: release_group_task.delay(group.id))
-
-        # update flow issues, campaigns, etc
 
     @property
     def icon(self) -> str:
@@ -1671,10 +1648,8 @@ class ContactGroup(TembaModel, DependencyMixin):
         Updates the query for a smart group
         """
 
-        if self.group_type != self.TYPE_SMART:
-            raise ValueError("Cannot update query on a non-smart group")
-        if self.status == ContactGroup.STATUS_EVALUATING:
-            raise ValueError("Cannot update query on a group which is currently re-evaluating")
+        assert self.group_type == self.TYPE_SMART, "can only update queries on smart groups"
+        assert self.status != self.STATUS_EVALUATING, "group is already re-evaluating"
 
         try:
             if not parsed:
