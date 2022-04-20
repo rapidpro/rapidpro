@@ -1748,12 +1748,13 @@ class ContactGroup(TembaModel, DependencyMixin):
         # delete all counts for this group
         self.counts.all().delete()
 
-        # grab the ids of all our m2m related rows
+        # delete the m2m related rows in batches, updating the contacts' modified_on as we go
         ContactGroupContacts = self.contacts.through
-        group_contact_ids = ContactGroupContacts.objects.filter(contactgroup_id=self.id).values_list("id", flat=True)
+        memberships = ContactGroupContacts.objects.filter(contactgroup_id=self.id)
 
-        for id_batch in chunk_list(group_contact_ids, 1000):
-            ContactGroupContacts.objects.filter(id__in=id_batch).delete()
+        for batch in chunk_list(memberships, 100):
+            ContactGroupContacts.objects.filter(id__in=[m.id for m in batch]).delete()
+            Contact.objects.filter(id__in=[m.contact_id for m in batch]).update(modified_on=timezone.now())
 
     @property
     def is_smart(self):
