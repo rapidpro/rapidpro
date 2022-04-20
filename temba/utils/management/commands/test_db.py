@@ -375,11 +375,10 @@ class Command(BaseCommand):
         for org in orgs:
             user = org.cache["users"][0]
             for f in FIELDS:
-                field = ContactField.user_fields.create(
+                field = ContactField.all_fields.create(
                     org=org,
                     key=f["key"],
                     name=f["name"],
-                    label=f["name"],
                     is_system=False,
                     value_type=f["value_type"],
                     show_in_table=True,
