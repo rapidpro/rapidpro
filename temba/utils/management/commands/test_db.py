@@ -375,7 +375,7 @@ class Command(BaseCommand):
         for org in orgs:
             user = org.cache["users"][0]
             for f in FIELDS:
-                field = ContactField.all_fields.create(
+                field = ContactField.objects.create(
                     org=org,
                     key=f["key"],
                     name=f["name"],
@@ -450,7 +450,7 @@ class Command(BaseCommand):
                 )
 
                 for e in c.get("events", []):
-                    field = ContactField.all_fields.get(org=org, key=e["offset_field"])
+                    field = ContactField.objects.get(org=org, key=e["offset_field"])
 
                     if "flow" in e:
                         flow = Flow.objects.get(org=org, name=e["flow"])

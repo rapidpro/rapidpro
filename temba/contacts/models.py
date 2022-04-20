@@ -425,7 +425,7 @@ class ContactField(SmartModel, DependencyMixin):
     }.union(URN.VALID_SCHEMES)
 
     uuid = models.UUIDField(unique=True, default=uuid4)
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contactfields")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="fields")
 
     key = models.CharField(max_length=MAX_KEY_LEN)
     name = models.CharField(max_length=MAX_NAME_LEN)
@@ -437,17 +437,17 @@ class ContactField(SmartModel, DependencyMixin):
     priority = models.PositiveIntegerField(default=0)
 
     # model managers
-    all_fields = models.Manager()  # this is the default manager
+    objects = models.Manager()
     user_fields = UserContactFieldsManager()
 
     soft_dependent_types = {"flow", "campaign_event"}
 
     @classmethod
     def create_system_fields(cls, org):
-        assert not org.contactfields.filter(is_system=True).exists(), "org already has system fields"
+        assert not org.fields.filter(is_system=True).exists(), "org already has system fields"
 
         for key, spec in cls.SYSTEM_FIELDS.items():
-            org.contactfields.create(
+            org.fields.create(
                 is_system=True,
                 key=key,
                 name=spec["name"],
@@ -551,7 +551,7 @@ class ContactField(SmartModel, DependencyMixin):
                 if not ContactField.is_valid_key(key):
                     raise ValueError("Field key %s has invalid characters or is a reserved field name" % key)
 
-                field = org.contactfields.create(
+                field = org.fields.create(
                     key=key,
                     name=name,
                     is_system=False,
@@ -1664,7 +1664,7 @@ class ContactGroup(TembaModel, DependencyMixin):
             # build our list of the fields we are dependent on
             field_keys = [f["key"] for f in parsed.metadata.fields]
             field_ids = []
-            for c in ContactField.all_fields.filter(org=self.org, is_active=True, key__in=field_keys).only("id"):
+            for c in self.org.fields.filter(is_active=True, key__in=field_keys).only("id"):
                 field_ids.append(c.id)
 
             # and add them as dependencies
@@ -2145,7 +2145,7 @@ class ContactImport(SmartModel):
 
         fields_by_key = {}
         fields_by_name = {}
-        for f in org.contactfields(manager="user_fields").filter(is_active=True):
+        for f in org.fields.filter(is_system=False, is_active=True):
             fields_by_key[f.key] = f
             fields_by_name[f.name.lower()] = f
 

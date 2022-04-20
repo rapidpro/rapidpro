@@ -1495,8 +1495,8 @@ class FlowTest(TembaTest):
         self.assertTrue(self.org.topics.filter(name="Support").exists())
 
         # fields created with type if exists in export
-        self.assertTrue(self.org.contactfields.filter(key="cat_breed", name="Cat Breed", value_type="T").exists())
-        self.assertTrue(self.org.contactfields.filter(key="french_age", value_type="N").exists())
+        self.assertTrue(self.org.fields.filter(key="cat_breed", name="Cat Breed", value_type="T").exists())
+        self.assertTrue(self.org.fields.filter(key="french_age", value_type="N").exists())
 
         # reference to channel changed to match existing channel by name
         self.assertEqual(
