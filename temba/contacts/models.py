@@ -437,7 +437,7 @@ class ContactField(SmartModel, DependencyMixin):
     priority = models.PositiveIntegerField(default=0)
 
     # model managers
-    all_fields = models.Manager()  # this is the default manager
+    objects = models.Manager()
     user_fields = UserContactFieldsManager()
 
     soft_dependent_types = {"flow", "campaign_event"}
@@ -1664,7 +1664,7 @@ class ContactGroup(TembaModel, DependencyMixin):
             # build our list of the fields we are dependent on
             field_keys = [f["key"] for f in parsed.metadata.fields]
             field_ids = []
-            for c in ContactField.all_fields.filter(org=self.org, is_active=True, key__in=field_keys).only("id"):
+            for c in self.org.contactfields.filter(is_active=True, key__in=field_keys).only("id"):
                 field_ids.append(c.id)
 
             # and add them as dependencies

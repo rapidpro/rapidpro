@@ -250,7 +250,7 @@ class TembaTestMixin:
         return Label.get_or_create(org or self.org, self.user, name)
 
     def create_field(self, key, name, value_type=ContactField.TYPE_TEXT, org=None):
-        return ContactField.all_fields.create(
+        return ContactField.objects.create(
             org=org or self.org,
             key=key,
             name=name,

@@ -3551,7 +3551,7 @@ class ContactTest(TembaTest):
         self.assertEqual(joe.get_field_display(field_name), "Joe Blow")
 
         # create a system field that is not supported
-        field_iban = ContactField.all_fields.create(
+        field_iban = ContactField.objects.create(
             org=self.org, key="iban", name="IBAN", is_system=True, created_by=self.admin, modified_by=self.admin
         )
 
@@ -5375,7 +5375,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
         # create a campaign and event on this group
         campaign = Campaign.create(self.org, self.admin, "Cake Day", adults)
-        created_on = ContactField.all_fields.get(org=self.org, key="created_on")
+        created_on = ContactField.objects.get(org=self.org, key="created_on")
         event = CampaignEvent.create_message_event(
             self.org, self.admin, campaign, relative_to=created_on, offset=12, unit="M", message="Happy One Year!"
         )
