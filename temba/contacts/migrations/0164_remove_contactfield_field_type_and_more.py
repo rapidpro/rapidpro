@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("contacts", "0162_alter_contactfield_field_type_and_more"),
+        ("contacts", "0163_alter_contactgroup_name"),
     ]
 
     operations = [
