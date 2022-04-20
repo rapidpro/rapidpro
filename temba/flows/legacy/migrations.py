@@ -161,7 +161,7 @@ def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
     """
 
     # some "join group" flows are missing type
-    if not json_flow.get("flow_type"):  # pragma: needs cover
+    if not json_flow.get("flow_type"):  # pragma: no cover
         json_flow["flow_type"] = Flow.TYPE_MESSAGE
 
     # cache of flow uuid to type
@@ -843,7 +843,7 @@ def migrate_to_version_10(json_flow, flow):
             ruleset.pop("webhook", None)
             return ruleset
 
-        if "config" not in ruleset:  # pragma: needs cover
+        if "config" not in ruleset:  # pragma: no cover
             ruleset["config"] = dict()
 
         # webhook_action and webhook now live in config
@@ -1002,7 +1002,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
         from temba.channels.models import Channel
 
         channel_id = ele.get("channel")
-        if channel_id:  # pragma: needs cover
+        if channel_id:  # pragma: no cover
             channel = Channel.objects.filter(pk=channel_id).first()
             if channel:
                 ele["channel"] = channel.uuid
@@ -1134,7 +1134,7 @@ def migrate_to_version_7(json_flow, flow=None):
             definition.pop("rulesets")
         return definition
 
-    return json_flow  # pragma: needs cover
+    return json_flow  # pragma: no cover
 
 
 def migrate_to_version_6(json_flow, flow=None):
@@ -1150,7 +1150,7 @@ def migrate_to_version_6(json_flow, flow=None):
     base_language = "base"
 
     def convert_to_dict(d, key):
-        if key not in d:  # pragma: needs cover
+        if key not in d:  # pragma: no cover
             raise ValueError("Missing '%s' in dict: %s" % (key, d))
 
         if not isinstance(d[key], dict):
@@ -1230,7 +1230,7 @@ def migrate_to_version_5(json_flow, flow=None):
             # all previous ruleset that require step should be wait_message
             if requires_step(operand):
                 # if we have an empty operand, go ahead and update it
-                if not operand:  # pragma: needs cover
+                if not operand:  # pragma: no cover
                     ruleset["operand"] = "@step.value"
 
                 if response_type == "K":  # pragma: no cover
@@ -1260,7 +1260,7 @@ def migrate_to_version_5(json_flow, flow=None):
                 # if there's no reference to step, figure out our type
                 ruleset["ruleset_type"] = "expression"
                 # special case contact and flow fields
-                if " " not in operand and "|" not in operand:  # pragma: needs cover
+                if " " not in operand and "|" not in operand:  # pragma: no cover
                     if operand == "@contact.groups":
                         ruleset["ruleset_type"] = "expression"
                     elif operand.find("@contact.") == 0:
@@ -1293,7 +1293,12 @@ def migrate_to_version_5(json_flow, flow=None):
 
 
 def cleanse_group_names(action):
-    from temba.contacts.models import ContactGroup
+    def is_valid_name(name):  # pragma: no cover
+        if not name or name.strip() != name:
+            return False
+        if len(name) > 64:
+            return False
+        return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
     if action["type"] == "add_group" or action["type"] == "del_group":
         if "group" in action and "groups" not in action:
@@ -1302,7 +1307,7 @@ def cleanse_group_names(action):
             if isinstance(group, dict):
                 if "name" not in group:
                     group["name"] = "Unknown"
-                if not ContactGroup.is_valid_name(group["name"]):
+                if not is_valid_name(group["name"]):
                     group["name"] = "%s %s" % ("Contacts", group["name"])
     return action
 
@@ -1380,7 +1385,7 @@ def remove_extra_rules(json_flow, ruleset):
             if "base_language" in json_flow:
                 rule["category"][json_flow["base_language"]] = "All Responses"
             else:
-                rule["category"] = "All Responses"  # pragma: needs cover
+                rule["category"] = "All Responses"  # pragma: no cover
             rules.append(rule)
 
     ruleset["rules"] = rules
@@ -1390,7 +1395,7 @@ def insert_node(flow, node, _next):
     """Inserts a node right before _next"""
 
     def update_destination(node_to_update, uuid):
-        if node_to_update.get("actions", []):  # pragma: needs cover
+        if node_to_update.get("actions", []):  # pragma: no cover
             node_to_update["destination"] = uuid
         else:
             for rule in node_to_update.get("rules", []):
@@ -1405,7 +1410,7 @@ def insert_node(flow, node, _next):
     move_nodes_down(flow, node.get("y"))
 
     # we are an actionset
-    if node.get("actions", []):  # pragma: needs cover
+    if node.get("actions", []):  # pragma: no cover
         node.destination = _next["uuid"]
         flow["action_sets"].append(node)
 

@@ -701,18 +701,18 @@ class ContactGroupTest(TembaTest):
         self.mary = self.create_contact("Mary Mo", phone="345", fields={"age": "21", "gender": "female"})
 
     def test_create_manual(self):
-        group = ContactGroup.create_manual(self.org, self.admin, " group one ")
+        group = ContactGroup.create_manual(self.org, self.admin, "group one")
 
         self.assertEqual(group.org, self.org)
         self.assertEqual(group.name, "group one")
         self.assertEqual(group.created_by, self.admin)
         self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
-        # can't call update_query on a static group
-        self.assertRaises(ValueError, group.update_query, "gender=M")
+        # can't call update_query on a manual group
+        self.assertRaises(AssertionError, group.update_query, "gender=M")
 
-        # exception if group name is blank
-        self.assertRaises(ValueError, ContactGroup.create_manual, self.org, self.admin, "   ")
+        # assert failure if group name is blank
+        self.assertRaises(AssertionError, ContactGroup.create_manual, self.org, self.admin, "   ")
 
     @mock_mailroom
     def test_create_smart(self, mr_mocks):
@@ -764,16 +764,16 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.get_attrs(), {"icon": "atom"})
 
         # can't update query again while it is in this state
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AssertionError):
             group.update_query("age = 18")
 
     def test_get_or_create(self):
-        group = ContactGroup.get_or_create(self.org, self.user, " first ")
+        group = ContactGroup.get_or_create(self.org, self.user, "first")
         self.assertEqual(group.name, "first")
         self.assertFalse(group.is_smart)
 
         # name look up is case insensitive
-        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "  FIRST"), group)
+        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "FIRST"), group)
 
         # fetching by id shouldn't modify original group
         self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "Kigali", uuid=group.uuid), group)
@@ -815,17 +815,6 @@ class ContactGroupTest(TembaTest):
         self.create_group("X" * 64, contacts=[])
 
         self.assertEqual(f"{'X' * 62} 2", ContactGroup.get_unique_name(self.org, "X" * 64))
-
-    def test_is_valid_name(self):
-        self.assertTrue(ContactGroup.is_valid_name("x"))
-        self.assertTrue(ContactGroup.is_valid_name("1"))
-        self.assertTrue(ContactGroup.is_valid_name("x" * 64))
-        self.assertFalse(ContactGroup.is_valid_name(" "))
-        self.assertFalse(ContactGroup.is_valid_name(" x"))
-        self.assertFalse(ContactGroup.is_valid_name("x "))
-        self.assertFalse(ContactGroup.is_valid_name("+x"))
-        self.assertFalse(ContactGroup.is_valid_name("@x"))
-        self.assertFalse(ContactGroup.is_valid_name("x" * 65))
 
     @mock_mailroom
     def test_member_count(self, mr_mocks):
@@ -940,8 +929,13 @@ class ContactGroupTest(TembaTest):
 
     @mock_mailroom
     def test_release(self, mr_mocks):
-        group1 = self.create_group("Group One")
-        group2 = self.create_group("Group One")
+        contact1 = self.create_contact("Bob", phone="+1234567111")
+        contact2 = self.create_contact("Jim", phone="+1234567222")
+        contact3 = self.create_contact("Jim", phone="+1234567333")
+        group1 = self.create_group("Group One", contacts=[contact1, contact2])
+        group2 = self.create_group("Group One", contacts=[contact2, contact3])
+
+        t1 = timezone.now()
 
         # create a campaign based on group 1 - a hard dependency
         campaign = Campaign.create(self.org, self.admin, "Reminders", group1)
@@ -973,6 +967,17 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(0, EventFire.objects.count())  # event fires will have been deleted
         self.assertEqual({group2}, set(bcast1.groups.all()))  # removed from scheduled broadcast
         self.assertEqual({group1, group2}, set(bcast2.groups.all()))  # regular broadcast unchanged
+
+        self.assertEqual(set(), set(group1.contacts.all()))
+        self.assertEqual({contact2, contact3}, set(group2.contacts.all()))  # unchanged
+
+        # check that contacts who were in the group have had their modified_on times updated
+        contact1.refresh_from_db()
+        contact2.refresh_from_db()
+        contact3.refresh_from_db()
+        self.assertGreater(contact1.modified_on, t1)
+        self.assertGreater(contact2.modified_on, t1)
+        self.assertLess(contact3.modified_on, t1)  # unchanged
 
 
 class ElasticSearchLagTest(TembaTest):
@@ -1074,9 +1079,13 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(url, {"name": "  "})
         self.assertFormError(response, "form", "name", "This field is required.")
 
-        # try to create a contact group whose name begins with reserved character
-        response = self.client.post(url, {"name": "+People"})
-        self.assertFormError(response, "form", "name", "Must not be blank or begin with + or -.")
+        # try to create a contact group whose name contains a disallowed character
+        response = self.client.post(url, {"name": '"People"'})
+        self.assertFormError(response, "form", "name", 'Cannot contain the character: "')
+
+        # try to create a contact group whose name is too long
+        response = self.client.post(url, {"name": "X" * 65})
+        self.assertFormError(response, "form", "name", "Ensure this value has at most 64 characters (it has 65).")
 
         # try to create with name that's already taken
         response = self.client.post(url, {"name": "Customers"})
@@ -1165,9 +1174,9 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(url, dict(name="   "))
         self.assertFormError(response, "form", "name", "This field is required.")
 
-        # try to update name to start with reserved character
-        response = self.client.post(url, dict(name="+People"))
-        self.assertFormError(response, "form", "name", "Must not be blank or begin with + or -.")
+        # try to update name to contain a disallowed character
+        response = self.client.post(url, dict(name='"People"'))
+        self.assertFormError(response, "form", "name", 'Cannot contain the character: "')
 
         # update with valid name (that will be trimmed)
         response = self.client.post(url, dict(name="new name   "))
@@ -6044,7 +6053,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "new_group_name", "Required.")
 
         # try creating new group but providing an invalid name
-        response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "????"})
+        response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": '"Foo"'})
         self.assertFormError(response, "form", "new_group_name", "Invalid group name.")
 
         # try creating new group but providing a name of an existing group
