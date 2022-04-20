@@ -1,3 +1,8 @@
+v7.3.22
+----------
+ * Update contact modified_on when deleting a group they belong to
+ * Add custom name validator and use for groups and flows
+
 v7.3.21
 ----------
  * Fix rendering of field names on contact read page
