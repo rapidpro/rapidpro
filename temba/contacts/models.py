@@ -411,6 +411,7 @@ class ContactField(SmartModel, DependencyMixin):
         "language",
         "last_seen_on",
         "name",
+        "status",
         "urn",
         "uuid",
         # @contact.* properties in expressions
