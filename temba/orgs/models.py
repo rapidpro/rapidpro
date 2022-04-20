@@ -1719,7 +1719,7 @@ class Org(SmartModel):
         self.urns.all().delete()
 
         # delete our fields
-        for contactfield in self.contactfields.all():
+        for contactfield in self.fields.all():
             contactfield.release(user)
             contactfield.delete()
 

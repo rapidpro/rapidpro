@@ -3255,7 +3255,7 @@ class ContactTest(TembaTest):
             response, "form", None, "An error occurred updating your contact. Please try again later."
         )
 
-    def test_contact_read_with_contactfields(self):
+    def test_contact_read_with_fields(self):
         self.login(self.admin)
 
         response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
@@ -3542,9 +3542,9 @@ class ContactTest(TembaTest):
         self.assertEqual(joe.get_field_serialized(color_field), "green")
         self.assertEqual(joe.get_field_display(color_field), "green")
 
-        field_created_on = self.org.contactfields.get(key="created_on")
-        field_language = self.org.contactfields.get(key="language")
-        field_name = self.org.contactfields.get(key="name")
+        field_created_on = self.org.fields.get(key="created_on")
+        field_language = self.org.fields.get(key="language")
+        field_name = self.org.fields.get(key="name")
 
         self.assertEqual(joe.get_field_display(field_created_on), self.org.format_datetime(joe.created_on))
         self.assertEqual(joe.get_field_display(field_language), "eng")
@@ -4494,7 +4494,7 @@ class ContactFieldTest(TembaTest):
         )
 
     @mock_mailroom
-    def test_contact_field_list_sort_contactfields(self, mr_mocks):
+    def test_contact_field_list_sort_fields(self, mr_mocks):
         url = reverse("contacts.contact_list")
         self.login(self.admin)
 

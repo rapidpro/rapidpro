@@ -872,8 +872,8 @@ class CampaignTest(TembaTest):
 
     def test_eventfire_get_relative_to_value(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
-        created_on = self.org.contactfields.get(key="created_on")
-        last_seen_on = self.org.contactfields.get(key="last_seen_on")
+        created_on = self.org.fields.get(key="created_on")
+        last_seen_on = self.org.fields.get(key="last_seen_on")
 
         # create a reminder for our first planting event
         event = CampaignEvent.create_flow_event(
@@ -912,7 +912,7 @@ class CampaignTest(TembaTest):
 
     def test_import_created_on_event(self):
         campaign = Campaign.create(self.org, self.admin, "New contact reminders", self.farmers)
-        created_on = self.org.contactfields.get(key="created_on")
+        created_on = self.org.fields.get(key="created_on")
 
         CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, relative_to=created_on, offset=3, unit="D", flow=self.reminder_flow
@@ -1014,7 +1014,7 @@ class CampaignTest(TembaTest):
         self.assertFalse(Flow.objects.filter(is_archived=True))
 
     def test_model_as_export_def(self):
-        field_created_on = self.org.contactfields.get(key="created_on")
+        field_created_on = self.org.fields.get(key="created_on")
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         # create a reminder for our first planting event
@@ -1099,8 +1099,8 @@ class CampaignTest(TembaTest):
         )
 
     def test_campaign_create_flow_event(self):
-        field_created_on = self.org.contactfields.get(key="created_on")
-        field_language = self.org.contactfields.get(key="language")
+        field_created_on = self.org.fields.get(key="created_on")
+        field_language = self.org.fields.get(key="language")
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         new_org = Org.objects.create(
@@ -1162,8 +1162,8 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign_event.delivery_hour, -1)
 
     def test_campaign_create_message_event(self):
-        field_created_on = self.org.contactfields.get(key="created_on")
-        field_language = self.org.contactfields.get(key="language")
+        field_created_on = self.org.fields.get(key="created_on")
+        field_language = self.org.fields.get(key="language")
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         new_org = Org.objects.create(
