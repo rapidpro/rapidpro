@@ -440,10 +440,6 @@ class ContactField(SmartModel, DependencyMixin):
     all_fields = models.Manager()  # this is the default manager
     user_fields = UserContactFieldsManager()
 
-    # TODO drop
-    label = models.CharField(max_length=MAX_NAME_LEN, null=True)
-    field_type = models.CharField(max_length=1, null=True)
-
     soft_dependent_types = {"flow", "campaign_event"}
 
     @classmethod
