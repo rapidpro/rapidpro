@@ -37,7 +37,6 @@ from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
-    MigrationTest,
     TembaNonAtomicTest,
     TembaTest,
     matchers,
@@ -45,7 +44,7 @@ from temba.tests import (
 )
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
-from temba.tickets.models import Ticket, TicketCount, Ticketer, Topic
+from temba.tickets.models import Ticket, TicketCount, Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_str, datetime_to_timestamp
@@ -175,7 +174,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(response.context["search"], "age = 18")
         self.assertEqual(response.context["save_dynamic_search"], True)
         self.assertIsNone(response.context["search_error"])
-        self.assertEqual(list(response.context["contact_fields"].values_list("label", flat=True)), ["Home", "Age"])
+        self.assertEqual(list(response.context["contact_fields"].values_list("name", flat=True)), ["Home", "Age"])
 
         mr_mocks.contact_search("age = 18", contacts=[frank], total=10020, allow_as_group=True)
 
@@ -702,18 +701,18 @@ class ContactGroupTest(TembaTest):
         self.mary = self.create_contact("Mary Mo", phone="345", fields={"age": "21", "gender": "female"})
 
     def test_create_manual(self):
-        group = ContactGroup.create_manual(self.org, self.admin, " group one ")
+        group = ContactGroup.create_manual(self.org, self.admin, "group one")
 
         self.assertEqual(group.org, self.org)
         self.assertEqual(group.name, "group one")
         self.assertEqual(group.created_by, self.admin)
         self.assertEqual(group.status, ContactGroup.STATUS_READY)
 
-        # can't call update_query on a static group
-        self.assertRaises(ValueError, group.update_query, "gender=M")
+        # can't call update_query on a manual group
+        self.assertRaises(AssertionError, group.update_query, "gender=M")
 
-        # exception if group name is blank
-        self.assertRaises(ValueError, ContactGroup.create_manual, self.org, self.admin, "   ")
+        # assert failure if group name is blank
+        self.assertRaises(AssertionError, ContactGroup.create_manual, self.org, self.admin, "   ")
 
     @mock_mailroom
     def test_create_smart(self, mr_mocks):
@@ -765,16 +764,16 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.get_attrs(), {"icon": "atom"})
 
         # can't update query again while it is in this state
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AssertionError):
             group.update_query("age = 18")
 
     def test_get_or_create(self):
-        group = ContactGroup.get_or_create(self.org, self.user, " first ")
+        group = ContactGroup.get_or_create(self.org, self.user, "first")
         self.assertEqual(group.name, "first")
         self.assertFalse(group.is_smart)
 
         # name look up is case insensitive
-        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "  FIRST"), group)
+        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "FIRST"), group)
 
         # fetching by id shouldn't modify original group
         self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "Kigali", uuid=group.uuid), group)
@@ -799,16 +798,23 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(set(ContactGroup.get_groups(self.org, manual_only=True)), {manual})
         self.assertEqual(set(ContactGroup.get_groups(self.org, ready_only=True)), {open_tickets, manual, males})
 
-    def test_is_valid_name(self):
-        self.assertTrue(ContactGroup.is_valid_name("x"))
-        self.assertTrue(ContactGroup.is_valid_name("1"))
-        self.assertTrue(ContactGroup.is_valid_name("x" * 64))
-        self.assertFalse(ContactGroup.is_valid_name(" "))
-        self.assertFalse(ContactGroup.is_valid_name(" x"))
-        self.assertFalse(ContactGroup.is_valid_name("x "))
-        self.assertFalse(ContactGroup.is_valid_name("+x"))
-        self.assertFalse(ContactGroup.is_valid_name("@x"))
-        self.assertFalse(ContactGroup.is_valid_name("x" * 65))
+    def test_get_unique_name(self):
+        self.assertEqual("Testers", ContactGroup.get_unique_name(self.org, "Testers"))
+
+        # ensure checking against existing groups is case-insensitive
+        self.create_group("TESTERS", contacts=[])
+
+        self.assertEqual("Testers 2", ContactGroup.get_unique_name(self.org, "Testers"))
+        self.assertEqual("Testers", ContactGroup.get_unique_name(self.org2, "Testers"))  # different org
+
+        self.create_group("Testers 2", contacts=[])
+
+        self.assertEqual("Testers 3", ContactGroup.get_unique_name(self.org, "Testers"))
+
+        # ensure we don't exceed the name length limit
+        self.create_group("X" * 64, contacts=[])
+
+        self.assertEqual(f"{'X' * 62} 2", ContactGroup.get_unique_name(self.org, "X" * 64))
 
     @mock_mailroom
     def test_member_count(self, mr_mocks):
@@ -923,8 +929,13 @@ class ContactGroupTest(TembaTest):
 
     @mock_mailroom
     def test_release(self, mr_mocks):
-        group1 = self.create_group("Group One")
-        group2 = self.create_group("Group One")
+        contact1 = self.create_contact("Bob", phone="+1234567111")
+        contact2 = self.create_contact("Jim", phone="+1234567222")
+        contact3 = self.create_contact("Jim", phone="+1234567333")
+        group1 = self.create_group("Group One", contacts=[contact1, contact2])
+        group2 = self.create_group("Group One", contacts=[contact2, contact3])
+
+        t1 = timezone.now()
 
         # create a campaign based on group 1 - a hard dependency
         campaign = Campaign.create(self.org, self.admin, "Reminders", group1)
@@ -956,6 +967,17 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(0, EventFire.objects.count())  # event fires will have been deleted
         self.assertEqual({group2}, set(bcast1.groups.all()))  # removed from scheduled broadcast
         self.assertEqual({group1, group2}, set(bcast2.groups.all()))  # regular broadcast unchanged
+
+        self.assertEqual(set(), set(group1.contacts.all()))
+        self.assertEqual({contact2, contact3}, set(group2.contacts.all()))  # unchanged
+
+        # check that contacts who were in the group have had their modified_on times updated
+        contact1.refresh_from_db()
+        contact2.refresh_from_db()
+        contact3.refresh_from_db()
+        self.assertGreater(contact1.modified_on, t1)
+        self.assertGreater(contact2.modified_on, t1)
+        self.assertLess(contact3.modified_on, t1)  # unchanged
 
 
 class ElasticSearchLagTest(TembaTest):
@@ -1057,17 +1079,21 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(url, {"name": "  "})
         self.assertFormError(response, "form", "name", "This field is required.")
 
-        # try to create a contact group whose name begins with reserved character
-        response = self.client.post(url, {"name": "+People"})
-        self.assertFormError(response, "form", "name", "Group name must not be blank or begin with + or -")
+        # try to create a contact group whose name contains a disallowed character
+        response = self.client.post(url, {"name": '"People"'})
+        self.assertFormError(response, "form", "name", 'Cannot contain the character: "')
+
+        # try to create a contact group whose name is too long
+        response = self.client.post(url, {"name": "X" * 65})
+        self.assertFormError(response, "form", "name", "Ensure this value has at most 64 characters (it has 65).")
 
         # try to create with name that's already taken
         response = self.client.post(url, {"name": "Customers"})
-        self.assertFormError(response, "form", "name", "Name is used by another group")
+        self.assertFormError(response, "form", "name", "Already used by another group.")
 
         # try to create with name that's already taken by a system group
         response = self.client.post(url, {"name": "blocked"})
-        self.assertFormError(response, "form", "name", "Name is used by another group")
+        self.assertFormError(response, "form", "name", "Already used by another group.")
 
         # create with valid name (that will be trimmed)
         response = self.client.post(url, {"name": "first  "})
@@ -1122,13 +1148,13 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             reverse("contacts.contactgroup_create"), dict(name="First Group", group_query="firsts")
         )
-        self.assertFormError(response, "form", "name", "Name is used by another group")
+        self.assertFormError(response, "form", "name", "Already used by another group.")
 
         # try to create another group with same name, not dynamic, same thing
         response = self.client.post(
             reverse("contacts.contactgroup_create"), dict(name="First Group", group_query="firsts")
         )
-        self.assertFormError(response, "form", "name", "Name is used by another group")
+        self.assertFormError(response, "form", "name", "Already used by another group.")
 
     @mock_mailroom
     def test_update(self, mr_mocks):
@@ -1148,9 +1174,9 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(url, dict(name="   "))
         self.assertFormError(response, "form", "name", "This field is required.")
 
-        # try to update name to start with reserved character
-        response = self.client.post(url, dict(name="+People"))
-        self.assertFormError(response, "form", "name", "Group name must not be blank or begin with + or -")
+        # try to update name to contain a disallowed character
+        response = self.client.post(url, dict(name='"People"'))
+        self.assertFormError(response, "form", "name", 'Cannot contain the character: "')
 
         # update with valid name (that will be trimmed)
         response = self.client.post(url, dict(name="new name   "))
@@ -2967,9 +2993,7 @@ class ContactTest(TembaTest):
         # self.assertEqual(len(self.joe_and_frank.contacts.all()), 0)
 
         # add an extra field to the org
-        ContactField.get_or_create(
-            self.org, self.user, "state", label="Home state", value_type=ContactField.TYPE_STATE
-        )
+        ContactField.get_or_create(self.org, self.user, "state", name="Home state", value_type=ContactField.TYPE_STATE)
         self.set_contact_field(self.joe, "state", " kiGali   citY ")  # should match "Kigali City"
 
         # check that the field appears on the update form
@@ -2985,7 +3009,7 @@ class ContactTest(TembaTest):
         response = self.client.get(
             "%s?field=%s" % (reverse("contacts.contact_update_fields", args=[self.joe.id]), contact_field.id)
         )
-        self.assertEqual("Home state", response.context["contact_field"].label)
+        self.assertEqual("Home state", response.context["contact_field"].name)
 
         # grab our input field which is loaded async
         response = self.client.get(
@@ -3162,7 +3186,7 @@ class ContactTest(TembaTest):
 
         # bad field
         contact_field = ContactField.user_fields.create(
-            org=self.org, key="language", label="User Language", created_by=self.admin, modified_by=self.admin
+            org=self.org, key="language", name="User Language", created_by=self.admin, modified_by=self.admin
         )
 
         response = self.client.post(
@@ -3460,7 +3484,7 @@ class ContactTest(TembaTest):
     def test_date_field(self):
         # create a new date field
         birth_date = ContactField.get_or_create(
-            self.org, self.admin, "birth_date", label="Birth Date", value_type=ContactField.TYPE_TEXT
+            self.org, self.admin, "birth_date", name="Birth Date", value_type=ContactField.TYPE_TEXT
         )
 
         # set a field on our contact
@@ -3529,8 +3553,8 @@ class ContactTest(TembaTest):
         self.assertEqual(joe.get_field_display(field_name), "Joe Blow")
 
         # create a system field that is not supported
-        field_iban = ContactField.system_fields.create(
-            org_id=self.org.id, key="iban", label="IBAN", created_by_id=self.admin.id, modified_by_id=self.admin.id
+        field_iban = ContactField.all_fields.create(
+            org=self.org, key="iban", name="IBAN", is_system=True, created_by=self.admin, modified_by=self.admin
         )
 
         self.assertRaises(AssertionError, joe.get_field_serialized, field_iban)
@@ -3687,21 +3711,21 @@ class ContactFieldTest(TembaTest):
     def test_get_or_create(self):
         join_date = ContactField.get_or_create(self.org, self.admin, "join_date")
         self.assertEqual(join_date.key, "join_date")
-        self.assertEqual(join_date.label, "Join Date")
+        self.assertEqual(join_date.name, "Join Date")
         self.assertEqual(join_date.value_type, ContactField.TYPE_TEXT)
 
         another = ContactField.get_or_create(
             self.org, self.admin, "another", "My Label", value_type=ContactField.TYPE_NUMBER
         )
         self.assertEqual(another.key, "another")
-        self.assertEqual(another.label, "My Label")
+        self.assertEqual(another.name, "My Label")
         self.assertEqual(another.value_type, ContactField.TYPE_NUMBER)
 
         another = ContactField.get_or_create(
             self.org, self.admin, "another", "Updated Label", value_type=ContactField.TYPE_DATETIME
         )
         self.assertEqual(another.key, "another")
-        self.assertEqual(another.label, "Updated Label")
+        self.assertEqual(another.name, "Updated Label")
         self.assertEqual(another.value_type, ContactField.TYPE_DATETIME)
 
         another = ContactField.get_or_create(
@@ -3709,27 +3733,27 @@ class ContactFieldTest(TembaTest):
         )
         self.assertTrue(another.show_in_table)
 
-        for key in Contact.RESERVED_FIELD_KEYS:
+        for key in ContactField.RESERVED_KEYS:
             with self.assertRaises(ValueError):
                 ContactField.get_or_create(self.org, self.admin, key, key, value_type=ContactField.TYPE_TEXT)
 
         groups_field = ContactField.get_or_create(self.org, self.admin, "groups_field", "Groups Field")
         self.assertEqual(groups_field.key, "groups_field")
-        self.assertEqual(groups_field.label, "Groups Field")
+        self.assertEqual(groups_field.name, "Groups Field")
 
-        groups_field.label = "Groups"
+        groups_field.name = "Groups"
         groups_field.save()
 
         groups_field.refresh_from_db()
 
         self.assertEqual(groups_field.key, "groups_field")
-        self.assertEqual(groups_field.label, "Groups")
+        self.assertEqual(groups_field.name, "Groups")
 
-        # we should lookup the existing field by label
-        label_field = ContactField.get_or_create(self.org, self.admin, key=None, label="Groups")
+        # we should lookup the existing field by name
+        label_field = ContactField.get_or_create(self.org, self.admin, key=None, name="Groups")
 
         self.assertEqual(label_field.key, "groups_field")
-        self.assertEqual(label_field.label, "Groups")
+        self.assertEqual(label_field.name, "Groups")
         self.assertFalse(ContactField.user_fields.filter(key="groups"))
         self.assertEqual(label_field.pk, groups_field.pk)
 
@@ -3746,7 +3770,7 @@ class ContactFieldTest(TembaTest):
         # don't look up by label if we have a key
         created_field = ContactField.get_or_create(self.org, self.admin, "list", "Groups")
         self.assertEqual(created_field.key, "list")
-        self.assertEqual(created_field.label, "Groups 2")
+        self.assertEqual(created_field.name, "Groups 2")
 
         # this should be a different field
         self.assertFalse(created_field.pk == groups_field.pk)
@@ -3757,13 +3781,13 @@ class ContactFieldTest(TembaTest):
 
         field1 = ContactField.get_or_create(self.org, self.admin, "sport", "Games")
         self.assertEqual(field1.key, "sport")
-        self.assertEqual(field1.label, "Games")
+        self.assertEqual(field1.name, "Games")
 
         # should modify label to make it unique
         field2 = ContactField.get_or_create(self.org, self.admin, "play", "Games")
 
         self.assertEqual(field2.key, "play")
-        self.assertEqual(field2.label, "Games 2")
+        self.assertEqual(field2.name, "Games 2")
         self.assertNotEqual(field1.id, field2.id)
 
     def test_contact_templatetag(self):
@@ -3794,11 +3818,11 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_key("mailto"))
         self.assertFalse(ContactField.is_valid_key("a" * 37))  # too long
 
-    def test_is_valid_label(self):
-        self.assertTrue(ContactField.is_valid_label("Age"))
-        self.assertTrue(ContactField.is_valid_label("Age Now 2"))
-        self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
-        self.assertFalse(ContactField.is_valid_label("âge"))  # a-z only
+    def test_is_valid_name(self):
+        self.assertTrue(ContactField.is_valid_name("Age"))
+        self.assertTrue(ContactField.is_valid_name("Age Now 2"))
+        self.assertFalse(ContactField.is_valid_name("Age_Now"))  # can't have punctuation
+        self.assertFalse(ContactField.is_valid_name("âge"))  # a-z only
 
     @mock_mailroom
     def test_contact_export(self, mr_mocks):
@@ -4628,12 +4652,12 @@ class ContactFieldTest(TembaTest):
     def test_contactfield_priority(self):
         fields = ContactField.user_fields.filter(org=self.org).order_by("-priority", "id")
 
-        self.assertEqual(["Third", "First", "Second"], list(fields.values_list("label", flat=True)))
+        self.assertEqual(["Third", "First", "Second"], list(fields.values_list("name", flat=True)))
 
         # change field priority
         ContactField.get_or_create(org=self.org, user=self.user, key="first", priority=25)
 
-        self.assertEqual(["First", "Third", "Second"], list(fields.values_list("label", flat=True)))
+        self.assertEqual(["First", "Third", "Second"], list(fields.values_list("name", flat=True)))
 
 
 class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -4660,43 +4684,43 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         create_url = reverse("contacts.contactfield_create")
 
         self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=["label", "value_type", "show_in_table"]
+            create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "value_type", "show_in_table"]
         )
 
         # try to submit with empty name
         self.assertCreateSubmit(
             create_url,
-            {"label": "", "value_type": "T", "show_in_table": True},
-            form_errors={"label": "This field is required."},
+            {"name": "", "value_type": "T", "show_in_table": True},
+            form_errors={"name": "This field is required."},
         )
 
         # try to submit with invalid name
         self.assertCreateSubmit(
             create_url,
-            {"label": "???", "value_type": "T", "show_in_table": True},
-            form_errors={"label": "Can only contain letters, numbers and hypens."},
+            {"name": "???", "value_type": "T", "show_in_table": True},
+            form_errors={"name": "Can only contain letters, numbers and hypens."},
         )
 
         # try to submit with something that would be an invalid key
         self.assertCreateSubmit(
             create_url,
-            {"label": "UUID", "value_type": "T", "show_in_table": True},
-            form_errors={"label": "Can't be a reserved word."},
+            {"name": "UUID", "value_type": "T", "show_in_table": True},
+            form_errors={"name": "Can't be a reserved word."},
         )
 
         # try to submit with name of existing field
         self.assertCreateSubmit(
             create_url,
-            {"label": "AGE", "value_type": "N", "show_in_table": True},
-            form_errors={"label": "Must be unique."},
+            {"name": "AGE", "value_type": "N", "show_in_table": True},
+            form_errors={"name": "Must be unique."},
         )
 
         # submit with valid data
         self.assertCreateSubmit(
             create_url,
-            {"label": "Goats", "value_type": "N", "show_in_table": True},
+            {"name": "Goats", "value_type": "N", "show_in_table": True},
             new_obj_query=ContactField.user_fields.filter(
-                org=self.org, label="Goats", value_type="N", show_in_table=True
+                org=self.org, name="Goats", value_type="N", show_in_table=True
             ),
             success_status=200,
         )
@@ -4706,9 +4730,9 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertCreateSubmit(
             create_url,
-            {"label": "Age", "value_type": "N", "show_in_table": True},
+            {"name": "Age", "value_type": "N", "show_in_table": True},
             new_obj_query=ContactField.user_fields.filter(
-                org=self.org, label="Age", value_type="N", show_in_table=True, is_active=True
+                org=self.org, name="Age", value_type="N", show_in_table=True, is_active=True
             ),
             success_status=200,
         )
@@ -4717,7 +4741,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         with override_settings(ORG_LIMIT_DEFAULTS={"fields": 2}):
             self.assertCreateSubmit(
                 create_url,
-                {"label": "Sheep", "value_type": "T", "show_in_table": True},
+                {"name": "Sheep", "value_type": "T", "show_in_table": True},
                 form_errors={"__all__": "Cannot create a new field as limit is 2."},
             )
 
@@ -4728,56 +4752,56 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={"label": "Age", "value_type": "N", "show_in_table": True},
+            form_fields={"name": "Age", "value_type": "N", "show_in_table": True},
         )
 
         # try submit without change
         self.assertUpdateSubmit(
-            update_url, {"label": "Age", "value_type": "N", "show_in_table": True}, success_status=200
+            update_url, {"name": "Age", "value_type": "N", "show_in_table": True}, success_status=200
         )
 
         # try to submit with empty name
         self.assertUpdateSubmit(
             update_url,
-            {"label": "", "value_type": "N", "show_in_table": True},
-            form_errors={"label": "This field is required."},
+            {"name": "", "value_type": "N", "show_in_table": True},
+            form_errors={"name": "This field is required."},
             object_unchanged=self.age,
         )
 
         # try to submit with invalid name
         self.assertUpdateSubmit(
             update_url,
-            {"label": "???", "value_type": "N", "show_in_table": True},
-            form_errors={"label": "Can only contain letters, numbers and hypens."},
+            {"name": "???", "value_type": "N", "show_in_table": True},
+            form_errors={"name": "Can only contain letters, numbers and hypens."},
             object_unchanged=self.age,
         )
 
         # try to submit with a name that is used by another field
         self.assertUpdateSubmit(
             update_url,
-            {"label": "GENDER", "value_type": "N", "show_in_table": True},
-            form_errors={"label": "Must be unique."},
+            {"name": "GENDER", "value_type": "N", "show_in_table": True},
+            form_errors={"name": "Must be unique."},
             object_unchanged=self.age,
         )
 
         # submit with different name and type
         self.assertUpdateSubmit(
-            update_url, {"label": "Age In Years", "value_type": "T", "show_in_table": False}, success_status=200
+            update_url, {"name": "Age In Years", "value_type": "T", "show_in_table": False}, success_status=200
         )
 
         self.age.refresh_from_db()
-        self.assertEqual("Age In Years", self.age.label)
+        self.assertEqual("Age In Years", self.age.name)
         self.assertEqual("T", self.age.value_type)
         self.assertFalse(self.age.show_in_table)
 
         # simulate an org which has reached the limit for fields - should still be able to update a field
         with override_settings(ORG_LIMIT_DEFAULTS={"fields": 2}):
             self.assertUpdateSubmit(
-                update_url, {"label": "Age 2", "value_type": "T", "show_in_table": True}, success_status=200
+                update_url, {"name": "Age 2", "value_type": "T", "show_in_table": True}, success_status=200
             )
 
         self.age.refresh_from_db()
-        self.assertEqual("Age 2", self.age.label)
+        self.assertEqual("Age 2", self.age.name)
 
     def test_list(self):
         list_url = reverse("contacts.contactfield_list")
@@ -5081,6 +5105,10 @@ class ESIntegrationTest(TembaNonAtomicTest):
         ContactField.get_or_create(self.org, self.admin, "isureporter", "Is UReporter", value_type="T")
         ContactField.get_or_create(self.org, self.admin, "hasbirth", "Has Birth", value_type="T")
 
+        doctors = self.create_group("Doctors", contacts=[])
+        farmers = self.create_group("Farmers", contacts=[])
+        registration = self.create_flow("Registration")
+
         names = ["Trey", "Mike", "Paige", "Fish", "", None]
         districts = ["Gatsibo", "Kayônza", "Rwamagana", None]
         wards = ["Kageyo", "Kabara", "Bukure", None]
@@ -5116,11 +5144,14 @@ class ESIntegrationTest(TembaNonAtomicTest):
             if twitter:
                 urns.append(f"twitter:{twitter}")
 
-            self.create_contact(name, urns=urns, fields=fields)
-
-        def q(query):
-            results = search_contacts(self.org, query, group=self.org.active_contacts_group)
-            return results.total
+            c = self.create_contact(name, urns=urns, fields=fields)
+            if i % 3 == 0:
+                farmers.contacts.add(c)
+            if i % 7 == 0:
+                doctors.contacts.add(c)
+            if i % 10 == 0:
+                c.current_flow = registration
+                c.save(update_fields=("current_flow",))
 
         db_config = connection.settings_dict
         database_url = (
@@ -5136,7 +5167,11 @@ class ESIntegrationTest(TembaNonAtomicTest):
         )
         self.assertEqual(result.returncode, 0, "Command failed: %s\n\n%s" % (result.stdout, result.stderr))
 
-        # give ES some time to publish the results
+        def q(query):
+            results = search_contacts(self.org, query, group=self.org.active_contacts_group)
+            return results.total
+
+        # give mailroom some time to flush its cache and ES to publish the results
         time.sleep(5)
 
         self.assertEqual(q("trey"), 15)
@@ -5197,6 +5232,12 @@ class ESIntegrationTest(TembaNonAtomicTest):
         self.assertEqual(q('hasbirth = "no"'), 90)
         self.assertEqual(q("hasbirth = no"), 90)
         self.assertEqual(q("hasbirth = yes"), 0)
+
+        self.assertEqual(q('group = "farmers"'), 30)
+        self.assertEqual(q('group = "DOCTORS"'), 13)
+
+        self.assertEqual(q('flow = "registration"'), 9)
+        self.assertEqual(q('flow != ""'), 9)
 
         # boolean combinations
         self.assertEqual(q("name is trey or name is mike"), 30)
@@ -5927,7 +5968,7 @@ class ContactImportTest(TembaTest):
         self.create_group("Testers", contacts=[])
         tests = [
             ("simple.csv", "Simple"),
-            ("testers.csv", "Testers 1"),  # group called Testers already exists
+            ("testers.csv", "Testers 2"),  # group called Testers already exists
             ("contact-imports.csv", "Contact Imports"),
             ("abc_@@é.csv", "Abc É"),
             ("a_@@é.csv", "Import"),  # would be too short
@@ -6014,7 +6055,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "new_group_name", "Required.")
 
         # try creating new group but providing an invalid name
-        response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "????"})
+        response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": '"Foo"'})
         self.assertFormError(response, "form", "new_group_name", "Invalid group name.")
 
         # try creating new group but providing a name of an existing group
@@ -6200,60 +6241,3 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
-
-
-class OpenTicketsGroupMigrationTest(MigrationTest):
-    app = "contacts"
-    migrate_from = "0158_alter_contactgroup_managers_and_more"
-    migrate_to = "0159_open_tickets_sys_groups"
-
-    def setUpBeforeMigration(self, apps):
-        # create old org that won't have the group
-        self.old_org = Org.objects.create(
-            name="Old Org",
-            is_active=True,
-            created_on=timezone.now(),
-            created_by=self.admin,
-            modified_on=timezone.now(),
-            modified_by=self.admin,
-        )
-
-        # but does have a contact with an open ticket
-        ticketer = Ticketer.create(self.old_org, self.admin, "internal", "Tickets!", {})
-        topic = Topic.get_or_create(self.old_org, self.admin, "Sales")
-        self.contact1 = self.create_contact("Bob", urns=["twitter:bobby"])
-        self.contact2 = self.create_contact("Jim", urns=["twitter:jimmy"])
-        Ticket.objects.create(
-            org=self.old_org,
-            ticketer=ticketer,
-            contact=self.contact1,
-            topic=topic,
-            body="Where are my cookies?",
-            status="O",
-        )
-        Ticket.objects.create(
-            org=self.old_org,
-            ticketer=ticketer,
-            contact=self.contact2,
-            topic=topic,
-            body="Where are my cookies?",
-            status="C",
-        )
-
-        # create new org that already has it
-        self.new_org = Org.objects.create(
-            name="New Org",
-            is_active=True,
-            created_on=timezone.now(),
-            created_by=self.admin,
-            modified_on=timezone.now(),
-            modified_by=self.admin,
-        )
-        self.new_org.initialize()
-
-    def test_migration(self):
-        # old org now has group and it's correctly populated
-        old_org_open_tickets = self.old_org.groups.get(name="Open Tickets", group_type="Q", is_system=True)
-        self.assertEqual({self.contact1}, set(old_org_open_tickets.contacts.all()))
-
-        self.assertTrue(self.new_org.groups.filter(name="Open Tickets", group_type="Q", is_system=True).exists())

@@ -25,25 +25,13 @@ class Campaign(TembaModel):
         return cls.objects.create(org=org, name=name, group=group, created_by=user, modified_by=user)
 
     @classmethod
-    def get_unique_name(cls, org, base_name, ignore=None):
+    def get_unique_name(cls, org, base_name: str, ignore=None) -> str:
         """
-        Generates a unique campaign name based on the given base name
+        Generates a unique name based on the given base name
         """
-        name = base_name[:255].strip()
-
-        count = 2
-        while True:
-            campaigns = Campaign.objects.filter(name=name, org=org, is_active=True)
-            if ignore:  # pragma: needs cover
-                campaigns = campaigns.exclude(pk=ignore.pk)
-
-            if not campaigns.exists():
-                break
-
-            name = "%s %d" % (base_name[:255].strip(), count)
-            count += 1
-
-        return name
+        exclude_kwargs = {"id": ignore.id} if ignore else {}
+        qs = org.campaigns.filter(is_active=True).exclude(**exclude_kwargs)
+        return TembaModel.get_unique_name(qs, base_name, cls.MAX_NAME_LEN)
 
     def recreate_events(self):
         """
@@ -106,11 +94,11 @@ class Campaign(TembaModel):
             for event_spec in campaign_def["events"]:
                 field_key = event_spec["relative_to"]["key"]
 
-                if field_key == "created_on":
-                    relative_to = ContactField.system_fields.filter(org=org, key=field_key).first()
+                if field_key in ("created_on", "last_seen_on"):
+                    relative_to = org.contactfields.filter(key=field_key, is_system=True).first()
                 else:
                     relative_to = ContactField.get_or_create(
-                        org, user, key=field_key, label=event_spec["relative_to"]["label"], value_type="D"
+                        org, user, key=field_key, name=event_spec["relative_to"]["label"], value_type="D"
                     )
 
                 start_mode = event_spec.get("start_mode", CampaignEvent.MODE_INTERRUPT)
@@ -205,7 +193,7 @@ class Campaign(TembaModel):
                 event_type=event.event_type,
                 delivery_hour=event.delivery_hour,
                 message=event.message,
-                relative_to=dict(label=event.relative_to.label, key=event.relative_to.key),  # TODO should be key/name
+                relative_to=dict(label=event.relative_to.name, key=event.relative_to.key),  # TODO should be key/name
                 start_mode=event.start_mode,
             )
 

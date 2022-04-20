@@ -27,6 +27,7 @@ from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import extract_constants, json, on_transaction_commit
+from temba.utils.fields import validate_name
 
 from . import fields
 from .validators import UniqueForOrgValidator
@@ -675,8 +676,12 @@ class ContactFieldReadSerializer(ReadSerializer):
         ContactField.TYPE_WARD: "ward",
     }
 
+    label = serializers.SerializerMethodField()
     value_type = serializers.SerializerMethodField()
     pinned = serializers.SerializerMethodField()
+
+    def get_label(self, obj):
+        return obj.name
 
     def get_value_type(self, obj):
         return self.VALUE_TYPES[obj.value_type]
@@ -694,13 +699,17 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
     label = serializers.CharField(
         required=True,
-        max_length=ContactField.MAX_LABEL_LEN,
-        validators=[UniqueForOrgValidator(ContactField.user_fields.filter(is_active=True), ignore_case=True)],
+        max_length=ContactField.MAX_NAME_LEN,
+        validators=[
+            UniqueForOrgValidator(
+                ContactField.user_fields.filter(is_active=True), ignore_case=True, model_field="name"
+            )
+        ],
     )
     value_type = serializers.ChoiceField(required=True, choices=list(VALUE_TYPES.keys()))
 
     def validate_label(self, value):
-        if not ContactField.is_valid_label(value):
+        if not ContactField.is_valid_name(value):
             raise serializers.ValidationError("Can only contain letters, numbers and hypens.")
 
         key = ContactField.make_key(value)
@@ -727,15 +736,15 @@ class ContactFieldWriteSerializer(WriteSerializer):
         return data
 
     def save(self):
-        label = self.validated_data.get("label")
+        name = self.validated_data.get("label")
         value_type = self.validated_data.get("value_type")
 
         if self.instance:
             key = self.instance.key
         else:
-            key = ContactField.make_key(label)
+            key = ContactField.make_key(name)
 
-        return ContactField.get_or_create(self.context["org"], self.context["user"], key, label, value_type=value_type)
+        return ContactField.get_or_create(self.context["org"], self.context["user"], key, name, value_type=value_type)
 
 
 class ContactGroupReadSerializer(ReadSerializer):
@@ -765,13 +774,11 @@ class ContactGroupWriteSerializer(WriteSerializer):
     name = serializers.CharField(
         required=True,
         max_length=ContactGroup.MAX_NAME_LEN,
-        validators=[UniqueForOrgValidator(queryset=ContactGroup.objects.filter(is_active=True), ignore_case=True)],
+        validators=[
+            validate_name,
+            UniqueForOrgValidator(queryset=ContactGroup.objects.filter(is_active=True), ignore_case=True),
+        ],
     )
-
-    def validate_name(self, value):
-        if not ContactGroup.is_valid_name(value):
-            raise serializers.ValidationError("Name contains illegal characters.")
-        return value
 
     def validate(self, data):
         org = self.context["org"]

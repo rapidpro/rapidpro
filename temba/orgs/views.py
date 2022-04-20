@@ -298,7 +298,7 @@ class IntegrationFormaxView(IntegrationViewMixin, ComponentFormMixin, SmartFormV
 
 
 class DependencyModalMixin(OrgObjPermsMixin):
-    dependent_order = {"campaign_event": ("relative_to__label",), "trigger": ("trigger_type", "created_on")}
+    dependent_order = {"campaign_event": ("relative_to__name",), "trigger": ("trigger_type", "created_on")}
     dependent_select_related = {"campaign_event": ("campaign", "relative_to")}
 
     def get_dependents(self, obj) -> dict:

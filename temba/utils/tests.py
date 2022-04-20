@@ -35,7 +35,7 @@ from .celery import nonoverlapping_task
 from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
-from .fields import validate_external_url
+from .fields import is_valid_name, validate_external_url, validate_name
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
@@ -1408,33 +1408,60 @@ class RedactTest(TestCase):
 
 
 class TestValidators(TestCase):
-    def test_validate_external_url(self):
+    def test_validate_name(self):
         cases = (
-            dict(url="ftp://google.com", error="Must use HTTP or HTTPS."),
-            dict(url="http://localhost/foo", error="Cannot be a local or private host."),
-            dict(url="http://localhost:80/foo", error="Cannot be a local or private host."),
-            dict(url="http://127.0.00.1/foo", error="Cannot be a local or private host."),  # loop back
-            dict(url="http://192.168.0.0/foo", error="Cannot be a local or private host."),  # private
-            dict(url="http://255.255.255.255", error="Cannot be a local or private host."),  # multicast
-            dict(url="http://169.254.169.254/latest", error="Cannot be a local or private host."),  # link local
-            dict(url="http://::1:80/foo", error="Unable to resolve host."),  # no ipv6 addresses for now
-            dict(url="http://google.com/foo", error=None),
-            dict(url="http://google.com:8000/foo", error=None),
-            dict(url="HTTP://google.com:8000/foo", error=None),
-            dict(url="HTTP://8.8.8.8/foo", error=None),
+            (" ", "Cannot begin or end with whitespace."),
+            (" hello", "Cannot begin or end with whitespace."),
+            ("hello\t", "Cannot begin or end with whitespace."),
+            ('hello "', 'Cannot contain the character: "'),
+            ("hello \\", "Cannot contain the character: \\"),
+            ("hello \0 world", "Cannot contain null characters."),
+            ("x" * 65, "Cannot be longer than 64 characters."),
+            ("hello world", None),
+            ("x" * 64, None),
         )
 
         for tc in cases:
-            if tc["error"]:
+            if tc[1]:
                 with self.assertRaises(ValidationError) as cm:
-                    validate_external_url(tc["url"])
+                    validate_name(tc[0])
 
-                self.assertEqual(tc["error"], cm.exception.message)
+                self.assertEqual(tc[1], cm.exception.messages[0])
+                self.assertFalse(is_valid_name(tc[0]))
             else:
                 try:
-                    validate_external_url(tc["url"])
+                    validate_name(tc[0])
                 except Exception:
-                    self.fail(f"unexpected validation error for URL '{tc['url']}'")
+                    self.fail(f"unexpected validation error for '{tc[0]}'")
+                self.assertTrue(is_valid_name(tc[0]))
+
+    def test_validate_external_url(self):
+        cases = (
+            ("ftp://google.com", "Must use HTTP or HTTPS."),
+            ("http://localhost/foo", "Cannot be a local or private host."),
+            ("http://localhost:80/foo", "Cannot be a local or private host."),
+            ("http://127.0.00.1/foo", "Cannot be a local or private host."),  # loop back
+            ("http://192.168.0.0/foo", "Cannot be a local or private host."),  # private
+            ("http://255.255.255.255", "Cannot be a local or private host."),  # multicast
+            ("http://169.254.169.254/latest", "Cannot be a local or private host."),  # link local
+            ("http://::1:80/foo", "Unable to resolve host."),  # no ipv6 addresses for now
+            ("http://google.com/foo", None),
+            ("http://google.com:8000/foo", None),
+            ("HTTP://google.com:8000/foo", None),
+            ("HTTP://8.8.8.8/foo", None),
+        )
+
+        for tc in cases:
+            if tc[1]:
+                with self.assertRaises(ValidationError) as cm:
+                    validate_external_url(tc[0])
+
+                self.assertEqual(tc[1], cm.exception.message)
+            else:
+                try:
+                    validate_external_url(tc[0])
+                except Exception:
+                    self.fail(f"unexpected validation error for '{tc[0]}'")
 
 
 class TestUUIDs(TembaTest):

@@ -429,13 +429,12 @@ class CampaignEventForm(forms.ModelForm):
         org = self.user.get_org()
 
         relative_to = self.fields["relative_to"]
-        relative_to.queryset = ContactField.all_fields.filter(
-            org=org, is_active=True, value_type=ContactField.TYPE_DATETIME
-        ).order_by("label")
+        relative_to.queryset = org.contactfields.filter(
+            is_active=True, value_type=ContactField.TYPE_DATETIME
+        ).order_by("name")
 
         flow = self.fields["flow_to_start"]
-        flow.queryset = Flow.objects.filter(
-            org=self.user.get_org(),
+        flow.queryset = org.flows.filter(
             flow_type__in=[Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND],
             is_active=True,
             is_archived=False,

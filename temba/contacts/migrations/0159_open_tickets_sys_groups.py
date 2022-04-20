@@ -3,7 +3,7 @@
 from django.db import migrations, transaction
 
 
-def create_open_tickets_groups(apps, schema_editor):
+def create_open_tickets_groups(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
     for org in Org.objects.filter(is_active=True):
         if not org.groups.filter(name="Open Tickets", is_system=True).exists():
@@ -24,7 +24,7 @@ def create_open_tickets_groups(apps, schema_editor):
         org.groups.filter(group_type__in=("A", "B", "S", "V")).update(status="R")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

@@ -2581,8 +2581,8 @@ class APITest(TembaTest):
         self.assertResponseError(response, "value_type", '"video" is not a valid choice.')
 
         # try again with a label that would generate an invalid key
-        response = self.postJSON(url, None, {"label": "Created By", "value_type": "user"})
-        self.assertResponseError(response, "label", 'Generated key "created_by" is invalid or a reserved name.')
+        response = self.postJSON(url, None, {"label": "UUID", "value_type": "text"})
+        self.assertResponseError(response, "label", 'Generated key "uuid" is invalid or a reserved name.')
 
         # try again with a label that's already taken
         response = self.postJSON(url, None, {"label": "nick name", "value_type": "text"})
@@ -2592,14 +2592,14 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"label": "Age", "value_type": "numeric"})
         self.assertEqual(response.status_code, 201)
 
-        age = ContactField.user_fields.get(org=self.org, label="Age", value_type="N", is_active=True)
+        age = ContactField.user_fields.get(org=self.org, name="Age", value_type="N", is_active=True)
 
         # update a field by its key
         response = self.postJSON(url, "key=age", {"label": "Real Age", "value_type": "datetime"})
         self.assertEqual(response.status_code, 200)
 
         age.refresh_from_db()
-        self.assertEqual(age.label, "Real Age")
+        self.assertEqual(age.name, "Real Age")
         self.assertEqual(age.value_type, "D")
 
         # try to update with key of deleted field
@@ -3040,8 +3040,8 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         # try to create a group with invalid name
-        response = self.postJSON(url, None, {"name": "!!!#$%^"})
-        self.assertResponseError(response, "name", "Name contains illegal characters.")
+        response = self.postJSON(url, None, {"name": '"People"'})
+        self.assertResponseError(response, "name", 'Cannot contain the character: "')
 
         # try to create a group with name that's too long
         response = self.postJSON(url, None, {"name": "x" * 65})
@@ -3515,7 +3515,7 @@ class APITest(TembaTest):
                 self.assertEqual(starts_with, location[0 : len(starts_with)])
                 self.assertEqual(".%s" % ext, location[-4:])
 
-        assert_media_upload("%s/test_media/steve.marten.jpg" % settings.MEDIA_ROOT, "jpg")
+        assert_media_upload("%s/test_media/steve marten.jpg" % settings.MEDIA_ROOT, "jpg")
         assert_media_upload("%s/test_media/snow.mp4" % settings.MEDIA_ROOT, "mp4")
 
         # missing file

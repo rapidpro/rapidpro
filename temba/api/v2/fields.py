@@ -231,7 +231,7 @@ class ContactFieldField(TembaModelField):
     lookup_fields = ("key",)
 
     def to_representation(self, obj):
-        return {"key": obj.key, "label": obj.label}
+        return {"key": obj.key, "label": obj.name}
 
     def get_queryset(self):
         manager = getattr(self.model, "all_fields")

@@ -44,7 +44,7 @@ class Mocks:
     @staticmethod
     def _parse_query_response(query: str, elastic: dict, fields: list, allow_as_group: bool):
         def field_ref(f):
-            return {"key": f.key, "name": f.label} if isinstance(f, ContactField) else {"key": f}
+            return {"key": f.key, "name": f.name} if isinstance(f, ContactField) else {"key": f}
 
         return {
             "query": query,
@@ -76,7 +76,7 @@ class Mocks:
                 "metadata": {
                     "attributes": [],
                     "schemes": [],
-                    "fields": [{"key": f.key, "name": f.label} for f in fields],
+                    "fields": [{"key": f.key, "name": f.name} for f in fields],
                     "groups": [],
                     "allow_as_group": allow_as_group,
                 },
@@ -329,7 +329,7 @@ def apply_modifiers(org, user, contacts, modifiers: list):
 
         if mod.type == "field":
             for c in contacts:
-                update_field_locally(user, c, mod.field.key, mod.value, label=mod.field.name)
+                update_field_locally(user, c, mod.field.key, mod.value, name=mod.field.name)
 
         elif mod.type == "status":
             if mod.status == "blocked":
@@ -396,9 +396,9 @@ def update_fields_locally(user, contact, fields):
         update_field_locally(user, contact, key, val)
 
 
-def update_field_locally(user, contact, key, value, label=None):
+def update_field_locally(user, contact, key, value, name=None):
     org = contact.org
-    field = ContactField.get_or_create(contact.org, user, key, label=label)
+    field = ContactField.get_or_create(contact.org, user, key, name=name)
 
     field_uuid = str(field.uuid)
     if contact.fields is None:

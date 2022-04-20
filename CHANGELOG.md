@@ -1,3 +1,50 @@
+v7.3.23
+----------
+ * Add status to list of reserved field keys
+ * Migration to drop ContactField.label and field_type
+
+v7.3.22
+----------
+ * Update contact modified_on when deleting a group they belong to
+ * Add custom name validator and use for groups and flows
+
+v7.3.21
+----------
+ * Fix rendering of field names on contact read page
+ * Stop writing ContactField.label and field_type
+
+v7.3.20
+----------
+ * Stop reading ContactField.label and field_type
+
+v7.3.19
+----------
+ * Correct set new ContactField fields in mailroom_db test_db commands
+ * Update version of codecov action as well as versions of rp-indexer and mailroom used by tests
+ * Data migration to populate name and is_system on ContactField
+
+v7.3.18
+----------
+ * Give contact fields a name and is_system db field
+ * Update list of reserved keys for contact fields
+
+v7.3.17
+----------
+ * Fix uploading attachments to properly get uploaded URL
+
+v7.3.16
+----------
+ * Fix generating of unique flow, group and campaign names to respect case-insensitivity and max name length
+ * Add data migration to prefix names of previously deleted flows
+ * Prefix flow names with a UUID when deleted so they don't conflict with other flow names
+ * Remove warning about feature on flow start modal being removed
+
+v7.3.15
+----------
+ * Check name uniqueness on flow creation and updating
+ * Cleanup existing field validation on flow and group forms
+ * Do not fail to release a channel when we cannot reach the Facebook API for FB channels
+
 v7.3.14
 ----------
  * Convert flows to be a soft dependency

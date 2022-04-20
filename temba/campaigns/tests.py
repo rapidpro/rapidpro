@@ -135,22 +135,23 @@ class CampaignTest(TembaTest):
         assert_display(2, "W", "2 weeks after")
 
     def test_get_unique_name(self):
-        campaign1 = Campaign.create(
-            self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers
-        )
-        self.assertEqual(campaign1.name, "Reminders")
+        self.assertEqual("Reminders", Campaign.get_unique_name(self.org, "Reminders"))
 
-        campaign2 = Campaign.create(
-            self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers
-        )
-        self.assertEqual(campaign2.name, "Reminders 2")
+        # ensure checking against existing campaigns is case-insensitive
+        reminders = Campaign.create(self.org, self.admin, "REMINDERS", self.farmers)
 
-        campaign3 = Campaign.create(
-            self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers
-        )
-        self.assertEqual(campaign3.name, "Reminders 3")
+        self.assertEqual("Reminders 2", Campaign.get_unique_name(self.org, "Reminders"))
+        self.assertEqual("Reminders", Campaign.get_unique_name(self.org, "Reminders", ignore=reminders))
+        self.assertEqual("Reminders", Campaign.get_unique_name(self.org2, "Reminders"))  # different org
 
-        self.assertEqual(Campaign.get_unique_name(self.org2, "Reminders"), "Reminders")  # different org
+        Campaign.create(self.org, self.admin, "Reminders 2", self.farmers)
+
+        self.assertEqual("Reminders 3", Campaign.get_unique_name(self.org, "Reminders"))
+
+        # ensure we don't exceed the name length limit
+        Campaign.create(self.org, self.admin, "X" * 255, self.farmers)
+
+        self.assertEqual(f"{'X' * 253} 2", Campaign.get_unique_name(self.org, "X" * 255))
 
     def test_get_sorted_events(self):
         # create a campaign
@@ -911,7 +912,7 @@ class CampaignTest(TembaTest):
 
     def test_import_created_on_event(self):
         campaign = Campaign.create(self.org, self.admin, "New contact reminders", self.farmers)
-        created_on = ContactField.system_fields.get(org=self.org, key="created_on")
+        created_on = self.org.contactfields.get(key="created_on")
 
         CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, relative_to=created_on, offset=3, unit="D", flow=self.reminder_flow

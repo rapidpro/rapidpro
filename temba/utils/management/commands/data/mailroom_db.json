@@ -148,37 +148,37 @@
         {
           "uuid": "3a5891e4-756e-4dc9-8e12-b7a766168824",
           "key": "gender",
-          "label": "Gender",
+          "name": "Gender",
           "value_type": "T"
         },
         {
           "uuid": "903f51da-2717-47c7-a0d3-f2f32877013d",
           "key": "age",
-          "label": "Age",
+          "name": "Age",
           "value_type": "N"
         },
         {
           "uuid": "d83aae24-4bbf-49d0-ab85-6bfd201eac6d",
           "key": "joined",
-          "label": "Joined",
+          "name": "Joined",
           "value_type": "D"
         },
         {
           "uuid": "de6878c1-b174-4947-9a65-8910ebe7d10f",
           "key": "ward",
-          "label": "Ward",
+          "name": "Ward",
           "value_type": "W"
         },
         {
           "uuid": "3ca3e36b-3d5a-42a4-b292-482282ce9a90",
           "key": "district",
-          "label": "District",
+          "name": "District",
           "value_type": "I"
         },
         {
           "uuid": "1dddea55-9a3b-449f-9d43-57772614ff50",
           "key": "state",
-          "label": "State",
+          "name": "State",
           "value_type": "S"
         }
       ],

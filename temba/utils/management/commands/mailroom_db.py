@@ -264,10 +264,11 @@ class Command(BaseCommand):
         self._log(f"Creating {len(spec['fields'])} fields... ")
 
         for f in spec["fields"]:
-            field = ContactField.user_fields.create(
+            field = ContactField.all_fields.create(
                 org=org,
                 key=f["key"],
-                label=f["label"],
+                name=f["name"],
+                is_system=False,
                 value_type=f["value_type"],
                 show_in_table=True,
                 created_by=user,
