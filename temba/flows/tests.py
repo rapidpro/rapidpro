@@ -2616,7 +2616,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # create flow start with a query
-        mr_mocks.parse_query("frank", cleaned='name ~ "frank"', fields=[])
+        mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
 
         self.assertUpdateSubmit(
             broadcast_url,
@@ -2654,7 +2654,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         query = f"uuid='{contact.uuid}'"
-        mr_mocks.parse_query(query, cleaned=query, fields=[])
+        mr_mocks.parse_query(query, cleaned=query)
 
         # create flow start with exclude_in_other and exclude_reruns both left unchecked
         self.assertUpdateSubmit(
@@ -2737,7 +2737,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "Exclude contacts currently in a flow")
 
         # create flow start with a query
-        mr_mocks.parse_query("frank", cleaned='name ~ "frank"', fields=[])
+        mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
 
         self.assertUpdateSubmit(broadcast_url, {"query": "frank", "exclude_reruns": False})
 

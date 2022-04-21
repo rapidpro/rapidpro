@@ -92,7 +92,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         joe = self.create_contact("Joe", phone="123", fields={"age": "20", "home": "Kigali"})
         frank = self.create_contact("Frank", phone="124", fields={"age": "18"})
 
-        mr_mocks.contact_search('name != ""', contacts=[], allow_as_group=True)
+        mr_mocks.contact_search('name != ""', contacts=[])
         smart = self.create_group("No Name", query='name = ""')
 
         with self.assertNumQueries(56):
@@ -167,7 +167,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")
         self.assertEqual(response.context["base_template"], "spa.html")
 
-        mr_mocks.contact_search("age = 18", contacts=[frank], allow_as_group=True)
+        mr_mocks.contact_search("age = 18", contacts=[frank])
 
         response = self.client.get(list_url + "?search=age+%3D+18")
         self.assertEqual(list(response.context["object_list"]), [frank])
@@ -176,7 +176,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertIsNone(response.context["search_error"])
         self.assertEqual(list(response.context["contact_fields"].values_list("name", flat=True)), ["Home", "Age"])
 
-        mr_mocks.contact_search("age = 18", contacts=[frank], total=10020, allow_as_group=True)
+        mr_mocks.contact_search("age = 18", contacts=[frank], total=10020)
 
         # we return up to 10000 contacts when searching with ES, so last page is 200
         url = f'{reverse("contacts.contact_list")}?{"search=age+%3D+18&page=200"}'
@@ -207,7 +207,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertIsNone(response.context["search_error"])
 
         with AnonymousOrg(self.org):
-            mr_mocks.contact_search(f"{joe.id}", cleaned=f"id = {joe.id}", contacts=[joe], allow_as_group=False)
+            mr_mocks.contact_search(f"{joe.id}", cleaned=f"id = {joe.id}", contacts=[joe])
 
             response = self.client.get(list_url + f"?search={joe.id}")
             self.assertEqual(list(response.context["object_list"]), [joe])
@@ -419,7 +419,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         frank = self.create_contact("Frank", phone="124")
         self.create_contact("Bob", phone="125")
 
-        mr_mocks.contact_search("age > 40", contacts=[frank], total=1, allow_as_group=True)
+        mr_mocks.contact_search("age > 40", contacts=[frank], total=1)
 
         group1 = self.create_group("Testers", contacts=[joe, frank])  # static group
         group2 = self.create_group("Oldies", query="age > 40")  # smart group
@@ -721,7 +721,6 @@ class ContactGroupTest(TembaTest):
 
         # create a dynamic group using a query
         query = '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
-        mr_mocks.parse_query(query, fields=[age, gender])
 
         group = ContactGroup.create_smart(self.org, self.admin, "Group two", query)
         group.refresh_from_db()
@@ -731,7 +730,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.status, ContactGroup.STATUS_INITIALIZING)
 
         # update group query
-        mr_mocks.parse_query("age > 18 and name ~ Mary", cleaned='age > 18 AND name ~ "Mary"', fields=[age])
+        mr_mocks.parse_query("age > 18 and name ~ Mary", cleaned='age > 18 AND name ~ "Mary"')
         group.update_query("age > 18 and name ~ Mary")
         group.refresh_from_db()
 
@@ -748,7 +747,6 @@ class ContactGroupTest(TembaTest):
         self.assertRaises(AssertionError, ContactGroup.create_smart, self.org, self.admin, "Empty", "")
 
         # can't create a dynamic group with id attribute
-        mr_mocks.parse_query("id = 123", allow_as_group=False)
         self.assertRaises(ValueError, ContactGroup.create_smart, self.org, self.admin, "Bose", "id = 123")
 
         # dynamic group should not have remove to group button
@@ -1046,9 +1044,6 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         # let's delete it and make sure it's gone
         self.client.post(list_url, {"action": "delete", "objects": group.id})
         self.assertFalse(ContactGroup.objects.get(id=group.id).is_active)
-
-        query = "name ~ Joe"
-        mr_mocks.parse_query(query, fields=[])
 
         smart_group = ContactGroup.create_smart(self.org, self.admin, "Smart Group", "name ~ Joe")
 
@@ -4186,7 +4181,7 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(43):
+                    with self.assertNumQueries(44):
                         self.assertExcelSheet(
                             request_export("?s=name+has+adam+or+name+has+deng")[0],
                             [
@@ -4828,8 +4823,6 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         field = ContactField.user_fields.filter(is_active=True, org=self.org, key="favorite_cat").get()
         field.value_type = ContactField.TYPE_DATETIME
         field.save(update_fields=("value_type",))
-
-        mr_mocks.parse_query('favorite_cat != ""', fields=[field])
 
         group = self.create_group("Farmers", query='favorite_cat != ""')
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", group)

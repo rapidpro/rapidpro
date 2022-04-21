@@ -32,13 +32,13 @@ event_units = {
 }
 
 
-def mock_inspect_query(org, query: str) -> dict:
+def mock_inspect_query(org, query: str, fields=None) -> dict:
     def field_ref(f):
         return {"key": f.key, "name": f.name} if isinstance(f, ContactField) else {"key": f}
 
     tokens = [t.lower() for t in re.split(r"\W+", query) if t]
     attributes = list(sorted({"id", "uuid", "flow", "group", "created_on"}.intersection(tokens)))
-    fields = org.fields.filter(is_system=False, key__in=tokens)
+    fields = fields if fields is not None else org.fields.filter(is_system=False, key__in=tokens)
     schemes = list(sorted(URN.VALID_SCHEMES.intersection(tokens)))
 
     return {
@@ -60,45 +60,25 @@ class Mocks:
 
         self.queued_batch_tasks = []
 
-    @staticmethod
-    def _parse_query_response(query: str, elastic: dict, fields: list, allow_as_group: bool):
-        def field_ref(f):
-            return {"key": f.key, "name": f.name} if isinstance(f, ContactField) else {"key": f}
-
-        return {
-            "query": query,
-            "elastic_query": elastic,
-            "metadata": {
-                "attributes": [],
-                "schemes": [],
-                "fields": [field_ref(f) for f in fields],
-                "groups": [],
-                "allow_as_group": allow_as_group,
-            },
-        }
-
-    def parse_query(self, query, *, cleaned=None, fields=(), allow_as_group=True, elastic_query=None):
-        def mock():
-            elastic = elastic_query or {"term": {"is_active": True}}
-            return self._parse_query_response(cleaned or query, elastic, fields, allow_as_group)
+    def parse_query(self, query, *, cleaned=None, elastic_query=None, fields=None):
+        def mock(org):
+            return {
+                "query": cleaned or query,
+                "elastic_query": elastic_query or {"term": {"is_active": True}},
+                "metadata": mock_inspect_query(org, cleaned or query, fields),
+            }
 
         self._parse_query[query] = mock
 
-    def contact_search(self, query, *, cleaned=None, contacts=(), total=0, fields=(), allow_as_group=True):
-        def mock(offset, sort):
+    def contact_search(self, query, *, cleaned=None, contacts=(), total=0, fields=()):
+        def mock(org, offset, sort):
             return {
                 "query": cleaned or query,
                 "contact_ids": [c.id for c in contacts],
                 "total": total or len(contacts),
                 "offset": offset,
                 "sort": sort,
-                "metadata": {
-                    "attributes": [],
-                    "schemes": [],
-                    "fields": [{"key": f.key, "name": f.name} for f in fields],
-                    "groups": [],
-                    "allow_as_group": allow_as_group,
-                },
+                "metadata": mock_inspect_query(org, cleaned or query, fields),
             }
 
         self._contact_search[query] = mock
@@ -195,17 +175,18 @@ class TestClient(MailroomClient):
 
     @_client_method
     def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = ""):
+        org = Org.objects.get(id=org_id)
+
         # if there's a mock for this query we use that
         mock = self.mocks._parse_query.get(query)
         if mock:
-            return mock()
+            return mock(org)
 
-        # otherwise just approximate what mailroom would do
-        tokens = [t.lower() for t in re.split(r"\W+", query) if t]
-        fields = ContactField.objects.filter(org_id=org_id, key__in=tokens)
-        allow_as_group = "id" not in tokens and "group" not in tokens
-
-        return Mocks._parse_query_response(query, {"term": {"is_active": True}}, fields, allow_as_group)
+        return {
+            "query": query,
+            "elastic_query": {"term": {"is_active": True}},
+            "metadata": mock_inspect_query(org, query),
+        }
 
     @_client_method
     def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()):
@@ -213,7 +194,8 @@ class TestClient(MailroomClient):
 
         assert mock, f"missing contact_search mock for query '{query}'"
 
-        return mock(offset, sort)
+        org = Org.objects.get(id=org_id)
+        return mock(org, offset, sort)
 
     @_client_method
     def flow_preview_start(
