@@ -172,7 +172,7 @@ class TestClient(MailroomClient):
 
         # otherwise just approximate what mailroom would do
         tokens = [t.lower() for t in re.split(r"\W+", query) if t]
-        fields = ContactField.all_fields.filter(org_id=org_id, key__in=tokens)
+        fields = ContactField.objects.filter(org_id=org_id, key__in=tokens)
         allow_as_group = "id" not in tokens and "group" not in tokens
 
         return Mocks._parse_query_response(query, {"term": {"is_active": True}}, fields, allow_as_group)

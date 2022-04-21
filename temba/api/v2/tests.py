@@ -262,7 +262,7 @@ class APITest(TembaTest):
             representations={group: {"uuid": str(group.uuid), "name": "Customers"}},
         )
 
-        field_created_on = self.org.contactfields.get(key="created_on")
+        field_created_on = self.org.fields.get(key="created_on")
 
         assert_field(
             fields.ContactFieldField(source="test"),
@@ -1107,7 +1107,7 @@ class APITest(TembaTest):
         registration = ContactField.get_or_create(
             self.org, self.admin, "registration", "Registration", value_type=ContactField.TYPE_DATETIME
         )
-        field_created_on = self.org.contactfields.get(key="created_on")
+        field_created_on = self.org.fields.get(key="created_on")
 
         # create our contact and set a registration date
         contact = self.create_contact(

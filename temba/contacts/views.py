@@ -1423,7 +1423,7 @@ class ContactCRUDL(SmartCRUDL):
             def __init__(self, user, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 org = user.get_org()
-                self.fields["contact_field"].queryset = org.contactfields(manager="user_fields").filter(is_active=True)
+                self.fields["contact_field"].queryset = org.fields.filter(is_system=False, is_active=True)
 
         form_class = Form
         success_url = "uuid@contacts.contact_read"
@@ -1440,7 +1440,7 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.org
             field_id = self.request.GET.get("field", 0)
             if field_id:
-                context["contact_field"] = org.contactfields(manager="user_fields").get(id=field_id)
+                context["contact_field"] = org.fields.get(is_system=False, id=field_id)
             return context
 
         def save(self, obj):
@@ -2098,7 +2098,7 @@ class ContactImportCRUDL(SmartCRUDL):
                 return data
 
             def clean(self):
-                org_fields = self.org.contactfields(manager="user_fields").filter(is_active=True)
+                org_fields = self.org.fields.filter(is_system=False, is_active=True)
                 existing_field_keys = {f.key for f in org_fields}
                 used_field_keys = set()
                 form_values = self.get_form_values()
