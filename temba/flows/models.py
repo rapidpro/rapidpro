@@ -978,9 +978,10 @@ class Flow(TembaModel, DependencyMixin):
     ) -> tuple:
         """
         Generates a preview of the given start as a tuple of
-            1) contact query of all recipients
+            1) query of all recipients
             2) total contact count
-            3) sample of the contacts
+            3) sample of the contacts (max 3)
+            4) query metadata
         """
         preview = search.preview_start(
             self.org,

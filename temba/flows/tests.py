@@ -2596,6 +2596,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                         "last_seen_on": None,
                     },
                 ],
+                "fields": [{"key": "age", "name": "Age"}],
             },
             response.json(),
         )

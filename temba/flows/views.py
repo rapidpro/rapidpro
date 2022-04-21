@@ -1797,7 +1797,14 @@ class FlowCRUDL(SmartCRUDL):
                     }
                 )
 
-            return JsonResponse({"query": query, "total": total, "sample": contacts})
+            return JsonResponse(
+                {
+                    "query": query,
+                    "total": total,
+                    "sample": contacts,
+                    "fields": [{"key": f.key, "name": f.name} for f in query_fields],
+                }
+            )
 
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
