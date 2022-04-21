@@ -655,7 +655,7 @@ class ContactCRUDL(SmartCRUDL):
                     self.create_menu_item(
                         menu_id=g.uuid,
                         name=g.name,
-                        icon="loader" if g.status != ContactGroup.STATUS_READY else "atom" if g.query else "",
+                        icon=g.icon,
                         count=group_counts[g],
                         href=reverse("contacts.contact_filter", args=[g.uuid]),
                     )
