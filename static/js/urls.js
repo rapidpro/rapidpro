@@ -10,7 +10,6 @@ window.urls = [
   { old: /\/flow\/filter\/(.*)\//,                       new: /\/flows\/labels\/(.*)\// },
   { old: /\/flow\//,                                     new: /\/flows\/active\// },
   { old: /\/flow\/(.*)\//,                               new: /\/flows\/(.*)\// },
-  { old: /\/ticket\/(.*)/,                               new: /\/tickets\/(.*)\// },
   { old: /\/trigger\//,                                  new: /\/triggers\/active\// },
   { old: /\/trigger\/(.*)\//,                            new: /\/trigger\/(.*)\// },
   { old: /\/campaignevent\/read\/(.*)\/(.*)/,            new: /\/campaigns\/(.*)\/(.*)/ },

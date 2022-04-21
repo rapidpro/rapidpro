@@ -30,13 +30,17 @@
       --widget-box-shadow: rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
       --widget-box-shadow-focused: 0 0 0 3px rgba(164, 202, 254, .45), rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
 
-      --button-y: 0.39em;
+      --button-y: 0.2em;
       --button-x: 1.5em;
       
       --temba-select-selected-font-size: 1em;
       --temba-select-selected-padding: .6em .8em;
       --temba-select-selected-line-height: 1.2em;
 
+    }
+
+    temba-modax, temba-dialog {
+      --button-y: 0.5em;
     }
 
     temba-button {
@@ -450,15 +454,17 @@
     document.addEventListener("DOMContentLoaded", function() {
       var selection = window.location.pathname.split("/").filter(function(path){ return !!path});
       var menu = document.querySelector("temba-menu");
-      menu.setSelection(selection);
+      if (menu) {
+        menu.setSelection(selection);
 
-      menu.addEventListener("temba-button-clicked", function(event) {
-        showModax(event.detail.title, event.detail.href, event.detail.on_submit);
-      });
-  
-      window.addEventListener('resize', function() {
-        // menu.collapsed = !!window.matchMedia("(max-width: 800px)").matches
-      });
+        menu.addEventListener("temba-button-clicked", function(event) {
+          showModax(event.detail.title, event.detail.href, event.detail.on_submit);
+        });
+    
+        window.addEventListener('resize', function() {
+          // menu.collapsed = !!window.matchMedia("(max-width: 800px)").matches
+        });
+      }
     });
 
 
@@ -737,7 +743,7 @@
     .flex.widget-container(style="height:100vh;")
       .folders       
         %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)")
-      .flex-grow.text-lg.spa-container.flex.flex-col
+      .flex-grow.spa-container.flex.flex-col
         .spa-loader.hide.absolute
           .wrapper(style="display:flex;z-index:100000;margin-top:2px;")
             %temba-loading(size=20 units=6)
