@@ -16,7 +16,7 @@ from django.utils import timezone
 from temba.campaigns.models import CampaignEvent, EventFire
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.locations.models import AdminBoundary
-from temba.mailroom.client import ContactSpec, Exclusions, MailroomClient, MailroomException
+from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
 from temba.tests.dates import parse_datetime
@@ -30,6 +30,24 @@ event_units = {
     CampaignEvent.UNIT_DAYS: "days",
     CampaignEvent.UNIT_WEEKS: "weeks",
 }
+
+
+def mock_inspect_query(org, query: str) -> dict:
+    def field_ref(f):
+        return {"key": f.key, "name": f.name} if isinstance(f, ContactField) else {"key": f}
+
+    tokens = [t.lower() for t in re.split(r"\W+", query) if t]
+    attributes = list(sorted({"id", "uuid", "flow", "group", "created_on"}.intersection(tokens)))
+    fields = org.fields.filter(is_system=False, key__in=tokens)
+    schemes = list(sorted(URN.VALID_SCHEMES.intersection(tokens)))
+
+    return {
+        "attributes": attributes,
+        "fields": [field_ref(f) for f in fields],
+        "groups": [],
+        "schemes": schemes,
+        "allow_as_group": not {"id", "flow", "group", "history", "status"}.intersection(tokens),
+    }
 
 
 class Mocks:
@@ -85,8 +103,16 @@ class Mocks:
 
         self._contact_search[query] = mock
 
-    def flow_preview_start(self, query: str, count: int, sample: list):
-        self._flow_preview_start.append({"query": query, "count": count, "sample": sample})
+    def flow_preview_start(self, query, total, sample):
+        def mock(org):
+            return {
+                "query": query,
+                "total": total,
+                "sample_ids": [c.id for c in sample],
+                "metadata": mock_inspect_query(org, query),
+            }
+
+        self._flow_preview_start.append(mock)
 
     def error(self, msg: str, code: str = None, extra: dict = None):
         """
@@ -194,16 +220,19 @@ class TestClient(MailroomClient):
         self,
         org_id: int,
         flow_id: int,
-        group_ids: list,
-        contact_ids: list,
+        group_uuids: list,
+        contact_uuids: list,
         urns: list,
         query: str,
-        exclusions: Exclusions,
+        exclusions: dict,
         sample_size: int,
     ):
         assert self.mocks._flow_preview_start, "missing flow_preview_start mock"
 
-        return self.mocks._flow_preview_start.pop(0)
+        mock = self.mocks._flow_preview_start.pop(0)
+        org = Org.objects.get(id=org_id)
+
+        return mock(org)
 
     @_client_method
     def ticket_assign(self, org_id, user_id, ticket_ids, assignee_id, note):

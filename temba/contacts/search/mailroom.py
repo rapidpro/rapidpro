@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 
 from django.utils.encoding import force_str
 from django.utils.translation import gettext_lazy as _
@@ -16,6 +16,7 @@ class SearchException(Exception):
         "invalid_number": _("Unable to convert '%(value)s' to a number"),
         "invalid_date": _("Unable to convert '%(value)s' to a date"),
         "invalid_language": _("'%(value)s' is not a valid language code"),
+        "invalid_flow": _("'%(value)s' is not a valid flow name"),
         "invalid_group": _("'%(value)s' is not a valid group name"),
         "invalid_partial_name": _("Using ~ with name requires token of at least %(min_token_length)s characters"),
         "invalid_partial_urn": _("Using ~ with URN requires value of at least %(min_value_length)s characters"),
@@ -91,6 +92,44 @@ def search_contacts(
         )
         return SearchResults(
             response["total"], response["query"], response["contact_ids"], Metadata(**response.get("metadata", {}))
+        )
+
+    except mailroom.MailroomException as e:
+        raise SearchException.from_mailroom_exception(e)
+
+
+@dataclass
+class Exclusions:
+    non_active: bool = False  # contacts who are blocked, stopped or archived
+    in_a_flow: bool = False  # contacts who are currently in a flow (including this one)
+    started_previously: bool = False  # contacts who have been in this flow in the last 90 days
+    not_seen_recently: bool = False  # contacts who have not been seen for more than 90 days
+
+
+@dataclass(frozen=True)
+class StartPreview:
+    query: str
+    total: int
+    sample_ids: list
+    metadata: Metadata
+
+
+def preview_start(
+    org, flow, group_uuids: list, contact_uuids: list, urns: list, query: str, exclusions: Exclusions, sample_size: int
+) -> StartPreview:
+    try:
+        response = mailroom.get_client().flow_preview_start(
+            org.id,
+            flow.id,
+            group_uuids=group_uuids,
+            contact_uuids=contact_uuids,
+            urns=urns,
+            query=query,
+            exclusions=asdict(exclusions),
+            sample_size=sample_size,
+        )
+        return StartPreview(
+            response["query"], response["total"], response["sample_ids"], Metadata(**response.get("metadata", {}))
         )
 
     except mailroom.MailroomException as e:

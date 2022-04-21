@@ -11,7 +11,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun, FlowStart
 from temba.ivr.models import IVRCall
-from temba.mailroom.client import ContactSpec, Exclusions, MailroomException, get_client
+from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
@@ -102,11 +102,11 @@ class MailroomClientTest(TembaTest):
             preview = get_client().flow_preview_start(
                 self.org.id,
                 flow_id=12,
-                group_ids=[23],
-                contact_ids=[],
+                group_uuids=["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
+                contact_uuids=["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
                 urns=[],
                 query="",
-                exclusions=Exclusions(non_active=True),
+                exclusions={"non_active": True},
                 sample_size=3,
             )
 
@@ -120,16 +120,11 @@ class MailroomClientTest(TembaTest):
             {
                 "org_id": self.org.id,
                 "flow_id": 12,
-                "group_ids": [23],
-                "contact_ids": [],
+                "group_uuids": ["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
+                "contact_uuids": ["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
                 "urns": [],
                 "query": "",
-                "exclusions": {
-                    "non_active": True,
-                    "in_a_flow": False,
-                    "started_previously": False,
-                    "not_seen_recently": False,
-                },
+                "exclusions": {"non_active": True},
                 "sample_size": 3,
             },
             json.loads(call[1]["data"]),

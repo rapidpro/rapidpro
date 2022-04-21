@@ -21,9 +21,10 @@ from temba.api.models import Resthook
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.classifiers.models import Classifier
+from temba.contacts import search
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.mailroom import Exclusions, FlowValidationException
+from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
@@ -1560,20 +1561,24 @@ class FlowTest(TembaTest):
     @mock_mailroom
     def test_preview_start(self, mr_mocks):
         flow = self.create_flow()
-        contact1 = self.create_contact("Bob", phone="+1234567111")
-        contact2 = self.create_contact("Jim", phone="+1234567222")
+        contact1 = self.create_contact("Ann", phone="+1234567111")
+        contact2 = self.create_contact("Bob", phone="+1234567222")
         doctors = self.create_group("Doctors", contacts=[contact1, contact2])
 
         mr_mocks.flow_preview_start(
-            query='group = "Doctors" AND status = "active"', count=123, sample=[contact1.id, contact2.id]
+            query='group = "Doctors" AND status = "active"', total=100, sample=[contact1, contact2]
         )
 
-        query, count, sample = flow.preview_start(
-            groups=[doctors], contacts=[], urns=[], query="", exclusions=Exclusions(non_active=True)
+        query, total, sample, metadata = flow.preview_start(
+            group_uuids=[str(doctors.uuid)],
+            contact_uuids=[],
+            urns=[],
+            query="",
+            exclusions=search.Exclusions(non_active=True),
         )
 
         self.assertEqual('group = "Doctors" AND status = "active"', query)
-        self.assertEqual(123, count)
+        self.assertEqual(100, total)
         self.assertEqual([contact1, contact2], list(sample))
 
     def test_flow_delete_of_inactive_flow(self):
@@ -2545,6 +2550,55 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("flows.flow_activity", args=[flow.uuid]))
 
         self.assertEqual(404, response.status_code)
+
+    @mock_mailroom
+    def test_preview_start(self, mr_mocks):
+        flow = self.create_flow()
+        self.create_field("age", "Age")
+        contact1 = self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
+        contact2 = self.create_contact("Bob", phone="+16303333333", fields={"age": 33})
+
+        mr_mocks.flow_preview_start(
+            query='age > 30 AND status = "active" AND history != "Test Flow"', total=100, sample=[contact1, contact2]
+        )
+
+        preview_url = reverse("flows.flow_preview_start", args=[flow.id])
+
+        self.login(self.editor)
+        response = self.client.post(
+            preview_url,
+            {
+                "query": "age > 30",
+                "exclusions": {"non_active": True, "started_previously": True},
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(
+            {
+                "query": 'age > 30 AND status = "active" AND history != "Test Flow"',
+                "total": 100,
+                "sample": [
+                    {
+                        "uuid": contact1.uuid,
+                        "name": "Ann",
+                        "primary_urn": "+1 630-222-2222",
+                        "fields": {"age": "40"},
+                        "created_on": contact1.created_on.isoformat(),
+                        "last_seen_on": None,
+                    },
+                    {
+                        "uuid": contact2.uuid,
+                        "name": "Bob",
+                        "primary_urn": "+1 630-333-3333",
+                        "fields": {"age": "33"},
+                        "created_on": contact2.created_on.isoformat(),
+                        "last_seen_on": None,
+                    },
+                ],
+            },
+            response.json(),
+        )
 
     @mock_mailroom
     def test_broadcast(self, mr_mocks):

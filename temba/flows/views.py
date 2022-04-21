@@ -36,7 +36,7 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import URN, ContactField, ContactGroup
-from temba.contacts.search import SearchException, parse_query
+from temba.contacts.search import Exclusions, SearchException, parse_query
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task, update_session_wait_expires
 from temba.ivr.models import IVRCall
@@ -197,6 +197,7 @@ class FlowCRUDL(SmartCRUDL):
         "results",
         "run_table",
         "category_counts",
+        "preview_start",
         "broadcast",
         "activity",
         "activity_chart",
@@ -1756,6 +1757,47 @@ class FlowCRUDL(SmartCRUDL):
                     return JsonResponse(client.sim_resume(payload))
                 except mailroom.MailroomException:
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
+
+    class PreviewStart(OrgObjPermsMixin, SmartReadView):
+        permission = "flows.flow_broadcast"
+
+        def post(self, request, *args, **kwargs):
+            payload = json.loads(request.body)
+            group_uuids = payload.get("group_uuids", [])
+            contact_uuids = payload.get("contact_uuids", [])
+            urns = payload.get("urns", [])
+            user_query = payload.get("query")
+            exclusions = Exclusions(**payload.get("exclusions", {}))
+
+            flow = self.get_object()
+            org = flow.org
+            query, total, sample, metadata = flow.preview_start(
+                group_uuids=group_uuids,
+                contact_uuids=contact_uuids,
+                urns=urns,
+                query=user_query,
+                exclusions=exclusions,
+            )
+
+            query_fields = org.fields.filter(key__in=[f["key"] for f in metadata.fields])
+
+            # render sample contacts in a simplified form, including only fields from query
+            contacts = []
+            for contact in sample:
+                primary_urn = contact.get_urn()
+                primary_urn = primary_urn.get_display(org, international=True) if primary_urn else None
+                contacts.append(
+                    {
+                        "uuid": contact.uuid,
+                        "name": contact.name,
+                        "primary_urn": primary_urn,
+                        "fields": {f.key: contact.get_field_display(f) for f in query_fields},
+                        "created_on": contact.created_on.isoformat(),
+                        "last_seen_on": contact.last_seen_on.isoformat() if contact.last_seen_on else None,
+                    }
+                )
+
+            return JsonResponse({"query": query, "total": total, "sample": contacts})
 
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
