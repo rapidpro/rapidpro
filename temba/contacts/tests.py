@@ -4662,9 +4662,9 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
-        self.age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type="N", show_in_table=True)
-        self.gender = ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type="T")
-        self.state = ContactField.get_or_create(self.org, self.admin, "state", "State", value_type="S")
+        self.age = ContactField.create(self.org, self.admin, "Age", value_type="N", featured=True)
+        self.gender = ContactField.create(self.org, self.admin, "Gender")
+        self.state = ContactField.create(self.org, self.admin, "State", value_type="S")
 
         self.deleted = ContactField.get_or_create(self.org, self.admin, "foo", "Foo")
         self.deleted.is_active = False
@@ -4800,6 +4800,40 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.age.refresh_from_db()
         self.assertEqual("Age 2", self.age.name)
+
+        # create a date field used in a campaign event
+        registered = self.create_field("registered", "Registered", value_type="D")
+        campaign = Campaign.create(self.org, self.admin, "Reminders", self.create_group("Farmers"))
+        CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, registered, offset=1, unit="W", flow=self.create_flow()
+        )
+
+        update_url = reverse("contacts.contactfield_update", args=[registered.id])
+
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={"name": "Registered", "value_type": "D", "show_in_table": False},
+        )
+
+        # try to submit with different type
+        self.assertUpdateSubmit(
+            update_url,
+            {"name": "Registered", "value_type": "T", "show_in_table": False},
+            form_errors={"value_type": "Can't change type of date field being used by campaign events."},
+            object_unchanged=registered,
+        )
+
+        # submit with only a different name
+        self.assertUpdateSubmit(
+            update_url, {"name": "Registered On", "value_type": "D", "show_in_table": False}, success_status=200
+        )
+
+        registered.refresh_from_db()
+        self.assertEqual("Registered On", registered.name)
+        self.assertEqual("D", registered.value_type)
+        self.assertFalse(registered.show_in_table)
 
     def test_list(self):
         list_url = reverse("contacts.contactfield_list")

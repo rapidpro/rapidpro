@@ -458,7 +458,30 @@ class ContactField(SmartModel, DependencyMixin):
             )
 
     @classmethod
-    def make_key(cls, name):
+    def create(cls, org, user, name: str, value_type: str = TYPE_TEXT, featured: bool = False):
+        """
+        Creates a new non-system field based on the given name
+        """
+        assert cls.is_valid_name(name), f"{name} is not a valid field name"
+
+        key = cls.make_key(name)
+
+        assert cls.is_valid_key(key), f"{key} is not a valid field key"
+        assert not org.fields.filter(is_active=True, key=key).exists()  # TODO replace with db constraint
+
+        return cls.objects.create(
+            org=org,
+            key=key,
+            name=name,
+            value_type=value_type,
+            is_system=False,
+            show_in_table=featured,
+            created_by=user,
+            modified_by=user,
+        )
+
+    @classmethod
+    def make_key(cls, name: str) -> str:
         """
         Generates a key from a name. There is no guarantee that the key is valid so should be checked with is_valid_key
         """
@@ -466,7 +489,7 @@ class ContactField(SmartModel, DependencyMixin):
         return regex.sub(r"([^a-z0-9]+)", "_", key.strip(), regex.V0)
 
     @classmethod
-    def is_valid_key(cls, key):
+    def is_valid_key(cls, key: str) -> bool:
         if not regex.match(r"^[a-z][a-z0-9_]*$", key, regex.V0):
             return False
         if key in cls.RESERVED_KEYS or len(key) > cls.MAX_KEY_LEN:
@@ -474,9 +497,8 @@ class ContactField(SmartModel, DependencyMixin):
         return True
 
     @classmethod
-    def is_valid_name(cls, name):
-        name = name.strip()
-        return regex.match(r"^[A-Za-z0-9\- ]+$", name, regex.V0) and len(name) <= cls.MAX_NAME_LEN
+    def is_valid_name(cls, name: str) -> bool:
+        return name == name.strip() and regex.match(r"^[A-Za-z0-9\- ]+$", name) and len(name) <= cls.MAX_NAME_LEN
 
     @classmethod
     def get_or_create(cls, org, user, key, name=None, show_in_table=None, value_type=None, priority=None):

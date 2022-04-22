@@ -2542,8 +2542,14 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         self.create_field("nick_name", "Nick Name")
-        self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
+        registered = self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
         self.create_field("not_ours", "Something Else", org=self.org2)
+
+        # add our date field to a campaign event
+        campaign = Campaign.create(self.org, self.admin, "Reminders", self.create_group("Farmers"))
+        CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, registered, offset=1, unit="W", flow=self.create_flow()
+        )
 
         deleted = self.create_field("deleted", "Deleted")
         deleted.release(self.admin)
@@ -2610,10 +2616,17 @@ class APITest(TembaTest):
         response = self.postJSON(url, "key=not_ours", {"label": "Something", "value_type": "text"})
         self.assert404(response)
 
-        ContactField.user_fields.all().delete()
+        # try to change type of date field used by campaign event
+        response = self.postJSON(url, "key=registered", {"label": "Registered", "value_type": "text"})
+        self.assertResponseError(
+            response, "value_type", "Can't change type of date field being used by campaign events."
+        )
+
+        CampaignEvent.objects.all().delete()
+        ContactField.objects.filter(is_system=False).delete()
 
         for i in range(10):
-            ContactField.get_or_create(self.org, self.admin, "field%d" % i, "Field%d" % i)
+            ContactField.create(self.org, self.admin, "Field%d" % i)
 
         response = self.postJSON(url, None, {"label": "Age", "value_type": "numeric"})
         self.assertResponseError(
