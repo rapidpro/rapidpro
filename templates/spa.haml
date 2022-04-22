@@ -30,11 +30,11 @@
   -with gear_links=view.get_gear_links
     -if gear_links
       -if title
-        .spa-title.rounded.bg-gray-600.mb-5.shadow
-          .flex.flex-row
-            .text-white.flex-grow.px-5.py-2.title-text.flex.flex-col.text-container
-              .text-2xl
-                {{title}}
+        .spa-title.mb-5.shadow.z-50
+          .flex.flex-row.items-stretch.self-center.h-12.rounded.bg-gray-600.overflow-hidden
+            .flex-grow.flex.flex-row.items-center.text-2xl.px-4.text-white
+              {{title}}
+
             -if gear_links
               .spa-page-menu
                 -include "spa_page_menu.haml"

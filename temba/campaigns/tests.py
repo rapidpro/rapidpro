@@ -1260,7 +1260,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_campaign(self.org, "My Campaign", group)
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
-        self.assertEqual(6, len(menu))
+        self.assertEqual(4, len(menu))
 
     def test_create(self):
         group = self.create_group("Reporters", contacts=[])

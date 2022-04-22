@@ -1360,7 +1360,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "function refresh")
 
         self.assertEqual(20000, response.context["refresh"])
-        self.assertEqual(("archive", "label"), response.context["actions"])
+        self.assertEqual(("archive", "label", "send"), response.context["actions"])
         self.assertEqual({"count": 4, "label": "Inbox", "url": "/msg/inbox/"}, response.context["folders"][0])
 
         # test searching
@@ -1396,6 +1396,14 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual({msg1}, set(label1.msgs.all()))
 
+        # can't label without a label object
+        response = self.requestView(
+            inbox_url,
+            self.editor,
+            post_data={"action": "label", "objects": [msg2.id], "add": False},
+        )
+        self.assertEqual({msg1}, set(label1.msgs.all()))
+
         # label more messages as admin
         self.requestView(
             inbox_url,
@@ -1425,7 +1433,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             flows_url, allow_viewers=True, allow_editors=True, context_objects=[msg2, msg1]
         )
 
-        self.assertEqual(("archive", "label"), response.context["actions"])
+        self.assertEqual(("archive", "label", "send"), response.context["actions"])
 
     def test_archived(self):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
@@ -1449,7 +1457,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             archived_url + "?refresh=10000", allow_viewers=True, allow_editors=True, context_objects=[msg3, msg2, msg1]
         )
 
-        self.assertEqual(("restore", "label", "delete"), response.context["actions"])
+        self.assertEqual(("restore", "label", "delete", "send"), response.context["actions"])
         self.assertEqual({"count": 3, "label": "Archived", "url": "/msg/archived/"}, response.context["folders"][2])
 
         # test searching

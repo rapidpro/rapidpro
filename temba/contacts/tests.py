@@ -82,7 +82,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         menu_url = reverse("contacts.contact_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
-        self.assertEqual(9, len(menu))
+        self.assertEqual(11, len(menu))
 
     @mock_mailroom
     def test_list(self, mr_mocks):
@@ -227,20 +227,20 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # admins can see bulk actions
         response = self.client.get(list_url)
         self.assertEqual([frank, joe], list(response.context["object_list"]))
-        self.assertEqual(["label", "block", "archive"], list(response.context["actions"]))
+        self.assertEqual(["block", "archive", "send"], list(response.context["actions"]))
 
-        # try label bulk action
-        self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
-        self.assertIn(frank, survey_audience.contacts.all())
+        # TODO: group labeling as a feature is on probation
+        # self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
+        # self.assertIn(frank, survey_audience.contacts.all())
 
         # try label bulk action against search results
-        self.client.post(list_url + "?search=Joe", {"action": "label", "objects": joe.id, "label": survey_audience.id})
-        self.assertIn(joe, survey_audience.contacts.all())
+        # self.client.post(list_url + "?search=Joe", {"action": "label", "objects": joe.id, "label": survey_audience.id})
+        # self.assertIn(joe, survey_audience.contacts.all())
 
-        self.assertEqual(
-            call(self.org.id, group_uuid=str(active_contacts.uuid), query="Joe", sort="", offset=0, exclude_ids=[]),
-            mr_mocks.calls["contact_search"][-1],
-        )
+        # self.assertEqual(
+        #    call(self.org.id, group_uuid=str(active_contacts.uuid), query="Joe", sort="", offset=0, exclude_ids=[]),
+        #    mr_mocks.calls["contact_search"][-1],
+        # )
 
         # try archive bulk action
         self.client.post(list_url + "?search=Joe", {"action": "archive", "objects": joe.id})
@@ -434,7 +434,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.assertReadFetch(group1_url, allow_viewers=True, allow_editors=True)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
-        self.assertEqual(["block", "label", "unlabel"], list(response.context["actions"]))
+        self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
         self.assertContains(response, "Edit Group")
         self.assertContains(response, "Delete Group")
 
@@ -2854,7 +2854,7 @@ class ContactTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(list_url)
         self.assertEqual(list(response.context["object_list"]), [self.voldemort, self.billy, self.frank, self.joe])
-        self.assertEqual(response.context["actions"], ("label", "block", "archive"))
+        self.assertEqual(response.context["actions"], ("block", "archive", "send"))
 
         # this just_joe group has one contact and joe_and_frank group has two contacts
         self.assertEqual(len(self.just_joe.contacts.all()), 1)
@@ -2886,19 +2886,20 @@ class ContactTest(TembaTest):
         group = ContactGroup.objects.get(id=group.id)
         self.assertEqual("New Test", group.name)
 
+        # TODO: this feature is on probation
         # remove Joe from the group
-        self.client.post(
-            list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": False}, follow=True
-        )
+        # self.client.post(
+        #   list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": False}, follow=True
+        # )
 
         # check the Joe is only removed from just_joe only and is still in joe_and_frank
-        self.assertEqual(len(self.just_joe.contacts.all()), 0)
-        self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
+        # self.assertEqual(len(self.just_joe.contacts.all()), 0)
+        # self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
 
         # now add back Joe to the group
-        self.client.post(
-            list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": True}, follow=True
-        )
+        # self.client.post(
+        # list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": True}, follow=True
+        # )
 
         self.assertEqual(len(self.just_joe.contacts.all()), 1)
         self.assertEqual(self.just_joe.contacts.all()[0].pk, self.joe.pk)
@@ -2977,18 +2978,19 @@ class ContactTest(TembaTest):
         response = self.client.get(list_url)
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
-        self.assertEqual(response.context["actions"], ("label", "block", "archive"))
+        self.assertEqual(response.context["actions"], ("block", "archive", "send"))
         self.assertEqual(len(self.just_joe.contacts.all()), 0)
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 1)
 
+        # TODO: this feature is on probation
         # now let's test removing a contact from a group
-        post_data = dict()
-        post_data["action"] = "label"
-        post_data["label"] = self.joe_and_frank.id
-        post_data["objects"] = self.frank.id
-        post_data["add"] = False
-        self.client.post(joe_and_frank_filter_url, post_data, follow=True)
-        self.assertEqual(len(self.joe_and_frank.contacts.all()), 0)
+        # post_data = dict()
+        # post_data["action"] = "label"
+        # post_data["label"] = self.joe_and_frank.id
+        # post_data["objects"] = self.frank.id
+        # post_data["add"] = False
+        # self.client.post(joe_and_frank_filter_url, post_data, follow=True)
+        # self.assertEqual(len(self.joe_and_frank.contacts.all()), 0)
 
         # add an extra field to the org
         ContactField.get_or_create(self.org, self.user, "state", name="Home state", value_type=ContactField.TYPE_STATE)

@@ -1038,11 +1038,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         cls.bulk_change_status(user, contacts, modifiers.Status.ACTIVE)
 
     @classmethod
-    def apply_action_label(cls, user, contacts, group):
+    def apply_action_label(cls, user, contacts, group):  # pragma: no cover
         cls.bulk_change_group(user, contacts, group, add=True)
 
     @classmethod
-    def apply_action_unlabel(cls, user, contacts, group):
+    def apply_action_unlabel(cls, user, contacts, group):  # pragma: no cover
         cls.bulk_change_group(user, contacts, group, add=False)
 
     @classmethod
