@@ -2565,6 +2565,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         preview_url = reverse("flows.flow_preview_start", args=[flow.id])
 
         self.login(self.editor)
+
         response = self.client.post(
             preview_url,
             {
@@ -2573,7 +2574,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             },
             content_type="application/json",
         )
-
         self.assertEqual(
             {
                 "query": 'age > 30 AND status = "active" AND history != "Test Flow"',
@@ -2599,6 +2599,22 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 "fields": [{"key": "age", "name": "Age"}],
             },
             response.json(),
+        )
+
+        # try with a bad query
+        mr_mocks.error("mismatched input at (((", code="unexpected_token", extra={"token": "((("})
+
+        response = self.client.post(
+            preview_url,
+            {
+                "query": "(((",
+                "exclusions": {"non_active": True, "started_previously": True},
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertEqual(
+            {"query": "", "total": 0, "sample": [], "error": "Invalid query syntax at '((('"}, response.json()
         )
 
     @mock_mailroom

@@ -1771,13 +1771,17 @@ class FlowCRUDL(SmartCRUDL):
 
             flow = self.get_object()
             org = flow.org
-            query, total, sample, metadata = flow.preview_start(
-                group_uuids=group_uuids,
-                contact_uuids=contact_uuids,
-                urns=urns,
-                query=user_query,
-                exclusions=exclusions,
-            )
+
+            try:
+                query, total, sample, metadata = flow.preview_start(
+                    group_uuids=group_uuids,
+                    contact_uuids=contact_uuids,
+                    urns=urns,
+                    query=user_query,
+                    exclusions=exclusions,
+                )
+            except SearchException as e:
+                return JsonResponse({"query": "", "total": 0, "sample": [], "error": str(e)}, status=400)
 
             query_fields = org.fields.filter(key__in=[f["key"] for f in metadata.fields])
 
