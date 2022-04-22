@@ -449,6 +449,7 @@ class Msg(models.Model):
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "channel": {"uuid": str(self.channel.uuid), "name": self.channel.name} if self.channel else None,
             "urn": self.contact_urn.identity if self.contact_urn else None,
+            "flow": self.flow.name if self.flow else None,
             "direction": "in" if self.direction == Msg.DIRECTION_IN else "out",
             "type": MsgReadSerializer.TYPES.get(self.msg_type),
             "status": MsgReadSerializer.STATUSES.get(self.status),
@@ -1186,6 +1187,7 @@ class ExportMessagesTask(BaseExportTask):
             "Name",
             "ID" if self.org.is_anon else "URN",
             "URN Type",
+            "Flow",
             "Direction",
             "Text",
             "Attachments",
@@ -1299,7 +1301,7 @@ class ExportMessagesTask(BaseExportTask):
         for msg_batch in MsgIterator(
             all_message_ids,
             order_by=["" "created_on"],
-            select_related=["contact", "contact_urn", "channel"],
+            select_related=["contact", "contact_urn", "channel", "flow"],
             prefetch_related=[prefetch],
         ):
             # convert this batch of msgs to same format as records in our archives
@@ -1336,6 +1338,7 @@ class ExportMessagesTask(BaseExportTask):
                     msg["contact"].get("name", ""),
                     urn_path,
                     urn_scheme,
+                    msg["flow"] if msg["flow"] else None,
                     msg["direction"].upper() if msg["direction"] else None,
                     msg["text"],
                     ", ".join(attachment["url"] for attachment in msg["attachments"]),
