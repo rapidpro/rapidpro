@@ -614,14 +614,18 @@ class BaseClaimNumberMixin(ClaimViewMixin):
                 return self.form_invalid(form)
 
         # don't add the same number twice to the same account
-        existing = org.channels.filter(is_active=True, address=data["phone_number"]).first()
+        existing = org.channels.filter(
+            is_active=True, address=data["phone_number"], schemes__overlap=list(self.channel_type.schemes)
+        ).first()
         if existing:  # pragma: needs cover
             form._errors["phone_number"] = form.error_class(
                 [_("That number is already connected (%s)" % data["phone_number"])]
             )
             return self.form_invalid(form)
 
-        existing = Channel.objects.filter(is_active=True, address=data["phone_number"]).first()
+        existing = Channel.objects.filter(
+            is_active=True, address=data["phone_number"], schemes__overlap=list(self.channel_type.schemes)
+        ).first()
         if existing:  # pragma: needs cover
             form._errors["phone_number"] = form.error_class(
                 [

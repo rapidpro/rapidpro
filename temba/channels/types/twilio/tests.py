@@ -5,6 +5,7 @@ from twilio.base.exceptions import TwilioRestException
 from django.urls import reverse
 
 from temba.channels.models import Channel
+from temba.contacts.models import URN
 from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -105,6 +106,44 @@ class TwilioTypeTest(TembaTest):
                 self.assertContains(response, "206-234-5678")
 
                 # claim it
+                response = self.client.post(claim_twilio, dict(country="US", phone_number="12062345678"))
+                self.assertRedirects(response, reverse("public.public_welcome") + "?success")
+
+                # make sure it is actually connected
+                channel = Channel.objects.get(channel_type="T", org=self.org)
+                self.assertEqual(
+                    channel.role, Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND + Channel.ROLE_RECEIVE
+                )
+                self.assertEqual(channel.tps, 1)
+
+                channel_config = channel.config
+                self.assertEqual(channel_config[Channel.CONFIG_ACCOUNT_SID], "account-sid")
+                self.assertEqual(channel_config[Channel.CONFIG_AUTH_TOKEN], "account-token")
+                self.assertTrue(channel_config[Channel.CONFIG_APPLICATION_SID])
+                self.assertTrue(channel_config[Channel.CONFIG_NUMBER_SID])
+
+        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
+            mock_numbers.return_value = iter([MockTwilioClient.MockPhoneNumber("+12062345678")])
+
+            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.stream") as mock_short_codes:
+                mock_short_codes.return_value = iter([])
+
+                response = self.client.get(claim_twilio)
+                self.assertContains(response, "206-234-5678")
+
+                # claim it
+                response = self.client.post(claim_twilio, dict(country="US", phone_number="12062345678"))
+                self.assertFormError(
+                    response, "form", "phone_number", "That number is already connected (+12062345678)"
+                )
+
+                # make sure the schemes do not overlap, having a WA channel with the same number
+                channel = Channel.objects.get(channel_type="T", org=self.org)
+                channel.channel_type = "WA"
+                channel.schemes = [URN.WHATSAPP_SCHEME]
+                channel.save()
+
+                # now we can clain the number already used for Twilio WhatsApp
                 response = self.client.post(claim_twilio, dict(country="US", phone_number="12062345678"))
                 self.assertRedirects(response, reverse("public.public_welcome") + "?success")
 

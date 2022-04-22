@@ -1,3 +1,7 @@
+v7.3.24
+----------
+ * Allow creating channel with same address when schemes do not overlap
+
 v7.3.23
 ----------
  * Add status to list of reserved field keys
