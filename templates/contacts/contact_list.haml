@@ -304,21 +304,20 @@
 
       {% if org_perms.contacts.contact_update %}
       function addContactToGroup(groupId){
-        var contactIds = getCheckedIds();
+        window.lastChecked = getCheckedIds();
         var groupedIds = getLabeledIds(groupId);
 
         var addGroup = true;
 
         // find the intersection of contactIds and groupedIds
-        var contactIdsWithGroup = intersect(contactIds, groupedIds);
+        var contactIdsWithGroup = intersect(window.lastChecked, groupedIds);
 
         // they all belong to the group, so we are actually removing these contacts from the group
-        if (contactIdsWithGroup.length == contactIds.length){
+        if (contactIdsWithGroup.length == window.lastChecked.length){
           addGroup = false;
         }
         jQuery.ajaxSettings.traditional = true;
-
-        fetchPJAXContent(document.location.href, "#pjax", { postData: {objects: contactIds, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true, onSuccess: wireTableListeners});
+        fetchPJAXContent(window.lastFetch || document.location.href, "#pjax", { postData: {objects: window.lastChecked, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true, onSuccess: function(){ recheckIds(); wireTableListeners()}});
       }
       {% endif %}
 
@@ -338,9 +337,9 @@
       {% endif %}
 
       function handleCreateGroupModalLoaded(event) {
-        lastChecked = getCheckedIds();
+        window.lastChecked = getCheckedIds();
         var body = event.detail.body;
-        body.querySelector("#id_preselected_contacts").value = lastChecked.join();
+        body.querySelector("#id_preselected_contacts").value = window.lastChecked.join();
       }
 
       function handleCreateGroupModalSubmitted(event) {

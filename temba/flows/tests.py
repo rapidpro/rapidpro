@@ -1795,7 +1795,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
-        self.assertEqual(3, len(menu))
+        self.assertEqual(5, len(menu))
 
     def test_create(self):
         create_url = reverse("flows.flow_create")
@@ -4925,6 +4925,10 @@ class FlowLabelTest(TembaTest):
         cat = FlowLabel.create(self.org2, "cat")
         response = self.client.get(reverse("flows.flow_filter", args=[cat.uuid]))
         self.assertLoginRedirect(response)
+
+        # in the spa view, labels are flattened
+        response = self.client.get(reverse("flows.flow_filter", args=[label.uuid]), HTTP_TEMBA_SPA="1")
+        self.assertEqual(len(response.context["labels_flat"]), 7)
 
     def test_toggle_label(self):
         label = FlowLabel.create(self.org, "toggle me")

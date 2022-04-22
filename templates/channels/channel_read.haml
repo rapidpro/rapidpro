@@ -315,7 +315,7 @@
 -block extra-script
   {{ block.super }}
 
-  -if start_date
+  -if start_date and not is_spa
     <script src="{{ STATIC_URL }}bower/highcharts/highcharts.js"></script>
 
   :javascript
