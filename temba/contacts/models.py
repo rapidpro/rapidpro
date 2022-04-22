@@ -2197,7 +2197,12 @@ class ContactImport(SmartModel):
                     mapping = {"type": "field", "key": field.key, "name": field.name}
                 else:
                     # can be created or selected in next step
-                    mapping = {"type": "new_field", "key": field_key, "name": header_name, "value_type": "T"}
+                    mapping = {
+                        "type": "new_field",
+                        "key": field_key,
+                        "name": unsnakify(header_name),
+                        "value_type": "T",
+                    }
 
             mappings.append({"header": header, "mapping": mapping})
 
@@ -2267,9 +2272,7 @@ class ContactImport(SmartModel):
         for item in self.mappings:
             mapping = item["mapping"]
             if mapping["type"] == "new_field":
-                ContactField.get_or_create(
-                    self.org, self.created_by, mapping["key"], name=mapping["name"], value_type=mapping["value_type"]
-                )
+                ContactField.create(self.org, self.created_by, mapping["name"], value_type=mapping["value_type"])
 
         # if user wants contacts added to a new group, create it
         if self.group_name and not self.group:
