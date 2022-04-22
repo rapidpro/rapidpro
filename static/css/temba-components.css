@@ -48,6 +48,8 @@ html {
   --color-primary-dark: rgb(var(--primary-rgb));
   --color-secondary-dark: rgb(var(--secondary-rgb));
 
+  --color-available: #00f100;
+
   /* light text goes over dark, dark over lights */
   --color-text-light: rgba(255, 255, 255, 1);
   --color-text-dark: rgba(0, 0, 0, 0.5);

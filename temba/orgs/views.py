@@ -1018,6 +1018,11 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
     permission = "orgs.org_home"
     template_name = "spa_frame.haml"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["is_spa"] = True
+        return context
+
     def has_permission(self, request, *args, **kwargs):
         return not request.user.is_anonymous and request.user.is_beta()
 
@@ -1094,9 +1099,12 @@ class MenuMixin(OrgPermsMixin):
 
         return menu_item
 
-    def render_to_response(self, context, **response_kwargs):
+    def get_menu(self):
         menu = [item for item in self.derive_menu() if item is not None]
-        return JsonResponse({"results": menu})
+        return menu
+
+    def render_to_response(self, context, **response_kwargs):
+        return JsonResponse({"results": self.get_menu()})
 
 
 class OrgCRUDL(SmartCRUDL):
@@ -1270,10 +1278,11 @@ class OrgCRUDL(SmartCRUDL):
                     self.create_menu_item(name=_("Messages"), icon="message-square", endpoint="msgs.msg_menu"),
                     self.create_menu_item(name=_("Contacts"), icon="contact", endpoint="contacts.contact_menu"),
                     self.create_menu_item(name=_("Flows"), icon="flow", endpoint="flows.flow_menu"),
+                    self.create_menu_item(name=_("Triggers"), icon="radio", endpoint="triggers.trigger_menu"),
+                    self.create_menu_item(name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaign_menu"),
                     self.create_menu_item(
                         name=_("Tickets"), icon="agent", endpoint="tickets.ticket_menu", href="tickets.ticket_list"
                     ),
-                    self.create_menu_item(name=_("Triggers"), icon="radio", endpoint="triggers.trigger_menu"),
                     {
                         "id": "settings",
                         "name": _("Settings"),
@@ -1281,7 +1290,6 @@ class OrgCRUDL(SmartCRUDL):
                         "endpoint": f"{reverse('orgs.org_menu')}settings/",
                         "bottom": True,
                     },
-                    self.create_menu_item(name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaign_menu"),
                 ]
 
                 # Other Plugins:
