@@ -1028,7 +1028,6 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
 
 
 class MenuMixin(OrgPermsMixin):
-
     def create_divider(self):
         return {"type": "divider"}
 
