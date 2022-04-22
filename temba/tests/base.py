@@ -272,6 +272,7 @@ class TembaTestMixin:
         created_on=None,
         external_id=None,
         surveyor=False,
+        flow=None,
     ):
         assert not msg_type or status != Msg.STATUS_PENDING, "pending messages don't have a msg type"
 
@@ -290,6 +291,7 @@ class TembaTestMixin:
             visibility=visibility,
             external_id=external_id,
             surveyor=surveyor,
+            flow=flow,
         )
 
     def create_incoming_msgs(self, contact, count):
@@ -310,6 +312,7 @@ class TembaTestMixin:
         high_priority=False,
         surveyor=False,
         next_attempt=None,
+        flow=None,
     ):
         if status in (Msg.STATUS_WIRED, Msg.STATUS_SENT, Msg.STATUS_DELIVERED) and not sent_on:
             sent_on = timezone.now()
@@ -330,6 +333,7 @@ class TembaTestMixin:
             sent_on,
             high_priority=high_priority,
             surveyor=surveyor,
+            flow=flow,
             metadata=metadata,
             next_attempt=next_attempt,
         )
@@ -349,6 +353,7 @@ class TembaTestMixin:
         external_id=None,
         high_priority=False,
         surveyor=False,
+        flow=None,
         broadcast=None,
         metadata=None,
         next_attempt=None,
@@ -390,6 +395,7 @@ class TembaTestMixin:
             created_on=created_on or timezone.now(),
             sent_on=sent_on,
             broadcast=broadcast,
+            flow=flow,
             metadata=metadata,
             next_attempt=next_attempt,
         )
