@@ -1577,9 +1577,7 @@ class FlowTest(TembaTest):
 
         # create a campaign that contains this flow
         friends = self.create_group("Friends", [])
-        poll_date = ContactField.get_or_create(
-            self.org, self.admin, "poll_date", "Poll Date", value_type=ContactField.TYPE_DATETIME
-        )
+        poll_date = self.create_field("poll_date", "Poll Date", value_type=ContactField.TYPE_DATETIME)
 
         campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Favorite Poll"), friends)
         event1 = CampaignEvent.create_flow_event(

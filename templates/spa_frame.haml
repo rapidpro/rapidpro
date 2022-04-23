@@ -567,12 +567,7 @@
           } else {
               fetchURL(href);
           }
-      }
-    
-    }
-
-    function showSupportWidget() {
-        Intercom("show")
+      }    
     }
 
     function showLoading() {
@@ -713,7 +708,6 @@
       modax.open = true;
     }
 
-
 -block refresh-fn
   :javascript
     function refresh(onSuccess, forceReload){
@@ -735,6 +729,7 @@
     groups="/api/v2/groups.json")
       
 -block page-container
+  -include "includes/frame_top.html"
 
   %temba-modax#shared-modax
   .ajax-scripts
