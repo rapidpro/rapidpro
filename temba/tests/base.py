@@ -249,13 +249,19 @@ class TembaTestMixin:
     def create_label(self, name, org=None):
         return Label.get_or_create(org or self.org, self.user, name)
 
-    def create_field(self, key, name, value_type=ContactField.TYPE_TEXT, org=None):
+    def create_field(self, key, name, value_type=ContactField.TYPE_TEXT, priority=0, show_in_table=False, org=None):
+        org = org or self.org
+
+        assert not org.fields.filter(key=key, is_active=True).exists(), f"field with key {key} already exists"
+
         return ContactField.objects.create(
-            org=org or self.org,
+            org=org,
             key=key,
             name=name,
             is_system=False,
             value_type=value_type,
+            priority=priority,
+            show_in_table=show_in_table,
             created_by=self.admin,
             modified_by=self.admin,
         )
@@ -272,6 +278,7 @@ class TembaTestMixin:
         created_on=None,
         external_id=None,
         surveyor=False,
+        flow=None,
     ):
         assert not msg_type or status != Msg.STATUS_PENDING, "pending messages don't have a msg type"
 
@@ -290,6 +297,7 @@ class TembaTestMixin:
             visibility=visibility,
             external_id=external_id,
             surveyor=surveyor,
+            flow=flow,
         )
 
     def create_incoming_msgs(self, contact, count):
@@ -310,6 +318,7 @@ class TembaTestMixin:
         high_priority=False,
         surveyor=False,
         next_attempt=None,
+        flow=None,
     ):
         if status in (Msg.STATUS_WIRED, Msg.STATUS_SENT, Msg.STATUS_DELIVERED) and not sent_on:
             sent_on = timezone.now()
@@ -330,6 +339,7 @@ class TembaTestMixin:
             sent_on,
             high_priority=high_priority,
             surveyor=surveyor,
+            flow=flow,
             metadata=metadata,
             next_attempt=next_attempt,
         )
@@ -349,6 +359,7 @@ class TembaTestMixin:
         external_id=None,
         high_priority=False,
         surveyor=False,
+        flow=None,
         broadcast=None,
         metadata=None,
         next_attempt=None,
@@ -390,6 +401,7 @@ class TembaTestMixin:
             created_on=created_on or timezone.now(),
             sent_on=sent_on,
             broadcast=broadcast,
+            flow=flow,
             metadata=metadata,
             next_attempt=next_attempt,
         )

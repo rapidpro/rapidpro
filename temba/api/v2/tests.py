@@ -192,9 +192,7 @@ class APITest(TembaTest):
                 self.assertEqual(f.to_representation(value), expected, f"to_representation mismatch for '{value}'")
 
         group = self.create_group("Customers")
-        field_obj = ContactField.get_or_create(
-            self.org, self.admin, "registered", "Registered On", value_type=ContactField.TYPE_DATETIME
-        )
+        field_obj = self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
         flow = self.create_flow()
         campaign = Campaign.create(self.org, self.admin, "Reminders #1", group)
         event = CampaignEvent.create_flow_event(
@@ -1104,9 +1102,7 @@ class APITest(TembaTest):
 
         flow = self.create_flow()
         reporters = self.create_group("Reporters", [self.joe, self.frank])
-        registration = ContactField.get_or_create(
-            self.org, self.admin, "registration", "Registration", value_type=ContactField.TYPE_DATETIME
-        )
+        registration = self.create_field("registration", "Registration", value_type=ContactField.TYPE_DATETIME)
         field_created_on = self.org.fields.get(key="created_on")
 
         # create our contact and set a registration date
@@ -1137,9 +1133,7 @@ class APITest(TembaTest):
         )
 
         # create event for another org
-        joined = ContactField.get_or_create(
-            self.org2, self.admin2, "joined", "Joined On", value_type=ContactField.TYPE_DATETIME
-        )
+        joined = self.create_field("joined", "Joined On", value_type=ContactField.TYPE_DATETIME)
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
         spam = Campaign.create(self.org2, self.admin2, "Cool stuff", spammers)
         CampaignEvent.create_flow_event(
@@ -1435,10 +1429,7 @@ class APITest(TembaTest):
         self.login(self.admin)
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
-        registration = ContactField.get_or_create(
-            self.org, self.admin, "registration", "Registration", value_type=ContactField.TYPE_DATETIME
-        )
-
+        registration = self.create_field("registration", "Registration", value_type=ContactField.TYPE_DATETIME)
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
         event1 = CampaignEvent.create_message_event(
             self.org,
@@ -1499,10 +1490,7 @@ class APITest(TembaTest):
         self.login(self.admin)
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
-        registration = ContactField.get_or_create(
-            self.org, self.admin, "registration", "Registration", value_type=ContactField.TYPE_DATETIME
-        )
-
+        registration = self.create_field("registration", "Registration", value_type=ContactField.TYPE_DATETIME)
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
         event1 = CampaignEvent.create_message_event(
             self.org,
@@ -2102,8 +2090,8 @@ class APITest(TembaTest):
         url = reverse("api.v2.contacts")
         self.assertEndpointAccess(url)
 
-        ContactField.get_or_create(self.org, self.admin, "string_field")
-        ContactField.get_or_create(self.org, self.admin, "number_field", value_type=ContactField.TYPE_NUMBER)
+        self.create_field("string_field", "String")
+        self.create_field("number_field", "Number", value_type=ContactField.TYPE_NUMBER)
 
         # test create with a null chars \u0000
         response = self.postJSON(
@@ -2613,7 +2601,7 @@ class APITest(TembaTest):
         ContactField.user_fields.all().delete()
 
         for i in range(10):
-            ContactField.get_or_create(self.org, self.admin, "field%d" % i, "Field%d" % i)
+            self.create_field("field%d" % i, "Field%d" % i)
 
         response = self.postJSON(url, None, {"label": "Age", "value_type": "numeric"})
         self.assertResponseError(

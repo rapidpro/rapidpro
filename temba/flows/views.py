@@ -223,22 +223,32 @@ class FlowCRUDL(SmartCRUDL):
 
         def derive_menu(self):
 
-            labels = FlowLabel.objects.filter(org=self.request.user.get_org(), parent=None)
+            labels = FlowLabel.objects.filter(org=self.request.user.get_org(), parent=None).order_by("name")
 
             menu = []
             menu.append(self.create_menu_item(name=_("Active"), icon="flow", href="flows.flow_list"))
+            menu.append(self.create_menu_item(name=_("Archived"), icon="archive", href="flows.flow_archived"))
 
+            label_items = []
             for label in labels:
-                menu.append(
+                label_items.append(
                     self.create_menu_item(
                         icon="tag",
                         menu_id=label.uuid,
                         name=label.name,
                         href=reverse("flows.flow_filter", args=[label.uuid]),
+                        count=label.get_flows_count(),
                     )
                 )
 
-            menu.append(self.create_menu_item(name=_("Archived"), icon="archive", href="flows.flow_archived"))
+            menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
+            menu.append(self.create_divider())
+            menu.append(
+                self.create_modax_button(
+                    name=_("New Label"), href="flows.flowlabel_create", on_submit="handleCreateLabelModalSubmitted()"
+                )
+            )
+
             return menu
 
     class RecentContacts(OrgObjPermsMixin, SmartReadView):
@@ -720,7 +730,11 @@ class FlowCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["org_has_flows"] = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).count()
             context["folders"] = self.get_folders()
-            context["labels"] = self.get_flow_labels()
+            if self.is_spa():
+                context["labels_flat"] = self.get_flow_labels_flat()
+            else:
+                context["labels"] = self.get_flow_labels()
+
             context["campaigns"] = self.get_campaigns()
             context["request_url"] = self.request.path
 
@@ -775,6 +789,19 @@ class FlowCRUDL(SmartCRUDL):
                         label=label.name,
                         count=label.get_flows_count(),
                         children=label.children.all(),
+                    )
+                )
+            return labels
+
+        def get_flow_labels_flat(self):
+            labels = []
+            for label in FlowLabel.objects.filter(org=self.request.user.get_org()).order_by("name"):
+                labels.append(
+                    dict(
+                        id=label.pk,
+                        uuid=label.uuid,
+                        name=label.name,
+                        count=label.get_flows_count(),
                     )
                 )
             return labels
@@ -2092,7 +2119,7 @@ class FlowLabelCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = FlowLabelForm
-        success_url = "id@flows.flow_filter"
+        success_url = "uuid@flows.flow_filter"
         success_message = ""
 
         def get_form_kwargs(self):

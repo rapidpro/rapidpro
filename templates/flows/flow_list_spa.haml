@@ -7,6 +7,7 @@
 -block page-top
 
 -block content
+  .page-title
 
   -if org_perms.flows.flow_update
     %temba-modax#export-results{ header:'{% trans "Download Results" %}' }
@@ -19,65 +20,63 @@
         -if request.REQUEST.status
           %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
 
-    -block flow-list
-      .shadow.rounded-lg.overflow-y-auto
-        %table.list.lined.selectable
-          -if object_list
-            %thead
-              %tr
-                -if org_perms.flows.flow_update
-                  %th
+    .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
+      -include "includes/short_pagination.haml"
+                
+    .flex-grow.overflow-y-auto.shadow
+      %table.relative.list.object-list.lined.selectable.scrolled
+        -if object_list
+          %thead
+            %tr
+              -if org_perms.flows.flow_update
                 %th
-                %th
-                %th.whitespace-nowrap
-                  Runs / Completion
+              %th
+              %th
+              %th.whitespace-nowrap
+                Runs / Completion
 
-          %tbody
-            -for object in object_list
-              %tr.object-row.select-row{ data-uuid: "{{object.uuid}}", data-id: "{{ object.id }}",  onclick:'handleRowClicked(event)', href:"{% url 'flows.flow_editor' object.uuid%}"}
+        %tbody
+          -for object in object_list
+            %tr.object-row.select-row(onclick='handleRowClicked(event)' data-uuid="{{object.uuid}}" data-object-id="{{object.id}}")
 
-                -if org_perms.flows.flow_update
-                  %td.checkbox.object-row-checkbox
-                    %temba-checkbox{onclick:"handleRowSelection(this)"}
+              -if org_perms.flows.flow_update
+                %td.checkbox.object-row-checkbox(onclick="checkInner(event);")
+                  %temba-checkbox{onclick:"handleRowSelection(this)"}
 
-                %td.w-full
-                  .flex.flex-wrap.flex-end
-                    .flex.inline.whitespace-nowrap
-                      -if object.flow_type == 'V'
-                        .icon-phone.mr-2.leading-snug
-                      -elif object.flow_type == 'S'
-                        .icon-mobile.mr-2.leading-snug
-                      .name.whitespace-normal
-                        {{ object.name }}
+              %td.w-full
+                .flex.flex-wrap.flex-end
+                  .flex.inline.whitespace-nowrap
+                    -if object.flow_type == 'V'
+                      .icon-phone.mr-2.leading-snug
+                    -elif object.flow_type == 'S'
+                      .icon-mobile.mr-2.leading-snug
+                    .name.whitespace-normal
+                      {{ object.name }}
 
-                %td
-                  .whitespace-no-break.flex.items-center.ml-2.justify-end
-                    -for label in object.labels.all
-                      .lbl.linked.ml-2{ onclick:"goto(event)", data-id: '{{label.uuid}}', href:"{% url 'flows.flow_filter' label.uuid%}"}
-                        {{label.name}}
+              %td
+                .whitespace-no-break.flex.items-center.ml-2.justify-end
+                  -for label in object.labels.all
+                    .lbl.linked.ml-2{ onclick:"goto(event)", data-id: '{{label.id}}', data-uuid: '{{label.uuid}}', href:"{% url 'flows.flow_filter' label.uuid%}"}
+                      {{label.name}}
 
-                %td
-                  -if not object.is_archived
-                    .whitespace-no-break.flex.items-center.justify-end
-                      -if object.has_issues
-                        .icon-warning.mr-2(title='{{ _("Has issues")|escapejs }}')
+              %td
+                -if not object.is_archived
+                  .whitespace-no-break.flex.items-center.justify-end
+                    -if object.has_issues
+                      .icon-warning.mr-2(title='{{ _("Has issues")|escapejs }}')
 
-                      -if object.run_stats.total
-                        .linked.mr-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
-                          {{ object.run_stats.total|intcomma }}
+                    -if object.run_stats.total
+                      .linked.mr-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
+                        {{ object.run_stats.total|intcomma }}
 
-                        \/
-                        .text-center.linked.mx-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
-                          {{ object.run_stats.completion }}%
+                      \/
+                      .text-center.linked.mx-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
+                        {{ object.run_stats.completion }}%
 
-            -empty
-              %tr.empty_list
-                %td(colspan='99')
-                  -trans "No matching flows."
-
-      -block paginator
-        .mr-24
-          -include "includes/pagination.haml"
+          -empty
+            %tr.empty_list
+              %td(colspan='99')
+                -trans "No matching flows."
 
     -else
       -include "flows/empty_include.html"
@@ -104,13 +103,17 @@
       }
 
       function handleCreateLabelModalLoaded(event) {
-        lastChecked = getCheckedIds();
+        window.lastChecked = getCheckedIds();
         var body = event.detail.body;
         body.querySelector("#id_flows").value = lastChecked.join();
       }
 
       function handleCreateLabelModalSubmitted(event) {
         refresh(function() { recheckIds(); }, true);
+        var menu = document.querySelector("temba-menu");
+        if (menu) {
+          window.setTimeout(function(){ menu.refresh()}, 2000);
+        }
       }
 
       function exportFlows(){

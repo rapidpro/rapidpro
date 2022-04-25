@@ -189,6 +189,13 @@ class InboxView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
 
         context["org"] = org
         context["folders"] = folders
+
+        context["labels_flat"] = (
+            Label.all_objects.filter(org=org, is_active=True)
+            .exclude(label_type=Label.TYPE_FOLDER)
+            .order_by(Upper("name"))
+        )
+
         context["labels"] = Label.get_hierarchy(org)
         context["has_messages"] = (
             any(counts.values()) or Archive.objects.filter(org=org, archive_type=Archive.TYPE_MSG).exists()
@@ -544,9 +551,9 @@ class MsgCRUDL(SmartCRUDL):
                     )
                 return menu
             else:
-                label_count = Label.label_objects.filter(org=org, is_active=True).count()
+                labels = Label.label_objects.filter(org=org, is_active=True).order_by("name")
 
-                return [
+                menu = [
                     self.create_menu_item(
                         name=_("Inbox"),
                         href=reverse("msgs.msg_inbox"),
@@ -554,19 +561,17 @@ class MsgCRUDL(SmartCRUDL):
                         icon="inbox",
                     ),
                     self.create_menu_item(
-                        name=_("Scheduled"),
-                        href=reverse("msgs.broadcast_schedule_list"),
-                        count=counts[SystemLabel.TYPE_SCHEDULED],
-                        icon="clock",
+                        name=_("Archived"),
+                        href=reverse("msgs.msg_archived"),
+                        count=counts[SystemLabel.TYPE_ARCHIVED],
+                        icon="archive",
                     ),
                     self.create_divider(),
                     self.create_menu_item(
-                        name=_("Labels"),
-                        endpoint=f"{reverse('msgs.msg_menu')}?labels=1",
-                        count=label_count,
-                        icon="tag",
+                        name=_("Scheduled"),
+                        href=reverse("msgs.broadcast_schedule_list"),
+                        count=counts[SystemLabel.TYPE_SCHEDULED],
                     ),
-                    self.create_divider(),
                     self.create_menu_item(
                         name=_("Outbox"),
                         href=reverse("msgs.msg_outbox"),
@@ -582,7 +587,6 @@ class MsgCRUDL(SmartCRUDL):
                         href=reverse("msgs.msg_failed"),
                         count=counts[SystemLabel.TYPE_FAILED],
                     ),
-                    self.create_divider(),
                     self.create_menu_item(
                         name=_("Flows"),
                         href=reverse("msgs.msg_flow"),
@@ -594,13 +598,31 @@ class MsgCRUDL(SmartCRUDL):
                         count=counts[SystemLabel.TYPE_CALLS],
                     ),
                     self.create_divider(),
-                    self.create_menu_item(
-                        name=_("Archived"),
-                        href=reverse("msgs.msg_archived"),
-                        count=counts[SystemLabel.TYPE_ARCHIVED],
-                        icon="archive",
-                    ),
                 ]
+
+                label_items = []
+                label_counts = LabelCount.get_totals([lb for lb in labels])
+                for label in labels:
+                    label_items.append(
+                        self.create_menu_item(
+                            icon="tag",
+                            menu_id=label.uuid,
+                            name=label.name,
+                            count=label_counts[label],
+                            href=reverse("msgs.msg_filter", args=[label.uuid]),
+                        )
+                    )
+
+                menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
+                menu.append(self.create_divider())
+                menu.append(
+                    self.create_modax_button(
+                        name=_("New Label"),
+                        href="msgs.label_create",
+                    )
+                )
+
+                return menu
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
 
@@ -701,7 +723,7 @@ class MsgCRUDL(SmartCRUDL):
         title = _("Inbox")
         template_name = "msgs/message_box.haml"
         system_label = SystemLabel.TYPE_INBOX
-        bulk_actions = ("archive", "label")
+        bulk_actions = ("archive", "label", "send")
         allow_export = True
 
         def get_queryset(self, **kwargs):
@@ -712,7 +734,7 @@ class MsgCRUDL(SmartCRUDL):
         title = _("Flow Messages")
         template_name = "msgs/message_box.haml"
         system_label = SystemLabel.TYPE_FLOWS
-        bulk_actions = ("archive", "label")
+        bulk_actions = ("archive", "label", "send")
         allow_export = True
 
         def get_queryset(self, **kwargs):
@@ -723,7 +745,7 @@ class MsgCRUDL(SmartCRUDL):
         title = _("Archived")
         template_name = "msgs/msg_archived.haml"
         system_label = SystemLabel.TYPE_ARCHIVED
-        bulk_actions = ("restore", "label", "delete")
+        bulk_actions = ("restore", "label", "delete", "send")
         allow_export = True
 
         def get_queryset(self, **kwargs):

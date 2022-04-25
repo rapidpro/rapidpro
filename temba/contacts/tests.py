@@ -71,8 +71,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.country = AdminBoundary.create(osm_id="171496", name="Rwanda", level=0)
         AdminBoundary.create(osm_id="1708283", name="Kigali", level=1, parent=self.country)
 
-        ContactField.get_or_create(self.org, self.user, "age", "Age", value_type="N")
-        ContactField.get_or_create(self.org, self.user, "home", "Home", value_type="S", priority=10)
+        self.create_field("age", "Age", value_type="N")
+        self.create_field("home", "Home", value_type="S", priority=10)
 
         # sample flows don't actually get created by org initialization during tests because there are no users at that
         # point so create them explicitly here, so that we also get the sample groups
@@ -82,7 +82,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         menu_url = reverse("contacts.contact_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
-        self.assertEqual(9, len(menu))
+        self.assertEqual(11, len(menu))
 
     @mock_mailroom
     def test_list(self, mr_mocks):
@@ -227,20 +227,20 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # admins can see bulk actions
         response = self.client.get(list_url)
         self.assertEqual([frank, joe], list(response.context["object_list"]))
-        self.assertEqual(["label", "block", "archive"], list(response.context["actions"]))
+        self.assertEqual(["block", "archive", "send"], list(response.context["actions"]))
 
-        # try label bulk action
-        self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
-        self.assertIn(frank, survey_audience.contacts.all())
+        # TODO: group labeling as a feature is on probation
+        # self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
+        # self.assertIn(frank, survey_audience.contacts.all())
 
         # try label bulk action against search results
-        self.client.post(list_url + "?search=Joe", {"action": "label", "objects": joe.id, "label": survey_audience.id})
-        self.assertIn(joe, survey_audience.contacts.all())
+        # self.client.post(list_url + "?search=Joe", {"action": "label", "objects": joe.id, "label": survey_audience.id})
+        # self.assertIn(joe, survey_audience.contacts.all())
 
-        self.assertEqual(
-            call(self.org.id, group_uuid=str(active_contacts.uuid), query="Joe", sort="", offset=0, exclude_ids=[]),
-            mr_mocks.calls["contact_search"][-1],
-        )
+        # self.assertEqual(
+        #    call(self.org.id, group_uuid=str(active_contacts.uuid), query="Joe", sort="", offset=0, exclude_ids=[]),
+        #    mr_mocks.calls["contact_search"][-1],
+        # )
 
         # try archive bulk action
         self.client.post(list_url + "?search=Joe", {"action": "archive", "objects": joe.id})
@@ -434,7 +434,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.assertReadFetch(group1_url, allow_viewers=True, allow_editors=True)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
-        self.assertEqual(["block", "label", "unlabel"], list(response.context["actions"]))
+        self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
         self.assertContains(response, "Edit Group")
         self.assertContains(response, "Delete Group")
 
@@ -716,8 +716,8 @@ class ContactGroupTest(TembaTest):
 
     @mock_mailroom
     def test_create_smart(self, mr_mocks):
-        age = ContactField.get_or_create(self.org, self.admin, "age", value_type=ContactField.TYPE_NUMBER)
-        gender = ContactField.get_or_create(self.org, self.admin, "gender", priority=10)
+        age = self.org.fields.get(key="age")
+        gender = self.org.fields.get(key="gender")
 
         # create a dynamic group using a query
         query = '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
@@ -725,9 +725,9 @@ class ContactGroupTest(TembaTest):
         group = ContactGroup.create_smart(self.org, self.admin, "Group two", query)
         group.refresh_from_db()
 
-        self.assertEqual(group.query, query)
-        self.assertEqual(set(group.query_fields.all()), {age, gender})
-        self.assertEqual(group.status, ContactGroup.STATUS_INITIALIZING)
+        self.assertEqual(query, group.query)
+        self.assertEqual({age, gender}, set(group.query_fields.all()))
+        self.assertEqual(ContactGroup.STATUS_INITIALIZING, group.status)
 
         # update group query
         mr_mocks.parse_query("age > 18 and name ~ Mary", cleaned='age > 18 AND name ~ "Mary"')
@@ -752,8 +752,8 @@ class ContactGroupTest(TembaTest):
         # dynamic group should not have remove to group button
         self.login(self.admin)
         filter_url = reverse("contacts.contact_filter", args=[group.uuid])
-        response = self.client.get(filter_url)
-        self.assertEqual(list(response.context["contact_fields"].values_list("key", flat=True)), ["gender", "age"])
+        self.client.get(filter_url)
+
         # put group back into evaluation state
         group.status = ContactGroup.STATUS_EVALUATING
         group.save(update_fields=("status",))
@@ -781,7 +781,6 @@ class ContactGroupTest(TembaTest):
 
     @mock_mailroom
     def test_get_groups(self, mr_mocks):
-        self.create_field("gender", "Gender")
         manual = ContactGroup.create_manual(self.org, self.admin, "Static")
         deleted = ContactGroup.create_manual(self.org, self.admin, "Deleted")
         deleted.is_active = False
@@ -937,9 +936,7 @@ class ContactGroupTest(TembaTest):
 
         # create a campaign based on group 1 - a hard dependency
         campaign = Campaign.create(self.org, self.admin, "Reminders", group1)
-        joined = ContactField.get_or_create(
-            self.org, self.admin, "joined", "Joined On", value_type=ContactField.TYPE_DATETIME
-        )
+        joined = self.create_field("joined", "Joined On", value_type=ContactField.TYPE_DATETIME)
         event = CampaignEvent.create_message_event(self.org, self.admin, campaign, joined, 2, unit="D", message="Hi")
         EventFire.objects.create(event=event, contact=self.joe, scheduled=timezone.now() + timedelta(days=2))
         campaign.is_archived = True
@@ -1344,9 +1341,7 @@ class ContactTest(TembaTest):
         # create a campaign with a future event and add joe
         self.farmers = self.create_group("Farmers", [self.joe])
         self.reminder_flow = self.get_flow("color")
-        self.planting_date = ContactField.get_or_create(
-            self.org, self.admin, "planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME
-        )
+        self.planting_date = self.create_field("planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME)
         self.campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         # create af flow event
@@ -1483,9 +1478,7 @@ class ContactTest(TembaTest):
         )
 
         campaign = Campaign.create(self.org, self.admin, "Reminders", group)
-        joined = ContactField.get_or_create(
-            self.org, self.admin, "joined", "Joined On", value_type=ContactField.TYPE_DATETIME
-        )
+        joined = self.create_field("joined", "Joined On", value_type=ContactField.TYPE_DATETIME)
         event = CampaignEvent.create_message_event(self.org, self.admin, campaign, joined, 2, unit="D", message="Hi")
         EventFire.objects.create(event=event, contact=contact, scheduled=timezone.now() + timedelta(days=2))
 
@@ -2849,7 +2842,7 @@ class ContactTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(list_url)
         self.assertEqual(list(response.context["object_list"]), [self.voldemort, self.billy, self.frank, self.joe])
-        self.assertEqual(response.context["actions"], ("label", "block", "archive"))
+        self.assertEqual(response.context["actions"], ("block", "archive", "send"))
 
         # this just_joe group has one contact and joe_and_frank group has two contacts
         self.assertEqual(len(self.just_joe.contacts.all()), 1)
@@ -2881,19 +2874,20 @@ class ContactTest(TembaTest):
         group = ContactGroup.objects.get(id=group.id)
         self.assertEqual("New Test", group.name)
 
+        # TODO: this feature is on probation
         # remove Joe from the group
-        self.client.post(
-            list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": False}, follow=True
-        )
+        # self.client.post(
+        #   list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": False}, follow=True
+        # )
 
         # check the Joe is only removed from just_joe only and is still in joe_and_frank
-        self.assertEqual(len(self.just_joe.contacts.all()), 0)
-        self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
+        # self.assertEqual(len(self.just_joe.contacts.all()), 0)
+        # self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
 
         # now add back Joe to the group
-        self.client.post(
-            list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": True}, follow=True
-        )
+        # self.client.post(
+        # list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": True}, follow=True
+        # )
 
         self.assertEqual(len(self.just_joe.contacts.all()), 1)
         self.assertEqual(self.just_joe.contacts.all()[0].pk, self.joe.pk)
@@ -2972,21 +2966,22 @@ class ContactTest(TembaTest):
         response = self.client.get(list_url)
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
-        self.assertEqual(response.context["actions"], ("label", "block", "archive"))
+        self.assertEqual(response.context["actions"], ("block", "archive", "send"))
         self.assertEqual(len(self.just_joe.contacts.all()), 0)
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 1)
 
+        # TODO: this feature is on probation
         # now let's test removing a contact from a group
-        post_data = dict()
-        post_data["action"] = "label"
-        post_data["label"] = self.joe_and_frank.id
-        post_data["objects"] = self.frank.id
-        post_data["add"] = False
-        self.client.post(joe_and_frank_filter_url, post_data, follow=True)
-        self.assertEqual(len(self.joe_and_frank.contacts.all()), 0)
+        # post_data = dict()
+        # post_data["action"] = "label"
+        # post_data["label"] = self.joe_and_frank.id
+        # post_data["objects"] = self.frank.id
+        # post_data["add"] = False
+        # self.client.post(joe_and_frank_filter_url, post_data, follow=True)
+        # self.assertEqual(len(self.joe_and_frank.contacts.all()), 0)
 
         # add an extra field to the org
-        ContactField.get_or_create(self.org, self.user, "state", name="Home state", value_type=ContactField.TYPE_STATE)
+        state = self.create_field("state", "Home state", value_type=ContactField.TYPE_STATE)
         self.set_contact_field(self.joe, "state", " kiGali   citY ")  # should match "Kigali City"
 
         # check that the field appears on the update form
@@ -3141,8 +3136,7 @@ class ContactTest(TembaTest):
         self.assertContains(response, "French (Missing)")
 
         # update our contact with some locations
-        state = ContactField.get_or_create(self.org, self.admin, "state", "Home State", value_type="S")
-        district = ContactField.get_or_create(self.org, self.admin, "home", "Home District", value_type="I")
+        district = self.create_field("home", "Home District", value_type="I")
 
         self.client.post(
             reverse("contacts.contact_update_fields", args=[self.joe.id]),
@@ -3258,9 +3252,9 @@ class ContactTest(TembaTest):
         self.assertEqual(len(response.context_data["all_contact_fields"]), 0)
 
         # create some contact fields
-        ContactField.get_or_create(self.org, self.admin, "first", "First", priority=10)
-        ContactField.get_or_create(self.org, self.admin, "second", "Second")
-        ContactField.get_or_create(self.org, self.admin, "third", "Third", priority=20)
+        self.create_field("first", "First", priority=10)
+        self.create_field("second", "Second")
+        third = self.create_field("third", "Third", priority=20)
 
         # update ContactField data
         self.set_contact_field(self.joe, "first", "a simple value")
@@ -3271,7 +3265,8 @@ class ContactTest(TembaTest):
         self.assertEqual(len(response.context_data["all_contact_fields"]), 1)
 
         # make 'third' field a featured field, but don't assign a value (it should still be visible on the page)
-        ContactField.get_or_create(self.org, self.admin, "third", "Third", priority=20, show_in_table=True)
+        third.show_in_table = True
+        third.save(update_fields=("show_in_table",))
 
         response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
 
@@ -3476,9 +3471,7 @@ class ContactTest(TembaTest):
 
     def test_date_field(self):
         # create a new date field
-        birth_date = ContactField.get_or_create(
-            self.org, self.admin, "birth_date", name="Birth Date", value_type=ContactField.TYPE_TEXT
-        )
+        birth_date = self.create_field("birth_date", "Birth Date", value_type=ContactField.TYPE_TEXT)
 
         # set a field on our contact
         urn = "urn:uuid:0f73262c-0623-3f0a-8651-1855e755d2ef"
@@ -3492,17 +3485,14 @@ class ContactTest(TembaTest):
     def test_field_values(self):
         self.setUpLocations()
 
-        registration_field = ContactField.get_or_create(
-            self.org, self.admin, "registration_date", "Registration Date", None, ContactField.TYPE_DATETIME
+        registration_field = self.create_field(
+            "registration_date", "Registration Date", value_type=ContactField.TYPE_DATETIME
         )
+        weight_field = self.create_field("weight", "Weight", value_type=ContactField.TYPE_NUMBER)
+        color_field = self.create_field("color", "Color", value_type=ContactField.TYPE_TEXT)
+        state_field = self.create_field("state", "State", value_type=ContactField.TYPE_STATE)
 
-        weight_field = ContactField.get_or_create(
-            self.org, self.admin, "weight", "Weight", None, ContactField.TYPE_NUMBER
-        )
-        color_field = ContactField.get_or_create(self.org, self.admin, "color", "Color", None, ContactField.TYPE_TEXT)
-        state_field = ContactField.get_or_create(self.org, self.admin, "state", "State", None, ContactField.TYPE_STATE)
-
-        joe = Contact.objects.get(pk=self.joe.pk)
+        joe = Contact.objects.get(id=self.joe.id)
         joe.language = "eng"
         joe.save(update_fields=("language",))
 
@@ -3556,12 +3546,8 @@ class ContactTest(TembaTest):
     def test_set_location_fields(self):
         self.setUpLocations()
 
-        district_field = ContactField.get_or_create(
-            self.org, self.admin, "district", "District", None, ContactField.TYPE_DISTRICT
-        )
-        not_state_field = ContactField.get_or_create(
-            self.org, self.admin, "not_state", "Not State", None, ContactField.TYPE_TEXT
-        )
+        district_field = self.create_field("district", "District", value_type=ContactField.TYPE_DISTRICT)
+        not_state_field = self.create_field("not_state", "Not State", value_type=ContactField.TYPE_TEXT)
 
         # add duplicate district in different states
         east_province = AdminBoundary.create(osm_id="R005", name="East Province", level=1, parent=self.country)
@@ -3575,7 +3561,7 @@ class ContactTest(TembaTest):
         # empty because it is ambiguous
         self.assertFalse(joe.get_field_value(district_field))
 
-        state_field = ContactField.get_or_create(self.org, self.admin, "state", "State", None, ContactField.TYPE_STATE)
+        state_field = self.create_field("state", "State", value_type=ContactField.TYPE_STATE)
 
         self.set_contact_field(joe, "state", "Kigali city")
         self.assertEqual("Kigali City", joe.get_field_display(state_field))
@@ -3595,12 +3581,11 @@ class ContactTest(TembaTest):
 
         state = AdminBoundary.create(osm_id="3710302", name="Kano", level=1, parent=self.country)
         district = AdminBoundary.create(osm_id="3710307", name="Bichi", level=2, parent=state)
-        ward = AdminBoundary.create(osm_id="3710377", name="Bichi", level=3, parent=district)
-        user1 = self.create_user("mcren")
+        AdminBoundary.create(osm_id="3710377", name="Bichi", level=3, parent=district)
 
-        ContactField.get_or_create(self.org, user1, "state", "State", None, ContactField.TYPE_STATE)
-        ContactField.get_or_create(self.org, user1, "district", "District", None, ContactField.TYPE_DISTRICT)
-        ward = ContactField.get_or_create(self.org, user1, "ward", "Ward", None, ContactField.TYPE_WARD)
+        self.create_field("state", "State", value_type=ContactField.TYPE_STATE)
+        self.create_field("district", "District", value_type=ContactField.TYPE_DISTRICT)
+        ward = self.create_field("ward", "Ward", value_type=ContactField.TYPE_WARD)
 
         jemila = self.create_contact(
             name="Jemila Alley",
@@ -3695,11 +3680,11 @@ class ContactFieldTest(TembaTest):
         self.joe = self.create_contact(name="Joe Blow", phone="123")
         self.frank = self.create_contact(name="Frank Smith", phone="1234")
 
-        self.contactfield_1 = ContactField.get_or_create(self.org, self.admin, "first", "First", priority=10)
-        self.contactfield_2 = ContactField.get_or_create(self.org, self.admin, "second", "Second")
-        self.contactfield_3 = ContactField.get_or_create(self.org, self.admin, "third", "Third", priority=20)
+        self.contactfield_1 = self.create_field("first", "First", priority=10)
+        self.contactfield_2 = self.create_field("second", "Second")
+        self.contactfield_3 = self.create_field("third", "Third", priority=20)
 
-        self.other_org_field = ContactField.get_or_create(self.org2, self.admin, "other", "Other", priority=10)
+        self.other_org_field = self.create_field("other", "Other", priority=10, org=self.org2)
 
     def test_get_or_create(self):
         join_date = ContactField.get_or_create(self.org, self.admin, "join_date")
@@ -4354,13 +4339,9 @@ class ContactFieldTest(TembaTest):
             assertImportExportedFile()
 
     def test_prepare_sort_field_struct(self):
-        ward = ContactField.get_or_create(self.org, self.admin, "ward", "Home Ward", value_type=ContactField.TYPE_WARD)
-        district = ContactField.get_or_create(
-            self.org, self.admin, "district", "Home District", value_type=ContactField.TYPE_DISTRICT
-        )
-        state = ContactField.get_or_create(
-            self.org, self.admin, "state", "Home Stat", value_type=ContactField.TYPE_STATE
-        )
+        ward = self.create_field("ward", "Home Ward", value_type=ContactField.TYPE_WARD)
+        district = self.create_field("district", "Home District", value_type=ContactField.TYPE_DISTRICT)
+        state = self.create_field("state", "Home Stat", value_type=ContactField.TYPE_STATE)
 
         self.assertEqual(
             ContactListView.prepare_sort_field_struct(sort_on="created_on"),
@@ -4657,15 +4638,15 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
-        self.age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type="N", show_in_table=True)
-        self.gender = ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type="T")
-        self.state = ContactField.get_or_create(self.org, self.admin, "state", "State", value_type="S")
+        self.age = self.create_field("age", "Age", value_type="N", show_in_table=True)
+        self.gender = self.create_field("gender", "Gender", value_type="T")
+        self.state = self.create_field("state", "State", value_type="S")
 
-        self.deleted = ContactField.get_or_create(self.org, self.admin, "foo", "Foo")
+        self.deleted = self.create_field("foo", "Foo")
         self.deleted.is_active = False
         self.deleted.save(update_fields=("is_active",))
 
-        self.other_org_field = ContactField.get_or_create(self.org2, self.admin2, "other", "Other")
+        self.other_org_field = self.create_field("other", "Other", org=self.org2)
 
     def test_menu(self):
         menu_url = reverse("contacts.contactfield_menu")
@@ -5087,14 +5068,14 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
         self.client.login(username=self.admin.username, password=self.admin.username)
 
-        age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type="N")
-        ContactField.get_or_create(self.org, self.admin, "join_date", "Join Date", value_type="D")
-        ContactField.get_or_create(self.org, self.admin, "state", "Home State", value_type="S")
-        ContactField.get_or_create(self.org, self.admin, "home", "Home District", value_type="I")
-        ward = ContactField.get_or_create(self.org, self.admin, "ward", "Home Ward", value_type="W")
-        ContactField.get_or_create(self.org, self.admin, "profession", "Profession", value_type="T")
-        ContactField.get_or_create(self.org, self.admin, "isureporter", "Is UReporter", value_type="T")
-        ContactField.get_or_create(self.org, self.admin, "hasbirth", "Has Birth", value_type="T")
+        age = self.create_field("age", "Age", value_type="N")
+        self.create_field("join_date", "Join Date", value_type="D")
+        self.create_field("state", "Home State", value_type="S")
+        self.create_field("home", "Home District", value_type="I")
+        ward = self.create_field("ward", "Home Ward", value_type="W")
+        self.create_field("profession", "Profession", value_type="T")
+        self.create_field("isureporter", "Is UReporter", value_type="T")
+        self.create_field("hasbirth", "Has Birth", value_type="T")
 
         doctors = self.create_group("Doctors", contacts=[])
         farmers = self.create_group("Farmers", contacts=[])

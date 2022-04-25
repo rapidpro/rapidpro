@@ -37,9 +37,7 @@ class CampaignTest(TembaTest):
         self.voice_flow = self.create_flow(name="IVR flow", flow_type="V")
 
         # create a contact field for our planting date
-        self.planting_date = ContactField.get_or_create(
-            self.org, self.admin, "planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME
-        )
+        self.planting_date = self.create_field("planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME)
 
     @mock_mailroom
     def test_model(self, mr_mocks):
@@ -1239,9 +1237,15 @@ class CampaignTest(TembaTest):
 
 
 class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
+    def setUp(self):
+        super().setUp()
+
+        self.create_field("registered", "Registered", value_type="D")
+        self.create_field("registered", "Registered", value_type="D", org=self.org2)
+
     def create_campaign(self, org, name, group):
         user = org.get_admins().first()
-        registered = self.create_field("registered", "Registered", value_type="D", org=org)
+        registered = org.fields.get(key="registered")
         flow = self.create_flow(org=org)
         campaign = Campaign.create(org, user, name, group)
         CampaignEvent.create_flow_event(
@@ -1260,7 +1264,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_campaign(self.org, "My Campaign", group)
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
-        self.assertEqual(6, len(menu))
+        self.assertEqual(4, len(menu))
 
     def test_create(self):
         group = self.create_group("Reporters", contacts=[])
@@ -1395,13 +1399,15 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
+        self.create_field("registered", "Registered", value_type="D")
+
         self.campaign1 = self.create_campaign(self.org)
         self.other_org_campaign = self.create_campaign(self.org2)
 
     def create_campaign(self, org):
         user = org.get_admins().first()
         group = self.create_group("Reporters", contacts=[], org=org)
-        registered = self.create_field("registered", "Registered", value_type="D", org=org)
+        registered = self.org.fields.get(key="registered")
         flow = self.create_flow(org=org)
         campaign = Campaign.create(org, user, "Welcomes", group)
         CampaignEvent.create_flow_event(
