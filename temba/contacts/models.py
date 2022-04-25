@@ -339,9 +339,6 @@ class UserContactFieldsManager(models.Manager):
 
         return super().create(**kwargs)
 
-    def count_active_for_org(self, org):
-        return self.get_queryset().active_for_org(org=org).count()
-
     def active_for_org(self, org):
         return self.get_queryset().active_for_org(org=org)
 
