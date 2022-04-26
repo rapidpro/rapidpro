@@ -329,9 +329,8 @@ OIDC_EXEMPT_URLS = OIDC_EXEMPT_URL_PATTERNS + env.list("OIDC_EXEMPT_URLS", defau
 OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = env.int("OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS", default=(15 * 60))
 
 # Tells Django to authenticate via OIDC
-if OIDC_RP_CLIENT_ID:
-    AUTHENTICATION_BACKENDS += ("weni.auth.backends.WeniOIDCAuthenticationBackend",)
-    OIDC_DRF_AUTH_BACKEND = "weni.auth.backends.WeniOIDCAuthenticationBackend"
+AUTHENTICATION_BACKENDS += ("weni.auth.backends.WeniOIDCAuthenticationBackend",)
+OIDC_DRF_AUTH_BACKEND = "weni.auth.backends.WeniOIDCAuthenticationBackend"
 
 # Used to enable authentication via Keycloak to legacy users
 SECRET_KEY_CHECK_LEGACY_USER = env("SECRET_KEY_CHECK_LEGACY_USER")
@@ -408,3 +407,36 @@ USER_RECOVER_MAX_ATTEMPTS = env.int("USER_RECOVER_MAX_ATTEMPTS", default=5)
 
 # Channel that should not be displayed in the old design
 OLD_DESIGN_EXCLUDED_CHANNELS_CODES = env.list("OLD_DESIGN_EXCLUDED_CHANNELS_CODES", default=["TG", "WWC", "IG"])
+
+
+# ------------------------------------------------------------------------------------------
+# Option to disable mozilla_django_oidc completely, removing it from:
+#   REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES]
+#   MIDDLEWARE
+#   INSTALLED_APPS
+#   LOGGING
+#   AUTHENTICATION_BACKENDS
+# ------------------------------------------------------------------------------------------
+DISABLE_OIDC = env.bool("DISABLE_OIDC", default=False)
+if DISABLE_OIDC:
+    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].remove(
+        "mozilla_django_oidc.contrib.drf.OIDCAuthentication"
+    )
+
+    middleware_list = list(MIDDLEWARE)
+    middleware_list.remove("mozilla_django_oidc.middleware.SessionRefresh")
+    MIDDLEWARE = tuple(middleware_list)
+
+    installed_apps_list = list(INSTALLED_APPS)
+    installed_apps_list.remove("mozilla_django_oidc")
+    installed_apps_list.remove("weni.auth")
+    INSTALLED_APPS = tuple(installed_apps_list)
+
+    LOGGING["loggers"].pop("mozilla_django_oidc")
+    LOGGING["loggers"].pop("weni_django_oidc")
+
+    authentication_backend_list = list(AUTHENTICATION_BACKENDS)
+    authentication_backend_list.remove("weni.auth.backends.WeniOIDCAuthenticationBackend")
+    AUTHENTICATION_BACKENDS = tuple(authentication_backend_list)
+
+    OIDC_DRF_AUTH_BACKEND = None
