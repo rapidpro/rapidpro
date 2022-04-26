@@ -240,8 +240,10 @@ class FlowCRUDL(SmartCRUDL):
                     )
                 )
 
-            menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
-            menu.append(self.create_divider())
+            if label_items:
+                menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
+            
+            menu.append(self.create_space())
             menu.append(
                 self.create_modax_button(
                     name=_("New Label"), href="flows.flowlabel_create", on_submit="handleCreateLabelModalSubmitted()"

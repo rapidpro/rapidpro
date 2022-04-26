@@ -607,7 +607,8 @@ class ContactCRUDL(SmartCRUDL):
                     "icon": "x-octagon",
                 },
             ]
-
+            
+            menu.append(self.create_divider())
             menu.append(
                 {
                     "id": "import",
@@ -639,7 +640,6 @@ class ContactCRUDL(SmartCRUDL):
                     name=_("New Group"),
                     href="contacts.contactgroup_create",
                 ),
-                self.create_divider(),
             ]
 
             groups = (
@@ -661,9 +661,8 @@ class ContactCRUDL(SmartCRUDL):
                     )
                 )
 
-            menu += [
-                {"id": "groups", "icon": "users", "name": _("Groups"), "items": group_items, "inline": True},
-            ]
+            if group_items:
+                menu.append({"id": "groups", "icon": "users", "name": _("Groups"), "items": group_items, "inline": True})
 
             return JsonResponse({"results": menu})
 
