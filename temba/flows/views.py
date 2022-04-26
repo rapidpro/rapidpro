@@ -242,7 +242,7 @@ class FlowCRUDL(SmartCRUDL):
 
             if label_items:
                 menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
-            
+
             menu.append(self.create_space())
             menu.append(
                 self.create_modax_button(
