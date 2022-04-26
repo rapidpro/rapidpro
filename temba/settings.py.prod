@@ -329,8 +329,9 @@ OIDC_EXEMPT_URLS = OIDC_EXEMPT_URL_PATTERNS + env.list("OIDC_EXEMPT_URLS", defau
 OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = env.int("OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS", default=(15 * 60))
 
 # Tells Django to authenticate via OIDC
-AUTHENTICATION_BACKENDS += ("weni.auth.backends.WeniOIDCAuthenticationBackend",)
-OIDC_DRF_AUTH_BACKEND = "weni.auth.backends.WeniOIDCAuthenticationBackend"
+if OIDC_RP_CLIENT_ID:
+    AUTHENTICATION_BACKENDS += ("weni.auth.backends.WeniOIDCAuthenticationBackend",)
+    OIDC_DRF_AUTH_BACKEND = "weni.auth.backends.WeniOIDCAuthenticationBackend"
 
 # Used to enable authentication via Keycloak to legacy users
 SECRET_KEY_CHECK_LEGACY_USER = env("SECRET_KEY_CHECK_LEGACY_USER")
