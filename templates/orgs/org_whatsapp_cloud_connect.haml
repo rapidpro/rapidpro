@@ -1,0 +1,59 @@
+-extends "smartmin/form.html"
+-load i18n compress temba
+
+
+-block pre-form
+  -blocktrans trimmed with name=brand.name
+    You can connect your Facebook Business account to {{name}} in just a few simple steps.
+
+  -if claim_error
+    .alert-error.my-4
+      {{ claim_error }}
+
+-block form
+  .mt-4.card
+    #fb-guide
+      %ol.steps
+        %li
+          -trans "Click on the button below to get started."
+
+        %li
+          -trans "Select the user you want to log in as."
+
+        %li
+          -trans "Select all the Facebook Business accounts you want to grant us permissions for."
+
+        %li
+          -trans "Approve the permissions, these are required for us to access the API on your behalf."
+
+    #fb-app-connect.flex.mt-4
+      .button-primary.connect-facebook
+        -trans "Add Facebook Business"
+
+    %form#claim-form(style="display:none;" method="POST" action="{{ connect_url }}")
+      {% csrf_token %}
+      %input#user-access-token(type="text" name="user_access_token")
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(document).ready(function(){
+      $(".connect-facebook").click(function(evt){
+        location.replace("https://www.facebook.com/v13.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&scope=business_management,whatsapp_business_management,whatsapp_business_messaging&response_type=token")
+
+      });
+
+      var hash = window.location.hash.substring(1)
+      var result = hash.split('&').reduce(function (res, item) {
+        var parts = item.split('=');
+        res[parts[0]] = parts[1];
+        return res;
+      }, {});
+
+      var accessToken = result.long_lived_token || result.access_token;
+      if (accessToken) {
+        $("#user-access-token").val(access_token);
+        $("#claim-form").submit();
+      }
+    });
