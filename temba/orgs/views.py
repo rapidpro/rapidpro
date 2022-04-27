@@ -1031,6 +1031,9 @@ class MenuMixin(OrgPermsMixin):
     def create_divider(self):
         return {"type": "divider"}
 
+    def create_space(self):
+        return {"type": "space"}
+
     def create_section(self, name, items=()):
         return {"id": slugify(name), "name": name, "type": "section", "items": items}
 
@@ -1979,6 +1982,14 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
 
             if org.is_active:
+                links.append(
+                    dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={org.pk}&redirect_url={reverse("msgs.msg_inbox", args=[])}',
+                    )
+                )
+
                 links.append(
                     dict(
                         title=_("Topups"),
