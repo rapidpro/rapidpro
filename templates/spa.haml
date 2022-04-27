@@ -28,26 +28,17 @@
 
 -block page-header
   -with gear_links=view.get_gear_links
-    -if gear_links
-      -if title
-        .spa-title.mb-5.shadow.z-50
-          .flex.flex-row.items-stretch.self-center.h-12.rounded.bg-gray-600.overflow-hidden
-            .flex-grow.flex.flex-row.items-center.text-2xl.px-4.text-white
-              {{title}}
 
-            -if gear_links
-              .spa-page-menu
-                -include "spa_page_menu.haml"
-    -else
-      -if title
-        .spa-title.no-menu.flex.items-center.mb-3
-          .text-container.text-2xl.text-gray-700
-            {{title}}
-          .line.flex-grow.mr-2.ml-6
-            .h-0.border.border-gray-200
-        .flex.mt-8
-          .flex-grow.-mx-5.-mt-6(style="float:left;height:30em;margin-bottom:-30em; background: rgb(247,247,247); background: linear-gradient(0deg, rgba(247,247,247,1) 0%, rgba(255,255,255,1) 50%);")
-
+    -if title or gear_links
+      .spa-title.no-menu.flex.items-center.mb-4
+        .text-container.text-2xl.text-gray-700
+          {{title}}
+        .line.flex-grow.mr-2.ml-6
+          .h-0.border.border-gray-200
+        
+        -if gear_links
+          -include "spa_page_menu.haml"
+  
     -block subtitle
 
 -block alert-messages

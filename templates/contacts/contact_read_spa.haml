@@ -1,19 +1,6 @@
 -extends "contacts/contact_read.html" 
 
--load smartmin sms contacts compress temba channels
--load i18n humanize
-
--block page-title
-  {{contact|name_or_urn:user_org|default:"Contact Details"}}
-
-
--block title
-  .flex.flex-wrap.flex-row.items-center
-    .mr-3
-      {{contact|name_or_urn:user_org|default:"Contact Details"}}
-
 -block subtitle
-
 -block content
   %temba-tabs.flex-grow
     %temba-tab(icon="message-square" name="Chat")
