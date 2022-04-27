@@ -1447,6 +1447,8 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["connect_url"] = reverse("orgs.org_whatsapp_cloud_connect")
+            context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
+
             return context
 
     class PlivoConnect(ModalMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
