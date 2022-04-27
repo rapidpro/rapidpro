@@ -1031,6 +1031,9 @@ class MenuMixin(OrgPermsMixin):
     def create_divider(self):
         return {"type": "divider"}
 
+    def create_space(self):
+        return {"type": "space"}
+
     def create_section(self, name, items=()):
         return {"id": slugify(name), "name": name, "type": "section", "items": items}
 

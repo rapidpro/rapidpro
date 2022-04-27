@@ -597,7 +597,6 @@ class MsgCRUDL(SmartCRUDL):
                         href=reverse("channels.channelevent_calls"),
                         count=counts[SystemLabel.TYPE_CALLS],
                     ),
-                    self.create_divider(),
                 ]
 
                 label_items = []
@@ -613,8 +612,10 @@ class MsgCRUDL(SmartCRUDL):
                         )
                     )
 
-                menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
-                menu.append(self.create_divider())
+                if label_items:
+                    menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
+
+                menu.append(self.create_space())
                 menu.append(
                     self.create_modax_button(
                         name=_("New Label"),
