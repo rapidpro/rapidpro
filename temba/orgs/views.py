@@ -1425,8 +1425,10 @@ class OrgCRUDL(SmartCRUDL):
                 response_json = response.json()
 
                 for perm in ["business_management", "whatsapp_business_management", "whatsapp_business_messaging"]:
-                    if perm not in response_json['scopes']:
-                        raise Exception('Missing permission, we need all the following permissions "business_management", "whatsapp_business_management", "whatsapp_business_messaging"')
+                    if perm not in response_json["scopes"]:
+                        raise Exception(
+                            'Missing permission, we need all the following permissions "business_management", "whatsapp_business_management", "whatsapp_business_messaging"'
+                        )
             except Exception:
                 raise forms.ValidationError(
                     _("Sorry account could not be connected. Please try again"), code="invalid"
