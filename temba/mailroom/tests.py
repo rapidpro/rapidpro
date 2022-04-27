@@ -18,7 +18,7 @@ from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import Ticketer, TicketEvent
 from temba.utils import json
 
-from . import modifiers, queue_interrupt
+from . import QueryExclusions, QueryInclusions, QueryMetadata, StartPreview, modifiers, queue_interrupt
 from .events import Event
 
 
@@ -94,6 +94,63 @@ class MailroomClientTest(TembaTest):
         self.assertEqual(("http://localhost:8090/mr/flow/change_language",), call[0])
         self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
         self.assertEqual({"flow": flow_def, "language": "spa"}, json.loads(call[1]["data"]))
+
+    def test_flow_preview_start(self):
+        with patch("requests.post") as mock_post:
+            mock_resp = {
+                "query": 'group = "Farmers" AND status = "active"',
+                "total": 2345,
+                "sample_ids": [123, 234],
+                "metadata": {"attributes": ["group", "status"], "fields": [], "allow_as_group": False},
+            }
+            mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
+            preview = get_client().flow_preview_start(
+                self.org.id,
+                flow_id=12,
+                include=QueryInclusions(
+                    group_uuids=["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
+                    contact_uuids=["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
+                ),
+                exclude=QueryExclusions(non_active=True, not_seen_since_days=30),
+                sample_size=3,
+            )
+
+            self.assertEqual(
+                StartPreview(
+                    query='group = "Farmers" AND status = "active"',
+                    total=2345,
+                    sample_ids=[123, 234],
+                    metadata=QueryMetadata(attributes=["group", "status"], allow_as_group=False),
+                ),
+                preview,
+            )
+
+        call = mock_post.call_args
+
+        self.maxDiff = None
+
+        self.assertEqual(("http://localhost:8090/mr/flow/preview_start",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual(
+            {
+                "org_id": self.org.id,
+                "flow_id": 12,
+                "include": {
+                    "group_uuids": ["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
+                    "contact_uuids": ["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
+                    "urns": [],
+                    "query": "",
+                },
+                "exclude": {
+                    "non_active": True,
+                    "in_a_flow": False,
+                    "started_previously": False,
+                    "not_seen_since_days": 30,
+                },
+                "sample_size": 3,
+            },
+            json.loads(call[1]["data"]),
+        )
 
     def test_contact_modify(self):
         with patch("requests.post") as mock_post:
@@ -206,10 +263,14 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_parse_query(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"query":"name ~ \\"frank\\"","fields":["name"]}')
-        response = get_client().parse_query(self.org.id, "frank")
+        mock_post.return_value = MockResponse(
+            200, '{"query":"name ~ \\"frank\\"", "elastic_query": {}, "metadata": {"attributes":["name"]}}'
+        )
+        parsed = get_client().parse_query(self.org.id, "frank")
 
-        self.assertEqual('name ~ "frank"', response["query"])
+        self.assertEqual('name ~ "frank"', parsed.query)
+        self.assertEqual({}, parsed.elastic_query)
+        self.assertEqual(["name"], parsed.metadata.attributes)
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/parse_query",
             headers={"User-Agent": "Temba"},
@@ -295,15 +356,16 @@ class MailroomClientTest(TembaTest):
             {
               "query":"name ~ \\"frank\\"",
               "contact_ids":[1,2],
-              "fields":["name"],
               "total": 2,
-              "offset": 0
+              "offset": 0,
+              "metadata": {"attributes":["name"]}
             }
             """,
         )
         response = get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "frank", "-created_on")
 
-        self.assertEqual('name ~ "frank"', response["query"])
+        self.assertEqual('name ~ "frank"', response.query)
+        self.assertEqual(["name"], response.metadata.attributes)
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/search",
             headers={"User-Agent": "Temba"},

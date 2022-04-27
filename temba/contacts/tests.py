@@ -24,12 +24,12 @@ from django.utils import timezone
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.search import Metadata, SearchException, SearchResults, search_contacts
+from temba.contacts.search import SearchException, search_contacts
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowSession, FlowStart
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.mailroom import MailroomException, modifiers
+from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modifiers
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
@@ -92,7 +92,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         joe = self.create_contact("Joe", phone="123", fields={"age": "20", "home": "Kigali"})
         frank = self.create_contact("Frank", phone="124", fields={"age": "18"})
 
-        mr_mocks.contact_search('name != ""', contacts=[], allow_as_group=True)
+        mr_mocks.contact_search('name != ""', contacts=[])
         smart = self.create_group("No Name", query='name = ""')
 
         with self.assertNumQueries(56):
@@ -167,7 +167,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")
         self.assertEqual(response.context["base_template"], "spa.html")
 
-        mr_mocks.contact_search("age = 18", contacts=[frank], allow_as_group=True)
+        mr_mocks.contact_search("age = 18", contacts=[frank])
 
         response = self.client.get(list_url + "?search=age+%3D+18")
         self.assertEqual(list(response.context["object_list"]), [frank])
@@ -176,7 +176,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertIsNone(response.context["search_error"])
         self.assertEqual(list(response.context["contact_fields"].values_list("name", flat=True)), ["Home", "Age"])
 
-        mr_mocks.contact_search("age = 18", contacts=[frank], total=10020, allow_as_group=True)
+        mr_mocks.contact_search("age = 18", contacts=[frank], total=10020)
 
         # we return up to 10000 contacts when searching with ES, so last page is 200
         url = f'{reverse("contacts.contact_list")}?{"search=age+%3D+18&page=200"}'
@@ -207,7 +207,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertIsNone(response.context["search_error"])
 
         with AnonymousOrg(self.org):
-            mr_mocks.contact_search(f"{joe.id}", cleaned=f"id = {joe.id}", contacts=[joe], allow_as_group=False)
+            mr_mocks.contact_search(f"{joe.id}", cleaned=f"id = {joe.id}", contacts=[joe])
 
             response = self.client.get(list_url + f"?search={joe.id}")
             self.assertEqual(list(response.context["object_list"]), [joe])
@@ -419,7 +419,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         frank = self.create_contact("Frank", phone="124")
         self.create_contact("Bob", phone="125")
 
-        mr_mocks.contact_search("age > 40", contacts=[frank], total=1, allow_as_group=True)
+        mr_mocks.contact_search("age > 40", contacts=[frank], total=1)
 
         group1 = self.create_group("Testers", contacts=[joe, frank])  # static group
         group2 = self.create_group("Oldies", query="age > 40")  # smart group
@@ -721,7 +721,6 @@ class ContactGroupTest(TembaTest):
 
         # create a dynamic group using a query
         query = '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
-        mr_mocks.parse_query(query, fields=[age, gender])
 
         group = ContactGroup.create_smart(self.org, self.admin, "Group two", query)
         group.refresh_from_db()
@@ -731,7 +730,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(ContactGroup.STATUS_INITIALIZING, group.status)
 
         # update group query
-        mr_mocks.parse_query("age > 18 and name ~ Mary", cleaned='age > 18 AND name ~ "Mary"', fields=[age])
+        mr_mocks.parse_query("age > 18 and name ~ Mary", cleaned='age > 18 AND name ~ "Mary"')
         group.update_query("age > 18 and name ~ Mary")
         group.refresh_from_db()
 
@@ -748,7 +747,6 @@ class ContactGroupTest(TembaTest):
         self.assertRaises(AssertionError, ContactGroup.create_smart, self.org, self.admin, "Empty", "")
 
         # can't create a dynamic group with id attribute
-        mr_mocks.parse_query("id = 123", allow_as_group=False)
         self.assertRaises(ValueError, ContactGroup.create_smart, self.org, self.admin, "Bose", "id = 123")
 
         # dynamic group should not have remove to group button
@@ -1043,9 +1041,6 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         # let's delete it and make sure it's gone
         self.client.post(list_url, {"action": "delete", "objects": group.id})
         self.assertFalse(ContactGroup.objects.get(id=group.id).is_active)
-
-        query = "name ~ Joe"
-        mr_mocks.parse_query(query, fields=[])
 
         smart_group = ContactGroup.create_smart(self.org, self.admin, "Smart Group", "name ~ Joe")
 
@@ -1841,9 +1836,9 @@ class ContactTest(TembaTest):
                     query="",
                     total=4,
                     contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
-                    metadata=Metadata(),
+                    metadata=QueryMetadata(),
                 ),
-                SearchResults(query="", total=3, contact_ids=[], metadata=Metadata()),
+                SearchResults(query="", total=3, contact_ids=[], metadata=QueryMetadata()),
             ]
 
             self.assertEqual(
@@ -1864,8 +1859,13 @@ class ContactTest(TembaTest):
 
         with self.assertNumQueries(19):
             mock_search_contacts.side_effect = [
-                SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=Metadata()),
-                SearchResults(query="", total=2, contact_ids=[self.voldemort.id, self.frank.id], metadata=Metadata()),
+                SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=QueryMetadata()),
+                SearchResults(
+                    query="",
+                    total=2,
+                    contact_ids=[self.voldemort.id, self.frank.id],
+                    metadata=QueryMetadata(),
+                ),
             ]
 
             self.assertEqual(
@@ -1894,8 +1894,8 @@ class ContactTest(TembaTest):
 
         with self.assertNumQueries(17):
             mock_search_contacts.side_effect = [
-                SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=Metadata()),
-                SearchResults(query="", total=0, contact_ids=[], metadata=Metadata()),
+                SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=QueryMetadata()),
+                SearchResults(query="", total=0, contact_ids=[], metadata=QueryMetadata()),
             ]
 
             self.assertEqual(
@@ -1939,10 +1939,13 @@ class ContactTest(TembaTest):
                 query="",
                 total=4,
                 contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
-                metadata=Metadata(),
+                metadata=QueryMetadata(),
             ),
             SearchResults(
-                query="", total=3, contact_ids=[self.voldemort.id, self.joe.id, self.frank.id], metadata=Metadata()
+                query="",
+                total=3,
+                contact_ids=[self.voldemort.id, self.joe.id, self.frank.id],
+                metadata=QueryMetadata(),
             ),
         ]
         self.assertEqual(
@@ -1960,8 +1963,8 @@ class ContactTest(TembaTest):
 
         # search for Frank by phone
         mock_search_contacts.side_effect = [
-            SearchResults(query="name ~ 222", total=0, contact_ids=[], metadata=Metadata()),
-            SearchResults(query="urn ~ 222", total=1, contact_ids=[self.frank.id], metadata=Metadata()),
+            SearchResults(query="name ~ 222", total=0, contact_ids=[], metadata=QueryMetadata()),
+            SearchResults(query="urn ~ 222", total=1, contact_ids=[self.frank.id], metadata=QueryMetadata()),
         ]
         self.assertEqual(
             [{"id": f"u-{frank_tel.id}", "text": "250782222222", "extra": "Frank Smith", "scheme": "tel"}],
@@ -1976,8 +1979,8 @@ class ContactTest(TembaTest):
 
         # search for Joe - match on last name and twitter handle
         mock_search_contacts.side_effect = [
-            SearchResults(query="name ~ blow", total=1, contact_ids=[self.joe.id], metadata=Metadata()),
-            SearchResults(query="urn ~ blow", total=1, contact_ids=[self.joe.id], metadata=Metadata()),
+            SearchResults(query="name ~ blow", total=1, contact_ids=[self.joe.id], metadata=QueryMetadata()),
+            SearchResults(query="urn ~ blow", total=1, contact_ids=[self.joe.id], metadata=QueryMetadata()),
         ]
         self.assertEqual(
             [
@@ -2021,7 +2024,7 @@ class ContactTest(TembaTest):
 
         with AnonymousOrg(self.org):
             mock_search_contacts.side_effect = [
-                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=Metadata())
+                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata())
             ]
             self.assertEqual(
                 [
@@ -2039,7 +2042,7 @@ class ContactTest(TembaTest):
 
             # same search but with v2 format
             mock_search_contacts.side_effect = [
-                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=Metadata())
+                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata())
             ]
             self.assertEqual(
                 [
@@ -4171,7 +4174,7 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(43):
+                    with self.assertNumQueries(44):
                         self.assertExcelSheet(
                             request_export("?s=name+has+adam+or+name+has+deng")[0],
                             [
@@ -4233,7 +4236,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(42):
+            with self.assertNumQueries(43):
                 self.assertExcelSheet(
                     request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [
@@ -4809,8 +4812,6 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         field = ContactField.user_fields.filter(is_active=True, org=self.org, key="favorite_cat").get()
         field.value_type = ContactField.TYPE_DATETIME
         field.save(update_fields=("value_type",))
-
-        mr_mocks.parse_query('favorite_cat != ""', fields=[field])
 
         group = self.create_group("Farmers", query='favorite_cat != ""')
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", group)

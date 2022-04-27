@@ -1,5 +1,5 @@
 import logging
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 import requests
 
@@ -51,6 +51,58 @@ class ContactSpec:
     urns: list[str]
     fields: dict[str, str]
     groups: list[str]
+
+
+@dataclass
+class QueryInclusions:
+    group_uuids: list = field(default_factory=list)
+    contact_uuids: list = field(default_factory=list)
+    urns: list = field(default_factory=list)
+    query: str = ""
+
+
+@dataclass
+class QueryExclusions:
+    non_active: bool = False  # contacts who are blocked, stopped or archived
+    in_a_flow: bool = False  # contacts who are currently in a flow (including this one)
+    started_previously: bool = False  # contacts who have been in this flow in the last 90 days
+    not_seen_since_days: int = 0  # contacts who have not been seen for more than this number of days
+
+
+@dataclass(frozen=True)
+class QueryMetadata:
+    """
+    Contact query metadata
+    """
+
+    attributes: list = field(default_factory=list)
+    schemes: list = field(default_factory=list)
+    fields: list = field(default_factory=list)
+    groups: list = field(default_factory=list)
+    allow_as_group: bool = False
+
+
+@dataclass(frozen=True)
+class ParsedQuery:
+    query: str
+    elastic_query: dict
+    metadata: QueryMetadata
+
+
+@dataclass(frozen=True)
+class SearchResults:
+    query: str
+    total: int
+    contact_ids: list
+    metadata: QueryMetadata
+
+
+@dataclass(frozen=True)
+class StartPreview:
+    query: str
+    total: int
+    sample_ids: list
+    metadata: QueryMetadata
 
 
 class MailroomClient:
@@ -113,6 +165,30 @@ class MailroomClient:
 
         return self._request("flow/clone", payload)
 
+    def flow_preview_start(
+        self,
+        org_id: int,
+        flow_id: int,
+        include: QueryInclusions,
+        exclude: QueryExclusions,
+        sample_size: int,
+    ) -> StartPreview:
+        payload = {
+            "org_id": org_id,
+            "flow_id": flow_id,
+            "include": asdict(include),
+            "exclude": asdict(exclude),
+            "sample_size": sample_size,
+        }
+
+        response = self._request("flow/preview_start", payload, encode_json=True)
+        return StartPreview(
+            query=response["query"],
+            total=response["total"],
+            sample_ids=response["sample_ids"],
+            metadata=QueryMetadata(**response.get("metadata", {})),
+        )
+
     def msg_resend(self, org_id, msg_ids):
         payload = {"org_id": org_id, "msg_ids": msg_ids}
 
@@ -162,7 +238,7 @@ class MailroomClient:
 
         return self._request("contact/resolve", payload)
 
-    def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()):
+    def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()) -> SearchResults:
         payload = {
             "org_id": org_id,
             "group_uuid": group_uuid,
@@ -171,12 +247,23 @@ class MailroomClient:
             "sort": sort,
             "offset": offset,
         }
-        return self._request("contact/search", payload)
+        response = self._request("contact/search", payload)
+        return SearchResults(
+            query=response["query"],
+            total=response["total"],
+            contact_ids=response["contact_ids"],
+            metadata=QueryMetadata(**response.get("metadata", {})),
+        )
 
-    def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = ""):
+    def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = "") -> ParsedQuery:
         payload = {"org_id": org_id, "query": query, "parse_only": parse_only, "group_uuid": group_uuid}
 
-        return self._request("contact/parse_query", payload)
+        response = self._request("contact/parse_query", payload)
+        return ParsedQuery(
+            query=response["query"],
+            elastic_query=response["elastic_query"],
+            metadata=QueryMetadata(**response.get("metadata", {})),
+        )
 
     def ticket_assign(self, org_id: int, user_id: int, ticket_ids: list, assignee_id: int, note: str):
         payload = {

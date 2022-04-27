@@ -197,6 +197,7 @@ class FlowCRUDL(SmartCRUDL):
         "results",
         "run_table",
         "category_counts",
+        "preview_start",
         "broadcast",
         "activity",
         "activity_chart",
@@ -1785,6 +1786,48 @@ class FlowCRUDL(SmartCRUDL):
                     return JsonResponse(client.sim_resume(payload))
                 except mailroom.MailroomException:
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
+
+    class PreviewStart(OrgObjPermsMixin, SmartReadView):
+        permission = "flows.flow_broadcast"
+
+        def post(self, request, *args, **kwargs):
+            payload = json.loads(request.body)
+            include = mailroom.QueryInclusions(**payload.get("include", {}))
+            exclude = mailroom.QueryExclusions(**payload.get("exclude", {}))
+            flow = self.get_object()
+            org = flow.org
+
+            try:
+                query, total, sample, metadata = flow.preview_start(include=include, exclude=exclude)
+            except SearchException as e:
+                return JsonResponse({"query": "", "total": 0, "sample": [], "error": str(e)}, status=400)
+
+            query_fields = org.fields.filter(key__in=[f["key"] for f in metadata.fields])
+
+            # render sample contacts in a simplified form, including only fields from query
+            contacts = []
+            for contact in sample:
+                primary_urn = contact.get_urn()
+                primary_urn = primary_urn.get_display(org, international=True) if primary_urn else None
+                contacts.append(
+                    {
+                        "uuid": contact.uuid,
+                        "name": contact.name,
+                        "primary_urn": primary_urn,
+                        "fields": {f.key: contact.get_field_display(f) for f in query_fields},
+                        "created_on": contact.created_on.isoformat(),
+                        "last_seen_on": contact.last_seen_on.isoformat() if contact.last_seen_on else None,
+                    }
+                )
+
+            return JsonResponse(
+                {
+                    "query": query,
+                    "total": total,
+                    "sample": contacts,
+                    "fields": [{"key": f.key, "name": f.name} for f in query_fields],
+                }
+            )
 
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
