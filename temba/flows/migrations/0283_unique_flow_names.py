@@ -22,11 +22,13 @@ def make_flow_names_unique(apps, schema_editor):
             for unique_name, flows in by_unique_name.items():
                 if len(flows) > 1:
                     for f in flows[1:]:
-                        suffix = 2
-                        new_name = f"{f.name} {suffix}"
+                        count = 2
+                        count_str = f" {count}"
+                        new_name = f"{f.name[:64 - len(count_str)]}{count_str}"
                         while new_name.lower() in unique_names:
-                            suffix += 1
-                            new_name = f"{f.name} {suffix}"
+                            count += 1
+                            count_str = f" {count}"
+                            new_name = f"{f.name[:64 - len(count_str)]}{count_str}"
 
                         print(f" > org '{org.name}' flow {f.uuid} '{f.name}' renamed to '{new_name}'")
 
@@ -38,6 +40,12 @@ def make_flow_names_unique(apps, schema_editor):
 
 def reverse(apps, schema_editor):
     pass
+
+
+def apply_manual():  # pragma: no cover
+    from django.apps import apps
+
+    make_flow_names_unique(apps, None)
 
 
 class Migration(migrations.Migration):
