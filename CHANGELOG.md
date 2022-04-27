@@ -1,3 +1,9 @@
+v7.3.27
+----------
+ * Tweak header to be uniform treatment regardless of menu
+ * Data migration to make flow names unique
+ * Add flow.preview_start endpoint which calls mailroom endpoint
+
 v7.3.26
 ----------
  * Fix mailroom_db command to set languages on new orgs
