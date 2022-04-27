@@ -325,24 +325,24 @@ DEFAULT_PLAN = TOPUP_PLAN
 # Branding Configuration
 # -----------------------------------------------------------------------------------
 BRANDING = {
-    "rapidpro.io": {
-        "slug": "rapidpro",
-        "name": "RapidPro",
-        "org": "UNICEF",
-        "colors": dict(primary="#0c6596"),
-        "styles": ["brands/rapidpro/font/style.css"],
+    "arifu.com": {
+        "slug": "arifu",
+        "name": "Arifu",
+        "org": "Arifu",
+        "colors": dict(primary="#144165"),
+        "styles": ["brands/arifu/font/style.css"],
         "default_plan": TOPUP_PLAN,
         "welcome_topup": 1000,
-        "email": "join@rapidpro.io",
-        "support_email": "support@rapidpro.io",
-        "link": "https://app.rapidpro.io",
-        "api_link": "https://api.rapidpro.io",
-        "docs_link": "http://docs.rapidpro.io",
-        "domain": "app.rapidpro.io",
-        "ticket_domain": "tickets.rapidpro.io",
-        "favico": "brands/rapidpro/rapidpro.ico",
-        "splash": "brands/rapidpro/splash.jpg",
-        "logo": "brands/rapidpro/logo.png",
+        "email": "join@arifu.com",
+        "support_email": "support@arifu.com",
+        "link": "https://rp.arifu.com",
+        "api_link": "https://rp.arifu.com",
+        "docs_link": "http://rp.arifu.com",
+        "domain": "rp.arifu.com",
+        "ticket_domain": "tickets.arifu.com",
+        "favico": "brands/arifu/favicon.ico",
+        "splash": "brands/arifu/learner_picture.jpg",
+        "logo": "brands/arifu/logo.png",
         "allow_signups": True,
         "flow_types": ["M", "V", "B", "S"],  # see Flow.FLOW_TYPES
         "location_support": True,
@@ -351,11 +351,11 @@ BRANDING = {
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         "title": _("Visually build nationally scalable mobile applications"),
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
-        "credits": _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."),
+        "credits": _("Copyright &copy; 2012-2017 UNICEF. All Rights Reserved."),
         "support_widget": False,
     }
 }
-DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
+DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "arifu.com")
 
 # -----------------------------------------------------------------------------------
 # Permission Management
