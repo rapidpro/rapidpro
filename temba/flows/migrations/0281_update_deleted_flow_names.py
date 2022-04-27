@@ -5,7 +5,7 @@ from uuid import uuid4
 from django.db import migrations
 
 
-def update_deleted_flow_names(apps, schema_editor):
+def update_deleted_flow_names(apps, schema_editor):  # pragma: no cover
     Flow = apps.get_model("flows", "Flow")
 
     num_updated = 0
@@ -18,7 +18,7 @@ def update_deleted_flow_names(apps, schema_editor):
         print(f"Updated {num_updated} names of deleted flows")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
