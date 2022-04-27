@@ -83,6 +83,21 @@ class QueryMetadata:
 
 
 @dataclass(frozen=True)
+class ParsedQuery:
+    query: str
+    elastic_query: dict
+    metadata: QueryMetadata
+
+
+@dataclass(frozen=True)
+class SearchResults:
+    query: str
+    total: int
+    contact_ids: list
+    metadata: QueryMetadata
+
+
+@dataclass(frozen=True)
 class StartPreview:
     query: str
     total: int
@@ -168,7 +183,10 @@ class MailroomClient:
 
         response = self._request("flow/preview_start", payload, encode_json=True)
         return StartPreview(
-            response["query"], response["total"], response["sample_ids"], QueryMetadata(**response.get("metadata", {}))
+            query=response["query"],
+            total=response["total"],
+            sample_ids=response["sample_ids"],
+            metadata=QueryMetadata(**response.get("metadata", {})),
         )
 
     def msg_resend(self, org_id, msg_ids):
@@ -220,7 +238,7 @@ class MailroomClient:
 
         return self._request("contact/resolve", payload)
 
-    def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()):
+    def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()) -> SearchResults:
         payload = {
             "org_id": org_id,
             "group_uuid": group_uuid,
@@ -229,12 +247,23 @@ class MailroomClient:
             "sort": sort,
             "offset": offset,
         }
-        return self._request("contact/search", payload)
+        response = self._request("contact/search", payload)
+        return SearchResults(
+            query=response["query"],
+            total=response["total"],
+            contact_ids=response["contact_ids"],
+            metadata=QueryMetadata(**response.get("metadata", {})),
+        )
 
-    def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = ""):
+    def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = "") -> ParsedQuery:
         payload = {"org_id": org_id, "query": query, "parse_only": parse_only, "group_uuid": group_uuid}
 
-        return self._request("contact/parse_query", payload)
+        response = self._request("contact/parse_query", payload)
+        return ParsedQuery(
+            query=response["query"],
+            elastic_query=response["elastic_query"],
+            metadata=QueryMetadata(**response.get("metadata", {})),
+        )
 
     def ticket_assign(self, org_id: int, user_id: int, ticket_ids: list, assignee_id: int, note: str):
         payload = {

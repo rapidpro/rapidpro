@@ -263,10 +263,14 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_parse_query(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"query":"name ~ \\"frank\\"","fields":["name"]}')
-        response = get_client().parse_query(self.org.id, "frank")
+        mock_post.return_value = MockResponse(
+            200, '{"query":"name ~ \\"frank\\"", "elastic_query": {}, "metadata": {"attributes":["name"]}}'
+        )
+        parsed = get_client().parse_query(self.org.id, "frank")
 
-        self.assertEqual('name ~ "frank"', response["query"])
+        self.assertEqual('name ~ "frank"', parsed.query)
+        self.assertEqual({}, parsed.elastic_query)
+        self.assertEqual(["name"], parsed.metadata.attributes)
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/parse_query",
             headers={"User-Agent": "Temba"},
@@ -352,15 +356,16 @@ class MailroomClientTest(TembaTest):
             {
               "query":"name ~ \\"frank\\"",
               "contact_ids":[1,2],
-              "fields":["name"],
               "total": 2,
-              "offset": 0
+              "offset": 0,
+              "metadata": {"attributes":["name"]}
             }
             """,
         )
         response = get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "frank", "-created_on")
 
-        self.assertEqual('name ~ "frank"', response["query"])
+        self.assertEqual('name ~ "frank"', response.query)
+        self.assertEqual(["name"], response.metadata.attributes)
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/search",
             headers={"User-Agent": "Temba"},

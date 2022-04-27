@@ -17,7 +17,7 @@ from temba import mailroom
 from temba.campaigns.models import CampaignEvent, EventFire
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.locations.models import AdminBoundary
-from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException, QueryMetadata, StartPreview
+from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
 from temba.tests.dates import parse_datetime
@@ -33,7 +33,7 @@ event_units = {
 }
 
 
-def mock_inspect_query(org, query: str, fields=None) -> dict:
+def mock_inspect_query(org, query: str, fields=None) -> mailroom.QueryMetadata:
     def field_ref(f):
         return {"key": f.key, "name": f.name} if isinstance(f, ContactField) else {"key": f}
 
@@ -42,13 +42,13 @@ def mock_inspect_query(org, query: str, fields=None) -> dict:
     fields = fields if fields is not None else org.fields.filter(is_system=False, key__in=tokens)
     schemes = list(sorted(URN.VALID_SCHEMES.intersection(tokens)))
 
-    return {
-        "attributes": attributes,
-        "fields": [field_ref(f) for f in fields],
-        "groups": [],
-        "schemes": schemes,
-        "allow_as_group": not {"id", "flow", "group", "history", "status"}.intersection(tokens),
-    }
+    return mailroom.QueryMetadata(
+        attributes=attributes,
+        fields=[field_ref(f) for f in fields],
+        groups=[],
+        schemes=schemes,
+        allow_as_group=not {"id", "flow", "group", "history", "status"}.intersection(tokens),
+    )
 
 
 class Mocks:
@@ -63,34 +63,32 @@ class Mocks:
 
     def parse_query(self, query, *, cleaned=None, elastic_query=None, fields=None):
         def mock(org):
-            return {
-                "query": cleaned or query,
-                "elastic_query": elastic_query or {"term": {"is_active": True}},
-                "metadata": mock_inspect_query(org, cleaned or query, fields),
-            }
+            return mailroom.ParsedQuery(
+                query=cleaned or query,
+                elastic_query=elastic_query or {"term": {"is_active": True}},
+                metadata=mock_inspect_query(org, cleaned or query, fields),
+            )
 
         self._parse_query[query] = mock
 
     def contact_search(self, query, *, cleaned=None, contacts=(), total=0, fields=()):
         def mock(org, offset, sort):
-            return {
-                "query": cleaned or query,
-                "contact_ids": [c.id for c in contacts],
-                "total": total or len(contacts),
-                "offset": offset,
-                "sort": sort,
-                "metadata": mock_inspect_query(org, cleaned or query, fields),
-            }
+            return mailroom.SearchResults(
+                query=cleaned or query,
+                total=total or len(contacts),
+                contact_ids=[c.id for c in contacts],
+                metadata=mock_inspect_query(org, cleaned or query, fields),
+            )
 
         self._contact_search[query] = mock
 
     def flow_preview_start(self, query, total, sample):
         def mock(org):
-            return StartPreview(
+            return mailroom.StartPreview(
                 query=query,
                 total=total,
                 sample_ids=[c.id for c in sample],
-                metadata=QueryMetadata(**mock_inspect_query(org, query)),
+                metadata=mock_inspect_query(org, query),
             )
 
         self._flow_preview_start.append(mock)
@@ -183,11 +181,11 @@ class TestClient(MailroomClient):
         if mock:
             return mock(org)
 
-        return {
-            "query": query,
-            "elastic_query": {"term": {"is_active": True}},
-            "metadata": mock_inspect_query(org, query),
-        }
+        return mailroom.ParsedQuery(
+            query=query,
+            elastic_query={"term": {"is_active": True}},
+            metadata=mock_inspect_query(org, query),
+        )
 
     @_client_method
     def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()):
@@ -199,14 +197,7 @@ class TestClient(MailroomClient):
         return mock(org, offset, sort)
 
     @_client_method
-    def flow_preview_start(
-        self,
-        org_id: int,
-        flow_id: int,
-        include: mailroom.QueryInclusions,
-        exclude: mailroom.QueryExclusions,
-        sample_size: int,
-    ) -> mailroom.StartPreview:
+    def flow_preview_start(self, org_id: int, flow_id: int, include, exclude, sample_size: int):
         assert self.mocks._flow_preview_start, "missing flow_preview_start mock"
 
         mock = self.mocks._flow_preview_start.pop(0)

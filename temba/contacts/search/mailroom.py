@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 from django.utils.encoding import force_str
 from django.utils.translation import gettext_lazy as _
 
@@ -43,53 +41,27 @@ class SearchException(Exception):
         return force_str(self.message)
 
 
-@dataclass(frozen=True)
-class ParsedQuery:
-    query: str
-    elastic_query: dict
-    metadata: mailroom.QueryMetadata
-
-
-def parse_query(org, query: str, *, parse_only: bool = False, group=None) -> ParsedQuery:
+def parse_query(org, query: str, *, parse_only: bool = False, group=None) -> mailroom.ParsedQuery:
     """
     Parses the passed in query in the context of the org
     """
     try:
         group_uuid = group.uuid if group else None
 
-        response = mailroom.get_client().parse_query(org.id, query, parse_only=parse_only, group_uuid=str(group_uuid))
-        return ParsedQuery(
-            response["query"], response["elastic_query"], mailroom.QueryMetadata(**response.get("metadata", {}))
-        )
-
+        return mailroom.get_client().parse_query(org.id, query, parse_only=parse_only, group_uuid=str(group_uuid))
     except mailroom.MailroomException as e:
         raise SearchException.from_mailroom_exception(e)
 
 
-@dataclass(frozen=True)
-class SearchResults:
-    total: int
-    query: str
-    contact_ids: list
-    metadata: mailroom.QueryMetadata
-
-
 def search_contacts(
     org, query: str, *, group=None, sort: str = None, offset: int = None, exclude_ids=()
-) -> SearchResults:
+) -> mailroom.SearchResults:
     try:
         group_uuid = group.uuid if group else None
 
-        response = mailroom.get_client().contact_search(
+        return mailroom.get_client().contact_search(
             org.id, group_uuid=str(group_uuid), query=query, sort=sort, offset=offset, exclude_ids=exclude_ids
         )
-        return SearchResults(
-            response["total"],
-            response["query"],
-            response["contact_ids"],
-            mailroom.QueryMetadata(**response.get("metadata", {})),
-        )
-
     except mailroom.MailroomException as e:
         raise SearchException.from_mailroom_exception(e)
 
