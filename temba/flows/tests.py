@@ -11,7 +11,7 @@ from openpyxl import load_workbook
 
 from django.conf import settings
 from django.contrib.auth.models import Group
-from django.db.models.functions import TruncDate
+from django.db.models.functions import Lower, TruncDate
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -26,6 +26,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
+from temba.orgs.models import Org
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
@@ -5421,32 +5422,45 @@ class FlowRevisionTest(TembaTest):
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
 
 
-class UpdateDeletedFlowNamesMigrationTest(MigrationTest):
+class UniqueFlowNamesTest(MigrationTest):
     app = "flows"
-    migrate_from = "0280_alter_flowrun_contact_and_more"
-    migrate_to = "0281_update_deleted_flow_names"
+    migrate_from = "0282_alter_flow_name"
+    migrate_to = "0283_unique_flow_names"
+
+    def create_org(self, name: str, flow_names: list):
+        org = Org.objects.create(
+            name=name,
+            timezone=pytz.UTC,
+            brand="rapidpro.io",
+            created_on=timezone.now(),
+            created_by=self.superuser,
+            modified_by=self.superuser,
+        )
+        for name in flow_names:
+            org.flows.create(
+                name=name,
+                saved_by=self.superuser,
+                created_on=timezone.now(),
+                created_by=self.superuser,
+                modified_on=timezone.now(),
+                modified_by=self.superuser,
+            )
 
     def setUpBeforeMigration(self, apps):
-        # create active flow
-        self.flow1 = self.create_flow("Test 1")
-
-        # create deleted flow that needs name update
-        self.flow2 = self.create_flow("Test 2")
-        self.flow2.is_active = False
-        self.flow2.save(update_fields=("is_active",))
-
-        # create deleted flow that doesn't need name update
-        self.flow3 = self.create_flow("deleted-ab2f2562-9696-4b35-8a39-6093051ea20a-Test 3")
-        self.flow3.is_active = False
-        self.flow3.save(update_fields=("is_active",))
+        self.create_org("Test 0", [])
+        self.create_org("Test 1", ["Quiz", "Registration", "Sample"])  # no duplicates
+        self.create_org("Test 2", ["Registration 2", "Sample", "Registration", "Registration"])
+        self.create_org("Test 3", ["QUIZ", "quiz", "Quiz"])
+        self.create_org("Test 4", ["Quiz 1", "Sample", "Quiz", "Quiz 2", "Quiz 3", "Quiz", "Quiz", "Sample"])
 
     def test_migration(self):
-        self.flow1.refresh_from_db()
-        self.assertEqual("Test 1", self.flow1.name)  # unchanged
+        def assert_org(name: str, expected_names: list):
+            org = Org.objects.get(name=name)
+            flows = org.flows.filter(is_active=True).order_by(Lower("name"))
+            self.assertEqual(expected_names, [f.name for f in flows], f"flow names mismatch for org '{org.name}'")
 
-        self.flow2.refresh_from_db()
-        self.assertTrue(self.flow2.name.startswith("deleted-"))
-        self.assertTrue(self.flow2.name.endswith("-Test 2"))
-
-        self.flow3.refresh_from_db()
-        self.assertEqual("deleted-ab2f2562-9696-4b35-8a39-6093051ea20a-Test 3", self.flow3.name)  # unchanged
+        assert_org("Test 0", [])
+        assert_org("Test 1", ["Quiz", "Registration", "Sample"])
+        assert_org("Test 2", ["Registration", "Registration 2", "Registration 3", "Sample"])
+        assert_org("Test 3", ["QUIZ", "quiz 2", "Quiz 3"])
+        assert_org("Test 4", ["Quiz", "Quiz 1", "Quiz 2", "Quiz 3", "Quiz 4", "Quiz 5", "Sample", "Sample 2"])
