@@ -334,11 +334,6 @@ class UserContactFieldsManager(models.Manager):
     def get_queryset(self):
         return UserContactFieldsQuerySet(self.model, using=self._db).filter(is_system=False)
 
-    def create(self, **kwargs):
-        kwargs["is_system"] = False
-
-        return super().create(**kwargs)
-
     def active_for_org(self, org):
         return self.get_queryset().active_for_org(org=org)
 
@@ -502,7 +497,7 @@ class ContactField(SmartModel, DependencyMixin):
     def get_or_create(cls, org, user, key: str, name: str = None, value_type=None):
         """
         Gets the existing non-system contact field or creates a new field if it doesn't exist. This is method is only
-        used for imports and may modify the given name to ensure uniqueness.
+        used for imports and may ignore or modify the given name to ensure validity and uniqueness.
         """
 
         existing = org.fields.filter(is_system=False, is_active=True, key=key).first()
@@ -510,8 +505,8 @@ class ContactField(SmartModel, DependencyMixin):
         if existing:
             changed = False
 
-            if name and existing.name != name:
-                existing.name = name
+            if name and existing.name != name and cls.is_valid_name(name):
+                existing.name = cls.get_unique_name(org, name, ignore=existing)
                 changed = True
 
             # update our type if we were given one
@@ -533,19 +528,13 @@ class ContactField(SmartModel, DependencyMixin):
         if not ContactField.is_valid_key(key):
             raise ValueError(f"'{key}' is not valid contact field key")
 
-        # generate a name if we don't have one
-        if not name:
+        # generate a name if we don't have one or the given one isn't valid
+        if not name or not cls.is_valid_name(name):
             name = unsnakify(key)
-
-        # make unique if necessary
-        name = cls.get_unique_name(org, name)
-
-        if not cls.is_valid_name(name):
-            raise ValueError(f"'{name}' is not valid contact field name")
 
         return org.fields.create(
             key=key,
-            name=name,
+            name=cls.get_unique_name(org, name),  # make unique if necessary
             is_system=False,
             value_type=value_type or cls.TYPE_TEXT,
             created_by=user,
@@ -553,11 +542,13 @@ class ContactField(SmartModel, DependencyMixin):
         )
 
     @classmethod
-    def get_unique_name(cls, org, base_name: str) -> str:
+    def get_unique_name(cls, org, base_name: str, ignore=None) -> str:
         """
         Generates a unique name based on the given base name
         """
-        return TembaModel.get_unique_name(org.fields.filter(is_active=True), base_name, cls.MAX_NAME_LEN)
+        exclude_kwargs = {"id": ignore.id} if ignore else {}
+        qs = org.fields.filter(is_active=True).exclude(**exclude_kwargs)
+        return TembaModel.get_unique_name(qs, base_name, cls.MAX_NAME_LEN)
 
     @classmethod
     def import_fields(cls, org, user, field_defs: list):

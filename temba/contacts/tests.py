@@ -3711,14 +3711,26 @@ class ContactFieldTest(TembaTest):
         self.assertEqual("Updated Again Label", field4.name)
         self.assertEqual(ContactField.TYPE_DATETIME, field4.value_type)  # unchanged
 
+        # can't create with an invalid key
+        for key in ContactField.RESERVED_KEYS:
+            with self.assertRaises(ValueError):
+                ContactField.get_or_create(self.org, self.admin, key, key, value_type=ContactField.TYPE_TEXT)
+
         # provided names are made unique
         field5 = ContactField.get_or_create(self.org, self.admin, "date_joined", name="join date")
         self.assertEqual("date_joined", field5.key)
         self.assertEqual("join date 2", field5.name)
 
-        for key in ContactField.RESERVED_KEYS:
-            with self.assertRaises(ValueError):
-                ContactField.get_or_create(self.org, self.admin, key, key, value_type=ContactField.TYPE_TEXT)
+        # and ignored if not valid
+        field6 = ContactField.get_or_create(self.org, self.admin, "date_joined", name="  ")
+        self.assertEqual(field5, field6)
+        self.assertEqual("date_joined", field6.key)
+        self.assertEqual("join date 2", field6.name)  # unchanged
+
+        # same for creating a new field
+        field7 = ContactField.get_or_create(self.org, self.admin, "new_key", name="  ")
+        self.assertEqual("new_key", field7.key)
+        self.assertEqual("New Key", field7.name)  # generated
 
     def test_contact_templatetag(self):
         self.set_contact_field(self.joe, "first", "Starter")
