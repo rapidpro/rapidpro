@@ -17,6 +17,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_str
 
+from temba import mailroom
 from temba.api.models import Resthook
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
@@ -1557,6 +1558,26 @@ class FlowTest(TembaTest):
         # fetching a flow with a group send shouldn't throw
         self.get_flow("group_send_flow")
 
+    @mock_mailroom
+    def test_preview_start(self, mr_mocks):
+        flow = self.create_flow()
+        contact1 = self.create_contact("Ann", phone="+1234567111")
+        contact2 = self.create_contact("Bob", phone="+1234567222")
+        doctors = self.create_group("Doctors", contacts=[contact1, contact2])
+
+        mr_mocks.flow_preview_start(
+            query='group = "Doctors" AND status = "active"', total=100, sample=[contact1, contact2]
+        )
+
+        query, total, sample, metadata = flow.preview_start(
+            include=mailroom.QueryInclusions(group_uuids=[str(doctors.uuid)]),
+            exclude=mailroom.QueryExclusions(non_active=True),
+        )
+
+        self.assertEqual('group = "Doctors" AND status = "active"', query)
+        self.assertEqual(100, total)
+        self.assertEqual([contact1, contact2], list(sample))
+
     def test_flow_delete_of_inactive_flow(self):
         flow = self.get_flow("favorites")
         flow.release(self.admin)
@@ -2526,6 +2547,72 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(404, response.status_code)
 
     @mock_mailroom
+    def test_preview_start(self, mr_mocks):
+        flow = self.create_flow()
+        self.create_field("age", "Age")
+        contact1 = self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
+        contact2 = self.create_contact("Bob", phone="+16303333333", fields={"age": 33})
+
+        mr_mocks.flow_preview_start(
+            query='age > 30 AND status = "active" AND history != "Test Flow"', total=100, sample=[contact1, contact2]
+        )
+
+        preview_url = reverse("flows.flow_preview_start", args=[flow.id])
+
+        self.login(self.editor)
+
+        response = self.client.post(
+            preview_url,
+            {
+                "query": "age > 30",
+                "exclusions": {"non_active": True, "started_previously": True},
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(
+            {
+                "query": 'age > 30 AND status = "active" AND history != "Test Flow"',
+                "total": 100,
+                "sample": [
+                    {
+                        "uuid": contact1.uuid,
+                        "name": "Ann",
+                        "primary_urn": "+1 630-222-2222",
+                        "fields": {"age": "40"},
+                        "created_on": contact1.created_on.isoformat(),
+                        "last_seen_on": None,
+                    },
+                    {
+                        "uuid": contact2.uuid,
+                        "name": "Bob",
+                        "primary_urn": "+1 630-333-3333",
+                        "fields": {"age": "33"},
+                        "created_on": contact2.created_on.isoformat(),
+                        "last_seen_on": None,
+                    },
+                ],
+                "fields": [{"key": "age", "name": "Age"}],
+            },
+            response.json(),
+        )
+
+        # try with a bad query
+        mr_mocks.error("mismatched input at (((", code="unexpected_token", extra={"token": "((("})
+
+        response = self.client.post(
+            preview_url,
+            {
+                "query": "(((",
+                "exclusions": {"non_active": True, "started_previously": True},
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertEqual(
+            {"query": "", "total": 0, "sample": [], "error": "Invalid query syntax at '((('"}, response.json()
+        )
+
+    @mock_mailroom
     def test_broadcast(self, mr_mocks):
         contact = self.create_contact("Bob", phone="+593979099111")
         flow = self.create_flow()
@@ -2541,7 +2628,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # create flow start with a query
-        mr_mocks.parse_query("frank", cleaned='name ~ "frank"', fields=[])
+        mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
 
         self.assertUpdateSubmit(
             broadcast_url,
@@ -2579,7 +2666,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         query = f"uuid='{contact.uuid}'"
-        mr_mocks.parse_query(query, cleaned=query, fields=[])
+        mr_mocks.parse_query(query, cleaned=query)
 
         # create flow start with exclude_in_other and exclude_reruns both left unchecked
         self.assertUpdateSubmit(
@@ -2662,7 +2749,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "Exclude contacts currently in a flow")
 
         # create flow start with a query
-        mr_mocks.parse_query("frank", cleaned='name ~ "frank"', fields=[])
+        mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
 
         self.assertUpdateSubmit(broadcast_url, {"query": "frank", "exclude_reruns": False})
 
