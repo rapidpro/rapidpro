@@ -201,10 +201,7 @@ class OrgLock(Enum):
     Org-level lock types
     """
 
-    contacts = 1
-    channels = 2
-    credits = 3
-    field = 4
+    credits = 1
 
 
 class OrgCache(Enum):

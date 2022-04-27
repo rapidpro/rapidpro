@@ -3176,20 +3176,6 @@ class ContactTest(TembaTest):
         response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
         self.assertContains(response, "Rwama Value")
 
-        # bad field
-        contact_field = ContactField.user_fields.create(
-            org=self.org, key="language", name="User Language", created_by=self.admin, modified_by=self.admin
-        )
-
-        response = self.client.post(
-            reverse("contacts.contact_update_fields", args=[self.joe.id]),
-            dict(contact_field=contact_field.id, field_value="Kinyarwanda"),
-        )
-
-        self.assertFormError(
-            response, "form", None, "Field key language has invalid characters or is a reserved field name"
-        )
-
         # try to push into a dynamic group
         self.login(self.admin)
         group = self.create_group("Dynamo", query="tel = 325423")
@@ -3692,91 +3678,49 @@ class ContactFieldTest(TembaTest):
         self.other_org_field = self.create_field("other", "Other", priority=10, org=self.org2)
 
     def test_get_or_create(self):
-        join_date = ContactField.get_or_create(self.org, self.admin, "join_date")
-        self.assertEqual(join_date.key, "join_date")
-        self.assertEqual(join_date.name, "Join Date")
-        self.assertEqual(join_date.value_type, ContactField.TYPE_TEXT)
+        # name can be generated
+        field1 = ContactField.get_or_create(self.org, self.admin, "join_date")
+        self.assertEqual("join_date", field1.key)
+        self.assertEqual("Join Date", field1.name)
+        self.assertEqual(ContactField.TYPE_TEXT, field1.value_type)
+        self.assertFalse(field1.is_system)
 
-        another = ContactField.get_or_create(
-            self.org, self.admin, "another", "My Label", value_type=ContactField.TYPE_NUMBER
+        # or passed explicitly along with type
+        field2 = ContactField.get_or_create(
+            self.org, self.admin, "another", name="My Label", value_type=ContactField.TYPE_NUMBER
         )
-        self.assertEqual(another.key, "another")
-        self.assertEqual(another.name, "My Label")
-        self.assertEqual(another.value_type, ContactField.TYPE_NUMBER)
+        self.assertEqual("another", field2.key)
+        self.assertEqual("My Label", field2.name)
+        self.assertEqual(ContactField.TYPE_NUMBER, field2.value_type)
 
-        another = ContactField.get_or_create(
-            self.org, self.admin, "another", "Updated Label", value_type=ContactField.TYPE_DATETIME
+        # if there's an existing key with this key we get that with name and type updated
+        field3 = ContactField.get_or_create(
+            self.org, self.admin, "another", name="Updated Label", value_type=ContactField.TYPE_DATETIME
         )
-        self.assertEqual(another.key, "another")
-        self.assertEqual(another.name, "Updated Label")
-        self.assertEqual(another.value_type, ContactField.TYPE_DATETIME)
+        self.assertEqual(field2, field3)
+        self.assertEqual("another", field3.key)
+        self.assertEqual("Updated Label", field3.name)
+        self.assertEqual(ContactField.TYPE_DATETIME, field3.value_type)
 
-        another = ContactField.get_or_create(
-            self.org, self.admin, "another", "Updated Label", show_in_table=True, value_type=ContactField.TYPE_DATETIME
-        )
-        self.assertTrue(another.show_in_table)
+        field4 = ContactField.get_or_create(self.org, self.admin, "another", name="Updated Again Label")
+        self.assertEqual(field3, field4)
+        self.assertEqual("another", field4.key)
+        self.assertEqual("Updated Again Label", field4.name)
+        self.assertEqual(ContactField.TYPE_DATETIME, field4.value_type)  # unchanged
+
+        # provided names are made unique
+        field5 = ContactField.get_or_create(self.org, self.admin, "date_joined", name="join date")
+        self.assertEqual("date_joined", field5.key)
+        self.assertEqual("join date 2", field5.name)
 
         for key in ContactField.RESERVED_KEYS:
             with self.assertRaises(ValueError):
                 ContactField.get_or_create(self.org, self.admin, key, key, value_type=ContactField.TYPE_TEXT)
 
-        groups_field = ContactField.get_or_create(self.org, self.admin, "groups_field", "Groups Field")
-        self.assertEqual(groups_field.key, "groups_field")
-        self.assertEqual(groups_field.name, "Groups Field")
-
-        groups_field.name = "Groups"
-        groups_field.save()
-
-        groups_field.refresh_from_db()
-
-        self.assertEqual(groups_field.key, "groups_field")
-        self.assertEqual(groups_field.name, "Groups")
-
-        # we should lookup the existing field by name
-        label_field = ContactField.get_or_create(self.org, self.admin, key=None, name="Groups")
-
-        self.assertEqual(label_field.key, "groups_field")
-        self.assertEqual(label_field.name, "Groups")
-        self.assertFalse(ContactField.user_fields.filter(key="groups"))
-        self.assertEqual(label_field.pk, groups_field.pk)
-
-        # existing field by label has invalid key we should try to create a new field
-        groups_field.key = "groups"
-        groups_field.save()
-
-        groups_field.refresh_from_db()
-
-        # we throw since the key is a reserved word
-        with self.assertRaises(ValueError):
-            ContactField.get_or_create(self.org, self.admin, "name", "Groups")
-
-        # don't look up by label if we have a key
-        created_field = ContactField.get_or_create(self.org, self.admin, "list", "Groups")
-        self.assertEqual(created_field.key, "list")
-        self.assertEqual(created_field.name, "Groups 2")
-
-        # this should be a different field
-        self.assertFalse(created_field.pk == groups_field.pk)
-
-        # check it is not possible to create two field with the same label
-        self.assertFalse(ContactField.user_fields.filter(key="sport"))
-        self.assertFalse(ContactField.user_fields.filter(key="play"))
-
-        field1 = ContactField.get_or_create(self.org, self.admin, "sport", "Games")
-        self.assertEqual(field1.key, "sport")
-        self.assertEqual(field1.name, "Games")
-
-        # should modify label to make it unique
-        field2 = ContactField.get_or_create(self.org, self.admin, "play", "Games")
-
-        self.assertEqual(field2.key, "play")
-        self.assertEqual(field2.name, "Games 2")
-        self.assertNotEqual(field1.id, field2.id)
-
     def test_contact_templatetag(self):
-        self.set_contact_field(self.joe, "First", "Starter")
-        self.assertEqual(contact_field(self.joe, "First"), "Starter")
-        self.assertEqual(contact_field(self.joe, "Not there"), "--")
+        self.set_contact_field(self.joe, "first", "Starter")
+        self.assertEqual(contact_field(self.joe, "first"), "Starter")
+        self.assertEqual(contact_field(self.joe, "not_there"), "--")
 
     def test_make_key(self):
         self.assertEqual("first_name", ContactField.make_key("First Name"))
@@ -3825,7 +3769,7 @@ class ContactFieldTest(TembaTest):
         contact = self.create_contact(
             "Be\02n Haggerty",
             phone="+12067799294",
-            fields={"First": "On\02e", "Third": "20/12/2015 08:30"},
+            fields={"first": "On\02e", "third": "20/12/2015 08:30"},
             last_seen_on=datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
         )
 
@@ -4627,16 +4571,6 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(
             response_json["err_detail"], "Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
         )
-
-    def test_contactfield_priority(self):
-        fields = ContactField.user_fields.filter(org=self.org).order_by("-priority", "id")
-
-        self.assertEqual(["Third", "First", "Second"], list(fields.values_list("name", flat=True)))
-
-        # change field priority
-        ContactField.get_or_create(org=self.org, user=self.user, key="first", priority=25)
-
-        self.assertEqual(["First", "Third", "Second"], list(fields.values_list("name", flat=True)))
 
 
 class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):

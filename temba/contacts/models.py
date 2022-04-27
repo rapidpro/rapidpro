@@ -28,7 +28,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
-from temba.orgs.models import DependencyMixin, Org, OrgLock
+from temba.orgs.models import DependencyMixin, Org
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.fields import is_valid_name, validate_name
@@ -465,6 +465,7 @@ class ContactField(SmartModel, DependencyMixin):
 
         assert cls.is_valid_key(key), f"{key} is not a valid field key"
         assert not org.fields.filter(is_active=True, key=key).exists()  # TODO replace with db constraint
+        assert not org.fields.filter(is_active=True, name__iexact=name.lower()).exists()
 
         return cls.objects.create(
             org=org,
@@ -498,90 +499,58 @@ class ContactField(SmartModel, DependencyMixin):
         return name == name.strip() and regex.match(r"^[A-Za-z0-9\- ]+$", name) and len(name) <= cls.MAX_NAME_LEN
 
     @classmethod
-    def get_or_create(cls, org, user, key, name=None, show_in_table=None, value_type=None, priority=None):
+    def get_or_create(cls, org, user, key: str, name: str = None, value_type=None):
         """
-        Gets the existing contact field or creates a new field if it doesn't exist
-
-        This method only applies to ContactField.user_fields
+        Gets the existing non-system contact field or creates a new field if it doesn't exist. This is method is only
+        used for imports and may modify the given name to ensure uniqueness.
         """
-        if name:
-            name = name.strip()
 
-        with org.lock_on(OrgLock.field, key):
-            field = ContactField.user_fields.active_for_org(org=org).filter(key__iexact=key).first()
+        existing = org.fields.filter(is_system=False, is_active=True, key=key).first()
 
-            if not field and not key and name:
-                # try to lookup the existing field by name
-                field = cls.get_by_name(org, name)
+        if existing:
+            changed = False
 
-            # we have a field with a invalid key we should ignore it
-            if field and not ContactField.is_valid_key(field.key):
-                field = None
+            if name and existing.name != name:
+                existing.name = name
+                changed = True
 
-            if field:
-                changed = False
+            # update our type if we were given one
+            if value_type and existing.value_type != value_type:
+                # no changing away from datetime if we have campaign events
+                is_date = existing.value_type == ContactField.TYPE_DATETIME
+                if is_date and existing.campaign_events.filter(is_active=True).exists():
+                    raise ValueError(f"Cannot change type for field '{key}' while it is used in campaigns.")
 
-                # update whether we show in tables if passed in
-                if show_in_table is not None and show_in_table != field.show_in_table:
-                    field.show_in_table = show_in_table
-                    changed = True
+                existing.value_type = value_type
+                changed = True
 
-                # update our name if we were given one
-                if name and field.name != name:
-                    field.name = name
-                    changed = True
+            if changed:
+                existing.modified_by = user
+                existing.save(update_fields=("name", "value_type", "modified_on", "modified_by"))
 
-                # update our type if we were given one
-                if value_type and field.value_type != value_type:
-                    # no changing away from datetime if we have campaign events
-                    if (
-                        field.value_type == ContactField.TYPE_DATETIME
-                        and field.campaign_events.filter(is_active=True).exists()
-                    ):
-                        raise ValueError("Cannot change field type for '%s' while it is used in campaigns." % key)
+            return existing
 
-                    field.value_type = value_type
-                    changed = True
+        if not ContactField.is_valid_key(key):
+            raise ValueError(f"'{key}' is not valid contact field key")
 
-                if priority is not None and field.priority != priority:
-                    field.priority = priority
-                    changed = True
+        # generate a name if we don't have one
+        if not name:
+            name = unsnakify(key)
 
-                if changed:
-                    field.modified_by = user
-                    field.save()
+        # make unique if necessary
+        name = cls.get_unique_name(org, name)
 
-            else:
-                # generate a name if we don't have one
-                if not name:
-                    name = unsnakify(key)
+        if not cls.is_valid_name(name):
+            raise ValueError(f"'{name}' is not valid contact field name")
 
-                name = cls.get_unique_name(org, name)
-
-                if not value_type:
-                    value_type = ContactField.TYPE_TEXT
-
-                if show_in_table is None:
-                    show_in_table = False
-
-                if priority is None:
-                    priority = 0
-
-                if not ContactField.is_valid_key(key):
-                    raise ValueError("Field key %s has invalid characters or is a reserved field name" % key)
-
-                field = org.fields.create(
-                    key=key,
-                    name=name,
-                    is_system=False,
-                    show_in_table=show_in_table,
-                    value_type=value_type,
-                    created_by=user,
-                    modified_by=user,
-                    priority=priority,
-                )
-
-            return field
+        return org.fields.create(
+            key=key,
+            name=name,
+            is_system=False,
+            value_type=value_type or cls.TYPE_TEXT,
+            created_by=user,
+            modified_by=user,
+        )
 
     @classmethod
     def get_unique_name(cls, org, base_name: str) -> str:
@@ -601,10 +570,6 @@ class ContactField(SmartModel, DependencyMixin):
         return name
 
     @classmethod
-    def get_by_name(cls, org, name):
-        return cls.user_fields.active_for_org(org=org).filter(name__iexact=name).first()
-
-    @classmethod
     def get_by_key(cls, org, key):
         return cls.user_fields.active_for_org(org=org).filter(key=key).first()
 
@@ -613,7 +578,7 @@ class ContactField(SmartModel, DependencyMixin):
         return cls.user_fields.active_for_org(org=org).filter(value_type=value_type).first()
 
     @classmethod
-    def import_fields(cls, org, user, field_defs):
+    def import_fields(cls, org, user, field_defs: list):
         """
         Import fields from a list of exported fields
         """
