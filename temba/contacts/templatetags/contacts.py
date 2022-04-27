@@ -3,7 +3,7 @@ from django.utils.safestring import mark_safe
 
 from temba.campaigns.models import EventFire
 from temba.channels.models import ChannelEvent
-from temba.contacts.models import URN, ContactField, ContactURN
+from temba.contacts.models import URN, ContactURN
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.mailroom.events import Event
@@ -80,7 +80,7 @@ MISSING_VALUE = "--"
 
 @register.filter
 def contact_field(contact, arg):
-    field = ContactField.get_by_key(contact.org, arg.lower())
+    field = contact.org.fields.filter(is_active=True, key=arg).first()
     if field is None:
         return MISSING_VALUE
 

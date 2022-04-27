@@ -557,25 +557,7 @@ class ContactField(SmartModel, DependencyMixin):
         """
         Generates a unique name based on the given base name
         """
-        name = base_name[:64].strip()
-
-        count = 2
-        while True:
-            if not ContactField.user_fields.filter(org=org, name__iexact=name, is_active=True).exists():
-                break
-
-            name = "%s %d" % (base_name[:59].strip(), count)
-            count += 1
-
-        return name
-
-    @classmethod
-    def get_by_key(cls, org, key):
-        return cls.user_fields.active_for_org(org=org).filter(key=key).first()
-
-    @classmethod
-    def get_location_field(cls, org, value_type):
-        return cls.user_fields.active_for_org(org=org).filter(value_type=value_type).first()
+        return TembaModel.get_unique_name(org.fields.filter(is_active=True), base_name, cls.MAX_NAME_LEN)
 
     @classmethod
     def import_fields(cls, org, user, field_defs: list):

@@ -1865,8 +1865,8 @@ class APITest(TembaTest):
         self.assertEqual(resp_json["urns"], ["tel:+250783333333", "twitter:jean"])
 
         # URNs will be normalized
-        nickname = ContactField.get_by_key(self.org, "nickname")
-        gender = ContactField.get_by_key(self.org, "gender")
+        nickname = self.org.fields.get(key="nickname")
+        gender = self.org.fields.get(key="gender")
         jean = Contact.objects.filter(name="Jean", language="fra").order_by("-pk").first()
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.get_groups()), {group})

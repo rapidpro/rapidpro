@@ -3031,7 +3031,7 @@ class ContactTest(TembaTest):
         self.joe = Contact.objects.get(pk=self.joe.id)
         self.assertEqual(self.joe.get_urn_display(scheme=URN.TEL_SCHEME), "0783 835 665")
         self.assertIsNone(
-            self.joe.get_field_serialized(ContactField.get_by_key(self.org, "state"))
+            self.joe.get_field_serialized(self.org.fields.get(key="state"))
         )  # raw user input as location wasn't matched
         self.assertIsNone(Contact.from_urn(self.org, "tel:+250781111111"))  # original tel is nobody now
 

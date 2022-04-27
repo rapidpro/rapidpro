@@ -502,13 +502,13 @@ def serialize_field_value(contact, field, value):
     # otherwise, try to parse it as a name at the appropriate level
     else:
         if field.value_type == ContactField.TYPE_WARD:
-            district_field = ContactField.get_location_field(org, ContactField.TYPE_DISTRICT)
+            district_field = org.fields.filter(value_type=ContactField.TYPE_DISTRICT).first()
             district_value = contact.get_field_value(district_field)
             if district_value:
                 loc_value = parse_location(org, str_value, AdminBoundary.LEVEL_WARD, district_value)
 
         elif field.value_type == ContactField.TYPE_DISTRICT:
-            state_field = ContactField.get_location_field(org, ContactField.TYPE_STATE)
+            state_field = org.fields.filter(value_type=ContactField.TYPE_STATE).first()
             if state_field:
                 state_value = contact.get_field_value(state_field)
                 if state_value:
