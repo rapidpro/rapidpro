@@ -36,7 +36,7 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import URN, ContactField, ContactGroup
-from temba.contacts.search import Exclusions, SearchException, parse_query
+from temba.contacts.search import SearchException, parse_query
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task, update_session_wait_expires
 from temba.ivr.models import IVRCall
@@ -1792,23 +1792,13 @@ class FlowCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             payload = json.loads(request.body)
-            group_uuids = payload.get("group_uuids", [])
-            contact_uuids = payload.get("contact_uuids", [])
-            urns = payload.get("urns", [])
-            user_query = payload.get("query")
-            exclusions = Exclusions(**payload.get("exclusions", {}))
-
+            include = mailroom.QueryInclusions(**payload.get("include", {}))
+            exclude = mailroom.QueryExclusions(**payload.get("exclude", {}))
             flow = self.get_object()
             org = flow.org
 
             try:
-                query, total, sample, metadata = flow.preview_start(
-                    group_uuids=group_uuids,
-                    contact_uuids=contact_uuids,
-                    urns=urns,
-                    query=user_query,
-                    exclusions=exclusions,
-                )
+                query, total, sample, metadata = flow.preview_start(include=include, exclude=exclude)
             except SearchException as e:
                 return JsonResponse({"query": "", "total": 0, "sample": [], "error": str(e)}, status=400)
 

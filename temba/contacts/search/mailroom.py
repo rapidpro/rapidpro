@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 
 from django.utils.encoding import force_str
 from django.utils.translation import gettext_lazy as _
@@ -44,19 +44,10 @@ class SearchException(Exception):
 
 
 @dataclass(frozen=True)
-class Metadata:
-    attributes: list = field(default_factory=list)
-    schemes: list = field(default_factory=list)
-    fields: list = field(default_factory=list)
-    groups: list = field(default_factory=list)
-    allow_as_group: bool = False
-
-
-@dataclass(frozen=True)
 class ParsedQuery:
     query: str
     elastic_query: dict
-    metadata: Metadata
+    metadata: mailroom.QueryMetadata
 
 
 def parse_query(org, query: str, *, parse_only: bool = False, group=None) -> ParsedQuery:
@@ -67,7 +58,9 @@ def parse_query(org, query: str, *, parse_only: bool = False, group=None) -> Par
         group_uuid = group.uuid if group else None
 
         response = mailroom.get_client().parse_query(org.id, query, parse_only=parse_only, group_uuid=str(group_uuid))
-        return ParsedQuery(response["query"], response["elastic_query"], Metadata(**response.get("metadata", {})))
+        return ParsedQuery(
+            response["query"], response["elastic_query"], mailroom.QueryMetadata(**response.get("metadata", {}))
+        )
 
     except mailroom.MailroomException as e:
         raise SearchException.from_mailroom_exception(e)
@@ -78,7 +71,7 @@ class SearchResults:
     total: int
     query: str
     contact_ids: list
-    metadata: Metadata
+    metadata: mailroom.QueryMetadata
 
 
 def search_contacts(
@@ -91,46 +84,26 @@ def search_contacts(
             org.id, group_uuid=str(group_uuid), query=query, sort=sort, offset=offset, exclude_ids=exclude_ids
         )
         return SearchResults(
-            response["total"], response["query"], response["contact_ids"], Metadata(**response.get("metadata", {}))
+            response["total"],
+            response["query"],
+            response["contact_ids"],
+            mailroom.QueryMetadata(**response.get("metadata", {})),
         )
 
     except mailroom.MailroomException as e:
         raise SearchException.from_mailroom_exception(e)
 
 
-@dataclass
-class Exclusions:
-    non_active: bool = False  # contacts who are blocked, stopped or archived
-    in_a_flow: bool = False  # contacts who are currently in a flow (including this one)
-    started_previously: bool = False  # contacts who have been in this flow in the last 90 days
-    not_seen_recently: bool = False  # contacts who have not been seen for more than 90 days
-
-
-@dataclass(frozen=True)
-class StartPreview:
-    query: str
-    total: int
-    sample_ids: list
-    metadata: Metadata
-
-
 def preview_start(
-    org, flow, group_uuids: list, contact_uuids: list, urns: list, query: str, exclusions: Exclusions, sample_size: int
-) -> StartPreview:
+    org, flow, include: mailroom.QueryInclusions, exclude: mailroom.QueryExclusions, sample_size: int
+) -> mailroom.StartPreview:
     try:
-        response = mailroom.get_client().flow_preview_start(
+        return mailroom.get_client().flow_preview_start(
             org.id,
             flow.id,
-            group_uuids=group_uuids,
-            contact_uuids=contact_uuids,
-            urns=urns,
-            query=query,
-            exclusions=asdict(exclusions),
+            include=include,
+            exclude=exclude,
             sample_size=sample_size,
         )
-        return StartPreview(
-            response["query"], response["total"], response["sample_ids"], Metadata(**response.get("metadata", {}))
-        )
-
     except mailroom.MailroomException as e:
         raise SearchException.from_mailroom_exception(e)

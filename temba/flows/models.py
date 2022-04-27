@@ -973,9 +973,7 @@ class Flow(TembaModel, DependencyMixin):
         dependents["trigger"] = self.triggers.filter(is_active=True)
         return dependents
 
-    def preview_start(
-        self, *, group_uuids, contact_uuids, urns: list, query: str, exclusions: search.Exclusions
-    ) -> tuple:
+    def preview_start(self, *, include: mailroom.QueryInclusions, exclude: mailroom.QueryExclusions) -> tuple:
         """
         Generates a preview of the given start as a tuple of
             1) query of all recipients
@@ -983,16 +981,7 @@ class Flow(TembaModel, DependencyMixin):
             3) sample of the contacts (max 3)
             4) query metadata
         """
-        preview = search.preview_start(
-            self.org,
-            self,
-            group_uuids=group_uuids,
-            contact_uuids=contact_uuids,
-            urns=urns,
-            query=query,
-            exclusions=exclusions,
-            sample_size=3,
-        )
+        preview = search.preview_start(self.org, self, include=include, exclude=exclude, sample_size=3)
         sample = (
             self.org.contacts.filter(id__in=preview.sample_ids)
             .order_by("id")

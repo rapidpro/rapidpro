@@ -17,11 +17,11 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_str
 
+from temba import mailroom
 from temba.api.models import Resthook
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.classifiers.models import Classifier
-from temba.contacts import search
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
@@ -1570,11 +1570,8 @@ class FlowTest(TembaTest):
         )
 
         query, total, sample, metadata = flow.preview_start(
-            group_uuids=[str(doctors.uuid)],
-            contact_uuids=[],
-            urns=[],
-            query="",
-            exclusions=search.Exclusions(non_active=True),
+            include=mailroom.QueryInclusions(group_uuids=[str(doctors.uuid)]),
+            exclude=mailroom.QueryExclusions(non_active=True),
         )
 
         self.assertEqual('group = "Doctors" AND status = "active"', query)

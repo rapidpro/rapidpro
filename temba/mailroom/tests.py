@@ -18,7 +18,7 @@ from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import Ticketer, TicketEvent
 from temba.utils import json
 
-from . import modifiers, queue_interrupt
+from . import QueryExclusions, QueryInclusions, QueryMetadata, StartPreview, modifiers, queue_interrupt
 from .events import Event
 
 
@@ -97,22 +97,37 @@ class MailroomClientTest(TembaTest):
 
     def test_flow_preview_start(self):
         with patch("requests.post") as mock_post:
-            mock_resp = {"query": 'group = "Farmers" AND status = "active"', "count": 2345, "sample": [123, 234]}
+            mock_resp = {
+                "query": 'group = "Farmers" AND status = "active"',
+                "total": 2345,
+                "sample_ids": [123, 234],
+                "metadata": {"attributes": ["group", "status"], "fields": [], "allow_as_group": False},
+            }
             mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
             preview = get_client().flow_preview_start(
                 self.org.id,
                 flow_id=12,
-                group_uuids=["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
-                contact_uuids=["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
-                urns=[],
-                query="",
-                exclusions={"non_active": True},
+                include=QueryInclusions(
+                    group_uuids=["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
+                    contact_uuids=["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
+                ),
+                exclude=QueryExclusions(non_active=True, not_seen_since_days=30),
                 sample_size=3,
             )
 
-            self.assertEqual(mock_resp, preview)
+            self.assertEqual(
+                StartPreview(
+                    query='group = "Farmers" AND status = "active"',
+                    total=2345,
+                    sample_ids=[123, 234],
+                    metadata=QueryMetadata(attributes=["group", "status"], allow_as_group=False),
+                ),
+                preview,
+            )
 
         call = mock_post.call_args
+
+        self.maxDiff = None
 
         self.assertEqual(("http://localhost:8090/mr/flow/preview_start",), call[0])
         self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
@@ -120,11 +135,18 @@ class MailroomClientTest(TembaTest):
             {
                 "org_id": self.org.id,
                 "flow_id": 12,
-                "group_uuids": ["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
-                "contact_uuids": ["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
-                "urns": [],
-                "query": "",
-                "exclusions": {"non_active": True},
+                "include": {
+                    "group_uuids": ["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
+                    "contact_uuids": ["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
+                    "urns": [],
+                    "query": "",
+                },
+                "exclude": {
+                    "non_active": True,
+                    "in_a_flow": False,
+                    "started_previously": False,
+                    "not_seen_since_days": 30,
+                },
                 "sample_size": 3,
             },
             json.loads(call[1]["data"]),

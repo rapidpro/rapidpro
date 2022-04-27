@@ -13,10 +13,11 @@ from django.contrib.auth.models import User
 from django.db import connection
 from django.utils import timezone
 
+from temba import mailroom
 from temba.campaigns.models import CampaignEvent, EventFire
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.locations.models import AdminBoundary
-from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
+from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException, QueryMetadata, StartPreview
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
 from temba.tests.dates import parse_datetime
@@ -85,12 +86,12 @@ class Mocks:
 
     def flow_preview_start(self, query, total, sample):
         def mock(org):
-            return {
-                "query": query,
-                "total": total,
-                "sample_ids": [c.id for c in sample],
-                "metadata": mock_inspect_query(org, query),
-            }
+            return StartPreview(
+                query=query,
+                total=total,
+                sample_ids=[c.id for c in sample],
+                metadata=QueryMetadata(**mock_inspect_query(org, query)),
+            )
 
         self._flow_preview_start.append(mock)
 
@@ -202,13 +203,10 @@ class TestClient(MailroomClient):
         self,
         org_id: int,
         flow_id: int,
-        group_uuids: list,
-        contact_uuids: list,
-        urns: list,
-        query: str,
-        exclusions: dict,
+        include: mailroom.QueryInclusions,
+        exclude: mailroom.QueryExclusions,
         sample_size: int,
-    ):
+    ) -> mailroom.StartPreview:
         assert self.mocks._flow_preview_start, "missing flow_preview_start mock"
 
         mock = self.mocks._flow_preview_start.pop(0)

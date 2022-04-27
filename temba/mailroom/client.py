@@ -1,5 +1,5 @@
 import logging
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 import requests
 
@@ -51,6 +51,43 @@ class ContactSpec:
     urns: list[str]
     fields: dict[str, str]
     groups: list[str]
+
+
+@dataclass
+class QueryInclusions:
+    group_uuids: list = field(default_factory=list)
+    contact_uuids: list = field(default_factory=list)
+    urns: list = field(default_factory=list)
+    query: str = ""
+
+
+@dataclass
+class QueryExclusions:
+    non_active: bool = False  # contacts who are blocked, stopped or archived
+    in_a_flow: bool = False  # contacts who are currently in a flow (including this one)
+    started_previously: bool = False  # contacts who have been in this flow in the last 90 days
+    not_seen_since_days: int = 0  # contacts who have not been seen for more than this number of days
+
+
+@dataclass(frozen=True)
+class QueryMetadata:
+    """
+    Contact query metadata
+    """
+
+    attributes: list = field(default_factory=list)
+    schemes: list = field(default_factory=list)
+    fields: list = field(default_factory=list)
+    groups: list = field(default_factory=list)
+    allow_as_group: bool = False
+
+
+@dataclass(frozen=True)
+class StartPreview:
+    query: str
+    total: int
+    sample_ids: list
+    metadata: QueryMetadata
 
 
 class MailroomClient:
@@ -117,25 +154,22 @@ class MailroomClient:
         self,
         org_id: int,
         flow_id: int,
-        group_uuids: list,
-        contact_uuids: list,
-        urns: list,
-        query: str,
-        exclusions: dict,
+        include: QueryInclusions,
+        exclude: QueryExclusions,
         sample_size: int,
-    ):
+    ) -> StartPreview:
         payload = {
             "org_id": org_id,
             "flow_id": flow_id,
-            "group_uuids": group_uuids,
-            "contact_uuids": contact_uuids,
-            "urns": urns,
-            "query": query,
-            "exclusions": exclusions,
+            "include": asdict(include),
+            "exclude": asdict(exclude),
             "sample_size": sample_size,
         }
 
-        return self._request("flow/preview_start", payload, encode_json=True)
+        response = self._request("flow/preview_start", payload, encode_json=True)
+        return StartPreview(
+            response["query"], response["total"], response["sample_ids"], QueryMetadata(**response.get("metadata", {}))
+        )
 
     def msg_resend(self, org_id, msg_ids):
         payload = {"org_id": org_id, "msg_ids": msg_ids}
