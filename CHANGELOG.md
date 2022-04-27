@@ -1,3 +1,9 @@
+v7.3.26
+----------
+ * Fix mailroom_db command to set languages on new orgs
+ * Fix inline menus when they have no children
+ * Fix message exports
+
 v7.3.25
 ----------
  * Fix modals on spa pages
