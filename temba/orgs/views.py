@@ -1984,6 +1984,14 @@ class OrgCRUDL(SmartCRUDL):
             if org.is_active:
                 links.append(
                     dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={org.pk}&redirect_url={reverse("msgs.msg_inbox", args=[])}',
+                    )
+                )
+
+                links.append(
+                    dict(
                         title=_("Topups"),
                         style="button-primary",
                         href="%s?org=%d" % (reverse("orgs.topup_manage"), org.pk),

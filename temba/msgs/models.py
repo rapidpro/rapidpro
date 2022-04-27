@@ -448,8 +448,8 @@ class Msg(models.Model):
             "id": self.id,
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "channel": {"uuid": str(self.channel.uuid), "name": self.channel.name} if self.channel else None,
+            "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name} if self.flow else None,
             "urn": self.contact_urn.identity if self.contact_urn else None,
-            "flow": self.flow.name if self.flow else None,
             "direction": "in" if self.direction == Msg.DIRECTION_IN else "out",
             "type": MsgReadSerializer.TYPES.get(self.msg_type),
             "status": MsgReadSerializer.STATUSES.get(self.status),
@@ -1315,6 +1315,7 @@ class ExportMessagesTask(BaseExportTask):
 
         for msg in msgs:
             contact = contacts_by_uuid.get(msg["contact"]["uuid"])
+            flow = msg.get("flow")
 
             urn_scheme = URN.to_parts(msg["urn"])[0] if msg["urn"] else ""
 
@@ -1338,7 +1339,7 @@ class ExportMessagesTask(BaseExportTask):
                     msg["contact"].get("name", ""),
                     urn_path,
                     urn_scheme,
-                    msg["flow"] if msg["flow"] else None,
+                    flow["name"] if flow else None,
                     msg["direction"].upper() if msg["direction"] else None,
                     msg["text"],
                     ", ".join(attachment["url"] for attachment in msg["attachments"]),

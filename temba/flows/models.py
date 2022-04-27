@@ -25,6 +25,7 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.classifiers.models import Classifier
+from temba.contacts import search
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.msgs.models import Label
@@ -971,6 +972,24 @@ class Flow(TembaModel, DependencyMixin):
         dependents["campaign_event"] = self.campaign_events.filter(is_active=True)
         dependents["trigger"] = self.triggers.filter(is_active=True)
         return dependents
+
+    def preview_start(self, *, include: mailroom.QueryInclusions, exclude: mailroom.QueryExclusions) -> tuple:
+        """
+        Generates a preview of the given start as a tuple of
+            1) query of all recipients
+            2) total contact count
+            3) sample of the contacts (max 3)
+            4) query metadata
+        """
+        preview = search.preview_start(self.org, self, include=include, exclude=exclude, sample_size=3)
+        sample = (
+            self.org.contacts.filter(id__in=preview.sample_ids)
+            .order_by("id")
+            .select_related("org")
+            .prefetch_related("urns")
+        )
+
+        return preview.query, preview.total, sample, preview.metadata
 
     def release(self, user, *, interrupt_sessions: bool = True):
         """
