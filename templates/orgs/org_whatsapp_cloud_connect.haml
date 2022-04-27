@@ -53,7 +53,7 @@
 
       var accessToken = result.long_lived_token || result.access_token;
       if (accessToken) {
-        $("#user-access-token").val(access_token);
+        $("#user-access-token").val(accessToken);
         $("#claim-form").submit();
       }
     });
