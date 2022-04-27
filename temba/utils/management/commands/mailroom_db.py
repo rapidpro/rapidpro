@@ -150,6 +150,7 @@ class Command(BaseCommand):
             uuid=spec["uuid"],
             name=spec["name"],
             timezone=pytz.timezone("America/Los_Angeles"),
+            flow_languages=spec["languages"],
             brand="rapidpro.io",
             country=country,
             created_on=timezone.now(),

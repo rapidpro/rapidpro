@@ -1,3 +1,16 @@
+v7.3.26
+----------
+ * Fix mailroom_db command to set languages on new orgs
+ * Fix inline menus when they have no children
+ * Fix message exports
+
+v7.3.25
+----------
+ * Fix modals on spa pages
+ * Add service button to org edit page
+ * Update to latest django
+ * Add flow name to message Export if we have it
+
 v7.3.24
 ----------
  * Allow creating channel with same address when schemes do not overlap
