@@ -31,7 +31,7 @@ from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.fields import is_valid_name, validate_name
+from temba.utils.fields import deleted_name, is_valid_name, validate_name
 from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
@@ -579,9 +579,10 @@ class ContactField(SmartModel, DependencyMixin):
         for event in self.campaign_events.all():
             event.release(user)
 
+        self.name = deleted_name(self.name, self.MAX_NAME_LEN)
         self.is_active = False
         self.modified_by = user
-        self.save(update_fields=("is_active", "modified_on", "modified_by"))
+        self.save(update_fields=("name", "is_active", "modified_on", "modified_by"))
 
     def __str__(self):
         return self.name
@@ -1655,7 +1656,7 @@ class ContactGroup(TembaModel, DependencyMixin):
 
         super().release(user)
 
-        self.name = f"deleted-{uuid4()}-{self.name}"[: self.MAX_NAME_LEN]
+        self.name = deleted_name(self.name, self.MAX_NAME_LEN)
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
