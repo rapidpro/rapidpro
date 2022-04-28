@@ -11,7 +11,7 @@ from openpyxl import load_workbook
 
 from django.conf import settings
 from django.contrib.auth.models import Group
-from django.db.models.functions import Lower, TruncDate
+from django.db.models.functions import TruncDate
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -5452,15 +5452,17 @@ class UniqueFlowNamesTest(MigrationTest):
         self.create_org("Test 2", ["Registration 2", "Sample", "Registration", "Registration"])
         self.create_org("Test 3", ["QUIZ", "quiz", "Quiz"])
         self.create_org("Test 4", ["Quiz 1", "Sample", "Quiz", "Quiz 2", "Quiz 3", "Quiz", "Quiz", "Sample"])
+        self.create_org("Test 5", ["abcdefgh" * 8, "abcdefgh" * 8])
 
     def test_migration(self):
         def assert_org(name: str, expected_names: list):
             org = Org.objects.get(name=name)
-            flows = org.flows.filter(is_active=True).order_by(Lower("name"))
+            flows = org.flows.filter(is_active=True).order_by("id")
             self.assertEqual(expected_names, [f.name for f in flows], f"flow names mismatch for org '{org.name}'")
 
         assert_org("Test 0", [])
         assert_org("Test 1", ["Quiz", "Registration", "Sample"])
-        assert_org("Test 2", ["Registration", "Registration 2", "Registration 3", "Sample"])
+        assert_org("Test 2", ["Registration 2", "Sample", "Registration", "Registration 3"])
         assert_org("Test 3", ["QUIZ", "quiz 2", "Quiz 3"])
-        assert_org("Test 4", ["Quiz", "Quiz 1", "Quiz 2", "Quiz 3", "Quiz 4", "Quiz 5", "Sample", "Sample 2"])
+        assert_org("Test 4", ["Quiz 1", "Sample", "Quiz", "Quiz 2", "Quiz 3", "Quiz 4", "Quiz 5", "Sample 2"])
+        assert_org("Test 5", ["abcdefgh" * 8, "abcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdef 2"])
