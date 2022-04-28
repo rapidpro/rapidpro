@@ -37,6 +37,7 @@ from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     TembaNonAtomicTest,
     TembaTest,
     matchers,
@@ -6201,3 +6202,22 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
+
+
+class FixInvalidNamesTest(MigrationTest):
+    app = "contacts"
+    migrate_from = "0165_alter_contactfield_managers"
+    migrate_to = "0166_fix_invalid_names"
+
+    def setUpBeforeMigration(self, apps):
+        self.group1 = ContactGroup.objects.create(
+            org=self.org,
+            name='Say "Hi"\\ There',
+            is_system=False,
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+    def test_migration(self):
+        self.group1.refresh_from_db()
+        self.assertEqual("Say 'Hi'/ There", self.group1.name)

@@ -31,7 +31,7 @@ from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.fields import deleted_name, is_valid_name, validate_name
+from temba.utils.fields import clean_name, deleted_name, is_valid_name, validate_name
 from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
@@ -1714,7 +1714,7 @@ class ContactGroup(TembaModel, DependencyMixin):
                     ContactField.get_or_create(org, user, key=field_ref["key"])
 
             group = ContactGroup.get_or_create(
-                org, user, group_name, group_query, uuid=group_uuid, parsed_query=parsed_query
+                org, user, clean_name(group_name), group_query, uuid=group_uuid, parsed_query=parsed_query
             )
 
             dependency_mapping[group_uuid] = str(group.uuid)
