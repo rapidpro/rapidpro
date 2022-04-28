@@ -8,7 +8,7 @@ from .temba import object_class_name, object_url, verbose_name_plural
 
 class TembaTagLibraryTest(TembaTest):
     def test_verbose_name_plural(self):
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         group = self.create_group("Testers", contacts=[])
 
         self.assertEqual("Flows", verbose_name_plural(flow))
@@ -17,7 +17,7 @@ class TembaTagLibraryTest(TembaTest):
         self.assertEqual("Campaign Events", verbose_name_plural(CampaignEvent()))
 
     def test_object_url(self):
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         group = self.create_group("Testers", contacts=[])
 
         self.assertEqual(f"/flow/editor/{flow.uuid}/", object_url(flow))
