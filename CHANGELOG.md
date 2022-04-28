@@ -1,3 +1,7 @@
+v7.3.28
+----------
+ * Tweak flow name uniqueness migration to honor max flow name length
+
 v7.3.27
 ----------
  * Tweak header to be uniform treatment regardless of menu
