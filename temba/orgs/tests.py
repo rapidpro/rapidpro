@@ -4588,7 +4588,7 @@ class BulkExportTest(TembaTest):
 
         # create child with that UUID and re-import
         child2 = Flow.create(
-            self.org, self.admin, "New Child", Flow.TYPE_MESSAGE, uuid="a925453e-ad31-46bd-858a-e01136732181"
+            self.org, self.admin, "New Child 2", Flow.TYPE_MESSAGE, uuid="a925453e-ad31-46bd-858a-e01136732181"
         )
 
         self.import_file("parent_without_its_child")

@@ -2397,17 +2397,17 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertIn("metadata", flow.get_definition())
 
         # if definition is outdated, metadata values are updated from db object
-        flow.name = "Amazing Flow"
+        flow.name = "Amazing Flow 2"
         flow.save(update_fields=("name",))
 
-        self.assertEqual("Amazing Flow", flow.get_definition()["metadata"]["name"])
+        self.assertEqual("Amazing Flow 2", flow.get_definition()["metadata"]["name"])
 
         # metadata section can be missing too
         del original_def["metadata"]
         revision.definition = original_def
         revision.save(update_fields=("definition",))
 
-        self.assertEqual("Amazing Flow", flow.get_definition()["metadata"]["name"])
+        self.assertEqual("Amazing Flow 2", flow.get_definition()["metadata"]["name"])
 
     def test_fetch_revisions(self):
         self.login(self.admin)
