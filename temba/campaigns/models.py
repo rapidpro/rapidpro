@@ -98,7 +98,11 @@ class Campaign(TembaModel):
                     relative_to = org.fields.filter(key=field_key, is_system=True).first()
                 else:
                     relative_to = ContactField.get_or_create(
-                        org, user, key=field_key, name=event_spec["relative_to"]["label"], value_type="D"
+                        org,
+                        user,
+                        key=field_key,
+                        name=event_spec["relative_to"]["label"],
+                        value_type=ContactField.TYPE_DATETIME,
                     )
 
                 start_mode = event_spec.get("start_mode", CampaignEvent.MODE_INTERRUPT)

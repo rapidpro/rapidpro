@@ -589,7 +589,7 @@ class CampaignTest(TembaTest):
         self.set_contact_field(self.nonfarmer, "planting_date", "1/7/2025")
         self.assertEqual(1, EventFire.objects.filter(event__is_active=True).count())
 
-        planting_date_field = ContactField.get_by_key(self.org, "planting_date")
+        planting_date_field = self.org.fields.get(key="planting_date")
 
         self.client.post(reverse("contacts.contact_update", args=[self.farmer1.id]), post_data)
 
