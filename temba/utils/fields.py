@@ -8,6 +8,8 @@ from django.core.validators import URLValidator
 from django.forms import ValidationError
 from django.utils.translation import gettext_lazy as _
 
+from .uuid import uuid4
+
 MAX_NAME_LEN = 64
 
 
@@ -55,6 +57,10 @@ def validate_name(value):
 
     if "\0" in value:
         raise ValidationError(_("Cannot contain null characters."))
+
+
+def deleted_name(original: str, max_length: int) -> str:
+    return f"deleted-{uuid4()}-{original}"[:max_length]
 
 
 def validate_external_url(value):

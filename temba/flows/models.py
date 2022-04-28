@@ -34,7 +34,7 @@ from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.fields import validate_name
+from temba.utils.fields import deleted_name, validate_name
 from temba.utils.models import (
     JSONAsTextField,
     JSONField,
@@ -999,7 +999,7 @@ class Flow(TembaModel, DependencyMixin):
 
         super().release(user)
 
-        self.name = f"deleted-{uuid4()}-{self.name}"[: self.MAX_NAME_LEN]
+        self.name = deleted_name(self.name, self.MAX_NAME_LEN)
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
