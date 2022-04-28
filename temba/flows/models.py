@@ -17,7 +17,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Max, Q, Sum
-from django.db.models.functions import TruncDate
+from django.db.models.functions import Lower, TruncDate
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -1074,6 +1074,8 @@ class Flow(TembaModel, DependencyMixin):
         ordering = ("-modified_on",)
         verbose_name = _("Flow")
         verbose_name_plural = _("Flows")
+
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_flow_names")]
 
 
 class FlowSession(models.Model):
