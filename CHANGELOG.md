@@ -1,3 +1,7 @@
+v7.3.31
+----------
+ * Update components with resolved locked file
+
 v7.3.29
 ----------
  * Fix for flatpickr issue
