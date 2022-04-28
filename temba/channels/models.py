@@ -782,6 +782,9 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         elif URN.FACEBOOK_SCHEME in self.schemes:
             return "%s (%s)" % (self.config.get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
+        elif self.channel_type == "WAC":
+            return "%s (%s)" % (self.config.get("wa_number", ""), self.config.get("wa_verified_name", self.name))
+
         return self.address
 
     def get_last_sent_message(self):

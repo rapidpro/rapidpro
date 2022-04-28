@@ -1611,7 +1611,7 @@ class OrgCRUDL(SmartCRUDL):
     class WhatsappCloudConnected(InferOrgMixin, OrgPermsMixin, SmartReadView):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["auth_token"] = self.request.session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN]
+            context["auth_token"] = self.request.session.get(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, None)
             return context
 
     class WhatsappCloudConnect(InferOrgMixin, OrgPermsMixin, SmartFormView):
@@ -1619,8 +1619,15 @@ class OrgCRUDL(SmartCRUDL):
             user_access_token = forms.CharField(min_length=32, required=True)
 
         form_class = WhatsappCloudConnectForm
-        success_url = "@orgs.org_whatsapp_cloud_connected"
+        success_url = "@channels.types.whatsapp_cloud.claim"
         field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
+
+        def pre_process(self, request, *args, **kwargs):
+            session_token = self.request.session.get(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, None)
+            if session_token:
+                return HttpResponseRedirect(self.get_success_url())
+
+            return super().pre_process(request, *args, **kwargs)
 
         def clean(self):
             try:
@@ -1662,6 +1669,11 @@ class OrgCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["connect_url"] = reverse("orgs.org_whatsapp_cloud_connect")
             context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
+
+            claim_error = None
+            if context["form"].errors:
+                claim_error = context["form"].errors["__all__"][0]
+            context["claim_error"] = claim_error
 
             return context
 

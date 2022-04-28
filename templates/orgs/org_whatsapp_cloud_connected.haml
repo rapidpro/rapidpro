@@ -4,5 +4,6 @@
 
 -block content
   .div 
-    Token: 
-    {{auth_token}}
+    -if auth_token
+      Token: 
+      {{auth_token}}
