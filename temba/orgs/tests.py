@@ -1211,7 +1211,7 @@ class OrgTest(TembaTest):
         self.login(self.admin)
 
         mark = self.create_contact("Mark", phone="+12065551212")
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
 
         def send_broadcast_via_api():
             url = reverse("api.v2.broadcasts")
@@ -4713,8 +4713,8 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
     def test_import_flow_with_triggers(self):
-        flow1 = self.create_flow()
-        flow2 = self.create_flow()
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
 
         trigger1 = Trigger.create(
             self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="rating", is_archived=True

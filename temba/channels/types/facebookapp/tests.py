@@ -187,7 +187,7 @@ class FacebookTypeTest(TembaTest):
         )
 
     def test_new_conversation_triggers(self):
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
 
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, json.dumps({"success": True}))

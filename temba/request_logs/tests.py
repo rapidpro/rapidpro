@@ -50,7 +50,7 @@ class HTTPLogTest(TembaTest):
 
 class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_webhooks(self):
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         l1 = HTTPLog.objects.create(
             org=self.org,
             log_type="webhook_called",
