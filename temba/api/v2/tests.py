@@ -2536,7 +2536,7 @@ class APITest(TembaTest):
         # add our date field to a campaign event
         campaign = Campaign.create(self.org, self.admin, "Reminders", self.create_group("Farmers"))
         CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, registered, offset=1, unit="W", flow=self.create_flow()
+            self.org, self.admin, campaign, registered, offset=1, unit="W", flow=self.create_flow("Flow")
         )
 
         deleted = self.create_field("deleted", "Deleted")
