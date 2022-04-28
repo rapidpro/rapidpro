@@ -1981,6 +1981,15 @@ def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool
     return False
 
 
+def _user_set_team(user, team):
+    """
+    Sets the ticketing team for this user
+    """
+    user_settings = user.get_settings()
+    user_settings.team = team
+    user_settings.save(update_fields=("team",))
+
+
 def _user_name(user: User) -> str:
     return user.get_full_name()
 
@@ -2011,6 +2020,7 @@ User.record_auth = _user_record_auth
 User.enable_2fa = _user_enable_2fa
 User.disable_2fa = _user_disable_2fa
 User.verify_2fa = _user_verify_2fa
+User.set_team = _user_set_team
 User.name = property(_user_name)
 User.as_engine_ref = _user_as_engine_ref
 User.__str__ = _user_str
@@ -2097,6 +2107,7 @@ class UserSettings(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="settings")
     language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
+    team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
     two_factor_enabled = models.BooleanField(default=False)
     last_auth_on = models.DateTimeField(null=True)

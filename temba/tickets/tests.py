@@ -8,7 +8,7 @@ from temba.contacts.models import Contact
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 
-from .models import Ticket, TicketCount, Ticketer, TicketEvent, Topic
+from .models import Team, Ticket, TicketCount, Ticketer, TicketEvent, Topic
 from .tasks import squash_ticketcounts
 from .types import reload_ticketer_types
 from .types.internal import InternalType
@@ -609,3 +609,19 @@ class TopicTest(TembaTest):
         self.assertEqual(topic2, Topic.get_or_create(self.org, self.admin, "SUPPORT"))
 
         self.assertEqual(f"Topic[uuid={topic1.uuid}, topic=Sales]", str(topic1))
+
+
+class TeamTest(TembaTest):
+    def test_model(self):
+        team1 = Team.create(self.org, self.admin, "Team 1")
+        self.admin.set_team(team1)
+        self.agent.set_team(team1)
+
+        self.assertEqual({self.admin, self.agent}, set(team1.get_users()))
+
+    def test_release(self):
+        team1 = Team.create(self.org, self.admin, "Team 1")
+        team1.release(self.admin)
+
+        self.assertFalse(team1.is_active)
+        self.assertTrue(team1.name.startswith("deleted-"))

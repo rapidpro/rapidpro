@@ -15,6 +15,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org
+from temba.utils.fields import deleted_name, validate_name
 from temba.utils.models import SquashableModel
 from temba.utils.uuid import uuid4
 
@@ -470,4 +471,58 @@ class TicketCount(SquashableModel):
             models.Index(
                 name="ticket_count_unsquashed", fields=("org", "assignee", "status"), condition=Q(is_squashed=False)
             ),
+        ]
+
+
+class Team(SmartModel):
+    """
+    Every user can be a member of a ticketing team
+    """
+
+    MAX_NAME_LEN = 64
+
+    uuid = models.UUIDField(unique=True, default=uuid4)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="teams")
+    name = models.CharField(max_length=MAX_NAME_LEN, validators=[validate_name])
+    topics = models.ManyToManyField(Topic, related_name="teams")
+
+    @classmethod
+    def create(cls, org, user, name: str):
+        return org.teams.create(name=name, created_by=user, modified_by=user)
+
+    def get_users(self):
+        return User.objects.filter(settings__team=self)
+
+    def release(self, user):
+        self.name = deleted_name(self.name, self.MAX_NAME_LEN)
+        self.is_active = False
+        self.modified_by = user
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
+
+
+class TicketDailyCount(SquashableModel):
+    """
+    Ticket activity counts by who did it and when
+    """
+
+    SQUASH_OVER = ("count_type", "scope", "day")
+
+    TYPE_OPENING = "O"
+    TYPE_REPLY = "R"
+    TYPE_ASSIGNMENT = "A"  # includes tickets opened with assignment but excludes re-assignments
+
+    id = models.BigAutoField(primary_key=True)
+    count_type = models.CharField(max_length=1)
+    scope = models.CharField(max_length=32)
+    day = models.DateField()
+    count = models.IntegerField()
+
+    class Meta:
+        index_together = ("count_type", "scope", "day")
+        indexes = [
+            models.Index(
+                name="tickets_dailycount_unsquashed",
+                fields=("count_type", "scope", "day"),
+                condition=Q(is_squashed=False),
+            )
         ]
