@@ -1,3 +1,12 @@
+v7.3.29
+----------
+ * Fix for flatpickr issue
+ * ContactField.get_or_create should enforce name uniquness and ignore invalid names
+ * Remove ContactField methods only used by tests
+ * Simplify ContactField.get_or_create
+ * Use ContactField.create for contact imports
+ * Simplify creating and updating fields via UI and API, and add validation error when changing type of field used by campaign events
+
 v7.3.28
 ----------
  * Tweak flow name uniqueness migration to honor max flow name length
