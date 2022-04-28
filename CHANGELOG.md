@@ -1,3 +1,7 @@
+v7.3.32
+----------
+ * Add DB constraint to enforce flow name uniqueness
+
 v7.3.31
 ----------
  * Update components with resolved locked file
