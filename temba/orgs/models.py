@@ -201,10 +201,7 @@ class OrgLock(Enum):
     Org-level lock types
     """
 
-    contacts = 1
-    channels = 2
-    credits = 3
-    field = 4
+    credits = 1
 
 
 class OrgCache(Enum):
@@ -448,16 +445,13 @@ class Org(SmartModel):
     def get_brand_domain(self):
         return self.get_branding()["domain"]
 
-    def lock_on(self, lock, qualifier=None):
+    def lock_on(self, lock):
         """
         Creates the requested type of org-level lock
         """
         r = get_redis_connection()
-        lock_key = ORG_LOCK_KEY % (self.pk, lock.name)
-        if qualifier:
-            lock_key += ":%s" % qualifier
 
-        return r.lock(lock_key, ORG_LOCK_TTL)
+        return r.lock(ORG_LOCK_KEY % (self.id, lock.name), ORG_LOCK_TTL)
 
     def get_integrations(self, category: IntegrationType.Category) -> list:
         """
