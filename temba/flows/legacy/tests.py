@@ -527,7 +527,7 @@ class FlowMigrationTest(TembaTest):
         }
 
         flow1 = Flow.objects.create(
-            name="base lang test",
+            name="base lang test 1",
             org=self.org,
             created_by=self.admin,
             modified_by=self.admin,
@@ -535,7 +535,7 @@ class FlowMigrationTest(TembaTest):
             version_number=1,
         )
         flow2 = Flow.objects.create(
-            name="Base lang test",
+            name="base lang test 2",
             org=self.org,
             created_by=self.admin,
             modified_by=self.admin,
@@ -802,8 +802,8 @@ class FlowMigrationTest(TembaTest):
 
         # our group and flow to move to uuids
         group = self.create_group("Phans", [])
-        previous_flow = self.create_flow()
-        start_flow = self.create_flow()
+        previous_flow = self.create_flow("Flow 1")
+        start_flow = self.create_flow("Flow 2")
         label = Label.get_or_create(self.org, self.admin, "My label")
 
         substitutions = dict(
@@ -896,7 +896,7 @@ class FlowMigrationTest(TembaTest):
         del flow_json["metadata"]
         flow_json = migrate_to_version_9(flow_json, start_flow)
         self.assertEqual(1, flow_json["metadata"]["revision"])
-        self.assertEqual("Test Flow", flow_json["metadata"]["name"])
+        self.assertEqual("Flow 2", flow_json["metadata"]["name"])
         self.assertEqual(10080, flow_json["metadata"]["expires"])
         self.assertIn("uuid", flow_json["metadata"])
 

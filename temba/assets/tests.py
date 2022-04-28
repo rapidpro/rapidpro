@@ -60,7 +60,7 @@ class AssetTest(TembaTest):
         self.assertContains(response, "Your download should start automatically", status_code=200)
 
         # create flow results export and check that we can access it
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         results_export_task = ExportFlowResultsTask.objects.create(
             org=self.org, created_by=self.admin, modified_by=self.admin
         )

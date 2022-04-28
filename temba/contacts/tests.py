@@ -4735,7 +4735,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         registered = self.create_field("registered", "Registered", value_type="D")
         campaign = Campaign.create(self.org, self.admin, "Reminders", self.create_group("Farmers"))
         CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, registered, offset=1, unit="W", flow=self.create_flow()
+            self.org, self.admin, campaign, registered, offset=1, unit="W", flow=self.create_flow("Test")
         )
 
         update_url = reverse("contacts.contactfield_update", args=[registered.id])

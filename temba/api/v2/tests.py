@@ -193,7 +193,7 @@ class APITest(TembaTest):
 
         group = self.create_group("Customers")
         field_obj = self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         campaign = Campaign.create(self.org, self.admin, "Reminders #1", group)
         event = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, field_obj, 6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12
@@ -548,7 +548,7 @@ class APITest(TembaTest):
         self.login(self.admin)
 
         # create 1255 test runs (5 full pages of 250 items + 1 partial with 5 items)
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         FlowRun.objects.bulk_create([FlowRun(org=self.org, flow=flow, contact=self.joe) for r in range(1255)])
         actual_ids = list(FlowRun.objects.order_by("-pk").values_list("pk", flat=True))
 
@@ -668,7 +668,7 @@ class APITest(TembaTest):
         """
         mock_flowstart_create.side_effect = ValueError("DOH!")
 
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         self.login(self.admin)
         try:
             self.postJSON(reverse("api.v2.flow_starts"), None, dict(flow=flow.uuid, urns=["tel:+12067791212"]))
@@ -1100,7 +1100,7 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        flow = self.create_flow()
+        flow = self.create_flow("Test Flow")
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         registration = self.create_field("registration", "Registration", value_type=ContactField.TYPE_DATETIME)
         field_created_on = self.org.fields.get(key="created_on")
@@ -2536,7 +2536,7 @@ class APITest(TembaTest):
         # add our date field to a campaign event
         campaign = Campaign.create(self.org, self.admin, "Reminders", self.create_group("Farmers"))
         CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, registered, offset=1, unit="W", flow=self.create_flow()
+            self.org, self.admin, campaign, registered, offset=1, unit="W", flow=self.create_flow("Flow")
         )
 
         deleted = self.create_field("deleted", "Deleted")
@@ -2648,7 +2648,7 @@ class APITest(TembaTest):
         run.save(update_fields=("status", "exited_on", "modified_on"))
 
         # flow belong to other org
-        self.create_flow(org=self.org2, name="Other")
+        self.create_flow("Other", org=self.org2)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
@@ -3574,7 +3574,7 @@ class APITest(TembaTest):
         joe_run3 = MockSessionWriter(self.joe, flow2).wait().save().session.runs.get()
 
         # add a run for another org
-        flow3 = self.create_flow(org=self.org2)
+        flow3 = self.create_flow("Test", org=self.org2)
         MockSessionWriter(self.hans, flow3).wait().save()
 
         # refresh runs which will have been modified by being interrupted

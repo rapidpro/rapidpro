@@ -1268,8 +1268,8 @@ class IDSliceQuerySetTest(TembaTest):
         self.assertEqual(0, empty.total)
 
     def test_prefetch_related(self):
-        flow1 = self.create_flow()
-        flow2 = self.create_flow()
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
         with self.assertNumQueries(2):
             flows = list(IDSliceQuerySet(Flow, [flow1.id, flow2.id], offset=0, total=2).prefetch_related("org"))
             self.assertEqual(self.org, flows[0].org)

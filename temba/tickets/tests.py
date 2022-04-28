@@ -507,7 +507,7 @@ class TicketerTest(TembaTest):
         ticketer.save()
 
         # add a dependency and try again
-        flow = self.create_flow()
+        flow = self.create_flow("Deps")
         flow.ticketer_dependencies.add(ticketer)
 
         self.assertFalse(flow.has_issues)
