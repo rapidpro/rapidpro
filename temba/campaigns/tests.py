@@ -41,10 +41,8 @@ class CampaignTest(TembaTest):
 
     @mock_mailroom
     def test_model(self, mr_mocks):
-
         campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-
-        flow = self.create_flow()
+        flow = self.create_flow("Test Flow")
 
         event1 = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, self.planting_date, offset=1, unit="W", flow=flow, delivery_hour=13
@@ -101,7 +99,7 @@ class CampaignTest(TembaTest):
 
     def test_get_offset_display(self):
         campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         event = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, self.planting_date, offset=0, unit="W", flow=flow
         )
@@ -155,7 +153,7 @@ class CampaignTest(TembaTest):
         # create a campaign
         campaign = Campaign.create(self.org, self.user, "Planting Reminders", self.farmers)
 
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
 
         event1 = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, self.planting_date, offset=1, unit="W", flow=flow, delivery_hour="13"
@@ -589,7 +587,7 @@ class CampaignTest(TembaTest):
         self.set_contact_field(self.nonfarmer, "planting_date", "1/7/2025")
         self.assertEqual(1, EventFire.objects.filter(event__is_active=True).count())
 
-        planting_date_field = ContactField.get_by_key(self.org, "planting_date")
+        planting_date_field = self.org.fields.get(key="planting_date")
 
         self.client.post(reverse("contacts.contact_update", args=[self.farmer1.id]), post_data)
 
@@ -972,7 +970,7 @@ class CampaignTest(TembaTest):
         # create a campaign
         campaign = Campaign.create(self.org, self.user, "Planting Reminders", self.farmers)
 
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
 
         CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, self.planting_date, offset=1, unit="W", flow=flow, delivery_hour="13"
@@ -1246,7 +1244,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
     def create_campaign(self, org, name, group):
         user = org.get_admins().first()
         registered = org.fields.get(key="registered")
-        flow = self.create_flow(org=org)
+        flow = self.create_flow(f"{name} Flow", org=org)
         campaign = Campaign.create(org, user, name, group)
         CampaignEvent.create_flow_event(
             org, user, campaign, registered, offset=1, unit="W", flow=flow, delivery_hour="13"
@@ -1401,15 +1399,15 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.create_field("registered", "Registered", value_type="D")
 
-        self.campaign1 = self.create_campaign(self.org)
-        self.other_org_campaign = self.create_campaign(self.org2)
+        self.campaign1 = self.create_campaign(self.org, "Welcomes")
+        self.other_org_campaign = self.create_campaign(self.org2, "Welcomes")
 
-    def create_campaign(self, org):
+    def create_campaign(self, org, name):
         user = org.get_admins().first()
         group = self.create_group("Reporters", contacts=[], org=org)
         registered = self.org.fields.get(key="registered")
-        flow = self.create_flow(org=org)
-        campaign = Campaign.create(org, user, "Welcomes", group)
+        campaign = Campaign.create(org, user, name, group)
+        flow = self.create_flow(f"{name} Flow", org=org)
         CampaignEvent.create_flow_event(
             org, user, campaign, registered, offset=1, unit="W", flow=flow, delivery_hour="13"
         )

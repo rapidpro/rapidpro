@@ -1718,7 +1718,7 @@ class ContactFieldForm(forms.ModelForm):
         if not ContactField.is_valid_key(ContactField.make_key(name)):
             raise forms.ValidationError(_("Can't be a reserved word."))
 
-        conflict = ContactField.user_fields.active_for_org(org=self.org).filter(name__iexact=name.lower())
+        conflict = self.org.fields.filter(is_active=True, name__iexact=name.lower())
         if self.instance:
             conflict = conflict.exclude(id=self.instance.id)
 
@@ -1726,6 +1726,15 @@ class ContactFieldForm(forms.ModelForm):
             raise forms.ValidationError(_("Must be unique."))
 
         return name
+
+    def clean_value_type(self):
+        value_type = self.cleaned_data["value_type"]
+
+        if self.instance and self.instance.campaign_events.filter(is_active=True).exists():
+            if value_type != ContactField.TYPE_DATETIME:
+                raise forms.ValidationError(_("Can't change type of date field being used by campaign events."))
+
+        return value_type
 
     class Meta:
         model = ContactField
@@ -1836,13 +1845,11 @@ class ContactFieldCRUDL(SmartCRUDL):
             def clean(self):
                 super().clean()
 
-                org_active_fields_limit = self.org.get_limit(Org.LIMIT_FIELDS)
-
-                field_count = ContactField.user_fields.count_active_for_org(org=self.org)
-                if field_count >= org_active_fields_limit:
+                field_limit = self.org.get_limit(Org.LIMIT_FIELDS)
+                field_count = self.org.fields.filter(is_active=True, is_system=False).count()
+                if field_count >= field_limit:
                     raise forms.ValidationError(
-                        _("Cannot create a new field as limit is %(limit)s."),
-                        params={"limit": org_active_fields_limit},
+                        _("Cannot create a new field as limit is %(limit)s."), params={"limit": field_limit}
                     )
 
         queryset = ContactField.user_fields
@@ -1856,13 +1863,12 @@ class ContactFieldCRUDL(SmartCRUDL):
             return kwargs
 
         def form_valid(self, form):
-            self.object = ContactField.get_or_create(
-                org=self.request.org,
-                user=self.request.user,
-                key=ContactField.make_key(form.cleaned_data["name"]),
+            self.object = ContactField.create(
+                self.request.org,
+                self.request.user,
                 name=form.cleaned_data["name"],
                 value_type=form.cleaned_data["value_type"],
-                show_in_table=form.cleaned_data["show_in_table"],
+                featured=form.cleaned_data["show_in_table"],
             )
             return self.render_modal_response(form)
 
@@ -1878,15 +1884,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             return kwargs
 
         def form_valid(self, form):
-            self.object = ContactField.get_or_create(
-                org=self.request.org,
-                user=self.request.user,
-                key=self.object.key,  # do not replace the key
-                name=form.cleaned_data["name"],
-                value_type=form.cleaned_data["value_type"],
-                show_in_table=form.cleaned_data["show_in_table"],
-                priority=0,  # reset the priority, this will move CF to the bottom of the list
-            )
+            super().form_valid(form)
 
             return self.render_modal_response(form)
 

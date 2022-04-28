@@ -375,7 +375,7 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, reverse("flows.flow_simulate", args=[flow.id]))
 
     def test_editor_feature_filters(self):
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
 
         self.login(self.admin)
 
@@ -1561,7 +1561,7 @@ class FlowTest(TembaTest):
 
     @mock_mailroom
     def test_preview_start(self, mr_mocks):
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         contact1 = self.create_contact("Ann", phone="+1234567111")
         contact2 = self.create_contact("Bob", phone="+1234567222")
         doctors = self.create_group("Doctors", contacts=[contact1, contact2])
@@ -1752,8 +1752,8 @@ class FlowTest(TembaTest):
         self.assertEqual(0, parent.group_dependencies.all().count())
 
     def test_update_expiration_task(self):
-        flow1 = self.create_flow()
-        flow2 = self.create_flow()
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
 
         # create waiting session and run for flow 1
         session1 = FlowSession.objects.create(
@@ -2549,7 +2549,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_preview_start(self, mr_mocks):
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         self.create_field("age", "Age")
         contact1 = self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
         contact2 = self.create_contact("Bob", phone="+16303333333", fields={"age": 33})
@@ -2616,8 +2616,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     @mock_mailroom
     def test_broadcast(self, mr_mocks):
         contact = self.create_contact("Bob", phone="+593979099111")
-        flow = self.create_flow()
-        ivr_flow = self.create_flow(flow_type=Flow.TYPE_VOICE)
+        flow = self.create_flow("Test")
+        ivr_flow = self.create_flow("IVR Test", flow_type=Flow.TYPE_VOICE)
 
         broadcast_url = reverse("flows.flow_broadcast", args=[flow.id])
 
@@ -2735,7 +2735,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_broadcast_background_flow(self, mr_mocks):
-        flow = self.create_flow(flow_type=Flow.TYPE_BACKGROUND)
+        flow = self.create_flow("Background", flow_type=Flow.TYPE_BACKGROUND)
 
         broadcast_url = reverse("flows.flow_broadcast", args=[flow.id])
 
@@ -2763,8 +2763,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @patch("temba.flows.views.uuid4")
     def test_upload_media_action(self, mock_uuid):
-        flow = self.create_flow()
-        other_org_flow = self.create_flow(org=self.org2)
+        flow = self.create_flow("Test")
+        other_org_flow = self.create_flow("Test", org=self.org2)
 
         action_url = reverse("flows.flow_upload_media_action", args=[flow.uuid])
 
@@ -2818,7 +2818,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(response, reverse("flows.flow_editor", args=[flow_copy.uuid]))
 
     def test_recent_contacts(self):
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         contact1 = self.create_contact("Bob", phone="0979111111")
         contact2 = self.create_contact("", phone="0979222222")
         node1_exit1_uuid = "805f5073-ce96-4b6a-ab9f-e77dd412f83b"
@@ -3605,7 +3605,7 @@ class FlowRunTest(TembaTest):
             uuid=uuid4(),
             org=self.org,
             session=session,
-            flow=self.create_flow(),
+            flow=self.create_flow("Test"),
             contact=self.contact,
             status=FlowRun.STATUS_WAITING,
             created_on=timezone.now(),
@@ -5279,7 +5279,7 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         FlowStartCount.objects.create(start=start3, count=1000)
         FlowStartCount.objects.create(start=start3, count=234)
 
-        other_org_flow = self.create_flow(org=self.org2)
+        other_org_flow = self.create_flow("Test", org=self.org2)
         FlowStart.create(other_org_flow, self.admin2)
 
         response = self.assertListFetch(

@@ -1,3 +1,13 @@
+v7.3.31
+----------
+ * Update components with resolved locked file
+
+v7.3.29
+----------
+ * Fix for flatpickr issue breaking date picker
+ * ContactField.get_or_create should enforce name uniqeuness and ignore invalid names
+ * Add validation error when changing type of field used by campaign events
+
 v7.3.28
 ----------
  * Tweak flow name uniqueness migration to honor max flow name length
