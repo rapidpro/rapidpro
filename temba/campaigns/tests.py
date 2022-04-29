@@ -145,9 +145,9 @@ class CampaignTest(TembaTest):
         self.assertEqual("Reminders 3", Campaign.get_unique_name(self.org, "Reminders"))
 
         # ensure we don't exceed the name length limit
-        Campaign.create(self.org, self.admin, "X" * 255, self.farmers)
+        Campaign.create(self.org, self.admin, "X" * 64, self.farmers)
 
-        self.assertEqual(f"{'X' * 253} 2", Campaign.get_unique_name(self.org, "X" * 255))
+        self.assertEqual(f"{'X' * 62} 2", Campaign.get_unique_name(self.org, "X" * 64))
 
     def test_get_sorted_events(self):
         # create a campaign

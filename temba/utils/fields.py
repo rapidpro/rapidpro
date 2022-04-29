@@ -8,8 +8,6 @@ from django.core.validators import URLValidator
 from django.forms import ValidationError
 from django.utils.translation import gettext_lazy as _
 
-from .uuid import uuid4
-
 MAX_NAME_LEN = 64
 
 
@@ -31,14 +29,6 @@ class InputWidget(forms.TextInput):
         return context
 
 
-def is_valid_name(value):
-    try:
-        validate_name(value)
-        return True
-    except ValidationError:
-        return False
-
-
 def validate_name(value):
     """
     Validator for names of flows and their dependencies.
@@ -57,17 +47,6 @@ def validate_name(value):
 
     if "\0" in value:
         raise ValidationError(_("Cannot contain null characters."))
-
-
-def clean_name(original: str) -> str:
-    """
-    Cleans a name from an import to try to make it valid
-    """
-    return original.strip()[:MAX_NAME_LEN].replace('"', "'").replace("\\", "/").replace("\0", "")
-
-
-def deleted_name(original: str, max_length: int) -> str:
-    return f"deleted-{uuid4()}-{original}"[:max_length]
 
 
 def validate_external_url(value):
