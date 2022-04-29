@@ -23,7 +23,7 @@ from celery.app.task import Task
 
 from temba.campaigns.models import Campaign
 from temba.contacts.models import Contact, ExportContactsTask
-from temba.flows.models import Flow, FlowRun
+from temba.flows.models import Flow
 from temba.tests import TembaTest, matchers
 from temba.triggers.models import Trigger
 from temba.utils import json, uuid
@@ -712,20 +712,6 @@ class CeleryTest(TembaTest):
 
 
 class ModelsTest(TembaTest):
-    def test_require_update_fields(self):
-        contact = self.create_contact("Bob", urns=["twitter:bobby"])
-        flow = self.get_flow("color")
-        run = FlowRun.objects.create(org=self.org, flow=flow, contact=contact)
-
-        # we can save if we specify update_fields
-        run.modified_on = timezone.now()
-        run.save(update_fields=("modified_on",))
-
-        # but not without
-        with self.assertRaises(ValueError):
-            run.modified_on = timezone.now()
-            run.save()
-
     def test_chunk_list(self):
         curr = 0
         for chunk in chunk_list(range(100), 7):
