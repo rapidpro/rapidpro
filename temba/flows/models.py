@@ -34,7 +34,7 @@ from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.fields import deleted_name, validate_name
+from temba.utils.fields import clean_name, deleted_name, validate_name
 from temba.utils.models import (
     JSONAsTextField,
     JSONField,
@@ -347,7 +347,7 @@ class Flow(TembaModel, DependencyMixin):
             flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, 0)
 
             flow = None
-            flow_name = flow_name[:64].strip().replace('"', "'").replace("\0", "")
+            flow_name = clean_name(flow_name)
 
             # ensure expires is valid for the flow type
             if not cls.is_valid_expires(flow_type, flow_expires):

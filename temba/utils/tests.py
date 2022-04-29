@@ -35,7 +35,7 @@ from .celery import nonoverlapping_task
 from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
-from .fields import is_valid_name, validate_external_url, validate_name
+from .fields import clean_name, is_valid_name, validate_external_url, validate_name
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
@@ -1408,6 +1408,12 @@ class RedactTest(TestCase):
 
 
 class TestValidators(TestCase):
+    def test_clean_name(self):
+        self.assertEqual("Hello", clean_name("Hello\0"))
+        self.assertEqual("Hello/n", clean_name("Hello\\n"))
+        self.assertEqual("Say 'Hi'", clean_name('Say "Hi"'))
+        self.assertEqual("x" * 64, clean_name("x" * 100))
+
     def test_validate_name(self):
         cases = (
             (" ", "Cannot begin or end with whitespace."),

@@ -59,6 +59,13 @@ def validate_name(value):
         raise ValidationError(_("Cannot contain null characters."))
 
 
+def clean_name(original: str) -> str:
+    """
+    Cleans a name from an import to try to make it valid
+    """
+    return original.strip()[:MAX_NAME_LEN].replace('"', "'").replace("\\", "/").replace("\0", "")
+
+
 def deleted_name(original: str, max_length: int) -> str:
     return f"deleted-{uuid4()}-{original}"[:max_length]
 
