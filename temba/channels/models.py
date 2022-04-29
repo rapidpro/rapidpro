@@ -1308,6 +1308,11 @@ class ChannelLog(models.Model):
         Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
         """
 
+        secrets = [settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN]
+        for secret in secrets:
+            if secret:
+                original = redact.text(original, secret, mask)
+
         if not self.channel.org.is_anon or user.has_org_perm(self.channel.org, "contacts.contact_break_anon"):
             return original
 
