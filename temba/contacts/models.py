@@ -31,7 +31,7 @@ from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.models import JSONField, NamedObjectMixin, RequireUpdateFieldsMixin, SquashableModel, TembaModel
+from temba.utils.models import JSONField, NamedObjectMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
@@ -578,7 +578,7 @@ class ContactField(SmartModel, NamedObjectMixin, DependencyMixin):
         return self.name
 
 
-class Contact(RequireUpdateFieldsMixin, TembaModel):
+class Contact(TembaModel):
     """
     A contact represents an individual with which we can communicate and collect data
     """

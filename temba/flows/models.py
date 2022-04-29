@@ -34,15 +34,7 @@ from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.models import (
-    JSONAsTextField,
-    JSONField,
-    NamedObjectMixin,
-    RequireUpdateFieldsMixin,
-    SquashableModel,
-    TembaModel,
-    generate_uuid,
-)
+from temba.utils.models import JSONAsTextField, JSONField, NamedObjectMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.uuid import uuid4
 
 from . import legacy
@@ -1164,7 +1156,7 @@ class FlowSession(models.Model):
         ]
 
 
-class FlowRun(RequireUpdateFieldsMixin, models.Model):
+class FlowRun(models.Model):
     """
     A single contact's journey through a flow. It records the path taken, results collected etc.
     """

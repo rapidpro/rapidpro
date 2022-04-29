@@ -282,7 +282,7 @@ class Migration(migrations.Migration):
                 ("current_node_uuid", models.UUIDField(null=True)),
                 ("delete_from_results", models.BooleanField(null=True)),
             ],
-            bases=(temba.utils.models.RequireUpdateFieldsMixin, models.Model),
+            bases=(models.Model,),
         ),
         migrations.CreateModel(
             name="FlowRunCount",
