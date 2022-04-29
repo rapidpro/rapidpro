@@ -1,3 +1,8 @@
+1.2.4-rapidpro-7.0.4
+----------
+ * New Weni announcement
+ * Option to disable OIDC Authentication
+
 1.2.3-rapidpro-7.0.4
 ----------
  * Update weni-rp-apps to 1.0.16
