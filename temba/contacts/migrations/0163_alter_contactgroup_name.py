@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="contactgroup",
             name="name",
-            field=models.CharField(max_length=64, validators=[temba.utils.fields.validate_name]),
+            field=models.CharField(max_length=64, validators=[temba.utils.fields.NameValidator(64)]),
         ),
     ]

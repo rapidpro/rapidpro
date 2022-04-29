@@ -14,7 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org
-from temba.utils.fields import validate_name
+from temba.utils.fields import NameValidator
 from temba.utils.models import NamedObjectMixin, SquashableModel
 from temba.utils.uuid import uuid4
 
@@ -162,7 +162,9 @@ class Topic(SmartModel, NamedObjectMixin, DependencyMixin):
 
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="topics")
-    name = models.CharField(max_length=NamedObjectMixin.MAX_NAME_LEN, validators=[validate_name])
+    name = models.CharField(
+        max_length=NamedObjectMixin.MAX_NAME_LEN, validators=[NameValidator(NamedObjectMixin.MAX_NAME_LEN)]
+    )
     is_default = models.BooleanField(default=False)
 
     @classmethod

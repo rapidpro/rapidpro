@@ -27,7 +27,7 @@ from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import extract_constants, json, on_transaction_commit
-from temba.utils.fields import validate_name
+from temba.utils.fields import NameValidator
 
 from . import fields
 from .validators import UniqueForOrgValidator
@@ -778,7 +778,7 @@ class ContactGroupWriteSerializer(WriteSerializer):
         required=True,
         max_length=ContactGroup.MAX_NAME_LEN,
         validators=[
-            validate_name,
+            NameValidator(ContactGroup.MAX_NAME_LEN),
             UniqueForOrgValidator(queryset=ContactGroup.objects.filter(is_active=True), ignore_case=True),
         ],
     )
@@ -1544,13 +1544,11 @@ class TopicWriteSerializer(WriteSerializer):
     name = serializers.CharField(
         required=True,
         max_length=Topic.MAX_NAME_LEN,
-        validators=[UniqueForOrgValidator(queryset=Topic.objects.filter(is_active=True), ignore_case=True)],
+        validators=[
+            NameValidator(Topic.MAX_NAME_LEN),
+            UniqueForOrgValidator(queryset=Topic.objects.filter(is_active=True), ignore_case=True),
+        ],
     )
-
-    def validate_name(self, value):
-        if not Topic.is_valid_name(value):
-            raise serializers.ValidationError("Contains illegal characters.")
-        return value
 
     def validate(self, data):
         org = self.context["org"]

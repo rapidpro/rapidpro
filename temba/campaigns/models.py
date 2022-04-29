@@ -9,13 +9,15 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit
-from temba.utils.fields import validate_name
+from temba.utils.fields import NameValidator
 from temba.utils.models import NamedObjectMixin, TembaModel, TranslatableField
 
 
 class Campaign(TembaModel, NamedObjectMixin):
     org = models.ForeignKey(Org, related_name="campaigns", on_delete=models.PROTECT)
-    name = models.CharField(max_length=NamedObjectMixin.MAX_NAME_LEN, validators=[validate_name])
+    name = models.CharField(
+        max_length=NamedObjectMixin.MAX_NAME_LEN, validators=[NameValidator(NamedObjectMixin.MAX_NAME_LEN)]
+    )
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="campaigns")
     is_archived = models.BooleanField(default=False)
 

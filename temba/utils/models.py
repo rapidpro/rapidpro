@@ -15,7 +15,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from . import json, uuid
-from .fields import MAX_NAME_LEN, validate_name
+from .fields import NameValidator
 
 logger = logging.getLogger(__name__)
 
@@ -343,7 +343,7 @@ class NamedObjectMixin:
     Model mixin for things with names
     """
 
-    MAX_NAME_LEN = MAX_NAME_LEN
+    MAX_NAME_LEN = 64
 
     @classmethod
     def get_unique_name(cls, org, base_name: str, ignore=None) -> str:
@@ -365,7 +365,7 @@ class NamedObjectMixin:
     @classmethod
     def is_valid_name(cls, value):
         try:
-            validate_name(value)
+            NameValidator(max_length=cls.MAX_NAME_LEN)(value)
             return True
         except ValidationError:
             return False
