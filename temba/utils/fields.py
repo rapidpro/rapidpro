@@ -56,13 +56,6 @@ class NameValidator:
         return isinstance(other, NameValidator) and self.max_length == other.max_length
 
 
-def validate_name(value):
-    """
-    For compatibility with old migrations
-    """
-    NameValidator(max_length=64)(value)
-
-
 def validate_external_url(value):
     parsed = parse.urlparse(value)
 

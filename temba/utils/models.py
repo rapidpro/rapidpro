@@ -338,12 +338,14 @@ class SquashableModel(models.Model):
         abstract = True
 
 
-class NamedObjectMixin:
+class NamedObjectMixin(models.Model):
     """
     Model mixin for things with names
     """
 
     MAX_NAME_LEN = 64
+
+    name = models.CharField(max_length=MAX_NAME_LEN, validators=[NameValidator(MAX_NAME_LEN)])
 
     @classmethod
     def get_unique_name(cls, org, base_name: str, ignore=None) -> str:
@@ -379,3 +381,6 @@ class NamedObjectMixin:
 
     def deleted_name(self) -> str:
         return f"deleted-{uuid.uuid4()}-{self.name}"[: self.MAX_NAME_LEN]
+
+    class Meta:
+        abstract = True

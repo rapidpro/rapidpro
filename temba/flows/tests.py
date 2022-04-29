@@ -91,6 +91,12 @@ class FlowTest(TembaTest):
 
         self.assertEqual(f"{'X' * 62} 2", Flow.get_unique_name(self.org, "X" * 64))
 
+    def test_clean_name(self):
+        self.assertEqual("Hello", Flow.clean_name("Hello\0"))
+        self.assertEqual("Hello/n", Flow.clean_name("Hello\\n"))
+        self.assertEqual("Say 'Hi'", Flow.clean_name('Say "Hi"'))
+        self.assertEqual("x" * 64, Flow.clean_name("x" * 100))
+
     @patch("temba.mailroom.queue_interrupt")
     def test_archive(self, mock_queue_interrupt):
         flow = self.get_flow("color")

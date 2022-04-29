@@ -34,7 +34,6 @@ from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.fields import NameValidator
 from temba.utils.models import (
     JSONAsTextField,
     JSONField,
@@ -159,12 +158,6 @@ class Flow(TembaModel, NamedObjectMixin, DependencyMixin):
         TYPE_BACKGROUND: 0,
         TYPE_SURVEY: 0,
     }
-
-    name = models.CharField(
-        max_length=NamedObjectMixin.MAX_NAME_LEN,
-        help_text=_("The name of this flow."),
-        validators=[NameValidator(NamedObjectMixin.MAX_NAME_LEN)],
-    )
 
     labels = models.ManyToManyField("FlowLabel", related_name="flows")
 
