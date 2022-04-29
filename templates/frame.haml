@@ -206,15 +206,13 @@
   -if not use_weni_layout
     .weni-announcement
       .weni-announcement-container.flex.flex-row
-        .weni-left
+        %span.weni-left
           {{ announcement_left }}
-        .weni-divider
-        .weni-right
+        %span.weni-divider
+        %span.weni-right
           {{ announcement_right }}
         %a.weni-button(href="{{ announcement_link }}" target="_blank" rel="noopener noreferrer")
           {{ announcement_button }}
-        %button.weni-announcement-collapse
-            .unnnic-icon-delete-1-1.unnnic-icon-large
 
   -if COMPONENTS_DEV_MODE
     <script type="module">
