@@ -3236,8 +3236,8 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         # try to create a label with invalid name
-        response = self.postJSON(url, None, {"name": "!!!#$%^"})
-        self.assertResponseError(response, "name", "Name contains illegal characters.")
+        response = self.postJSON(url, None, {"name": '""'})
+        self.assertResponseError(response, "name", 'Cannot contain the character: "')
 
         # try to create a label with name that's too long
         response = self.postJSON(url, None, {"name": "x" * 65})

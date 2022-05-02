@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 
 import iso8601
 import pytz
-import regex
 from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
@@ -26,7 +25,7 @@ from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
+from temba.utils.models import JSONAsTextField, NamedObjectMixin, SquashableModel, TembaModel, TranslatableField
 from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
 
@@ -888,22 +887,19 @@ class UserLabelManager(models.Manager):
         return super().get_queryset().filter(label_type=Label.TYPE_LABEL)
 
 
-class Label(TembaModel, DependencyMixin):
+class Label(TembaModel, NamedObjectMixin, DependencyMixin):
     """
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.
     """
 
-    MAX_NAME_LEN = 64
     MAX_ORG_FOLDERS = 250
 
     TYPE_FOLDER = "F"
     TYPE_LABEL = "L"
-
     TYPE_CHOICES = ((TYPE_FOLDER, "Folder of labels"), (TYPE_LABEL, "Regular label"))
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs_labels")
-    name = models.CharField(max_length=MAX_NAME_LEN)
     folder = models.ForeignKey("Label", on_delete=models.PROTECT, null=True, related_name="children")
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL)
 
@@ -913,13 +909,9 @@ class Label(TembaModel, DependencyMixin):
     label_objects = UserLabelManager()
 
     @classmethod
-    def get_or_create(cls, org, user, name, folder=None):
+    def get_or_create(cls, org, user, name: str, folder=None):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid label name"
         assert not folder or folder.is_folder(), "folder must be a folder if provided"
-
-        name = name.strip()
-
-        if not cls.is_valid_name(name):
-            raise ValueError("Invalid label name: %s" % name)
 
         label = cls.label_objects.filter(org=org, name__iexact=name, is_active=True).first()
         if label:
@@ -928,11 +920,8 @@ class Label(TembaModel, DependencyMixin):
         return cls.label_objects.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
 
     @classmethod
-    def get_or_create_folder(cls, org, user, name):
-        name = name.strip()
-
-        if not cls.is_valid_name(name):
-            raise ValueError("Invalid folder name: %s" % name)
+    def get_or_create_folder(cls, org, user, name: str):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid label name"
 
         folder = cls.folder_objects.filter(org=org, name__iexact=name, is_active=True).first()
         if folder:
@@ -968,18 +957,6 @@ class Label(TembaModel, DependencyMixin):
                 folder_nodes[node["obj"].folder_id]["children"].append(node)
 
         return top_nodes
-
-    @classmethod
-    def is_valid_name(cls, name):
-        # don't allow empty strings, blanks, initial or trailing whitespace
-        if not name or name.strip() != name:
-            return False
-
-        if len(name) > cls.MAX_NAME_LEN:
-            return False
-
-        # first character must be a word char
-        return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
     def filter_messages(self, queryset):
         if self.is_folder():
@@ -1045,9 +1022,10 @@ class Label(TembaModel, DependencyMixin):
 
         self.counts.all().delete()
 
+        self.name = self.deleted_name()
         self.is_active = False
         self.modified_by = user
-        self.save(update_fields=("is_active", "modified_by", "modified_on"))
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
     def __str__(self):
         if self.folder:

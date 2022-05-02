@@ -279,7 +279,10 @@ class CampaignWriteSerializer(WriteSerializer):
     name = serializers.CharField(
         required=True,
         max_length=Campaign.MAX_NAME_LEN,
-        validators=[UniqueForOrgValidator(queryset=Campaign.objects.filter(is_active=True))],
+        validators=[
+            NameValidator(Campaign.MAX_NAME_LEN),
+            UniqueForOrgValidator(queryset=Campaign.objects.filter(is_active=True)),
+        ],
     )
     group = fields.ContactGroupField(required=True)
 
@@ -1160,7 +1163,10 @@ class LabelWriteSerializer(WriteSerializer):
     name = serializers.CharField(
         required=True,
         max_length=Label.MAX_NAME_LEN,
-        validators=[UniqueForOrgValidator(queryset=Label.label_objects.filter(is_active=True), ignore_case=True)],
+        validators=[
+            NameValidator(Label.MAX_NAME_LEN),
+            UniqueForOrgValidator(queryset=Label.label_objects.filter(is_active=True), ignore_case=True),
+        ],
     )
 
     def validate_name(self, value):
