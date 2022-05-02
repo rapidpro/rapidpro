@@ -3886,8 +3886,8 @@ class APITest(TembaTest):
         self.assertIsNone(Label.all_objects.filter(name="XYZ").first())
 
         # try to use invalid label name
-        response = self.postJSON(url, None, {"messages": [msg1.id, msg2.id], "action": "label", "label_name": "$$$"})
-        self.assertResponseError(response, "label_name", "Name contains illegal characters.")
+        response = self.postJSON(url, None, {"messages": [msg1.id, msg2.id], "action": "label", "label_name": '"Hi"'})
+        self.assertResponseError(response, "label_name", 'Cannot contain the character: "')
 
         # try to label without specifying a label
         response = self.postJSON(url, None, {"messages": [msg1.id, msg2.id], "action": "label"})

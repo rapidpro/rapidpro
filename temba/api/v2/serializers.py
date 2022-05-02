@@ -1169,11 +1169,6 @@ class LabelWriteSerializer(WriteSerializer):
         ],
     )
 
-    def validate_name(self, value):
-        if not Label.is_valid_name(value):
-            raise serializers.ValidationError("Name contains illegal characters.")
-        return value
-
     def validate(self, data):
         org = self.context["org"]
 
@@ -1292,18 +1287,15 @@ class MsgBulkActionSerializer(WriteSerializer):
     messages = fields.MessageField(many=True)
     action = serializers.ChoiceField(required=True, choices=ACTIONS)
     label = fields.LabelField(required=False)
-    label_name = serializers.CharField(required=False, max_length=Label.MAX_NAME_LEN)
+    label_name = serializers.CharField(
+        required=False, max_length=Label.MAX_NAME_LEN, validators=[NameValidator(max_length=Label.MAX_NAME_LEN)]
+    )
 
     def validate_messages(self, value):
         for msg in value:
             if msg and msg.direction != "I":
                 raise serializers.ValidationError("Not an incoming message: %d" % msg.id)
 
-        return value
-
-    def validate_label_name(self, value):
-        if not Label.is_valid_name(value):
-            raise serializers.ValidationError("Name contains illegal characters.")
         return value
 
     def validate(self, data):
