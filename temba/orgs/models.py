@@ -259,6 +259,7 @@ class Org(SmartModel):
     LIMIT_GROUPS = "groups"
     LIMIT_LABELS = "labels"
     LIMIT_TOPICS = "topics"
+    LIMIT_TEAMS = "teams"
 
     DELETE_DELAY_DAYS = 7  # how many days after releasing that an org is deleted
 

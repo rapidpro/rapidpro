@@ -610,12 +610,13 @@ class TeamTest(TembaTest):
 
         self.assertEqual({self.admin, self.agent}, set(team1.get_users()))
 
+        # try to create with invalid name
+        with self.assertRaises(AssertionError):
+            Team.create(self.org, self.admin, '"Support"')
+
     def test_release(self):
         team1 = Team.create(self.org, self.admin, "Team 1")
         team1.release(self.admin)
 
         self.assertFalse(team1.is_active)
         self.assertTrue(team1.name.startswith("deleted-"))
-
-        with self.assertRaises(AssertionError):
-            Topic.get_or_create(self.org, self.admin, '"Support"')

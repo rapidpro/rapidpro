@@ -1253,6 +1253,7 @@ ORG_LIMIT_DEFAULTS = {
     "globals": 250,
     "groups": 250,
     "labels": 250,
+    "teams": 50,
     "topics": 250,
 }
 

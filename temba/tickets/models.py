@@ -456,6 +456,8 @@ class Team(TembaModel):
 
     @classmethod
     def create(cls, org, user, name: str):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid team name"
+
         return org.teams.create(name=name, created_by=user, modified_by=user)
 
     def get_users(self):
