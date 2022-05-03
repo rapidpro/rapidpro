@@ -398,19 +398,23 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         valid_expires = {c[0] for c in cls.EXPIRES_CHOICES.get(flow_type, ())}
         return not valid_expires or expires in valid_expires
 
-    @classmethod
-    def copy(cls, flow, user):
-        copy = Flow.create(flow.org, user, "Copy of %s" % flow.name[:55], flow_type=flow.flow_type)
+    def clone(self, user):
+        """
+        Returns a clone of this flow
+        """
+        name = self.get_unique_name(self.org, f"Copy of {self.name}"[: self.MAX_NAME_LEN])
+        copy = Flow.create(
+            self.org,
+            user,
+            name,
+            flow_type=self.flow_type,
+            expires_after_minutes=self.expires_after_minutes,
+            base_language=self.base_language,
+        )
 
-        # grab the json of our original
-        flow_json = flow.get_definition()
-
+        # import the original's definition into the copy
+        flow_json = self.get_definition()
         copy.import_definition(user, flow_json, {})
-
-        # copy our expiration as well
-        copy.expires_after_minutes = flow.expires_after_minutes
-        copy.save()
-
         return copy
 
     @classmethod
