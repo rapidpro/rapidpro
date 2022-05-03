@@ -1,3 +1,5 @@
+from smartmin.models import SmartModel
+
 from django.db import models
 from django.db.models import Model
 from django.utils import timezone
@@ -9,10 +11,10 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit
-from temba.utils.models import TembaModel, TembaNameMixin, TranslatableField
+from temba.utils.models import LegacyUUIDMixin, TembaModel, TranslatableField
 
 
-class Campaign(TembaModel, TembaNameMixin):
+class Campaign(LegacyUUIDMixin, TembaModel):
     org = models.ForeignKey(Org, related_name="campaigns", on_delete=models.PROTECT)
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="campaigns")
     is_archived = models.BooleanField(default=False)
@@ -237,7 +239,7 @@ class Campaign(TembaModel, TembaNameMixin):
         verbose_name_plural = _("Campaigns")
 
 
-class CampaignEvent(TembaModel):
+class CampaignEvent(LegacyUUIDMixin, SmartModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow
     """

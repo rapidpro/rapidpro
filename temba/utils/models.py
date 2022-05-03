@@ -270,21 +270,6 @@ class JSONField(DjangoJSONField):
         super().__init__(*args, **kwargs)
 
 
-class TembaModel(SmartModel):
-
-    uuid = models.CharField(
-        max_length=36,
-        unique=True,
-        db_index=True,
-        default=generate_uuid,
-        verbose_name=_("Unique Identifier"),
-        help_text=_("The unique identifier for this object"),
-    )
-
-    class Meta:
-        abstract = True
-
-
 class SquashableModel(models.Model):
     """
     Base class for models which track counts by delta insertions which are then periodically squashed
@@ -330,9 +315,38 @@ class SquashableModel(models.Model):
         abstract = True
 
 
+class LegacyUUIDMixin(SmartModel):
+    """
+    Model mixin for things with an old-style VARCHAR(36) UUID
+    """
+
+    uuid = models.CharField(
+        max_length=36,
+        unique=True,
+        db_index=True,
+        default=generate_uuid,
+        verbose_name=_("Unique Identifier"),
+        help_text=_("The unique identifier for this object"),
+    )
+
+    class Meta:
+        abstract = True
+
+
+class TembaUUIDMixin(models.Model):
+    """
+    Model mixin for things with a UUID
+    """
+
+    uuid = models.UUIDField(unique=True, default=generate_uuid)
+
+    class Meta:
+        abstract = True
+
+
 class TembaNameMixin(models.Model):
     """
-    Model mixin for things with names
+    Model mixin for things with a name
     """
 
     MAX_NAME_LEN = 64
@@ -373,6 +387,18 @@ class TembaNameMixin(models.Model):
 
     def deleted_name(self) -> str:
         return f"deleted-{uuid.uuid4()}-{self.name}"[: self.MAX_NAME_LEN]
+
+    class Meta:
+        abstract = True
+
+
+class TembaModel(SmartModel, TembaUUIDMixin, TembaNameMixin):
+    """
+    Base for models which have UUID, name and standard auditing fields
+    """
+
+    def get_export_ref(self):
+        return {"uuid": str(self.uuid), "name": self.name}
 
     class Meta:
         abstract = True
