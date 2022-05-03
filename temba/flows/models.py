@@ -34,7 +34,7 @@ from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.models import JSONAsTextField, JSONField, SquashableModel, TembaModel, TembaNameMixin, generate_uuid
+from temba.utils.models import JSONAsTextField, JSONField, LegacyUUIDMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.uuid import uuid4
 
 from . import legacy
@@ -61,7 +61,7 @@ FLOW_LOCK_TTL = 60  # 1 minute
 FLOW_LOCK_KEY = "org:%d:lock:flow:%d:definition"
 
 
-class Flow(TembaModel, TembaNameMixin, DependencyMixin):
+class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
     CONTACT_CREATION = "contact_creation"
     CONTACT_PER_RUN = "run"
     CONTACT_PER_LOGIN = "login"
@@ -749,9 +749,6 @@ class Flow(TembaModel, TembaNameMixin, DependencyMixin):
         Returns whether this flow still uses a legacy definition
         """
         return Version(self.version_number) < Version(Flow.INITIAL_GOFLOW_VERSION)
-
-    def as_export_ref(self) -> dict:
-        return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
 
     @classmethod
     def get_metadata(cls, flow_info) -> dict:

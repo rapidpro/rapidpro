@@ -1,7 +1,5 @@
 from abc import ABCMeta
 
-from smartmin.models import SmartModel
-
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
@@ -14,7 +12,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org
-from temba.utils.models import SquashableModel, TembaNameMixin, generate_uuid
+from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
 
@@ -63,24 +61,13 @@ class TicketerType(metaclass=ABCMeta):
         return re_path(r"^connect", self.connect_view.as_view(ticketer_type=self), name="connect")
 
 
-class Ticketer(SmartModel, DependencyMixin):
+class Ticketer(TembaModel, DependencyMixin):
     """
     A service that can open and close tickets
     """
 
-    # our UUID
-    uuid = models.UUIDField(default=uuid4)
-
-    # the type of this ticketer
-    ticketer_type = models.CharField(max_length=16)
-
-    # the org this ticketer is connected to
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticketers")
-
-    # a name for this ticketer
-    name = models.CharField(max_length=64)
-
-    # the configuration options
+    ticketer_type = models.CharField(max_length=16)
     config = models.JSONField()
 
     @classmethod
@@ -145,21 +132,21 @@ class Ticketer(SmartModel, DependencyMixin):
             Ticket.bulk_close(self.org, user, open_tickets, force=True)
 
         self.is_active = False
+        self.name = self.deleted_name()
         self.modified_by = user
-        self.save(update_fields=("is_active", "modified_by", "modified_on"))
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
     def __str__(self):
         return f"Ticketer[uuid={self.uuid}, name={self.name}]"
 
 
-class Topic(SmartModel, TembaNameMixin, DependencyMixin):
+class Topic(TembaModel, DependencyMixin):
     """
     The topic of a ticket which controls who can access that ticket.
     """
 
     DEFAULT_TOPIC = "General"
 
-    uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="topics")
     is_default = models.BooleanField(default=False)
 
@@ -459,12 +446,11 @@ class TicketCount(SquashableModel):
         ]
 
 
-class Team(SmartModel, TembaNameMixin):
+class Team(TembaModel):
     """
     Every user can be a member of a ticketing team
     """
 
-    uuid = models.UUIDField(unique=True, default=generate_uuid)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="teams")
     topics = models.ManyToManyField(Topic, related_name="teams")
 
