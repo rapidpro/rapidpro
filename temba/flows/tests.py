@@ -4974,24 +4974,24 @@ class ExportFlowResultsTest(TembaTest):
 class FlowLabelTest(TembaTest):
     def test_label_model(self):
         # test a the creation of a unique label when we have a long word(more than 32 caracters)
-        response = FlowLabel.create(self.org, "alongwordcomposedofmorethanthirtytwoletters", parent=None)
+        response = FlowLabel.create(self.org, self.admin, "alongwordcomposedofmorethanthirtytwoletters", parent=None)
         self.assertEqual(response.name, "alongwordcomposedofmorethanthirt")
 
         # try to create another label which starts with the same 32 caracteres
         # the one we already have
-        label = FlowLabel.create(self.org, "alongwordcomposedofmorethanthirtytwocaracteres", parent=None)
+        label = FlowLabel.create(self.org, self.admin, "alongwordcomposedofmorethanthirtytwocaracteres", parent=None)
 
         self.assertEqual(label.name, "alongwordcomposedofmorethanthi 2")
         self.assertEqual(str(label), "alongwordcomposedofmorethanthi 2")
         label = FlowLabel.create(self.org, "child", parent=label)
         self.assertEqual(str(label), "alongwordcomposedofmorethanthi 2 > child")
 
-        FlowLabel.create(self.org, "dog")
-        FlowLabel.create(self.org, "dog")
-        dog3 = FlowLabel.create(self.org, "dog")
+        FlowLabel.create(self.org, self.admin, "dog")
+        FlowLabel.create(self.org, self.admin, "dog")
+        dog3 = FlowLabel.create(self.org, self.admin, "dog")
         self.assertEqual("dog 3", dog3.name)
 
-        dog4 = FlowLabel.create(self.org, "dog ")
+        dog4 = FlowLabel.create(self.org, self.admin, "dog ")
         self.assertEqual("dog 4", dog4.name)
 
         # view the parent label, should see the child
@@ -5013,7 +5013,7 @@ class FlowLabelTest(TembaTest):
         self.assertFalse(response.context["object_list"])
 
         # try to view our cat label in our other org
-        cat = FlowLabel.create(self.org2, "cat")
+        cat = FlowLabel.create(self.org2, self.admin2, "cat")
         response = self.client.get(reverse("flows.flow_filter", args=[cat.uuid]))
         self.assertLoginRedirect(response)
 
@@ -5022,7 +5022,7 @@ class FlowLabelTest(TembaTest):
         self.assertEqual(len(response.context["labels_flat"]), 7)
 
     def test_toggle_label(self):
-        label = FlowLabel.create(self.org, "toggle me")
+        label = FlowLabel.create(self.org, self.admin, "toggle me")
         flow = self.get_flow("favorites")
 
         changed = label.toggle_label([flow], True)
@@ -5064,7 +5064,7 @@ class FlowLabelTest(TembaTest):
         self.assertEqual(FlowLabel.objects.all().count(), 3)
 
     def test_delete(self):
-        label_one = FlowLabel.create(self.org, "label1")
+        label_one = FlowLabel.create(self.org, self.admin, "label1")
 
         delete_url = reverse("flows.flowlabel_delete", args=[label_one.pk])
 
@@ -5080,7 +5080,7 @@ class FlowLabelTest(TembaTest):
         self.assertIsNone(FlowLabel.objects.filter(uuid=label_one.uuid).first())
 
     def test_update(self):
-        label_one = FlowLabel.create(self.org, "label1")
+        label_one = FlowLabel.create(self.org, self.admin, "label1")
         update_url = reverse("flows.flowlabel_update", args=[label_one.pk])
 
         # not logged in, no dice

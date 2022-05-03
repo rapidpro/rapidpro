@@ -2054,7 +2054,7 @@ class PreprocessTest(FormView):  # pragma: no cover
 class FlowLabelForm(forms.ModelForm):
     name = forms.CharField(required=True, widget=InputWidget(), label=_("Name"))
     parent = forms.ModelChoiceField(
-        FlowLabel.objects.all(),
+        FlowLabel.objects.none(),
         required=False,
         label=_("Parent"),
         widget=SelectWidget(attrs={"placeholder": _("Select label")}),
@@ -2062,20 +2062,15 @@ class FlowLabelForm(forms.ModelForm):
     )
     flows = forms.CharField(required=False, widget=forms.HiddenInput)
 
-    def __init__(self, *args, **kwargs):
-        self.org = kwargs["org"]
-        del kwargs["org"]
-
-        label = None
-        if "label" in kwargs:
-            label = kwargs["label"]
-            del kwargs["label"]
+    def __init__(self, org, *args, **kwargs):
+        self.org = org
 
         super().__init__(*args, **kwargs)
+
         qs = FlowLabel.objects.filter(org=self.org, parent=None)
 
-        if label:
-            qs = qs.exclude(id=label.pk)
+        if self.instance:
+            qs = qs.exclude(id=self.instance.id)
 
         self.fields["parent"].queryset = qs
 
@@ -2116,8 +2111,7 @@ class FlowLabelCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.user.get_org()
-            kwargs["label"] = self.get_object()
+            kwargs["org"] = self.request.org
             return kwargs
 
         def derive_fields(self):
