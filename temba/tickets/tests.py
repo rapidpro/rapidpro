@@ -606,7 +606,7 @@ class TopicTest(TembaTest):
 
 
 class TeamTest(TembaTest):
-    def test_model(self):
+    def test_create(self):
         team1 = Team.create(self.org, self.admin, "Team 1")
         self.admin.set_team(team1)
         self.agent.set_team(team1)
@@ -623,7 +623,12 @@ class TeamTest(TembaTest):
 
     def test_release(self):
         team1 = Team.create(self.org, self.admin, "Team 1")
+        self.admin.set_team(team1)
+        self.agent.set_team(team1)
+
         team1.release(self.admin)
 
         self.assertFalse(team1.is_active)
         self.assertTrue(team1.name.startswith("deleted-"))
+
+        self.assertEqual(0, team1.get_users().count())

@@ -12,7 +12,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.contacts.models import Contact
-from temba.orgs.models import DependencyMixin, Org
+from temba.orgs.models import DependencyMixin, Org, UserSettings
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
@@ -459,7 +459,7 @@ class Team(TembaModel):
     @classmethod
     def create(cls, org, user, name: str):
         assert cls.is_valid_name(name), f"'{name}' is not a valid team name"
-        assert not org.teams.filter(name__iexact=name).exists()
+        assert not org.teams.filter(name__iexact=name, is_active=True).exists()
 
         return org.teams.create(name=name, created_by=user, modified_by=user)
 
@@ -467,6 +467,9 @@ class Team(TembaModel):
         return User.objects.filter(settings__team=self)
 
     def release(self, user):
+        # remove all users from this team
+        UserSettings.objects.filter(team=self).update(team=None)
+
         self.name = self.deleted_name()
         self.is_active = False
         self.modified_by = user
