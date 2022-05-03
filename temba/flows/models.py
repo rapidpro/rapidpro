@@ -750,9 +750,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         """
         return Version(self.version_number) < Version(Flow.INITIAL_GOFLOW_VERSION)
 
-    def as_export_ref(self) -> dict:
-        return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
-
     @classmethod
     def get_metadata(cls, flow_info) -> dict:
         return {

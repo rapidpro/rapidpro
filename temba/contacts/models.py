@@ -1698,9 +1698,6 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
             dependency_mapping[group_uuid] = str(group.uuid)
 
-    def as_export_ref(self):
-        return {"uuid": str(self.uuid), "name": self.name}
-
     def as_export_def(self):
         return {"uuid": str(self.uuid), "name": self.name, "query": self.query}
 

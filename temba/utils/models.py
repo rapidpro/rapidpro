@@ -371,7 +371,7 @@ class TembaNameMixin(models.Model):
             count += 1
 
     @classmethod
-    def is_valid_name(cls, value):
+    def is_valid_name(cls, value: str) -> bool:
         try:
             NameValidator(max_length=cls.MAX_NAME_LEN)(value)
             return True
@@ -392,12 +392,12 @@ class TembaNameMixin(models.Model):
         abstract = True
 
 
-class TembaModel(SmartModel, TembaUUIDMixin, TembaNameMixin):
+class TembaModel(TembaUUIDMixin, TembaNameMixin, SmartModel):
     """
-    Base for models which have UUID, name and standard auditing fields
+    Base for models which have UUID, name and smartmin auditing fields
     """
 
-    def get_export_ref(self):
+    def as_export_ref(self) -> dict:
         return {"uuid": str(self.uuid), "name": self.name}
 
     class Meta:
