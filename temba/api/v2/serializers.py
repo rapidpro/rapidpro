@@ -1570,7 +1570,7 @@ class TopicWriteSerializer(WriteSerializer):
             self.instance.save(update_fields=("name",))
             return self.instance
         else:
-            return Topic.get_or_create(self.context["org"], self.context["user"], name)
+            return Topic.create(self.context["org"], self.context["user"], name)
 
 
 class UserReadSerializer(ReadSerializer):

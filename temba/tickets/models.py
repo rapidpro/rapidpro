@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q, Sum
+from django.db.models.functions import Lower
 from django.template import Engine
 from django.urls import re_path
 from django.utils import timezone
@@ -159,16 +160,17 @@ class Topic(TembaModel, DependencyMixin):
         )
 
     @classmethod
-    def get_or_create(cls, org, user, name):
+    def create(cls, org, user, name: str):
         assert cls.is_valid_name(name), f"'{name}' is not a valid topic name"
+        assert not org.topics.filter(name__iexact=name).exists()
 
-        existing = org.topics.filter(name__iexact=name).first()
-        if existing:
-            return existing
         return org.topics.create(name=name, created_by=user, modified_by=user)
 
     def __str__(self):
         return f"Topic[uuid={self.uuid}, topic={self.name}]"
+
+    class Meta:
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_topic_names")]
 
 
 class Ticket(models.Model):
@@ -457,6 +459,7 @@ class Team(TembaModel):
     @classmethod
     def create(cls, org, user, name: str):
         assert cls.is_valid_name(name), f"'{name}' is not a valid team name"
+        assert not org.teams.filter(name__iexact=name).exists()
 
         return org.teams.create(name=name, created_by=user, modified_by=user)
 
@@ -468,6 +471,9 @@ class Team(TembaModel):
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
+
+    class Meta:
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_team_names")]
 
 
 class TicketDailyCount(SquashableModel):

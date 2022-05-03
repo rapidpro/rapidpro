@@ -4674,7 +4674,7 @@ class APITest(TembaTest):
 
         # create some tickets
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
-        sales = Topic.get_or_create(self.org, self.admin, "Sales")
+        sales = Topic.create(self.org, self.admin, "Sales")
         ticket1 = self.create_ticket(
             mailgun,
             self.joe,
@@ -4783,9 +4783,9 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # create some topics
-        support = Topic.get_or_create(self.org, self.admin, "Support")
-        sales = Topic.get_or_create(self.org, self.admin, "Sales")
-        other_org = Topic.get_or_create(self.org2, self.admin, "Bugs")
+        support = Topic.create(self.org, self.admin, "Support")
+        sales = Topic.create(self.org, self.admin, "Sales")
+        other_org = Topic.create(self.org2, self.admin, "Bugs")
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
