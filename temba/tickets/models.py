@@ -1,6 +1,5 @@
 from abc import ABCMeta
 
-import regex
 from smartmin.models import SmartModel
 
 from django.conf import settings
@@ -15,8 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org
-from temba.utils.fields import deleted_name, validate_name
-from temba.utils.models import SquashableModel
+from temba.utils.models import SquashableModel, TembaNameMixin, generate_uuid
 from temba.utils.uuid import uuid4
 
 
@@ -154,17 +152,15 @@ class Ticketer(SmartModel, DependencyMixin):
         return f"Ticketer[uuid={self.uuid}, name={self.name}]"
 
 
-class Topic(SmartModel, DependencyMixin):
+class Topic(SmartModel, TembaNameMixin, DependencyMixin):
     """
     The topic of a ticket which controls who can access that ticket.
     """
 
-    MAX_NAME_LEN = 64
     DEFAULT_TOPIC = "General"
 
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="topics")
-    name = models.CharField(max_length=MAX_NAME_LEN)
     is_default = models.BooleanField(default=False)
 
     @classmethod
@@ -177,23 +173,12 @@ class Topic(SmartModel, DependencyMixin):
 
     @classmethod
     def get_or_create(cls, org, user, name):
-        assert cls.is_valid_name(name), f"{name} is not a valid topic name"
+        assert cls.is_valid_name(name), f"'{name}' is not a valid topic name"
 
         existing = org.topics.filter(name__iexact=name).first()
         if existing:
             return existing
         return org.topics.create(name=name, created_by=user, modified_by=user)
-
-    @classmethod
-    def is_valid_name(cls, name):
-        # don't allow empty strings, blanks, initial or trailing whitespace
-        if not name or name.strip() != name:
-            return False
-
-        if len(name) > cls.MAX_NAME_LEN:
-            return False
-
-        return regex.match(r"\w[\w- ]*", name, flags=regex.UNICODE)
 
     def __str__(self):
         return f"Topic[uuid={self.uuid}, topic={self.name}]"
@@ -474,16 +459,13 @@ class TicketCount(SquashableModel):
         ]
 
 
-class Team(SmartModel):
+class Team(SmartModel, TembaNameMixin):
     """
     Every user can be a member of a ticketing team
     """
 
-    MAX_NAME_LEN = 64
-
-    uuid = models.UUIDField(unique=True, default=uuid4)
+    uuid = models.UUIDField(unique=True, default=generate_uuid)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="teams")
-    name = models.CharField(max_length=MAX_NAME_LEN, validators=[validate_name])
     topics = models.ManyToManyField(Topic, related_name="teams")
 
     @classmethod
@@ -494,7 +476,7 @@ class Team(SmartModel):
         return User.objects.filter(settings__team=self)
 
     def release(self, user):
-        self.name = deleted_name(self.name, self.MAX_NAME_LEN)
+        self.name = self.deleted_name()
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))

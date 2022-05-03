@@ -98,7 +98,7 @@ class Migration(migrations.Migration):
                 ("ticket_count", models.IntegerField(default=0)),
                 ("last_seen_on", models.DateTimeField(null=True)),
             ],
-            bases=(temba.utils.models.RequireUpdateFieldsMixin, models.Model),
+            bases=(models.Model,),
         ),
         migrations.CreateModel(
             name="ContactField",

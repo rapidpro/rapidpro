@@ -592,15 +592,6 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class TopicTest(TembaTest):
-    def test_is_valid_name(self):
-        self.assertTrue(Topic.is_valid_name("Sales"))
-        self.assertTrue(Topic.is_valid_name("Support"))
-        self.assertFalse(Topic.is_valid_name(""))
-        self.assertFalse(Topic.is_valid_name("   "))
-        self.assertFalse(Topic.is_valid_name("  x  "))
-        self.assertFalse(Topic.is_valid_name("!Sales"))
-        self.assertFalse(Topic.is_valid_name("x" * 65))  # too long
-
     def test_model(self):
         topic1 = Topic.get_or_create(self.org, self.admin, "Sales")
         topic2 = Topic.get_or_create(self.org, self.admin, "Support")
@@ -625,3 +616,6 @@ class TeamTest(TembaTest):
 
         self.assertFalse(team1.is_active)
         self.assertTrue(team1.name.startswith("deleted-"))
+
+        with self.assertRaises(AssertionError):
+            Topic.get_or_create(self.org, self.admin, '"Support"')

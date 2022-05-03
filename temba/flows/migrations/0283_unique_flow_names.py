@@ -6,7 +6,7 @@ from django.db import migrations, transaction
 from django.db.models.functions import Lower
 
 
-def make_flow_names_unique(apps, schema_editor):
+def make_flow_names_unique(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")  # noqa
 
     for org in Org.objects.all():
@@ -38,7 +38,7 @@ def make_flow_names_unique(apps, schema_editor):
                         unique_names.add(new_name.lower())
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

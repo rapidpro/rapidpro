@@ -31,8 +31,7 @@ from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.fields import deleted_name, is_valid_name, validate_name
-from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
+from temba.utils.models import JSONField, SquashableModel, TembaModel, TembaNameMixin
 from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
@@ -338,7 +337,7 @@ class UserContactFieldsManager(models.Manager):
         return self.get_queryset().active_for_org(org=org)
 
 
-class ContactField(SmartModel, DependencyMixin):
+class ContactField(SmartModel, TembaNameMixin, DependencyMixin):
     """
     A custom user field for contacts.
     """
@@ -542,15 +541,6 @@ class ContactField(SmartModel, DependencyMixin):
         )
 
     @classmethod
-    def get_unique_name(cls, org, base_name: str, ignore=None) -> str:
-        """
-        Generates a unique name based on the given base name
-        """
-        exclude_kwargs = {"id": ignore.id} if ignore else {}
-        qs = org.fields.filter(is_active=True).exclude(**exclude_kwargs)
-        return TembaModel.get_unique_name(qs, base_name, cls.MAX_NAME_LEN)
-
-    @classmethod
     def import_fields(cls, org, user, field_defs: list):
         """
         Import fields from a list of exported fields
@@ -579,7 +569,7 @@ class ContactField(SmartModel, DependencyMixin):
         for event in self.campaign_events.all():
             event.release(user)
 
-        self.name = deleted_name(self.name, self.MAX_NAME_LEN)
+        self.name = self.deleted_name()
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=("name", "is_active", "modified_on", "modified_by"))
@@ -588,7 +578,7 @@ class ContactField(SmartModel, DependencyMixin):
         return self.name
 
 
-class Contact(RequireUpdateFieldsMixin, TembaModel):
+class Contact(TembaModel):
     """
     A contact represents an individual with which we can communicate and collect data
     """
@@ -1398,12 +1388,10 @@ class ContactURN(models.Model):
         ]
 
 
-class ContactGroup(TembaModel, DependencyMixin):
+class ContactGroup(TembaModel, TembaNameMixin, DependencyMixin):
     """
     A group of contacts whose membership can be manual or query based
     """
-
-    MAX_NAME_LEN = 64
 
     TYPE_DB_ACTIVE = "A"  # maintained by db trigger on status=A
     TYPE_DB_BLOCKED = "B"  # maintained by db trigger on status=B
@@ -1432,7 +1420,6 @@ class ContactGroup(TembaModel, DependencyMixin):
     )
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="groups")
-    name = models.CharField(max_length=MAX_NAME_LEN, validators=[validate_name])
     group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MANUAL)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
     contacts = models.ManyToManyField(Contact, related_name="groups")
@@ -1557,7 +1544,7 @@ class ContactGroup(TembaModel, DependencyMixin):
 
     @classmethod
     def _create(cls, org, user, name, status, query=None):
-        assert is_valid_name(name), "is not a valid group name"
+        assert cls.is_valid_name(name), f"'{name}' is not a valid group name"
 
         # look for name collision and append count if necessary
         name = cls.get_unique_name(org, base_name=name)
@@ -1572,14 +1559,6 @@ class ContactGroup(TembaModel, DependencyMixin):
             created_by=user,
             modified_by=user,
         )
-
-    @classmethod
-    def get_unique_name(cls, org, base_name: str) -> str:
-        """
-        Generates a unique name based on the given base name
-        """
-
-        return TembaModel.get_unique_name(org.groups.all(), base_name, cls.MAX_NAME_LEN)
 
     @classmethod
     def apply_action_delete(cls, user, groups):
@@ -1656,7 +1635,7 @@ class ContactGroup(TembaModel, DependencyMixin):
 
         super().release(user)
 
-        self.name = deleted_name(self.name, self.MAX_NAME_LEN)
+        self.name = self.deleted_name()
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
@@ -1714,7 +1693,7 @@ class ContactGroup(TembaModel, DependencyMixin):
                     ContactField.get_or_create(org, user, key=field_ref["key"])
 
             group = ContactGroup.get_or_create(
-                org, user, group_name, group_query, uuid=group_uuid, parsed_query=parsed_query
+                org, user, cls.clean_name(group_name), group_query, uuid=group_uuid, parsed_query=parsed_query
             )
 
             dependency_mapping[group_uuid] = str(group.uuid)

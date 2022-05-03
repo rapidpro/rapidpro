@@ -14,7 +14,8 @@ from django.db.models import JSONField as DjangoJSONField, Sum
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
-from temba.utils import json, uuid
+from . import json, uuid
+from .fields import NameValidator
 
 logger = logging.getLogger(__name__)
 
@@ -280,29 +281,8 @@ class TembaModel(SmartModel):
         help_text=_("The unique identifier for this object"),
     )
 
-    @staticmethod
-    def get_unique_name(qs, base_name: str, max_len: int) -> str:
-        """
-        Generates a unique name from the given base name that won't conflict with any named object in the given queryset
-        """
-        count = 1
-        while True:
-            count_str = f" {count}"
-            name = f"{base_name[:max_len - len(count_str)]}{count_str}" if count > 1 else base_name
-            if not qs.filter(name__iexact=name).exists():
-                return name
-            count += 1
-
     class Meta:
         abstract = True
-
-
-class RequireUpdateFieldsMixin:
-    def save(self, *args, **kwargs):
-        if self.id and "update_fields" not in kwargs and "force_insert" not in kwargs:
-            raise ValueError("Updating without specifying update_fields is disabled for this model")
-
-        super().save(*args, **kwargs)
 
 
 class SquashableModel(models.Model):
@@ -345,6 +325,54 @@ class SquashableModel(models.Model):
     def sum(cls, instances) -> int:
         count_sum = instances.aggregate(count_sum=Sum("count"))["count_sum"]
         return count_sum if count_sum else 0
+
+    class Meta:
+        abstract = True
+
+
+class TembaNameMixin(models.Model):
+    """
+    Model mixin for things with names
+    """
+
+    MAX_NAME_LEN = 64
+
+    name = models.CharField(max_length=MAX_NAME_LEN, validators=[NameValidator(MAX_NAME_LEN)])
+
+    @classmethod
+    def get_unique_name(cls, org, base_name: str, ignore=None) -> str:
+        """
+        Generates a unique name from the given base name that won't conflict with any named object in the given queryset
+        """
+        qs = cls.objects.filter(org=org, is_active=True)
+        if ignore:
+            qs = qs.exclude(id=ignore.id)
+
+        count = 1
+        while True:
+            count_str = f" {count}"
+            name = f"{base_name[:cls.MAX_NAME_LEN - len(count_str)]}{count_str}" if count > 1 else base_name
+            if not qs.filter(name__iexact=name).exists():
+                return name
+            count += 1
+
+    @classmethod
+    def is_valid_name(cls, value):
+        try:
+            NameValidator(max_length=cls.MAX_NAME_LEN)(value)
+            return True
+        except ValidationError:
+            return False
+
+    @classmethod
+    def clean_name(cls, original: str) -> str:
+        """
+        Cleans a name from an import to try to make it valid
+        """
+        return original.strip()[: cls.MAX_NAME_LEN].replace('"', "'").replace("\\", "/").replace("\0", "")
+
+    def deleted_name(self) -> str:
+        return f"deleted-{uuid.uuid4()}-{self.name}"[: self.MAX_NAME_LEN]
 
     class Meta:
         abstract = True

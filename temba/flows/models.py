@@ -34,15 +34,7 @@ from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.fields import deleted_name, validate_name
-from temba.utils.models import (
-    JSONAsTextField,
-    JSONField,
-    RequireUpdateFieldsMixin,
-    SquashableModel,
-    TembaModel,
-    generate_uuid,
-)
+from temba.utils.models import JSONAsTextField, JSONField, SquashableModel, TembaModel, TembaNameMixin, generate_uuid
 from temba.utils.uuid import uuid4
 
 from . import legacy
@@ -69,9 +61,7 @@ FLOW_LOCK_TTL = 60  # 1 minute
 FLOW_LOCK_KEY = "org:%d:lock:flow:%d:definition"
 
 
-class Flow(TembaModel, DependencyMixin):
-    MAX_NAME_LEN = 64
-
+class Flow(TembaModel, TembaNameMixin, DependencyMixin):
     CONTACT_CREATION = "contact_creation"
     CONTACT_PER_RUN = "run"
     CONTACT_PER_LOGIN = "login"
@@ -161,8 +151,6 @@ class Flow(TembaModel, DependencyMixin):
         TYPE_SURVEY: 0,
     }
 
-    name = models.CharField(max_length=MAX_NAME_LEN, help_text=_("The name of this flow."), validators=[validate_name])
-
     labels = models.ManyToManyField("FlowLabel", related_name="flows")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flows")
@@ -224,6 +212,7 @@ class Flow(TembaModel, DependencyMixin):
         create_revision=False,
         **kwargs,
     ):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid flow name"
         assert not expires_after_minutes or cls.is_valid_expires(flow_type, expires_after_minutes)
 
         flow = cls.objects.create(
@@ -347,7 +336,7 @@ class Flow(TembaModel, DependencyMixin):
             flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, 0)
 
             flow = None
-            flow_name = flow_name[:64].strip().replace('"', "'").replace("\0", "")
+            flow_name = cls.clean_name(flow_name)
 
             # ensure expires is valid for the flow type
             if not cls.is_valid_expires(flow_type, flow_expires):
@@ -434,14 +423,6 @@ class Flow(TembaModel, DependencyMixin):
         flow_ids = [f.id for f in flows]
         response = mailroom.get_client().po_import(org.id, flow_ids, language=language, po_data=po_data)
         return {d["uuid"]: d for d in response["flows"]}
-
-    @classmethod
-    def get_unique_name(cls, org, base_name: str, ignore=None) -> str:
-        """
-        Generates a unique name based on the given base name
-        """
-        exclude_kwargs = {"id": ignore.id} if ignore else {}
-        return TembaModel.get_unique_name(org.flows.exclude(**exclude_kwargs), base_name, cls.MAX_NAME_LEN)
 
     @classmethod
     def apply_action_label(cls, user, flows, label):
@@ -999,7 +980,7 @@ class Flow(TembaModel, DependencyMixin):
 
         super().release(user)
 
-        self.name = deleted_name(self.name, self.MAX_NAME_LEN)
+        self.name = self.deleted_name()
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
@@ -1175,7 +1156,7 @@ class FlowSession(models.Model):
         ]
 
 
-class FlowRun(RequireUpdateFieldsMixin, models.Model):
+class FlowRun(models.Model):
     """
     A single contact's journey through a flow. It records the path taken, results collected etc.
     """
