@@ -9,29 +9,19 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit
-from temba.utils.models import TembaModel, TranslatableField
+from temba.utils.models import TembaModel, TembaNameMixin, TranslatableField
 
 
-class Campaign(TembaModel):
-    MAX_NAME_LEN = 255
-
+class Campaign(TembaModel, TembaNameMixin):
     org = models.ForeignKey(Org, related_name="campaigns", on_delete=models.PROTECT)
-    name = models.CharField(max_length=MAX_NAME_LEN)
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="campaigns")
     is_archived = models.BooleanField(default=False)
 
     @classmethod
     def create(cls, org, user, name, group):
-        return cls.objects.create(org=org, name=name, group=group, created_by=user, modified_by=user)
+        assert cls.is_valid_name(name), f"'{name}' is not a valid campaign name"
 
-    @classmethod
-    def get_unique_name(cls, org, base_name: str, ignore=None) -> str:
-        """
-        Generates a unique name based on the given base name
-        """
-        exclude_kwargs = {"id": ignore.id} if ignore else {}
-        qs = org.campaigns.filter(is_active=True).exclude(**exclude_kwargs)
-        return TembaModel.get_unique_name(qs, base_name, cls.MAX_NAME_LEN)
+        return cls.objects.create(org=org, name=name, group=group, created_by=user, modified_by=user)
 
     def recreate_events(self):
         """
@@ -58,7 +48,7 @@ class Campaign(TembaModel):
         imported = []
 
         for campaign_def in campaign_defs:
-            name = campaign_def["name"]
+            name = cls.clean_name(campaign_def["name"])
             group_ref = campaign_def["group"]
             campaign = None
             group = None

@@ -35,7 +35,7 @@ from .celery import nonoverlapping_task
 from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
-from .fields import clean_name, is_valid_name, validate_external_url, validate_name
+from .fields import NameValidator, validate_external_url
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
@@ -1394,13 +1394,7 @@ class RedactTest(TestCase):
 
 
 class TestValidators(TestCase):
-    def test_clean_name(self):
-        self.assertEqual("Hello", clean_name("Hello\0"))
-        self.assertEqual("Hello/n", clean_name("Hello\\n"))
-        self.assertEqual("Say 'Hi'", clean_name('Say "Hi"'))
-        self.assertEqual("x" * 64, clean_name("x" * 100))
-
-    def test_validate_name(self):
+    def test_name_validator(self):
         cases = (
             (" ", "Cannot begin or end with whitespace."),
             (" hello", "Cannot begin or end with whitespace."),
@@ -1413,19 +1407,22 @@ class TestValidators(TestCase):
             ("x" * 64, None),
         )
 
+        validator = NameValidator(64)
+
         for tc in cases:
             if tc[1]:
                 with self.assertRaises(ValidationError) as cm:
-                    validate_name(tc[0])
+                    validator(tc[0])
 
                 self.assertEqual(tc[1], cm.exception.messages[0])
-                self.assertFalse(is_valid_name(tc[0]))
             else:
                 try:
-                    validate_name(tc[0])
+                    validator(tc[0])
                 except Exception:
                     self.fail(f"unexpected validation error for '{tc[0]}'")
-                self.assertTrue(is_valid_name(tc[0]))
+
+        self.assertEqual(NameValidator(64), validator)
+        self.assertNotEqual(NameValidator(32), validator)
 
     def test_validate_external_url(self):
         cases = (

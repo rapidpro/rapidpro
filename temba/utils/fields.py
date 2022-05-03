@@ -6,11 +6,8 @@ from urllib import parse
 from django import forms
 from django.core.validators import URLValidator
 from django.forms import ValidationError
+from django.utils.deconstruct import deconstructible
 from django.utils.translation import gettext_lazy as _
-
-from .uuid import uuid4
-
-MAX_NAME_LEN = 64
 
 
 class JSONField(forms.Field):
@@ -31,43 +28,32 @@ class InputWidget(forms.TextInput):
         return context
 
 
-def is_valid_name(value):
-    try:
-        validate_name(value)
-        return True
-    except ValidationError:
-        return False
-
-
-def validate_name(value):
+@deconstructible
+class NameValidator:
     """
     Validator for names of flows and their dependencies.
     """
 
-    # model forms will add their own validator based on max_length but we need this for validating for imports etc
-    if len(value) > MAX_NAME_LEN:
-        raise ValidationError(_("Cannot be longer than %(limit)d characters."), params={"limit": MAX_NAME_LEN})
+    def __init__(self, max_length: int):
+        self.max_length = max_length
 
-    if value != value.strip():
-        raise ValidationError(_("Cannot begin or end with whitespace."))
+    def __call__(self, value):
+        # model forms will add their own validator based on max_length but we need this for validating for imports etc
+        if len(value) > self.max_length:
+            raise ValidationError(_("Cannot be longer than %(limit)d characters."), params={"limit": self.max_length})
 
-    for ch in '"\\':
-        if ch in value:
-            raise ValidationError(_("Cannot contain the character: %(char)s"), params={"char": ch})
+        if value != value.strip():
+            raise ValidationError(_("Cannot begin or end with whitespace."))
 
-    if "\0" in value:
-        raise ValidationError(_("Cannot contain null characters."))
+        for ch in '"\\':
+            if ch in value:
+                raise ValidationError(_("Cannot contain the character: %(char)s"), params={"char": ch})
 
+        if "\0" in value:
+            raise ValidationError(_("Cannot contain null characters."))
 
-def clean_name(original: str) -> str:
-    """
-    Cleans a name from an import to try to make it valid
-    """
-    return original.strip()[:MAX_NAME_LEN].replace('"', "'").replace("\\", "/").replace("\0", "")
-
-
-def deleted_name(original: str, max_length: int) -> str:
-    return f"deleted-{uuid4()}-{original}"[:max_length]
+    def __eq__(self, other):
+        return isinstance(other, NameValidator) and self.max_length == other.max_length
 
 
 def validate_external_url(value):

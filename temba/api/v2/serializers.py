@@ -27,7 +27,7 @@ from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import extract_constants, json, on_transaction_commit
-from temba.utils.fields import validate_name
+from temba.utils.fields import NameValidator
 
 from . import fields
 from .validators import UniqueForOrgValidator
@@ -279,7 +279,10 @@ class CampaignWriteSerializer(WriteSerializer):
     name = serializers.CharField(
         required=True,
         max_length=Campaign.MAX_NAME_LEN,
-        validators=[UniqueForOrgValidator(queryset=Campaign.objects.filter(is_active=True))],
+        validators=[
+            NameValidator(Campaign.MAX_NAME_LEN),
+            UniqueForOrgValidator(queryset=Campaign.objects.filter(is_active=True)),
+        ],
     )
     group = fields.ContactGroupField(required=True)
 
@@ -778,7 +781,7 @@ class ContactGroupWriteSerializer(WriteSerializer):
         required=True,
         max_length=ContactGroup.MAX_NAME_LEN,
         validators=[
-            validate_name,
+            NameValidator(ContactGroup.MAX_NAME_LEN),
             UniqueForOrgValidator(queryset=ContactGroup.objects.filter(is_active=True), ignore_case=True),
         ],
     )
@@ -1160,13 +1163,11 @@ class LabelWriteSerializer(WriteSerializer):
     name = serializers.CharField(
         required=True,
         max_length=Label.MAX_NAME_LEN,
-        validators=[UniqueForOrgValidator(queryset=Label.label_objects.filter(is_active=True), ignore_case=True)],
+        validators=[
+            NameValidator(Label.MAX_NAME_LEN),
+            UniqueForOrgValidator(queryset=Label.label_objects.filter(is_active=True), ignore_case=True),
+        ],
     )
-
-    def validate_name(self, value):
-        if not Label.is_valid_name(value):
-            raise serializers.ValidationError("Name contains illegal characters.")
-        return value
 
     def validate(self, data):
         org = self.context["org"]
@@ -1286,18 +1287,15 @@ class MsgBulkActionSerializer(WriteSerializer):
     messages = fields.MessageField(many=True)
     action = serializers.ChoiceField(required=True, choices=ACTIONS)
     label = fields.LabelField(required=False)
-    label_name = serializers.CharField(required=False, max_length=Label.MAX_NAME_LEN)
+    label_name = serializers.CharField(
+        required=False, max_length=Label.MAX_NAME_LEN, validators=[NameValidator(max_length=Label.MAX_NAME_LEN)]
+    )
 
     def validate_messages(self, value):
         for msg in value:
             if msg and msg.direction != "I":
                 raise serializers.ValidationError("Not an incoming message: %d" % msg.id)
 
-        return value
-
-    def validate_label_name(self, value):
-        if not Label.is_valid_name(value):
-            raise serializers.ValidationError("Name contains illegal characters.")
         return value
 
     def validate(self, data):
@@ -1544,13 +1542,11 @@ class TopicWriteSerializer(WriteSerializer):
     name = serializers.CharField(
         required=True,
         max_length=Topic.MAX_NAME_LEN,
-        validators=[UniqueForOrgValidator(queryset=Topic.objects.filter(is_active=True), ignore_case=True)],
+        validators=[
+            NameValidator(Topic.MAX_NAME_LEN),
+            UniqueForOrgValidator(queryset=Topic.objects.filter(is_active=True), ignore_case=True),
+        ],
     )
-
-    def validate_name(self, value):
-        if not Topic.is_valid_name(value):
-            raise serializers.ValidationError("Contains illegal characters.")
-        return value
 
     def validate(self, data):
         org = self.context["org"]
