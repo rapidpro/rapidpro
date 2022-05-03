@@ -31,7 +31,7 @@ from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.models import JSONField, NamedObjectMixin, SquashableModel, TembaModel
+from temba.utils.models import JSONField, SquashableModel, TembaModel, TembaNameMixin
 from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
@@ -337,7 +337,7 @@ class UserContactFieldsManager(models.Manager):
         return self.get_queryset().active_for_org(org=org)
 
 
-class ContactField(SmartModel, NamedObjectMixin, DependencyMixin):
+class ContactField(SmartModel, TembaNameMixin, DependencyMixin):
     """
     A custom user field for contacts.
     """
@@ -1388,7 +1388,7 @@ class ContactURN(models.Model):
         ]
 
 
-class ContactGroup(TembaModel, NamedObjectMixin, DependencyMixin):
+class ContactGroup(TembaModel, TembaNameMixin, DependencyMixin):
     """
     A group of contacts whose membership can be manual or query based
     """

@@ -14,7 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org
-from temba.utils.models import NamedObjectMixin, SquashableModel
+from temba.utils.models import SquashableModel, TembaNameMixin
 from temba.utils.uuid import uuid4
 
 
@@ -152,7 +152,7 @@ class Ticketer(SmartModel, DependencyMixin):
         return f"Ticketer[uuid={self.uuid}, name={self.name}]"
 
 
-class Topic(SmartModel, NamedObjectMixin, DependencyMixin):
+class Topic(SmartModel, TembaNameMixin, DependencyMixin):
     """
     The topic of a ticket which controls who can access that ticket.
     """

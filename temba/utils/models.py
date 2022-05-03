@@ -330,7 +330,7 @@ class SquashableModel(models.Model):
         abstract = True
 
 
-class NamedObjectMixin(models.Model):
+class TembaNameMixin(models.Model):
     """
     Model mixin for things with names
     """

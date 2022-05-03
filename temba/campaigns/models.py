@@ -9,10 +9,10 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit
-from temba.utils.models import NamedObjectMixin, TembaModel, TranslatableField
+from temba.utils.models import TembaModel, TembaNameMixin, TranslatableField
 
 
-class Campaign(TembaModel, NamedObjectMixin):
+class Campaign(TembaModel, TembaNameMixin):
     org = models.ForeignKey(Org, related_name="campaigns", on_delete=models.PROTECT)
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="campaigns")
     is_archived = models.BooleanField(default=False)
