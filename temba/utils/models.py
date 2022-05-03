@@ -338,7 +338,7 @@ class TembaUUIDMixin(models.Model):
     Model mixin for things with a UUID
     """
 
-    uuid = models.UUIDField(unique=True, default=generate_uuid)
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
     class Meta:
         abstract = True
