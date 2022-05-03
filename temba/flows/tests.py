@@ -1372,7 +1372,7 @@ class FlowTest(TembaTest):
 
         # create a flow for another org and a flow label
         flow2 = Flow.create(self.org2, self.admin2, "Flow2")
-        flow_label = FlowLabel.objects.create(name="one", org=self.org, parent=None)
+        flow_label = FlowLabel.create(self.org, self.admin, "one")
 
         flow_list_url = reverse("flows.flow_list")
         flow_archived_url = reverse("flows.flow_archived")
@@ -1816,7 +1816,7 @@ class FlowTest(TembaTest):
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
         menu_url = reverse("flows.flow_menu")
-        FlowLabel.create(self.org, "Important")
+        FlowLabel.create(self.org, self.admin, "Important")
 
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
