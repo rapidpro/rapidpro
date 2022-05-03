@@ -1,3 +1,7 @@
+v7.3.33
+----------
+ * Use model mixin for common name functionality across models
+
 v7.3.32
 ----------
  * Add DB constraint to enforce flow name uniqueness
