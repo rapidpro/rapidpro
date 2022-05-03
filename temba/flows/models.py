@@ -2167,8 +2167,7 @@ class FlowLabel(LegacyUUIDMixin, TembaModel):
     @classmethod
     def create(cls, org, user, name: str, parent=None):
         assert cls.is_valid_name(name), f"'{name}' is not a valid flow label name"
-
-        name = cls.get_unique_name(org, name)
+        assert not org.flow_labels.filter(name=name).exists()
 
         return cls.objects.create(org=org, name=name, parent=parent, created_by=user, modified_by=user)
 
@@ -2185,7 +2184,7 @@ class FlowLabel(LegacyUUIDMixin, TembaModel):
             .distinct()
         )
 
-    def toggle_label(self, flows, add):
+    def toggle_label(self, flows, *, add: bool):
         changed = []
 
         for flow in flows:

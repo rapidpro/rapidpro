@@ -2077,7 +2077,7 @@ class FlowLabelForm(forms.ModelForm):
     def clean_name(self):
         name = self.cleaned_data["name"].strip()
         if FlowLabel.objects.filter(org=self.org, name=name).exclude(pk=self.instance.id).exists():
-            raise ValidationError(_("Name already used"))
+            raise ValidationError(_("Must be unique."))
         return name
 
     class Meta:
