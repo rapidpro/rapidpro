@@ -1,3 +1,8 @@
+v7.3.34
+----------
+ * Fix copying flows to generate a unique name
+ * Rework TembaModel to be a base model class with UUID and name
+
 v7.3.33
 ----------
  * Use model mixin for common name functionality across models
