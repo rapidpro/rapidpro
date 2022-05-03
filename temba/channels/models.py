@@ -1023,16 +1023,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
 
-    def __str__(self):  # pragma: no cover
-        if self.name:
-            return self.name
-        elif self.device:
-            return self.device
-        elif self.address:
-            return self.address
-        else:
-            return str(self.id)
-
     class Meta:
         ordering = ("-last_seen", "-pk")
 
@@ -1100,9 +1090,6 @@ class ChannelCount(SquashableModel):
             params = (distinct_set.channel_id, distinct_set.count_type) * 2
 
         return sql, params
-
-    def __str__(self):  # pragma: no cover
-        return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)
 
     class Meta:
         index_together = ["channel", "count_type", "day"]

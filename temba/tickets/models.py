@@ -136,9 +136,6 @@ class Ticketer(TembaModel, DependencyMixin):
         self.modified_by = user
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
-    def __str__(self):
-        return f"Ticketer[uuid={self.uuid}, name={self.name}]"
-
 
 class Topic(TembaModel, DependencyMixin):
     """
@@ -166,9 +163,6 @@ class Topic(TembaModel, DependencyMixin):
         if existing:
             return existing
         return org.topics.create(name=name, created_by=user, modified_by=user)
-
-    def __str__(self):
-        return f"Topic[uuid={self.uuid}, topic={self.name}]"
 
 
 class Ticket(models.Model):

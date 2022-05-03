@@ -1045,9 +1045,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         super().delete()
 
-    def __str__(self):
-        return self.name
-
     class Meta:
         ordering = ("-modified_on",)
         verbose_name = _("Flow")
@@ -1547,9 +1544,6 @@ class FlowPathCount(SquashableModel):
         totals = list(counts.values_list("from_uuid", "to_uuid").annotate(replies=Sum("count")))
         return {"%s:%s" % (t[0], t[1]): t[2] for t in totals}
 
-    def __str__(self):  # pragma: no cover
-        return f"FlowPathCount({self.flow_id}) {self.from_uuid}:{self.to_uuid} {self.period} count: {self.count}"
-
     class Meta:
         index_together = ["flow", "from_uuid", "to_uuid", "period"]
 
@@ -1638,9 +1632,6 @@ class FlowRunCount(SquashableModel):
     def get_totals(cls, flow):
         totals = list(cls.objects.filter(flow=flow).values_list("exit_type").annotate(replies=Sum("count")))
         return {t[0]: t[1] for t in totals}
-
-    def __str__(self):  # pragma: needs cover
-        return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)
 
     class Meta:
         index_together = ("flow", "exit_type")
@@ -2151,9 +2142,6 @@ class FlowStartCount(SquashableModel):
 
         for start in starts:
             start.run_count = counts_by_start.get(start.id, 0)
-
-    def __str__(self):  # pragma: needs cover
-        return f"FlowStartCount[start={self.start_id}, count={self.count}]"
 
 
 class FlowLabel(models.Model):

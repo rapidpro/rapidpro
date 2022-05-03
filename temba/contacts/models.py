@@ -1701,9 +1701,6 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
     def as_export_def(self):
         return {"uuid": str(self.uuid), "name": self.name, "query": self.query}
 
-    def __str__(self):
-        return self.name
-
     class Meta:
         verbose_name = _("Group")
         verbose_name_plural = _("Groups")
@@ -1756,9 +1753,6 @@ class ContactGroupCount(SquashableModel):
 
         # insert updated count, returning it
         return ContactGroupCount.objects.create(group=group, count=count)
-
-    def __str__(self):  # pragma: needs cover
-        return "ContactGroupCount[%d:%d]" % (self.group_id, self.count)
 
 
 class ExportContactsTask(BaseExportTask):

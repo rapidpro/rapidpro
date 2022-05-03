@@ -400,5 +400,8 @@ class TembaModel(TembaUUIDMixin, TembaNameMixin, SmartModel):
     def as_export_ref(self) -> dict:
         return {"uuid": str(self.uuid), "name": self.name}
 
+    def __str__(self):
+        return f'{self.__class__.__name__}[uuid={self.uuid}, name="{self.name}"]'
+
     class Meta:
         abstract = True
