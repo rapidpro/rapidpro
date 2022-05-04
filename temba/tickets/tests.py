@@ -683,49 +683,60 @@ class TicketDailyCountTest(TembaTest):
         record_opening(self.org, date(2022, 5, 5))
         record_reply(self.org, self.agent, date(2022, 5, 5))
 
-        # openings tracked at org scope
-        self.assertEqual(3, TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING).total())
-        self.assertEqual(
-            2, TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING, since=date(2022, 5, 1)).total()
-        )
-        self.assertEqual(
-            1, TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING, until=date(2022, 5, 1)).total()
-        )
-        self.assertEqual(0, TicketDailyCount.get_by_org(self.org2, TicketDailyCount.TYPE_OPENING).total())
-        self.assertEqual(
-            [(date(2022, 4, 30), 1), (date(2022, 5, 3), 1), (date(2022, 5, 5), 1)],
-            TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING).day_totals(),
-        )
-        self.assertEqual(
-            [(4, 1), (5, 2)], TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING).month_totals()
-        )
+        def assert_counts():
+            # openings tracked at org scope
+            self.assertEqual(3, TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING).total())
+            self.assertEqual(
+                2, TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING, since=date(2022, 5, 1)).total()
+            )
+            self.assertEqual(
+                1, TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING, until=date(2022, 5, 1)).total()
+            )
+            self.assertEqual(0, TicketDailyCount.get_by_org(self.org2, TicketDailyCount.TYPE_OPENING).total())
+            self.assertEqual(
+                [(date(2022, 4, 30), 1), (date(2022, 5, 3), 1), (date(2022, 5, 5), 1)],
+                TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING).day_totals(),
+            )
+            self.assertEqual(
+                [(4, 1), (5, 2)], TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING).month_totals()
+            )
 
-        # assignments tracked at org+user scope
-        self.assertEqual(
-            1, TicketDailyCount.get_by_users(self.org, [self.admin], TicketDailyCount.TYPE_ASSIGNMENT).total()
-        )
-        self.assertEqual(
-            0, TicketDailyCount.get_by_users(self.org, [self.agent], TicketDailyCount.TYPE_ASSIGNMENT).total()
-        )
-        self.assertEqual(
-            {self.admin: 1, self.agent: 0},
-            TicketDailyCount.get_by_users(
-                self.org, [self.admin, self.agent], TicketDailyCount.TYPE_ASSIGNMENT
-            ).scope_totals(),
-        )
-        self.assertEqual(
-            [(date(2022, 5, 3), 1)],
-            TicketDailyCount.get_by_users(self.org, [self.admin], TicketDailyCount.TYPE_ASSIGNMENT).day_totals(),
-        )
+            # assignments tracked at org+user scope
+            self.assertEqual(
+                1, TicketDailyCount.get_by_users(self.org, [self.admin], TicketDailyCount.TYPE_ASSIGNMENT).total()
+            )
+            self.assertEqual(
+                0, TicketDailyCount.get_by_users(self.org, [self.agent], TicketDailyCount.TYPE_ASSIGNMENT).total()
+            )
+            self.assertEqual(
+                {self.admin: 1, self.agent: 0},
+                TicketDailyCount.get_by_users(
+                    self.org, [self.admin, self.agent], TicketDailyCount.TYPE_ASSIGNMENT
+                ).scope_totals(),
+            )
+            self.assertEqual(
+                [(date(2022, 5, 3), 1)],
+                TicketDailyCount.get_by_users(self.org, [self.admin], TicketDailyCount.TYPE_ASSIGNMENT).day_totals(),
+            )
 
-        # replies tracked at org scope, team scope and user-in-org scope
-        self.assertEqual(6, TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_REPLY).total())
-        self.assertEqual(0, TicketDailyCount.get_by_org(self.org2, TicketDailyCount.TYPE_REPLY).total())
-        self.assertEqual(3, TicketDailyCount.get_by_teams([sales], TicketDailyCount.TYPE_REPLY).total())
-        self.assertEqual(3, TicketDailyCount.get_by_users(self.org, [self.admin], TicketDailyCount.TYPE_REPLY).total())
-        self.assertEqual(
-            1, TicketDailyCount.get_by_users(self.org, [self.editor], TicketDailyCount.TYPE_REPLY).total()
-        )
-        self.assertEqual(2, TicketDailyCount.get_by_users(self.org, [self.agent], TicketDailyCount.TYPE_REPLY).total())
+            # replies tracked at org scope, team scope and user-in-org scope
+            self.assertEqual(6, TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_REPLY).total())
+            self.assertEqual(0, TicketDailyCount.get_by_org(self.org2, TicketDailyCount.TYPE_REPLY).total())
+            self.assertEqual(3, TicketDailyCount.get_by_teams([sales], TicketDailyCount.TYPE_REPLY).total())
+            self.assertEqual(
+                3, TicketDailyCount.get_by_users(self.org, [self.admin], TicketDailyCount.TYPE_REPLY).total()
+            )
+            self.assertEqual(
+                1, TicketDailyCount.get_by_users(self.org, [self.editor], TicketDailyCount.TYPE_REPLY).total()
+            )
+            self.assertEqual(
+                2, TicketDailyCount.get_by_users(self.org, [self.agent], TicketDailyCount.TYPE_REPLY).total()
+            )
 
-        # TicketDailyCount.squash()
+        assert_counts()
+        self.assertEqual(19, TicketDailyCount.objects.count())
+
+        TicketDailyCount.squash()
+
+        assert_counts()
+        self.assertEqual(14, TicketDailyCount.objects.count())

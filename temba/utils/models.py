@@ -390,7 +390,7 @@ class DailyCountModel(ScopedCountModel):
         VALUES (%s, %s, %s, GREATEST(0, (SELECT SUM(count) FROM removed)), TRUE);
         """
 
-        return sql, (distinct_set.count_type, distinct_set.scope, distinct_set.day)
+        return sql, (distinct_set.count_type, distinct_set.scope, distinct_set.day) * 2
 
     @classmethod
     def _get_count_set(cls, count_type: str, scopes: dict, since, until):
