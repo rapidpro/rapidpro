@@ -738,9 +738,6 @@ class BroadcastMsgCount(SquashableModel):
     def get_count(cls, broadcast):
         return cls.sum(broadcast.counts.all())
 
-    def __str__(self):  # pragma: needs cover
-        return f"BroadcastMsgCount[{self.broadcast_id}:{self.count}]"
-
 
 class SystemLabel:
     TYPE_INBOX = "I"
