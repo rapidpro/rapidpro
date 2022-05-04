@@ -599,7 +599,8 @@ class TopicTest(TembaTest):
         self.assertEqual(topic1, Topic.get_or_create(self.org, self.admin, "Sales"))
         self.assertEqual(topic2, Topic.get_or_create(self.org, self.admin, "SUPPORT"))
 
-        self.assertEqual(f"Topic[uuid={topic1.uuid}, topic=Sales]", str(topic1))
+        self.assertEqual("Sales", str(topic1))
+        self.assertEqual(f'<Topic: uuid={topic1.uuid} name="Sales">', repr(topic1))
 
         with self.assertRaises(AssertionError):
             Topic.get_or_create(self.org, self.admin, '"Support"')
