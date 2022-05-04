@@ -1982,7 +1982,14 @@ def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool
     return False
 
 
-def _user_set_team(user, team):
+def _user_team(user: User):
+    """
+    Gets the ticketing team for this user
+    """
+    return user.get_settings().team
+
+
+def _user_set_team(user: User, team):
     """
     Sets the ticketing team for this user
     """
@@ -2021,8 +2028,9 @@ User.record_auth = _user_record_auth
 User.enable_2fa = _user_enable_2fa
 User.disable_2fa = _user_disable_2fa
 User.verify_2fa = _user_verify_2fa
-User.set_team = _user_set_team
 User.name = property(_user_name)
+User.team = property(_user_team)
+User.set_team = _user_set_team
 User.as_engine_ref = _user_as_engine_ref
 User.__str__ = _user_str
 

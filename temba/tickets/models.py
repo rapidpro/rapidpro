@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org, UserSettings
-from temba.utils.models import SquashableModel, TembaModel
+from temba.utils.models import DailyCountModel, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
 
@@ -473,22 +473,26 @@ class Team(TembaModel):
         constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_team_names")]
 
 
-class TicketDailyCount(SquashableModel):
+class TicketDailyCount(DailyCountModel):
     """
     Ticket activity counts by who did it and when. Mailroom writes these.
     """
 
-    SQUASH_OVER = ("count_type", "scope", "day")
-
     TYPE_OPENING = "O"
-    TYPE_REPLY = "R"
     TYPE_ASSIGNMENT = "A"  # includes tickets opened with assignment but excludes re-assignments
+    TYPE_REPLY = "R"
 
-    id = models.BigAutoField(primary_key=True)
-    count_type = models.CharField(max_length=1)
-    scope = models.CharField(max_length=32)
-    day = models.DateField()
-    count = models.IntegerField()
+    @classmethod
+    def get_by_org(cls, org, count_type: str, since=None, until=None):
+        return cls._get_count_set(count_type, {f"o:{org.id}": org}, since, until)
+
+    @classmethod
+    def get_by_teams(cls, teams, count_type: str, since=None, until=None):
+        return cls._get_count_set(count_type, {f"t:{t.id}": t for t in teams}, since, until)
+
+    @classmethod
+    def get_by_users(cls, org, users, count_type: str, since=None, until=None):
+        return cls._get_count_set(count_type, {f"o:{org.id}:u:{u.id}": u for u in users}, since, until)
 
     class Meta:
         indexes = [
