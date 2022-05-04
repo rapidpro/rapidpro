@@ -480,8 +480,7 @@ class FlowCRUDL(SmartCRUDL):
         success_message = ""
 
         def form_valid(self, form):
-            # copy our current object
-            copy = Flow.copy(self.object, self.request.user)
+            copy = self.object.clone(self.request.user)
 
             # redirect to the newly created flow
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[copy.uuid]))

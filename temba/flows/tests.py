@@ -438,32 +438,30 @@ class FlowTest(TembaTest):
         with self.assertRaises(FlowUserConflictException):
             flow.save_revision(self.admin, definition)
 
-    def test_copy(self):
-        flow = self.get_flow("color")
-
-        # pick a really long name so we have to concatenate
-        flow.name = "Color Flow is a long name to use for something like this"
+    def test_clone(self):
+        flow = self.create_flow("123456789012345678901234567890123456789012345678901234567890")  # 60 chars
         flow.expires_after_minutes = 60
-        flow.save()
+        flow.save(update_fields=("expires_after_minutes",))
 
-        # now create a copy
-        copy = Flow.copy(flow, self.admin)
+        copy1 = flow.clone(self.admin)
 
-        # expiration should be copied too
-        self.assertEqual(60, copy.expires_after_minutes)
+        self.assertNotEqual(flow.id, copy1.id)
+        self.assertEqual(60, copy1.expires_after_minutes)
 
-        # should have a different id
-        self.assertNotEqual(flow.id, copy.id)
+        # name should start with "Copy of" and be truncated to 64 chars
+        self.assertEqual("Copy of 12345678901234567890123456789012345678901234567890123456", copy1.name)
 
-        # Name should start with "Copy of"
-        self.assertEqual("Copy of Color Flow is a long name to use for something like thi", copy.name)
+        # cloning again should generate a unique name
+        copy2 = flow.clone(self.admin)
+        self.assertEqual("Copy of 123456789012345678901234567890123456789012345678901234 2", copy2.name)
+        copy3 = flow.clone(self.admin)
+        self.assertEqual("Copy of 123456789012345678901234567890123456789012345678901234 3", copy3.name)
 
     def test_copy_group_split_no_name(self):
         flow = self.get_flow("group_split_no_name")
         flow_def = flow.get_definition()
 
-        copy = Flow.copy(flow, self.admin)
-
+        copy = flow.clone(self.admin)
         copy_def = copy.get_definition()
 
         self.assertEqual(len(copy_def["nodes"]), 1)
