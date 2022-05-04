@@ -1101,9 +1101,6 @@ class ChannelCount(SquashableModel):
 
         return sql, params
 
-    def __str__(self):  # pragma: no cover
-        return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)
-
     class Meta:
         index_together = ["channel", "count_type", "day"]
 

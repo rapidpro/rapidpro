@@ -1,7 +1,6 @@
 from smartmin.models import SmartModel
 
 from django.db import models
-from django.db.models import Model
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _, ngettext
 
@@ -230,9 +229,6 @@ class Campaign(LegacyUUIDMixin, TembaModel):
             event.delete()
 
         super().delete()
-
-    def __str__(self):
-        return f'Campaign[uuid={self.uuid}, name="{self.name}"]'
 
     class Meta:
         verbose_name = _("Campaign")
@@ -525,7 +521,7 @@ class CampaignEvent(LegacyUUIDMixin, SmartModel):
         verbose_name_plural = _("Campaign Events")
 
 
-class EventFire(Model):
+class EventFire(models.Model):
     """
     A scheduled firing of a campaign event for a particular contact
     """

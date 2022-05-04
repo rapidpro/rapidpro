@@ -594,7 +594,10 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
 class TopicTest(TembaTest):
     def test_model(self):
         topic1 = Topic.create(self.org, self.admin, "Sales")
+
         self.assertEqual("Sales", topic1.name)
+        self.assertEqual("Sales", str(topic1))
+        self.assertEqual(f'<Topic: uuid={topic1.uuid} name="Sales">', repr(topic1))
 
         # try to create with invalid name
         with self.assertRaises(AssertionError):
@@ -607,9 +610,13 @@ class TopicTest(TembaTest):
 
 class TeamTest(TembaTest):
     def test_create(self):
-        team1 = Team.create(self.org, self.admin, "Team 1")
+        team1 = Team.create(self.org, self.admin, "Sales")
         self.admin.set_team(team1)
         self.agent.set_team(team1)
+
+        self.assertEqual("Sales", team1.name)
+        self.assertEqual("Sales", str(team1))
+        self.assertEqual(f'<Team: uuid={team1.uuid} name="Sales">', repr(team1))
 
         self.assertEqual({self.admin, self.agent}, set(team1.get_users()))
 
@@ -619,10 +626,10 @@ class TeamTest(TembaTest):
 
         # try to create with name that already exists
         with self.assertRaises(AssertionError):
-            Team.create(self.org, self.admin, "Team 1")
+            Team.create(self.org, self.admin, "Sales")
 
     def test_release(self):
-        team1 = Team.create(self.org, self.admin, "Team 1")
+        team1 = Team.create(self.org, self.admin, "Sales")
         self.admin.set_team(team1)
         self.agent.set_team(team1)
 

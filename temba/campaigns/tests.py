@@ -52,7 +52,7 @@ class CampaignTest(TembaTest):
         )
 
         self.assertEqual("Reminders", campaign.name)
-        self.assertEqual(f'Campaign[uuid={campaign.uuid}, name="Reminders"]', str(campaign))
+        self.assertEqual("Reminders", str(campaign))
         self.assertEqual('Event[relative_to=planting_date, offset=1, flow="Test Flow"]', str(event1))
         self.assertEqual([event1, event2], list(campaign.get_events()))
 

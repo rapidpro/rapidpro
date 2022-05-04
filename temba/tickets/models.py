@@ -137,9 +137,6 @@ class Ticketer(TembaModel, DependencyMixin):
         self.modified_by = user
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
-    def __str__(self):
-        return f"Ticketer[uuid={self.uuid}, name={self.name}]"
-
 
 class Topic(TembaModel, DependencyMixin):
     """
@@ -165,9 +162,6 @@ class Topic(TembaModel, DependencyMixin):
         assert not org.topics.filter(name__iexact=name).exists()
 
         return org.topics.create(name=name, created_by=user, modified_by=user)
-
-    def __str__(self):
-        return f"Topic[uuid={self.uuid}, topic={self.name}]"
 
     class Meta:
         constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_topic_names")]
@@ -481,7 +475,7 @@ class Team(TembaModel):
 
 class TicketDailyCount(SquashableModel):
     """
-    Ticket activity counts by who did it and when
+    Ticket activity counts by who did it and when. Mailroom writes these.
     """
 
     SQUASH_OVER = ("count_type", "scope", "day")
@@ -497,11 +491,11 @@ class TicketDailyCount(SquashableModel):
     count = models.IntegerField()
 
     class Meta:
-        index_together = ("count_type", "scope", "day")
         indexes = [
+            models.Index(name="tickets_dailycount_type_scope", fields=("count_type", "scope", "day")),
             models.Index(
                 name="tickets_dailycount_unsquashed",
                 fields=("count_type", "scope", "day"),
                 condition=Q(is_squashed=False),
-            )
+            ),
         ]
