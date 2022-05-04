@@ -2171,7 +2171,7 @@ class FlowLabel(LegacyUUIDMixin, TembaModel):
     @classmethod
     def create(cls, org, user, name: str, parent=None):
         assert cls.is_valid_name(name), f"'{name}' is not a valid flow label name"
-        assert not org.flow_labels.filter(name=name).exists()
+        assert not org.flow_labels.filter(name__iexact=name).exists()
 
         return cls.objects.create(org=org, name=name, parent=parent, created_by=user, modified_by=user)
 
@@ -2194,15 +2194,15 @@ class FlowLabel(LegacyUUIDMixin, TembaModel):
         for flow in flows:
             # if we are adding the flow label and this flow doesnt have it, add it
             if add:
-                if not flow.labels.filter(pk=self.pk):
+                if not flow.labels.filter(pk=self.id):
                     flow.labels.add(self)
-                    changed.append(flow.pk)
+                    changed.append(flow.id)
 
             # otherwise, remove it if not already present
             else:
-                if flow.labels.filter(pk=self.pk):
+                if flow.labels.filter(pk=self.id):
                     flow.labels.remove(self)
-                    changed.append(flow.pk)
+                    changed.append(flow.id)
 
         return changed
 
@@ -2218,7 +2218,7 @@ class FlowLabel(LegacyUUIDMixin, TembaModel):
         return self.name
 
     class Meta:
-        unique_together = ("name", "parent", "org")
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_flowlabel_names")]
 
 
 __flow_users = None
