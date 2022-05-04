@@ -1023,6 +1023,16 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
 
+    def __str__(self):  # pragma: no cover
+        if self.name:
+            return self.name
+        elif self.device:
+            return self.device
+        elif self.address:
+            return self.address
+        else:
+            return str(self.id)
+
     class Meta:
         ordering = ("-last_seen", "-pk")
 
