@@ -1370,7 +1370,7 @@ class FlowTest(TembaTest):
 
         # create a flow for another org and a flow label
         flow2 = Flow.create(self.org2, self.admin2, "Flow2")
-        flow_label = FlowLabel.objects.create(name="one", org=self.org, parent=None)
+        flow_label = FlowLabel.create(self.org, self.admin, "one")
 
         flow_list_url = reverse("flows.flow_list")
         flow_archived_url = reverse("flows.flow_archived")
@@ -1814,7 +1814,7 @@ class FlowTest(TembaTest):
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
         menu_url = reverse("flows.flow_menu")
-        FlowLabel.create(self.org, "Important")
+        FlowLabel.create(self.org, self.admin, "Important")
 
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
@@ -2332,7 +2332,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, response.context["folders"][1]["count"])
 
         # can label flows
-        label1 = FlowLabel.create(self.org, "Important")
+        label1 = FlowLabel.create(self.org, self.admin, "Important")
+
         response = self.client.post(
             reverse("flows.flow_list"), {"action": "label", "objects": flow1.id, "label": label1.id}
         )
@@ -2375,6 +2376,28 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, flow1.name)
         self.assertEqual(1, response.context["folders"][0]["count"])
         self.assertEqual(1, response.context["folders"][1]["count"])  # only flow2
+
+    def test_filter(self):
+        flow1 = self.create_flow("Flow 1")
+        flow2 = self.create_flow("Flow 2")
+
+        label1 = FlowLabel.create(self.org, self.admin, "Important")
+        label2 = FlowLabel.create(self.org, self.admin, "Very Important", parent=label1)
+
+        label1.toggle_label([flow1], add=True)
+        label2.toggle_label([flow2], add=True)
+
+        self.login(self.admin)
+
+        response = self.client.get(reverse("flows.flow_filter", args=[label1.uuid]))
+        self.assertEqual([flow2, flow1], list(response.context["object_list"]))
+
+        response = self.client.get(reverse("flows.flow_filter", args=[label2.uuid]))
+        self.assertEqual([flow2], list(response.context["object_list"]))
+
+        # in the spa view, labels are flattened
+        response = self.client.get(reverse("flows.flow_filter", args=[label1.uuid]), HTTP_TEMBA_SPA="1")
+        self.assertEqual(len(response.context["labels_flat"]), 2)
 
     def test_get_definition(self):
         flow = self.get_flow("color_v13")
@@ -4970,133 +4993,111 @@ class ExportFlowResultsTest(TembaTest):
 
 
 class FlowLabelTest(TembaTest):
-    def test_label_model(self):
-        # test a the creation of a unique label when we have a long word(more than 32 caracters)
-        response = FlowLabel.create(self.org, "alongwordcomposedofmorethanthirtytwoletters", parent=None)
-        self.assertEqual(response.name, "alongwordcomposedofmorethanthirt")
+    def test_model(self):
+        parent = FlowLabel.create(self.org, self.admin, "Cool Flows")
+        self.assertEqual("Cool Flows", parent.name)
+        self.assertIsNone(parent.parent)
 
-        # try to create another label which starts with the same 32 caracteres
-        # the one we already have
-        label = FlowLabel.create(self.org, "alongwordcomposedofmorethanthirtytwocaracteres", parent=None)
+        child = FlowLabel.create(self.org, self.admin, "Very Cool Flows", parent=parent)
+        self.assertEqual("Very Cool Flows", child.name)
+        self.assertEqual(parent, child.parent)
 
-        self.assertEqual(label.name, "alongwordcomposedofmorethanthi 2")
-        self.assertEqual(str(label), "alongwordcomposedofmorethanthi 2")
-        label = FlowLabel.create(self.org, "child", parent=label)
-        self.assertEqual(str(label), "alongwordcomposedofmorethanthi 2 > child")
+        # can't create with invalid name
+        with self.assertRaises(AssertionError):
+            FlowLabel.create(self.org, self.admin, '"Cool"')
 
-        FlowLabel.create(self.org, "dog")
-        FlowLabel.create(self.org, "dog")
-        dog3 = FlowLabel.create(self.org, "dog")
-        self.assertEqual("dog 3", dog3.name)
+        # can't create with duplicate name
+        with self.assertRaises(AssertionError):
+            FlowLabel.create(self.org, self.admin, "Cool Flows")
 
-        dog4 = FlowLabel.create(self.org, "dog ")
-        self.assertEqual("dog 4", dog4.name)
+        flow1 = self.create_flow("Flow 1")
+        flow2 = self.create_flow("Flow 2")
+        flow3 = self.create_flow("Flow 3")
 
-        # view the parent label, should see the child
-        self.login(self.admin)
-        favorites = self.get_flow("favorites")
-        label.toggle_label([favorites], True)
-        response = self.client.get(reverse("flows.flow_filter", args=[label.uuid]))
-        self.assertEqual([favorites], list(response.context["object_list"]))
-        # our child label
-        self.assertContains(response, "child")
+        parent.toggle_label([flow1, flow2], add=True)
+        self.assertEqual({flow1, flow2}, set(parent.get_flows()))
 
-        # and the edit gear link
-        self.assertContains(response, "Edit")
+        child.toggle_label([flow3], add=True)
+        self.assertEqual({flow3}, set(child.get_flows()))
+        self.assertEqual({flow1, flow2, flow3}, set(parent.get_flows()))
 
-        favorites.is_active = False
-        favorites.save()
+        parent.toggle_label([flow1], add=False)
+        self.assertEqual({flow2, flow3}, set(parent.get_flows()))
 
-        response = self.client.get(reverse("flows.flow_filter", args=[label.uuid]))
-        self.assertFalse(response.context["object_list"])
 
-        # try to view our cat label in our other org
-        cat = FlowLabel.create(self.org2, "cat")
-        response = self.client.get(reverse("flows.flow_filter", args=[cat.uuid]))
-        self.assertLoginRedirect(response)
-
-        # in the spa view, labels are flattened
-        response = self.client.get(reverse("flows.flow_filter", args=[label.uuid]), HTTP_TEMBA_SPA="1")
-        self.assertEqual(len(response.context["labels_flat"]), 7)
-
-    def test_toggle_label(self):
-        label = FlowLabel.create(self.org, "toggle me")
-        flow = self.get_flow("favorites")
-
-        changed = label.toggle_label([flow], True)
-        self.assertEqual(1, len(changed))
-        self.assertEqual(label.pk, flow.labels.all().first().pk)
-
-        changed = label.toggle_label([flow], False)
-        self.assertEqual(1, len(changed))
-        self.assertIsNone(flow.labels.all().first())
-
+class FlowLabelCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("flows.flowlabel_create")
 
-        post_data = dict(name="label_one")
+        self.assertCreateFetch(
+            create_url, allow_viewers=False, allow_editors=True, form_fields=("name", "parent", "flows")
+        )
 
-        self.login(self.admin)
-        response = self.client.post(create_url, post_data, follow=True)
-        self.assertEqual(FlowLabel.objects.all().count(), 1)
-        self.assertEqual(FlowLabel.objects.all()[0].parent, None)
+        # try to submit without a name
+        self.assertCreateSubmit(create_url, {}, form_errors={"name": "This field is required."})
 
-        label_one = FlowLabel.objects.all()[0]
-        post_data = dict(name="sub_label", parent=label_one.pk)
-        response = self.client.post(create_url, post_data, follow=True)
+        # try to submit with an invalid name
+        self.assertCreateSubmit(
+            create_url, {"name": '"Cool"\\'}, form_errors={"name": 'Cannot contain the character: "'}
+        )
 
-        self.assertEqual(FlowLabel.objects.all().count(), 2)
-        self.assertEqual(FlowLabel.objects.filter(parent=None).count(), 1)
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "Cool Flows"},
+            new_obj_query=FlowLabel.objects.filter(org=self.org, name="Cool Flows", parent=None),
+        )
+        label1 = FlowLabel.objects.get(name="Cool Flows")
 
-        post_data = dict(name="sub_label ", parent=label_one.pk)
-        response = self.client.post(create_url, post_data, follow=True)
-        self.assertIn("form", response.context)
-        self.assertTrue(response.context["form"].errors)
-        self.assertEqual("Name already used", response.context["form"].errors["name"][0])
+        # try to create with a name that's already used
+        self.assertCreateSubmit(create_url, {"name": "Cool Flows"}, form_errors={"name": "Must be unique."})
 
-        self.assertEqual(FlowLabel.objects.all().count(), 2)
-        self.assertEqual(FlowLabel.objects.filter(parent=None).count(), 1)
-
-        post_data = dict(name="label from modal")
-        response = self.client.post("%s?format=modal" % create_url, post_data, follow=True)
-        self.assertEqual(FlowLabel.objects.all().count(), 3)
-
-    def test_delete(self):
-        label_one = FlowLabel.create(self.org, "label1")
-
-        delete_url = reverse("flows.flowlabel_delete", args=[label_one.pk])
-
-        self.other_user = self.create_user("ironman")
-
-        self.login(self.other_user)
-        response = self.client.get(delete_url)
-        self.assertEqual(response.status_code, 302)
-
-        self.login(self.admin)
-        response = self.client.post(delete_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertIsNone(FlowLabel.objects.filter(uuid=label_one.uuid).first())
+        # create a label with a parent
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "Very Cool Flows", "parent": label1.id},
+            new_obj_query=FlowLabel.objects.filter(org=self.org, name="Very Cool Flows", parent=label1),
+        )
 
     def test_update(self):
-        label_one = FlowLabel.create(self.org, "label1")
-        update_url = reverse("flows.flowlabel_update", args=[label_one.pk])
+        parent = FlowLabel.create(self.org, self.admin, "Cool Flows")
+        child = FlowLabel.create(self.org, self.admin, "Very Cool Flows", parent=parent)
 
-        # not logged in, no dice
-        response = self.client.get(update_url)
-        self.assertLoginRedirect(response)
+        parent_url = reverse("flows.flowlabel_update", args=[parent.id])
+        child_url = reverse("flows.flowlabel_update", args=[child.id])
 
-        # login
-        self.login(self.admin)
-        response = self.client.get(update_url)
+        # if a label has children it can't have a parent
+        self.assertUpdateFetch(parent_url, allow_viewers=False, allow_editors=True, form_fields=("name",))
+        self.assertUpdateFetch(child_url, allow_viewers=False, allow_editors=True, form_fields=("name", "parent"))
 
-        # change our name
-        data = response.context["form"].initial
-        data["name"] = "Label One"
-        data["parent"] = ""
-        self.client.post(update_url, data)
+        # try to update to an invalid name
+        self.assertUpdateSubmit(
+            parent_url,
+            {"name": '"Cool"\\'},
+            form_errors={"name": 'Cannot contain the character: "'},
+            object_unchanged=parent,
+        )
 
-        label_one.refresh_from_db()
-        self.assertEqual(label_one.name, "Label One")
+        # try to update to a non-unique name
+        self.assertUpdateSubmit(
+            parent_url, {"name": "Very Cool Flows"}, form_errors={"name": "Must be unique."}, object_unchanged=parent
+        )
+
+        self.assertUpdateSubmit(parent_url, {"name": "All Cool Flows"})
+
+        parent.refresh_from_db()
+        self.assertEqual("All Cool Flows", parent.name)
+
+    def test_delete(self):
+        parent = FlowLabel.create(self.org, self.admin, "Cool Flows")
+        child = FlowLabel.create(self.org, self.admin, "Very Cool Flows", parent=parent)
+
+        delete_url = reverse("flows.flowlabel_delete", args=[parent.id])
+
+        self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertDeleteSubmit(delete_url, object_deleted=parent, success_status=200)
+
+        # child label with have been deleted too
+        self.assertFalse(FlowLabel.objects.filter(id=child.id).exists())
 
 
 class SimulationTest(TembaTest):
