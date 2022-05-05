@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q, Sum
+from django.db.models.functions import Lower
 from django.template import Engine
 from django.urls import re_path
 from django.utils import timezone
@@ -156,13 +157,14 @@ class Topic(TembaModel, DependencyMixin):
         )
 
     @classmethod
-    def get_or_create(cls, org, user, name):
+    def create(cls, org, user, name: str):
         assert cls.is_valid_name(name), f"'{name}' is not a valid topic name"
+        assert not org.topics.filter(name__iexact=name).exists()
 
-        existing = org.topics.filter(name__iexact=name).first()
-        if existing:
-            return existing
         return org.topics.create(name=name, created_by=user, modified_by=user)
+
+    class Meta:
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_topic_names")]
 
 
 class Ticket(models.Model):

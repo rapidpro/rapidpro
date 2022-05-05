@@ -576,7 +576,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         # ensure any topic dependencies exist
         for ref in deps_of_type("topic"):
-            topic = Topic.get_or_create(self.org, user, ref["name"])
+            topic = Topic.create(self.org, user, ref["name"])
             dependency_mapping[ref["uuid"]] = str(topic.uuid)
 
         # for dependencies we can't create, look for them by UUID (this is a clone in same workspace)
