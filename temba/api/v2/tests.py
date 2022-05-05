@@ -2618,7 +2618,7 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {"label": "Age", "value_type": "numeric"})
         self.assertResponseError(
-            response, "non_field_errors", "Cannot create object because workspace has reached limit of 10."
+            response, None, "Cannot create object because workspace has reached limit of 10.", status_code=409
         )
 
     def test_flows(self):
@@ -2919,7 +2919,7 @@ class APITest(TembaTest):
         # try again now that we've hit the mocked limit of globals per org
         response = self.postJSON(url, None, {"name": "Website URL", "value": "http://example.com"})
         self.assertResponseError(
-            response, "non_field_errors", "Cannot create object because workspace has reached limit of 3."
+            response, None, "Cannot create object because workspace has reached limit of 3.", status_code=409
         )
 
     @override_settings(ORG_LIMIT_DEFAULTS={"groups": 10})
@@ -3094,7 +3094,7 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {"name": "Reporters"})
         self.assertResponseError(
-            response, "non_field_errors", "Cannot create object because workspace has reached limit of 10."
+            response, None, "Cannot create object because workspace has reached limit of 10.", status_code=409
         )
 
         group1 = ContactGroup.objects.filter(org=self.org, name="group1").first()
@@ -3245,7 +3245,7 @@ class APITest(TembaTest):
         with override_settings(ORG_LIMIT_DEFAULTS={"labels": current_count}):
             response = self.postJSON(url, None, {"name": "Interesting"})
             self.assertResponseError(
-                response, "non_field_errors", "Cannot create object because workspace has reached limit of 3."
+                response, None, "Cannot create object because workspace has reached limit of 3.", status_code=409
             )
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
@@ -4839,7 +4839,7 @@ class APITest(TembaTest):
         with override_settings(ORG_LIMIT_DEFAULTS={"topics": current_count}):
             response = self.postJSON(url, None, {"name": "Interesting"})
             self.assertResponseError(
-                response, "non_field_errors", "Cannot create object because workspace has reached limit of 5."
+                response, None, "Cannot create object because workspace has reached limit of 5.", status_code=409
             )
 
     def test_users(self):

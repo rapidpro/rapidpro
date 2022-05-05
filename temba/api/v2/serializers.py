@@ -107,38 +107,17 @@ class WriteSerializer(serializers.Serializer):
     new instance. Since our logic for that gets relatively complex, we have the serializer make that call.
     """
 
-    org_limit_key = None
-
     def run_validation(self, data=serializers.empty):
-        org = self.context["org"]
-
         if not isinstance(data, dict):
             raise serializers.ValidationError(
                 detail={"non_field_errors": ["Request body should be a single JSON object"]}
             )
 
-        if org.is_flagged or org.is_suspended:
-            msg = Org.BLOCKER_FLAGGED if org.is_flagged else Org.BLOCKER_SUSPENDED
+        if self.context["org"].is_flagged or self.context["org"].is_suspended:
+            msg = Org.BLOCKER_FLAGGED if self.context["org"].is_flagged else Org.BLOCKER_SUSPENDED
             raise serializers.ValidationError(detail={"non_field_errors": [msg]})
 
-        if self.org_limit_key and not self.instance:
-            org_limit = org.get_limit(self.org_limit_key)
-            if self._get_org_count(org) >= org_limit:
-                raise serializers.ValidationError(
-                    detail={
-                        "non_field_errors": [
-                            f"Cannot create object because workspace has reached limit of {org_limit}."
-                        ]
-                    }
-                )
-
         return super().run_validation(data)
-
-    def _get_org_count(self, org) -> int:  # pragma: no cover
-        """
-        Get the count of objects that count toward the org limit for that type
-        """
-        return 0
 
 
 class BulkActionFailure:
@@ -719,8 +698,6 @@ class ContactFieldReadSerializer(ReadSerializer):
 
 
 class ContactFieldWriteSerializer(WriteSerializer):
-    org_limit_key = Org.LIMIT_FIELDS
-
     VALUE_TYPES = {v: k for k, v in ContactFieldReadSerializer.VALUE_TYPES.items()}
 
     label = serializers.CharField(
@@ -747,9 +724,6 @@ class ContactFieldWriteSerializer(WriteSerializer):
             raise serializers.ValidationError("Can't change type of date field being used by campaign events.")
 
         return self.VALUE_TYPES[value]
-
-    def _get_org_count(self, org):
-        return org.fields.filter(is_active=True, is_system=False).count()
 
     def save(self):
         org = self.context["org"]
@@ -790,8 +764,6 @@ class ContactGroupReadSerializer(ReadSerializer):
 
 
 class ContactGroupWriteSerializer(WriteSerializer):
-    org_limit_key = Org.LIMIT_GROUPS
-
     name = serializers.CharField(
         required=True,
         max_length=ContactGroup.MAX_NAME_LEN,
@@ -800,9 +772,6 @@ class ContactGroupWriteSerializer(WriteSerializer):
             UniqueForOrgValidator(queryset=ContactGroup.objects.filter(is_active=True), ignore_case=True),
         ],
     )
-
-    def _get_org_count(self, org):
-        return ContactGroup.get_groups(org, user_only=True).count()
 
     def save(self):
         name = self.validated_data.get("name")
@@ -1108,8 +1077,6 @@ class GlobalReadSerializer(ReadSerializer):
 
 
 class GlobalWriteSerializer(WriteSerializer):
-    org_limit_key = Org.LIMIT_GLOBALS
-
     value = serializers.CharField(required=True, max_length=Global.MAX_VALUE_LEN)
     name = serializers.CharField(
         required=False,
@@ -1130,9 +1097,6 @@ class GlobalWriteSerializer(WriteSerializer):
             raise serializers.ValidationError("Name is required when creating new global.")
 
         return data
-
-    def _get_org_count(self, org) -> int:
-        return Global.objects.filter(org=org, is_active=True).count()
 
     def save(self):
         value = self.validated_data["value"]
@@ -1159,8 +1123,6 @@ class LabelReadSerializer(ReadSerializer):
 
 
 class LabelWriteSerializer(WriteSerializer):
-    org_limit_key = Org.LIMIT_LABELS
-
     name = serializers.CharField(
         required=True,
         max_length=Label.MAX_NAME_LEN,
@@ -1169,9 +1131,6 @@ class LabelWriteSerializer(WriteSerializer):
             UniqueForOrgValidator(queryset=Label.label_objects.filter(is_active=True), ignore_case=True),
         ],
     )
-
-    def _get_org_count(self, org) -> int:
-        return Label.label_objects.filter(org=org, is_active=True).count()
 
     def save(self):
         name = self.validated_data.get("name")
@@ -1535,8 +1494,6 @@ class TopicReadSerializer(ReadSerializer):
 
 
 class TopicWriteSerializer(WriteSerializer):
-    org_limit_key = Org.LIMIT_TOPICS
-
     name = serializers.CharField(
         required=True,
         max_length=Topic.MAX_NAME_LEN,
@@ -1545,9 +1502,6 @@ class TopicWriteSerializer(WriteSerializer):
             UniqueForOrgValidator(queryset=Topic.objects.filter(is_active=True), ignore_case=True),
         ],
     )
-
-    def _get_org_count(self, org) -> int:
-        return org.topics.filter(is_active=True).count()
 
     def save(self):
         name = self.validated_data["name"]
