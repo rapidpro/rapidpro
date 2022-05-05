@@ -1524,10 +1524,14 @@ class TicketBulkActionSerializer(WriteSerializer):
 
 class TopicReadSerializer(ReadSerializer):
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    system = serializers.SerializerMethodField()
+
+    def get_system(self, obj):
+        return obj.is_default
 
     class Meta:
         model = Topic
-        fields = ("uuid", "name", "created_on")
+        fields = ("uuid", "name", "system", "created_on")
 
 
 class TopicWriteSerializer(WriteSerializer):

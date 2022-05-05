@@ -4788,16 +4788,19 @@ class APITest(TembaTest):
                 {
                     "uuid": str(sales.uuid),
                     "name": "Sales",
+                    "system": False,
                     "created_on": format_datetime(sales.created_on),
                 },
                 {
                     "uuid": str(support.uuid),
                     "name": "Support",
+                    "system": False,
                     "created_on": format_datetime(support.created_on),
                 },
                 {
                     "uuid": str(self.org.default_ticket_topic.uuid),
                     "name": "General",
+                    "system": True,
                     "created_on": format_datetime(self.org.default_ticket_topic.created_on),
                 },
             ],
@@ -4812,7 +4815,10 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         food = Topic.objects.get(name="Food")
-        self.assertEqual(response.json(), {"uuid": str(food.uuid), "name": "Food", "created_on": matchers.ISODate()})
+        self.assertEqual(
+            response.json(),
+            {"uuid": str(food.uuid), "name": "Food", "system": False, "created_on": matchers.ISODate()},
+        )
 
         # try to create another topic with same name
         response = self.postJSON(url, None, {"name": "food"})
