@@ -2638,7 +2638,7 @@ class APITest(TembaTest):
         Flow.create_single_message(self.org, self.admin, dict(eng="Hello world"), "eng")
 
         # add a flow label
-        reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
+        reporting = FlowLabel.create(self.org, self.admin, "Reporting")
         color.labels.add(reporting)
 
         # make it look like joe completed the color flow

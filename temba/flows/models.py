@@ -34,7 +34,7 @@ from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.models import JSONAsTextField, JSONField, LegacyUUIDMixin, SquashableModel, TembaModel, generate_uuid
+from temba.utils.models import JSONAsTextField, JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
 from . import legacy
@@ -2148,38 +2148,20 @@ class FlowStartCount(SquashableModel):
             start.run_count = counts_by_start.get(start.id, 0)
 
 
-class FlowLabel(models.Model):
+class FlowLabel(LegacyUUIDMixin, TembaModel):
     """
     A label applied to a flow rather than a message
     """
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_labels")
-    uuid = models.CharField(max_length=36, unique=True, db_index=True, default=generate_uuid)
-    name = models.CharField(max_length=64)
     parent = models.ForeignKey("FlowLabel", on_delete=models.PROTECT, null=True, related_name="children")
 
     @classmethod
-    def create(cls, org, base, parent=None):
+    def create(cls, org, user, name: str, parent=None):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid flow label name"
+        assert not org.flow_labels.filter(name__iexact=name).exists()
 
-        base = base.strip()
-
-        # truncate if necessary
-        if len(base) > 32:
-            base = base[:32]
-
-        # find the next available label by appending numbers
-        count = 2
-        while FlowLabel.objects.filter(org=org, name=base, parent=parent):
-            # make room for the number
-            if len(base) >= 32:
-                base = base[:30]
-            last = str(count - 1)
-            if base.endswith(last):
-                base = base[: -len(last)]
-            base = "%s %d" % (base.strip(), count)
-            count += 1
-
-        return FlowLabel.objects.create(org=org, name=base, parent=parent)
+        return cls.objects.create(org=org, name=name, parent=parent, created_by=user, modified_by=user)
 
     def get_flows_count(self):
         """
@@ -2194,21 +2176,21 @@ class FlowLabel(models.Model):
             .distinct()
         )
 
-    def toggle_label(self, flows, add):
+    def toggle_label(self, flows, *, add: bool):
         changed = []
 
         for flow in flows:
             # if we are adding the flow label and this flow doesnt have it, add it
             if add:
-                if not flow.labels.filter(pk=self.pk):
+                if not flow.labels.filter(pk=self.id):
                     flow.labels.add(self)
-                    changed.append(flow.pk)
+                    changed.append(flow.id)
 
             # otherwise, remove it if not already present
             else:
-                if flow.labels.filter(pk=self.pk):
+                if flow.labels.filter(pk=self.id):
                     flow.labels.remove(self)
-                    changed.append(flow.pk)
+                    changed.append(flow.id)
 
         return changed
 
@@ -2224,7 +2206,7 @@ class FlowLabel(models.Model):
         return self.name
 
     class Meta:
-        unique_together = ("name", "parent", "org")
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_flowlabel_names")]
 
 
 __flow_users = None
