@@ -2618,10 +2618,7 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {"label": "Age", "value_type": "numeric"})
         self.assertResponseError(
-            response,
-            "non_field_errors",
-            "This org has 10 contact fields and the limit is 10. "
-            "You must delete existing ones before you can create new ones.",
+            response, "non_field_errors", "Cannot create object because workspace has reached limit of 10."
         )
 
     def test_flows(self):
@@ -2922,10 +2919,7 @@ class APITest(TembaTest):
         # try again now that we've hit the mocked limit of globals per org
         response = self.postJSON(url, None, {"name": "Website URL", "value": "http://example.com"})
         self.assertResponseError(
-            response,
-            "non_field_errors",
-            "This org has 3 globals and the limit is 3. "
-            "You must delete existing ones before you can create new ones.",
+            response, "non_field_errors", "Cannot create object because workspace has reached limit of 3."
         )
 
     @override_settings(ORG_LIMIT_DEFAULTS={"groups": 10})
@@ -3104,10 +3098,7 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {"name": "Reporters"})
         self.assertResponseError(
-            response,
-            "non_field_errors",
-            "This workspace has 10 groups and the limit is 10. "
-            "You must delete existing ones before you can create new ones.",
+            response, "non_field_errors", "Cannot create object because workspace has reached limit of 10."
         )
 
         group1 = ContactGroup.objects.filter(org=self.org, name="group1").first()
@@ -3275,10 +3266,7 @@ class APITest(TembaTest):
         with override_settings(ORG_LIMIT_DEFAULTS={"labels": current_count}):
             response = self.postJSON(url, None, {"name": "Interesting"})
             self.assertResponseError(
-                response,
-                "non_field_errors",
-                "This workspace has 3 labels and the limit is 3. "
-                "You must delete existing ones before you can create new ones.",
+                response, "non_field_errors", "Cannot create object because workspace has reached limit of 3."
             )
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
@@ -4866,10 +4854,7 @@ class APITest(TembaTest):
         with override_settings(ORG_LIMIT_DEFAULTS={"topics": current_count}):
             response = self.postJSON(url, None, {"name": "Interesting"})
             self.assertResponseError(
-                response,
-                "non_field_errors",
-                "This workspace has 5 topics and the limit is 5. "
-                "You must delete existing ones before you can create new ones.",
+                response, "non_field_errors", "Cannot create object because workspace has reached limit of 5."
             )
 
     def test_users(self):
