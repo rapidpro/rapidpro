@@ -19,7 +19,7 @@ from .types.zendesk import ZendeskType
 class TicketTest(TembaTest):
     def test_model(self):
         ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
-        topic = Topic.get_or_create(self.org, self.admin, "Sales")
+        topic = Topic.create(self.org, self.admin, "Sales")
         contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
         ticket = Ticket.objects.create(
@@ -593,14 +593,16 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
 
 class TopicTest(TembaTest):
     def test_model(self):
-        topic1 = Topic.get_or_create(self.org, self.admin, "Sales")
-        topic2 = Topic.get_or_create(self.org, self.admin, "Support")
+        topic1 = Topic.create(self.org, self.admin, "Sales")
 
-        self.assertEqual(topic1, Topic.get_or_create(self.org, self.admin, "Sales"))
-        self.assertEqual(topic2, Topic.get_or_create(self.org, self.admin, "SUPPORT"))
-
+        self.assertEqual("Sales", topic1.name)
         self.assertEqual("Sales", str(topic1))
         self.assertEqual(f'<Topic: uuid={topic1.uuid} name="Sales">', repr(topic1))
 
+        # try to create with invalid name
         with self.assertRaises(AssertionError):
-            Topic.get_or_create(self.org, self.admin, '"Support"')
+            Topic.create(self.org, self.admin, '"Support"')
+
+        # try to create with name that already exists
+        with self.assertRaises(AssertionError):
+            Topic.create(self.org, self.admin, "Sales")
