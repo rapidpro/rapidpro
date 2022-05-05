@@ -3049,9 +3049,9 @@ class APITest(TembaTest):
         reporters.refresh_from_db()
         self.assertEqual(reporters.name, "U-Reporters")
 
-        # can't update a system group from other org
+        # can't update a system group
         response = self.postJSON(url, "uuid=%s" % open_tickets.uuid, {"name": "Won't work"})
-        self.assertResponseError(response, "non_field_errors", "Cannot update a system group.")
+        self.assertResponseError(response, None, "Cannot modify system object.", status_code=403)
         self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
 
         # can't update a group from other org
@@ -4839,7 +4839,7 @@ class APITest(TembaTest):
 
         # can't update default topic for an org
         response = self.postJSON(url, "uuid=%s" % self.org.default_ticket_topic.uuid, {"name": "Won't work"})
-        self.assertResponseError(response, "non_field_errors", "Can't modify default topic for a workspace.")
+        self.assertResponseError(response, None, "Cannot modify system object.", status_code=403)
 
         # can't update topic from other org
         response = self.postJSON(url, "uuid=%s" % other_org.uuid, {"name": "Won't work"})

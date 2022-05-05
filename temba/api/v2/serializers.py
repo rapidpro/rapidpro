@@ -801,12 +801,6 @@ class ContactGroupWriteSerializer(WriteSerializer):
         ],
     )
 
-    def validate(self, data):
-        if self.instance and self.instance.is_system:
-            raise serializers.ValidationError("Cannot update a system group.")
-
-        return data
-
     def _get_org_count(self, org):
         return ContactGroup.get_groups(org, user_only=True).count()
 
@@ -1547,14 +1541,6 @@ class TopicWriteSerializer(WriteSerializer):
             UniqueForOrgValidator(queryset=Topic.objects.filter(is_active=True), ignore_case=True),
         ],
     )
-
-    def validate(self, data):
-        org = self.context["org"]
-
-        if self.instance and self.instance == org.default_ticket_topic:
-            raise serializers.ValidationError("Can't modify default topic for a workspace.")
-
-        return data
 
     def _get_org_count(self, org) -> int:
         return org.topics.filter(is_active=True).count()

@@ -190,6 +190,8 @@ class WriteAPIMixin:
         # determine if this is an update of an existing object or a create of a new object
         if self.lookup_values:
             instance = self.get_object()
+            if self.is_system_instance(instance):
+                return Response({"detail": "Cannot modify system object."}, status=status.HTTP_403_FORBIDDEN)
         else:
             instance = None
 
@@ -207,6 +209,9 @@ class WriteAPIMixin:
                 return self.render_write_response(output, context)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def is_system_instance(self, obj):
+        return getattr(obj, "is_system", False)
 
     def render_write_response(self, write_output, context):
         response_serializer = self.serializer_class(instance=write_output, context=context)

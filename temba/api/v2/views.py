@@ -3664,6 +3664,9 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     write_serializer_class = TopicWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
+    def is_system_instance(self, obj):
+        return obj.is_default
+
     @classmethod
     def get_read_explorer(cls):
         return {"method": "GET", "title": "List Topics", "url": reverse("api.v2.topics"), "slug": "topic-list"}
