@@ -3071,11 +3071,7 @@ class APITest(TembaTest):
 
         # can't delete a system group
         response = self.deleteJSON(url, "uuid=%s" % open_tickets.uuid)
-        self.assertEqual(400, response.status_code)
-        self.assertEqual(
-            {"detail": "Cannot delete a system group."},
-            response.json(),
-        )
+        self.assertResponseError(response, None, "Cannot delete system object.", status_code=403)
         self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
 
         # can't delete a group in another org
@@ -3123,23 +3119,6 @@ class APITest(TembaTest):
         self.assertEqual(
             response.json(),
             {"detail": f"Group is being used by the following triggers which must be archived first: {trigger.id}"},
-        )
-
-    def test_api_groups_cant_delete_with_flow_dependency(self):
-        url = reverse("api.v2.groups")
-        self.login(self.admin)
-
-        self.get_flow("dependencies")
-
-        flow = Flow.objects.get(name="Dependencies")
-        cats = ContactGroup.objects.get(name="Cat Facts")
-
-        response = self.deleteJSON(url, "uuid=%s" % cats.uuid)
-
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(
-            response.json(),
-            {"detail": f"Group is being used by the following flows which must be archived first: {flow.uuid}"},
         )
 
     def test_api_groups_cant_delete_with_campaign_dependency(self):

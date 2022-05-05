@@ -254,6 +254,9 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
             )
 
         instance = self.get_object()
+        if self.is_system_instance(instance):
+            return Response({"detail": "Cannot delete system object."}, status=status.HTTP_403_FORBIDDEN)
+
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 

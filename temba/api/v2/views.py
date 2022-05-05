@@ -2168,7 +2168,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     A **DELETE** can be used to delete a contact group if you specify its UUID in the URL.
 
     Notes:
-        - cannot delete groups with associated active campaigns, flows or triggers. You first need to delete related
+        - cannot delete groups with associated active campaigns or triggers. You first need to delete related
           objects through the web interface
 
     Example:
@@ -2208,17 +2208,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         for group in object_list:
             group.count = group_counts[group]
 
-    def delete(self, request, *args, **kwargs):
-        self.lookup_values = self.get_lookup_values()
-        if not self.lookup_values:
-            raise InvalidQueryError(
-                "URL must contain one of the following parameters: " + ", ".join(sorted(self.lookup_params.keys()))
-            )
-
-        instance = self.get_object()
-        if instance.is_system:
-            raise InvalidQueryError("Cannot delete a system group.")
-
+    def perform_destroy(self, instance):
         # if there are still dependencies, give up
         triggers = instance.triggers.filter(is_archived=False)
         if triggers:
@@ -2227,11 +2217,6 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
                 f"Group is being used by the following triggers which must be archived first: {deps}"
             )
 
-        flows = Flow.objects.filter(org=instance.org, group_dependencies__in=[instance])
-        if flows:
-            deps = ", ".join([f.uuid for f in flows])
-            raise InvalidQueryError(f"Group is being used by the following flows which must be archived first: {deps}")
-
         campaigns = instance.campaigns.filter(is_archived=False)
         if campaigns:
             deps = ", ".join([c.uuid for c in campaigns])
@@ -2239,8 +2224,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
                 f"Group is being used by the following campaigns which must be archived first: {deps}"
             )
 
-        self.perform_destroy(instance)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        instance.release(self.request.user)
 
     @classmethod
     def get_read_explorer(cls):
