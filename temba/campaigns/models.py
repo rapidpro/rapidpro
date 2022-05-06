@@ -10,10 +10,10 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit
-from temba.utils.models import LegacyUUIDMixin, TembaModel, TranslatableField
+from temba.utils.models import TembaModel, TembaUUIDMixin, TranslatableField
 
 
-class Campaign(LegacyUUIDMixin, TembaModel):
+class Campaign(TembaModel):
     org = models.ForeignKey(Org, related_name="campaigns", on_delete=models.PROTECT)
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="campaigns")
     is_archived = models.BooleanField(default=False)
@@ -181,16 +181,18 @@ class Campaign(LegacyUUIDMixin, TembaModel):
         events = []
 
         for event in self.events.filter(is_active=True).order_by("flow__uuid"):
-            event_definition = dict(
-                uuid=event.uuid,
-                offset=event.offset,
-                unit=event.unit,
-                event_type=event.event_type,
-                delivery_hour=event.delivery_hour,
-                message=event.message,
-                relative_to=dict(label=event.relative_to.name, key=event.relative_to.key),  # TODO should be key/name
-                start_mode=event.start_mode,
-            )
+            event_definition = {
+                "uuid": str(event.uuid),
+                "offset": event.offset,
+                "unit": event.unit,
+                "event_type": event.event_type,
+                "delivery_hour": event.delivery_hour,
+                "message": event.message,
+                "relative_to": dict(
+                    label=event.relative_to.name, key=event.relative_to.key
+                ),  # TODO should be key/name
+                "start_mode": event.start_mode,
+            }
 
             # only include the flow definition for standalone flows
             if event.event_type == CampaignEvent.TYPE_FLOW:
@@ -235,37 +237,29 @@ class Campaign(LegacyUUIDMixin, TembaModel):
         verbose_name_plural = _("Campaigns")
 
 
-class CampaignEvent(LegacyUUIDMixin, SmartModel):
+class CampaignEvent(TembaUUIDMixin, SmartModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow
     """
 
     TYPE_FLOW = "F"
     TYPE_MESSAGE = "M"
-
-    # single char flag, human readable name, API readable name
-    TYPE_CONFIG = ((TYPE_FLOW, "Flow Event", "flow"), (TYPE_MESSAGE, "Message Event", "message"))
-
-    TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
+    TYPE_CHOICES = ((TYPE_FLOW, "Flow Event"), (TYPE_MESSAGE, "Message Event"))
 
     UNIT_MINUTES = "M"
     UNIT_HOURS = "H"
     UNIT_DAYS = "D"
     UNIT_WEEKS = "W"
-
-    UNIT_CONFIG = (
-        (UNIT_MINUTES, _("Minutes"), "minutes"),
-        (UNIT_HOURS, _("Hours"), "hours"),
-        (UNIT_DAYS, _("Days"), "days"),
-        (UNIT_WEEKS, _("Weeks"), "weeks"),
+    UNIT_CHOICES = (
+        (UNIT_MINUTES, _("Minutes")),
+        (UNIT_HOURS, _("Hours")),
+        (UNIT_DAYS, _("Days")),
+        (UNIT_WEEKS, _("Weeks")),
     )
-
-    UNIT_CHOICES = [(u[0], u[1]) for u in UNIT_CONFIG]
 
     MODE_INTERRUPT = "I"
     MODE_SKIP = "S"
     MODE_PASSIVE = "P"
-
     START_MODES_CHOICES = ((MODE_INTERRUPT, "Interrupt"), (MODE_SKIP, "Skip"), (MODE_PASSIVE, "Passive"))
 
     campaign = models.ForeignKey(Campaign, on_delete=models.PROTECT, related_name="events")
@@ -307,8 +301,7 @@ class CampaignEvent(LegacyUUIDMixin, SmartModel):
         base_language=None,
         start_mode=MODE_INTERRUPT,
     ):
-        if campaign.org != org:
-            raise ValueError("Org mismatch")
+        assert campaign.org == org, "org mismatch"
 
         if relative_to.value_type != ContactField.TYPE_DATETIME:
             raise ValueError(

@@ -304,7 +304,12 @@ class CampaignWriteSerializer(WriteSerializer):
 
 
 class CampaignEventReadSerializer(ReadSerializer):
-    UNITS = extract_constants(CampaignEvent.UNIT_CONFIG)
+    UNITS = {
+        CampaignEvent.UNIT_MINUTES: "minutes",
+        CampaignEvent.UNIT_HOURS: "hours",
+        CampaignEvent.UNIT_DAYS: "days",
+        CampaignEvent.UNIT_WEEKS: "weeks",
+    }
 
     campaign = fields.CampaignField()
     flow = serializers.SerializerMethodField()
@@ -319,7 +324,7 @@ class CampaignEventReadSerializer(ReadSerializer):
             return None
 
     def get_unit(self, obj):
-        return self.UNITS.get(obj.unit)
+        return self.UNITS[obj.unit]
 
     class Meta:
         model = CampaignEvent
@@ -337,7 +342,7 @@ class CampaignEventReadSerializer(ReadSerializer):
 
 
 class CampaignEventWriteSerializer(WriteSerializer):
-    UNITS = extract_constants(CampaignEvent.UNIT_CONFIG, reverse=True)
+    UNITS = {v: k for k, v in CampaignEventReadSerializer.UNITS.items()}
 
     campaign = fields.CampaignField(required=True)
     offset = serializers.IntegerField(required=True)
@@ -990,7 +995,7 @@ class FlowStartReadSerializer(ReadSerializer):
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_status(self, obj):
-        return FlowStartReadSerializer.STATUSES.get(obj.status)
+        return self.STATUSES.get(obj.status)
 
     def get_exclude_active(self, obj):
         return not obj.include_active
