@@ -2618,10 +2618,7 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {"label": "Age", "value_type": "numeric"})
         self.assertResponseError(
-            response,
-            "non_field_errors",
-            "This org has 10 contact fields and the limit is 10. "
-            "You must delete existing ones before you can create new ones.",
+            response, None, "Cannot create object because workspace has reached limit of 10.", status_code=409
         )
 
     def test_flows(self):
@@ -2922,10 +2919,7 @@ class APITest(TembaTest):
         # try again now that we've hit the mocked limit of globals per org
         response = self.postJSON(url, None, {"name": "Website URL", "value": "http://example.com"})
         self.assertResponseError(
-            response,
-            "non_field_errors",
-            "This org has 3 globals and the limit is 3. "
-            "You must delete existing ones before you can create new ones.",
+            response, None, "Cannot create object because workspace has reached limit of 3.", status_code=409
         )
 
     @override_settings(ORG_LIMIT_DEFAULTS={"groups": 10})
@@ -3055,9 +3049,9 @@ class APITest(TembaTest):
         reporters.refresh_from_db()
         self.assertEqual(reporters.name, "U-Reporters")
 
-        # can't update a system group from other org
+        # can't update a system group
         response = self.postJSON(url, "uuid=%s" % open_tickets.uuid, {"name": "Won't work"})
-        self.assertResponseError(response, "non_field_errors", "Cannot update a system group.")
+        self.assertResponseError(response, None, "Cannot modify system object.", status_code=403)
         self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
 
         # can't update a group from other org
@@ -3077,11 +3071,7 @@ class APITest(TembaTest):
 
         # can't delete a system group
         response = self.deleteJSON(url, "uuid=%s" % open_tickets.uuid)
-        self.assertEqual(400, response.status_code)
-        self.assertEqual(
-            {"detail": "Cannot delete a system group."},
-            response.json(),
-        )
+        self.assertResponseError(response, None, "Cannot delete system object.", status_code=403)
         self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
 
         # can't delete a group in another org
@@ -3104,10 +3094,7 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {"name": "Reporters"})
         self.assertResponseError(
-            response,
-            "non_field_errors",
-            "This workspace has 10 groups and the limit is 10. "
-            "You must delete existing ones before you can create new ones.",
+            response, None, "Cannot create object because workspace has reached limit of 10.", status_code=409
         )
 
         group1 = ContactGroup.objects.filter(org=self.org, name="group1").first()
@@ -3132,23 +3119,6 @@ class APITest(TembaTest):
         self.assertEqual(
             response.json(),
             {"detail": f"Group is being used by the following triggers which must be archived first: {trigger.id}"},
-        )
-
-    def test_api_groups_cant_delete_with_flow_dependency(self):
-        url = reverse("api.v2.groups")
-        self.login(self.admin)
-
-        self.get_flow("dependencies")
-
-        flow = Flow.objects.get(name="Dependencies")
-        cats = ContactGroup.objects.get(name="Cat Facts")
-
-        response = self.deleteJSON(url, "uuid=%s" % cats.uuid)
-
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(
-            response.json(),
-            {"detail": f"Group is being used by the following flows which must be archived first: {flow.uuid}"},
         )
 
     def test_api_groups_cant_delete_with_campaign_dependency(self):
@@ -3275,10 +3245,7 @@ class APITest(TembaTest):
         with override_settings(ORG_LIMIT_DEFAULTS={"labels": current_count}):
             response = self.postJSON(url, None, {"name": "Interesting"})
             self.assertResponseError(
-                response,
-                "non_field_errors",
-                "This workspace has 3 labels and the limit is 3. "
-                "You must delete existing ones before you can create new ones.",
+                response, None, "Cannot create object because workspace has reached limit of 3.", status_code=409
             )
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
@@ -4800,16 +4767,19 @@ class APITest(TembaTest):
                 {
                     "uuid": str(sales.uuid),
                     "name": "Sales",
+                    "system": False,
                     "created_on": format_datetime(sales.created_on),
                 },
                 {
                     "uuid": str(support.uuid),
                     "name": "Support",
+                    "system": False,
                     "created_on": format_datetime(support.created_on),
                 },
                 {
                     "uuid": str(self.org.default_ticket_topic.uuid),
                     "name": "General",
+                    "system": True,
                     "created_on": format_datetime(self.org.default_ticket_topic.created_on),
                 },
             ],
@@ -4824,7 +4794,10 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         food = Topic.objects.get(name="Food")
-        self.assertEqual(response.json(), {"uuid": str(food.uuid), "name": "Food", "created_on": matchers.ISODate()})
+        self.assertEqual(
+            response.json(),
+            {"uuid": str(food.uuid), "name": "Food", "system": False, "created_on": matchers.ISODate()},
+        )
 
         # try to create another topic with same name
         response = self.postJSON(url, None, {"name": "food"})
@@ -4851,7 +4824,7 @@ class APITest(TembaTest):
 
         # can't update default topic for an org
         response = self.postJSON(url, "uuid=%s" % self.org.default_ticket_topic.uuid, {"name": "Won't work"})
-        self.assertResponseError(response, "non_field_errors", "Can't modify default topic for a workspace.")
+        self.assertResponseError(response, None, "Cannot modify system object.", status_code=403)
 
         # can't update topic from other org
         response = self.postJSON(url, "uuid=%s" % other_org.uuid, {"name": "Won't work"})
@@ -4866,10 +4839,7 @@ class APITest(TembaTest):
         with override_settings(ORG_LIMIT_DEFAULTS={"topics": current_count}):
             response = self.postJSON(url, None, {"name": "Interesting"})
             self.assertResponseError(
-                response,
-                "non_field_errors",
-                "This workspace has 5 topics and the limit is 5. "
-                "You must delete existing ones before you can create new ones.",
+                response, None, "Cannot create object because workspace has reached limit of 5.", status_code=409
             )
 
     def test_users(self):

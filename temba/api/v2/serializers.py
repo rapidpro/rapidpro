@@ -725,19 +725,6 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
         return self.VALUE_TYPES[value]
 
-    def validate(self, data):
-        org = self.context["org"]
-
-        field_limit = org.get_limit(Org.LIMIT_FIELDS)
-        field_count = org.fields.filter(is_active=True, is_system=False).count()
-        if not self.instance and field_count >= field_limit:
-            raise serializers.ValidationError(
-                "This org has %d contact fields and the limit is %d. You must delete existing ones before you can "
-                "create new ones." % (field_count, field_limit)
-            )
-
-        return data
-
     def save(self):
         org = self.context["org"]
         user = self.context["user"]
@@ -785,21 +772,6 @@ class ContactGroupWriteSerializer(WriteSerializer):
             UniqueForOrgValidator(queryset=ContactGroup.objects.filter(is_active=True), ignore_case=True),
         ],
     )
-
-    def validate(self, data):
-        org = self.context["org"]
-        group_limit = org.get_limit(Org.LIMIT_GROUPS)
-
-        if self.instance and self.instance.is_system:
-            raise serializers.ValidationError("Cannot update a system group.")
-
-        group_count = ContactGroup.get_groups(org, user_only=True).count()
-        if group_count >= group_limit:
-            raise serializers.ValidationError(
-                f"This workspace has {group_count} groups and the limit is {group_limit}. "
-                f"You must delete existing ones before you can create new ones."
-            )
-        return data
 
     def save(self):
         name = self.validated_data.get("name")
@@ -1124,15 +1096,6 @@ class GlobalWriteSerializer(WriteSerializer):
         if not self.instance and not data.get("name"):
             raise serializers.ValidationError("Name is required when creating new global.")
 
-        org = self.context["org"]
-        globals_count = Global.objects.filter(org=org, is_active=True).count()
-        org_active_globals_limit = org.get_limit(Org.LIMIT_GLOBALS)
-
-        if globals_count >= org_active_globals_limit:
-            raise serializers.ValidationError(
-                "This org has %s globals and the limit is %s. You must delete existing ones before you can "
-                "create new ones." % (globals_count, org_active_globals_limit)
-            )
         return data
 
     def save(self):
@@ -1168,18 +1131,6 @@ class LabelWriteSerializer(WriteSerializer):
             UniqueForOrgValidator(queryset=Label.label_objects.filter(is_active=True), ignore_case=True),
         ],
     )
-
-    def validate(self, data):
-        org = self.context["org"]
-
-        count = Label.label_objects.filter(org=org, is_active=True).count()
-        if count >= org.get_limit(Org.LIMIT_LABELS):
-            raise serializers.ValidationError(
-                "This workspace has %d labels and the limit is %d. You must delete existing ones before you can "
-                "create new ones." % (count, org.get_limit(Org.LIMIT_LABELS))
-            )
-
-        return data
 
     def save(self):
         name = self.validated_data.get("name")
@@ -1532,10 +1483,14 @@ class TicketBulkActionSerializer(WriteSerializer):
 
 class TopicReadSerializer(ReadSerializer):
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    system = serializers.SerializerMethodField()
+
+    def get_system(self, obj):
+        return obj.is_default
 
     class Meta:
         model = Topic
-        fields = ("uuid", "name", "created_on")
+        fields = ("uuid", "name", "system", "created_on")
 
 
 class TopicWriteSerializer(WriteSerializer):
@@ -1547,20 +1502,6 @@ class TopicWriteSerializer(WriteSerializer):
             UniqueForOrgValidator(queryset=Topic.objects.filter(is_active=True), ignore_case=True),
         ],
     )
-
-    def validate(self, data):
-        org = self.context["org"]
-
-        if self.instance and self.instance == org.default_ticket_topic:
-            raise serializers.ValidationError("Can't modify default topic for a workspace.")
-
-        count = org.topics.filter(is_active=True).count()
-        if count >= org.get_limit(Org.LIMIT_TOPICS):
-            raise serializers.ValidationError(
-                "This workspace has %s topics and the limit is %s. You must delete existing ones before you can "
-                "create new ones." % (count, org.get_limit(Org.LIMIT_TOPICS))
-            )
-        return data
 
     def save(self):
         name = self.validated_data["name"]
