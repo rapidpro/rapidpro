@@ -447,7 +447,7 @@ class Org(SmartModel):
 
     def get_brand_domain(self):
         return self.get_branding()["domain"]
-    
+
     def has_shared_usage(self):
         return self.plan in self.get_branding().get("shared_plans", [])
 
@@ -2534,7 +2534,9 @@ class OrgActivity(models.Model):
         from temba.msgs.models import Msg
 
         # truncate to midnight the same day in UTC
-        end = pytz.utc.normalize(now.astimezone(pytz.utc) + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        end = pytz.utc.normalize(now.astimezone(pytz.utc) + timedelta(days=1)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         start = end - timedelta(days=1)
 
         # first get all our contact counts
@@ -2569,7 +2571,7 @@ class OrgActivity(models.Model):
             .only("plan_start", "plan_end")
         ):
             plan_end = parent.plan_end if parent.plan_end < end else end
-            orgs = [ parent ]
+            orgs = [parent]
 
             # find our shared usage and collect their stats too
             if parent.has_shared_usage():
