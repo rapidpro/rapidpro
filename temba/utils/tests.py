@@ -23,7 +23,7 @@ from celery.app.task import Task
 
 from temba.campaigns.models import Campaign
 from temba.contacts.models import Contact, ExportContactsTask
-from temba.flows.models import Flow, FlowRun
+from temba.flows.models import Flow
 from temba.tests import TembaTest, matchers
 from temba.triggers.models import Trigger
 from temba.utils import json, uuid
@@ -35,7 +35,7 @@ from .celery import nonoverlapping_task
 from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
-from .fields import is_valid_name, validate_external_url, validate_name
+from .fields import NameValidator, validate_external_url
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
@@ -712,20 +712,6 @@ class CeleryTest(TembaTest):
 
 
 class ModelsTest(TembaTest):
-    def test_require_update_fields(self):
-        contact = self.create_contact("Bob", urns=["twitter:bobby"])
-        flow = self.get_flow("color")
-        run = FlowRun.objects.create(org=self.org, flow=flow, contact=contact)
-
-        # we can save if we specify update_fields
-        run.modified_on = timezone.now()
-        run.save(update_fields=("modified_on",))
-
-        # but not without
-        with self.assertRaises(ValueError):
-            run.modified_on = timezone.now()
-            run.save()
-
     def test_chunk_list(self):
         curr = 0
         for chunk in chunk_list(range(100), 7):
@@ -1268,8 +1254,8 @@ class IDSliceQuerySetTest(TembaTest):
         self.assertEqual(0, empty.total)
 
     def test_prefetch_related(self):
-        flow1 = self.create_flow()
-        flow2 = self.create_flow()
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
         with self.assertNumQueries(2):
             flows = list(IDSliceQuerySet(Flow, [flow1.id, flow2.id], offset=0, total=2).prefetch_related("org"))
             self.assertEqual(self.org, flows[0].org)
@@ -1408,7 +1394,7 @@ class RedactTest(TestCase):
 
 
 class TestValidators(TestCase):
-    def test_validate_name(self):
+    def test_name_validator(self):
         cases = (
             (" ", "Cannot begin or end with whitespace."),
             (" hello", "Cannot begin or end with whitespace."),
@@ -1421,19 +1407,22 @@ class TestValidators(TestCase):
             ("x" * 64, None),
         )
 
+        validator = NameValidator(64)
+
         for tc in cases:
             if tc[1]:
                 with self.assertRaises(ValidationError) as cm:
-                    validate_name(tc[0])
+                    validator(tc[0])
 
                 self.assertEqual(tc[1], cm.exception.messages[0])
-                self.assertFalse(is_valid_name(tc[0]))
             else:
                 try:
-                    validate_name(tc[0])
+                    validator(tc[0])
                 except Exception:
                     self.fail(f"unexpected validation error for '{tc[0]}'")
-                self.assertTrue(is_valid_name(tc[0]))
+
+        self.assertEqual(NameValidator(64), validator)
+        self.assertNotEqual(NameValidator(32), validator)
 
     def test_validate_external_url(self):
         cases = (

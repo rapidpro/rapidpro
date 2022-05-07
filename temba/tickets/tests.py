@@ -19,7 +19,7 @@ from .types.zendesk import ZendeskType
 class TicketTest(TembaTest):
     def test_model(self):
         ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
-        topic = Topic.get_or_create(self.org, self.admin, "Sales")
+        topic = Topic.create(self.org, self.admin, "Sales")
         contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
         ticket = Ticket.objects.create(
@@ -507,7 +507,7 @@ class TicketerTest(TembaTest):
         ticketer.save()
 
         # add a dependency and try again
-        flow = self.create_flow()
+        flow = self.create_flow("Deps")
         flow.ticketer_dependencies.add(ticketer)
 
         self.assertFalse(flow.has_issues)
@@ -592,20 +592,17 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class TopicTest(TembaTest):
-    def test_is_valid_name(self):
-        self.assertTrue(Topic.is_valid_name("Sales"))
-        self.assertTrue(Topic.is_valid_name("Support"))
-        self.assertFalse(Topic.is_valid_name(""))
-        self.assertFalse(Topic.is_valid_name("   "))
-        self.assertFalse(Topic.is_valid_name("  x  "))
-        self.assertFalse(Topic.is_valid_name("!Sales"))
-        self.assertFalse(Topic.is_valid_name("x" * 65))  # too long
-
     def test_model(self):
-        topic1 = Topic.get_or_create(self.org, self.admin, "Sales")
-        topic2 = Topic.get_or_create(self.org, self.admin, "Support")
+        topic1 = Topic.create(self.org, self.admin, "Sales")
 
-        self.assertEqual(topic1, Topic.get_or_create(self.org, self.admin, "Sales"))
-        self.assertEqual(topic2, Topic.get_or_create(self.org, self.admin, "SUPPORT"))
+        self.assertEqual("Sales", topic1.name)
+        self.assertEqual("Sales", str(topic1))
+        self.assertEqual(f'<Topic: uuid={topic1.uuid} name="Sales">', repr(topic1))
 
-        self.assertEqual(f"Topic[uuid={topic1.uuid}, topic=Sales]", str(topic1))
+        # try to create with invalid name
+        with self.assertRaises(AssertionError):
+            Topic.create(self.org, self.admin, '"Support"')
+
+        # try to create with name that already exists
+        with self.assertRaises(AssertionError):
+            Topic.create(self.org, self.admin, "Sales")

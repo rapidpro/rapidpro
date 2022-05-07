@@ -2174,15 +2174,14 @@ class LabelTest(TembaTest):
 
         label2.release(self.admin)
 
-        # will return existing label by name and strip whitespace
+        # will return existing label by name
         self.assertEqual(label1, Label.get_or_create(self.org, self.user, "Spam"))
-        self.assertEqual(label1, Label.get_or_create(self.org, self.user, "  Spam   "))
 
         # but only if it's active
         self.assertNotEqual(label2, Label.get_or_create(self.org, self.user, "Complaints"))
 
         # don't allow invalid name
-        self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
+        self.assertRaises(AssertionError, Label.get_or_create, self.org, self.user, '"Hi"')
 
         # can't use a non-folder as a folder
         self.assertRaises(AssertionError, Label.get_or_create, self.org, self.user, "Important", label1)
@@ -2192,9 +2191,8 @@ class LabelTest(TembaTest):
         self.assertEqual("Spam", folder1.name)
         self.assertIsNone(folder1.folder)
 
-        # will return existing label by name and strip whitespace
+        # will return existing label by name
         self.assertEqual(folder1, Label.get_or_create_folder(self.org, self.user, "Spam"))
-        self.assertEqual(folder1, Label.get_or_create_folder(self.org, self.user, "  Spam   "))
 
         folder1.release(self.admin)
 
@@ -2202,18 +2200,7 @@ class LabelTest(TembaTest):
         self.assertNotEqual(folder1, Label.get_or_create_folder(self.org, self.user, "Spam"))
 
         # don't allow invalid name
-        self.assertRaises(ValueError, Label.get_or_create_folder, self.org, self.user, "+Important")
-
-    def test_is_valid_name(self):
-        self.assertTrue(Label.is_valid_name("x"))
-        self.assertTrue(Label.is_valid_name("1"))
-        self.assertTrue(Label.is_valid_name("x" * 64))
-        self.assertFalse(Label.is_valid_name(" "))
-        self.assertFalse(Label.is_valid_name(" x"))
-        self.assertFalse(Label.is_valid_name("x "))
-        self.assertFalse(Label.is_valid_name("+x"))
-        self.assertFalse(Label.is_valid_name("@x"))
-        self.assertFalse(Label.is_valid_name("x" * 65))
+        self.assertRaises(AssertionError, Label.get_or_create_folder, self.org, self.user, '"Important')
 
     def test_toggle_label(self):
         label = Label.get_or_create(self.org, self.user, "Spam")
@@ -2378,8 +2365,8 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(self.admin)
 
         # try to create label with invalid name
-        response = self.client.post(create_label_url, {"name": "+Spam"})
-        self.assertFormError(response, "form", "name", "Name must not be blank or begin with punctuation")
+        response = self.client.post(create_label_url, {"name": '"Spam"'})
+        self.assertFormError(response, "form", "name", 'Cannot contain the character: "')
 
         # try again with valid name
         self.client.post(create_label_url, {"name": "Spam"}, follow=True)
@@ -2410,8 +2397,8 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertIsNone(label1.folder)
 
         # try to update to invalid label name
-        response = self.client.post(reverse("msgs.label_update", args=[label1.id]), {"name": "+Spam"})
-        self.assertFormError(response, "form", "name", "Name must not be blank or begin with punctuation")
+        response = self.client.post(reverse("msgs.label_update", args=[label1.id]), {"name": '"Spam'})
+        self.assertFormError(response, "form", "name", 'Cannot contain the character: "')
 
         # try creating a new label after reaching the limit on labels
         current_count = Label.label_objects.filter(org=self.org, is_active=True).count()

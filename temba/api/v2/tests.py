@@ -193,7 +193,7 @@ class APITest(TembaTest):
 
         group = self.create_group("Customers")
         field_obj = self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         campaign = Campaign.create(self.org, self.admin, "Reminders #1", group)
         event = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, field_obj, 6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12
@@ -548,7 +548,7 @@ class APITest(TembaTest):
         self.login(self.admin)
 
         # create 1255 test runs (5 full pages of 250 items + 1 partial with 5 items)
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         FlowRun.objects.bulk_create([FlowRun(org=self.org, flow=flow, contact=self.joe) for r in range(1255)])
         actual_ids = list(FlowRun.objects.order_by("-pk").values_list("pk", flat=True))
 
@@ -668,7 +668,7 @@ class APITest(TembaTest):
         """
         mock_flowstart_create.side_effect = ValueError("DOH!")
 
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         self.login(self.admin)
         try:
             self.postJSON(reverse("api.v2.flow_starts"), None, dict(flow=flow.uuid, urns=["tel:+12067791212"]))
@@ -1052,8 +1052,8 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         # try to create a campaign with name that's too long
-        response = self.postJSON(url, None, {"name": "x" * 256, "group": reporters.uuid})
-        self.assertResponseError(response, "name", "Ensure this field has no more than 255 characters.")
+        response = self.postJSON(url, None, {"name": "x" * 65, "group": reporters.uuid})
+        self.assertResponseError(response, "name", "Ensure this field has no more than 64 characters.")
 
         # update campaign by UUID
         response = self.postJSON(url, "uuid=%s" % campaign3.uuid, {"name": "Reminders III", "group": other_group.uuid})
@@ -1100,7 +1100,7 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        flow = self.create_flow()
+        flow = self.create_flow("Test Flow")
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         registration = self.create_field("registration", "Registration", value_type=ContactField.TYPE_DATETIME)
         field_created_on = self.org.fields.get(key="created_on")
@@ -1865,8 +1865,8 @@ class APITest(TembaTest):
         self.assertEqual(resp_json["urns"], ["tel:+250783333333", "twitter:jean"])
 
         # URNs will be normalized
-        nickname = ContactField.get_by_key(self.org, "nickname")
-        gender = ContactField.get_by_key(self.org, "gender")
+        nickname = self.org.fields.get(key="nickname")
+        gender = self.org.fields.get(key="gender")
         jean = Contact.objects.filter(name="Jean", language="fra").order_by("-pk").first()
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.get_groups()), {group})
@@ -2530,8 +2530,14 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         self.create_field("nick_name", "Nick Name")
-        self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
+        registered = self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
         self.create_field("not_ours", "Something Else", org=self.org2)
+
+        # add our date field to a campaign event
+        campaign = Campaign.create(self.org, self.admin, "Reminders", self.create_group("Farmers"))
+        CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, registered, offset=1, unit="W", flow=self.create_flow("Flow")
+        )
 
         deleted = self.create_field("deleted", "Deleted")
         deleted.release(self.admin)
@@ -2598,17 +2604,21 @@ class APITest(TembaTest):
         response = self.postJSON(url, "key=not_ours", {"label": "Something", "value_type": "text"})
         self.assert404(response)
 
-        ContactField.user_fields.all().delete()
+        # try to change type of date field used by campaign event
+        response = self.postJSON(url, "key=registered", {"label": "Registered", "value_type": "text"})
+        self.assertResponseError(
+            response, "value_type", "Can't change type of date field being used by campaign events."
+        )
+
+        CampaignEvent.objects.all().delete()
+        ContactField.objects.filter(is_system=False).delete()
 
         for i in range(10):
             self.create_field("field%d" % i, "Field%d" % i)
 
         response = self.postJSON(url, None, {"label": "Age", "value_type": "numeric"})
         self.assertResponseError(
-            response,
-            "non_field_errors",
-            "This org has 10 contact fields and the limit is 10. "
-            "You must delete existing ones before you can create new ones.",
+            response, None, "Cannot create object because workspace has reached limit of 10.", status_code=409
         )
 
     def test_flows(self):
@@ -2625,7 +2635,7 @@ class APITest(TembaTest):
         Flow.create_single_message(self.org, self.admin, dict(eng="Hello world"), "eng")
 
         # add a flow label
-        reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
+        reporting = FlowLabel.create(self.org, self.admin, "Reporting")
         color.labels.add(reporting)
 
         # make it look like joe completed the color flow
@@ -2635,7 +2645,7 @@ class APITest(TembaTest):
         run.save(update_fields=("status", "exited_on", "modified_on"))
 
         # flow belong to other org
-        self.create_flow(org=self.org2, name="Other")
+        self.create_flow("Other", org=self.org2)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
@@ -2909,10 +2919,7 @@ class APITest(TembaTest):
         # try again now that we've hit the mocked limit of globals per org
         response = self.postJSON(url, None, {"name": "Website URL", "value": "http://example.com"})
         self.assertResponseError(
-            response,
-            "non_field_errors",
-            "This org has 3 globals and the limit is 3. "
-            "You must delete existing ones before you can create new ones.",
+            response, None, "Cannot create object because workspace has reached limit of 3.", status_code=409
         )
 
     @override_settings(ORG_LIMIT_DEFAULTS={"groups": 10})
@@ -3042,9 +3049,9 @@ class APITest(TembaTest):
         reporters.refresh_from_db()
         self.assertEqual(reporters.name, "U-Reporters")
 
-        # can't update a system group from other org
+        # can't update a system group
         response = self.postJSON(url, "uuid=%s" % open_tickets.uuid, {"name": "Won't work"})
-        self.assertResponseError(response, "non_field_errors", "Cannot update a system group.")
+        self.assertResponseError(response, None, "Cannot modify system object.", status_code=403)
         self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
 
         # can't update a group from other org
@@ -3064,11 +3071,7 @@ class APITest(TembaTest):
 
         # can't delete a system group
         response = self.deleteJSON(url, "uuid=%s" % open_tickets.uuid)
-        self.assertEqual(400, response.status_code)
-        self.assertEqual(
-            {"detail": "Cannot delete a system group."},
-            response.json(),
-        )
+        self.assertResponseError(response, None, "Cannot delete system object.", status_code=403)
         self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
 
         # can't delete a group in another org
@@ -3091,10 +3094,7 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {"name": "Reporters"})
         self.assertResponseError(
-            response,
-            "non_field_errors",
-            "This workspace has 10 groups and the limit is 10. "
-            "You must delete existing ones before you can create new ones.",
+            response, None, "Cannot create object because workspace has reached limit of 10.", status_code=409
         )
 
         group1 = ContactGroup.objects.filter(org=self.org, name="group1").first()
@@ -3119,23 +3119,6 @@ class APITest(TembaTest):
         self.assertEqual(
             response.json(),
             {"detail": f"Group is being used by the following triggers which must be archived first: {trigger.id}"},
-        )
-
-    def test_api_groups_cant_delete_with_flow_dependency(self):
-        url = reverse("api.v2.groups")
-        self.login(self.admin)
-
-        self.get_flow("dependencies")
-
-        flow = Flow.objects.get(name="Dependencies")
-        cats = ContactGroup.objects.get(name="Cat Facts")
-
-        response = self.deleteJSON(url, "uuid=%s" % cats.uuid)
-
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(
-            response.json(),
-            {"detail": f"Group is being used by the following flows which must be archived first: {flow.uuid}"},
         )
 
     def test_api_groups_cant_delete_with_campaign_dependency(self):
@@ -3223,8 +3206,8 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         # try to create a label with invalid name
-        response = self.postJSON(url, None, {"name": "!!!#$%^"})
-        self.assertResponseError(response, "name", "Name contains illegal characters.")
+        response = self.postJSON(url, None, {"name": '""'})
+        self.assertResponseError(response, "name", 'Cannot contain the character: "')
 
         # try to create a label with name that's too long
         response = self.postJSON(url, None, {"name": "x" * 65})
@@ -3262,10 +3245,7 @@ class APITest(TembaTest):
         with override_settings(ORG_LIMIT_DEFAULTS={"labels": current_count}):
             response = self.postJSON(url, None, {"name": "Interesting"})
             self.assertResponseError(
-                response,
-                "non_field_errors",
-                "This workspace has 3 labels and the limit is 3. "
-                "You must delete existing ones before you can create new ones.",
+                response, None, "Cannot create object because workspace has reached limit of 3.", status_code=409
             )
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
@@ -3517,7 +3497,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         flow1 = self.get_flow("color_v13")
-        flow2 = Flow.copy(flow1, self.user)
+        flow2 = flow1.clone(self.user)
 
         flow1_nodes = flow1.get_definition()["nodes"]
         color_prompt = flow1_nodes[0]
@@ -3561,7 +3541,7 @@ class APITest(TembaTest):
         joe_run3 = MockSessionWriter(self.joe, flow2).wait().save().session.runs.get()
 
         # add a run for another org
-        flow3 = self.create_flow(org=self.org2)
+        flow3 = self.create_flow("Test", org=self.org2)
         MockSessionWriter(self.hans, flow3).wait().save()
 
         # refresh runs which will have been modified by being interrupted
@@ -3873,8 +3853,8 @@ class APITest(TembaTest):
         self.assertIsNone(Label.all_objects.filter(name="XYZ").first())
 
         # try to use invalid label name
-        response = self.postJSON(url, None, {"messages": [msg1.id, msg2.id], "action": "label", "label_name": "$$$"})
-        self.assertResponseError(response, "label_name", "Name contains illegal characters.")
+        response = self.postJSON(url, None, {"messages": [msg1.id, msg2.id], "action": "label", "label_name": '"Hi"'})
+        self.assertResponseError(response, "label_name", 'Cannot contain the character: "')
 
         # try to label without specifying a label
         response = self.postJSON(url, None, {"messages": [msg1.id, msg2.id], "action": "label"})
@@ -4661,7 +4641,7 @@ class APITest(TembaTest):
 
         # create some tickets
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
-        sales = Topic.get_or_create(self.org, self.admin, "Sales")
+        sales = Topic.create(self.org, self.admin, "Sales")
         ticket1 = self.create_ticket(
             mailgun,
             self.joe,
@@ -4770,9 +4750,9 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # create some topics
-        support = Topic.get_or_create(self.org, self.admin, "Support")
-        sales = Topic.get_or_create(self.org, self.admin, "Sales")
-        other_org = Topic.get_or_create(self.org2, self.admin, "Bugs")
+        support = Topic.create(self.org, self.admin, "Support")
+        sales = Topic.create(self.org, self.admin, "Sales")
+        other_org = Topic.create(self.org2, self.admin, "Bugs")
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
@@ -4787,16 +4767,19 @@ class APITest(TembaTest):
                 {
                     "uuid": str(sales.uuid),
                     "name": "Sales",
+                    "system": False,
                     "created_on": format_datetime(sales.created_on),
                 },
                 {
                     "uuid": str(support.uuid),
                     "name": "Support",
+                    "system": False,
                     "created_on": format_datetime(support.created_on),
                 },
                 {
                     "uuid": str(self.org.default_ticket_topic.uuid),
                     "name": "General",
+                    "system": True,
                     "created_on": format_datetime(self.org.default_ticket_topic.created_on),
                 },
             ],
@@ -4811,7 +4794,10 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         food = Topic.objects.get(name="Food")
-        self.assertEqual(response.json(), {"uuid": str(food.uuid), "name": "Food", "created_on": matchers.ISODate()})
+        self.assertEqual(
+            response.json(),
+            {"uuid": str(food.uuid), "name": "Food", "system": False, "created_on": matchers.ISODate()},
+        )
 
         # try to create another topic with same name
         response = self.postJSON(url, None, {"name": "food"})
@@ -4822,8 +4808,8 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         # try to create a topic with invalid name
-        response = self.postJSON(url, None, {"name": "!!!#$%^"})
-        self.assertResponseError(response, "name", "Contains illegal characters.")
+        response = self.postJSON(url, None, {"name": '"Hi"'})
+        self.assertResponseError(response, "name", 'Cannot contain the character: "')
 
         # try to create a topic with name that's too long
         response = self.postJSON(url, None, {"name": "x" * 65})
@@ -4838,7 +4824,7 @@ class APITest(TembaTest):
 
         # can't update default topic for an org
         response = self.postJSON(url, "uuid=%s" % self.org.default_ticket_topic.uuid, {"name": "Won't work"})
-        self.assertResponseError(response, "non_field_errors", "Can't modify default topic for a workspace.")
+        self.assertResponseError(response, None, "Cannot modify system object.", status_code=403)
 
         # can't update topic from other org
         response = self.postJSON(url, "uuid=%s" % other_org.uuid, {"name": "Won't work"})
@@ -4853,10 +4839,7 @@ class APITest(TembaTest):
         with override_settings(ORG_LIMIT_DEFAULTS={"topics": current_count}):
             response = self.postJSON(url, None, {"name": "Interesting"})
             self.assertResponseError(
-                response,
-                "non_field_errors",
-                "This workspace has 5 topics and the limit is 5. "
-                "You must delete existing ones before you can create new ones.",
+                response, None, "Cannot create object because workspace has reached limit of 5.", status_code=409
             )
 
     def test_users(self):

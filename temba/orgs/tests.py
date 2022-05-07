@@ -751,8 +751,8 @@ class OrgDeleteTest(TembaNonAtomicTest):
         FlowRun.objects.create(org=self.org, flow=child_flow, contact=child_contact)
 
         # labels for our flows
-        flow_label1 = FlowLabel.create(self.parent_org, "Cool Parent Flows")
-        flow_label2 = FlowLabel.create(self.child_org, "Cool Child Flows", parent=flow_label1)
+        flow_label1 = FlowLabel.create(self.parent_org, self.admin, "Cool Parent Flows")
+        flow_label2 = FlowLabel.create(self.child_org, self.admin, "Cool Child Flows", parent=flow_label1)
         parent_flow.labels.add(flow_label1)
         child_flow.labels.add(flow_label2)
 
@@ -1211,7 +1211,7 @@ class OrgTest(TembaTest):
         self.login(self.admin)
 
         mark = self.create_contact("Mark", phone="+12065551212")
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
 
         def send_broadcast_via_api():
             url = reverse("api.v2.broadcasts")
@@ -4588,7 +4588,7 @@ class BulkExportTest(TembaTest):
 
         # create child with that UUID and re-import
         child2 = Flow.create(
-            self.org, self.admin, "New Child", Flow.TYPE_MESSAGE, uuid="a925453e-ad31-46bd-858a-e01136732181"
+            self.org, self.admin, "New Child 2", Flow.TYPE_MESSAGE, uuid="a925453e-ad31-46bd-858a-e01136732181"
         )
 
         self.import_file("parent_without_its_child")
@@ -4713,8 +4713,8 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
     def test_import_flow_with_triggers(self):
-        flow1 = self.create_flow()
-        flow2 = self.create_flow()
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
 
         trigger1 = Trigger.create(
             self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="rating", is_archived=True

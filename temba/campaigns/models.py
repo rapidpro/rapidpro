@@ -1,5 +1,6 @@
+from smartmin.models import SmartModel
+
 from django.db import models
-from django.db.models import Model
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _, ngettext
 
@@ -9,29 +10,19 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit
-from temba.utils.models import TembaModel, TranslatableField
+from temba.utils.models import LegacyUUIDMixin, TembaModel, TranslatableField
 
 
-class Campaign(TembaModel):
-    MAX_NAME_LEN = 255
-
+class Campaign(LegacyUUIDMixin, TembaModel):
     org = models.ForeignKey(Org, related_name="campaigns", on_delete=models.PROTECT)
-    name = models.CharField(max_length=MAX_NAME_LEN)
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="campaigns")
     is_archived = models.BooleanField(default=False)
 
     @classmethod
     def create(cls, org, user, name, group):
-        return cls.objects.create(org=org, name=name, group=group, created_by=user, modified_by=user)
+        assert cls.is_valid_name(name), f"'{name}' is not a valid campaign name"
 
-    @classmethod
-    def get_unique_name(cls, org, base_name: str, ignore=None) -> str:
-        """
-        Generates a unique name based on the given base name
-        """
-        exclude_kwargs = {"id": ignore.id} if ignore else {}
-        qs = org.campaigns.filter(is_active=True).exclude(**exclude_kwargs)
-        return TembaModel.get_unique_name(qs, base_name, cls.MAX_NAME_LEN)
+        return cls.objects.create(org=org, name=name, group=group, created_by=user, modified_by=user)
 
     def recreate_events(self):
         """
@@ -58,7 +49,7 @@ class Campaign(TembaModel):
         imported = []
 
         for campaign_def in campaign_defs:
-            name = campaign_def["name"]
+            name = cls.clean_name(campaign_def["name"])
             group_ref = campaign_def["group"]
             campaign = None
             group = None
@@ -98,7 +89,11 @@ class Campaign(TembaModel):
                     relative_to = org.fields.filter(key=field_key, is_system=True).first()
                 else:
                     relative_to = ContactField.get_or_create(
-                        org, user, key=field_key, name=event_spec["relative_to"]["label"], value_type="D"
+                        org,
+                        user,
+                        key=field_key,
+                        name=event_spec["relative_to"]["label"],
+                        value_type=ContactField.TYPE_DATETIME,
                     )
 
                 start_mode = event_spec.get("start_mode", CampaignEvent.MODE_INTERRUPT)
@@ -235,15 +230,12 @@ class Campaign(TembaModel):
 
         super().delete()
 
-    def __str__(self):
-        return f'Campaign[uuid={self.uuid}, name="{self.name}"]'
-
     class Meta:
         verbose_name = _("Campaign")
         verbose_name_plural = _("Campaigns")
 
 
-class CampaignEvent(TembaModel):
+class CampaignEvent(LegacyUUIDMixin, SmartModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow
     """
@@ -529,7 +521,7 @@ class CampaignEvent(TembaModel):
         verbose_name_plural = _("Campaign Events")
 
 
-class EventFire(Model):
+class EventFire(models.Model):
     """
     A scheduled firing of a campaign event for a particular contact
     """

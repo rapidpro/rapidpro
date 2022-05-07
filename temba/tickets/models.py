@@ -1,12 +1,10 @@
 from abc import ABCMeta
 
-import regex
-from smartmin.models import SmartModel
-
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q, Sum
+from django.db.models.functions import Lower
 from django.template import Engine
 from django.urls import re_path
 from django.utils import timezone
@@ -15,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org
-from temba.utils.models import SquashableModel
+from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
 
@@ -64,24 +62,13 @@ class TicketerType(metaclass=ABCMeta):
         return re_path(r"^connect", self.connect_view.as_view(ticketer_type=self), name="connect")
 
 
-class Ticketer(SmartModel, DependencyMixin):
+class Ticketer(TembaModel, DependencyMixin):
     """
     A service that can open and close tickets
     """
 
-    # our UUID
-    uuid = models.UUIDField(default=uuid4)
-
-    # the type of this ticketer
-    ticketer_type = models.CharField(max_length=16)
-
-    # the org this ticketer is connected to
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticketers")
-
-    # a name for this ticketer
-    name = models.CharField(max_length=64)
-
-    # the configuration options
+    ticketer_type = models.CharField(max_length=16)
     config = models.JSONField()
 
     @classmethod
@@ -146,24 +133,19 @@ class Ticketer(SmartModel, DependencyMixin):
             Ticket.bulk_close(self.org, user, open_tickets, force=True)
 
         self.is_active = False
+        self.name = self.deleted_name()
         self.modified_by = user
-        self.save(update_fields=("is_active", "modified_by", "modified_on"))
-
-    def __str__(self):
-        return f"Ticketer[uuid={self.uuid}, name={self.name}]"
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
 
-class Topic(SmartModel, DependencyMixin):
+class Topic(TembaModel, DependencyMixin):
     """
     The topic of a ticket which controls who can access that ticket.
     """
 
-    MAX_NAME_LEN = 64
     DEFAULT_TOPIC = "General"
 
-    uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="topics")
-    name = models.CharField(max_length=MAX_NAME_LEN)
     is_default = models.BooleanField(default=False)
 
     @classmethod
@@ -175,27 +157,14 @@ class Topic(SmartModel, DependencyMixin):
         )
 
     @classmethod
-    def get_or_create(cls, org, user, name):
-        assert cls.is_valid_name(name), f"{name} is not a valid topic name"
+    def create(cls, org, user, name: str):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid topic name"
+        assert not org.topics.filter(name__iexact=name).exists()
 
-        existing = org.topics.filter(name__iexact=name).first()
-        if existing:
-            return existing
         return org.topics.create(name=name, created_by=user, modified_by=user)
 
-    @classmethod
-    def is_valid_name(cls, name):
-        # don't allow empty strings, blanks, initial or trailing whitespace
-        if not name or name.strip() != name:
-            return False
-
-        if len(name) > cls.MAX_NAME_LEN:
-            return False
-
-        return regex.match(r"\w[\w- ]*", name, flags=regex.UNICODE)
-
-    def __str__(self):
-        return f"Topic[uuid={self.uuid}, topic={self.name}]"
+    class Meta:
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_topic_names")]
 
 
 class Ticket(models.Model):

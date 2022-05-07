@@ -91,6 +91,12 @@ class FlowTest(TembaTest):
 
         self.assertEqual(f"{'X' * 62} 2", Flow.get_unique_name(self.org, "X" * 64))
 
+    def test_clean_name(self):
+        self.assertEqual("Hello", Flow.clean_name("Hello\0"))
+        self.assertEqual("Hello/n", Flow.clean_name("Hello\\n"))
+        self.assertEqual("Say 'Hi'", Flow.clean_name('Say "Hi"'))
+        self.assertEqual("x" * 64, Flow.clean_name("x" * 100))
+
     @patch("temba.mailroom.queue_interrupt")
     def test_archive(self, mock_queue_interrupt):
         flow = self.get_flow("color")
@@ -374,7 +380,7 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, reverse("flows.flow_simulate", args=[flow.id]))
 
     def test_editor_feature_filters(self):
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
 
         self.login(self.admin)
 
@@ -432,32 +438,30 @@ class FlowTest(TembaTest):
         with self.assertRaises(FlowUserConflictException):
             flow.save_revision(self.admin, definition)
 
-    def test_copy(self):
-        flow = self.get_flow("color")
-
-        # pick a really long name so we have to concatenate
-        flow.name = "Color Flow is a long name to use for something like this"
+    def test_clone(self):
+        flow = self.create_flow("123456789012345678901234567890123456789012345678901234567890")  # 60 chars
         flow.expires_after_minutes = 60
-        flow.save()
+        flow.save(update_fields=("expires_after_minutes",))
 
-        # now create a copy
-        copy = Flow.copy(flow, self.admin)
+        copy1 = flow.clone(self.admin)
 
-        # expiration should be copied too
-        self.assertEqual(60, copy.expires_after_minutes)
+        self.assertNotEqual(flow.id, copy1.id)
+        self.assertEqual(60, copy1.expires_after_minutes)
 
-        # should have a different id
-        self.assertNotEqual(flow.id, copy.id)
+        # name should start with "Copy of" and be truncated to 64 chars
+        self.assertEqual("Copy of 12345678901234567890123456789012345678901234567890123456", copy1.name)
 
-        # Name should start with "Copy of"
-        self.assertEqual("Copy of Color Flow is a long name to use for something like thi", copy.name)
+        # cloning again should generate a unique name
+        copy2 = flow.clone(self.admin)
+        self.assertEqual("Copy of 123456789012345678901234567890123456789012345678901234 2", copy2.name)
+        copy3 = flow.clone(self.admin)
+        self.assertEqual("Copy of 123456789012345678901234567890123456789012345678901234 3", copy3.name)
 
     def test_copy_group_split_no_name(self):
         flow = self.get_flow("group_split_no_name")
         flow_def = flow.get_definition()
 
-        copy = Flow.copy(flow, self.admin)
-
+        copy = flow.clone(self.admin)
         copy_def = copy.get_definition()
 
         self.assertEqual(len(copy_def["nodes"]), 1)
@@ -1366,7 +1370,7 @@ class FlowTest(TembaTest):
 
         # create a flow for another org and a flow label
         flow2 = Flow.create(self.org2, self.admin2, "Flow2")
-        flow_label = FlowLabel.objects.create(name="one", org=self.org, parent=None)
+        flow_label = FlowLabel.create(self.org, self.admin, "one")
 
         flow_list_url = reverse("flows.flow_list")
         flow_archived_url = reverse("flows.flow_archived")
@@ -1560,7 +1564,7 @@ class FlowTest(TembaTest):
 
     @mock_mailroom
     def test_preview_start(self, mr_mocks):
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         contact1 = self.create_contact("Ann", phone="+1234567111")
         contact2 = self.create_contact("Bob", phone="+1234567222")
         doctors = self.create_group("Doctors", contacts=[contact1, contact2])
@@ -1751,8 +1755,8 @@ class FlowTest(TembaTest):
         self.assertEqual(0, parent.group_dependencies.all().count())
 
     def test_update_expiration_task(self):
-        flow1 = self.create_flow()
-        flow2 = self.create_flow()
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
 
         # create waiting session and run for flow 1
         session1 = FlowSession.objects.create(
@@ -1810,7 +1814,7 @@ class FlowTest(TembaTest):
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
         menu_url = reverse("flows.flow_menu")
-        FlowLabel.create(self.org, "Important")
+        FlowLabel.create(self.org, self.admin, "Important")
 
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
@@ -2328,7 +2332,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, response.context["folders"][1]["count"])
 
         # can label flows
-        label1 = FlowLabel.create(self.org, "Important")
+        label1 = FlowLabel.create(self.org, self.admin, "Important")
+
         response = self.client.post(
             reverse("flows.flow_list"), {"action": "label", "objects": flow1.id, "label": label1.id}
         )
@@ -2372,6 +2377,28 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, response.context["folders"][0]["count"])
         self.assertEqual(1, response.context["folders"][1]["count"])  # only flow2
 
+    def test_filter(self):
+        flow1 = self.create_flow("Flow 1")
+        flow2 = self.create_flow("Flow 2")
+
+        label1 = FlowLabel.create(self.org, self.admin, "Important")
+        label2 = FlowLabel.create(self.org, self.admin, "Very Important", parent=label1)
+
+        label1.toggle_label([flow1], add=True)
+        label2.toggle_label([flow2], add=True)
+
+        self.login(self.admin)
+
+        response = self.client.get(reverse("flows.flow_filter", args=[label1.uuid]))
+        self.assertEqual([flow2, flow1], list(response.context["object_list"]))
+
+        response = self.client.get(reverse("flows.flow_filter", args=[label2.uuid]))
+        self.assertEqual([flow2], list(response.context["object_list"]))
+
+        # in the spa view, labels are flattened
+        response = self.client.get(reverse("flows.flow_filter", args=[label1.uuid]), HTTP_TEMBA_SPA="1")
+        self.assertEqual(len(response.context["labels_flat"]), 2)
+
     def test_get_definition(self):
         flow = self.get_flow("color_v13")
 
@@ -2396,17 +2423,17 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertIn("metadata", flow.get_definition())
 
         # if definition is outdated, metadata values are updated from db object
-        flow.name = "Amazing Flow"
+        flow.name = "Amazing Flow 2"
         flow.save(update_fields=("name",))
 
-        self.assertEqual("Amazing Flow", flow.get_definition()["metadata"]["name"])
+        self.assertEqual("Amazing Flow 2", flow.get_definition()["metadata"]["name"])
 
         # metadata section can be missing too
         del original_def["metadata"]
         revision.definition = original_def
         revision.save(update_fields=("definition",))
 
-        self.assertEqual("Amazing Flow", flow.get_definition()["metadata"]["name"])
+        self.assertEqual("Amazing Flow 2", flow.get_definition()["metadata"]["name"])
 
     def test_fetch_revisions(self):
         self.login(self.admin)
@@ -2548,7 +2575,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_preview_start(self, mr_mocks):
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         self.create_field("age", "Age")
         contact1 = self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
         contact2 = self.create_contact("Bob", phone="+16303333333", fields={"age": 33})
@@ -2615,8 +2642,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     @mock_mailroom
     def test_broadcast(self, mr_mocks):
         contact = self.create_contact("Bob", phone="+593979099111")
-        flow = self.create_flow()
-        ivr_flow = self.create_flow(flow_type=Flow.TYPE_VOICE)
+        flow = self.create_flow("Test")
+        ivr_flow = self.create_flow("IVR Test", flow_type=Flow.TYPE_VOICE)
 
         broadcast_url = reverse("flows.flow_broadcast", args=[flow.id])
 
@@ -2734,7 +2761,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_broadcast_background_flow(self, mr_mocks):
-        flow = self.create_flow(flow_type=Flow.TYPE_BACKGROUND)
+        flow = self.create_flow("Background", flow_type=Flow.TYPE_BACKGROUND)
 
         broadcast_url = reverse("flows.flow_broadcast", args=[flow.id])
 
@@ -2762,8 +2789,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @patch("temba.flows.views.uuid4")
     def test_upload_media_action(self, mock_uuid):
-        flow = self.create_flow()
-        other_org_flow = self.create_flow(org=self.org2)
+        flow = self.create_flow("Test")
+        other_org_flow = self.create_flow("Test", org=self.org2)
 
         action_url = reverse("flows.flow_upload_media_action", args=[flow.uuid])
 
@@ -2817,7 +2844,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(response, reverse("flows.flow_editor", args=[flow_copy.uuid]))
 
     def test_recent_contacts(self):
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         contact1 = self.create_contact("Bob", phone="0979111111")
         contact2 = self.create_contact("", phone="0979222222")
         node1_exit1_uuid = "805f5073-ce96-4b6a-ab9f-e77dd412f83b"
@@ -3604,7 +3631,7 @@ class FlowRunTest(TembaTest):
             uuid=uuid4(),
             org=self.org,
             session=session,
-            flow=self.create_flow(),
+            flow=self.create_flow("Test"),
             contact=self.contact,
             status=FlowRun.STATUS_WAITING,
             created_on=timezone.now(),
@@ -4966,133 +4993,111 @@ class ExportFlowResultsTest(TembaTest):
 
 
 class FlowLabelTest(TembaTest):
-    def test_label_model(self):
-        # test a the creation of a unique label when we have a long word(more than 32 caracters)
-        response = FlowLabel.create(self.org, "alongwordcomposedofmorethanthirtytwoletters", parent=None)
-        self.assertEqual(response.name, "alongwordcomposedofmorethanthirt")
+    def test_model(self):
+        parent = FlowLabel.create(self.org, self.admin, "Cool Flows")
+        self.assertEqual("Cool Flows", parent.name)
+        self.assertIsNone(parent.parent)
 
-        # try to create another label which starts with the same 32 caracteres
-        # the one we already have
-        label = FlowLabel.create(self.org, "alongwordcomposedofmorethanthirtytwocaracteres", parent=None)
+        child = FlowLabel.create(self.org, self.admin, "Very Cool Flows", parent=parent)
+        self.assertEqual("Very Cool Flows", child.name)
+        self.assertEqual(parent, child.parent)
 
-        self.assertEqual(label.name, "alongwordcomposedofmorethanthi 2")
-        self.assertEqual(str(label), "alongwordcomposedofmorethanthi 2")
-        label = FlowLabel.create(self.org, "child", parent=label)
-        self.assertEqual(str(label), "alongwordcomposedofmorethanthi 2 > child")
+        # can't create with invalid name
+        with self.assertRaises(AssertionError):
+            FlowLabel.create(self.org, self.admin, '"Cool"')
 
-        FlowLabel.create(self.org, "dog")
-        FlowLabel.create(self.org, "dog")
-        dog3 = FlowLabel.create(self.org, "dog")
-        self.assertEqual("dog 3", dog3.name)
+        # can't create with duplicate name
+        with self.assertRaises(AssertionError):
+            FlowLabel.create(self.org, self.admin, "Cool Flows")
 
-        dog4 = FlowLabel.create(self.org, "dog ")
-        self.assertEqual("dog 4", dog4.name)
+        flow1 = self.create_flow("Flow 1")
+        flow2 = self.create_flow("Flow 2")
+        flow3 = self.create_flow("Flow 3")
 
-        # view the parent label, should see the child
-        self.login(self.admin)
-        favorites = self.get_flow("favorites")
-        label.toggle_label([favorites], True)
-        response = self.client.get(reverse("flows.flow_filter", args=[label.uuid]))
-        self.assertEqual([favorites], list(response.context["object_list"]))
-        # our child label
-        self.assertContains(response, "child")
+        parent.toggle_label([flow1, flow2], add=True)
+        self.assertEqual({flow1, flow2}, set(parent.get_flows()))
 
-        # and the edit gear link
-        self.assertContains(response, "Edit")
+        child.toggle_label([flow3], add=True)
+        self.assertEqual({flow3}, set(child.get_flows()))
+        self.assertEqual({flow1, flow2, flow3}, set(parent.get_flows()))
 
-        favorites.is_active = False
-        favorites.save()
+        parent.toggle_label([flow1], add=False)
+        self.assertEqual({flow2, flow3}, set(parent.get_flows()))
 
-        response = self.client.get(reverse("flows.flow_filter", args=[label.uuid]))
-        self.assertFalse(response.context["object_list"])
 
-        # try to view our cat label in our other org
-        cat = FlowLabel.create(self.org2, "cat")
-        response = self.client.get(reverse("flows.flow_filter", args=[cat.uuid]))
-        self.assertLoginRedirect(response)
-
-        # in the spa view, labels are flattened
-        response = self.client.get(reverse("flows.flow_filter", args=[label.uuid]), HTTP_TEMBA_SPA="1")
-        self.assertEqual(len(response.context["labels_flat"]), 7)
-
-    def test_toggle_label(self):
-        label = FlowLabel.create(self.org, "toggle me")
-        flow = self.get_flow("favorites")
-
-        changed = label.toggle_label([flow], True)
-        self.assertEqual(1, len(changed))
-        self.assertEqual(label.pk, flow.labels.all().first().pk)
-
-        changed = label.toggle_label([flow], False)
-        self.assertEqual(1, len(changed))
-        self.assertIsNone(flow.labels.all().first())
-
+class FlowLabelCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("flows.flowlabel_create")
 
-        post_data = dict(name="label_one")
+        self.assertCreateFetch(
+            create_url, allow_viewers=False, allow_editors=True, form_fields=("name", "parent", "flows")
+        )
 
-        self.login(self.admin)
-        response = self.client.post(create_url, post_data, follow=True)
-        self.assertEqual(FlowLabel.objects.all().count(), 1)
-        self.assertEqual(FlowLabel.objects.all()[0].parent, None)
+        # try to submit without a name
+        self.assertCreateSubmit(create_url, {}, form_errors={"name": "This field is required."})
 
-        label_one = FlowLabel.objects.all()[0]
-        post_data = dict(name="sub_label", parent=label_one.pk)
-        response = self.client.post(create_url, post_data, follow=True)
+        # try to submit with an invalid name
+        self.assertCreateSubmit(
+            create_url, {"name": '"Cool"\\'}, form_errors={"name": 'Cannot contain the character: "'}
+        )
 
-        self.assertEqual(FlowLabel.objects.all().count(), 2)
-        self.assertEqual(FlowLabel.objects.filter(parent=None).count(), 1)
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "Cool Flows"},
+            new_obj_query=FlowLabel.objects.filter(org=self.org, name="Cool Flows", parent=None),
+        )
+        label1 = FlowLabel.objects.get(name="Cool Flows")
 
-        post_data = dict(name="sub_label ", parent=label_one.pk)
-        response = self.client.post(create_url, post_data, follow=True)
-        self.assertIn("form", response.context)
-        self.assertTrue(response.context["form"].errors)
-        self.assertEqual("Name already used", response.context["form"].errors["name"][0])
+        # try to create with a name that's already used
+        self.assertCreateSubmit(create_url, {"name": "Cool Flows"}, form_errors={"name": "Must be unique."})
 
-        self.assertEqual(FlowLabel.objects.all().count(), 2)
-        self.assertEqual(FlowLabel.objects.filter(parent=None).count(), 1)
-
-        post_data = dict(name="label from modal")
-        response = self.client.post("%s?format=modal" % create_url, post_data, follow=True)
-        self.assertEqual(FlowLabel.objects.all().count(), 3)
-
-    def test_delete(self):
-        label_one = FlowLabel.create(self.org, "label1")
-
-        delete_url = reverse("flows.flowlabel_delete", args=[label_one.pk])
-
-        self.other_user = self.create_user("ironman")
-
-        self.login(self.other_user)
-        response = self.client.get(delete_url)
-        self.assertEqual(response.status_code, 302)
-
-        self.login(self.admin)
-        response = self.client.post(delete_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertIsNone(FlowLabel.objects.filter(uuid=label_one.uuid).first())
+        # create a label with a parent
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "Very Cool Flows", "parent": label1.id},
+            new_obj_query=FlowLabel.objects.filter(org=self.org, name="Very Cool Flows", parent=label1),
+        )
 
     def test_update(self):
-        label_one = FlowLabel.create(self.org, "label1")
-        update_url = reverse("flows.flowlabel_update", args=[label_one.pk])
+        parent = FlowLabel.create(self.org, self.admin, "Cool Flows")
+        child = FlowLabel.create(self.org, self.admin, "Very Cool Flows", parent=parent)
 
-        # not logged in, no dice
-        response = self.client.get(update_url)
-        self.assertLoginRedirect(response)
+        parent_url = reverse("flows.flowlabel_update", args=[parent.id])
+        child_url = reverse("flows.flowlabel_update", args=[child.id])
 
-        # login
-        self.login(self.admin)
-        response = self.client.get(update_url)
+        # if a label has children it can't have a parent
+        self.assertUpdateFetch(parent_url, allow_viewers=False, allow_editors=True, form_fields=("name",))
+        self.assertUpdateFetch(child_url, allow_viewers=False, allow_editors=True, form_fields=("name", "parent"))
 
-        # change our name
-        data = response.context["form"].initial
-        data["name"] = "Label One"
-        data["parent"] = ""
-        self.client.post(update_url, data)
+        # try to update to an invalid name
+        self.assertUpdateSubmit(
+            parent_url,
+            {"name": '"Cool"\\'},
+            form_errors={"name": 'Cannot contain the character: "'},
+            object_unchanged=parent,
+        )
 
-        label_one.refresh_from_db()
-        self.assertEqual(label_one.name, "Label One")
+        # try to update to a non-unique name
+        self.assertUpdateSubmit(
+            parent_url, {"name": "Very Cool Flows"}, form_errors={"name": "Must be unique."}, object_unchanged=parent
+        )
+
+        self.assertUpdateSubmit(parent_url, {"name": "All Cool Flows"})
+
+        parent.refresh_from_db()
+        self.assertEqual("All Cool Flows", parent.name)
+
+    def test_delete(self):
+        parent = FlowLabel.create(self.org, self.admin, "Cool Flows")
+        child = FlowLabel.create(self.org, self.admin, "Very Cool Flows", parent=parent)
+
+        delete_url = reverse("flows.flowlabel_delete", args=[parent.id])
+
+        self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertDeleteSubmit(delete_url, object_deleted=parent, success_status=200)
+
+        # child label with have been deleted too
+        self.assertFalse(FlowLabel.objects.filter(id=child.id).exists())
 
 
 class SimulationTest(TembaTest):
@@ -5278,7 +5283,7 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         FlowStartCount.objects.create(start=start3, count=1000)
         FlowStartCount.objects.create(start=start3, count=234)
 
-        other_org_flow = self.create_flow(org=self.org2)
+        other_org_flow = self.create_flow("Test", org=self.org2)
         FlowStart.create(other_org_flow, self.admin2)
 
         response = self.assertListFetch(
@@ -5421,32 +5426,21 @@ class FlowRevisionTest(TembaTest):
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
 
 
-class UpdateDeletedFlowNamesMigrationTest(MigrationTest):
+class FixInvalidNamesTest(MigrationTest):
     app = "flows"
-    migrate_from = "0280_alter_flowrun_contact_and_more"
-    migrate_to = "0281_update_deleted_flow_names"
+    migrate_from = "0284_flow_unique_flow_names"
+    migrate_to = "0285_fix_invalid_names"
 
     def setUpBeforeMigration(self, apps):
-        # create active flow
-        self.flow1 = self.create_flow("Test 1")
-
-        # create deleted flow that needs name update
-        self.flow2 = self.create_flow("Test 2")
-        self.flow2.is_active = False
-        self.flow2.save(update_fields=("is_active",))
-
-        # create deleted flow that doesn't need name update
-        self.flow3 = self.create_flow("deleted-ab2f2562-9696-4b35-8a39-6093051ea20a-Test 3")
-        self.flow3.is_active = False
-        self.flow3.save(update_fields=("is_active",))
+        self.flow1 = Flow.objects.create(
+            org=self.org,
+            name='Say "Hi"\\ There',
+            is_system=False,
+            saved_by=self.admin,
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
 
     def test_migration(self):
         self.flow1.refresh_from_db()
-        self.assertEqual("Test 1", self.flow1.name)  # unchanged
-
-        self.flow2.refresh_from_db()
-        self.assertTrue(self.flow2.name.startswith("deleted-"))
-        self.assertTrue(self.flow2.name.endswith("-Test 2"))
-
-        self.flow3.refresh_from_db()
-        self.assertEqual("deleted-ab2f2562-9696-4b35-8a39-6093051ea20a-Test 3", self.flow3.name)  # unchanged
+        self.assertEqual("Say 'Hi'/ There", self.flow1.name)

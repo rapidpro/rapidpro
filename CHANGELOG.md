@@ -1,3 +1,42 @@
+v7.3.35
+----------
+ * Tweaks to Topic model to enforce name uniqueness
+ * Add __str__ and __repr__ to TembaModel to replace custom methods and remove several unused ones
+ * Convert FlowLabel to be a TembaModel
+
+v7.3.34
+----------
+ * Fix copying flows to generate a unique name
+ * Rework TembaModel to be a base model class with UUID and name
+
+v7.3.33
+----------
+ * Use model mixin for common name functionality across models
+
+v7.3.32
+----------
+ * Add DB constraint to enforce flow name uniqueness
+
+v7.3.31
+----------
+ * Update components with resolved locked file
+
+v7.3.29
+----------
+ * Fix for flatpickr issue breaking date picker
+ * ContactField.get_or_create should enforce name uniqeuness and ignore invalid names
+ * Add validation error when changing type of field used by campaign events
+
+v7.3.28
+----------
+ * Tweak flow name uniqueness migration to honor max flow name length
+
+v7.3.27
+----------
+ * Tweak header to be uniform treatment regardless of menu
+ * Data migration to make flow names unique
+ * Add flow.preview_start endpoint which calls mailroom endpoint
+
 v7.3.26
 ----------
  * Fix mailroom_db command to set languages on new orgs

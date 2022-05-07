@@ -177,6 +177,7 @@ class WriteAPIMixin:
 
     write_serializer_class = None
     write_with_transaction = True
+    org_limit_key = None
 
     def post_save(self, instance):
         """
@@ -190,8 +191,19 @@ class WriteAPIMixin:
         # determine if this is an update of an existing object or a create of a new object
         if self.lookup_values:
             instance = self.get_object()
+            if self.is_system_instance(instance):
+                return Response({"detail": "Cannot modify system object."}, status=status.HTTP_403_FORBIDDEN)
         else:
             instance = None
+
+            if self.org_limit_key:
+                org = request.user.get_org()
+                org_limit = org.get_limit(self.org_limit_key)
+                if self.get_org_limit_count(org) >= org_limit:
+                    return Response(
+                        {"detail": f"Cannot create object because workspace has reached limit of {org_limit}."},
+                        status=status.HTTP_409_CONFLICT,
+                    )
 
         context = self.get_serializer_context()
         context["lookup_values"] = self.lookup_values
@@ -207,6 +219,15 @@ class WriteAPIMixin:
                 return self.render_write_response(output, context)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def is_system_instance(self, obj):
+        return getattr(obj, "is_system", False)
+
+    def get_org_limit_count(self, org) -> int:  # pragma: no cover
+        """
+        Get the count of objects that count toward the org limit for that type
+        """
+        return 0
 
     def render_write_response(self, write_output, context):
         response_serializer = self.serializer_class(instance=write_output, context=context)
@@ -249,6 +270,9 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
             )
 
         instance = self.get_object()
+        if self.is_system_instance(instance):
+            return Response({"detail": "Cannot delete system object."}, status=status.HTTP_403_FORBIDDEN)
+
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 

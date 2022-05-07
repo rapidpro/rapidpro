@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 
-import temba.utils.models
+import temba.utils.fields
 
 
 class Migration(migrations.Migration):
@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             model_name="flow",
             name="name",
             field=models.CharField(
-                help_text="The name of this flow.", max_length=64, validators=[temba.utils.fields.validate_name]
+                help_text="The name of this flow.", max_length=64, validators=[temba.utils.fields.NameValidator(64)]
             ),
         ),
     ]

@@ -17,7 +17,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Max, Q, Sum
-from django.db.models.functions import TruncDate
+from django.db.models.functions import Lower, TruncDate
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -34,15 +34,7 @@ from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.fields import validate_name
-from temba.utils.models import (
-    JSONAsTextField,
-    JSONField,
-    RequireUpdateFieldsMixin,
-    SquashableModel,
-    TembaModel,
-    generate_uuid,
-)
+from temba.utils.models import JSONAsTextField, JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
 from . import legacy
@@ -69,9 +61,7 @@ FLOW_LOCK_TTL = 60  # 1 minute
 FLOW_LOCK_KEY = "org:%d:lock:flow:%d:definition"
 
 
-class Flow(TembaModel, DependencyMixin):
-    MAX_NAME_LEN = 64
-
+class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
     CONTACT_CREATION = "contact_creation"
     CONTACT_PER_RUN = "run"
     CONTACT_PER_LOGIN = "login"
@@ -161,8 +151,6 @@ class Flow(TembaModel, DependencyMixin):
         TYPE_SURVEY: 0,
     }
 
-    name = models.CharField(max_length=MAX_NAME_LEN, help_text=_("The name of this flow."), validators=[validate_name])
-
     labels = models.ManyToManyField("FlowLabel", related_name="flows")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flows")
@@ -224,6 +212,7 @@ class Flow(TembaModel, DependencyMixin):
         create_revision=False,
         **kwargs,
     ):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid flow name"
         assert not expires_after_minutes or cls.is_valid_expires(flow_type, expires_after_minutes)
 
         flow = cls.objects.create(
@@ -347,7 +336,7 @@ class Flow(TembaModel, DependencyMixin):
             flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, 0)
 
             flow = None
-            flow_name = flow_name[:64].strip().replace('"', "'").replace("\0", "")
+            flow_name = cls.clean_name(flow_name)
 
             # ensure expires is valid for the flow type
             if not cls.is_valid_expires(flow_type, flow_expires):
@@ -409,19 +398,23 @@ class Flow(TembaModel, DependencyMixin):
         valid_expires = {c[0] for c in cls.EXPIRES_CHOICES.get(flow_type, ())}
         return not valid_expires or expires in valid_expires
 
-    @classmethod
-    def copy(cls, flow, user):
-        copy = Flow.create(flow.org, user, "Copy of %s" % flow.name[:55], flow_type=flow.flow_type)
+    def clone(self, user):
+        """
+        Returns a clone of this flow
+        """
+        name = self.get_unique_name(self.org, f"Copy of {self.name}"[: self.MAX_NAME_LEN])
+        copy = Flow.create(
+            self.org,
+            user,
+            name,
+            flow_type=self.flow_type,
+            expires_after_minutes=self.expires_after_minutes,
+            base_language=self.base_language,
+        )
 
-        # grab the json of our original
-        flow_json = flow.get_definition()
-
+        # import the original's definition into the copy
+        flow_json = self.get_definition()
         copy.import_definition(user, flow_json, {})
-
-        # copy our expiration as well
-        copy.expires_after_minutes = flow.expires_after_minutes
-        copy.save()
-
         return copy
 
     @classmethod
@@ -434,14 +427,6 @@ class Flow(TembaModel, DependencyMixin):
         flow_ids = [f.id for f in flows]
         response = mailroom.get_client().po_import(org.id, flow_ids, language=language, po_data=po_data)
         return {d["uuid"]: d for d in response["flows"]}
-
-    @classmethod
-    def get_unique_name(cls, org, base_name: str, ignore=None) -> str:
-        """
-        Generates a unique name based on the given base name
-        """
-        exclude_kwargs = {"id": ignore.id} if ignore else {}
-        return TembaModel.get_unique_name(org.flows.exclude(**exclude_kwargs), base_name, cls.MAX_NAME_LEN)
 
     @classmethod
     def apply_action_label(cls, user, flows, label):
@@ -591,7 +576,7 @@ class Flow(TembaModel, DependencyMixin):
 
         # ensure any topic dependencies exist
         for ref in deps_of_type("topic"):
-            topic = Topic.get_or_create(self.org, user, ref["name"])
+            topic = Topic.create(self.org, user, ref["name"])
             dependency_mapping[ref["uuid"]] = str(topic.uuid)
 
         # for dependencies we can't create, look for them by UUID (this is a clone in same workspace)
@@ -768,9 +753,6 @@ class Flow(TembaModel, DependencyMixin):
         Returns whether this flow still uses a legacy definition
         """
         return Version(self.version_number) < Version(Flow.INITIAL_GOFLOW_VERSION)
-
-    def as_export_ref(self) -> dict:
-        return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
 
     @classmethod
     def get_metadata(cls, flow_info) -> dict:
@@ -999,7 +981,7 @@ class Flow(TembaModel, DependencyMixin):
 
         super().release(user)
 
-        self.name = f"deleted-{uuid4()}-{self.name}"[: self.MAX_NAME_LEN]
+        self.name = self.deleted_name()
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
@@ -1067,13 +1049,12 @@ class Flow(TembaModel, DependencyMixin):
 
         super().delete()
 
-    def __str__(self):
-        return self.name
-
     class Meta:
         ordering = ("-modified_on",)
         verbose_name = _("Flow")
         verbose_name_plural = _("Flows")
+
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_flow_names")]
 
 
 class FlowSession(models.Model):
@@ -1173,7 +1154,7 @@ class FlowSession(models.Model):
         ]
 
 
-class FlowRun(RequireUpdateFieldsMixin, models.Model):
+class FlowRun(models.Model):
     """
     A single contact's journey through a flow. It records the path taken, results collected etc.
     """
@@ -1567,9 +1548,6 @@ class FlowPathCount(SquashableModel):
         totals = list(counts.values_list("from_uuid", "to_uuid").annotate(replies=Sum("count")))
         return {"%s:%s" % (t[0], t[1]): t[2] for t in totals}
 
-    def __str__(self):  # pragma: no cover
-        return f"FlowPathCount({self.flow_id}) {self.from_uuid}:{self.to_uuid} {self.period} count: {self.count}"
-
     class Meta:
         index_together = ["flow", "from_uuid", "to_uuid", "period"]
 
@@ -1658,9 +1636,6 @@ class FlowRunCount(SquashableModel):
     def get_totals(cls, flow):
         totals = list(cls.objects.filter(flow=flow).values_list("exit_type").annotate(replies=Sum("count")))
         return {t[0]: t[1] for t in totals}
-
-    def __str__(self):  # pragma: needs cover
-        return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)
 
     class Meta:
         index_together = ("flow", "exit_type")
@@ -2172,42 +2147,21 @@ class FlowStartCount(SquashableModel):
         for start in starts:
             start.run_count = counts_by_start.get(start.id, 0)
 
-    def __str__(self):  # pragma: needs cover
-        return f"FlowStartCount[start={self.start_id}, count={self.count}]"
 
-
-class FlowLabel(models.Model):
+class FlowLabel(LegacyUUIDMixin, TembaModel):
     """
     A label applied to a flow rather than a message
     """
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_labels")
-    uuid = models.CharField(max_length=36, unique=True, db_index=True, default=generate_uuid)
-    name = models.CharField(max_length=64)
     parent = models.ForeignKey("FlowLabel", on_delete=models.PROTECT, null=True, related_name="children")
 
     @classmethod
-    def create(cls, org, base, parent=None):
+    def create(cls, org, user, name: str, parent=None):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid flow label name"
+        assert not org.flow_labels.filter(name__iexact=name).exists()
 
-        base = base.strip()
-
-        # truncate if necessary
-        if len(base) > 32:
-            base = base[:32]
-
-        # find the next available label by appending numbers
-        count = 2
-        while FlowLabel.objects.filter(org=org, name=base, parent=parent):
-            # make room for the number
-            if len(base) >= 32:
-                base = base[:30]
-            last = str(count - 1)
-            if base.endswith(last):
-                base = base[: -len(last)]
-            base = "%s %d" % (base.strip(), count)
-            count += 1
-
-        return FlowLabel.objects.create(org=org, name=base, parent=parent)
+        return cls.objects.create(org=org, name=name, parent=parent, created_by=user, modified_by=user)
 
     def get_flows_count(self):
         """
@@ -2222,21 +2176,21 @@ class FlowLabel(models.Model):
             .distinct()
         )
 
-    def toggle_label(self, flows, add):
+    def toggle_label(self, flows, *, add: bool):
         changed = []
 
         for flow in flows:
             # if we are adding the flow label and this flow doesnt have it, add it
             if add:
-                if not flow.labels.filter(pk=self.pk):
+                if not flow.labels.filter(pk=self.id):
                     flow.labels.add(self)
-                    changed.append(flow.pk)
+                    changed.append(flow.id)
 
             # otherwise, remove it if not already present
             else:
-                if flow.labels.filter(pk=self.pk):
+                if flow.labels.filter(pk=self.id):
                     flow.labels.remove(self)
-                    changed.append(flow.pk)
+                    changed.append(flow.id)
 
         return changed
 
@@ -2252,7 +2206,7 @@ class FlowLabel(models.Model):
         return self.name
 
     class Meta:
-        unique_together = ("name", "parent", "org")
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_flowlabel_names")]
 
 
 __flow_users = None
