@@ -447,6 +447,9 @@ class Org(SmartModel):
 
     def get_brand_domain(self):
         return self.get_branding()["domain"]
+    
+    def has_shared_usage(self):
+        return self.plan in self.get_branding().get("shared_plans", [])
 
     def lock_on(self, lock, qualifier=None):
         """
@@ -2531,7 +2534,7 @@ class OrgActivity(models.Model):
         from temba.msgs.models import Msg
 
         # truncate to midnight the same day in UTC
-        end = pytz.utc.normalize(now.astimezone(pytz.utc)).replace(hour=0, minute=0, second=0, microsecond=0)
+        end = pytz.utc.normalize(now.astimezone(pytz.utc) + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
         start = end - timedelta(days=1)
 
         # first get all our contact counts
@@ -2559,20 +2562,28 @@ class OrgActivity(models.Model):
 
         # calculate active count in plan period for orgs with an active plan
         plan_active_contact_counts = dict()
-        for org in (
+        for parent in (
             Org.objects.exclude(plan_end=None)
             .exclude(plan_start=None)
             .exclude(plan_end__lt=start)
             .only("plan_start", "plan_end")
         ):
-            plan_end = org.plan_end if org.plan_end < end else end
-            count = (
-                Msg.objects.filter(org=org, created_on__gt=org.plan_start, created_on__lt=plan_end)
-                .only("contact")
-                .distinct("contact")
-                .count()
-            )
-            plan_active_contact_counts[org.id] = count
+            plan_end = parent.plan_end if parent.plan_end < end else end
+            orgs = [ parent ]
+
+            # find our shared usage and collect their stats too
+            if parent.has_shared_usage():
+                for child_org in Org.objects.filter(parent=parent, is_active=True):
+                    orgs.append(child_org)
+
+            for org in orgs:
+                count = (
+                    Msg.objects.filter(org=org, created_on__gt=parent.plan_start, created_on__lt=plan_end)
+                    .only("contact")
+                    .distinct("contact")
+                    .count()
+                )
+                plan_active_contact_counts[org.id] = count
 
         for org in contact_counts:
             OrgActivity.objects.update_or_create(
