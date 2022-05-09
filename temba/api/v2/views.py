@@ -41,6 +41,7 @@ from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import splitting_getlist, str_to_bool
+from temba.utils.uuid import is_uuid
 
 from ..models import SSLPermission
 from ..support import InvalidQueryError
@@ -907,7 +908,10 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
         # filter by campaign name/uuid (optional)
         campaign_ref = params.get("campaign")
         if campaign_ref:
-            campaign = Campaign.objects.filter(org=org).filter(Q(uuid=campaign_ref) | Q(name=campaign_ref)).first()
+            campaign_filter = Q(name=campaign_ref)
+            if is_uuid(campaign_ref):
+                campaign_filter |= Q(uuid=campaign_ref)
+            campaign = org.campaigns.filter(campaign_filter).first()
             if campaign:
                 queryset = queryset.filter(campaign=campaign)
             else:
@@ -2224,17 +2228,11 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         # if there are still dependencies, give up
         triggers = instance.triggers.filter(is_archived=False)
         if triggers:
-            deps = ", ".join([str(t.id) for t in triggers])
-            raise InvalidQueryError(
-                f"Group is being used by the following triggers which must be archived first: {deps}"
-            )
+            raise InvalidQueryError("Group is being used by triggers which must be archived first.")
 
         campaigns = instance.campaigns.filter(is_archived=False)
         if campaigns:
-            deps = ", ".join([c.uuid for c in campaigns])
-            raise InvalidQueryError(
-                f"Group is being used by the following campaigns which must be archived first: {deps}"
-            )
+            raise InvalidQueryError("Group is being used by campaigns which must be archived first.")
 
         instance.release(self.request.user)
 

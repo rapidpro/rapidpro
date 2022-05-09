@@ -1022,11 +1022,11 @@ class CampaignTest(TembaTest):
             campaign.as_export_def(),
             {
                 "name": "Planting Reminders",
-                "uuid": campaign.uuid,
-                "group": {"uuid": self.farmers.uuid, "name": "Farmers"},
+                "uuid": str(campaign.uuid),
+                "group": {"uuid": str(self.farmers.uuid), "name": "Farmers"},
                 "events": [
                     {
-                        "uuid": planting_reminder.uuid,
+                        "uuid": str(planting_reminder.uuid),
                         "offset": 3,
                         "unit": "D",
                         "event_type": "F",
@@ -1034,7 +1034,7 @@ class CampaignTest(TembaTest):
                         "delivery_hour": -1,
                         "message": None,
                         "relative_to": {"label": "Planting Date", "key": "planting_date"},
-                        "flow": {"uuid": self.reminder_flow.uuid, "name": "Reminder Flow"},
+                        "flow": {"uuid": str(self.reminder_flow.uuid), "name": "Reminder Flow"},
                     }
                 ],
             },
@@ -1049,11 +1049,11 @@ class CampaignTest(TembaTest):
             campaign2.as_export_def(),
             {
                 "name": "Planting Reminders 2",
-                "uuid": campaign2.uuid,
-                "group": {"uuid": self.farmers.uuid, "name": "Farmers"},
+                "uuid": str(campaign2.uuid),
+                "group": {"uuid": str(self.farmers.uuid), "name": "Farmers"},
                 "events": [
                     {
-                        "uuid": planting_reminder2.uuid,
+                        "uuid": str(planting_reminder2.uuid),
                         "offset": 2,
                         "unit": "D",
                         "event_type": "F",
@@ -1061,7 +1061,7 @@ class CampaignTest(TembaTest):
                         "delivery_hour": -1,
                         "message": None,
                         "relative_to": {"key": "created_on", "label": "Created On"},
-                        "flow": {"uuid": self.reminder_flow.uuid, "name": "Reminder Flow"},
+                        "flow": {"uuid": str(self.reminder_flow.uuid), "name": "Reminder Flow"},
                     }
                 ],
             },
@@ -1076,11 +1076,11 @@ class CampaignTest(TembaTest):
             campaign3.as_export_def(),
             {
                 "name": "Planting Reminders 2",
-                "uuid": campaign3.uuid,
-                "group": {"uuid": self.farmers.uuid, "name": "Farmers"},
+                "uuid": str(campaign3.uuid),
+                "group": {"uuid": str(self.farmers.uuid), "name": "Farmers"},
                 "events": [
                     {
-                        "uuid": planting_reminder3.uuid,
+                        "uuid": str(planting_reminder3.uuid),
                         "offset": 2,
                         "unit": "D",
                         "event_type": "M",
@@ -1170,29 +1170,27 @@ class CampaignTest(TembaTest):
             modified_by=self.user,
         )
 
-        self.assertRaises(
-            ValueError,
-            CampaignEvent.create_message_event,
-            new_org,
-            self.admin,
-            campaign,
-            offset=3,
-            unit="D",
-            message="oy, pancake man, come back",
-            relative_to=self.planting_date,
-        )
+        with self.assertRaises(AssertionError):
+            CampaignEvent.create_message_event(
+                new_org,
+                self.admin,
+                campaign,
+                offset=3,
+                unit="D",
+                message="oy, pancake man, come back",
+                relative_to=self.planting_date,
+            )
 
-        self.assertRaises(
-            ValueError,
-            CampaignEvent.create_message_event,
-            self.org,
-            self.admin,
-            campaign,
-            offset=3,
-            unit="D",
-            message="oy, pancake man, come back",
-            relative_to=field_language,
-        )
+        with self.assertRaises(ValueError):
+            CampaignEvent.create_message_event(
+                self.org,
+                self.admin,
+                campaign,
+                offset=3,
+                unit="D",
+                message="oy, pancake man, come back",
+                relative_to=field_language,
+            )
 
         campaign_event = CampaignEvent.create_message_event(
             self.org,
