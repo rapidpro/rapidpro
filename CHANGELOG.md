@@ -1,3 +1,12 @@
+v7.3.36
+----------
+ * Add migration to update names of deleted labels and add constraint to enforce uniqueness
+ * Move org limit checking from serializers to API views
+ * Generalize preventing deletion of system objects via the API and allow deleting of groups that are used in flows
+ * Serialized topics in the API should include system field
+ * Add name uniqueness constraints to Team and Topic
+ * Add Team and TicketDailyCount models
+
 v7.3.35
 ----------
  * Tweaks to Topic model to enforce name uniqueness
