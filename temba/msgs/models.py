@@ -13,7 +13,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.db.models import Prefetch, Q, Sum
-from django.db.models.functions import Upper
+from django.db.models.functions import Lower, Upper
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -910,9 +910,9 @@ class Label(LegacyUUIDMixin, TembaModel, DependencyMixin):
         assert cls.is_valid_name(name), f"'{name}' is not a valid label name"
         assert not folder or folder.is_folder(), "folder must be a folder if provided"
 
-        label = cls.label_objects.filter(org=org, name__iexact=name, is_active=True).first()
-        if label:
-            return label
+        existing = cls.label_objects.filter(org=org, name__iexact=name, is_active=True).first()
+        if existing:
+            return existing
 
         return cls.label_objects.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
 
@@ -985,7 +985,7 @@ class Label(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for msg in msgs:
             assert msg.direction == Msg.DIRECTION_IN
 
-            # if we are adding the label and this message doesnt have it, add it
+            # if we are adding the label and this message doesn't have it, add it
             if add:
                 if not msg.labels.filter(pk=self.pk):
                     msg.labels.add(self)
@@ -1028,6 +1028,9 @@ class Label(LegacyUUIDMixin, TembaModel, DependencyMixin):
         if self.folder:
             return "%s > %s" % (str(self.folder), self.name)
         return self.name
+
+    class Meta:
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_label_names")]
 
 
 class LabelCount(SquashableModel):
