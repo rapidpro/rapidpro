@@ -608,6 +608,9 @@ class TopicTest(TembaTest):
         with self.assertRaises(AssertionError):
             Topic.create(self.org, self.admin, "Sales")
 
+        topic2 = Topic.get_or_create(self.org, self.admin, "Sales")
+        self.assertEqual(topic1, topic2)
+
 
 class TeamTest(TembaTest):
     def test_create(self):
