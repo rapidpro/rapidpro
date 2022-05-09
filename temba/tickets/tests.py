@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import patch
 
 from django.test.utils import override_settings
@@ -8,7 +9,7 @@ from temba.contacts.models import Contact
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 
-from .models import Ticket, TicketCount, Ticketer, TicketEvent, Topic
+from .models import Team, Ticket, TicketCount, TicketDailyCount, Ticketer, TicketEvent, Topic
 from .tasks import squash_ticketcounts
 from .types import reload_ticketer_types
 from .types.internal import InternalType
@@ -606,3 +607,136 @@ class TopicTest(TembaTest):
         # try to create with name that already exists
         with self.assertRaises(AssertionError):
             Topic.create(self.org, self.admin, "Sales")
+
+
+class TeamTest(TembaTest):
+    def test_create(self):
+        team1 = Team.create(self.org, self.admin, "Sales")
+        self.admin.set_team(team1)
+        self.agent.set_team(team1)
+
+        self.assertEqual("Sales", team1.name)
+        self.assertEqual("Sales", str(team1))
+        self.assertEqual(f'<Team: uuid={team1.uuid} name="Sales">', repr(team1))
+
+        self.assertEqual({self.admin, self.agent}, set(team1.get_users()))
+
+        # try to create with invalid name
+        with self.assertRaises(AssertionError):
+            Team.create(self.org, self.admin, '"Support"')
+
+        # try to create with name that already exists
+        with self.assertRaises(AssertionError):
+            Team.create(self.org, self.admin, "Sales")
+
+    def test_release(self):
+        team1 = Team.create(self.org, self.admin, "Sales")
+        self.admin.set_team(team1)
+        self.agent.set_team(team1)
+
+        team1.release(self.admin)
+
+        self.assertFalse(team1.is_active)
+        self.assertTrue(team1.name.startswith("deleted-"))
+
+        self.assertEqual(0, team1.get_users().count())
+
+
+class TicketDailyCountTest(TembaTest):
+    def test_model(self):
+        def record_opening(org, d: date):
+            TicketDailyCount.objects.create(
+                count_type=TicketDailyCount.TYPE_OPENING, scope=f"o:{org.id}", day=d, count=1
+            )
+
+        def record_assignment(org, user, d: date):
+            TicketDailyCount.objects.create(
+                count_type=TicketDailyCount.TYPE_ASSIGNMENT, scope=f"o:{org.id}:u:{user.id}", day=d, count=1
+            )
+
+        def record_reply(org, user, d: date):
+            TicketDailyCount.objects.create(
+                count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{org.id}", day=d, count=1
+            )
+            if user.team:
+                TicketDailyCount.objects.create(
+                    count_type=TicketDailyCount.TYPE_REPLY, scope=f"t:{user.team.id}", day=d, count=1
+                )
+            TicketDailyCount.objects.create(
+                count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{org.id}:u:{user.id}", day=d, count=1
+            )
+
+        sales = Team.create(self.org, self.admin, "Sales")
+        self.agent.set_team(sales)
+        self.editor.set_team(sales)
+
+        record_opening(self.org, date(2022, 4, 30))
+        record_opening(self.org, date(2022, 5, 3))
+        record_assignment(self.org, self.admin, date(2022, 5, 3))
+        record_reply(self.org, self.admin, date(2022, 5, 3))
+
+        record_reply(self.org, self.editor, date(2022, 5, 4))
+        record_reply(self.org, self.agent, date(2022, 5, 4))
+
+        record_reply(self.org, self.admin, date(2022, 5, 5))
+        record_reply(self.org, self.admin, date(2022, 5, 5))
+        record_opening(self.org, date(2022, 5, 5))
+        record_reply(self.org, self.agent, date(2022, 5, 5))
+
+        def assert_counts():
+            # openings tracked at org scope
+            self.assertEqual(3, TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING).total())
+            self.assertEqual(
+                2, TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING, since=date(2022, 5, 1)).total()
+            )
+            self.assertEqual(
+                1, TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING, until=date(2022, 5, 1)).total()
+            )
+            self.assertEqual(0, TicketDailyCount.get_by_org(self.org2, TicketDailyCount.TYPE_OPENING).total())
+            self.assertEqual(
+                [(date(2022, 4, 30), 1), (date(2022, 5, 3), 1), (date(2022, 5, 5), 1)],
+                TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING).day_totals(),
+            )
+            self.assertEqual(
+                [(4, 1), (5, 2)], TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING).month_totals()
+            )
+
+            # assignments tracked at org+user scope
+            self.assertEqual(
+                1, TicketDailyCount.get_by_users(self.org, [self.admin], TicketDailyCount.TYPE_ASSIGNMENT).total()
+            )
+            self.assertEqual(
+                0, TicketDailyCount.get_by_users(self.org, [self.agent], TicketDailyCount.TYPE_ASSIGNMENT).total()
+            )
+            self.assertEqual(
+                {self.admin: 1, self.agent: 0},
+                TicketDailyCount.get_by_users(
+                    self.org, [self.admin, self.agent], TicketDailyCount.TYPE_ASSIGNMENT
+                ).scope_totals(),
+            )
+            self.assertEqual(
+                [(date(2022, 5, 3), 1)],
+                TicketDailyCount.get_by_users(self.org, [self.admin], TicketDailyCount.TYPE_ASSIGNMENT).day_totals(),
+            )
+
+            # replies tracked at org scope, team scope and user-in-org scope
+            self.assertEqual(6, TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_REPLY).total())
+            self.assertEqual(0, TicketDailyCount.get_by_org(self.org2, TicketDailyCount.TYPE_REPLY).total())
+            self.assertEqual(3, TicketDailyCount.get_by_teams([sales], TicketDailyCount.TYPE_REPLY).total())
+            self.assertEqual(
+                3, TicketDailyCount.get_by_users(self.org, [self.admin], TicketDailyCount.TYPE_REPLY).total()
+            )
+            self.assertEqual(
+                1, TicketDailyCount.get_by_users(self.org, [self.editor], TicketDailyCount.TYPE_REPLY).total()
+            )
+            self.assertEqual(
+                2, TicketDailyCount.get_by_users(self.org, [self.agent], TicketDailyCount.TYPE_REPLY).total()
+            )
+
+        assert_counts()
+        self.assertEqual(19, TicketDailyCount.objects.count())
+
+        TicketDailyCount.squash()
+
+        assert_counts()
+        self.assertEqual(14, TicketDailyCount.objects.count())
