@@ -1,3 +1,8 @@
+v7.3.37
+----------
+ * Don't forget to squash TicketDailyCount
+ * Fix imports of flows with ticket topic dependencies
+
 v7.3.36
 ----------
  * Add migration to update names of deleted labels and add constraint to enforce uniqueness
