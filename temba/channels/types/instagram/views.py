@@ -35,7 +35,31 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 if response.status_code != 200:  # pragma: no cover
                     raise Exception("Failed to get user ID")
 
-                fb_user_id = response.json().get("data", dict()).get("user_id")
+                response_json = response.json()
+
+                fb_user_id = response_json.get("data", dict()).get("user_id")
+                expires_at = response_json.get("data", dict()).get("expires_at")
+
+                if expires_at != 0:
+                    # get user long lived access token
+                    url = "https://graph.facebook.com/oauth/access_token"
+                    params = {
+                        "grant_type": "fb_exchange_token",
+                        "client_id": app_id,
+                        "client_secret": app_secret,
+                        "fb_exchange_token": auth_token,
+                    }
+
+                    response = requests.get(url, params=params)
+                    if response.status_code != 200:  # pragma: no cover
+                        raise Exception("Failed to get a user long lived token")
+
+                    long_lived_auth_token = response.json().get("access_token", "")
+
+                    if long_lived_auth_token == "":  # pragma: no cover
+                        raise Exception("Empty user access token!")
+
+                    auth_token = long_lived_auth_token
 
                 url = f"https://graph.facebook.com/v12.0/{fb_user_id}/accounts"
                 params = {"access_token": auth_token}

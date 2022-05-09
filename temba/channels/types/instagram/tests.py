@@ -32,7 +32,8 @@ class InstagramTypeTest(TembaTest):
     @patch("requests.get")
     def test_claim(self, mock_get, mock_post):
         mock_get.side_effect = [
-            MockResponse(200, json.dumps({"data": {"user_id": "098765"}})),
+            MockResponse(200, json.dumps({"data": {"user_id": "098765", "expired_at": 100}})),
+            MockResponse(200, json.dumps({"access_token": f"long-life-user-{self.token}"})),
             MockResponse(
                 200,
                 json.dumps(
@@ -93,8 +94,17 @@ class InstagramTypeTest(TembaTest):
         )
 
         mock_get.assert_any_call(
-            "https://graph.facebook.com/v12.0/098765/accounts",
-            params={"access_token": self.token},
+            "https://graph.facebook.com/oauth/access_token",
+            params={
+                "grant_type": "fb_exchange_token",
+                "client_id": "FB_APP_ID",
+                "client_secret": "FB_APP_SECRET",
+                "fb_exchange_token": self.token,
+            },
+        )
+
+        mock_get.assert_any_call(
+            "https://graph.facebook.com/v12.0/098765/accounts", params={"access_token": f"long-life-user-{self.token}"}
         )
 
         mock_post.assert_any_call(
