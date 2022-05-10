@@ -2941,14 +2941,21 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
+        # if we are a shared plan, our sub orgs should be created with the workspace plan
+        settings.BRANDING[settings.DEFAULT_BRAND]["shared_plans"] = ["my_shared_plan"]
+        self.org.plan = "my_shared_plan"
+        self.org.save()
+        sub_org_c = self.org.create_sub_org("Sub Org C")
+        self.assertEqual(sub_org_c.plan, settings.WORKSPACE_PLAN)
+
         with override_settings(DEFAULT_PLAN="other"):
             settings.BRANDING[settings.DEFAULT_BRAND]["default_plan"] = "other"
             self.org.plan = settings.TOPUP_PLAN
             self.org.save()
             self.org.reset_capabilities()
-            sub_org_c = self.org.create_sub_org("Sub Org C")
-            self.assertIsNotNone(sub_org_c)
-            self.assertEqual(sub_org_c.plan, settings.TOPUP_PLAN)
+            sub_org_d = self.org.create_sub_org("Sub Org D")
+            self.assertIsNotNone(sub_org_d)
+            self.assertEqual(sub_org_d.plan, settings.TOPUP_PLAN)
 
     def test_org_get_limit(self):
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 250)
@@ -5392,6 +5399,17 @@ class OrgActivityTest(TembaTest):
 
         now = timezone.now()
 
+        # give us a shared plan
+        settings.BRANDING[settings.DEFAULT_BRAND]["shared_plans"] = ["my_shared_plan"]
+        self.org.plan = "my_shared_plan"
+        self.org.save()
+        workspace = self.org.create_sub_org("Workspace")
+        self.assertEqual(workspace.plan, settings.WORKSPACE_PLAN)
+
+        mark = self.create_contact("Mark S", phone="+12065551212", org=workspace)
+        self.create_incoming_msg(mark, "I'm feeling uneasy")
+        self.create_outgoing_msg(mark, "Please try to enjoy each text equally.")
+
         # create a few contacts
         self.create_contact("Marshawn", phone="+14255551212")
         russell = self.create_contact("Marshawn", phone="+14255551313")
@@ -5408,10 +5426,17 @@ class OrgActivityTest(TembaTest):
         # ok, calculate based on a now of tomorrow, will calculate today's stats
         update_org_activity(now + timedelta(days=1))
 
-        activity = OrgActivity.objects.get()
+        activity = OrgActivity.objects.get(org=self.org)
         self.assertEqual(2, activity.contact_count)
         self.assertEqual(1, activity.active_contact_count)
         self.assertEqual(2, activity.incoming_count)
+        self.assertEqual(1, activity.outgoing_count)
+        self.assertIsNone(activity.plan_active_contact_count)
+
+        activity = OrgActivity.objects.get(org=workspace)
+        self.assertEqual(1, activity.contact_count)
+        self.assertEqual(1, activity.active_contact_count)
+        self.assertEqual(1, activity.incoming_count)
         self.assertEqual(1, activity.outgoing_count)
         self.assertIsNone(activity.plan_active_contact_count)
 
@@ -5422,10 +5447,17 @@ class OrgActivityTest(TembaTest):
         self.org.save()
 
         update_org_activity(now + timedelta(days=1))
-        activity = OrgActivity.objects.get()
+        activity = OrgActivity.objects.get(org=self.org)
         self.assertEqual(2, activity.contact_count)
         self.assertEqual(1, activity.active_contact_count)
         self.assertEqual(2, activity.incoming_count)
+        self.assertEqual(1, activity.outgoing_count)
+        self.assertEqual(1, activity.plan_active_contact_count)
+
+        activity = OrgActivity.objects.get(org=workspace)
+        self.assertEqual(1, activity.contact_count)
+        self.assertEqual(1, activity.active_contact_count)
+        self.assertEqual(1, activity.incoming_count)
         self.assertEqual(1, activity.outgoing_count)
         self.assertEqual(1, activity.plan_active_contact_count)
 

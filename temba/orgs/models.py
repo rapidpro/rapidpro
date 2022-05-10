@@ -2584,6 +2584,7 @@ class OrgActivity(models.Model):
             Org.objects.exclude(plan_end=None)
             .exclude(plan_start=None)
             .exclude(plan_end__lt=start)
+            .exclude(plan=settings.WORKSPACE_PLAN)
             .only("plan_start", "plan_end")
         ):
             plan_end = parent.plan_end if parent.plan_end < end else end
