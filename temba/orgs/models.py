@@ -2552,9 +2552,7 @@ class OrgActivity(models.Model):
         from temba.msgs.models import Msg
 
         # truncate to midnight the same day in UTC
-        end = pytz.utc.normalize(now.astimezone(pytz.utc)).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        end = pytz.utc.normalize(now.astimezone(pytz.utc)).replace(hour=0, minute=0, second=0, microsecond=0)
         start = end - timedelta(days=1)
 
         # first get all our contact counts
