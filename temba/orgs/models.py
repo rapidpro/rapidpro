@@ -411,9 +411,13 @@ class Org(SmartModel):
             brand = settings.BRANDING[self.brand]
             plan = brand.get("default_plan", settings.DEFAULT_PLAN)
 
-            # if parent are on topups keep using those
+            # if parent is on topups keep using those
             if self.plan == settings.TOPUP_PLAN:
                 plan = settings.TOPUP_PLAN
+
+            # shared usage always uses the workspace plan
+            if self.has_shared_usage():
+                plan = settings.WORKSPACE_PLAN
 
             org = Org.objects.create(
                 name=name,
@@ -427,7 +431,7 @@ class Org(SmartModel):
                 modified_by=created_by,
                 plan=plan,
                 is_multi_user=self.is_multi_user,
-                is_multi_org=self.is_multi_org,
+                is_multi_org=False,
             )
 
             org.add_user(created_by, OrgRole.ADMINISTRATOR)
