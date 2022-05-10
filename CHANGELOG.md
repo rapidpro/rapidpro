@@ -1,3 +1,10 @@
+v7.3.39
+----------
+ * Move temba.utils.models to its own package
+ * Queue broadcasts to mailroom with their created_by
+ * Add teams to mailroom test database
+ * Add is_system to TembaModel, downgrade Contact to SmartModel
+
 v7.3.38
 ----------
  * Make sure we request a FB long lived page token using a long lived user token
