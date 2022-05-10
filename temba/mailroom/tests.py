@@ -582,6 +582,7 @@ class MailroomQueueTest(TembaTest):
                     "broadcast_id": bcast.id,
                     "org_id": self.org.id,
                     "ticket_id": ticket.id,
+                    "created_by_id": self.admin.id,
                 },
                 "queued_on": matchers.ISODate(),
             },
