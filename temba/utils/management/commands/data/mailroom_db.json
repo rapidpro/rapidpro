@@ -13,13 +13,15 @@
           "email": "admin1@nyaruka.com",
           "role": "administrators",
           "first_name": "Andy",
-          "last_name": "Admin"
+          "last_name": "Admin",
+          "team": "Office"
         },
         {
           "email": "editor1@nyaruka.com",
           "role": "editors",
           "first_name": "Ed",
-          "last_name": "McEditor"
+          "last_name": "McEditor",
+          "team": "Office"
         },
         {
           "email": "viewer1@nyaruka.com",
@@ -31,7 +33,8 @@
           "email": "agent1@nyaruka.com",
           "role": "agents",
           "first_name": "Ann",
-          "last_name": "D'Agent"
+          "last_name": "D'Agent",
+          "team": "Partners"
         },
         {
           "email": "surveyor1@nyaruka.com",
@@ -413,6 +416,18 @@
           "uuid": "0a8f2e00-fef6-402c-bd79-d789446ec0e0",
           "name": "Support"
         }
+      ],
+      "teams": [
+        {
+          "uuid": "4321c30b-b596-46fa-adb4-4a46d37923f6",
+          "name": "Partners",
+          "topics": ["Support"]
+        },
+        {
+          "uuid": "f14c1762-d38b-4072-ae63-2705332a3719",
+          "name": "Office",
+          "topics": ["Sales", "Support"]
+        }
       ]
     },
     {
@@ -477,7 +492,8 @@
       "campaigns": [],
       "templates": [],
       "ticketers": [],
-      "topics": []
+      "topics": [],
+      "teams": []
     }
   ]
 }
