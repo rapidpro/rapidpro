@@ -1,5 +1,3 @@
-from typing import List, Tuple
-
 import requests
 
 
@@ -14,7 +12,7 @@ class Client:
     def __init__(self, access_token: str):
         self.access_token = access_token
 
-    def get_intents(self) -> Tuple[List, requests.Response]:
+    def get_intents(self) -> tuple[list, requests.Response]:
         return self._request("intents")
 
     def _request(self, endpoint: str):

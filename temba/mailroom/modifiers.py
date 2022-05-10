@@ -1,4 +1,4 @@
-from typing import Dict, List, NamedTuple
+from typing import NamedTuple
 
 
 class FieldRef(NamedTuple):
@@ -14,7 +14,7 @@ class GroupRef(NamedTuple):
 class Modifier:
     type: str
 
-    def as_def(self) -> Dict:
+    def as_def(self) -> dict:
         return {"type": self.type, **self.__dict__}
 
     def __eq__(self, other):
@@ -42,7 +42,7 @@ class Field(Modifier):
         self.field = field
         self.value = value
 
-    def as_def(self) -> Dict:
+    def as_def(self) -> dict:
         return {"type": self.type, "field": self.field._asdict(), "value": self.value}
 
 
@@ -61,17 +61,17 @@ class Status(Modifier):
 class Groups(Modifier):
     type = "groups"
 
-    def __init__(self, groups: List[GroupRef], modification: str):
+    def __init__(self, groups: list[GroupRef], modification: str):
         self.groups = groups
         self.modification = modification
 
-    def as_def(self) -> Dict:
+    def as_def(self) -> dict:
         return {"type": self.type, "groups": [g._asdict() for g in self.groups], "modification": self.modification}
 
 
 class URNs(Modifier):
     type = "urns"
 
-    def __init__(self, urns: List[str], modification: str):
+    def __init__(self, urns: list[str], modification: str):
         self.urns = urns
         self.modification = modification

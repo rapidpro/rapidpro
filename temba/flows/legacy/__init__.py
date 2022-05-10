@@ -1,5 +1,3 @@
-from typing import Dict
-
 from packaging.version import Version
 
 VERSIONS = [
@@ -39,7 +37,7 @@ def get_versions_after(version_number):
     return [v for v in VERSIONS if Version(v) > version_number]
 
 
-def migrate_definition(json_flow: Dict, flow=None):
+def migrate_definition(json_flow: dict, flow=None):
     from . import migrations
 
     versions = get_versions_after(json_flow["version"])

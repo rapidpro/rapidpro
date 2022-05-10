@@ -499,20 +499,36 @@ class Org(SmartModel):
         return int(self.limits.get(limit_type, settings.ORG_LIMIT_DEFAULTS.get(limit_type)))
 
     def flag(self):
+        """
+        Flags this org for suspicious activity
+        """
+        from temba.notifications.models import Incident
+
         self.is_flagged = True
         self.save(update_fields=("is_flagged", "modified_on"))
 
+        Incident.flagged(self)  # create incident which will notify admins
+
     def unflag(self):
-        self.is_flagged = False
-        self.save(update_fields=("is_flagged", "modified_on"))
+        """
+        Unflags this org if they previously were flagged
+        """
+
+        from temba.notifications.models import Incident
+
+        if self.is_flagged:
+            self.is_flagged = False
+            self.save(update_fields=("is_flagged", "modified_on"))
+
+            Incident.flagged(self).end()
 
     def verify(self):
         """
         Unflags org and marks as verified so it won't be flagged automatically in future
         """
-        self.is_flagged = False
+        self.unflag()
         self.config[Org.CONFIG_VERIFIED] = True
-        self.save(update_fields=("is_flagged", "config", "modified_on"))
+        self.save(update_fields=("config", "modified_on"))
 
     def is_verified(self):
         """
@@ -734,31 +750,6 @@ class Org(SmartModel):
     @classmethod
     def get_possible_countries(cls):
         return AdminBoundary.objects.filter(level=0).order_by("name")
-
-    def trigger_send(self):
-        """
-        Triggers either our Android channels to sync, or for all our pending messages to be queued
-        to send.
-        """
-
-        from temba.channels.models import Channel
-        from temba.channels.types.android import AndroidType
-        from temba.msgs.models import Msg
-
-        # sync all pending channels
-        for channel in self.channels.filter(is_active=True, channel_type=AndroidType.code):  # pragma: needs cover
-            channel.trigger_sync()
-
-        # otherwise, send any pending messages on our channels
-        r = get_redis_connection()
-
-        key = "trigger_send_%d" % self.pk
-
-        # only try to send all pending messages if nobody is doing so already
-        if not r.get(key):
-            with r.lock(key, timeout=900):
-                pending = Channel.get_pending_messages(self)
-                Msg.send_messages(pending)
 
     def add_smtp_config(self, from_email, host, username, password, port, user):
         username = quote(username)
@@ -1686,6 +1677,7 @@ class Org(SmartModel):
         user = self.modified_by
 
         # delete notifications and exports
+        self.incidents.all().delete()
         self.notifications.all().delete()
         self.exportcontactstasks.all().delete()
         self.exportmessagestasks.all().delete()
@@ -2123,6 +2115,8 @@ class UserSettings(models.Model):
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
     two_factor_enabled = models.BooleanField(default=False)
     last_auth_on = models.DateTimeField(null=True)
+    external_id = models.CharField(max_length=128, null=True)
+    verification_token = models.CharField(max_length=64, null=True)
 
     @classmethod
     def get_or_create(cls, user):

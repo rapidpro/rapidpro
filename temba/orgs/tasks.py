@@ -42,7 +42,6 @@ def check_topup_expiration_task():
 def apply_topups_task(org_id):
     org = Org.objects.get(id=org_id)
     org.apply_topups()
-    org.trigger_send()
 
 
 @shared_task(track_started=True, name="normalize_contact_tels_task")

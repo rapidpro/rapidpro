@@ -13,28 +13,28 @@ To learn more, please visit the project site at http://rapidpro.github.io/rapidp
 
 The set of versions that make up the latest stable release are:
 
- * [RapidPro v6.4.8](https://github.com/rapidpro/rapidpro/releases/tag/v6.4.8)
- * [Mailroom v6.4.3](https://github.com/nyaruka/mailroom/releases/tag/v6.4.3)
- * [Courier v6.4.0](https://github.com/nyaruka/courier/releases/tag/v6.4.0)
- * [Archiver v6.4.0](https://github.com/nyaruka/rp-archiver/releases/tag/v6.4.0)
- * [Indexer v6.4.0](https://github.com/nyaruka/rp-indexer/releases/tag/v6.4.0)
+ * [RapidPro v7.0.4](https://github.com/rapidpro/rapidpro/releases/tag/v7.0.4)
+ * [Mailroom v7.0.1](https://github.com/nyaruka/mailroom/releases/tag/v7.0.1)
+ * [Courier v7.0.0](https://github.com/nyaruka/courier/releases/tag/v7.0.0)
+ * [Archiver v7.0.0](https://github.com/nyaruka/rp-archiver/releases/tag/v7.0.0)
+ * [Indexer v7.0.0](https://github.com/nyaruka/rp-indexer/releases/tag/v7.0.0)
  * [Android Channel v2.0.0](https://github.com/rapidpro/android-channel/releases/tag/v2.0.0)
- * [Android Surveyor v13.8.0](https://github.com/rapidpro/surveyor/releases/tag/v13.8.0)
+ * [Android Surveyor v13.9.0](https://github.com/rapidpro/surveyor/releases/tag/v13.9.0)
 
 ### Versioning in RapidPro
 
 Major releases of RapidPro are made every four months on a set schedule. We target November 1st
-as a major release (`v6.0.0`), then March 1st as the first stable dot release (`v6.2.0`) and July 1st
-as the second stable dot release (`v6.4.0`). The next November would start the next major release `v7.0.0`.
+as a major release (`v7.0.0`), then March 1st as the first stable dot release (`v7.2.0`) and July 1st
+as the second stable dot release (`v7.4.0`). The next November would start the next major release `v8.0.0`.
 
-Unstable releases have odd minor versions, that is versions `v6.5.*` would indicate an unstable or *development*
+Unstable releases have odd minor versions, that is versions `v7.1.*` would indicate an unstable or *development*
 version of RapidPro. Generally we recommend staying on stable releases unless you
 have experience developing against RapidPro.
 
 To upgrade from one stable release to the next, you should first install and run the migrations
 for the latest stable release you are on, then every stable release afterwards. If you are
-on version `v5.0.12` and the latest stable release on the `v5.0` series is `v5.0.14`, you should
-first install `v5.0.14` before trying to install the next stable release `v5.2.5`.
+on version `v6.0.12` and the latest stable release on the `v6.0` series is `v6.0.14`, you should
+first install `v6.0.14` before trying to install the next stable release `v6.2.5`.
 
 Generally we only do bug fixes (patch releases) on stable releases for the first two weeks after we put
 out that release. After that you either have to wait for the next stable release or take your

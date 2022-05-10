@@ -143,7 +143,7 @@ class TranslatableField(HStoreField):
     Model field which is a set of language code and translation pairs stored as HSTORE
     """
 
-    class Validator(object):
+    class Validator:
         def __init__(self, max_length):
             self.max_length = max_length
 
@@ -166,7 +166,7 @@ class TranslatableField(HStoreField):
         return super().validators + [TranslatableField.Validator(self.max_length)]
 
 
-class CheckFieldDefaultMixin(object):
+class CheckFieldDefaultMixin:
     """
     This was copied from https://github.com/django/django/commit/f6e1789654e82bac08cead5a2d2a9132f6403f52
 
@@ -284,7 +284,7 @@ class TembaModel(SmartModel):
         abstract = True
 
 
-class RequireUpdateFieldsMixin(object):
+class RequireUpdateFieldsMixin:
     def save(self, *args, **kwargs):
         if self.id and "update_fields" not in kwargs and "force_insert" not in kwargs:
             raise ValueError("Updating without specifying update_fields is disabled for this model")

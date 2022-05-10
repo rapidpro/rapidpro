@@ -47,12 +47,19 @@
   
     window.fetchData = function(section) {
       var url;
+
+      const headers = {
+        "X-FORMAX": true
+      }
+      
+      if (section.closest(".spa-container")) {
+        headers["TEMBA-SPA"] = 1;
+      }
+
       if (section.data("href")) {
         url = section.data('href');
         return fetchPJAXContent(url, "#" + section.attr("id") + " > .formax-container", {
-          headers: {
-            "X-FORMAX": true
-          },
+          headers: headers,
           onSuccess: function() {
             section.data("loaded", true);
             _initializeForm(section);
@@ -110,12 +117,19 @@
       form = $(this);
       section = form.parents(".formax-section");
       followRedirects = section.data("action") === 'redirect';
+
+      const headers = {
+        "X-FORMAX": true
+      }
+      
+      if (section.closest(".spa-container")) {
+        headers["TEMBA-SPA"] = 1;
+      }
+
       var formData = new FormData(this);
       return fetchPJAXContent(section.data("href"), "#" + section.attr("id") + " > .formax-container", {
         formData: formData,
-        headers: {
-          "X-FORMAX": true
-        },
+        headers: headers,
         followRedirects: followRedirects,
         onSuccess: function() {
           var dependents, formax_form;
@@ -126,13 +140,7 @@
             formax_form.show();
           } else {
             if (section.data("action") !== 'fixed') {
-              hideSection(section);
-
-              // refetch our primary form, but wait until our animation is done
-              window.setTimeout(function(){
-                fetchData(section);
-              }, 1000);
-              
+              hideSection(section);              
             }
           }
           dependents = section.data("dependents");
@@ -147,6 +155,7 @@
     };
   
     _bindToggle = function(bindTo) {
+
       var action, section;
       section = bindTo.parents(".formax-section");
       action = section.data('action');

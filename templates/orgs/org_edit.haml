@@ -10,7 +10,7 @@
       -blocktrans trimmed with timezone=object.timezone
         which is in the <b>{{timezone}}</b> timezone.
 
-      -if object.is_multi_org and sub_orgs
+      -if not is_spa and object.is_multi_org and sub_orgs
         .mt-4
           {% blocktrans count sub_orgs|length as org_count%}
             You have <b>{{org_count}}</b> child workspaces.
@@ -24,10 +24,8 @@
             Click here to edit
       
     -if not use_weni_layout
-      .buttons
-        -if object.is_multi_org
-          .button-light(onclick="goto(event)" href='{% url "orgs.org_sub_orgs" %}')
-            -trans "Manage Workspaces"
-
-
-
+      -if not is_spa
+        .buttons
+          -if object.is_multi_org
+            .button-light(onclick="goto(event)" href='{% url "orgs.org_sub_orgs" %}')
+              -trans "Manage Workspaces"

@@ -16,13 +16,13 @@
         -plural
           Found {{ results_count }} calls in last 90 days for <i>{{search}}</i>.
 
--block content
+-block message-list
   %table.list.object-list.lined.selectable
     %tbody
       -for object in object_list
         %tr.select-row{id: 'id-row-{{object.id}}', onclick:'goto(event)', href:'{% url "contacts.contact_read" object.contact.uuid %}'}
           %td.whitespace-nowrap
-            {{ object.contact|short_name:user_org }}
+            {{ object.contact|name_or_urn:user_org|truncatechars:20 }}
           %td
             - if object.event_type == 'mt_call'
               %span.glyph.icon-call-outgoing
@@ -54,4 +54,5 @@
           %td{ colspan:'99' }
               -trans "No calls"
 
+-block paginator
   -include "includes/pagination.haml"

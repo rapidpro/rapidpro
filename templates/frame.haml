@@ -40,9 +40,8 @@
       }
 
     // ==== JQUERY ====
-    :javascript
-      conditionalLoad('bower/jquery/jquery.js', '//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.js');
-      conditionalLoad('bower/jquery-migrate/jquery-migrate.min.js', null);
+    <script type="text/javascript" src="{{ STATIC_URL }}bower/jquery/jquery.js"></script>
+    <script type="text/javascript" src="{{ STATIC_URL }}bower/jquery-migrate/jquery-migrate.min.js"></script>
 
     -# this view make it possible to process translations from javascript land
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
@@ -297,6 +296,9 @@
       -block footer
         .footer.text-center.py-12.bg-gray-200.text-gray-500
           {{ request.branding.credits|safe }}
+          %div
+            %a.p-1.text-gray-500.underline(href="/policy/")
+              -trans "Privacy"
 
   -trans 'Delete' as title
   %temba-dialog#general-delete-confirmation.hidden{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}

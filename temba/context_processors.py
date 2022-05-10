@@ -23,4 +23,5 @@ def analytics(request):
         segment_key=settings.SEGMENT_IO_KEY,
         intercom_app_id=settings.INTERCOM_APP_ID,
         google_tracking_id=settings.GOOGLE_TRACKING_ID,
+        crisp_website_id=settings.CRISP_WEBSITE_ID,
     )
