@@ -564,6 +564,8 @@ class ContactField(SmartModel, TembaNameMixin, DependencyMixin):
         return dependents
 
     def release(self, user):
+        assert not (self.is_system and self.org.is_active), "can't release system fields"
+
         super().release(user)
 
         for event in self.campaign_events.all():
@@ -1628,6 +1630,8 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
         """
         Releases this group, removing all contacts and marking as inactive
         """
+
+        assert not (self.is_system and self.org.is_active), "can't release system groups"
 
         from .tasks import release_group_task
 

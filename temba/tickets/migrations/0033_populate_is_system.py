@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def populate_is_system(apps, schema_editor):
+def populate_is_system(apps, schema_editor):  # pragma: no cover
     Ticketer = apps.get_model("tickets", "Ticketer")
     Topic = apps.get_model("tickets", "Topic")
 

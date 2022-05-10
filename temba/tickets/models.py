@@ -126,6 +126,8 @@ class Ticketer(TembaModel, DependencyMixin):
         Releases this, closing all associated tickets in the process
         """
 
+        assert not (self.is_system and self.org.is_active), "can't release system ticketers"
+
         super().release(user)
 
         open_tickets = self.tickets.filter(status=Ticket.STATUS_OPEN)
