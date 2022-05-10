@@ -578,7 +578,7 @@ class ContactField(SmartModel, TembaNameMixin, DependencyMixin):
         return self.name
 
 
-class Contact(LegacyUUIDMixin, TembaModel):
+class Contact(LegacyUUIDMixin, SmartModel):
     """
     A contact represents an individual with which we can communicate and collect data
     """
@@ -1423,8 +1423,6 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
     group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MANUAL)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
     contacts = models.ManyToManyField(Contact, related_name="groups")
-
-    is_system = models.BooleanField()  # not user created, doesn't count against limits
 
     # fields used by smart groups
     query = models.TextField(null=True)

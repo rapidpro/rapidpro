@@ -505,6 +505,8 @@ class TembaModel(TembaUUIDMixin, TembaNameMixin, SmartModel):
     Base for models which have UUID, name and smartmin auditing fields
     """
 
+    is_system = models.BooleanField(default=False)  # not user created, doesn't count against limits
+
     def as_export_ref(self) -> dict:
         return {"uuid": str(self.uuid), "name": self.name}
 
