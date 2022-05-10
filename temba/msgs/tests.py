@@ -24,7 +24,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest
+from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 
@@ -2723,47 +2723,3 @@ class TagsTest(TembaTest):
         # exception if tag not used correctly
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render with bob %}{% endrender %}")
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render as %}{% endrender %}")
-
-
-class UpdatedDeletedLabelNamesMigrationTest(MigrationTest):
-    app = "msgs"
-    migrate_from = "0170_alter_label_name"
-    migrate_to = "0171_update_deleted_label_names"
-
-    def setUpBeforeMigration(self, apps):
-        # create active label
-        self.label1 = Label.label_objects.create(
-            org=self.org,
-            name="Spam",
-            is_active=True,
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-
-        # create inactive label
-        self.label2 = Label.label_objects.create(
-            org=self.org,
-            name="Complaints",
-            is_active=False,
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-
-        # create inactive label with name already updated
-        self.label3 = Label.label_objects.create(
-            org=self.org,
-            name="deleted-1234-1234-Sales",
-            is_active=False,
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-
-    def test_migration(self):
-        self.label1.refresh_from_db()
-        self.label2.refresh_from_db()
-        self.label3.refresh_from_db()
-
-        self.assertEqual("Spam", self.label1.name)  # unchanged
-        self.assertTrue(self.label2.name.startswith("deleted-"))
-        self.assertTrue(self.label2.name.endswith("-Complaints"))
-        self.assertEqual("deleted-1234-1234-Sales", self.label3.name)  # unchanged
