@@ -156,7 +156,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flows")
 
     is_archived = models.BooleanField(default=False)
-    is_system = models.BooleanField(default=False)  # e.g. a campaign message event, not user created
 
     flow_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MESSAGE)
 
