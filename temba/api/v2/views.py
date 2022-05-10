@@ -3663,9 +3663,6 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     pagination_class = CreatedOnCursorPagination
     org_limit_key = Org.LIMIT_TOPICS
 
-    def is_system_instance(self, obj):
-        return obj.is_default
-
     def get_org_limit_count(self, org) -> int:
         return org.topics.filter(is_active=True).count()
 

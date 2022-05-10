@@ -93,7 +93,15 @@ class Ticketer(TembaModel, DependencyMixin):
 
         assert not org.ticketers.filter(ticketer_type=InternalType.slug).exists(), "org already has internal tickteter"
 
-        return cls.create(org, org.created_by, InternalType.slug, f"{brand['name']} Tickets", {})
+        return org.ticketers.create(
+            uuid=uuid4(),
+            ticketer_type=InternalType.slug,
+            name=f"{brand['name']} Tickets",
+            is_system=True,
+            config={},
+            created_by=org.created_by,
+            modified_by=org.created_by,
+        )
 
     @classmethod
     def get_types(cls):
@@ -113,18 +121,12 @@ class Ticketer(TembaModel, DependencyMixin):
 
         return TYPES[self.ticketer_type]
 
-    @property
-    def is_internal(self):
-        from .types.internal import InternalType
-
-        return self.type == InternalType
-
     def release(self, user):
         """
         Releases this, closing all associated tickets in the process
         """
 
-        assert not self.is_internal, "can't release internal ticketers"
+        assert not (self.is_system and self.org.is_active), "can't release system ticketers"
 
         super().release(user)
 
@@ -153,7 +155,11 @@ class Topic(TembaModel, DependencyMixin):
         assert not org.topics.filter(is_default=True).exists(), "org already has default topic"
 
         org.topics.create(
-            name=cls.DEFAULT_TOPIC, is_default=True, created_by=org.created_by, modified_by=org.modified_by
+            name=cls.DEFAULT_TOPIC,
+            is_default=True,
+            is_system=True,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
         )
 
     @classmethod

@@ -564,6 +564,8 @@ class ContactField(SmartModel, TembaNameMixin, DependencyMixin):
         return dependents
 
     def release(self, user):
+        assert not (self.is_system and self.org.is_active), "can't release system fields"
+
         super().release(user)
 
         for event in self.campaign_events.all():
@@ -578,7 +580,7 @@ class ContactField(SmartModel, TembaNameMixin, DependencyMixin):
         return self.name
 
 
-class Contact(LegacyUUIDMixin, TembaModel):
+class Contact(LegacyUUIDMixin, SmartModel):
     """
     A contact represents an individual with which we can communicate and collect data
     """
@@ -1424,8 +1426,6 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
     contacts = models.ManyToManyField(Contact, related_name="groups")
 
-    is_system = models.BooleanField()  # not user created, doesn't count against limits
-
     # fields used by smart groups
     query = models.TextField(null=True)
     query_fields = models.ManyToManyField(ContactField, related_name="dependent_groups")
@@ -1630,6 +1630,8 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
         """
         Releases this group, removing all contacts and marking as inactive
         """
+
+        assert not (self.is_system and self.org.is_active), "can't release system groups"
 
         from .tasks import release_group_task
 
