@@ -21,7 +21,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticketer, Topic
+from temba.tickets.models import Team, Ticketer, Topic
 
 ORGS_SPEC_FILE = "temba/utils/management/commands/data/mailroom_db.json"
 
@@ -162,7 +162,6 @@ class Command(BaseCommand):
         # set our sequences to make ids stable across orgs
         self.reset_id_sequences(spec["sequence_start"])
 
-        self.create_users(spec, org)
         self.create_channels(spec, org, superuser)
         self.create_fields(spec, org, superuser)
         self.create_globals(spec, org, superuser)
@@ -176,20 +175,10 @@ class Command(BaseCommand):
         self.create_classifiers(spec, org, superuser)
         self.create_ticketers(spec, org, superuser)
         self.create_topics(spec, org, superuser)
+        self.create_teams(spec, org, superuser)
+        self.create_users(spec, org)
 
         return org
-
-    def create_users(self, spec, org):
-        self._log(f"Creating {len(spec['users'])} users... ")
-
-        for u in spec["users"]:
-            user = User.objects.create_user(
-                u["email"], u["email"], USER_PASSWORD, first_name=u["first_name"], last_name=u["last_name"]
-            )
-            getattr(org, u["role"]).add(user)
-            user.set_org(org)
-
-        self._log(self.style.SUCCESS("OK") + "\n")
 
     def create_channels(self, spec, org, user):
         self._log(f"Creating {len(spec['channels'])} channels... ")
@@ -258,6 +247,36 @@ class Command(BaseCommand):
                 created_by=user,
                 modified_by=user,
             )
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
+    def create_teams(self, spec, org, user):
+        self._log(f"Creating {len(spec['teams'])} teams... ")
+
+        for t in spec["teams"]:
+            team = Team.objects.create(
+                uuid=t["uuid"],
+                org=org,
+                name=t["name"],
+                created_by=user,
+                modified_by=user,
+            )
+            for topic in t["topics"]:
+                team.topics.add(Topic.objects.get(name=topic))
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
+    def create_users(self, spec, org):
+        self._log(f"Creating {len(spec['users'])} users... ")
+
+        for u in spec["users"]:
+            user = User.objects.create_user(
+                u["email"], u["email"], USER_PASSWORD, first_name=u["first_name"], last_name=u["last_name"]
+            )
+            getattr(org, u["role"]).add(user)
+            user.set_org(org)
+            if u.get("team"):
+                user.set_team(Team.objects.get(name=u["team"]))
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
