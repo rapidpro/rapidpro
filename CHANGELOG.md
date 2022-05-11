@@ -1,3 +1,8 @@
+v7.3.40
+----------
+ * Add workspace plan, disallow grandchild org creation.
+ * Add support for shared usage tracking
+
 v7.3.39
 ----------
  * Move temba.utils.models to its own package
