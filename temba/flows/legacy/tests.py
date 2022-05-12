@@ -804,7 +804,7 @@ class FlowMigrationTest(TembaTest):
         group = self.create_group("Phans", [])
         previous_flow = self.create_flow("Flow 1")
         start_flow = self.create_flow("Flow 2")
-        label = Label.get_or_create(self.org, self.admin, "My label")
+        label = self.create_label("My label")
 
         substitutions = dict(
             group_id=group.pk,

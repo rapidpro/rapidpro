@@ -70,7 +70,7 @@ class MsgTest(TembaTest):
 
         # label first message
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        label = Label.get_or_create(self.org, self.user, "la\02bel1", folder=folder)
+        label = self.create_label("la\02bel1", folder=folder)
         label.toggle_label([msg1], add=True)
 
         self.assertEqual(
@@ -199,7 +199,7 @@ class MsgTest(TembaTest):
 
     def test_archive_and_release(self):
         msg1 = self.create_incoming_msg(self.joe, "Incoming")
-        label = Label.get_or_create(self.org, self.admin, "Spam")
+        label = self.create_label("Spam")
         label.toggle_label([msg1], add=True)
 
         msg1.archive()
@@ -348,7 +348,7 @@ class MsgTest(TembaTest):
 
         # label first message
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        label = Label.get_or_create(self.org, self.user, "la\02bel1", folder=folder)
+        label = self.create_label("la\02bel1", folder=folder)
         label.toggle_label([msg1], add=True)
 
         # archive last message
@@ -854,7 +854,7 @@ class MsgTest(TembaTest):
 
         # label first message
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        label = Label.get_or_create(self.org, self.user, "la\02bel1", folder=folder)
+        label = self.create_label("la\02bel1", folder=folder)
         label.toggle_label([msg1], add=True)
 
         # archive last message
@@ -1387,7 +1387,7 @@ class MsgTest(TembaTest):
             created_on=timezone.now(),
         )
         ChannelLog.objects.create(id=3_000_000_000, channel=msg.channel, msg=msg, is_error=True, description="Boom")
-        spam = Label.get_or_create(self.org, self.admin, "Spam")
+        spam = self.create_label("Spam")
         msg.labels.add(spam)
 
 
@@ -1431,9 +1431,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # add some labels
         folder = Label.get_or_create_folder(self.org, self.user, "folder")
-        label1 = Label.get_or_create(self.org, self.user, "label1", folder)
-        Label.get_or_create(self.org, self.user, "label2", folder)
-        label3 = Label.get_or_create(self.org, self.user, "label3")
+        label1 = self.create_label("label1", folder=folder)
+        self.create_label("label2", folder=folder)
+        label3 = self.create_label("label3")
 
         # viewers can't label messages
         response = self.requestView(
@@ -1678,9 +1678,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create some folders and labels
         folder = Label.get_or_create_folder(self.org, self.user, "folder")
-        label1 = Label.get_or_create(self.org, self.user, "label1", folder)
-        label2 = Label.get_or_create(self.org, self.user, "label2", folder)
-        label3 = Label.get_or_create(self.org, self.user, "label3")
+        label1 = self.create_label("label1", folder=folder)
+        label2 = self.create_label("label2", folder=folder)
+        label3 = self.create_label("label3")
 
         # create some messages
         msg1 = self.create_incoming_msg(joe, "test1")
@@ -1759,7 +1759,7 @@ class BroadcastTest(TembaTest):
         self.twitter = self.create_channel("TT", "Twitter", "nyaruka")
 
     def test_delete(self):
-        label = Label.get_or_create(self.org, self.user, "Labeled")
+        label = self.create_label("Labeled")
 
         # create some incoming messages
         msg_in1 = self.create_incoming_msg(self.joe, "Hello")
@@ -2162,29 +2162,23 @@ class LabelTest(TembaTest):
         self.joe = self.create_contact("Joe Blow", phone="073835001")
         self.frank = self.create_contact("Frank", phone="073835002")
 
-    def test_get_or_create(self):
-        label1 = Label.get_or_create(self.org, self.user, "Spam")
+    def test_create(self):
+        label1 = Label.create(self.org, self.user, "Spam")
         self.assertEqual("Spam", label1.name)
         self.assertIsNone(label1.folder)
 
         followup = Label.get_or_create_folder(self.org, self.user, "Follow up")
-        label2 = Label.get_or_create(self.org, self.user, "Complaints", followup)
+        label2 = Label.create(self.org, self.user, "Complaints", folder=followup)
         self.assertEqual("Complaints", label2.name)
         self.assertEqual(followup, label2.folder)
 
         label2.release(self.admin)
 
-        # will return existing label by name
-        self.assertEqual(label1, Label.get_or_create(self.org, self.user, "Spam"))
-
-        # but only if it's active
-        self.assertNotEqual(label2, Label.get_or_create(self.org, self.user, "Complaints"))
-
         # don't allow invalid name
-        self.assertRaises(AssertionError, Label.get_or_create, self.org, self.user, '"Hi"')
+        self.assertRaises(AssertionError, Label.create, self.org, self.user, '"Hi"')
 
         # can't use a non-folder as a folder
-        self.assertRaises(AssertionError, Label.get_or_create, self.org, self.user, "Important", label1)
+        self.assertRaises(AssertionError, Label.create, self.org, self.user, "Important", label1)
 
     def test_get_or_create_folder(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Spam")
@@ -2203,7 +2197,7 @@ class LabelTest(TembaTest):
         self.assertRaises(AssertionError, Label.get_or_create_folder, self.org, self.user, '"Important')
 
     def test_toggle_label(self):
-        label = Label.get_or_create(self.org, self.user, "Spam")
+        label = self.create_label("Spam")
         msg1 = self.create_incoming_msg(self.joe, "Message 1")
         msg2 = self.create_incoming_msg(self.joe, "Message 2")
         msg3 = self.create_incoming_msg(self.joe, "Message 3")
@@ -2275,10 +2269,10 @@ class LabelTest(TembaTest):
     def test_get_messages_and_hierarchy(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")
         folder2 = Label.get_or_create_folder(self.org, self.user, "Todo")
-        label1 = Label.get_or_create(self.org, self.user, "Spam", folder1)
-        label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
-        label3 = Label.get_or_create(self.org, self.user, "Other")
-        label4 = Label.get_or_create(self.org, self.user, "Deleted")
+        label1 = self.create_label("Spam", folder=folder1)
+        label2 = self.create_label("Social", folder=folder1)
+        label3 = self.create_label("Other")
+        label4 = self.create_label("Deleted")
 
         label4.release(self.user)
 
@@ -2316,9 +2310,9 @@ class LabelTest(TembaTest):
 
     def test_delete(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Folder")
-        label1 = Label.get_or_create(self.org, self.user, "Spam", folder1)
-        label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
-        label3 = Label.get_or_create(self.org, self.user, "Other")
+        label1 = self.create_label("Spam", folder=folder1)
+        label2 = self.create_label("Social", folder=folder1)
+        label3 = self.create_label("Other")
 
         msg1 = self.create_incoming_msg(self.joe, "Message 1")
         msg2 = self.create_incoming_msg(self.joe, "Message 2")
@@ -2413,7 +2407,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
             )
 
     def test_delete(self):
-        label = Label.get_or_create(self.org, self.user, "Spam")
+        label = self.create_label("Spam")
 
         delete_url = reverse("msgs.label_delete", args=[label.uuid])
 
@@ -2447,7 +2441,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_delete_folder(self):
         # create a folder with a single label
         folder = Label.get_or_create_folder(self.org, self.user, "Cool Labels")
-        label1 = Label.get_or_create(self.org, self.user, "Spam", folder=folder)
+        label1 = self.create_label("Spam", folder=folder)
 
         delete_url = reverse("msgs.label_delete_folder", args=[folder.id])
 
@@ -2467,18 +2461,17 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("/msg/inbox/", response["Temba-Success"])
 
         # modal will show error if a label is added in the background
-        Label.get_or_create(self.org, self.user, "Spam", folder=folder)
+        self.create_label("Spam", folder=folder)
 
         response = self.assertDeleteSubmit(delete_url, object_unchanged=folder, success_status=200)
         self.assertContains(response, "cannot be deleted as it still contains labels")
 
     def test_list(self):
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        Label.get_or_create(self.org, self.user, "Spam", folder=folder)
-        Label.get_or_create(self.org, self.user, "Junk", folder=folder)
-        Label.get_or_create(self.org, self.user, "Important")
-
-        Label.get_or_create(self.org2, self.admin2, "Other Org")
+        self.create_label("Spam", folder=folder)
+        self.create_label("Junk", folder=folder)
+        self.create_label("Important")
+        self.create_label("Other Org", org=self.org2)
 
         # viewers can't edit flows so don't have access to this JSON endpoint as that's only place it's used
         self.login(self.user)

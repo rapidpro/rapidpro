@@ -1562,7 +1562,7 @@ class ContactTest(TembaTest):
         msg1 = self.create_incoming_msg(self.joe, "Test 1", msg_type="I")
         msg2 = self.create_incoming_msg(self.joe, "Test 2", msg_type="F")
         msg3 = self.create_incoming_msg(self.joe, "Test 3", msg_type="I", visibility="A")
-        label = Label.get_or_create(self.org, self.user, "Interesting")
+        label = self.create_label("Interesting")
         label.toggle_label([msg1, msg2, msg3], add=True)
         static_group = self.create_group("Just Joe", [self.joe])
 
@@ -2014,7 +2014,7 @@ class ContactTest(TembaTest):
         )
 
         # lookup by label ids
-        label = Label.get_or_create(self.org, self.user, "msg label")
+        label = self.create_label("msg label")
         self.assertEqual([], omnibox_request(f"l={label.id}"))
 
         msg.labels.add(label)

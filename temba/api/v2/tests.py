@@ -3144,7 +3144,7 @@ class APITest(TembaTest):
         deleted.release(self.admin)
 
         # create label for other org
-        spam = Label.get_or_create(self.org2, self.admin2, "Spam")
+        spam = self.create_label("Spam", org=self.org2)
 
         msg = self.create_incoming_msg(self.frank, "Hello")
         important.toggle_label([msg], add=True)
@@ -3792,7 +3792,7 @@ class APITest(TembaTest):
         msg1 = self.create_incoming_msg(self.joe, "Msg #1")
         msg2 = self.create_incoming_msg(self.joe, "Msg #2")
         msg3 = self.create_incoming_msg(self.joe, "Msg #3")
-        label = Label.get_or_create(self.org, self.admin, "Test")
+        label = self.create_label("Test")
 
         # add label by name to messages 1 and 2
         response = self.postJSON(url, None, {"messages": [msg1.id, msg2.id], "action": "label", "label": "Test"})
