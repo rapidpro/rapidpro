@@ -4824,12 +4824,12 @@ class APITest(TembaTest):
         response = self.postJSON(url, "uuid=%s" % support.uuid, {"name": "General"})
         self.assertResponseError(response, "name", "This field must be unique.")
 
-        # try creating a new topic after reaching the limit on labels
-        current_count = self.org.topics.filter(is_active=True).count()
+        # try creating a new topic after reaching the limit
+        current_count = self.org.topics.filter(is_system=False, is_active=True).count()
         with override_settings(ORG_LIMIT_DEFAULTS={"topics": current_count}):
             response = self.postJSON(url, None, {"name": "Interesting"})
             self.assertResponseError(
-                response, None, "Cannot create object because workspace has reached limit of 5.", status_code=409
+                response, None, "Cannot create object because workspace has reached limit of 4.", status_code=409
             )
 
     def test_users(self):

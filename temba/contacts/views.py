@@ -38,7 +38,6 @@ from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.flows.models import Flow, FlowStart
 from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.models import Org
 from temba.orgs.views import (
     DependencyDeleteModal,
     DependencyUsagesModal,
@@ -137,15 +136,14 @@ class ContactGroupForm(forms.ModelForm):
         if existing and self.instance != existing:
             raise forms.ValidationError(_("Already used by another group."))
 
-        group_limit = self.org.get_limit(Org.LIMIT_GROUPS)
-
-        groups_count = ContactGroup.get_groups(self.org, user_only=True).count()
-        if groups_count >= group_limit:
+        count, limit = ContactGroup.get_org_limit_progress(self.org)
+        if limit is not None and count >= limit:
             raise forms.ValidationError(
                 _(
-                    "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you"
-                    " can create new ones." % dict(count=groups_count, limit=group_limit)
-                )
+                    "This workspace has reached its limit of %(limit)d groups. "
+                    "You must delete existing ones before you can create new ones."
+                ),
+                params={"limit": limit},
             )
 
         return name
@@ -1762,11 +1760,10 @@ class ContactFieldListView(SpaMixin, OrgPermsMixin, SmartListView):
     template_name = "contacts/contactfield_list.haml"
 
     def _get_static_context_data(self, **kwargs):
-
         org = self.request.org
-        org_active_fields_limit = org.get_limit(Org.LIMIT_FIELDS)
+        org_count, org_limit = ContactField.get_org_limit_progress(self.org)
+
         active_user_fields = self.queryset.filter(org=org, is_active=True)
-        all_count = active_user_fields.count()
         featured_count = active_user_fields.filter(show_in_table=True).count()
 
         type_counts = (
@@ -1786,10 +1783,10 @@ class ContactFieldListView(SpaMixin, OrgPermsMixin, SmartListView):
         ]
 
         return {
-            "total_count": all_count,
-            "total_limit": org_active_fields_limit,
+            "total_count": org_count,
+            "total_limit": org_limit,
             "cf_categories": [
-                {"label": "All", "count": all_count, "url": reverse("contacts.contactfield_list")},
+                {"label": "All", "count": org_count, "url": reverse("contacts.contactfield_list")},
                 {"label": "Featured", "count": featured_count, "url": reverse("contacts.contactfield_featured")},
             ],
             "cf_types": types,
@@ -1845,11 +1842,14 @@ class ContactFieldCRUDL(SmartCRUDL):
             def clean(self):
                 super().clean()
 
-                field_limit = self.org.get_limit(Org.LIMIT_FIELDS)
-                field_count = self.org.fields.filter(is_active=True, is_system=False).count()
-                if field_count >= field_limit:
+                count, limit = ContactField.get_org_limit_progress(self.org)
+                if limit is not None and count >= limit:
                     raise forms.ValidationError(
-                        _("Cannot create a new field as limit is %(limit)s."), params={"limit": field_limit}
+                        _(
+                            "This workspace has reached its limit of %(limit)d fields. "
+                            "You must delete existing ones before you can create new ones."
+                        ),
+                        params={"limit": limit},
                     )
 
         queryset = ContactField.user_fields
@@ -2147,12 +2147,11 @@ class ContactImportCRUDL(SmartCRUDL):
                         if not existing_group:
                             self.add_error("existing_group", _("Required."))
 
-                    groups_count = ContactGroup.get_groups(self.org).filter(is_system=False).count()
-                    groups_limit = self.org.get_limit(Org.LIMIT_GROUPS)
-                    if groups_count >= groups_limit:
+                    group_count, group_limit = ContactGroup.get_org_limit_progress(self.org)
+                    if group_limit is not None and group_count >= group_limit:
                         raise forms.ValidationError(
-                            _("This workspace has reached the limit of %(count)d groups."),
-                            params={"count": groups_limit},
+                            _("This workspace has reached its limit of %(limit)d groups."),
+                            params={"limit": group_limit},
                         )
 
                 return self.cleaned_data

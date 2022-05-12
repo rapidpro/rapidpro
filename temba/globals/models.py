@@ -24,6 +24,8 @@ class Global(TembaModel, DependencyMixin):
     name = models.CharField(verbose_name=_("Name"), max_length=MAX_NAME_LEN)
     value = models.TextField(max_length=MAX_VALUE_LEN)
 
+    org_limit_key = Org.LIMIT_GLOBALS
+
     @classmethod
     def get_or_create(cls, org, user, key, name, value):
         existing = org.globals.filter(key__iexact=key, is_active=True).first()

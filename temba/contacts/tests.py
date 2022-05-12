@@ -1125,8 +1125,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             response,
             "form",
             "name",
-            "This org has 10 groups and the limit is 10. "
-            "You must delete existing ones before you can create new ones.",
+            "This workspace has reached its limit of 10 groups. You must delete existing ones before you can create new ones.",
         )
 
     def test_create_disallow_duplicates(self):
@@ -4671,7 +4670,9 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             self.assertCreateSubmit(
                 create_url,
                 {"name": "Sheep", "value_type": "T", "show_in_table": True},
-                form_errors={"__all__": "Cannot create a new field as limit is 2."},
+                form_errors={
+                    "__all__": "This workspace has reached its limit of 2 fields. You must delete existing ones before you can create new ones."
+                },
             )
 
     def test_update(self):
@@ -6030,7 +6031,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.client.post(
                 preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "Import"}
             )
-            self.assertFormError(response, "form", "__all__", "This workspace has reached the limit of 2 groups.")
+            self.assertFormError(response, "form", "__all__", "This workspace has reached its limit of 2 groups.")
 
         # finally create new group...
         response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "Import"})

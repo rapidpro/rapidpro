@@ -2377,7 +2377,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check that we can't create another with same name
         response = self.client.post(create_label_url, {"name": "Spam"})
-        self.assertFormError(response, "form", "name", "Name must be unique")
+        self.assertFormError(response, "form", "name", "Must be unique.")
 
         # create a folder
         self.client.post(create_folder_url, {"name": "Folder"}, follow=True)
@@ -2408,7 +2408,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
                 response,
                 "form",
                 "name",
-                "This workspace has 2 labels and the limit is 2. "
+                "This workspace has reached its limit of 2 labels. "
                 "You must delete existing ones before you can create new ones.",
             )
 

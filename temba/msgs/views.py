@@ -902,17 +902,18 @@ class BaseLabelForm(forms.ModelForm):
     def clean_name(self):
         name = self.cleaned_data["name"]
 
-        existing_id = self.existing.pk if self.existing else None
-        if Label.all_objects.filter(org=self.org, name__iexact=name, is_active=True).exclude(pk=existing_id).exists():
-            raise forms.ValidationError(_("Name must be unique"))
+        existing_id = self.existing.id if self.existing else None
+        if Label.get_active_for_org(self.org).filter(name__iexact=name).exclude(pk=existing_id).exists():
+            raise forms.ValidationError(_("Must be unique."))
 
-        count = Label.label_objects.filter(org=self.org, is_active=True).count()
-        if count >= self.org.get_limit(Org.LIMIT_LABELS):
+        count, limit = Label.get_org_limit_progress(self.org)
+        if limit is not None and count >= limit:
             raise forms.ValidationError(
                 _(
-                    "This workspace has %d labels and the limit is %s. You must delete existing ones before you can "
-                    "create new ones." % (count, self.org.get_limit(Org.LIMIT_LABELS))
-                )
+                    "This workspace has reached its limit of %(limit)d labels. "
+                    "You must delete existing ones before you can create new ones."
+                ),
+                params={"limit": limit},
             )
 
         return name
