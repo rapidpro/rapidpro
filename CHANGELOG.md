@@ -1,3 +1,7 @@
+v7.3.42
+----------
+ * Data migration to backfill ticket daily counts
+
 v7.3.41
 ----------
  * Reorganization of temba.utils.models
