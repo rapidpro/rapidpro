@@ -1145,7 +1145,7 @@ class LabelWriteSerializer(WriteSerializer):
             self.instance.save(update_fields=("name",))
             return self.instance
         else:
-            return Label.get_or_create(self.context["org"], self.context["user"], name)
+            return Label.create(self.context["org"], self.context["user"], name)
 
 
 class MsgReadSerializer(ReadSerializer):
@@ -1288,9 +1288,9 @@ class MsgBulkActionSerializer(WriteSerializer):
 
         if action == self.LABEL:
             if not label:
-                label = Label.get_or_create(self.context["org"], self.context["user"], label_name)
-
-            label.toggle_label(messages, add=True)
+                label, _ = Label.import_def(self.context["org"], self.context["user"], {"name": label_name})
+            if label:
+                label.toggle_label(messages, add=True)
         elif action == self.UNLABEL:
             if not label:
                 label = Label.label_objects.filter(org=self.context["org"], is_active=True, name=label_name).first()

@@ -574,7 +574,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         # ensure any label dependencies exist
         for ref in deps_of_type("label"):
-            label = Label.get_or_create(self.org, user, ref["name"])
+            label, _ = Label.import_def(self.org, user, ref)
             dependency_mapping[ref["uuid"]] = str(label.uuid)
 
         # ensure any topic dependencies exist
