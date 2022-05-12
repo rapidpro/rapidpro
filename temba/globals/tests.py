@@ -45,7 +45,7 @@ class GlobalTest(TembaTest):
         global2.release(self.admin)
         global3.release(self.admin)
 
-        self.assertEqual(0, Global.objects.count())
+        self.assertEqual(0, Global.objects.filter(is_active=True).count())
 
     def test_make_key(self):
         self.assertEqual("org_name", Global.make_key("Org Name"))
@@ -191,7 +191,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertDeleteFetch(delete_url)
         self.assertContains(response, "You are about to delete")
 
-        response = self.assertDeleteSubmit(delete_url, object_deleted=self.global2, success_status=200)
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.global2, success_status=200)
         self.assertEqual("/global/", response["Temba-Success"])
 
         # should see warning if global is being used
@@ -203,7 +203,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "is used by the following items but can still be deleted:")
         self.assertContains(response, "Color Flow")
 
-        response = self.assertDeleteSubmit(delete_url, object_deleted=self.global1, success_status=200)
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.global1, success_status=200)
         self.assertEqual("/global/", response["Temba-Success"])
 
         self.flow.refresh_from_db()
