@@ -146,10 +146,11 @@ class Topic(TembaModel, DependencyMixin):
     """
 
     DEFAULT_TOPIC = "General"
-    org_limit_key = Org.LIMIT_TOPICS
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="topics")
     is_default = models.BooleanField(default=False)
+
+    org_limit_key = Org.LIMIT_TOPICS
 
     @classmethod
     def create_default_topic(cls, org):
@@ -460,6 +461,8 @@ class Team(TembaModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="teams")
     topics = models.ManyToManyField(Topic, related_name="teams")
+
+    org_limit_key = Org.LIMIT_TEAMS
 
     @classmethod
     def create(cls, org, user, name: str):

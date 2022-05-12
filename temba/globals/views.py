@@ -5,7 +5,6 @@ from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartUpda
 from django import forms
 from django.urls import reverse
 
-from temba.orgs.models import Org
 from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 
@@ -22,10 +21,14 @@ class CreateGlobalForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
-        org_active_globals_limit = self.org.get_limit(Org.LIMIT_GLOBALS)
-        if self.org.globals.filter(is_active=True).count() >= org_active_globals_limit:
+        count, limit = Global.get_org_limit_progress(self.org)
+        if limit is not None and count >= limit:
             raise forms.ValidationError(
-                _("Cannot create a new global as limit is %(limit)s."), params={"limit": org_active_globals_limit}
+                _(
+                    "This workspace has reached its limit of %(limit)d globals. "
+                    "You must delete existing ones before you can create new ones."
+                ),
+                params={"limit": limit},
             )
 
         return cleaned_data

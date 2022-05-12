@@ -430,6 +430,7 @@ class ContactField(TembaModel, DependencyMixin):
     objects = models.Manager()
     user_fields = UserContactFieldsManager()
 
+    org_limit_key = Org.LIMIT_FIELDS
     soft_dependent_types = {"flow", "campaign_event"}
 
     @classmethod
@@ -1426,6 +1427,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
     query = models.TextField(null=True)
     query_fields = models.ManyToManyField(ContactField, related_name="dependent_groups")
 
+    org_limit_key = Org.LIMIT_GROUPS
     soft_dependent_types = {"flow"}
 
     @classmethod

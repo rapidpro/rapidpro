@@ -120,16 +120,16 @@ class TembaModel(TembaUUIDMixin, TembaNameMixin, SmartModel):
 
     @classmethod
     def get_active_for_org(cls, org):
-        return cls.objects.filter(org=org, is_active=True)
+        return cls._default_manager.filter(org=org, is_active=True)
 
     @classmethod
     def get_org_limit_progress(cls, org) -> tuple:
         """
-        Gets a tuple of the count of non-system active objects and the limit.
+        Gets a tuple of the count of non-system active objects and the limit. A limit of None means unlimited.
         """
-        assert cls.org_limit_key, "org limit key not set for this class"
+        limit = org.get_limit(cls.org_limit_key) if cls.org_limit_key else None
 
-        return cls.get_active_for_org(org).filter(is_system=False).count(), org.get_limit(cls.org_limit_key)
+        return cls.get_active_for_org(org).filter(is_system=False).count(), limit
 
     @classmethod
     def import_def(cls, org, user, definition: dict, preview: bool = False) -> tuple:
@@ -157,10 +157,9 @@ class TembaModel(TembaUUIDMixin, TembaNameMixin, SmartModel):
         if not is_valid:
             return None, cls.ImportResult.IGNORED_INVALID
 
-        if cls.org_limit_key:
-            org_count, org_limit = cls.get_org_limit_progress(org)
-            if org_count >= org_limit:
-                return None, cls.ImportResult.IGNORED_LIMIT_REACHED
+        org_count, org_limit = cls.get_org_limit_progress(org)
+        if org_limit is not None and org_count >= org_limit:
+            return None, cls.ImportResult.IGNORED_LIMIT_REACHED
 
         if preview:
             return None, cls.ImportResult.CREATED

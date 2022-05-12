@@ -37,7 +37,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
-from temba.orgs.models import Org, OrgRole
+from temba.orgs.models import OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import splitting_getlist, str_to_bool
@@ -1791,7 +1791,6 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     write_serializer_class = ContactFieldWriteSerializer
     pagination_class = CreatedOnCursorPagination
     lookup_params = {"key": "key"}
-    org_limit_key = Org.LIMIT_FIELDS
 
     def derive_queryset(self):
         org = self.request.user.get_org()
@@ -2039,7 +2038,6 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     write_serializer_class = GlobalWriteSerializer
     pagination_class = ModifiedOnCursorPagination
     lookup_params = {"key": "key"}
-    org_limit_key = Org.LIMIT_GLOBALS
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -2196,7 +2194,6 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     write_serializer_class = ContactGroupWriteSerializer
     pagination_class = CreatedOnCursorPagination
     exclusive_params = ("uuid", "name")
-    org_limit_key = Org.LIMIT_GROUPS
 
     def derive_queryset(self):
         return ContactGroup.get_groups(self.request.user.get_org())
@@ -2360,7 +2357,6 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     write_serializer_class = LabelWriteSerializer
     pagination_class = CreatedOnCursorPagination
     exclusive_params = ("uuid", "name")
-    org_limit_key = Org.LIMIT_LABELS
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -3661,7 +3657,6 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     serializer_class = TopicReadSerializer
     write_serializer_class = TopicWriteSerializer
     pagination_class = CreatedOnCursorPagination
-    org_limit_key = Org.LIMIT_TOPICS
 
     def get_org_limit_count(self, org) -> int:
         return org.topics.filter(is_active=True).count()
