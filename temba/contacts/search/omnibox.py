@@ -8,7 +8,7 @@ from django.db.models.functions import Upper
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.msgs.models import Label
-from temba.utils.models import IDSliceQuerySet
+from temba.utils.models.es import IDSliceQuerySet
 
 from . import SearchException, search_contacts
 

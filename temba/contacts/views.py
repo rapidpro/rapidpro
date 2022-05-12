@@ -58,7 +58,8 @@ from temba.utils.fields import (
     TembaChoiceField,
     TembaMultipleChoiceField,
 )
-from temba.utils.models import IDSliceQuerySet, patch_queryset_count
+from temba.utils.models import patch_queryset_count
+from temba.utils.models.es import IDSliceQuerySet
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin, SpaMixin
 
 from .models import (
