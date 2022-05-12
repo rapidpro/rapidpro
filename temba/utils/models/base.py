@@ -95,7 +95,7 @@ class TembaNameMixin(models.Model):
         """
         return original.strip()[: cls.MAX_NAME_LEN].replace('"', "'").replace("\\", "/").replace("\0", "")
 
-    def deleted_name(self) -> str:
+    def _deleted_name(self) -> str:
         return f"deleted-{uuid4()}-{self.name}"[: self.MAX_NAME_LEN]
 
     class Meta:
