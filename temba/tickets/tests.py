@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from unittest.mock import patch
 
 from django.test.utils import override_settings
@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 
 from .models import Team, Ticket, TicketCount, TicketDailyCount, Ticketer, TicketEvent, Topic
@@ -839,3 +839,145 @@ class TicketDailyCountTest(TembaTest):
 
         assert_counts()
         self.assertEqual(14, TicketDailyCount.objects.count())
+
+
+class BackfillTicketDailyCountsTest(MigrationTest):
+    app = "tickets"
+    migrate_from = "0033_populate_is_system"
+    migrate_to = "0034_backfill_ticket_daily_counts"
+
+    def setUpBeforeMigration(self, apps):
+        ticketer = self.org.ticketers.get()
+        contact = self.create_contact("Bob", phone="+1234567890")
+
+        # ticket opened on May 1 with no assignee
+        ticket1 = self.create_ticket(
+            ticketer, contact, "Help", opened_on=datetime(2022, 5, 1, 10, 30, 0, 0, tzinfo=timezone.utc)
+        )
+        self.create_broadcast(
+            self.admin,
+            "What is the problem?",
+            contacts=[contact],
+            ticket=ticket1,
+            created_on=datetime(2022, 5, 1, 10, 30, 0, 0, tzinfo=timezone.utc),
+        )
+        self.create_broadcast(
+            self.admin,
+            "Still there?",
+            contacts=[contact],
+            ticket=ticket1,
+            created_on=datetime(2022, 5, 2, 10, 30, 0, 0, tzinfo=timezone.utc),
+        )
+
+        # ticket opened on May 1 with an assignee
+        ticket2 = self.create_ticket(
+            ticketer,
+            contact,
+            "Help",
+            opened_on=datetime(2022, 5, 1, 12, 30, 0, 0, tzinfo=timezone.utc),
+            assignee=self.agent,
+        )
+        self.create_broadcast(
+            self.agent,
+            "What is the problem?",
+            contacts=[contact],
+            ticket=ticket2,
+            created_on=datetime(2022, 5, 1, 10, 30, 0, 0, tzinfo=timezone.utc),
+        )
+
+        # ticket opened on May 1, later assigned on May 3
+        ticket3 = self.create_ticket(
+            ticketer, contact, "Help", opened_on=datetime(2022, 5, 1, 13, 30, 0, 0, tzinfo=timezone.utc)
+        )
+        ticket3.assignee = self.agent
+        ticket3.save(update_fields=("assignee",))
+        TicketEvent.objects.create(
+            org=self.org,
+            ticket=ticket3,
+            contact=contact,
+            event_type=TicketEvent.TYPE_ASSIGNED,
+            assignee=self.agent,
+            created_by=self.admin,
+            created_on=datetime(2022, 5, 3, 13, 30, 0, 0, tzinfo=timezone.utc),
+        )
+
+        # ticket open on May 2 (in org timezone) and later re-assigned on May 4 which doesn't count
+        ticket4 = self.create_ticket(
+            ticketer,
+            contact,
+            "Help",
+            opened_on=datetime(2022, 5, 1, 23, 45, 0, 0, tzinfo=timezone.utc),
+            assignee=self.admin,
+        )
+
+        ticket4.assignee = self.editor
+        ticket4.save(update_fields=("assignee",))
+        TicketEvent.objects.create(
+            org=self.org,
+            ticket=ticket4,
+            contact=contact,
+            event_type=TicketEvent.TYPE_ASSIGNED,
+            assignee=self.editor,
+            created_by=self.admin,
+            created_on=datetime(2022, 5, 4, 13, 30, 0, 0, tzinfo=timezone.utc),
+        )
+        self.create_broadcast(
+            self.admin,
+            "What is the problem?",
+            contacts=[contact],
+            ticket=ticket4,
+            created_on=datetime(2022, 5, 4, 10, 30, 0, 0, tzinfo=timezone.utc),
+        )
+
+        # ticket 4 already has counts which should replaced
+        TicketDailyCount.objects.create(
+            count_type=TicketDailyCount.TYPE_OPENING, scope=f"o:{self.org.id}", day=date(2022, 5, 2), count=1
+        )
+        TicketDailyCount.objects.create(
+            count_type=TicketDailyCount.TYPE_ASSIGNMENT,
+            scope=f"o:{self.org.id}:u:{self.admin.id}",
+            day=date(2022, 5, 2),
+            count=1,
+        )
+        TicketDailyCount.objects.create(
+            count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{self.org.id}", day=date(2022, 5, 4), count=1
+        )
+        TicketDailyCount.objects.create(
+            count_type=TicketDailyCount.TYPE_REPLY,
+            scope=f"o:{self.org.id}:u:{self.admin.id}",
+            day=date(2022, 5, 4),
+            count=1,
+        )
+
+    def test_migration(self):
+        # org opened 3 tickets on May 1, 1 on May 2
+        self.assertEqual(
+            [(date(2022, 5, 1), 3), (date(2022, 5, 2), 1)],
+            TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_OPENING).day_totals(),
+        )
+
+        # agent user assigned a ticket on May 1 and May 3
+        self.assertEqual(
+            [(date(2022, 5, 1), 1), (date(2022, 5, 3), 1)],
+            TicketDailyCount.get_by_users(self.org, [self.agent], TicketDailyCount.TYPE_ASSIGNMENT).day_totals(),
+        )
+        self.assertEqual(
+            [(date(2022, 5, 2), 1)],
+            TicketDailyCount.get_by_users(self.org, [self.admin], TicketDailyCount.TYPE_ASSIGNMENT).day_totals(),
+        )
+        self.assertEqual(
+            [], TicketDailyCount.get_by_users(self.org, [self.editor], TicketDailyCount.TYPE_ASSIGNMENT).day_totals()
+        )
+
+        self.assertEqual(
+            [(date(2022, 5, 1), 2), (date(2022, 5, 2), 1), (date(2022, 5, 4), 1)],
+            TicketDailyCount.get_by_org(self.org, TicketDailyCount.TYPE_REPLY).day_totals(),
+        )
+        self.assertEqual(
+            [(date(2022, 5, 1), 1)],
+            TicketDailyCount.get_by_users(self.org, [self.agent], TicketDailyCount.TYPE_REPLY).day_totals(),
+        )
+        self.assertEqual(
+            [(date(2022, 5, 1), 1), (date(2022, 5, 2), 1), (date(2022, 5, 4), 1)],
+            TicketDailyCount.get_by_users(self.org, [self.admin], TicketDailyCount.TYPE_REPLY).day_totals(),
+        )
