@@ -48,7 +48,7 @@
           .font-normal.inline.mr-1
             %span.method
               {{ object.method }}
-          {{ object.url }}
+          {{ object.get_url_display }}
         %td
           .text-right.whitespace-nowrap.mr-3
             -trans "Took"
@@ -60,14 +60,14 @@
         %td(colspan="99" style="padding:0;")
           %pre.prettyprint.request<
             :plain
-              {{ object.request.strip }}
+              {{ object.get_request_display }}
 
       -if object.response
         %tr
           %td(colspan="4" style="padding:0;")
             %pre.prettyprint.response<
               :plain
-                {{ object.response }}
+                {{ object.get_response_display }}
       -elif object.is_error
         %tr
           %td(colspan="4" style="padding:0;")
