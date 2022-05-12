@@ -412,9 +412,13 @@ class Org(SmartModel):
             brand = settings.BRANDING[self.brand]
             plan = brand.get("default_plan", settings.DEFAULT_PLAN)
 
-            # if parent are on topups keep using those
+            # if parent is on topups keep using those
             if self.plan == settings.TOPUP_PLAN:
                 plan = settings.TOPUP_PLAN
+
+            # shared usage always uses the workspace plan
+            if self.has_shared_usage():
+                plan = settings.WORKSPACE_PLAN
 
             org = Org.objects.create(
                 name=name,
@@ -428,7 +432,7 @@ class Org(SmartModel):
                 modified_by=created_by,
                 plan=plan,
                 is_multi_user=self.is_multi_user,
-                is_multi_org=self.is_multi_org,
+                is_multi_org=False,
             )
 
             org.add_user(created_by, OrgRole.ADMINISTRATOR)
@@ -445,6 +449,9 @@ class Org(SmartModel):
 
     def get_brand_domain(self):
         return self.get_branding()["domain"]
+
+    def has_shared_usage(self):
+        return self.plan in self.get_branding().get("shared_plans", [])
 
     def lock_on(self, lock):
         """
@@ -2573,20 +2580,29 @@ class OrgActivity(models.Model):
 
         # calculate active count in plan period for orgs with an active plan
         plan_active_contact_counts = dict()
-        for org in (
+        for parent in (
             Org.objects.exclude(plan_end=None)
             .exclude(plan_start=None)
             .exclude(plan_end__lt=start)
+            .exclude(plan=settings.WORKSPACE_PLAN)
             .only("plan_start", "plan_end")
         ):
-            plan_end = org.plan_end if org.plan_end < end else end
-            count = (
-                Msg.objects.filter(org=org, created_on__gt=org.plan_start, created_on__lt=plan_end)
-                .only("contact")
-                .distinct("contact")
-                .count()
-            )
-            plan_active_contact_counts[org.id] = count
+            plan_end = parent.plan_end if parent.plan_end < end else end
+            orgs = [parent]
+
+            # find our shared usage and collect their stats too
+            if parent.has_shared_usage():
+                for child_org in Org.objects.filter(parent=parent, is_active=True):
+                    orgs.append(child_org)
+
+            for org in orgs:
+                count = (
+                    Msg.objects.filter(org=org, created_on__gt=parent.plan_start, created_on__lt=plan_end)
+                    .only("contact")
+                    .distinct("contact")
+                    .count()
+                )
+                plan_active_contact_counts[org.id] = count
 
         for org in contact_counts:
             OrgActivity.objects.update_or_create(
