@@ -9,7 +9,9 @@ from temba.contacts.models import Contact
 from temba.flows.models import Flow
 from temba.tests import TembaTest
 
-from .base import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
+from .base import patch_queryset_count
+from .es import IDSliceQuerySet
+from .fields import JSONAsTextField
 
 
 class ModelsTest(TembaTest):
