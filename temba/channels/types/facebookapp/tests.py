@@ -150,6 +150,13 @@ class FacebookTypeTest(TembaTest):
         self.assertEqual(response.context["refresh_url"], url)
         self.assertTrue(response.context["error_connect"])
 
+        mock_get.side_effect = [MockResponse(200, json.dumps({"data": {"is_valid": False}}))]
+        response = self.client.get(url)
+        self.assertContains(response, "Reconnect Facebook Page")
+        self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
+        self.assertEqual(response.context["refresh_url"], url)
+        self.assertTrue(response.context["error_connect"])
+
         mock_get.side_effect = [
             MockResponse(200, json.dumps({"data": {"is_valid": True}})),
             MockResponse(200, json.dumps({"access_token": f"long-life-user-{token}"})),
