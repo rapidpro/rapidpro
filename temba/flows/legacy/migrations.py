@@ -117,7 +117,7 @@ def migrate_to_version_11_11(json_flow, flow=None):
         if type(label) is dict:
             # we haven't been mapped yet (also, non-uuid labels can't be mapped)
             if ("uuid" not in label or label["uuid"] not in uuid_map) and Label.is_valid_name(label["name"]):
-                label_instance = Label.get_or_create(flow.org, flow.created_by, label["name"])
+                label_instance, _ = Label.import_def(flow.org, flow.created_by, {"name": label["name"]})
 
                 # map label references that started with a uuid
                 if "uuid" in label:
