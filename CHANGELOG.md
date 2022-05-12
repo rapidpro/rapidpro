@@ -1,3 +1,10 @@
+v7.3.41
+----------
+ * Reorganization of temba.utils.models
+ * Update the approach to the test a token is valid for FBA and IG channels
+ * Promote ContactField and Global to be TembaModels whilst for now retaining their custom name validation logic
+ * Add import support methods to TembaModel and use with Topic
+
 v7.3.40
 ----------
  * Add workspace plan, disallow grandchild org creation.
