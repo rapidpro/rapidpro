@@ -170,6 +170,13 @@ class InstagramTypeTest(TembaTest):
         self.assertEqual(response.context["refresh_url"], url)
         self.assertTrue(response.context["error_connect"])
 
+        mock_get.side_effect = [MockResponse(200, json.dumps({"data": {"is_valid": False}}))]
+        response = self.client.get(url)
+        self.assertContains(response, "Reconnect Instagram Business Account")
+        self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
+        self.assertEqual(response.context["refresh_url"], url)
+        self.assertTrue(response.context["error_connect"])
+
         mock_get.side_effect = [
             MockResponse(200, json.dumps({"data": {"is_valid": True}})),
             MockResponse(200, json.dumps({"access_token": self.long_life_page_token})),
