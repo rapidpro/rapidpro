@@ -68,7 +68,25 @@
   {{ block.super }}
 
   :javascript
-    $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e){
+    $(document).ready(function(){
+      $(".connect-facebook").click(function(evt){
+        location.replace("https://www.facebook.com/v12.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&scope=pages_messaging,pages_show_list,pages_manage_metadata,pages_read_engagement&response_type=token")
+
+      });
+
+      var hash = window.location.hash.substring(1)
+      var result = hash.split('&').reduce(function (res, item) {
+        var parts = item.split('=');
+        res[parts[0]] = parts[1];
+        return res;
+      }, {});
+
+      var accessToken = result.long_lived_token || result.access_token;
+      if (accessToken) {
+        getFBPages(accessToken);
+      }
+
+      $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e){
         $("#user-access-token").val($(this).data("fb-access-token"));
         $("#page-id").val($(this).data("fb-id"));
         $("#page-name").val($(this).data("fb-name"));

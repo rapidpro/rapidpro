@@ -171,8 +171,8 @@ class InstagramTypeTest(TembaTest):
         self.assertTrue(response.context["error_connect"])
 
         mock_get.side_effect = [
-            MockResponse(200, json.dumps({"id": "12345"})),
-            MockResponse(200, json.dumps({"access_token": self.long_life_user_token})),
+            MockResponse(200, json.dumps({"data": {"is_valid": True}})),
+            MockResponse(200, json.dumps({"access_token": self.long_life_page_token})),
             MockResponse(
                 200,
                 json.dumps(
