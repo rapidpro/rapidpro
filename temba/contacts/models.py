@@ -430,6 +430,7 @@ class ContactField(TembaModel, DependencyMixin):
     objects = models.Manager()
     user_fields = UserContactFieldsManager()
 
+    org_limit_key = Org.LIMIT_FIELDS
     soft_dependent_types = {"flow", "campaign_event"}
 
     @classmethod
@@ -1426,6 +1427,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
     query = models.TextField(null=True)
     query_fields = models.ManyToManyField(ContactField, related_name="dependent_groups")
 
+    org_limit_key = Org.LIMIT_GROUPS
     soft_dependent_types = {"flow"}
 
     @classmethod
@@ -1479,15 +1481,13 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
         )
 
     @classmethod
-    def get_groups(cls, org: Org, *, manual_only=False, user_only=False, ready_only=False):
+    def get_groups(cls, org: Org, *, manual_only=False, ready_only=False):
         """
         Gets the groups (excluding db trigger based status groups) for the given org
         """
         types = (cls.TYPE_MANUAL,) if manual_only else (cls.TYPE_MANUAL, cls.TYPE_SMART)
         groups = cls.objects.filter(org=org, group_type__in=types, is_active=True)
 
-        if user_only:
-            groups = groups.filter(is_system=False)
         if ready_only:
             groups = groups.filter(status=cls.STATUS_READY)
 

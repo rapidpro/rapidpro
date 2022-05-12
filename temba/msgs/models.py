@@ -905,6 +905,8 @@ class Label(LegacyUUIDMixin, TembaModel, DependencyMixin):
     folder_objects = UserFolderManager()
     label_objects = UserLabelManager()
 
+    org_limit_key = Org.LIMIT_LABELS
+
     @classmethod
     def get_or_create(cls, org, user, name: str, folder=None):
         assert cls.is_valid_name(name), f"'{name}' is not a valid label name"

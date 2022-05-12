@@ -12,6 +12,7 @@ from temba.api.models import APIPermission, SSLPermission
 from temba.api.support import InvalidQueryError
 from temba.contacts.models import URN
 from temba.utils import str_to_bool
+from temba.utils.models import TembaModel
 from temba.utils.views import NonAtomicMixin
 
 from .serializers import BulkActionFailure
@@ -177,7 +178,6 @@ class WriteAPIMixin:
 
     write_serializer_class = None
     write_with_transaction = True
-    org_limit_key = None
 
     def post_save(self, instance):
         """
@@ -196,10 +196,9 @@ class WriteAPIMixin:
         else:
             instance = None
 
-            if self.org_limit_key:
-                org = request.user.get_org()
-                org_limit = org.get_limit(self.org_limit_key)
-                if self.get_org_limit_count(org) >= org_limit:
+            if issubclass(self.model, TembaModel):
+                org_count, org_limit = self.model.get_org_limit_progress(request.user.get_org())
+                if org_limit is not None and org_count >= org_limit:
                     return Response(
                         {"detail": f"Cannot create object because workspace has reached limit of {org_limit}."},
                         status=status.HTTP_409_CONFLICT,
@@ -221,13 +220,7 @@ class WriteAPIMixin:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def is_system_instance(self, obj):
-        return getattr(obj, "is_system", False)
-
-    def get_org_limit_count(self, org) -> int:  # pragma: no cover
-        """
-        Get the count of objects that count toward the org limit for that type
-        """
-        return 0
+        return obj.is_system if isinstance(obj, TembaModel) else False
 
     def render_write_response(self, write_output, context):
         response_serializer = self.serializer_class(instance=write_output, context=context)

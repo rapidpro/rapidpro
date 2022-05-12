@@ -143,7 +143,9 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"name": "Secret3", "value": "[abc]"},
-            form_errors={"__all__": "Cannot create a new global as limit is 4."},
+            form_errors={
+                "__all__": "This workspace has reached its limit of 4 globals. You must delete existing ones before you can create new ones."
+            },
         )
 
     def test_update(self):
