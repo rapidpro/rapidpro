@@ -151,16 +151,26 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["refresh_url"] = reverse("channels.types.facebookapp.refresh_token", args=(self.object.uuid,))
-        context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
 
-        resp = requests.get(
-            "https://graph.facebook.com/v12.0/me",
-            params={"access_token": self.object.config[Channel.CONFIG_AUTH_TOKEN]},
-        )
+        app_id = settings.FACEBOOK_APPLICATION_ID
+        app_secret = settings.FACEBOOK_APPLICATION_SECRET
+
+        context["facebook_app_id"] = app_id
+
+        url = "https://graph.facebook.com/v12.0/debug_token"
+        params = {
+            "access_token": f"{app_id}|{app_secret}",
+            "input_token": self.object.config[Channel.CONFIG_AUTH_TOKEN],
+        }
+        resp = requests.get(url, params=params)
 
         error_connect = False
         if resp.status_code != 200:
             error_connect = True
+        else:
+            valid_token = resp.json().get("data", dict()).get("is_valid", False)
+            if not valid_token:
+                error_connect = True
 
         context["error_connect"] = error_connect
 
