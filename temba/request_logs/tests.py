@@ -2,11 +2,14 @@ from datetime import timedelta
 
 from requests import RequestException
 
+from django.conf import settings
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
+from temba.contacts.models import ContactURN
 from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
 from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
@@ -181,7 +184,8 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.requestView(reverse("request_logs.httplog_ticketer", args=[t2.uuid]), self.admin)
         self.assertEqual(404, response.status_code)
 
-    def test_channel_log(self):
+    @override_settings(WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN")
+    def test_http_log(self):
         channel = self.create_channel("WA", "WhatsApp: 1234", "1234")
 
         exception = RequestException("Network is unreachable", response=MockResponse(100, ""))
@@ -201,6 +205,21 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "200")
         self.assertContains(response, "Connection Error")
         self.assertContains(response, "https://graph.facebook.com/v3.3/1234/message_templates")
+
+        log2 = HTTPLog.create_from_exception(
+            HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
+            f"https://graph.facebook.com/v3.3/1234/message_templates?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}",
+            exception,
+            start,
+            channel=channel,
+        )
+        log2_url = reverse("request_logs.httplog_read", args=[log2.id])
+        response = self.client.get(log2_url)
+        self.assertContains(response, "200")
+        self.assertContains(response, "Connection Error")
+        self.assertContains(
+            response, f"https://graph.facebook.com/v3.3/1234/message_templates?access_token={ContactURN.ANON_MASK}"
+        )
 
         # and can't be from other org
         self.login(self.admin2)
