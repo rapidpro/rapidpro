@@ -220,13 +220,7 @@ class WriteAPIMixin:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def is_system_instance(self, obj):
-        return getattr(obj, "is_system", False)
-
-    def get_org_limit_count(self, org) -> int:  # pragma: no cover
-        """
-        Get the count of objects that count toward the org limit for that type
-        """
-        return 0
+        return obj.is_system if isinstance(obj, TembaModel) else False
 
     def render_write_response(self, write_output, context):
         response_serializer = self.serializer_class(instance=write_output, context=context)

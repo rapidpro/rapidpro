@@ -1806,9 +1806,6 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True)
 
-    def get_org_limit_count(self, org):
-        return org.fields.filter(is_active=True, is_system=False).count()
-
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -2054,9 +2051,6 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True)
 
-    def get_org_limit_count(self, org) -> int:
-        return Global.objects.filter(org=org, is_active=True).count()
-
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -2212,9 +2206,6 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True).exclude(status=ContactGroup.STATUS_INITIALIZING)
-
-    def get_org_limit_count(self, org):
-        return ContactGroup.get_groups(org, user_only=True).count()
 
     def prepare_for_serialization(self, object_list, using: str):
         group_counts = ContactGroupCount.get_totals(object_list)
@@ -2372,9 +2363,6 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True)
-
-    def get_org_limit_count(self, org) -> int:
-        return Label.label_objects.filter(org=org, is_active=True).count()
 
     def prepare_for_serialization(self, object_list, using: str):
         label_counts = LabelCount.get_totals(object_list)
@@ -3657,9 +3645,6 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     serializer_class = TopicReadSerializer
     write_serializer_class = TopicWriteSerializer
     pagination_class = CreatedOnCursorPagination
-
-    def get_org_limit_count(self, org) -> int:
-        return org.topics.filter(is_active=True).count()
 
     @classmethod
     def get_read_explorer(cls):
