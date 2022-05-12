@@ -1021,7 +1021,7 @@ class Label(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         self.counts.all().delete()
 
-        self.name = self.deleted_name()
+        self.name = self._deleted_name()
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))

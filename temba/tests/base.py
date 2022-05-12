@@ -415,6 +415,8 @@ class TembaTestMixin:
         msg_status=Msg.STATUS_SENT,
         parent=None,
         schedule=None,
+        ticket=None,
+        created_on=None,
     ):
         bcast = Broadcast.create(
             self.org,
@@ -425,6 +427,8 @@ class TembaTestMixin:
             status=Msg.STATUS_SENT,
             parent=parent,
             schedule=schedule,
+            ticket=ticket,
+            created_on=created_on or timezone.now(),
         )
 
         contacts = set(bcast.contacts.all())
@@ -637,16 +641,14 @@ class TembaTestMixin:
             closed_on=closed_on,
         )
         TicketEvent.objects.create(
-            org=ticket.org, contact=contact, ticket=ticket, event_type=TicketEvent.TYPE_OPENED, created_by=opened_by
+            org=ticket.org,
+            contact=contact,
+            ticket=ticket,
+            event_type=TicketEvent.TYPE_OPENED,
+            assignee=assignee,
+            created_by=opened_by,
+            created_on=opened_on,
         )
-        if assignee:
-            TicketEvent.objects.create(
-                org=ticket.org,
-                contact=contact,
-                ticket=ticket,
-                event_type=TicketEvent.TYPE_ASSIGNED,
-                created_by=opened_by,
-            )
         if closed_on:
             TicketEvent.objects.create(
                 org=ticket.org,
@@ -654,6 +656,7 @@ class TembaTestMixin:
                 ticket=ticket,
                 event_type=TicketEvent.TYPE_CLOSED,
                 created_by=closed_by,
+                created_on=closed_on,
             )
 
         return ticket
