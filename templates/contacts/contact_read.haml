@@ -43,10 +43,10 @@
         {{ contact.current_flow.name }}
 
     -for group in contact_groups
-      -if group.is_dynamic
+      -if group.is_smart
         -include "includes/recipients_group.haml" with group=group
     -for group in contact_groups
-      -if not group.is_dynamic
+      -if not group.is_smart
         -include "includes/recipients_group.haml" with group=group
 
 -block read-buttons
@@ -68,10 +68,10 @@
             .flex.flex-col.p-2
               .contact-field{data-id:'{{field.id}}'}
                 .contact-field-value.editable.cursor-pointer.hover-linked.font-bold.text-gray-600
-                  {{field.value|truncatechars:20}}      
+                  {{ field.value|truncatechars:20 }}
               .whitespace-nowrap.pr-12.contact-field{data-id:'{{field.id}}'}
                 .contact-field-value.tracking-wider.font-normal.text-xs
-                  {{field.label|title}}
+                  {{ field.name|title }}
         
       
 
@@ -129,11 +129,11 @@
           %td
             .whitespace-nowrap.pr-12.contact-field{data-id:'{{field.id}}'}
               .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
-                {{field.label|title}}
+                {{ field.name|title }}
           %td.w-full
             .contact-field{data-id:'{{field.id}}'}
               .contact-field-value.editable.cursor-pointer.hover-linked
-                {{field.value}}
+                {{ field.value }}
       
       -for urn in contact_urns
         -if not user_org.is_anon
@@ -568,7 +568,7 @@
     $('.contact-field-value.editable').live('click', function(evt) {
       var endpoint = '{% url "contacts.contact_update_fields" object.pk %}';
       var field_id = $(this).parent().data('id');
-      var modax = document.querySelector("#update-custom-fields");
+      var modax = document.querySelector("#update-custom-fields, #shared-modax");
       modax.endpoint = endpoint + '?field=' + field_id;
       modax.open = true;
 

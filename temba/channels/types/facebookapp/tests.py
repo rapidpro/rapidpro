@@ -32,6 +32,7 @@ class FacebookTypeTest(TembaTest):
     def test_claim(self, mock_get, mock_post):
         token = "x" * 200
         mock_get.side_effect = [
+            MockResponse(200, json.dumps({"data": {"user_id": "098765", "expired_at": 100}})),
             MockResponse(200, json.dumps({"access_token": f"long-life-user-{token}"})),
             MockResponse(
                 200,
@@ -56,7 +57,6 @@ class FacebookTypeTest(TembaTest):
         self.assertEqual(response.context["claim_url"], url)
 
         post_data = response.context["form"].initial
-        post_data["fb_user_id"] = "098765"
         post_data["user_access_token"] = token
         post_data["page_id"] = "123456"
         post_data["page_name"] = "Temba"
@@ -72,6 +72,11 @@ class FacebookTypeTest(TembaTest):
         self.assertEqual(response.request["PATH_INFO"], reverse("channels.channel_read", args=[channel.uuid]))
 
         mock_get.assert_any_call(
+            "https://graph.facebook.com/v12.0/debug_token",
+            params={"input_token": token, "access_token": "FB_APP_ID|FB_APP_SECRET"},
+        )
+
+        mock_get.assert_any_call(
             "https://graph.facebook.com/oauth/access_token",
             params={
                 "grant_type": "fb_exchange_token",
@@ -80,6 +85,7 @@ class FacebookTypeTest(TembaTest):
                 "fb_exchange_token": token,
             },
         )
+
         mock_get.assert_any_call(
             "https://graph.facebook.com/v12.0/098765/accounts", params={"access_token": f"long-life-user-{token}"}
         )
@@ -93,7 +99,7 @@ class FacebookTypeTest(TembaTest):
         )
 
         mock_get.side_effect = [
-            MockResponse(200, json.dumps({"access_token": f"long-life-user-{token}"})),
+            MockResponse(200, json.dumps({"data": {"user_id": "098765"}})),
             Exception("blah"),
         ]
 
@@ -103,7 +109,6 @@ class FacebookTypeTest(TembaTest):
         self.assertEqual(response.context["claim_url"], url)
 
         post_data = response.context["form"].initial
-        post_data["fb_user_id"] = "098765"
         post_data["user_access_token"] = token
         post_data["page_id"] = "123456"
         post_data["page_name"] = "Temba"
@@ -145,8 +150,15 @@ class FacebookTypeTest(TembaTest):
         self.assertEqual(response.context["refresh_url"], url)
         self.assertTrue(response.context["error_connect"])
 
+        mock_get.side_effect = [MockResponse(200, json.dumps({"data": {"is_valid": False}}))]
+        response = self.client.get(url)
+        self.assertContains(response, "Reconnect Facebook Page")
+        self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
+        self.assertEqual(response.context["refresh_url"], url)
+        self.assertTrue(response.context["error_connect"])
+
         mock_get.side_effect = [
-            MockResponse(200, json.dumps({"id": "12345"})),
+            MockResponse(200, json.dumps({"data": {"is_valid": True}})),
             MockResponse(200, json.dumps({"access_token": f"long-life-user-{token}"})),
             MockResponse(
                 200,
@@ -196,7 +208,7 @@ class FacebookTypeTest(TembaTest):
         )
 
     def test_new_conversation_triggers(self):
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
 
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, json.dumps({"success": True}))

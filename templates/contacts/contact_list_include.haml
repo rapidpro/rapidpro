@@ -40,20 +40,19 @@
                 -trans "Groups"
 
               %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
-                -for group in groups
-                  -if not group.is_dynamic
-                    %li
-                      .lbl-menu(href='#' onclick='addContactToGroup({{group.pk}})' data-id='{{group.pk}}')
-                        .flex.items-center.py-1.hover-linked
-                          .glyph.message-label.label-checkbox
-                          .name.px-2
-                            {{ group.label }}
-                - if org_perms.contacts.contactgroup_create
-                  - if groups
+                -for group in manual_groups
+                  %li
+                    .lbl-menu(href='#' onclick='addContactToGroup({{ group.id }})' data-id='{{ group.id }}')
+                      .flex.items-center.py-1.hover-linked
+                        .glyph.message-label.label-checkbox
+                        .name.px-2
+                          {{ group.name }}
+                -if org_perms.contacts.contactgroup_create
+                  -if manual_groups
                     %li.separator.-mx-4.border-b.my-3
                   %li
                     .lbl-menu.add-group.hover-linked(onclick="handleAddGroupClicked()")
-                      - trans "New Group..."
+                      -trans "New Group..."
 
           -if org_perms.msgs.broadcast_send and not reply_disabled
             %temba-modax#send-message-modal(header='{{_("Send Message")|escapejs}}' endpoint="{% url 'msgs.broadcast_send' %}")
@@ -78,17 +77,17 @@
                       -if sort_direction == 'desc'
                         %a(href="{{request.path}}?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
                           %div
-                            {{ field.label }}
+                            {{ field.name }}
                             %span.sort.icon.icon-arrow-down-2.sort-asc.visible
                       -else
                         %a(href="{{request.path}}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
                           %div
-                            {{ field.label }}
+                            {{ field.name }}
                             %span.sort.icon.icon-arrow-up51.sort-desc.visible
                     -else
                       %a(href="{{request.path}}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
                         %div
-                          {{ field.label }}
+                          {{ field.name }}
                           %span.sort.icon.icon-arrow-down-2.sort-desc
               %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
                 - if object_list
@@ -163,11 +162,11 @@
               %td.hide
                 .value-labels
                   %nobr
-                    -for group in object.all_groups.all
-                      -if group.group_type == 'U'
-                        %span.label.label-info.lbl(data-id="{{group.id}}")
+                    -for group in object.groups.all
+                      -if group.group_type == 'M'
+                        %span.label.label-info.lbl(data-id="{{ group.id }}")
                           %a(href="{% url 'contacts.contact_filter' group.uuid %}")
-                            {{group.name}}
+                            {{ group.name }}
 
           -empty
             %tr.empty_list

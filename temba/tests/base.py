@@ -239,22 +239,29 @@ class TembaTestMixin:
         assert not (contacts and query), "can't provide contact list for a smart group"
 
         if query:
-            return ContactGroup.create_dynamic(org or self.org, self.user, name, query=query)
+            return ContactGroup.create_smart(org or self.org, self.user, name, query=query)
         else:
-            group = ContactGroup.create_static(org or self.org, self.user, name)
+            group = ContactGroup.create_manual(org or self.org, self.user, name)
             if contacts:
                 group.contacts.add(*contacts)
             return group
 
-    def create_label(self, name, org=None):
-        return Label.get_or_create(org or self.org, self.user, name)
+    def create_label(self, name, *, folder=None, org=None):
+        return Label.create(org or self.org, self.admin, name, folder=folder)
 
-    def create_field(self, key, label, value_type=ContactField.TYPE_TEXT, org=None):
-        return ContactField.user_fields.create(
-            org=org or self.org,
+    def create_field(self, key, name, value_type=ContactField.TYPE_TEXT, priority=0, show_in_table=False, org=None):
+        org = org or self.org
+
+        assert not org.fields.filter(key=key, is_active=True).exists(), f"field with key {key} already exists"
+
+        return ContactField.objects.create(
+            org=org,
             key=key,
-            label=label,
+            name=name,
+            is_system=False,
             value_type=value_type,
+            priority=priority,
+            show_in_table=show_in_table,
             created_by=self.admin,
             modified_by=self.admin,
         )
@@ -271,6 +278,7 @@ class TembaTestMixin:
         created_on=None,
         external_id=None,
         surveyor=False,
+        flow=None,
     ):
         assert not msg_type or status != Msg.STATUS_PENDING, "pending messages don't have a msg type"
 
@@ -289,6 +297,7 @@ class TembaTestMixin:
             visibility=visibility,
             external_id=external_id,
             surveyor=surveyor,
+            flow=flow,
         )
 
     def create_incoming_msgs(self, contact, count):
@@ -309,6 +318,7 @@ class TembaTestMixin:
         high_priority=False,
         surveyor=False,
         next_attempt=None,
+        flow=None,
     ):
         if status in (Msg.STATUS_WIRED, Msg.STATUS_SENT, Msg.STATUS_DELIVERED) and not sent_on:
             sent_on = timezone.now()
@@ -329,6 +339,7 @@ class TembaTestMixin:
             sent_on,
             high_priority=high_priority,
             surveyor=surveyor,
+            flow=flow,
             metadata=metadata,
             next_attempt=next_attempt,
         )
@@ -348,6 +359,7 @@ class TembaTestMixin:
         external_id=None,
         high_priority=False,
         surveyor=False,
+        flow=None,
         broadcast=None,
         metadata=None,
         next_attempt=None,
@@ -389,6 +401,7 @@ class TembaTestMixin:
             created_on=created_on or timezone.now(),
             sent_on=sent_on,
             broadcast=broadcast,
+            flow=flow,
             metadata=metadata,
             next_attempt=next_attempt,
         )
@@ -402,6 +415,8 @@ class TembaTestMixin:
         msg_status=Msg.STATUS_SENT,
         parent=None,
         schedule=None,
+        ticket=None,
+        created_on=None,
     ):
         bcast = Broadcast.create(
             self.org,
@@ -412,6 +427,8 @@ class TembaTestMixin:
             status=Msg.STATUS_SENT,
             parent=parent,
             schedule=schedule,
+            ticket=ticket,
+            created_on=created_on or timezone.now(),
         )
 
         contacts = set(bcast.contacts.all())
@@ -435,7 +452,7 @@ class TembaTestMixin:
 
         return bcast
 
-    def create_flow(self, name="Test Flow", *, flow_type=Flow.TYPE_MESSAGE, nodes=None, is_system=False, org=None):
+    def create_flow(self, name: str, *, flow_type=Flow.TYPE_MESSAGE, nodes=None, is_system=False, org=None):
         org = org or self.org
         flow = Flow.create(org, self.admin, name, flow_type=flow_type, is_system=is_system)
         if not nodes:
@@ -624,16 +641,14 @@ class TembaTestMixin:
             closed_on=closed_on,
         )
         TicketEvent.objects.create(
-            org=ticket.org, contact=contact, ticket=ticket, event_type=TicketEvent.TYPE_OPENED, created_by=opened_by
+            org=ticket.org,
+            contact=contact,
+            ticket=ticket,
+            event_type=TicketEvent.TYPE_OPENED,
+            assignee=assignee,
+            created_by=opened_by,
+            created_on=opened_on,
         )
-        if assignee:
-            TicketEvent.objects.create(
-                org=ticket.org,
-                contact=contact,
-                ticket=ticket,
-                event_type=TicketEvent.TYPE_ASSIGNED,
-                created_by=opened_by,
-            )
         if closed_on:
             TicketEvent.objects.create(
                 org=ticket.org,
@@ -641,6 +656,7 @@ class TembaTestMixin:
                 ticket=ticket,
                 event_type=TicketEvent.TYPE_CLOSED,
                 created_by=closed_by,
+                created_on=closed_on,
             )
 
         return ticket

@@ -127,7 +127,7 @@ function labelObjectRows(labelId, forceRemove) {
     }
 
     jQuery.ajaxSettings.traditional = true;
-    lastChecked = getCheckedIds();
+    window.lastChecked = getCheckedIds();
 
     if (objectRowsIds.length == 0) {
         showWarning(
@@ -144,9 +144,9 @@ function labelObjectRows(labelId, forceRemove) {
  * When we refresh the object list via pjax, we need to re-select the object rows that were previously selected
  */
 function recheckIds() {
-    if (lastChecked && lastChecked.length > 0) {
-        for (var i = 0; i < lastChecked.length; i++) {
-            var row = $(".object-row[data-object-id='" + lastChecked[i] + "']");
+    if (window.lastChecked && window.lastChecked.length > 0) {
+        for (var i = 0; i < window.lastChecked.length; i++) {
+            var row = $(".object-row[data-object-id='" + window.lastChecked[i] + "']");
             row.addClass('checked');
             row.find('temba-checkbox').attr('checked', true);
         }

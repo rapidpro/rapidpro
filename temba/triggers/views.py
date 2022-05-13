@@ -2,6 +2,7 @@ from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemp
 
 from django import forms
 from django.db.models import Min
+from django.db.models.functions import Upper
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _, ngettext_lazy
@@ -40,7 +41,7 @@ class BaseTriggerForm(forms.ModelForm):
     )
 
     groups = TembaMultipleChoiceField(
-        queryset=ContactGroup.user_groups.none(),
+        queryset=ContactGroup.objects.none(),
         label=_("Groups To Include"),
         help_text=_("Only includes contacts in these groups."),
         required=False,
@@ -49,7 +50,7 @@ class BaseTriggerForm(forms.ModelForm):
         ),
     )
     exclude_groups = TembaMultipleChoiceField(
-        queryset=ContactGroup.user_groups.none(),
+        queryset=ContactGroup.objects.none(),
         label=_("Groups To Exclude"),
         help_text=_("Excludes contacts in these groups."),
         required=False,
@@ -70,7 +71,7 @@ class BaseTriggerForm(forms.ModelForm):
 
         self.fields["flow"].queryset = flows.order_by("name")
 
-        groups = ContactGroup.get_user_groups(self.org, ready_only=False)
+        groups = ContactGroup.get_groups(self.org).order_by(Upper("name"))
 
         self.fields["groups"].queryset = groups
         self.fields["exclude_groups"].queryset = groups
@@ -132,9 +133,9 @@ class RegisterTriggerForm(BaseTriggerForm):
                 value = value[7:]
 
                 # we must get groups for this org only
-                group = ContactGroup.get_user_group_by_name(self.user.get_org(), value)
+                group = ContactGroup.get_group_by_name(self.user.get_org(), value)
                 if not group:
-                    group = ContactGroup.create_static(self.user.get_org(), self.user, name=value)
+                    group = ContactGroup.create_manual(self.user.get_org(), self.user, name=value)
                 return group
 
             return super().clean(value)
@@ -148,7 +149,7 @@ class RegisterTriggerForm(BaseTriggerForm):
     )
 
     action_join_group = AddNewGroupChoiceField(
-        ContactGroup.user_groups.none(),
+        ContactGroup.objects.none(),
         required=True,
         label=_("Group to Join"),
         help_text=_("The group the contact will join when they send the above keyword"),
@@ -168,9 +169,9 @@ class RegisterTriggerForm(BaseTriggerForm):
         # on this form flow becomes the flow to be triggered from the generated flow and is optional
         self.fields["flow"].required = False
 
-        self.fields["action_join_group"].queryset = ContactGroup.user_groups.filter(
-            org=self.org, is_active=True
-        ).order_by("name")
+        self.fields["action_join_group"].queryset = ContactGroup.get_groups(self.org, manual_only=True).order_by(
+            Upper("name")
+        )
         self.fields["action_join_group"].user = user
 
     def get_conflicts_kwargs(self, cleaned_data):
@@ -227,7 +228,6 @@ class TriggerCRUDL(SmartCRUDL):
 
             menu.append(
                 self.create_menu_item(
-                    menu_id="archived-triggers",
                     name=_("Archived"),
                     icon="archive",
                     count=org_triggers.filter(is_archived=True).count(),

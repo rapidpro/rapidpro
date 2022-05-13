@@ -44,7 +44,7 @@ class Command(BaseCommand):  # pragma: no cover
             raise CommandError("Must specify --org or --group or --contact")
 
     def compare_org(self, org):
-        for group in org.all_groups.filter(is_active=True):
+        for group in org.groups.filter(is_active=True):
             db_count = group.get_member_count()
             es_count = self.es.count(
                 "contacts", {"query": {"bool": {"filter": [{"term": {"groups": str(group.uuid)}}]}}}
@@ -56,7 +56,7 @@ class Command(BaseCommand):  # pragma: no cover
                 )
 
     def compare_group(self, group_uuid: str):
-        group = ContactGroup.all_groups.filter(uuid=group_uuid, is_active=True).first()
+        group = ContactGroup.objects.filter(uuid=group_uuid, is_active=True).first()
         if not group:
             raise CommandError("No such group")
 
@@ -101,7 +101,7 @@ class Command(BaseCommand):  # pragma: no cover
             "last_seen_on": db_contact.last_seen_on,
             "urns": [{"scheme": u.scheme, "path": u.path} for u in db_contact.urns.all()],
             "fields": db_contact.fields,
-            "groups": [str(g.uuid) for g in db_contact.all_groups.all()],
+            "groups": [str(g.uuid) for g in db_contact.groups.all()],
             "flow": str(db_contact.current_flow.uuid) if db_contact.current_flow else None,
         }
 

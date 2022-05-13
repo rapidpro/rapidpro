@@ -17,8 +17,12 @@
     -trans "Recent Events"
 
 -block content
-  .shadow.rounded-lg.overflow-y-auto
-    %table.list.object-list.lined
+
+  .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
+    -include "includes/short_pagination.haml"
+          
+  .flex-grow.overflow-y-auto.shadow
+    %table.relative.list.object-list.lined.scrolled.sticky
       %thead
         %tr
           %th{ style:'width:120px' }
@@ -64,6 +68,3 @@
 
               %td(style='text-align: right' nowrap='true')
                 {% format_datetime obj.created_on seconds=True %}
-
-  .mr-24
-    -include "includes/pagination.haml"

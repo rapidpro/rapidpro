@@ -1558,7 +1558,7 @@ table.padded td {
     padding: 0.75rem
   }
 
-table.list {
+table.list{
   --tw-bg-opacity: 1;
   background-color: rgba(255, 255, 255, var(--tw-bg-opacity));
   border-radius: 0.5rem;
@@ -1568,10 +1568,16 @@ table.list {
   width: 100%;
 }
 
+table.list.sticky th {
+      position: sticky;
+      top: 0;
+    }
+
 table.list.scrolled {
     border-radius: 0 !important;
     --tw-shadow: 0 0 #0000 !important;
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow) !important;
+    overflow: scroll !important;
   }
 
 table.list tr:first-child td {
@@ -1587,7 +1593,6 @@ table.list tr td temba-checkbox {
         --icon-color: #ddd;
         width: 18px;
         height: 18px;
-        margin-right: -8px;
       }
 
 table.list.light thead tr th {
@@ -1638,7 +1643,6 @@ table.list.expanded.lined {
       border-color: rgba(226, 226, 226, var(--tw-border-opacity));
       border-style: solid;
       border-right-width: 0;
-      border-bottom-width: 0;
       border-left-width: 0;
     }
 
@@ -1674,7 +1678,7 @@ table.list th {
 table.list.lined td {
       --tw-border-opacity: 1;
       border-color: rgba(237, 237, 237, var(--tw-border-opacity));
-      border-top-width: 1px;
+      border-bottom-width: 1px;
     }
 
 table.list tbody tr.warning {
@@ -2302,6 +2306,12 @@ code {
   100% {
     transform: scale(1);
   }
+}
+
+.disabled {
+  --tw-text-opacity: 1;
+  color: rgba(226, 226, 226, var(--tw-text-opacity));
+  --icon-color: #ccc;
 }
 
 .space-y-0 > :not([hidden]) ~ :not([hidden]) {

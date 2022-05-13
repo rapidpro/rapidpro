@@ -36,6 +36,9 @@ class TriggerType:
     # form class used for creation and updating
     form = None
 
+    def get_instance_name(self, trigger):
+        return f"{self.name} → {trigger.flow.name}"
+
     def export_def(self, trigger) -> dict:
         all_fields = {
             "trigger_type": trigger.trigger_type,
@@ -333,13 +336,13 @@ class Trigger(SmartModel):
             group = None
 
             if same_site:  # pragma: needs cover
-                group = ContactGroup.user_groups.filter(org=org, uuid=spec["uuid"]).first()
+                group = ContactGroup.get_groups(org).filter(uuid=spec["uuid"]).first()
 
             if not group:
-                group = ContactGroup.get_user_group_by_name(org, spec["name"])
+                group = ContactGroup.get_group_by_name(org, spec["name"])
 
             if not group:
-                group = ContactGroup.create_static(org, user, spec["name"])  # pragma: needs cover
+                group = ContactGroup.create_manual(org, user, spec["name"])  # pragma: needs cover
 
             if not group.is_active:  # pragma: needs cover
                 group.is_active = True
@@ -390,6 +393,10 @@ class Trigger(SmartModel):
     def type(self):
         return self.get_type(code=self.trigger_type)
 
+    @property
+    def name(self):
+        return self.type.get_instance_name(self)
+
     def release(self, user):
         """
         Releases this trigger
@@ -410,3 +417,7 @@ class Trigger(SmartModel):
 
     def __str__(self):
         return f'Trigger[type={self.trigger_type}, flow="{self.flow.name}"]'
+
+    class Meta:
+        verbose_name = _("Trigger")
+        verbose_name_plural = _("Triggers")

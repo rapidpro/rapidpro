@@ -1,5 +1,6 @@
+from smartmin.models import SmartModel
+
 from django.db import models
-from django.db.models import Model
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _, ngettext
 
@@ -9,41 +10,19 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit
-from temba.utils.models import TembaModel, TranslatableField
+from temba.utils.models import TembaModel, TembaUUIDMixin, TranslatableField
 
 
 class Campaign(TembaModel):
-    MAX_NAME_LEN = 255
-
     org = models.ForeignKey(Org, related_name="campaigns", on_delete=models.PROTECT)
-    name = models.CharField(max_length=MAX_NAME_LEN)
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="campaigns")
     is_archived = models.BooleanField(default=False)
 
     @classmethod
     def create(cls, org, user, name, group):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid campaign name"
+
         return cls.objects.create(org=org, name=name, group=group, created_by=user, modified_by=user)
-
-    @classmethod
-    def get_unique_name(cls, org, base_name, ignore=None):
-        """
-        Generates a unique campaign name based on the given base name
-        """
-        name = base_name[:255].strip()
-
-        count = 2
-        while True:
-            campaigns = Campaign.objects.filter(name=name, org=org, is_active=True)
-            if ignore:  # pragma: needs cover
-                campaigns = campaigns.exclude(pk=ignore.pk)
-
-            if not campaigns.exists():
-                break
-
-            name = "%s %d" % (base_name[:255].strip(), count)
-            count += 1
-
-        return name
 
     def recreate_events(self):
         """
@@ -70,7 +49,7 @@ class Campaign(TembaModel):
         imported = []
 
         for campaign_def in campaign_defs:
-            name = campaign_def["name"]
+            name = cls.clean_name(campaign_def["name"])
             group_ref = campaign_def["group"]
             campaign = None
             group = None
@@ -106,11 +85,15 @@ class Campaign(TembaModel):
             for event_spec in campaign_def["events"]:
                 field_key = event_spec["relative_to"]["key"]
 
-                if field_key == "created_on":
-                    relative_to = ContactField.system_fields.filter(org=org, key=field_key).first()
+                if field_key in ("created_on", "last_seen_on"):
+                    relative_to = org.fields.filter(key=field_key, is_system=True).first()
                 else:
                     relative_to = ContactField.get_or_create(
-                        org, user, key=field_key, label=event_spec["relative_to"]["label"], value_type="D"
+                        org,
+                        user,
+                        key=field_key,
+                        name=event_spec["relative_to"]["label"],
+                        value_type=ContactField.TYPE_DATETIME,
                     )
 
                 start_mode = event_spec.get("start_mode", CampaignEvent.MODE_INTERRUPT)
@@ -198,16 +181,18 @@ class Campaign(TembaModel):
         events = []
 
         for event in self.events.filter(is_active=True).order_by("flow__uuid"):
-            event_definition = dict(
-                uuid=event.uuid,
-                offset=event.offset,
-                unit=event.unit,
-                event_type=event.event_type,
-                delivery_hour=event.delivery_hour,
-                message=event.message,
-                relative_to=dict(label=event.relative_to.label, key=event.relative_to.key),  # TODO should be key/name
-                start_mode=event.start_mode,
-            )
+            event_definition = {
+                "uuid": str(event.uuid),
+                "offset": event.offset,
+                "unit": event.unit,
+                "event_type": event.event_type,
+                "delivery_hour": event.delivery_hour,
+                "message": event.message,
+                "relative_to": dict(
+                    label=event.relative_to.name, key=event.relative_to.key
+                ),  # TODO should be key/name
+                "start_mode": event.start_mode,
+            }
 
             # only include the flow definition for standalone flows
             if event.event_type == CampaignEvent.TYPE_FLOW:
@@ -247,45 +232,34 @@ class Campaign(TembaModel):
 
         super().delete()
 
-    def __str__(self):
-        return f'Campaign[uuid={self.uuid}, name="{self.name}"]'
-
     class Meta:
         verbose_name = _("Campaign")
         verbose_name_plural = _("Campaigns")
 
 
-class CampaignEvent(TembaModel):
+class CampaignEvent(TembaUUIDMixin, SmartModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow
     """
 
     TYPE_FLOW = "F"
     TYPE_MESSAGE = "M"
-
-    # single char flag, human readable name, API readable name
-    TYPE_CONFIG = ((TYPE_FLOW, "Flow Event", "flow"), (TYPE_MESSAGE, "Message Event", "message"))
-
-    TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
+    TYPE_CHOICES = ((TYPE_FLOW, "Flow Event"), (TYPE_MESSAGE, "Message Event"))
 
     UNIT_MINUTES = "M"
     UNIT_HOURS = "H"
     UNIT_DAYS = "D"
     UNIT_WEEKS = "W"
-
-    UNIT_CONFIG = (
-        (UNIT_MINUTES, _("Minutes"), "minutes"),
-        (UNIT_HOURS, _("Hours"), "hours"),
-        (UNIT_DAYS, _("Days"), "days"),
-        (UNIT_WEEKS, _("Weeks"), "weeks"),
+    UNIT_CHOICES = (
+        (UNIT_MINUTES, _("Minutes")),
+        (UNIT_HOURS, _("Hours")),
+        (UNIT_DAYS, _("Days")),
+        (UNIT_WEEKS, _("Weeks")),
     )
-
-    UNIT_CHOICES = [(u[0], u[1]) for u in UNIT_CONFIG]
 
     MODE_INTERRUPT = "I"
     MODE_SKIP = "S"
     MODE_PASSIVE = "P"
-
     START_MODES_CHOICES = ((MODE_INTERRUPT, "Interrupt"), (MODE_SKIP, "Skip"), (MODE_PASSIVE, "Passive"))
 
     campaign = models.ForeignKey(Campaign, on_delete=models.PROTECT, related_name="events")
@@ -327,8 +301,7 @@ class CampaignEvent(TembaModel):
         base_language=None,
         start_mode=MODE_INTERRUPT,
     ):
-        if campaign.org != org:
-            raise ValueError("Org mismatch")
+        assert campaign.org == org, "org mismatch"
 
         if relative_to.value_type != ContactField.TYPE_DATETIME:
             raise ValueError(
@@ -541,7 +514,7 @@ class CampaignEvent(TembaModel):
         verbose_name_plural = _("Campaign Events")
 
 
-class EventFire(Model):
+class EventFire(models.Model):
     """
     A scheduled firing of a campaign event for a particular contact
     """

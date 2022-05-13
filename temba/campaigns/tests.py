@@ -37,16 +37,12 @@ class CampaignTest(TembaTest):
         self.voice_flow = self.create_flow(name="IVR flow", flow_type="V")
 
         # create a contact field for our planting date
-        self.planting_date = ContactField.get_or_create(
-            self.org, self.admin, "planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME
-        )
+        self.planting_date = self.create_field("planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME)
 
     @mock_mailroom
     def test_model(self, mr_mocks):
-
         campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-
-        flow = self.create_flow()
+        flow = self.create_flow("Test Flow")
 
         event1 = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, self.planting_date, offset=1, unit="W", flow=flow, delivery_hour=13
@@ -56,7 +52,7 @@ class CampaignTest(TembaTest):
         )
 
         self.assertEqual("Reminders", campaign.name)
-        self.assertEqual(f'Campaign[uuid={campaign.uuid}, name="Reminders"]', str(campaign))
+        self.assertEqual("Reminders", str(campaign))
         self.assertEqual('Event[relative_to=planting_date, offset=1, flow="Test Flow"]', str(event1))
         self.assertEqual([event1, event2], list(campaign.get_events()))
 
@@ -103,7 +99,7 @@ class CampaignTest(TembaTest):
 
     def test_get_offset_display(self):
         campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
         event = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, self.planting_date, offset=0, unit="W", flow=flow
         )
@@ -135,28 +131,29 @@ class CampaignTest(TembaTest):
         assert_display(2, "W", "2 weeks after")
 
     def test_get_unique_name(self):
-        campaign1 = Campaign.create(
-            self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers
-        )
-        self.assertEqual(campaign1.name, "Reminders")
+        self.assertEqual("Reminders", Campaign.get_unique_name(self.org, "Reminders"))
 
-        campaign2 = Campaign.create(
-            self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers
-        )
-        self.assertEqual(campaign2.name, "Reminders 2")
+        # ensure checking against existing campaigns is case-insensitive
+        reminders = Campaign.create(self.org, self.admin, "REMINDERS", self.farmers)
 
-        campaign3 = Campaign.create(
-            self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers
-        )
-        self.assertEqual(campaign3.name, "Reminders 3")
+        self.assertEqual("Reminders 2", Campaign.get_unique_name(self.org, "Reminders"))
+        self.assertEqual("Reminders", Campaign.get_unique_name(self.org, "Reminders", ignore=reminders))
+        self.assertEqual("Reminders", Campaign.get_unique_name(self.org2, "Reminders"))  # different org
 
-        self.assertEqual(Campaign.get_unique_name(self.org2, "Reminders"), "Reminders")  # different org
+        Campaign.create(self.org, self.admin, "Reminders 2", self.farmers)
+
+        self.assertEqual("Reminders 3", Campaign.get_unique_name(self.org, "Reminders"))
+
+        # ensure we don't exceed the name length limit
+        Campaign.create(self.org, self.admin, "X" * 64, self.farmers)
+
+        self.assertEqual(f"{'X' * 62} 2", Campaign.get_unique_name(self.org, "X" * 64))
 
     def test_get_sorted_events(self):
         # create a campaign
         campaign = Campaign.create(self.org, self.user, "Planting Reminders", self.farmers)
 
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
 
         event1 = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, self.planting_date, offset=1, unit="W", flow=flow, delivery_hour="13"
@@ -275,6 +272,8 @@ class CampaignTest(TembaTest):
 
     @mock_mailroom
     def test_views(self, mr_mocks):
+        open_tickets = self.org.groups.get(name="Open Tickets")
+
         # update the planting date for our contacts
         self.set_contact_field(self.farmer1, "planting_date", "1/10/2020")
 
@@ -290,14 +289,15 @@ class CampaignTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # groups shouldn't include the group that isn't ready
-        self.assertEqual(set(response.context["form"].fields["group"].queryset), {self.farmers})
+        self.assertEqual({open_tickets, self.farmers}, set(response.context["form"].fields["group"].queryset))
 
-        post_data = dict(name="Planting Reminders", group=self.farmers.pk)
-        response = self.client.post(reverse("campaigns.campaign_create"), post_data)
+        response = self.client.post(
+            reverse("campaigns.campaign_create"), {"name": "Planting Reminders", "group": self.farmers.id}
+        )
 
         # should redirect to read page for this campaign
         campaign = Campaign.objects.filter(is_active=True).first()
-        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.pk]))
+        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.id]))
 
         # go to the list page, should be there as well
         response = self.client.get(reverse("campaigns.campaign_list"))
@@ -312,16 +312,14 @@ class CampaignTest(TembaTest):
         self.assertNotContains(response, "Planting Reminders")
 
         # archive a campaign
-        post_data = dict(action="archive", objects=campaign.pk)
-        self.client.post(reverse("campaigns.campaign_list"), post_data)
+        self.client.post(reverse("campaigns.campaign_list"), {"action": "archive", "objects": campaign.id})
         response = self.client.get(reverse("campaigns.campaign_list"))
         self.assertNotContains(response, "Planting Reminders")
 
         # restore the campaign
         response = self.client.get(reverse("campaigns.campaign_archived"))
         self.assertContains(response, "Planting Reminders")
-        post_data = dict(action="restore", objects=campaign.pk)
-        self.client.post(reverse("campaigns.campaign_archived"), post_data)
+        self.client.post(reverse("campaigns.campaign_archived"), {"action": "restore", "objects": campaign.id})
         response = self.client.get(reverse("campaigns.campaign_archived"))
         self.assertNotContains(response, "Planting Reminders")
         response = self.client.get(reverse("campaigns.campaign_list"))
@@ -589,7 +587,7 @@ class CampaignTest(TembaTest):
         self.set_contact_field(self.nonfarmer, "planting_date", "1/7/2025")
         self.assertEqual(1, EventFire.objects.filter(event__is_active=True).count())
 
-        planting_date_field = ContactField.get_by_key(self.org, "planting_date")
+        planting_date_field = self.org.fields.get(key="planting_date")
 
         self.client.post(reverse("contacts.contact_update", args=[self.farmer1.id]), post_data)
 
@@ -870,8 +868,8 @@ class CampaignTest(TembaTest):
 
     def test_eventfire_get_relative_to_value(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
-        created_on = self.org.contactfields.get(key="created_on")
-        last_seen_on = self.org.contactfields.get(key="last_seen_on")
+        created_on = self.org.fields.get(key="created_on")
+        last_seen_on = self.org.fields.get(key="last_seen_on")
 
         # create a reminder for our first planting event
         event = CampaignEvent.create_flow_event(
@@ -910,7 +908,7 @@ class CampaignTest(TembaTest):
 
     def test_import_created_on_event(self):
         campaign = Campaign.create(self.org, self.admin, "New contact reminders", self.farmers)
-        created_on = ContactField.system_fields.get(org=self.org, key="created_on")
+        created_on = self.org.fields.get(key="created_on")
 
         CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, relative_to=created_on, offset=3, unit="D", flow=self.reminder_flow
@@ -972,7 +970,7 @@ class CampaignTest(TembaTest):
         # create a campaign
         campaign = Campaign.create(self.org, self.user, "Planting Reminders", self.farmers)
 
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
 
         CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, self.planting_date, offset=1, unit="W", flow=flow, delivery_hour="13"
@@ -1012,7 +1010,7 @@ class CampaignTest(TembaTest):
         self.assertFalse(Flow.objects.filter(is_archived=True))
 
     def test_model_as_export_def(self):
-        field_created_on = self.org.contactfields.get(key="created_on")
+        field_created_on = self.org.fields.get(key="created_on")
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         # create a reminder for our first planting event
@@ -1024,11 +1022,11 @@ class CampaignTest(TembaTest):
             campaign.as_export_def(),
             {
                 "name": "Planting Reminders",
-                "uuid": campaign.uuid,
-                "group": {"uuid": self.farmers.uuid, "name": "Farmers"},
+                "uuid": str(campaign.uuid),
+                "group": {"uuid": str(self.farmers.uuid), "name": "Farmers"},
                 "events": [
                     {
-                        "uuid": planting_reminder.uuid,
+                        "uuid": str(planting_reminder.uuid),
                         "offset": 3,
                         "unit": "D",
                         "event_type": "F",
@@ -1036,7 +1034,7 @@ class CampaignTest(TembaTest):
                         "delivery_hour": -1,
                         "message": None,
                         "relative_to": {"label": "Planting Date", "key": "planting_date"},
-                        "flow": {"uuid": self.reminder_flow.uuid, "name": "Reminder Flow"},
+                        "flow": {"uuid": str(self.reminder_flow.uuid), "name": "Reminder Flow"},
                     }
                 ],
             },
@@ -1051,11 +1049,11 @@ class CampaignTest(TembaTest):
             campaign2.as_export_def(),
             {
                 "name": "Planting Reminders 2",
-                "uuid": campaign2.uuid,
-                "group": {"uuid": self.farmers.uuid, "name": "Farmers"},
+                "uuid": str(campaign2.uuid),
+                "group": {"uuid": str(self.farmers.uuid), "name": "Farmers"},
                 "events": [
                     {
-                        "uuid": planting_reminder2.uuid,
+                        "uuid": str(planting_reminder2.uuid),
                         "offset": 2,
                         "unit": "D",
                         "event_type": "F",
@@ -1063,7 +1061,7 @@ class CampaignTest(TembaTest):
                         "delivery_hour": -1,
                         "message": None,
                         "relative_to": {"key": "created_on", "label": "Created On"},
-                        "flow": {"uuid": self.reminder_flow.uuid, "name": "Reminder Flow"},
+                        "flow": {"uuid": str(self.reminder_flow.uuid), "name": "Reminder Flow"},
                     }
                 ],
             },
@@ -1078,11 +1076,11 @@ class CampaignTest(TembaTest):
             campaign3.as_export_def(),
             {
                 "name": "Planting Reminders 2",
-                "uuid": campaign3.uuid,
-                "group": {"uuid": self.farmers.uuid, "name": "Farmers"},
+                "uuid": str(campaign3.uuid),
+                "group": {"uuid": str(self.farmers.uuid), "name": "Farmers"},
                 "events": [
                     {
-                        "uuid": planting_reminder3.uuid,
+                        "uuid": str(planting_reminder3.uuid),
                         "offset": 2,
                         "unit": "D",
                         "event_type": "M",
@@ -1097,8 +1095,8 @@ class CampaignTest(TembaTest):
         )
 
     def test_campaign_create_flow_event(self):
-        field_created_on = self.org.contactfields.get(key="created_on")
-        field_language = self.org.contactfields.get(key="language")
+        field_created_on = self.org.fields.get(key="created_on")
+        field_language = self.org.fields.get(key="language")
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         new_org = Org.objects.create(
@@ -1160,8 +1158,8 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign_event.delivery_hour, -1)
 
     def test_campaign_create_message_event(self):
-        field_created_on = self.org.contactfields.get(key="created_on")
-        field_language = self.org.contactfields.get(key="language")
+        field_created_on = self.org.fields.get(key="created_on")
+        field_language = self.org.fields.get(key="language")
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         new_org = Org.objects.create(
@@ -1172,29 +1170,27 @@ class CampaignTest(TembaTest):
             modified_by=self.user,
         )
 
-        self.assertRaises(
-            ValueError,
-            CampaignEvent.create_message_event,
-            new_org,
-            self.admin,
-            campaign,
-            offset=3,
-            unit="D",
-            message="oy, pancake man, come back",
-            relative_to=self.planting_date,
-        )
+        with self.assertRaises(AssertionError):
+            CampaignEvent.create_message_event(
+                new_org,
+                self.admin,
+                campaign,
+                offset=3,
+                unit="D",
+                message="oy, pancake man, come back",
+                relative_to=self.planting_date,
+            )
 
-        self.assertRaises(
-            ValueError,
-            CampaignEvent.create_message_event,
-            self.org,
-            self.admin,
-            campaign,
-            offset=3,
-            unit="D",
-            message="oy, pancake man, come back",
-            relative_to=field_language,
-        )
+        with self.assertRaises(ValueError):
+            CampaignEvent.create_message_event(
+                self.org,
+                self.admin,
+                campaign,
+                offset=3,
+                unit="D",
+                message="oy, pancake man, come back",
+                relative_to=field_language,
+            )
 
         campaign_event = CampaignEvent.create_message_event(
             self.org,
@@ -1237,10 +1233,16 @@ class CampaignTest(TembaTest):
 
 
 class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
+    def setUp(self):
+        super().setUp()
+
+        self.create_field("registered", "Registered", value_type="D")
+        self.create_field("registered", "Registered", value_type="D", org=self.org2)
+
     def create_campaign(self, org, name, group):
         user = org.get_admins().first()
-        registered = self.create_field("registered", "Registered", value_type="D", org=org)
-        flow = self.create_flow(org=org)
+        registered = org.fields.get(key="registered")
+        flow = self.create_flow(f"{name} Flow", org=org)
         campaign = Campaign.create(org, user, name, group)
         CampaignEvent.create_flow_event(
             org, user, campaign, registered, offset=1, unit="W", flow=flow, delivery_hour="13"
@@ -1258,7 +1260,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_campaign(self.org, "My Campaign", group)
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
-        self.assertEqual(6, len(menu))
+        self.assertEqual(4, len(menu))
 
     def test_create(self):
         group = self.create_group("Reporters", contacts=[])
@@ -1393,15 +1395,17 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
-        self.campaign1 = self.create_campaign(self.org)
-        self.other_org_campaign = self.create_campaign(self.org2)
+        self.create_field("registered", "Registered", value_type="D")
 
-    def create_campaign(self, org):
+        self.campaign1 = self.create_campaign(self.org, "Welcomes")
+        self.other_org_campaign = self.create_campaign(self.org2, "Welcomes")
+
+    def create_campaign(self, org, name):
         user = org.get_admins().first()
         group = self.create_group("Reporters", contacts=[], org=org)
-        registered = self.create_field("registered", "Registered", value_type="D", org=org)
-        flow = self.create_flow(org=org)
-        campaign = Campaign.create(org, user, "Welcomes", group)
+        registered = self.org.fields.get(key="registered")
+        campaign = Campaign.create(org, user, name, group)
+        flow = self.create_flow(f"{name} Flow", org=org)
         CampaignEvent.create_flow_event(
             org, user, campaign, registered, offset=1, unit="W", flow=flow, delivery_hour="13"
         )

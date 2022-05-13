@@ -13,13 +13,15 @@
           "email": "admin1@nyaruka.com",
           "role": "administrators",
           "first_name": "Andy",
-          "last_name": "Admin"
+          "last_name": "Admin",
+          "team": "Office"
         },
         {
           "email": "editor1@nyaruka.com",
           "role": "editors",
           "first_name": "Ed",
-          "last_name": "McEditor"
+          "last_name": "McEditor",
+          "team": "Office"
         },
         {
           "email": "viewer1@nyaruka.com",
@@ -31,7 +33,8 @@
           "email": "agent1@nyaruka.com",
           "role": "agents",
           "first_name": "Ann",
-          "last_name": "D'Agent"
+          "last_name": "D'Agent",
+          "team": "Partners"
         },
         {
           "email": "surveyor1@nyaruka.com",
@@ -148,37 +151,37 @@
         {
           "uuid": "3a5891e4-756e-4dc9-8e12-b7a766168824",
           "key": "gender",
-          "label": "Gender",
+          "name": "Gender",
           "value_type": "T"
         },
         {
           "uuid": "903f51da-2717-47c7-a0d3-f2f32877013d",
           "key": "age",
-          "label": "Age",
+          "name": "Age",
           "value_type": "N"
         },
         {
           "uuid": "d83aae24-4bbf-49d0-ab85-6bfd201eac6d",
           "key": "joined",
-          "label": "Joined",
+          "name": "Joined",
           "value_type": "D"
         },
         {
           "uuid": "de6878c1-b174-4947-9a65-8910ebe7d10f",
           "key": "ward",
-          "label": "Ward",
+          "name": "Ward",
           "value_type": "W"
         },
         {
           "uuid": "3ca3e36b-3d5a-42a4-b292-482282ce9a90",
           "key": "district",
-          "label": "District",
+          "name": "District",
           "value_type": "I"
         },
         {
           "uuid": "1dddea55-9a3b-449f-9d43-57772614ff50",
           "key": "state",
-          "label": "State",
+          "name": "State",
           "value_type": "S"
         }
       ],
@@ -413,6 +416,18 @@
           "uuid": "0a8f2e00-fef6-402c-bd79-d789446ec0e0",
           "name": "Support"
         }
+      ],
+      "teams": [
+        {
+          "uuid": "4321c30b-b596-46fa-adb4-4a46d37923f6",
+          "name": "Partners",
+          "topics": ["Support"]
+        },
+        {
+          "uuid": "f14c1762-d38b-4072-ae63-2705332a3719",
+          "name": "Office",
+          "topics": ["Sales", "Support"]
+        }
       ]
     },
     {
@@ -477,7 +492,8 @@
       "campaigns": [],
       "templates": [],
       "ticketers": [],
-      "topics": []
+      "topics": [],
+      "teams": []
     }
   ]
 }

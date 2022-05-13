@@ -44,8 +44,8 @@
   }
 
   .spa-gear-buttons, .spa-gear-menu {
-    --button-y: 0.2em;
-    --button-x: 0.5em;
+    --button-y: .4em;
+    --button-x: 1em;
   }
 
   #gear-container .spa-gear-menu .button-light.dropdown-toggle {
@@ -59,68 +59,22 @@
     color: #fff;
     transition: all 200ms ease-in-out;
   }
-  
-  .header-button:hover {
+
+  .menu-button {
+    --icon-color: #666;
+  }
+
+  .menu-button:hover, .open .menu-button {
     cursor:pointer;
-    background:rgba(0,0,0,.25);
-    box-shadow: inset 4px 4px 57px -28px rgba(0,0,0,0.75);
-
+    background:rgba(0,0,0,.05);
+    border-radius: var(--curvature);
+    --icon-color: #888;
   }
 
-  .more {
-    width: 3em;
-  }
 
-  .more:hover {
-    background:rgba(0,0,0,.25);
-    box-shadow: inset 4px 4px 57px -28px rgba(0,0,0,0.85);
-  }
 
-  .more .submenu {
-    top:3.5em;
-    right: 1em;
-    z-index: 1000;
-    transform: translateY(3em);
-    transition: transform 150ms linear, opacity 150ms linear, visibility 500ms linear;
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    width: 14em;
-  }
-
-  .more .submenu:before {
-    content:'';
-    width: 0px; 
-    height: 0;
-    top: 2px;
-    right: 12px;
-    float:right;
-    position: relative;
-    margin-left: 6px;
-    border-left: 12px solid transparent;
-    border-right: 12px solid transparent;              
-    border-bottom: 12px solid white;
-  }
-
-  .more.open .submenu {
-    display: inline-block;
-    transform: translateY(0);
-    opacity: 1;
-    visibility: visible;
-    pointer-events: inherit;
-  }
 
 :javascript
-
-  document.querySelector("html").addEventListener("click", function(event) {
-    var more = document.querySelector(".more");
-    if (more) {
-      var classes = more.classList;
-      if (classes.contains("open")) {
-        classes.remove("open");
-      }
-    }
-  });
 
   function handleMenuClicked(evt) {
     var link = evt.target;
@@ -152,22 +106,19 @@
 -with gear_links=view.get_gear_links
 
   -if gear_links
-    .flex.h-full
+    .flex.h-full.spa-gear-buttons
       -with link=gear_links|first
-        .header-button.flex.flex-column.items-center.px-4{onclick:'handleMenuClicked(event)', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}'}
-          {{link.title|escapejs}}
+        %temba-button.ml-4(name="{{link.title|escapejs}}" onclick="handleMenuClicked(event)" class='{{ link|gear_link_classes }}' data-success-url='{{ link.success_url }}' data-href='{{link.href}}' data-modax='{{link.modax|escapejs}}')
  
       -if gear_links|length > 1
-
-        .more.px-2.flex.flex-column.items-center.cursor-pointer.rounded-br.rounded-tr(onclick="handleMoreToggle(event)")
-          .submenu.absolute.rounded
-            .card.mb-0.shadow-xl.py-3
-              -for link in gear_links
-                -if not forloop.first
-                  .menu-item.hover-linked.font-normal{onclick:'handleMenuClicked(event)', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}'}
-                    {{link.title}}
-                    %span{class:'gear-flag'}
-                      {{link.flag}}
-  
-          %temba-icon(style="--icon-color:#fff" name="menu" size="1.5")
+        %temba-dropdown.items-stretch.flex.flex-column(arrowoffset="-12" offsetx="24" offsety="6" arrowsize="8")
+          .menu-button.items-center.flex.flex-column.py-2.px-2.ml-2(slot="toggle")
+            %temba-icon( name="menu" size="1.5")
+          .dropdown.px-6.py-4.text-gray-800.z-50(slot="dropdown" style="min-width:200px")
+            -for link in gear_links
+              -if not forloop.first
+                .whitespace-nowrap.menu-item.hover-linked.font-normal{onclick:'handleMenuClicked(event)', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}'}
+                  {{link.title}}
+                  %span{class:'gear-flag'}
+                    {{link.flag}}
 

@@ -76,16 +76,16 @@
                       %td.w-full(style="{%if org_perms.contacts.contactfield_update_priority and is_featured_category%}padding-left:0px;{%endif%}")
                         -if org_perms.contacts.contactfield_update
                           .hover-linked.update(onclick="showUpdateContactFieldModal({{obj.id}})")
-                            {{ obj.label }}                          
+                            {{ obj.name }}
                             .key{ style:"font-family: monospace; font-size: 12px;" }
                               @fields.{{ obj.key }}
                             -if obj.show_in_table
                               .inline.text-xs.py-1.px-2.font-medium.tracking-wide.p-1.bg-gray-200.rounded-lg
                                 -trans "Featured"
                         -else
-                          {{ obj.label }}                          
-                            {{ obj.label }}                          
-                          {{ obj.label }}                          
+                          {{ obj.name }}
+                            {{ obj.name }}
+                          {{ obj.name }}
                           .key{ style:"font-family: monospace; font-size: 12px;" }
                             @fields.{{ obj.key }}
 

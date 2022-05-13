@@ -14,7 +14,7 @@ class GlobalTest(TembaTest):
         self.assertEqual("org_name", global1.key)
         self.assertEqual("Org Name", global1.name)
         self.assertEqual("Acme Ltd", global1.value)
-        self.assertEqual("global[key=org_name,name=Org Name]", str(global1))
+        self.assertEqual("Org Name", str(global1))
 
         # update value if provided
         g1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Holdings")
@@ -45,7 +45,7 @@ class GlobalTest(TembaTest):
         global2.release(self.admin)
         global3.release(self.admin)
 
-        self.assertEqual(0, Global.objects.count())
+        self.assertEqual(0, Global.objects.filter(is_active=True).count())
 
     def test_make_key(self):
         self.assertEqual("org_name", Global.make_key("Org Name"))
@@ -143,7 +143,9 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"name": "Secret3", "value": "[abc]"},
-            form_errors={"__all__": "Cannot create a new global as limit is 4."},
+            form_errors={
+                "__all__": "This workspace has reached its limit of 4 globals. You must delete existing ones before you can create new ones."
+            },
         )
 
     def test_update(self):
@@ -191,7 +193,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertDeleteFetch(delete_url)
         self.assertContains(response, "You are about to delete")
 
-        response = self.assertDeleteSubmit(delete_url, object_deleted=self.global2, success_status=200)
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.global2, success_status=200)
         self.assertEqual("/global/", response["Temba-Success"])
 
         # should see warning if global is being used
@@ -203,7 +205,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "is used by the following items but can still be deleted:")
         self.assertContains(response, "Color Flow")
 
-        response = self.assertDeleteSubmit(delete_url, object_deleted=self.global1, success_status=200)
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.global1, success_status=200)
         self.assertEqual("/global/", response["Temba-Success"])
 
         self.flow.refresh_from_db()

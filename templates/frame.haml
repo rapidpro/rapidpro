@@ -22,10 +22,7 @@
 
         window.STATIC_URL = "{{STATIC_URL}}";
         function loadNewInterface(force) {
-          console.log("loading new interface, force", force);
           var newUrl = mapUrl(window.location.pathname);
-
-          console.log(newUrl);
           if (newUrl != window.location.pathname) {
             window.location = newUrl;
           } else { 
@@ -50,7 +47,6 @@
         :javascript
           (function(){
             var nav = getCookie("nav");
-            console.log("Auto route", nav);
             if (nav == "2") {
               loadNewInterface(false);
             }

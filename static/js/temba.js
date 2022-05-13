@@ -3,6 +3,17 @@ if (typeof console == 'undefined') {
     this.console = { log: function (msg) {} };
 }
 
+function checkInner(event) {
+    if (event.target) {
+        var checkbox = event.target.querySelector("temba-checkbox");
+        if (checkbox) {
+            checkbox.click();
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }
+}
+
 function goto(event, ele) {
     if (!ele) {
         ele = event.target;

@@ -33,23 +33,7 @@
 
 -block content
 
-  .flex.w-full.items-end
-    -block action-buttons
-      -if org_perms.campaigns.campaign_update
-        .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
-          .list-buttons.flex.items-center.-mx-2.h-full
-            -if 'restore' in actions
-              .button-action.object-btn-restore
-                .-mt-1.mr-2.glyph.icon-checkmark
-                -trans "Activate"
-
-            -if 'archive' in actions
-              .button-action.object-btn-archive
-                .-mt-1.mr-2.glyph.icon-box
-                -trans "Archive"
-
   .page-title
-
 
   .flex
     .flex-grow.self-end.items-end
@@ -57,9 +41,12 @@
         %form#search-form(method="get")
           %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
           %input.hide(type="submit")
-  
-  .mt-4.shadow.rounded-lg.overflow-y-auto
-    %table.list.lined.selectable
+
+  .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
+    -include "includes/short_pagination.haml"
+
+  .flex-grow.overflow-y-auto.shadow          
+    %table.list.lined.selectable.scrolled
       %tbody
         -for obj in object_list
           %tr.campaign.object-row.select-row(data-object-id="{{ obj.id }}" onclick='handleRowClicked(event)')
@@ -76,16 +63,9 @@
             %td.whitespace-nowrap
               {{ obj.get_events|length }} event{{ obj.get_events|length|pluralize }}
 
-        - empty
+        -empty
           %tr.empty_list
             %td{ colspan:'99' }
               -trans "No matching campaigns"
 
-        - block extra-rows
-  
-  .flex.flex-col.mx-4.mt-3.mb-16
-    .flex.flex-wrap
-      .text-gray-700
-        -include "includes/results_count.html"
-      .flex-grow
-        -include "includes/pages.html"
+        -block extra-rows

@@ -751,8 +751,8 @@ class OrgDeleteTest(TembaNonAtomicTest):
         FlowRun.objects.create(org=self.org, flow=child_flow, contact=child_contact)
 
         # labels for our flows
-        flow_label1 = FlowLabel.create(self.parent_org, "Cool Parent Flows")
-        flow_label2 = FlowLabel.create(self.child_org, "Cool Child Flows", parent=flow_label1)
+        flow_label1 = FlowLabel.create(self.parent_org, self.admin, "Cool Parent Flows")
+        flow_label2 = FlowLabel.create(self.child_org, self.admin, "Cool Child Flows", parent=flow_label1)
         parent_flow.labels.add(flow_label1)
         child_flow.labels.add(flow_label2)
 
@@ -779,7 +779,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             channel=self.channel,
             keyword="favorites",
         )
-        parent_trigger.groups.add(self.parent_org.all_groups.all().first())
+        parent_trigger.groups.add(self.parent_org.groups.all().first())
 
         FlowStart.objects.create(org=self.parent_org, flow=parent_flow)
 
@@ -791,7 +791,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             channel=self.child_channel,
             keyword="color",
         )
-        child_trigger.groups.add(self.child_org.all_groups.all().first())
+        child_trigger.groups.add(self.child_org.groups.all().first())
 
         # use a credit on each
         self.create_outgoing_msg(parent_contact, "Hola hija!", channel=self.channel)
@@ -928,7 +928,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
                 # contacts, groups
                 self.assertFalse(Contact.objects.filter(org=org).exists())
-                self.assertFalse(ContactGroup.all_groups.filter(org=org).exists())
+                self.assertFalse(ContactGroup.objects.filter(org=org).exists())
 
                 # flows, campaigns
                 self.assertFalse(Flow.objects.filter(org=org).exists())
@@ -1211,7 +1211,7 @@ class OrgTest(TembaTest):
         self.login(self.admin)
 
         mark = self.create_contact("Mark", phone="+12065551212")
-        flow = self.create_flow()
+        flow = self.create_flow("Test")
 
         def send_broadcast_via_api():
             url = reverse("api.v2.broadcasts")
@@ -2941,14 +2941,21 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
+        # if we are a shared plan, our sub orgs should be created with the workspace plan
+        settings.BRANDING[settings.DEFAULT_BRAND]["shared_plans"] = ["my_shared_plan"]
+        self.org.plan = "my_shared_plan"
+        self.org.save()
+        sub_org_c = self.org.create_sub_org("Sub Org C")
+        self.assertEqual(sub_org_c.plan, settings.WORKSPACE_PLAN)
+
         with override_settings(DEFAULT_PLAN="other"):
             settings.BRANDING[settings.DEFAULT_BRAND]["default_plan"] = "other"
             self.org.plan = settings.TOPUP_PLAN
             self.org.save()
             self.org.reset_capabilities()
-            sub_org_c = self.org.create_sub_org("Sub Org C")
-            self.assertIsNotNone(sub_org_c)
-            self.assertEqual(sub_org_c.plan, settings.TOPUP_PLAN)
+            sub_org_d = self.org.create_sub_org("Sub Org D")
+            self.assertIsNotNone(sub_org_d)
+            self.assertEqual(sub_org_d.plan, settings.TOPUP_PLAN)
 
     def test_org_get_limit(self):
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 250)
@@ -3098,7 +3105,7 @@ class OrgTest(TembaTest):
         self.assertEqual(1999, sub_org.get_credits_remaining())
         self.assertEqual(0, self.org.get_credits_remaining())
 
-    def test_sub_org_ui(self):
+    def test_edit_sub_org(self):
         self.login(self.admin)
 
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
@@ -3228,6 +3235,16 @@ class OrgTest(TembaTest):
 
         response = self.client.get(reverse("orgs.topup_list"))
         self.assertContains(response, "600 Credits")
+
+        # if org doesn't exist, 404
+        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org=3464374")
+        self.assertEqual(404, response.status_code)
+
+        self.login(self.admin2)
+
+        # same if it's not a child of the request org
+        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}")
+        self.assertEqual(404, response.status_code)
 
     def test_account_value(self):
 
@@ -3369,7 +3386,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
         self.login(self.admin)
         self.assertMenu(reverse("orgs.org_menu"), 7)
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 14)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 11)
 
         menu_url = reverse("orgs.org_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=True)
@@ -3407,7 +3424,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Transfer Credits")
 
         # should have an extra menu option for our child (and section header)
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 16)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 13)
 
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
@@ -3743,15 +3760,15 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(topup.price, 0)
 
         # check default org content was created correctly
-        system_fields = list(org.contactfields(manager="system_fields").order_by("key").values_list("key", flat=True))
-        system_groups = list(org.all_groups(manager="system_groups").order_by("name").values_list("name", flat=True))
-        sample_flows = list(org.flows.order_by("name").values_list("name", flat=True))
+        system_fields = set(org.fields.filter(is_system=True).values_list("key", flat=True))
+        system_groups = set(org.groups.filter(is_system=True).values_list("name", flat=True))
+        sample_flows = set(org.flows.values_list("name", flat=True))
         internal_ticketer = org.ticketers.get()
 
-        self.assertEqual(["created_on", "id", "language", "last_seen_on", "name"], system_fields)
-        self.assertEqual(["Active", "Archived", "Blocked", "Stopped"], system_groups)
+        self.assertEqual({"created_on", "id", "language", "last_seen_on", "name"}, system_fields)
+        self.assertEqual({"Active", "Archived", "Blocked", "Stopped", "Open Tickets"}, system_groups)
         self.assertEqual(
-            ["Sample Flow - Order Status Checker", "Sample Flow - Satisfaction Survey", "Sample Flow - Simple Poll"],
+            {"Sample Flow - Order Status Checker", "Sample Flow - Satisfaction Survey", "Sample Flow - Simple Poll"},
             sample_flows,
         )
         self.assertEqual("RapidPro Tickets", internal_ticketer.name)
@@ -4496,7 +4513,7 @@ class BulkExportTest(TembaTest):
     def test_import_mixed_flow_versions(self):
         self.import_file("mixed_versions")
 
-        group = ContactGroup.user_groups.get(name="Survey Audience")
+        group = ContactGroup.objects.get(name="Survey Audience")
 
         child = Flow.objects.get(name="New Child")
         self.assertEqual(child.version_number, Flow.CURRENT_SPEC_VERSION)
@@ -4518,10 +4535,10 @@ class BulkExportTest(TembaTest):
         parent = Flow.objects.get(name="All Dep Types")
         child = Flow.objects.get(name="New Child")
 
-        age = ContactField.user_fields.get(key="age", label="Age")  # created from expression reference
+        age = ContactField.user_fields.get(key="age", name="Age")  # created from expression reference
         gender = ContactField.user_fields.get(key="gender")  # created from action reference
 
-        farmers = ContactGroup.user_groups.get(name="Farmers")
+        farmers = ContactGroup.objects.get(name="Farmers")
         self.assertNotEqual(str(farmers.uuid), "967b469b-fd34-46a5-90f9-40430d6db2a4")  # created with new UUID
 
         self.assertEqual(set(parent.flow_dependencies.all()), {child})
@@ -4578,7 +4595,7 @@ class BulkExportTest(TembaTest):
 
         # create child with that UUID and re-import
         child2 = Flow.create(
-            self.org, self.admin, "New Child", Flow.TYPE_MESSAGE, uuid="a925453e-ad31-46bd-858a-e01136732181"
+            self.org, self.admin, "New Child 2", Flow.TYPE_MESSAGE, uuid="a925453e-ad31-46bd-858a-e01136732181"
         )
 
         self.import_file("parent_without_its_child")
@@ -4600,7 +4617,7 @@ class BulkExportTest(TembaTest):
             )
         for dep in [d for d in deps if d["type"] == "group"]:
             self.assertTrue(
-                ContactGroup.user_groups.filter(uuid=dep["uuid"]).exists(),
+                ContactGroup.objects.filter(uuid=dep["uuid"]).exists(),
                 msg=f"missing group[uuid={dep['uuid']}, name={dep['name']}]",
             )
 
@@ -4619,9 +4636,9 @@ class BulkExportTest(TembaTest):
         flow = Flow.objects.get(name="Cataclysmic")
         self.validate_flow_dependencies(flow.get_definition())
 
-        # we should have 5 groups (all static since we can only create static groups from group references)
-        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
-        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 5)
+        # we should have 5 non-system groups (all manual since we can only create manual groups from group references)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False).count(), 5)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False, group_type="M").count(), 5)
 
         # and so no fields created
         self.assertEqual(ContactField.user_fields.all().count(), 0)
@@ -4642,25 +4659,26 @@ class BulkExportTest(TembaTest):
         flow = Flow.objects.get(name="Cataclysmic")
         self.validate_flow_dependencies(flow.get_definition())
 
-        # we should have 5 groups (2 dynamic)
-        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
-        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 3)
+        # we should have 5 non-system groups (2 query based)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False).count(), 5)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False, group_type="M").count(), 3)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False, group_type="Q").count(), 2)
 
         # new fields should have been created for the dynamic groups
         likes_cats = ContactField.user_fields.get(key="likes_cats")
         facts_per_day = ContactField.user_fields.get(key="facts_per_day")
 
         # but without implicit fields in the export, the details aren't correct
-        self.assertEqual(likes_cats.label, "Likes Cats")
+        self.assertEqual(likes_cats.name, "Likes Cats")
         self.assertEqual(likes_cats.value_type, "T")
-        self.assertEqual(facts_per_day.label, "Facts Per Day")
+        self.assertEqual(facts_per_day.name, "Facts Per Day")
         self.assertEqual(facts_per_day.value_type, "T")
 
-        cat_fanciers = ContactGroup.user_groups.get(name="Cat Fanciers")
+        cat_fanciers = ContactGroup.objects.get(name="Cat Fanciers")
         self.assertEqual(cat_fanciers.query, 'likes_cats = "true"')
         self.assertEqual(set(cat_fanciers.query_fields.all()), {likes_cats})
 
-        cat_blasts = ContactGroup.user_groups.get(name="Cat Blasts")
+        cat_blasts = ContactGroup.objects.get(name="Cat Blasts")
         self.assertEqual(cat_blasts.query, "facts_per_day = 1")
         self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
@@ -4678,31 +4696,32 @@ class BulkExportTest(TembaTest):
         flow = Flow.objects.get(name="Cataclysmic")
         self.validate_flow_dependencies(flow.get_definition())
 
-        # we should have 5 groups (2 dynamic)
-        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
-        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 3)
+        # we should have 5 non-system groups (2 query based)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False).count(), 5)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False, group_type="M").count(), 3)
+        self.assertEqual(ContactGroup.objects.filter(is_system=False, group_type="Q").count(), 2)
 
         # new fields should have been created for the dynamic groups
         likes_cats = ContactField.user_fields.get(key="likes_cats")
         facts_per_day = ContactField.user_fields.get(key="facts_per_day")
 
         # and with implicit fields in the export, the details should be correct
-        self.assertEqual(likes_cats.label, "Really Likes Cats")
+        self.assertEqual(likes_cats.name, "Really Likes Cats")
         self.assertEqual(likes_cats.value_type, "T")
-        self.assertEqual(facts_per_day.label, "Facts-Per-Day")
+        self.assertEqual(facts_per_day.name, "Facts-Per-Day")
         self.assertEqual(facts_per_day.value_type, "N")
 
-        cat_fanciers = ContactGroup.user_groups.get(name="Cat Fanciers")
+        cat_fanciers = ContactGroup.objects.get(name="Cat Fanciers")
         self.assertEqual(cat_fanciers.query, 'likes_cats = "true"')
         self.assertEqual(set(cat_fanciers.query_fields.all()), {likes_cats})
 
-        cat_blasts = ContactGroup.user_groups.get(name="Cat Blasts")
+        cat_blasts = ContactGroup.objects.get(name="Cat Blasts")
         self.assertEqual(cat_blasts.query, "facts_per_day = 1")
         self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
     def test_import_flow_with_triggers(self):
-        flow1 = self.create_flow()
-        flow2 = self.create_flow()
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
 
         trigger1 = Trigger.create(
             self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="rating", is_archived=True
@@ -4774,10 +4793,10 @@ class BulkExportTest(TembaTest):
             self.assertEqual(2, Trigger.objects.filter(org=self.org, trigger_type="K", is_archived=False).count())
             self.assertEqual(1, Trigger.objects.filter(org=self.org, trigger_type="C", is_archived=False).count())
             self.assertEqual(1, Trigger.objects.filter(org=self.org, trigger_type="M", is_archived=False).count())
-            self.assertEqual(3, ContactGroup.user_groups.filter(org=self.org).count())
+            self.assertEqual(3, ContactGroup.objects.filter(org=self.org, is_system=False).count())
             self.assertEqual(1, Label.label_objects.filter(org=self.org).count())
             self.assertEqual(
-                1, ContactField.user_fields.filter(org=self.org, value_type="D", label="Next Appointment").count()
+                1, ContactField.user_fields.filter(org=self.org, value_type="D", name="Next Appointment").count()
             )
 
         # import all our bits
@@ -4907,7 +4926,7 @@ class BulkExportTest(TembaTest):
         campaign.name = "A new campaign"
         campaign.save(update_fields=("name",))
 
-        group = ContactGroup.user_groups.get(name="Pending Appointments")
+        group = ContactGroup.objects.get(name="Pending Appointments")
         group.name = "A new group"
         group.save(update_fields=("name",))
 
@@ -4921,8 +4940,8 @@ class BulkExportTest(TembaTest):
         self.assertEqual("Appointment Schedule", Campaign.objects.filter(is_active=True).first().name)
 
         # except the group.. we don't mess with their names
-        self.assertFalse(ContactGroup.user_groups.filter(name="Pending Appointments").exists())
-        self.assertTrue(ContactGroup.user_groups.filter(name="A new group").exists())
+        self.assertFalse(ContactGroup.objects.filter(name="Pending Appointments").exists())
+        self.assertTrue(ContactGroup.objects.filter(name="A new group").exists())
 
         # let's rename our objects again
         flow.name = "A new name"
@@ -4942,7 +4961,7 @@ class BulkExportTest(TembaTest):
             9, Flow.objects.filter(org=self.org, is_archived=False, flow_type="M", is_system=False).count()
         )
         self.assertEqual(2, Campaign.objects.filter(org=self.org, is_archived=False).count())
-        self.assertEqual(4, ContactGroup.user_groups.filter(org=self.org).count())
+        self.assertEqual(4, ContactGroup.objects.filter(org=self.org, is_system=False).count())
 
         # now archive a flow
         register = Flow.objects.filter(name="Register Patient").first()
@@ -5380,6 +5399,17 @@ class OrgActivityTest(TembaTest):
 
         now = timezone.now()
 
+        # give us a shared plan
+        settings.BRANDING[settings.DEFAULT_BRAND]["shared_plans"] = ["my_shared_plan"]
+        self.org.plan = "my_shared_plan"
+        self.org.save()
+        workspace = self.org.create_sub_org("Workspace")
+        self.assertEqual(workspace.plan, settings.WORKSPACE_PLAN)
+
+        mark = self.create_contact("Mark S", phone="+12065551212", org=workspace)
+        self.create_incoming_msg(mark, "I'm feeling uneasy")
+        self.create_outgoing_msg(mark, "Please try to enjoy each text equally.")
+
         # create a few contacts
         self.create_contact("Marshawn", phone="+14255551212")
         russell = self.create_contact("Marshawn", phone="+14255551313")
@@ -5396,10 +5426,17 @@ class OrgActivityTest(TembaTest):
         # ok, calculate based on a now of tomorrow, will calculate today's stats
         update_org_activity(now + timedelta(days=1))
 
-        activity = OrgActivity.objects.get()
+        activity = OrgActivity.objects.get(org=self.org)
         self.assertEqual(2, activity.contact_count)
         self.assertEqual(1, activity.active_contact_count)
         self.assertEqual(2, activity.incoming_count)
+        self.assertEqual(1, activity.outgoing_count)
+        self.assertIsNone(activity.plan_active_contact_count)
+
+        activity = OrgActivity.objects.get(org=workspace)
+        self.assertEqual(1, activity.contact_count)
+        self.assertEqual(1, activity.active_contact_count)
+        self.assertEqual(1, activity.incoming_count)
         self.assertEqual(1, activity.outgoing_count)
         self.assertIsNone(activity.plan_active_contact_count)
 
@@ -5410,10 +5447,17 @@ class OrgActivityTest(TembaTest):
         self.org.save()
 
         update_org_activity(now + timedelta(days=1))
-        activity = OrgActivity.objects.get()
+        activity = OrgActivity.objects.get(org=self.org)
         self.assertEqual(2, activity.contact_count)
         self.assertEqual(1, activity.active_contact_count)
         self.assertEqual(2, activity.incoming_count)
+        self.assertEqual(1, activity.outgoing_count)
+        self.assertEqual(1, activity.plan_active_contact_count)
+
+        activity = OrgActivity.objects.get(org=workspace)
+        self.assertEqual(1, activity.contact_count)
+        self.assertEqual(1, activity.active_contact_count)
+        self.assertEqual(1, activity.incoming_count)
         self.assertEqual(1, activity.outgoing_count)
         self.assertEqual(1, activity.plan_active_contact_count)
 

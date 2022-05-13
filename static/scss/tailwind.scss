@@ -335,12 +335,20 @@ table.padded {
   }
 }
 
-table.list {
-  @apply w-full shadow rounded-lg overflow-hidden bg-white;
+table.list{ 
+  @apply w-full shadow rounded-lg bg-white overflow-hidden;
+
+  &.sticky {
+    th {
+      position: sticky;
+      top: 0;
+    }
+  }
 
   &.scrolled {
     @apply rounded-none !important;
     @apply shadow-none !important;
+    @apply overflow-scroll !important;
   }
 
   tr:first-child {
@@ -365,7 +373,6 @@ table.list {
         --icon-color: #ddd;
         width: 18px;
         height: 18px;
-        margin-right: -8px;
       }
     }
   }
@@ -420,7 +427,7 @@ table.list {
   &.expanded {
 
     &.lined {
-      @apply border-solid border-gray-300 border-l-0 border-r-0 border-b-0;
+      @apply border-solid border-gray-300 border-l-0 border-r-0;
     }
 
     thead tr th {
@@ -438,6 +445,7 @@ table.list {
     tbody tr td>* {
       max-height: 500px;
     }
+
   }
 
   th {
@@ -446,7 +454,7 @@ table.list {
 
   &.lined {
     td {
-      @apply border-t border-gray-200;
+      @apply border-b border-gray-200;
     }
   }
 
@@ -932,6 +940,12 @@ code {
   100% {
     transform: scale(1);
   }
+}
+
+.disabled {
+  @apply text-gray-300;
+  --icon-color: #ccc;
+
 }
 
 @tailwind utilities;

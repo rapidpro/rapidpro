@@ -189,6 +189,13 @@ class InboxView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
 
         context["org"] = org
         context["folders"] = folders
+
+        context["labels_flat"] = (
+            Label.all_objects.filter(org=org, is_active=True)
+            .exclude(label_type=Label.TYPE_FOLDER)
+            .order_by(Upper("name"))
+        )
+
         context["labels"] = Label.get_hierarchy(org)
         context["has_messages"] = (
             any(counts.values()) or Archive.objects.filter(org=org, archive_type=Archive.TYPE_MSG).exists()
@@ -486,11 +493,11 @@ class ExportForm(Form):
     )
 
     groups = forms.ModelMultipleChoiceField(
-        queryset=ContactGroup.user_groups.none(),
+        queryset=ContactGroup.objects.none(),
         required=False,
         label=_("Groups"),
         widget=SelectMultipleWidget(
-            attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to show in your export")}
+            attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to include in your export")}
         ),
     )
 
@@ -499,11 +506,7 @@ class ExportForm(Form):
         self.user = user
 
         self.fields["export_all"].choices = self.LABEL_CHOICES if label else self.SYSTEM_LABEL_CHOICES
-
-        self.fields["groups"].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
-        self.fields["groups"].help_text = _(
-            "Export only messages from these contact groups. " "(Leave blank to export all messages)."
-        )
+        self.fields["groups"].queryset = ContactGroup.get_groups(self.user.get_org())
 
     def clean(self):
         cleaned_data = super().clean()
@@ -548,9 +551,9 @@ class MsgCRUDL(SmartCRUDL):
                     )
                 return menu
             else:
-                label_count = Label.label_objects.filter(org=org, is_active=True).count()
+                labels = Label.label_objects.filter(org=org, is_active=True).order_by("name")
 
-                return [
+                menu = [
                     self.create_menu_item(
                         name=_("Inbox"),
                         href=reverse("msgs.msg_inbox"),
@@ -558,19 +561,17 @@ class MsgCRUDL(SmartCRUDL):
                         icon="inbox",
                     ),
                     self.create_menu_item(
-                        name=_("Scheduled"),
-                        href=reverse("msgs.broadcast_schedule_list"),
-                        count=counts[SystemLabel.TYPE_SCHEDULED],
-                        icon="clock",
+                        name=_("Archived"),
+                        href=reverse("msgs.msg_archived"),
+                        count=counts[SystemLabel.TYPE_ARCHIVED],
+                        icon="archive",
                     ),
                     self.create_divider(),
                     self.create_menu_item(
-                        name=_("Labels"),
-                        endpoint=f"{reverse('msgs.msg_menu')}?labels=1",
-                        count=label_count,
-                        icon="tag",
+                        name=_("Scheduled"),
+                        href=reverse("msgs.broadcast_schedule_list"),
+                        count=counts[SystemLabel.TYPE_SCHEDULED],
                     ),
-                    self.create_divider(),
                     self.create_menu_item(
                         name=_("Outbox"),
                         href=reverse("msgs.msg_outbox"),
@@ -586,7 +587,6 @@ class MsgCRUDL(SmartCRUDL):
                         href=reverse("msgs.msg_failed"),
                         count=counts[SystemLabel.TYPE_FAILED],
                     ),
-                    self.create_divider(),
                     self.create_menu_item(
                         name=_("Flows"),
                         href=reverse("msgs.msg_flow"),
@@ -597,14 +597,33 @@ class MsgCRUDL(SmartCRUDL):
                         href=reverse("channels.channelevent_calls"),
                         count=counts[SystemLabel.TYPE_CALLS],
                     ),
-                    self.create_divider(),
-                    self.create_menu_item(
-                        name=_("Archived"),
-                        href=reverse("msgs.msg_archived"),
-                        count=counts[SystemLabel.TYPE_ARCHIVED],
-                        icon="archive",
-                    ),
                 ]
+
+                label_items = []
+                label_counts = LabelCount.get_totals([lb for lb in labels])
+                for label in labels:
+                    label_items.append(
+                        self.create_menu_item(
+                            icon="tag",
+                            menu_id=label.uuid,
+                            name=label.name,
+                            count=label_counts[label],
+                            href=reverse("msgs.msg_filter", args=[label.uuid]),
+                        )
+                    )
+
+                if label_items:
+                    menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
+
+                menu.append(self.create_space())
+                menu.append(
+                    self.create_modax_button(
+                        name=_("New Label"),
+                        href="msgs.label_create",
+                    )
+                )
+
+                return menu
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
 
@@ -705,7 +724,7 @@ class MsgCRUDL(SmartCRUDL):
         title = _("Inbox")
         template_name = "msgs/message_box.haml"
         system_label = SystemLabel.TYPE_INBOX
-        bulk_actions = ("archive", "label")
+        bulk_actions = ("archive", "label", "send")
         allow_export = True
 
         def get_queryset(self, **kwargs):
@@ -716,7 +735,7 @@ class MsgCRUDL(SmartCRUDL):
         title = _("Flow Messages")
         template_name = "msgs/message_box.haml"
         system_label = SystemLabel.TYPE_FLOWS
-        bulk_actions = ("archive", "label")
+        bulk_actions = ("archive", "label", "send")
         allow_export = True
 
         def get_queryset(self, **kwargs):
@@ -727,7 +746,7 @@ class MsgCRUDL(SmartCRUDL):
         title = _("Archived")
         template_name = "msgs/msg_archived.haml"
         system_label = SystemLabel.TYPE_ARCHIVED
-        bulk_actions = ("restore", "label", "delete")
+        bulk_actions = ("restore", "label", "delete", "send")
         allow_export = True
 
         def get_queryset(self, **kwargs):
@@ -880,23 +899,26 @@ class MsgCRUDL(SmartCRUDL):
 
 
 class BaseLabelForm(forms.ModelForm):
+    def __init__(self, org, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.org = org
+
     def clean_name(self):
         name = self.cleaned_data["name"]
 
-        if not Label.is_valid_name(name):
-            raise forms.ValidationError(_("Name must not be blank or begin with punctuation"))
+        existing_id = self.instance.id if self.instance else None
+        if Label.get_active_for_org(self.org).filter(name__iexact=name).exclude(pk=existing_id).exists():
+            raise forms.ValidationError(_("Must be unique."))
 
-        existing_id = self.existing.pk if self.existing else None
-        if Label.all_objects.filter(org=self.org, name__iexact=name, is_active=True).exclude(pk=existing_id).exists():
-            raise forms.ValidationError(_("Name must be unique"))
-
-        count = Label.label_objects.filter(org=self.org, is_active=True).count()
-        if count >= self.org.get_limit(Org.LIMIT_LABELS):
+        count, limit = Label.get_org_limit_progress(self.org)
+        if limit is not None and count >= limit:
             raise forms.ValidationError(
                 _(
-                    "This workspace has %d labels and the limit is %s. You must delete existing ones before you can "
-                    "create new ones." % (count, self.org.get_limit(Org.LIMIT_LABELS))
-                )
+                    "This workspace has reached its limit of %(limit)d labels. "
+                    "You must delete existing ones before you can create new ones."
+                ),
+                params={"limit": limit},
             )
 
         return name
@@ -919,11 +941,8 @@ class LabelForm(BaseLabelForm):
 
     messages = forms.CharField(required=False, widget=forms.HiddenInput)
 
-    def __init__(self, *args, **kwargs):
-        self.org = kwargs.pop("org")
-        self.existing = kwargs.pop("object", None)
-
-        super().__init__(*args, **kwargs)
+    def __init__(self, org, *args, **kwargs):
+        super().__init__(org, *args, **kwargs)
 
         self.fields["folder"].queryset = Label.folder_objects.filter(org=self.org, is_active=True)
 
@@ -932,11 +951,7 @@ class LabelForm(BaseLabelForm):
 
 
 class FolderForm(BaseLabelForm):
-    def __init__(self, *args, **kwargs):
-        self.org = kwargs.pop("org")
-        self.existing = kwargs.pop("object", None)
-
-        super().__init__(*args, **kwargs)
+    pass
 
 
 class LabelCRUDL(SmartCRUDL):
@@ -963,20 +978,19 @@ class LabelCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.user.get_org()
+            kwargs["org"] = self.request.org
             return kwargs
 
         def save(self, obj):
-            user = self.request.user
-            self.object = Label.get_or_create(user.get_org(), user, obj.name, obj.folder)
+            self.object = Label.create(self.request.org, self.request.user, obj.name, obj.folder)
 
         def post_save(self, obj, *args, **kwargs):
             obj = super().post_save(obj, *args, **kwargs)
             if self.form.cleaned_data["messages"]:  # pragma: needs cover
                 msg_ids = [int(m) for m in self.form.cleaned_data["messages"].split(",") if m.isdigit()]
-                messages = Msg.objects.filter(org=obj.org, pk__in=msg_ids)
-                if messages:
-                    obj.toggle_label(messages, add=True)
+                msgs = Msg.objects.filter(org=obj.org, pk__in=msg_ids)
+                if msgs:
+                    obj.toggle_label(msgs, add=True)
 
             return obj
 
@@ -1002,8 +1016,7 @@ class LabelCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.user.get_org()
-            kwargs["object"] = self.get_object()
+            kwargs["org"] = self.request.org
             return kwargs
 
         def get_form_class(self):

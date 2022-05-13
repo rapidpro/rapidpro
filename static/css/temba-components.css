@@ -48,6 +48,8 @@ html {
   --color-primary-dark: rgb(var(--primary-rgb));
   --color-secondary-dark: rgb(var(--secondary-rgb));
 
+  --color-available: #00f100;
+
   /* light text goes over dark, dark over lights */
   --color-text-light: rgba(255, 255, 255, 1);
   --color-text-dark: rgba(0, 0, 0, 0.5);
@@ -96,7 +98,7 @@ html {
   --button-font-size: 1.125rem;
 
   --icon-color: var(--text-color);
-  --icon-color-hover: var(--icon-color);
+  --icon-color-circle-hover: rgb(245, 245, 245);
   
   --transition-speed: 250ms;
   --event-padding: 0.5em 1em;
@@ -118,7 +120,8 @@ html {
 
   --options-block-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
   --options-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  
+  --dropdown-shadow: rgb(0 0 0 / 30%) 0px 0px 60px, rgb(0 0 0 / 12%) 0px 6px 12px;
+
   font-size: var(--font-size);
   font-weight: 300;
   font-family: var(--font-family);
@@ -195,4 +198,12 @@ temba-select:focus {
   border-color: var(--color-focus);
   background: var(--color-widget-bg-focused);
   box-shadow: var(--widget-box-shadow-focused);
+}
+
+temba-dropdown {
+  opacity: 0;
+}
+
+temba-dropdown:defined {
+  opacity: 1;
 }

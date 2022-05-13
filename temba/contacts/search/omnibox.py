@@ -8,7 +8,7 @@ from django.db.models.functions import Upper
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.msgs.models import Label
-from temba.utils.models import IDSliceQuerySet
+from temba.utils.models.es import IDSliceQuerySet
 
 from . import SearchException, search_contacts
 
@@ -49,7 +49,7 @@ def omnibox_query(org, **kwargs):
 
     # this lookup returns a ContactGroup queryset
     elif group_uuids:
-        return ContactGroup.user_groups.filter(org=org, uuid__in=group_uuids.split(",")).order_by("name")
+        return ContactGroup.get_groups(org).filter(uuid__in=group_uuids.split(",")).order_by("name")
 
     # this lookup returns a ContactURN queryset
     elif urn_ids:
@@ -81,7 +81,7 @@ def omnibox_mixed_search(org, query, types):
     results = []
 
     if SEARCH_ALL_GROUPS in search_types or SEARCH_STATIC_GROUPS in search_types:
-        groups = ContactGroup.get_user_groups(org, ready_only=True)
+        groups = ContactGroup.get_groups(org, ready_only=True)
 
         # exclude dynamic groups if not searching all groups
         if SEARCH_ALL_GROUPS not in search_types:
@@ -147,7 +147,7 @@ def omnibox_deserialize(org, omnibox):
     urns = [item["id"] for item in omnibox if item["type"] == "urn"] if not org.is_anon else []
 
     return {
-        "groups": ContactGroup.all_groups.filter(uuid__in=group_ids, org=org, is_active=True),
+        "groups": org.groups.filter(uuid__in=group_ids, is_active=True),
         "contacts": Contact.objects.filter(uuid__in=contact_ids, org=org, is_active=True),
         "urns": urns,
     }

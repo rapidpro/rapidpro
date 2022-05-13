@@ -23,7 +23,6 @@
       %input#fb-user-id(type="text" name="fb_user_id")
       %input#user-access-token(type="text" name="user_access_token")
 
-
 -block extra-script
   {{ block.super }}
 
@@ -36,16 +35,9 @@
       });
     };
 
-    
-    (function(d, s, id) {
-      var js, fjs = d.getElementsByTagName(s)[0];
-      if (d.getElementById(id)) return;
-      js = d.createElement(s); js.id = id;
-      js.src = "https://connect.facebook.net/en_US/sdk.js";
-      fjs.parentNode.insertBefore(js, fjs);
-    }(document, 'script', 'facebook-jssdk'));
+  <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
 
-
+  :javascript
     $(document).ready(function(){
       $(".connect-facebook").click(function(evt){
         FB.login(function(response) {
@@ -59,7 +51,7 @@
           }
 
         },
-        {scope: 'pages_messaging,pages_show_list,pages_manage_metadata'});
+        {scope: 'pages_messaging,pages_show_list,pages_manage_metadata,pages_read_engagement'});
 
       })
     });

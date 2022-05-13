@@ -5,6 +5,6 @@
   {{current_group.name}}
 
 -block subtitle
-  -if current_group.is_dynamic
+  -if current_group.is_smart
     .font-mono.text-sm
       {{ current_group.query }}

@@ -85,12 +85,12 @@
               -trans "Import Contacts"
 
           .lp-nav.upper
-            -for folder in folders
-              .lp-nav-item(class="{% if request.path == folder.url %}font-normal selected{% endif %}")
-                .name(onclick="goto(event)" href='{{folder.url}}')
-                  {{folder.label}}
-                .count(onclick="goto(event)" href='{{folder.url}}')
-                  {{ folder.count | intcomma }}
+            -for group in system_groups
+              .lp-nav-item(onclick="goto(event)" href='{{ group.url }}' class="{% if request.path == group.url %}font-normal selected{% endif %}")
+                .name.pointer-events-none
+                  {{ group.name }}
+                .count.pointer-events-none
+                  {{ group.count | intcomma }}
           
           .secondary-buttons.mb-6
             -if org_perms.contacts.contact_create
@@ -107,25 +107,23 @@
             .font-normal.uppercase.text-xs.pb-1.text-gray-500
               -trans "Smart Groups"
             .inner-scroll
-              -for group in groups
-                -if group.is_dynamic
-                  .lp-nav-item(onclick="goto(event)" href='{% url "contacts.contact_filter" group.uuid %}' class="{% if current_group.id == group.pk %}font-normal selected{% endif %}")
-                    .name.pointer-events-none
-                      {{group.label}}
-                    .count.pointer-events-none
-                      {{ group.count | intcomma }}
+              -for group in smart_groups
+                .lp-nav-item(onclick="goto(event)" href='{{ group.url }}' class="{% if request.path == group.url %}font-normal selected{% endif %}")
+                  .name.pointer-events-none
+                    {{ group.name }}
+                  .count.pointer-events-none
+                    {{ group.count | intcomma }}
 
           .lp-nav.lower
             .font-normal.uppercase.text-xs.text-gray-500.pb-1
               -trans "Groups"
             .inner-scroll
-              -for group in groups
-                -if not group.is_dynamic
-                  .lp-nav-item(class="{% if current_group.id == group.pk %}font-normal selected{% endif %}")
-                    .name(onclick="goto(event)" href='{% url "contacts.contact_filter" group.uuid %}')
-                      {{group.label}}
-                    .count(onclick="goto(event)" href='{% url "contacts.contact_filter" group.uuid %}')
-                      {{ group.count | intcomma }}
+              -for group in manual_groups
+                .lp-nav-item(onclick="goto(event)" href='{{ group.url }}' class="{% if request.path == group.url %}font-normal selected{% endif %}")
+                  .name.pointer-events-none
+                    {{ group.name }}
+                  .count.pointer-events-none
+                    {{ group.count | intcomma }}
 
           .flex-grow
         .right.overflow-x-hidden.p-2.-mt-1
@@ -169,20 +167,19 @@
                               -trans "Groups"
 
                             %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
-                              -for group in groups
-                                -if not group.is_dynamic
-                                  %li
-                                    .lbl-menu(href='#' onclick='addContactToGroup({{group.pk}})' data-id='{{group.pk}}')
-                                      .flex.items-center.py-1.hover-linked
-                                        .glyph.message-label.label-checkbox
-                                        .name.px-2
-                                          {{ group.label }}
-                              - if org_perms.contacts.contactgroup_create
-                                - if groups
+                              -for group in manual_groups
+                                %li
+                                  .lbl-menu(href='#' onclick='addContactToGroup({{ group.id }})' data-id='{{ group.id }}')
+                                    .flex.items-center.py-1.hover-linked
+                                      .glyph.message-label.label-checkbox
+                                      .name.px-2
+                                        {{ group.name }}
+                              -if org_perms.contacts.contactgroup_create
+                                -if manual_groups
                                   %li.separator.-mx-4.border-b.my-3
                                 %li
                                   .lbl-menu.add-group.hover-linked(onclick="handleAddGroupClicked()")
-                                    - trans "New Group..."
+                                    -trans "New Group..."
 
                         -if org_perms.msgs.broadcast_send and not reply_disabled
                           %temba-modax#send-message-modal(header='{{_("Send Message")|escapejs}}' endpoint="{% url 'msgs.broadcast_send' %}")
@@ -307,21 +304,20 @@
 
       {% if org_perms.contacts.contact_update %}
       function addContactToGroup(groupId){
-        var contactIds = getCheckedIds();
+        window.lastChecked = getCheckedIds();
         var groupedIds = getLabeledIds(groupId);
 
         var addGroup = true;
 
         // find the intersection of contactIds and groupedIds
-        var contactIdsWithGroup = intersect(contactIds, groupedIds);
+        var contactIdsWithGroup = intersect(window.lastChecked, groupedIds);
 
         // they all belong to the group, so we are actually removing these contacts from the group
-        if (contactIdsWithGroup.length == contactIds.length){
+        if (contactIdsWithGroup.length == window.lastChecked.length){
           addGroup = false;
         }
         jQuery.ajaxSettings.traditional = true;
-
-        fetchPJAXContent(document.location.href, "#pjax", { postData: {objects: contactIds, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true, onSuccess: wireTableListeners});
+        fetchPJAXContent(window.lastFetch || document.location.href, "#pjax", { postData: {objects: window.lastChecked, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true, onSuccess: function(){ recheckIds(); wireTableListeners()}});
       }
       {% endif %}
 
@@ -341,9 +337,9 @@
       {% endif %}
 
       function handleCreateGroupModalLoaded(event) {
-        lastChecked = getCheckedIds();
+        window.lastChecked = getCheckedIds();
         var body = event.detail.body;
-        body.querySelector("#id_preselected_contacts").value = lastChecked.join();
+        body.querySelector("#id_preselected_contacts").value = window.lastChecked.join();
       }
 
       function handleCreateGroupModalSubmitted(event) {

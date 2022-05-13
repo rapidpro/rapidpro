@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "7.2.4"
+version = "7.3.42"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 license = "AGPL-3"
@@ -10,7 +10,7 @@ repository = "http://github.com/rapidpro/rapidpro"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-Django = "^4.0.2"
+Django = "^4.0.4"
 django-compressor = "^3.1"
 django-countries = "^7.0"
 django-hamlpy = "^1.4.4"

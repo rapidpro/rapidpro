@@ -214,7 +214,7 @@ class Event:
             "campaign_event": {
                 "id": obj.event.id,
                 "offset_display": obj.event.offset_display,
-                "relative_to": {"key": obj.event.relative_to.key, "name": obj.event.relative_to.label},
+                "relative_to": {"key": obj.event.relative_to.key, "name": obj.event.relative_to.name},
             },
             "fired_result": obj.fired_result,
         }

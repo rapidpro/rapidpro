@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 
 import iso8601
 import pytz
-import regex
 from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
@@ -14,7 +13,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.db.models import Prefetch, Q, Sum
-from django.db.models.functions import Upper
+from django.db.models.functions import Lower, Upper
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -26,7 +25,7 @@ from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
+from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, TranslatableField
 from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
 
@@ -448,6 +447,7 @@ class Msg(models.Model):
             "id": self.id,
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "channel": {"uuid": str(self.channel.uuid), "name": self.channel.name} if self.channel else None,
+            "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name} if self.flow else None,
             "urn": self.contact_urn.identity if self.contact_urn else None,
             "direction": "in" if self.direction == Msg.DIRECTION_IN else "out",
             "type": MsgReadSerializer.TYPES.get(self.msg_type),
@@ -738,9 +738,6 @@ class BroadcastMsgCount(SquashableModel):
     def get_count(cls, broadcast):
         return cls.sum(broadcast.counts.all())
 
-    def __str__(self):  # pragma: needs cover
-        return f"BroadcastMsgCount[{self.broadcast_id}:{self.count}]"
-
 
 class SystemLabel:
     TYPE_INBOX = "I"
@@ -887,22 +884,19 @@ class UserLabelManager(models.Manager):
         return super().get_queryset().filter(label_type=Label.TYPE_LABEL)
 
 
-class Label(TembaModel, DependencyMixin):
+class Label(LegacyUUIDMixin, TembaModel, DependencyMixin):
     """
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.
     """
 
-    MAX_NAME_LEN = 64
     MAX_ORG_FOLDERS = 250
 
     TYPE_FOLDER = "F"
     TYPE_LABEL = "L"
-
     TYPE_CHOICES = ((TYPE_FOLDER, "Folder of labels"), (TYPE_LABEL, "Regular label"))
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs_labels")
-    name = models.CharField(max_length=MAX_NAME_LEN)
     folder = models.ForeignKey("Label", on_delete=models.PROTECT, null=True, related_name="children")
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL)
 
@@ -911,27 +905,22 @@ class Label(TembaModel, DependencyMixin):
     folder_objects = UserFolderManager()
     label_objects = UserLabelManager()
 
+    org_limit_key = Org.LIMIT_LABELS
+
     @classmethod
-    def get_or_create(cls, org, user, name, folder=None):
+    def create(cls, org, user, name: str, folder=None):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid label name"
         assert not folder or folder.is_folder(), "folder must be a folder if provided"
-
-        name = name.strip()
-
-        if not cls.is_valid_name(name):
-            raise ValueError("Invalid label name: %s" % name)
-
-        label = cls.label_objects.filter(org=org, name__iexact=name, is_active=True).first()
-        if label:
-            return label
 
         return cls.label_objects.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
 
     @classmethod
-    def get_or_create_folder(cls, org, user, name):
-        name = name.strip()
+    def create_from_import_def(cls, org, user, definition: dict):
+        return cls.create(org, user, definition["name"])
 
-        if not cls.is_valid_name(name):
-            raise ValueError("Invalid folder name: %s" % name)
+    @classmethod
+    def get_or_create_folder(cls, org, user, name: str):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid label name"
 
         folder = cls.folder_objects.filter(org=org, name__iexact=name, is_active=True).first()
         if folder:
@@ -968,18 +957,6 @@ class Label(TembaModel, DependencyMixin):
 
         return top_nodes
 
-    @classmethod
-    def is_valid_name(cls, name):
-        # don't allow empty strings, blanks, initial or trailing whitespace
-        if not name or name.strip() != name:
-            return False
-
-        if len(name) > cls.MAX_NAME_LEN:
-            return False
-
-        # first character must be a word char
-        return regex.match(r"\w", name[0], flags=regex.UNICODE)
-
     def filter_messages(self, queryset):
         if self.is_folder():
             return queryset.filter(labels__in=self.children.all()).distinct()
@@ -1010,7 +987,7 @@ class Label(TembaModel, DependencyMixin):
         for msg in msgs:
             assert msg.direction == Msg.DIRECTION_IN
 
-            # if we are adding the label and this message doesnt have it, add it
+            # if we are adding the label and this message doesn't have it, add it
             if add:
                 if not msg.labels.filter(pk=self.pk):
                     msg.labels.add(self)
@@ -1044,14 +1021,18 @@ class Label(TembaModel, DependencyMixin):
 
         self.counts.all().delete()
 
+        self.name = self._deleted_name()
         self.is_active = False
         self.modified_by = user
-        self.save(update_fields=("is_active", "modified_by", "modified_on"))
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
     def __str__(self):
         if self.folder:
             return "%s > %s" % (str(self.folder), self.name)
         return self.name
+
+    class Meta:
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_label_names")]
 
 
 class LabelCount(SquashableModel):
@@ -1186,6 +1167,7 @@ class ExportMessagesTask(BaseExportTask):
             "Name",
             "ID" if self.org.is_anon else "URN",
             "URN Type",
+            "Flow",
             "Direction",
             "Text",
             "Attachments",
@@ -1283,7 +1265,7 @@ class ExportMessagesTask(BaseExportTask):
             messages = messages.filter(created_on__lte=end_date)
 
         if self.groups.all():
-            messages = messages.filter(contact__all_groups__in=self.groups.all())
+            messages = messages.filter(contact__groups__in=self.groups.all())
 
         messages = messages.order_by("created_on").using("readonly")
         if last_created_on:
@@ -1299,7 +1281,7 @@ class ExportMessagesTask(BaseExportTask):
         for msg_batch in MsgIterator(
             all_message_ids,
             order_by=["" "created_on"],
-            select_related=["contact", "contact_urn", "channel"],
+            select_related=["contact", "contact_urn", "channel", "flow"],
             prefetch_related=[prefetch],
         ):
             # convert this batch of msgs to same format as records in our archives
@@ -1313,6 +1295,7 @@ class ExportMessagesTask(BaseExportTask):
 
         for msg in msgs:
             contact = contacts_by_uuid.get(msg["contact"]["uuid"])
+            flow = msg.get("flow")
 
             urn_scheme = URN.to_parts(msg["urn"])[0] if msg["urn"] else ""
 
@@ -1336,6 +1319,7 @@ class ExportMessagesTask(BaseExportTask):
                     msg["contact"].get("name", ""),
                     urn_path,
                     urn_scheme,
+                    flow["name"] if flow else None,
                     msg["direction"].upper() if msg["direction"] else None,
                     msg["text"],
                     ", ".join(attachment["url"] for attachment in msg["attachments"]),

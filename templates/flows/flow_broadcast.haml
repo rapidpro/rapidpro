@@ -85,12 +85,6 @@
           -render_field 'exclude_in_other'
 
         -render_field 'exclude_reruns'
-        .deprecated.mt-4.hidden
-          %temba-alert(level="info")
-            -blocktrans trimmed
-              This option is no longer recommended and will be removed. Thankfully, there is a better way!
-            <a target="_" href="https://help.nyaruka.com/en/article/excluding-contacts-previously-in-a-flow-1jbr15k/">Excluding Contacts Previously in a Flow</a>
-
 
 -block form-buttons
   -if not blockers 
@@ -99,12 +93,6 @@
 -block modal-extra-style
     {{ block.super }}  
     :css
-
-      .deprecated.show {
-
-        display: block;
-      }
-
       .warnings {
         z-index: -1;
         height: 100%;
@@ -207,7 +195,7 @@
       return operands.join(" OR ");
     }
 
-    var modax = document.querySelector("#start-flow");
+    var modax = document.querySelector("#start-flow, #shared-modax");
     var modalBody = modax.shadowRoot;
     var queryField = modalBody.querySelector('.query');
     var queryWidget = queryField.querySelector("temba-contact-search");
@@ -240,14 +228,6 @@
     queryWidget.addEventListener("input", function(){
       modax.disabled = true;
     });
-
-    reruns.addEventListener("change", function() {
-      if (reruns.checked) {
-        modalBody.querySelector(".deprecated").classList.add("show")
-      } else {
-        modalBody.querySelector(".deprecated").classList.remove("show")
-      }
-    })
 
     function showInactiveConfirmation() {
         var confirmation = modalBody.querySelector(".confirmation");

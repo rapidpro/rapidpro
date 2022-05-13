@@ -289,9 +289,9 @@
       }
 
     function handleCreateLabelModalLoaded(event) {
-      lastChecked = getCheckedIds();
+      window.lastChecked = getCheckedIds();
       var body = event.detail.body;
-      body.querySelector("#id_messages").value = lastChecked.join();
+      body.querySelector("#id_messages").value = window.lastChecked.join();
     }
 
     function handleCreateLabelModalSubmitted(event) {

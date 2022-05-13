@@ -239,9 +239,9 @@
       }
 
       function handleCreateLabelModalLoaded(event) {
-        lastChecked = getCheckedIds();
+        window.lastChecked = getCheckedIds();
         var body = event.detail.body;
-        body.querySelector("#id_flows").value = lastChecked.join();
+        body.querySelector("#id_flows").value = window.lastChecked.join();
       }
 
       function handleCreateLabelModalSubmitted(event) {

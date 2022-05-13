@@ -46,13 +46,15 @@ class MsgTest(TembaTest):
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
     def test_msg_as_archive_json(self):
-        msg1 = self.create_incoming_msg(self.joe, "i'm having a problem")
+        flow = self.create_flow("Color Flow")
+        msg1 = self.create_incoming_msg(self.joe, "i'm having a problem", flow=flow)
         self.assertEqual(
             msg1.as_archive_json(),
             {
                 "id": msg1.id,
                 "contact": {"uuid": str(self.joe.uuid), "name": "Joe Blow"},
                 "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                "flow": {"uuid": str(flow.uuid), "name": "Color Flow"},
                 "urn": "tel:123",
                 "direction": "in",
                 "type": "inbox",
@@ -68,7 +70,7 @@ class MsgTest(TembaTest):
 
         # label first message
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        label = Label.get_or_create(self.org, self.user, "la\02bel1", folder=folder)
+        label = self.create_label("la\02bel1", folder=folder)
         label.toggle_label([msg1], add=True)
 
         self.assertEqual(
@@ -77,6 +79,7 @@ class MsgTest(TembaTest):
                 "id": msg1.id,
                 "contact": {"uuid": str(self.joe.uuid), "name": "Joe Blow"},
                 "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                "flow": {"uuid": str(flow.uuid), "name": "Color Flow"},
                 "urn": "tel:123",
                 "direction": "in",
                 "type": "inbox",
@@ -100,6 +103,7 @@ class MsgTest(TembaTest):
                 "id": msg2.id,
                 "contact": {"uuid": str(self.joe.uuid), "name": "Joe Blow"},
                 "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                "flow": None,
                 "urn": "tel:123",
                 "direction": "in",
                 "type": "inbox",
@@ -195,7 +199,7 @@ class MsgTest(TembaTest):
 
     def test_archive_and_release(self):
         msg1 = self.create_incoming_msg(self.joe, "Incoming")
-        label = Label.get_or_create(self.org, self.admin, "Spam")
+        label = self.create_label("Spam")
         label.toggle_label([msg1], add=True)
 
         msg1.archive()
@@ -303,7 +307,11 @@ class MsgTest(TembaTest):
         self.org.created_on = datetime(2017, 1, 1, 9, tzinfo=pytz.UTC)
         self.org.save()
 
-        msg1 = self.create_incoming_msg(self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
+        flow = self.create_flow("Color Flow")
+
+        msg1 = self.create_incoming_msg(
+            self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC), flow=flow
+        )
         msg2 = self.create_incoming_msg(
             self.frank, "hello 2", msg_type="F", created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC)
         )
@@ -340,7 +348,7 @@ class MsgTest(TembaTest):
 
         # label first message
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        label = Label.get_or_create(self.org, self.user, "la\02bel1", folder=folder)
+        label = self.create_label("la\02bel1", folder=folder)
         label.toggle_label([msg1], add=True)
 
         # archive last message
@@ -409,6 +417,7 @@ class MsgTest(TembaTest):
                     "Name",
                     "URN",
                     "URN Type",
+                    "Flow",
                     "Direction",
                     "Text",
                     "Attachments",
@@ -422,6 +431,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "Color Flow",
                     "IN",
                     "hello 1",
                     "",
@@ -435,6 +445,7 @@ class MsgTest(TembaTest):
                     "Frank Blow",
                     "321",
                     "tel",
+                    "",
                     "IN",
                     "hello 2",
                     "",
@@ -442,13 +453,14 @@ class MsgTest(TembaTest):
                     "Test Channel",
                     "",
                 ],
-                [msg4.created_on, msg1.contact.uuid, "Joe Blow", "", "", "IN", "hello 4", "", "handled", "", ""],
+                [msg4.created_on, msg1.contact.uuid, "Joe Blow", "", "", "", "IN", "hello 4", "", "handled", "", ""],
                 [
                     msg5.created_on,
                     msg5.contact.uuid,
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "IN",
                     "Media message",
                     "http://rapidpro.io/audio/sound.mp3",
@@ -462,6 +474,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "OUT",
                     "Hey out 6",
                     "",
@@ -475,6 +488,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "OUT",
                     "Hey out 8",
                     "",
@@ -488,6 +502,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "OUT",
                     "Hey out 9",
                     "",
@@ -518,6 +533,7 @@ class MsgTest(TembaTest):
                     "Name",
                     "URN",
                     "URN Type",
+                    "Flow",
                     "Direction",
                     "Text",
                     "Attachments",
@@ -531,6 +547,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "IN",
                     "Media message",
                     "http://rapidpro.io/audio/sound.mp3",
@@ -554,6 +571,7 @@ class MsgTest(TembaTest):
                     "Name",
                     "URN",
                     "URN Type",
+                    "Flow",
                     "Direction",
                     "Text",
                     "Attachments",
@@ -567,6 +585,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "Color Flow",
                     "IN",
                     "hello 1",
                     "",
@@ -574,13 +593,14 @@ class MsgTest(TembaTest):
                     "Test Channel",
                     "label1",
                 ],
-                [msg4.created_on, msg1.contact.uuid, "Joe Blow", "", "", "IN", "hello 4", "", "handled", "", ""],
+                [msg4.created_on, msg1.contact.uuid, "Joe Blow", "", "", "", "IN", "hello 4", "", "handled", "", ""],
                 [
                     msg5.created_on,
                     msg5.contact.uuid,
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "IN",
                     "Media message",
                     "http://rapidpro.io/audio/sound.mp3",
@@ -594,6 +614,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "OUT",
                     "Hey out 6",
                     "",
@@ -607,6 +628,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "OUT",
                     "Hey out 8",
                     "",
@@ -620,6 +642,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "OUT",
                     "Hey out 9",
                     "",
@@ -643,6 +666,7 @@ class MsgTest(TembaTest):
                     "Name",
                     "URN",
                     "URN Type",
+                    "Flow",
                     "Direction",
                     "Text",
                     "Attachments",
@@ -656,6 +680,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "OUT",
                     "Hey out 6",
                     "",
@@ -679,6 +704,7 @@ class MsgTest(TembaTest):
                     "Name",
                     "URN",
                     "URN Type",
+                    "Flow",
                     "Direction",
                     "Text",
                     "Attachments",
@@ -692,6 +718,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "OUT",
                     "Hey out 9",
                     "",
@@ -715,6 +742,7 @@ class MsgTest(TembaTest):
                     "Name",
                     "URN",
                     "URN Type",
+                    "Flow",
                     "Direction",
                     "Text",
                     "Attachments",
@@ -728,6 +756,7 @@ class MsgTest(TembaTest):
                     "Frank Blow",
                     "321",
                     "tel",
+                    "",
                     "IN",
                     "hello 2",
                     "",
@@ -751,6 +780,7 @@ class MsgTest(TembaTest):
                     "Name",
                     "URN",
                     "URN Type",
+                    "Flow",
                     "Direction",
                     "Text",
                     "Attachments",
@@ -764,6 +794,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "Color Flow",
                     "IN",
                     "hello 1",
                     "",
@@ -785,7 +816,10 @@ class MsgTest(TembaTest):
         self.joe.name = "Jo\02e Blow"
         self.joe.save(update_fields=("name",))
 
-        msg1 = self.create_incoming_msg(self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
+        flow = self.create_flow("Color Flow")
+        msg1 = self.create_incoming_msg(
+            self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC), flow=flow
+        )
         msg2 = self.create_incoming_msg(self.joe, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC))
         msg3 = self.create_incoming_msg(self.joe, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC))
 
@@ -820,7 +854,7 @@ class MsgTest(TembaTest):
 
         # label first message
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        label = Label.get_or_create(self.org, self.user, "la\02bel1", folder=folder)
+        label = self.create_label("la\02bel1", folder=folder)
         label.toggle_label([msg1], add=True)
 
         # archive last message
@@ -870,6 +904,7 @@ class MsgTest(TembaTest):
                                 "Name",
                                 "URN",
                                 "URN Type",
+                                "Flow",
                                 "Direction",
                                 "Text",
                                 "Attachments",
@@ -883,6 +918,7 @@ class MsgTest(TembaTest):
                                 "Joe Blow",
                                 "123",
                                 "tel",
+                                "Color Flow",
                                 "IN",
                                 "hello 1",
                                 "",
@@ -896,6 +932,7 @@ class MsgTest(TembaTest):
                                 "Joe Blow",
                                 "123",
                                 "tel",
+                                "",
                                 "IN",
                                 "hello 2",
                                 "",
@@ -907,6 +944,7 @@ class MsgTest(TembaTest):
                                 msg4.created_on,
                                 msg4.contact.uuid,
                                 "Joe Blow",
+                                "",
                                 "",
                                 "",
                                 "IN",
@@ -922,6 +960,7 @@ class MsgTest(TembaTest):
                                 "Joe Blow",
                                 "123",
                                 "tel",
+                                "",
                                 "IN",
                                 "Media message",
                                 "http://rapidpro.io/audio/sound.mp3",
@@ -935,6 +974,7 @@ class MsgTest(TembaTest):
                                 "Joe Blow",
                                 "123",
                                 "tel",
+                                "",
                                 "OUT",
                                 "Hey out 6",
                                 "",
@@ -948,6 +988,7 @@ class MsgTest(TembaTest):
                                 "Joe Blow",
                                 "123",
                                 "tel",
+                                "",
                                 "OUT",
                                 "Hey out 7",
                                 "",
@@ -961,6 +1002,7 @@ class MsgTest(TembaTest):
                                 "Joe Blow",
                                 "123",
                                 "tel",
+                                "",
                                 "OUT",
                                 "Hey out 8",
                                 "",
@@ -974,6 +1016,7 @@ class MsgTest(TembaTest):
                                 "Joe Blow",
                                 "123",
                                 "tel",
+                                "",
                                 "OUT",
                                 "Hey out 9",
                                 "",
@@ -1009,6 +1052,7 @@ class MsgTest(TembaTest):
                     "Name",
                     "URN",
                     "URN Type",
+                    "Flow",
                     "Direction",
                     "Text",
                     "Attachments",
@@ -1022,6 +1066,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "IN",
                     "hello 3",
                     "",
@@ -1047,6 +1092,7 @@ class MsgTest(TembaTest):
                     "Name",
                     "URN",
                     "URN Type",
+                    "Flow",
                     "Direction",
                     "Text",
                     "Attachments",
@@ -1060,6 +1106,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "Color Flow",
                     "IN",
                     "hello 1",
                     "",
@@ -1081,6 +1128,7 @@ class MsgTest(TembaTest):
                     "Name",
                     "URN",
                     "URN Type",
+                    "Flow",
                     "Direction",
                     "Text",
                     "Attachments",
@@ -1094,6 +1142,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "Color Flow",
                     "IN",
                     "hello 1",
                     "",
@@ -1122,6 +1171,7 @@ class MsgTest(TembaTest):
                     "Name",
                     "URN",
                     "URN Type",
+                    "Flow",
                     "Direction",
                     "Text",
                     "Attachments",
@@ -1135,6 +1185,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "IN",
                     "Media message",
                     "http://rapidpro.io/audio/sound.mp3",
@@ -1148,6 +1199,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "OUT",
                     "Hey out 6",
                     "",
@@ -1161,6 +1213,7 @@ class MsgTest(TembaTest):
                     "Joe Blow",
                     "123",
                     "tel",
+                    "",
                     "OUT",
                     "Hey out 7",
                     "",
@@ -1190,6 +1243,7 @@ class MsgTest(TembaTest):
                         "Name",
                         "ID",
                         "URN Type",
+                        "Flow",
                         "Direction",
                         "Text",
                         "Attachments",
@@ -1203,6 +1257,7 @@ class MsgTest(TembaTest):
                         "Joe Blow",
                         joe_anon_id,
                         "",
+                        "Color Flow",
                         "IN",
                         "hello 1",
                         "",
@@ -1215,6 +1270,7 @@ class MsgTest(TembaTest):
                         msg2.contact.uuid,
                         "Joe Blow",
                         joe_anon_id,
+                        "",
                         "",
                         "IN",
                         "hello 2",
@@ -1229,6 +1285,7 @@ class MsgTest(TembaTest):
                         "Joe Blow",
                         joe_anon_id,
                         "",
+                        "",
                         "IN",
                         "hello 4",
                         "",
@@ -1241,6 +1298,7 @@ class MsgTest(TembaTest):
                         msg5.contact.uuid,
                         "Joe Blow",
                         joe_anon_id,
+                        "",
                         "",
                         "IN",
                         "Media message",
@@ -1255,6 +1313,7 @@ class MsgTest(TembaTest):
                         "Joe Blow",
                         joe_anon_id,
                         "",
+                        "",
                         "OUT",
                         "Hey out 6",
                         "",
@@ -1267,6 +1326,7 @@ class MsgTest(TembaTest):
                         msg7.contact.uuid,
                         "Joe Blow",
                         joe_anon_id,
+                        "",
                         "",
                         "OUT",
                         "Hey out 7",
@@ -1281,6 +1341,7 @@ class MsgTest(TembaTest):
                         "Joe Blow",
                         joe_anon_id,
                         "",
+                        "",
                         "OUT",
                         "Hey out 8",
                         "",
@@ -1293,6 +1354,7 @@ class MsgTest(TembaTest):
                         msg9.contact.uuid,
                         "Joe Blow",
                         joe_anon_id,
+                        "",
                         "",
                         "OUT",
                         "Hey out 9",
@@ -1325,7 +1387,7 @@ class MsgTest(TembaTest):
             created_on=timezone.now(),
         )
         ChannelLog.objects.create(id=3_000_000_000, channel=msg.channel, msg=msg, is_error=True, description="Boom")
-        spam = Label.get_or_create(self.org, self.admin, "Spam")
+        spam = self.create_label("Spam")
         msg.labels.add(spam)
 
 
@@ -1360,7 +1422,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "function refresh")
 
         self.assertEqual(20000, response.context["refresh"])
-        self.assertEqual(("archive", "label"), response.context["actions"])
+        self.assertEqual(("archive", "label", "send"), response.context["actions"])
         self.assertEqual({"count": 4, "label": "Inbox", "url": "/msg/inbox/"}, response.context["folders"][0])
 
         # test searching
@@ -1369,9 +1431,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # add some labels
         folder = Label.get_or_create_folder(self.org, self.user, "folder")
-        label1 = Label.get_or_create(self.org, self.user, "label1", folder)
-        Label.get_or_create(self.org, self.user, "label2", folder)
-        label3 = Label.get_or_create(self.org, self.user, "label3")
+        label1 = self.create_label("label1", folder=folder)
+        self.create_label("label2", folder=folder)
+        label3 = self.create_label("label3")
 
         # viewers can't label messages
         response = self.requestView(
@@ -1393,6 +1455,14 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             inbox_url,
             self.editor,
             post_data={"action": "label", "objects": [msg2.id], "label": label1.id, "add": False},
+        )
+        self.assertEqual({msg1}, set(label1.msgs.all()))
+
+        # can't label without a label object
+        response = self.requestView(
+            inbox_url,
+            self.editor,
+            post_data={"action": "label", "objects": [msg2.id], "add": False},
         )
         self.assertEqual({msg1}, set(label1.msgs.all()))
 
@@ -1425,7 +1495,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             flows_url, allow_viewers=True, allow_editors=True, context_objects=[msg2, msg1]
         )
 
-        self.assertEqual(("archive", "label"), response.context["actions"])
+        self.assertEqual(("archive", "label", "send"), response.context["actions"])
 
     def test_archived(self):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
@@ -1449,7 +1519,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             archived_url + "?refresh=10000", allow_viewers=True, allow_editors=True, context_objects=[msg3, msg2, msg1]
         )
 
-        self.assertEqual(("restore", "label", "delete"), response.context["actions"])
+        self.assertEqual(("restore", "label", "delete", "send"), response.context["actions"])
         self.assertEqual({"count": 3, "label": "Archived", "url": "/msg/archived/"}, response.context["folders"][2])
 
         # test searching
@@ -1608,9 +1678,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create some folders and labels
         folder = Label.get_or_create_folder(self.org, self.user, "folder")
-        label1 = Label.get_or_create(self.org, self.user, "label1", folder)
-        label2 = Label.get_or_create(self.org, self.user, "label2", folder)
-        label3 = Label.get_or_create(self.org, self.user, "label3")
+        label1 = self.create_label("label1", folder=folder)
+        label2 = self.create_label("label2", folder=folder)
+        label3 = self.create_label("label3")
 
         # create some messages
         msg1 = self.create_incoming_msg(joe, "test1")
@@ -1689,7 +1759,7 @@ class BroadcastTest(TembaTest):
         self.twitter = self.create_channel("TT", "Twitter", "nyaruka")
 
     def test_delete(self):
-        label = Label.get_or_create(self.org, self.user, "Labeled")
+        label = self.create_label("Labeled")
 
         # create some incoming messages
         msg_in1 = self.create_incoming_msg(self.joe, "Hello")
@@ -2092,39 +2162,31 @@ class LabelTest(TembaTest):
         self.joe = self.create_contact("Joe Blow", phone="073835001")
         self.frank = self.create_contact("Frank", phone="073835002")
 
-    def test_get_or_create(self):
-        label1 = Label.get_or_create(self.org, self.user, "Spam")
+    def test_create(self):
+        label1 = Label.create(self.org, self.user, "Spam")
         self.assertEqual("Spam", label1.name)
         self.assertIsNone(label1.folder)
 
         followup = Label.get_or_create_folder(self.org, self.user, "Follow up")
-        label2 = Label.get_or_create(self.org, self.user, "Complaints", followup)
+        label2 = Label.create(self.org, self.user, "Complaints", folder=followup)
         self.assertEqual("Complaints", label2.name)
         self.assertEqual(followup, label2.folder)
 
         label2.release(self.admin)
 
-        # will return existing label by name and strip whitespace
-        self.assertEqual(label1, Label.get_or_create(self.org, self.user, "Spam"))
-        self.assertEqual(label1, Label.get_or_create(self.org, self.user, "  Spam   "))
-
-        # but only if it's active
-        self.assertNotEqual(label2, Label.get_or_create(self.org, self.user, "Complaints"))
-
         # don't allow invalid name
-        self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
+        self.assertRaises(AssertionError, Label.create, self.org, self.user, '"Hi"')
 
         # can't use a non-folder as a folder
-        self.assertRaises(AssertionError, Label.get_or_create, self.org, self.user, "Important", label1)
+        self.assertRaises(AssertionError, Label.create, self.org, self.user, "Important", label1)
 
     def test_get_or_create_folder(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Spam")
         self.assertEqual("Spam", folder1.name)
         self.assertIsNone(folder1.folder)
 
-        # will return existing label by name and strip whitespace
+        # will return existing label by name
         self.assertEqual(folder1, Label.get_or_create_folder(self.org, self.user, "Spam"))
-        self.assertEqual(folder1, Label.get_or_create_folder(self.org, self.user, "  Spam   "))
 
         folder1.release(self.admin)
 
@@ -2132,21 +2194,10 @@ class LabelTest(TembaTest):
         self.assertNotEqual(folder1, Label.get_or_create_folder(self.org, self.user, "Spam"))
 
         # don't allow invalid name
-        self.assertRaises(ValueError, Label.get_or_create_folder, self.org, self.user, "+Important")
-
-    def test_is_valid_name(self):
-        self.assertTrue(Label.is_valid_name("x"))
-        self.assertTrue(Label.is_valid_name("1"))
-        self.assertTrue(Label.is_valid_name("x" * 64))
-        self.assertFalse(Label.is_valid_name(" "))
-        self.assertFalse(Label.is_valid_name(" x"))
-        self.assertFalse(Label.is_valid_name("x "))
-        self.assertFalse(Label.is_valid_name("+x"))
-        self.assertFalse(Label.is_valid_name("@x"))
-        self.assertFalse(Label.is_valid_name("x" * 65))
+        self.assertRaises(AssertionError, Label.get_or_create_folder, self.org, self.user, '"Important')
 
     def test_toggle_label(self):
-        label = Label.get_or_create(self.org, self.user, "Spam")
+        label = self.create_label("Spam")
         msg1 = self.create_incoming_msg(self.joe, "Message 1")
         msg2 = self.create_incoming_msg(self.joe, "Message 2")
         msg3 = self.create_incoming_msg(self.joe, "Message 3")
@@ -2218,10 +2269,10 @@ class LabelTest(TembaTest):
     def test_get_messages_and_hierarchy(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")
         folder2 = Label.get_or_create_folder(self.org, self.user, "Todo")
-        label1 = Label.get_or_create(self.org, self.user, "Spam", folder1)
-        label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
-        label3 = Label.get_or_create(self.org, self.user, "Other")
-        label4 = Label.get_or_create(self.org, self.user, "Deleted")
+        label1 = self.create_label("Spam", folder=folder1)
+        label2 = self.create_label("Social", folder=folder1)
+        label3 = self.create_label("Other")
+        label4 = self.create_label("Deleted")
 
         label4.release(self.user)
 
@@ -2259,9 +2310,9 @@ class LabelTest(TembaTest):
 
     def test_delete(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Folder")
-        label1 = Label.get_or_create(self.org, self.user, "Spam", folder1)
-        label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
-        label3 = Label.get_or_create(self.org, self.user, "Other")
+        label1 = self.create_label("Spam", folder=folder1)
+        label2 = self.create_label("Social", folder=folder1)
+        label3 = self.create_label("Other")
 
         msg1 = self.create_incoming_msg(self.joe, "Message 1")
         msg2 = self.create_incoming_msg(self.joe, "Message 2")
@@ -2308,8 +2359,8 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(self.admin)
 
         # try to create label with invalid name
-        response = self.client.post(create_label_url, {"name": "+Spam"})
-        self.assertFormError(response, "form", "name", "Name must not be blank or begin with punctuation")
+        response = self.client.post(create_label_url, {"name": '"Spam"'})
+        self.assertFormError(response, "form", "name", 'Cannot contain the character: "')
 
         # try again with valid name
         self.client.post(create_label_url, {"name": "Spam"}, follow=True)
@@ -2320,7 +2371,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check that we can't create another with same name
         response = self.client.post(create_label_url, {"name": "Spam"})
-        self.assertFormError(response, "form", "name", "Name must be unique")
+        self.assertFormError(response, "form", "name", "Must be unique.")
 
         # create a folder
         self.client.post(create_folder_url, {"name": "Folder"}, follow=True)
@@ -2340,8 +2391,8 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertIsNone(label1.folder)
 
         # try to update to invalid label name
-        response = self.client.post(reverse("msgs.label_update", args=[label1.id]), {"name": "+Spam"})
-        self.assertFormError(response, "form", "name", "Name must not be blank or begin with punctuation")
+        response = self.client.post(reverse("msgs.label_update", args=[label1.id]), {"name": '"Spam'})
+        self.assertFormError(response, "form", "name", 'Cannot contain the character: "')
 
         # try creating a new label after reaching the limit on labels
         current_count = Label.label_objects.filter(org=self.org, is_active=True).count()
@@ -2351,12 +2402,12 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
                 response,
                 "form",
                 "name",
-                "This workspace has 2 labels and the limit is 2. "
+                "This workspace has reached its limit of 2 labels. "
                 "You must delete existing ones before you can create new ones.",
             )
 
     def test_delete(self):
-        label = Label.get_or_create(self.org, self.user, "Spam")
+        label = self.create_label("Spam")
 
         delete_url = reverse("msgs.label_delete", args=[label.uuid])
 
@@ -2390,7 +2441,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_delete_folder(self):
         # create a folder with a single label
         folder = Label.get_or_create_folder(self.org, self.user, "Cool Labels")
-        label1 = Label.get_or_create(self.org, self.user, "Spam", folder=folder)
+        label1 = self.create_label("Spam", folder=folder)
 
         delete_url = reverse("msgs.label_delete_folder", args=[folder.id])
 
@@ -2410,18 +2461,17 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("/msg/inbox/", response["Temba-Success"])
 
         # modal will show error if a label is added in the background
-        Label.get_or_create(self.org, self.user, "Spam", folder=folder)
+        self.create_label("Spam", folder=folder)
 
         response = self.assertDeleteSubmit(delete_url, object_unchanged=folder, success_status=200)
         self.assertContains(response, "cannot be deleted as it still contains labels")
 
     def test_list(self):
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        Label.get_or_create(self.org, self.user, "Spam", folder=folder)
-        Label.get_or_create(self.org, self.user, "Junk", folder=folder)
-        Label.get_or_create(self.org, self.user, "Important")
-
-        Label.get_or_create(self.org2, self.admin2, "Other Org")
+        self.create_label("Spam", folder=folder)
+        self.create_label("Junk", folder=folder)
+        self.create_label("Important")
+        self.create_label("Other Org", org=self.org2)
 
         # viewers can't edit flows so don't have access to this JSON endpoint as that's only place it's used
         self.login(self.user)
