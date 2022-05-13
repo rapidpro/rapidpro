@@ -1,6 +1,5 @@
 from django.urls import reverse
 
-from temba.msgs.models import Label
 from temba.tests import TembaTest
 
 
@@ -9,9 +8,6 @@ class DashboardTest(TembaTest):
         super().setUp()
 
         self.user = self.create_user("tito")
-        self.flow_label = Label.label_objects.create(
-            name="Color", org=self.org, created_by=self.admin, modified_by=self.admin
-        )
 
     def create_activity(self):
 

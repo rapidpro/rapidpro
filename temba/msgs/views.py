@@ -15,7 +15,7 @@ from smartmin.views import (
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.db.models.functions.text import Upper
+from django.db.models.functions.text import Lower
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
@@ -191,9 +191,7 @@ class InboxView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         context["folders"] = folders
 
         context["labels_flat"] = (
-            Label.all_objects.filter(org=org, is_active=True)
-            .exclude(label_type=Label.TYPE_FOLDER)
-            .order_by(Upper("name"))
+            Label.get_active_for_org(org).exclude(label_type=Label.TYPE_FOLDER).order_by(Lower("name"))
         )
 
         context["labels"] = Label.get_hierarchy(org)
@@ -532,11 +530,7 @@ class MsgCRUDL(SmartCRUDL):
             counts = SystemLabel.get_counts(org)
 
             if self.request.GET.get("labels"):
-                labels = (
-                    Label.all_objects.filter(org=org, is_active=True)
-                    .exclude(label_type=Label.TYPE_FOLDER)
-                    .order_by(Upper("name"))
-                )
+                labels = Label.get_active_for_org(org).exclude(label_type=Label.TYPE_FOLDER).order_by(Lower("name"))
                 label_counts = LabelCount.get_totals([lb for lb in labels])
 
                 menu = []
@@ -551,7 +545,7 @@ class MsgCRUDL(SmartCRUDL):
                     )
                 return menu
             else:
-                labels = Label.label_objects.filter(org=org, is_active=True).order_by("name")
+                labels = Label.get_active_for_org(org).order_by("name")
 
                 menu = [
                     self.create_menu_item(
@@ -637,7 +631,7 @@ class MsgCRUDL(SmartCRUDL):
             if len(label_id) == 1:
                 return label_id, None
             else:
-                return None, Label.all_objects.get(org=self.request.user.get_org(), uuid=label_id)
+                return None, Label.get_active_for_org(self.request.org).get(uuid=label_id)
 
         def get_success_url(self):
             redirect = self.request.GET.get("redirect")
@@ -932,7 +926,7 @@ class BaseLabelForm(forms.ModelForm):
 
 class LabelForm(BaseLabelForm):
     folder = forms.ModelChoiceField(
-        Label.folder_objects.none(),
+        Label.objects.none(),
         required=False,
         label=_("Folder"),
         widget=SelectWidget(attrs={"placeholder": _("Select folder")}),
@@ -944,7 +938,7 @@ class LabelForm(BaseLabelForm):
     def __init__(self, org, *args, **kwargs):
         super().__init__(org, *args, **kwargs)
 
-        self.fields["folder"].queryset = Label.folder_objects.filter(org=self.org, is_active=True)
+        self.fields["folder"].queryset = Label.get_active_for_org(self.org).filter(label_type=Label.TYPE_FOLDER)
 
     class Meta(BaseLabelForm.Meta):
         fields = ("name", "folder")
@@ -956,21 +950,21 @@ class FolderForm(BaseLabelForm):
 
 class LabelCRUDL(SmartCRUDL):
     model = Label
-    actions = ("create", "create_folder", "update", "usages", "delete", "delete_folder", "list")
+    actions = ("create", "update", "usages", "delete", "delete_folder", "list")
 
     class List(OrgPermsMixin, SmartListView):
         paginate_by = None
         default_order = ("name",)
 
         def derive_queryset(self, **kwargs):
-            return Label.label_objects.filter(org=self.request.user.get_org())
+            return Label.get_active_for_org(self.request.org).exclude(label_type=Label.TYPE_FOLDER)
 
         def render_to_response(self, context, **response_kwargs):
             results = [{"id": lb.uuid, "text": lb.name} for lb in context["object_list"]]
             return HttpResponse(json.dumps(results), content_type="application/json")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
-        fields = ("name", "folder", "messages")
+        fields = ("name", "messages")
         success_url = "hide"
         form_class = LabelForm
         success_message = ""
@@ -982,7 +976,7 @@ class LabelCRUDL(SmartCRUDL):
             return kwargs
 
         def save(self, obj):
-            self.object = Label.create(self.request.org, self.request.user, obj.name, obj.folder)
+            self.object = Label.create(self.request.org, self.request.user, obj.name)
 
         def post_save(self, obj, *args, **kwargs):
             obj = super().post_save(obj, *args, **kwargs)
@@ -993,22 +987,6 @@ class LabelCRUDL(SmartCRUDL):
                     obj.toggle_label(msgs, add=True)
 
             return obj
-
-    class CreateFolder(ModalMixin, OrgPermsMixin, SmartCreateView):
-        fields = ("name",)
-        success_url = "@msgs.msg_inbox"
-        form_class = FolderForm
-        success_message = ""
-        submit_button_name = _("Create")
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.user.get_org()
-            return kwargs
-
-        def save(self, obj):
-            user = self.request.user
-            self.object = Label.get_or_create_folder(user.get_org(), user, obj.name)
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         success_url = "uuid@msgs.msg_filter"
@@ -1026,7 +1004,13 @@ class LabelCRUDL(SmartCRUDL):
             return _("Update Folder") if self.get_object().is_folder() else _("Update Label")
 
         def derive_fields(self):
-            return ("name",) if self.get_object().is_folder() else ("name", "folder")
+            obj = self.get_object()
+
+            # only show folder field for labels which already have a folder
+            if obj.is_folder() or not obj.folder:
+                return ("name",)
+            else:
+                return ("name", "folder")
 
     class Usages(DependencyUsagesModal):
         permission = "msgs.label_read"

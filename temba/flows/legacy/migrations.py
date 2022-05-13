@@ -1010,7 +1010,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     def remap_label(ele):
         from temba.msgs.models import Label
 
-        replace_with_uuid(ele, Label.label_objects, label_id_map)
+        replace_with_uuid(ele, Label.objects, label_id_map)
 
     for flow in exported_json.get("flows", []):
         flow = map_actions(flow, cleanse_group_names)

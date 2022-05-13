@@ -326,7 +326,7 @@ class Command(BaseCommand):
         self._log(f"Creating {len(spec['labels'])} labels... ")
 
         for lb in spec["labels"]:
-            Label.label_objects.create(org=org, name=lb["name"], uuid=lb["uuid"], created_by=user, modified_by=user)
+            Label.objects.create(org=org, name=lb["name"], uuid=lb["uuid"], created_by=user, modified_by=user)
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
