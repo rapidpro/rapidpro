@@ -1,12 +1,17 @@
 import json
-from unittest.mock import patch
+from unittest.mock import call, patch
+
+from requests import RequestException
 
 from django.test import override_settings
 from django.urls import reverse
 
+from temba.request_logs.models import HTTPLog
+from temba.templates.models import TemplateTranslation
 from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel
+from .type import WhatsAppCloudType
 
 
 class WhatsAppCloudTypeTest(TembaTest):
@@ -177,3 +182,71 @@ class WhatsAppCloudTypeTest(TembaTest):
                 self.assertEqual("USD", channel.config["wa_currency"])
                 self.assertEqual("2222222222222", channel.config["wa_business_id"])
                 self.assertEqual("namespace-uuid", channel.config["wa_message_template_namespace"])
+
+    @override_settings(WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN")
+    @patch("requests.get")
+    def test_get_api_templates(self, mock_get):
+        TemplateTranslation.objects.all().delete()
+        Channel.objects.all().delete()
+
+        channel = self.create_channel(
+            "WAC",
+            "WABA name",
+            "123123123",
+            config={
+                "wa_waba_id": "111111111111111",
+            },
+        )
+
+        mock_get.side_effect = [
+            RequestException("Network is unreachable", response=MockResponse(100, "")),
+            MockResponse(400, '{ "meta": { "success": false } }'),
+            MockResponse(200, '{"data": ["foo", "bar"]}'),
+            MockResponse(
+                200,
+                '{"data": ["foo"], "paging": {"cursors": {"after": "MjQZD"} } }',
+            ),
+            MockResponse(200, '{"data": ["bar"], "paging": {"cursors": {"after": null } } }'),
+        ]
+
+        # RequestException check HTTPLog
+        templates_data, no_error = WhatsAppCloudType().get_api_templates(channel)
+        self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
+        self.assertFalse(no_error)
+        self.assertEqual([], templates_data)
+
+        # should be empty list with an error flag if fail with API
+        templates_data, no_error = WhatsAppCloudType().get_api_templates(channel)
+        self.assertFalse(no_error)
+        self.assertEqual([], templates_data)
+
+        # success no error and list
+        templates_data, no_error = WhatsAppCloudType().get_api_templates(channel)
+        self.assertTrue(no_error)
+        self.assertEqual(["foo", "bar"], templates_data)
+
+        mock_get.assert_called_with(
+            "https://graph.facebook.com/v13.0/111111111111111/message_templates",
+            params={"limit": 255},
+            headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
+        )
+
+        # success no error and pagination
+        templates_data, no_error = WhatsAppCloudType().get_api_templates(channel)
+        self.assertTrue(no_error)
+        self.assertEqual(["foo", "bar"], templates_data)
+
+        mock_get.assert_has_calls(
+            [
+                call(
+                    "https://graph.facebook.com/v13.0/111111111111111/message_templates",
+                    params={"limit": 255},
+                    headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
+                ),
+                call(
+                    "https://graph.facebook.com/v13.0/111111111111111/message_templates?cursor=MjQZD",
+                    params={"limit": 255},
+                    headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
+                ),
+            ]
+        )
