@@ -1,3 +1,9 @@
+v7.3.43
+----------
+ * Fix generating cloned flow names so they can't end with trailing spaces
+ * Deleting of globals should be soft like other types
+ * Simplify checking of workspace limits in UI and API
+
 v7.3.42
 ----------
  * Data migration to backfill ticket daily counts
