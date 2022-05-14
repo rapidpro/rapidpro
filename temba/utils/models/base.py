@@ -93,7 +93,7 @@ class TembaNameMixin(models.Model):
         """
         Cleans a name from an import to try to make it valid
         """
-        return original.strip()[: cls.MAX_NAME_LEN].replace('"', "'").replace("\\", "/").replace("\0", "")
+        return original.strip()[: cls.MAX_NAME_LEN].strip().replace('"', "'").replace("\\", "/").replace("\0", "")
 
     def _deleted_name(self) -> str:
         return f"deleted-{uuid4()}-{self.name}"[: self.MAX_NAME_LEN]

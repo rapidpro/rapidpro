@@ -96,6 +96,7 @@ class FlowTest(TembaTest):
         self.assertEqual("Hello/n", Flow.clean_name("Hello\\n"))
         self.assertEqual("Say 'Hi'", Flow.clean_name('Say "Hi"'))
         self.assertEqual("x" * 64, Flow.clean_name("x" * 100))
+        self.assertEqual("a                                b", Flow.clean_name(f"a{' ' * 32}b{' ' * 32}c"))
 
     @patch("temba.mailroom.queue_interrupt")
     def test_archive(self, mock_queue_interrupt):
@@ -456,6 +457,11 @@ class FlowTest(TembaTest):
         self.assertEqual("Copy of 123456789012345678901234567890123456789012345678901234 2", copy2.name)
         copy3 = flow.clone(self.admin)
         self.assertEqual("Copy of 123456789012345678901234567890123456789012345678901234 3", copy3.name)
+
+        # ensure that truncating doesn't leave trailing spaces
+        flow2 = self.create_flow("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabc efghijkl")
+        copy2 = flow2.clone(self.admin)
+        self.assertEqual("Copy of abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabc", copy2.name)
 
     def test_copy_group_split_no_name(self):
         flow = self.get_flow("group_split_no_name")
