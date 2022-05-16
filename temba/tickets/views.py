@@ -386,9 +386,10 @@ class TicketCRUDL(SmartCRUDL):
 
     class ExportStats(OrgPermsMixin, SmartTemplateView):
         def render_to_response(self, context, **response_kwargs):
+            num_days = self.request.GET.get("days", 90)
             today = timezone.now().date()
             workbook = TicketDailyCount.export_summary(
-                self.request.org, today - timedelta(days=90), today + timedelta(days=1)
+                self.request.org, today - timedelta(days=num_days), today + timedelta(days=1)
             )
 
             return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")

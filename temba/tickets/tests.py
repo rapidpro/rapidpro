@@ -491,6 +491,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.get(export_url)
         self.assertEqual(200, response.status_code)
+        self.assertEqual("application/ms-excel", response["Content-Type"])
+        self.assertEqual(
+            f"attachment; filename=ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx",
+            response["Content-Disposition"],
+        )
 
 
 class TicketerTest(TembaTest):
