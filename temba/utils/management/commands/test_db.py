@@ -49,10 +49,11 @@ ORG_NAMES = (
 
 # the users, channels, groups, labels and fields to create for each organization
 USERS = (
-    {"email": "admin%d@nyaruka.com", "role": "administrators"},
-    {"email": "editor%d@nyaruka.com", "role": "editors"},
-    {"email": "viewer%d@nyaruka.com", "role": "viewers"},
-    {"email": "surveyor%d@nyaruka.com", "role": "surveyors"},
+    {"email": "admin%(orgid)d@nyaruka.com", "role": "administrators", "first_name": "Adam", "last_name": "McAdmin"},
+    {"email": "editor%(orgid)d@nyaruka.com", "role": "editors", "first_name": "Eddy", "last_name": "McEditor"},
+    {"email": "viewer%(orgid)d@nyaruka.com", "role": "viewers", "first_name": "Veronica", "last_name": "McViews"},
+    {"email": "surveyor%(orgid)d@nyaruka.com", "role": "surveyors", "first_name": "", "last_name": ""},
+    {"email": "agent%(orgid)d@nyaruka.com", "role": "agents", "first_name": "Agnes", "last_name": "McAgent"},
 )
 CHANNELS = (
     {"name": "Android", "channel_type": "A", "scheme": "tel", "address": "1234"},
@@ -281,7 +282,10 @@ class Command(BaseCommand):
         # create users for each org
         for org in orgs:
             for u in USERS:
-                user = User.objects.create_user(u["email"] % org.id, u["email"] % org.id, password)
+                email = u["email"] % {"orgid": org.id}
+                user = User.objects.create_user(
+                    email, email, password, first_name=u["first_name"], last_name=u["last_name"]
+                )
                 getattr(org, u["role"]).add(user)
                 user.set_org(org)
                 org.cache["users"].append(user)
