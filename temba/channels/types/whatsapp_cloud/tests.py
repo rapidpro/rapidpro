@@ -234,7 +234,7 @@ class WhatsAppCloudTypeTest(TembaTest):
         # success no error and pagination
         templates_data, no_error = WhatsAppCloudType().get_api_templates(channel)
         self.assertTrue(no_error)
-        #self.assertEqual(["foo", "bar"], templates_data)
+        # self.assertEqual(["foo", "bar"], templates_data)
         self.assertEqual(["foo"], templates_data)
 
         mock_get.assert_has_calls(
