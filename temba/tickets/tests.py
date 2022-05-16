@@ -833,6 +833,7 @@ class TicketDailyCountTest(TembaTest):
 
         workbook = TicketDailyCount.export_summary(self.org, date(2022, 4, 30), date(2022, 5, 6))
         self.assertEqual(["Tickets"], workbook.sheetnames)
+        self.assertExcelRow(workbook.active, 1, ["", "Opened", "Replies"] + ["Assigned", "Replies"] * 5)
         self.assertExcelRow(workbook.active, 2, [date(2022, 4, 30), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         self.assertExcelRow(workbook.active, 3, [date(2022, 5, 1), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         self.assertExcelRow(workbook.active, 4, [date(2022, 5, 2), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])

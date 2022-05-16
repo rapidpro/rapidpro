@@ -527,7 +527,9 @@ class TicketDailyCount(DailyCountModel):
 
         user_col = 4
         for user in users:
-            sheet.cell(row=1, column=user_col, value=user.email)
+            cell = sheet.cell(row=1, column=user_col, value=str(user))
+            cell.hyperlink = f"mailto:{user.email}"
+            cell.style = "Hyperlink"
             sheet.merge_cells(start_row=1, start_column=user_col, end_row=1, end_column=user_col + 1)
 
             sheet.cell(row=2, column=user_col, value="Assigned")
