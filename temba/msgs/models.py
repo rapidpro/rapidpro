@@ -13,7 +13,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.db.models import Prefetch, Q, Sum
-from django.db.models.functions import Lower, Upper
+from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -874,16 +874,6 @@ class SystemLabelCount(SquashableModel):
         index_together = ("org", "label_type")
 
 
-class UserFolderManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(label_type=Label.TYPE_FOLDER)
-
-
-class UserLabelManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(label_type=Label.TYPE_LABEL)
-
-
 class Label(LegacyUUIDMixin, TembaModel, DependencyMixin):
     """
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
@@ -900,35 +890,18 @@ class Label(LegacyUUIDMixin, TembaModel, DependencyMixin):
     folder = models.ForeignKey("Label", on_delete=models.PROTECT, null=True, related_name="children")
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL)
 
-    # define some custom managers to do the filtering of label types for us
-    all_objects = models.Manager()
-    folder_objects = UserFolderManager()
-    label_objects = UserLabelManager()
-
     org_limit_key = Org.LIMIT_LABELS
 
     @classmethod
-    def create(cls, org, user, name: str, folder=None):
+    def create(cls, org, user, name: str):
         assert cls.is_valid_name(name), f"'{name}' is not a valid label name"
-        assert not folder or folder.is_folder(), "folder must be a folder if provided"
+        assert not org.msgs_labels.filter(name__iexact=name).exists()
 
-        return cls.label_objects.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
+        return cls.objects.create(org=org, name=name, created_by=user, modified_by=user)
 
     @classmethod
     def create_from_import_def(cls, org, user, definition: dict):
         return cls.create(org, user, definition["name"])
-
-    @classmethod
-    def get_or_create_folder(cls, org, user, name: str):
-        assert cls.is_valid_name(name), f"'{name}' is not a valid label name"
-
-        folder = cls.folder_objects.filter(org=org, name__iexact=name, is_active=True).first()
-        if folder:
-            return folder
-
-        return cls.folder_objects.create(
-            org=org, name=name, label_type=Label.TYPE_FOLDER, created_by=user, modified_by=user
-        )
 
     @classmethod
     def get_hierarchy(cls, org):
@@ -936,7 +909,7 @@ class Label(LegacyUUIDMixin, TembaModel, DependencyMixin):
         Gets labels and folders organized into their hierarchy and with their message counts
         """
 
-        labels_and_folders = list(Label.all_objects.filter(org=org, is_active=True).order_by(Upper("name")))
+        labels_and_folders = list(Label.get_active_for_org(org).order_by(Lower("name")))
         label_counts = LabelCount.get_totals([lb for lb in labels_and_folders if not lb.is_folder()])
 
         folder_nodes = {}
@@ -1277,7 +1250,7 @@ class ExportMessagesTask(BaseExportTask):
             f"Msgs export #{self.id} for org #{self.org.id}: found {len(all_message_ids)} msgs in database to export"
         )
 
-        prefetch = Prefetch("labels", queryset=Label.label_objects.order_by("name"))
+        prefetch = Prefetch("labels", queryset=Label.objects.order_by("name"))
         for msg_batch in MsgIterator(
             all_message_ids,
             order_by=["" "created_on"],

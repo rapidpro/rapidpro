@@ -924,7 +924,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
                 self.assertFalse(WebHookEvent.objects.filter(org=org).exists())
 
                 # and labels
-                self.assertFalse(Label.all_objects.filter(org=org).exists())
+                self.assertFalse(org.msgs_labels.exists())
 
                 # contacts, groups
                 self.assertFalse(Contact.objects.filter(org=org).exists())
@@ -4794,7 +4794,7 @@ class BulkExportTest(TembaTest):
             self.assertEqual(1, Trigger.objects.filter(org=self.org, trigger_type="C", is_archived=False).count())
             self.assertEqual(1, Trigger.objects.filter(org=self.org, trigger_type="M", is_archived=False).count())
             self.assertEqual(3, ContactGroup.objects.filter(org=self.org, is_system=False).count())
-            self.assertEqual(1, Label.label_objects.filter(org=self.org).count())
+            self.assertEqual(1, Label.objects.filter(org=self.org).count())
             self.assertEqual(
                 1, ContactField.user_fields.filter(org=self.org, value_type="D", name="Next Appointment").count()
             )

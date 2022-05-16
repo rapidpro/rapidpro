@@ -30,7 +30,7 @@ from temba.flows.models import Flow, FlowSession, FlowStart
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modifiers
-from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
+from temba.msgs.models import Broadcast, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import (
@@ -1688,7 +1688,7 @@ class ContactTest(TembaTest):
         # joe's messages should be inactive, blank and have no labels
         self.assertEqual(0, Msg.objects.filter(contact=self.joe, visibility="V").count())
         self.assertEqual(0, Msg.objects.filter(contact=self.joe).exclude(text="").count())
-        self.assertEqual(0, Label.label_objects.get(pk=label.pk).msgs.count())
+        self.assertEqual(0, label.msgs.count())
 
         msg_counts = SystemLabel.get_counts(self.org)
         self.assertEqual(0, msg_counts[SystemLabel.TYPE_INBOX])

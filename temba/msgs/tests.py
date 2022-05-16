@@ -69,8 +69,7 @@ class MsgTest(TembaTest):
         )
 
         # label first message
-        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        label = self.create_label("la\02bel1", folder=folder)
+        label = self.create_label("la\02bel1")
         label.toggle_label([msg1], add=True)
 
         self.assertEqual(
@@ -216,7 +215,7 @@ class MsgTest(TembaTest):
         msg1.delete()
         self.assertFalse(Msg.objects.filter(pk=msg1.pk).exists())
 
-        label = Label.label_objects.filter(pk=label.pk).first()
+        label.refresh_from_db()
         self.assertEqual(0, label.get_messages().count())  # do remove labels
         self.assertIsNotNone(label)
 
@@ -347,8 +346,7 @@ class MsgTest(TembaTest):
         self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])
 
         # label first message
-        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
-        label = self.create_label("la\02bel1", folder=folder)
+        label = self.create_label("la\02bel1")
         label.toggle_label([msg1], add=True)
 
         # archive last message
@@ -853,7 +851,9 @@ class MsgTest(TembaTest):
         self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])
 
         # label first message
-        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        folder = Label.objects.create(
+            org=self.org, name="Folder", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
+        )
         label = self.create_label("la\02bel1", folder=folder)
         label.toggle_label([msg1], add=True)
 
@@ -1430,9 +1430,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual([msg2, msg1], list(response.context_data["object_list"]))
 
         # add some labels
-        folder = Label.get_or_create_folder(self.org, self.user, "folder")
-        label1 = self.create_label("label1", folder=folder)
-        self.create_label("label2", folder=folder)
+        label1 = self.create_label("label1")
+        self.create_label("label2")
         label3 = self.create_label("label3")
 
         # viewers can't label messages
@@ -1677,7 +1676,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         billy = self.create_contact("Billy Bob", urns=["twitter:billy_bob"])
 
         # create some folders and labels
-        folder = Label.get_or_create_folder(self.org, self.user, "folder")
+        folder = Label.objects.create(
+            org=self.org, name="folder", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
+        )
         label1 = self.create_label("label1", folder=folder)
         label2 = self.create_label("label2", folder=folder)
         label3 = self.create_label("label3")
@@ -2158,34 +2159,11 @@ class LabelTest(TembaTest):
         self.assertEqual("Spam", label1.name)
         self.assertIsNone(label1.folder)
 
-        followup = Label.get_or_create_folder(self.org, self.user, "Follow up")
-        label2 = Label.create(self.org, self.user, "Complaints", folder=followup)
-        self.assertEqual("Complaints", label2.name)
-        self.assertEqual(followup, label2.folder)
-
-        label2.release(self.admin)
-
         # don't allow invalid name
         self.assertRaises(AssertionError, Label.create, self.org, self.user, '"Hi"')
 
-        # can't use a non-folder as a folder
-        self.assertRaises(AssertionError, Label.create, self.org, self.user, "Important", label1)
-
-    def test_get_or_create_folder(self):
-        folder1 = Label.get_or_create_folder(self.org, self.user, "Spam")
-        self.assertEqual("Spam", folder1.name)
-        self.assertIsNone(folder1.folder)
-
-        # will return existing label by name
-        self.assertEqual(folder1, Label.get_or_create_folder(self.org, self.user, "Spam"))
-
-        folder1.release(self.admin)
-
-        # but only if it's active
-        self.assertNotEqual(folder1, Label.get_or_create_folder(self.org, self.user, "Spam"))
-
-        # don't allow invalid name
-        self.assertRaises(AssertionError, Label.get_or_create_folder, self.org, self.user, '"Important')
+        # don't allow duplicate name
+        self.assertRaises(AssertionError, Label.create, self.org, self.user, "Spam")
 
     def test_toggle_label(self):
         label = self.create_label("Spam")
@@ -2197,13 +2175,13 @@ class LabelTest(TembaTest):
 
         label.toggle_label([msg1, msg2, msg3], add=True)  # add label to 3 messages
 
-        label = Label.label_objects.get(pk=label.pk)
+        label.refresh_from_db()
         self.assertEqual(label.get_visible_count(), 3)
         self.assertEqual(set(label.get_messages()), {msg1, msg2, msg3})
 
         label.toggle_label([msg3], add=False)  # remove label from a message
 
-        label = Label.label_objects.get(pk=label.pk)
+        label.refresh_from_db()
         self.assertEqual(label.get_visible_count(), 2)
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
@@ -2213,32 +2191,32 @@ class LabelTest(TembaTest):
 
         msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
 
-        label = Label.label_objects.get(pk=label.pk)
+        label.refresh_from_db()
         self.assertEqual(label.get_visible_count(), 1)
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         msg2.restore()  # msg back in visible count
 
-        label = Label.label_objects.get(pk=label.pk)
+        label.refresh_from_db()
         self.assertEqual(label.get_visible_count(), 2)
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         msg2.delete()  # removes label message no longer visible
 
-        label = Label.label_objects.get(pk=label.pk)
+        label.refresh_from_db()
         self.assertEqual(label.get_visible_count(), 1)
         self.assertEqual(set(label.get_messages()), {msg1})
 
         msg3.archive()
         label.toggle_label([msg3], add=True)  # labelling an already archived message doesn't increment the count
 
-        label = Label.label_objects.get(pk=label.pk)
+        label.refresh_from_db()
         self.assertEqual(label.get_visible_count(), 1)
         self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
         msg3.restore()  # but then restoring that message will
 
-        label = Label.label_objects.get(pk=label.pk)
+        label.refresh_from_db()
         self.assertEqual(label.get_visible_count(), 2)
         self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
@@ -2247,7 +2225,9 @@ class LabelTest(TembaTest):
         self.assertRaises(AssertionError, label.toggle_label, [msg5], add=True)
 
         # can't get a count of a folder
-        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        folder = Label.objects.create(
+            org=self.org, name="Cool Labels", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
+        )
         self.assertRaises(AssertionError, folder.get_visible_count)
 
         # squashing shouldn't affect counts
@@ -2258,8 +2238,12 @@ class LabelTest(TembaTest):
         self.assertEqual(LabelCount.get_totals([label])[label], 2)
 
     def test_get_messages_and_hierarchy(self):
-        folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")
-        folder2 = Label.get_or_create_folder(self.org, self.user, "Todo")
+        folder1 = Label.objects.create(
+            org=self.org, name="Sorted", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
+        )
+        folder2 = Label.objects.create(
+            org=self.org, name="Todo", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
+        )
         label1 = self.create_label("Spam", folder=folder1)
         label2 = self.create_label("Social", folder=folder1)
         label3 = self.create_label("Other")
@@ -2300,7 +2284,9 @@ class LabelTest(TembaTest):
             )
 
     def test_delete(self):
-        folder1 = Label.get_or_create_folder(self.org, self.user, "Folder")
+        folder1 = Label.objects.create(
+            org=self.org, name="Folder", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
+        )
         label1 = self.create_label("Spam", folder=folder1)
         label2 = self.create_label("Social", folder=folder1)
         label3 = self.create_label("Other")
@@ -2329,7 +2315,7 @@ class LabelTest(TembaTest):
         self.assertEqual(self.admin, folder1.modified_by)
 
         # check that contained labels are also released
-        self.assertEqual(0, Label.all_objects.filter(id__in=[label1.id, label2.id], is_active=True).count())
+        self.assertEqual(0, Label.objects.filter(id__in=[label1.id, label2.id], is_active=True).count())
         self.assertEqual(set(), set(Msg.objects.get(id=msg1.id).labels.all()))
         self.assertEqual(set(), set(Msg.objects.get(id=msg2.id).labels.all()))
         self.assertEqual({label3}, set(Msg.objects.get(id=msg3.id).labels.all()))
@@ -2343,52 +2329,37 @@ class LabelTest(TembaTest):
 
 
 class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
-    def test_create_and_update(self):
-        create_label_url = reverse("msgs.label_create")
-        create_folder_url = reverse("msgs.label_create_folder")
+    def test_create(self):
+        create_url = reverse("msgs.label_create")
 
-        self.login(self.admin)
+        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("name", "messages"))
 
         # try to create label with invalid name
-        response = self.client.post(create_label_url, {"name": '"Spam"'})
-        self.assertFormError(response, "form", "name", 'Cannot contain the character: "')
+        self.assertCreateSubmit(
+            create_url, {"name": '"Spam"'}, form_errors={"name": 'Cannot contain the character: "'}
+        )
 
         # try again with valid name
-        self.client.post(create_label_url, {"name": "Spam"}, follow=True)
-
-        label1 = Label.label_objects.get()
-        self.assertEqual("Spam", label1.name)
-        self.assertIsNone(label1.folder)
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "Spam"},
+            new_obj_query=Label.objects.filter(name="Spam", label_type=Label.TYPE_LABEL, folder=None),
+        )
 
         # check that we can't create another with same name
-        response = self.client.post(create_label_url, {"name": "Spam"})
-        self.assertFormError(response, "form", "name", "Must be unique.")
+        self.assertCreateSubmit(create_url, {"name": "Spam"}, form_errors={"name": "Must be unique."})
 
-        # create a folder
-        self.client.post(create_folder_url, {"name": "Folder"}, follow=True)
-        folder = Label.folder_objects.get(name="Folder")
-
-        # and a label in it
-        self.client.post(create_label_url, {"name": "Spam2", "folder": folder.id}, follow=True)
-        label2 = Label.label_objects.get(name="Spam2")
-        self.assertEqual(folder, label2.folder)
-
-        # update label one
-        self.client.post(reverse("msgs.label_update", args=[label1.id]), {"name": "Spam1"})
-
-        label1.refresh_from_db()
-
-        self.assertEqual("Spam1", label1.name)
-        self.assertIsNone(label1.folder)
-
-        # try to update to invalid label name
-        response = self.client.post(reverse("msgs.label_update", args=[label1.id]), {"name": '"Spam'})
-        self.assertFormError(response, "form", "name", 'Cannot contain the character: "')
+        # create another label
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "Spam 2"},
+            new_obj_query=Label.objects.filter(name="Spam 2", label_type=Label.TYPE_LABEL, folder=None),
+        )
 
         # try creating a new label after reaching the limit on labels
-        current_count = Label.label_objects.filter(org=self.org, is_active=True).count()
+        current_count = Label.get_active_for_org(self.org).count()
         with override_settings(ORG_LIMIT_DEFAULTS={"labels": current_count}):
-            response = self.client.post(create_label_url, {"name": "CoolStuff"})
+            response = self.client.post(create_url, {"name": "CoolStuff"})
             self.assertFormError(
                 response,
                 "form",
@@ -2396,6 +2367,48 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
                 "This workspace has reached its limit of 2 labels. "
                 "You must delete existing ones before you can create new ones.",
             )
+
+    def test_update(self):
+        # users can no longer create folders or new labels with folders, but they still exist
+        folder1 = Label.objects.create(
+            org=self.org, name="Cool Labels", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
+        )
+        folder2 = Label.objects.create(
+            org=self.org, name="Sad Labels", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
+        )
+        label1 = self.create_label("Spam", folder=folder1)
+        label2 = self.create_label("Sales", folder=None)
+
+        label1_url = reverse("msgs.label_update", args=[label1.id])
+        label2_url = reverse("msgs.label_update", args=[label2.id])
+
+        # only show folder field for labels which already have a folder
+        self.assertUpdateFetch(
+            label1_url, allow_viewers=False, allow_editors=True, form_fields={"name": "Spam", "folder": folder1.id}
+        )
+        self.assertUpdateFetch(label2_url, allow_viewers=False, allow_editors=True, form_fields={"name": "Sales"})
+
+        # try to update to invalid name
+        self.assertUpdateSubmit(
+            label1_url,
+            {"name": '"Spam"'},
+            form_errors={"name": 'Cannot contain the character: "'},
+            object_unchanged=label1,
+        )
+
+        # update with valid name and new folder
+        self.assertUpdateSubmit(label1_url, {"name": "Junk", "folder": folder2.id})
+
+        label1.refresh_from_db()
+        self.assertEqual("Junk", label1.name)
+        self.assertEqual(folder2, label1.folder)
+
+        # remove from folder
+        self.assertUpdateSubmit(label1_url, {"name": "Junk", "folder": ""})
+
+        label1.refresh_from_db()
+        self.assertEqual("Junk", label1.name)
+        self.assertIsNone(label1.folder)
 
     def test_delete(self):
         label = self.create_label("Spam")
@@ -2431,7 +2444,9 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_delete_folder(self):
         # create a folder with a single label
-        folder = Label.get_or_create_folder(self.org, self.user, "Cool Labels")
+        folder = Label.objects.create(
+            org=self.org, name="Cool Labels", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
+        )
         label1 = self.create_label("Spam", folder=folder)
 
         delete_url = reverse("msgs.label_delete_folder", args=[folder.id])
@@ -2458,7 +2473,9 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "cannot be deleted as it still contains labels")
 
     def test_list(self):
-        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        folder = Label.objects.create(
+            org=self.org, name="Folder", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
+        )
         self.create_label("Spam", folder=folder)
         self.create_label("Junk", folder=folder)
         self.create_label("Important")

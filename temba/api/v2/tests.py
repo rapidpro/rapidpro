@@ -3184,7 +3184,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"name": "Interesting"})
         self.assertEqual(response.status_code, 201)
 
-        interesting = Label.label_objects.get(name="Interesting")
+        interesting = Label.objects.get(name="Interesting")
         self.assertEqual(response.json(), {"uuid": interesting.uuid, "name": "Interesting", "count": 0})
 
         # try to create another label with same name
@@ -3231,7 +3231,7 @@ class APITest(TembaTest):
         self.assert404(response)
 
         # try creating a new label after reaching the limit on labels
-        current_count = Label.all_objects.filter(org=self.org, is_active=True).count()
+        current_count = Label.objects.filter(org=self.org, is_active=True).count()
         with override_settings(ORG_LIMIT_DEFAULTS={"labels": current_count}):
             response = self.postJSON(url, None, {"name": "Interesting"})
             self.assertResponseError(
@@ -3822,7 +3822,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"messages": [msg2.id, msg3.id], "action": "label", "label_name": "New"})
         self.assertEqual(response.status_code, 204)
 
-        new_label = Label.all_objects.get(org=self.org, name="New", is_active=True)
+        new_label = Label.objects.get(org=self.org, name="New", is_active=True)
         self.assertEqual(set(new_label.get_messages()), {msg2, msg3})
 
         # no difference if label already exists as it does now
@@ -3840,7 +3840,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 204)
 
         # and label not lazy created in this case
-        self.assertIsNone(Label.all_objects.filter(name="XYZ").first())
+        self.assertIsNone(Label.objects.filter(name="XYZ").first())
 
         # try to use invalid label name
         response = self.postJSON(url, None, {"messages": [msg1.id, msg2.id], "action": "label", "label_name": '"Hi"'})

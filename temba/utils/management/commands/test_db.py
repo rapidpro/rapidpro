@@ -417,7 +417,7 @@ class Command(BaseCommand):
         for org in orgs:
             user = org.cache["users"][0]
             for name in LABELS:
-                Label.label_objects.create(org=org, name=name, created_by=user, modified_by=user)
+                Label.objects.create(org=org, name=name, created_by=user, modified_by=user)
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
