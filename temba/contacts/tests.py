@@ -2007,21 +2007,6 @@ class ContactTest(TembaTest):
             omnibox_request(urn_query),
         )
 
-        # lookup by message ids
-        msg = self.create_incoming_msg(self.joe, "some message")
-        self.assertEqual(
-            [dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80")], omnibox_request(f"m={msg.id}")
-        )
-
-        # lookup by label ids
-        label = self.create_label("msg label")
-        self.assertEqual([], omnibox_request(f"l={label.id}"))
-
-        msg.labels.add(label)
-        self.assertEqual(
-            [dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80")], omnibox_request(f"l={label.id}")
-        )
-
         with AnonymousOrg(self.org):
             mock_search_contacts.side_effect = [
                 SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata())

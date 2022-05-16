@@ -347,13 +347,10 @@ class BroadcastCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             urn_ids = [_ for _ in self.request.GET.get("u", "").split(",") if _]
-            msg_ids = [_ for _ in self.request.GET.get("m", "").split(",") if _]
             contact_uuids = [_ for _ in self.request.GET.get("c", "").split(",") if _]
 
-            if msg_ids or contact_uuids or urn_ids:
+            if contact_uuids or urn_ids:
                 params = {}
-                if len(msg_ids) > 0:
-                    params["m"] = ",".join(msg_ids)
                 if len(contact_uuids) > 0:
                     params["c"] = ",".join(contact_uuids)
                 if len(urn_ids) > 0:
@@ -839,11 +836,6 @@ class MsgCRUDL(SmartCRUDL):
                         href=self.derive_export_url(),
                         modax=_("Download Messages"),
                     )
-                )
-
-            if self.has_org_perm("msgs.broadcast_send"):
-                links.append(
-                    dict(title=_("Send All"), style="btn-primary", href="#", js_class="filter-send-all-send-button")
                 )
 
             links.append(

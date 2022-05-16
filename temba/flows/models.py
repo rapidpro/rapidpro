@@ -401,7 +401,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         """
         Returns a clone of this flow
         """
-        name = self.get_unique_name(self.org, f"Copy of {self.name}"[: self.MAX_NAME_LEN])
+        name = self.get_unique_name(self.org, f"Copy of {self.name}"[: self.MAX_NAME_LEN].strip())
         copy = Flow.create(
             self.org,
             user,

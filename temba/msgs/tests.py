@@ -1960,15 +1960,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             ["omnibox", "text", "schedule", "step_node", "loc"], list(response.context["form"].fields.keys())
         )
 
-        # initialize form based on an existing message
-        msg = self.create_outgoing_msg(self.joe, "A test message to joe")
-        response = self.client.get(f"{send_url}?m={msg.id}")
-        omnibox = response.context["form"]["omnibox"]
-        self.assertEqual(
-            [{"id": str(self.joe.uuid), "name": "Joe Blow", "type": "contact", "urn": "(202) 555-0149"}],
-            omnibox.value(),
-        )
-
         # initialize form based on a contact
         response = self.client.get(f"{send_url}?c={self.joe.uuid}")
         omnibox = response.context["form"]["omnibox"]
@@ -1978,7 +1969,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # initialize form based on an existing URN
-        response = self.client.get(f"{send_url}?u={msg.contact_urn.id}")
+        response = self.client.get(f"{send_url}?u={self.joe.get_urn().id}")
         omnibox = response.context["form"]["omnibox"]
         self.assertEqual(
             [
