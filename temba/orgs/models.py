@@ -23,7 +23,7 @@ from timezone_field import TimeZoneField
 from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
-from django.contrib.auth.models import Group, Permission, User
+from django.contrib.auth.models import Group, Permission, User as AuthUser
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.files import File
@@ -145,6 +145,55 @@ class IntegrationType(metaclass=ABCMeta):
         from .integrations import TYPES
 
         return [t for t in TYPES.values() if not category or t.category == category]
+
+
+class User(AuthUser):
+    """
+    There's still no easy way to migrate an existing project to a custom user model, so this is a proxy which provides
+    extra functionality based on the same underlying auth.User model, and for additional fields we use the UserSettings
+    related model.
+    """
+
+    @property
+    def name(self) -> str:
+        return self.get_full_name()
+
+    def set_team(self, team):
+        """
+        Sets the ticketing team for this user
+        """
+        self.settings.team = team
+        self.settings.save(update_fields=("team",))
+
+    def as_engine_ref(self) -> dict:
+        return {"email": self.email, "name": self.name}
+
+    @cached_property
+    def settings(self):
+        assert self.is_authenticated, "can't fetch user settings for anonymous users"
+
+        return UserSettings.objects.get_or_create(user=self)[0]
+
+    def __str__(self):
+        return self.name or self.username
+
+    class Meta:
+        proxy = True
+
+
+class UserSettings(models.Model):
+    """
+    Custom fields for users
+    """
+
+    user = models.ForeignKey("auth.User", on_delete=models.PROTECT, related_name="settings")
+    language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
+    team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
+    otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
+    two_factor_enabled = models.BooleanField(default=False)
+    last_auth_on = models.DateTimeField(null=True)
+    external_id = models.CharField(max_length=128, null=True)
+    verification_token = models.CharField(max_length=64, null=True)
 
 
 class OrgRole(Enum):
@@ -293,11 +342,11 @@ class Org(SmartModel):
     )
 
     # user role m2ms
-    administrators = models.ManyToManyField(User, related_name=OrgRole.ADMINISTRATOR.rel_name)
-    editors = models.ManyToManyField(User, related_name=OrgRole.EDITOR.rel_name)
-    viewers = models.ManyToManyField(User, related_name=OrgRole.VIEWER.rel_name)
-    agents = models.ManyToManyField(User, related_name=OrgRole.AGENT.rel_name)
-    surveyors = models.ManyToManyField(User, related_name=OrgRole.SURVEYOR.rel_name)
+    administrators = models.ManyToManyField("auth.User", related_name=OrgRole.ADMINISTRATOR.rel_name)
+    editors = models.ManyToManyField("auth.User", related_name=OrgRole.EDITOR.rel_name)
+    viewers = models.ManyToManyField("auth.User", related_name=OrgRole.VIEWER.rel_name)
+    agents = models.ManyToManyField("auth.User", related_name=OrgRole.AGENT.rel_name)
+    surveyors = models.ManyToManyField("auth.User", related_name=OrgRole.SURVEYOR.rel_name)
 
     language = models.CharField(
         verbose_name=_("Default Language"),
@@ -1792,7 +1841,7 @@ class Org(SmartModel):
         self.save()
 
     @classmethod
-    def create_user(cls, email: str, password: str, language: str = None) -> User:
+    def create_user(cls, email: str, password: str, language: str = None):
         user = User.objects.create_user(username=email, email=email, password=password)
         if language:
             user_settings = user.get_settings()
@@ -1941,7 +1990,7 @@ def _user_get_settings(user):
     """
     assert user and user.is_authenticated, "can't fetch user settings for anonymous users"
 
-    return UserSettings.get_or_create(user)
+    return UserSettings.objects.get_or_create(user=user)[0]
 
 
 def _user_record_auth(user):
@@ -1989,57 +2038,21 @@ def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool
     return False
 
 
-def _user_team(user: User):
-    """
-    Gets the ticketing team for this user
-    """
-    return user.get_settings().team
-
-
-def _user_set_team(user: User, team):
-    """
-    Sets the ticketing team for this user
-    """
-    user_settings = user.get_settings()
-    user_settings.team = team
-    user_settings.save(update_fields=("team",))
-
-
-def _user_name(user: User) -> str:
-    return user.get_full_name()
-
-
-def _user_as_engine_ref(user: User) -> dict:
-    return {"email": user.email, "name": user.name}
-
-
-def _user_str(user):
-    as_str = _user_name(user)
-    if not as_str:
-        as_str = user.username
-    return as_str
-
-
-User.release = release
-User.get_org = get_org
-User.set_org = set_org
-User.is_alpha = is_alpha_user
-User.is_beta = is_beta_user
-User.is_support = is_support_user
-User.get_user_orgs = get_user_orgs
-User.get_org_group = get_org_group
-User.get_owned_orgs = get_owned_orgs
-User.has_org_perm = _user_has_org_perm
-User.get_settings = _user_get_settings
-User.record_auth = _user_record_auth
-User.enable_2fa = _user_enable_2fa
-User.disable_2fa = _user_disable_2fa
-User.verify_2fa = _user_verify_2fa
-User.name = property(_user_name)
-User.team = property(_user_team)
-User.set_team = _user_set_team
-User.as_engine_ref = _user_as_engine_ref
-User.__str__ = _user_str
+AuthUser.release = release
+AuthUser.get_org = get_org
+AuthUser.set_org = set_org
+AuthUser.is_alpha = is_alpha_user
+AuthUser.is_beta = is_beta_user
+AuthUser.is_support = is_support_user
+AuthUser.get_user_orgs = get_user_orgs
+AuthUser.get_org_group = get_org_group
+AuthUser.get_owned_orgs = get_owned_orgs
+AuthUser.has_org_perm = _user_has_org_perm
+AuthUser.get_settings = _user_get_settings
+AuthUser.record_auth = _user_record_auth
+AuthUser.enable_2fa = _user_enable_2fa
+AuthUser.disable_2fa = _user_disable_2fa
+AuthUser.verify_2fa = _user_verify_2fa
 
 
 def get_stripe_credentials():
@@ -2114,29 +2127,6 @@ class Invitation(SmartModel):
         context["subject"] = subject
 
         send_template_email(to_email, subject, template, context, branding)
-
-
-class UserSettings(models.Model):
-    """
-    User specific configuration
-    """
-
-    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="settings")
-    language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
-    team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
-    otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
-    two_factor_enabled = models.BooleanField(default=False)
-    last_auth_on = models.DateTimeField(null=True)
-    external_id = models.CharField(max_length=128, null=True)
-    verification_token = models.CharField(max_length=64, null=True)
-
-    @classmethod
-    def get_or_create(cls, user):
-        existing = UserSettings.objects.filter(user=user).first()
-        if existing:
-            return existing
-
-        return cls.objects.create(user=user)
 
 
 class TopUp(SmartModel):
@@ -2497,7 +2487,7 @@ class BackupToken(models.Model):
     A 2FA backup token for a user
     """
 
-    user = models.ForeignKey(User, related_name="backup_tokens", on_delete=models.PROTECT)
+    user = models.ForeignKey("auth.User", related_name="backup_tokens", on_delete=models.PROTECT)
     token = models.CharField(max_length=18, unique=True, default=generate_token)
     is_used = models.BooleanField(default=False)
     created_on = models.DateTimeField(default=timezone.now)

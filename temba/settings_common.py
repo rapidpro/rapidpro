@@ -941,7 +941,7 @@ LOGOUT_URL = "/users/logout/"
 LOGIN_REDIRECT_URL = "/org/choose/"
 LOGOUT_REDIRECT_URL = "/"
 
-AUTHENTICATION_BACKENDS = ("smartmin.backends.CaseInsensitiveBackend",)
+AUTHENTICATION_BACKENDS = ("temba.orgs.backend.AuthenticationBackend",)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
