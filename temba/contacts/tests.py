@@ -3852,6 +3852,7 @@ class ContactFieldTest(TembaTest):
                         "Field:Third",
                         "Field:First",
                         "Field:Second",
+                        "Group:Poppin Tags",
                     ],
                     [
                         contact2.uuid,
@@ -3866,6 +3867,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
+                        True,
                     ],
                     [
                         contact.uuid,
@@ -3880,6 +3882,7 @@ class ContactFieldTest(TembaTest):
                         "20-12-2015 08:30",
                         "One",
                         "",
+                        True,
                     ],
                 ],
                 tz=self.org.timezone,
@@ -3976,6 +3979,7 @@ class ContactFieldTest(TembaTest):
                         "Field:Third",
                         "Field:Second",
                         "Field:First",
+                        "Group:Poppin Tags",
                     ],
                     [
                         contact2.uuid,
@@ -4065,6 +4069,7 @@ class ContactFieldTest(TembaTest):
                         "Field:Third",
                         "Field:Second",
                         "Field:First",
+                        "Group:Poppin Tags",
                     ],
                     [
                         contact2.uuid,
@@ -4080,6 +4085,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
+                        True,
                     ],
                     [
                         contact.uuid,
@@ -4095,6 +4101,7 @@ class ContactFieldTest(TembaTest):
                         "20-12-2015 08:30",
                         "",
                         "One",
+                        True,
                     ],
                 ],
                 tz=self.org.timezone,
@@ -4133,6 +4140,7 @@ class ContactFieldTest(TembaTest):
                                     "Field:Third",
                                     "Field:Second",
                                     "Field:First",
+                                    "Group:Poppin Tags",
                                 ],
                                 [
                                     contact2.uuid,
@@ -4148,6 +4156,7 @@ class ContactFieldTest(TembaTest):
                                     "",
                                     "",
                                     "",
+                                    True,
                                 ],
                                 [
                                     contact3.uuid,
@@ -4163,6 +4172,7 @@ class ContactFieldTest(TembaTest):
                                     "",
                                     "",
                                     "",
+                                    False,
                                 ],
                             ],
                             tz=self.org.timezone,
@@ -4195,6 +4205,7 @@ class ContactFieldTest(TembaTest):
                             "Field:Third",
                             "Field:Second",
                             "Field:First",
+                            "Group:Poppin Tags",
                         ],
                         [
                             contact.uuid,
@@ -4210,6 +4221,7 @@ class ContactFieldTest(TembaTest):
                             "20-12-2015 08:30",
                             "",
                             "One",
+                            True,
                         ],
                     ],
                     tz=self.org.timezone,
@@ -4233,6 +4245,7 @@ class ContactFieldTest(TembaTest):
                         "Field:Third",
                         "Field:Second",
                         "Field:First",
+                        "Group:Poppin Tags",
                     ],
                     [
                         str(contact2.id),
@@ -4245,6 +4258,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
+                        True,
                     ],
                     [
                         str(contact.id),
@@ -4257,6 +4271,7 @@ class ContactFieldTest(TembaTest):
                         "20-12-2015 08:30",
                         "",
                         "One",
+                        True,
                     ],
                     [
                         str(contact3.id),
@@ -4269,6 +4284,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
+                        False,
                     ],
                     [
                         str(contact4.id),
@@ -4281,6 +4297,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
+                        False,
                     ],
                 ],
                 tz=self.org.timezone,

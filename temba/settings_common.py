@@ -514,7 +514,7 @@ PERMISSIONS = {
     "policies.policy": ("admin", "history", "give_consent"),
     "request_logs.httplog": ("webhooks", "classifier", "ticketer"),
     "templates.template": ("api",),
-    "tickets.ticket": ("api", "assign", "assignee", "menu", "note"),
+    "tickets.ticket": ("api", "assign", "assignee", "menu", "note", "export_stats"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "tickets.topic": ("api",),
     "triggers.trigger": ("archived", "type", "menu"),

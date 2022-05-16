@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
 from django import forms
@@ -5,6 +7,7 @@ from django.contrib.auth.models import User
 from django.db.models.aggregates import Max
 from django.http import JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.html import mark_safe
 from django.utils.translation import gettext_lazy as _
@@ -13,10 +16,20 @@ from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
+from temba.utils.export import response_from_workbook
 from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.views import ComponentFormMixin, SpaMixin
 
-from .models import AllFolder, MineFolder, Ticket, TicketCount, Ticketer, TicketFolder, UnassignedFolder
+from .models import (
+    AllFolder,
+    MineFolder,
+    Ticket,
+    TicketCount,
+    TicketDailyCount,
+    Ticketer,
+    TicketFolder,
+    UnassignedFolder,
+)
 
 
 class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
@@ -74,7 +87,7 @@ class NoteForm(forms.ModelForm):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "folder", "note", "assign", "menu")
+    actions = ("list", "folder", "note", "assign", "menu", "export_stats")
 
     class List(SpaMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
@@ -370,6 +383,15 @@ class TicketCRUDL(SmartCRUDL):
                 ticket.add_note(self.request.user, note=form.cleaned_data["note"])
 
             return self.render_modal_response(form)
+
+    class ExportStats(OrgPermsMixin, SmartTemplateView):
+        def render_to_response(self, context, **response_kwargs):
+            today = timezone.now().date()
+            workbook = TicketDailyCount.export_summary(
+                self.request.org, today - timedelta(days=90), today + timedelta(days=1)
+            )
+
+            return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
 
 
 class TicketerCRUDL(SmartCRUDL):
