@@ -113,9 +113,9 @@ class WhatsAppCloudType(ChannelType):
 
                 template_data.extend(resp.json()["data"])
                 url = None
-                cursor = resp.json().get("paging", {}).get("cursors", {}).get("after", None)
-                if cursor:
-                    url = f"https://graph.facebook.com/v13.0/{waba_id}/message_templates?cursor={cursor}"
+                # cursor = resp.json().get("paging", {}).get("cursors", {}).get("after", None)
+                # if cursor:
+                #    url = f"https://graph.facebook.com/v13.0/{waba_id}/message_templates?cursor={cursor}"
 
             return template_data, True
         except requests.RequestException as e:
