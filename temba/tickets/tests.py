@@ -484,6 +484,19 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         ticket.refresh_from_db()
         self.assertIsNone(ticket.assignee)
 
+    def test_export_stats(self):
+        export_url = reverse("tickets.ticket_export_stats")
+
+        self.login(self.admin)
+
+        response = self.client.get(export_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("application/ms-excel", response["Content-Type"])
+        self.assertEqual(
+            f"attachment; filename=ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx",
+            response["Content-Disposition"],
+        )
+
 
 class TicketerTest(TembaTest):
     @patch("temba.mailroom.client.MailroomClient.ticket_close")
@@ -743,44 +756,22 @@ class TeamTest(TembaTest):
 
 class TicketDailyCountTest(TembaTest):
     def test_model(self):
-        def record_opening(org, d: date):
-            TicketDailyCount.objects.create(
-                count_type=TicketDailyCount.TYPE_OPENING, scope=f"o:{org.id}", day=d, count=1
-            )
-
-        def record_assignment(org, user, d: date):
-            TicketDailyCount.objects.create(
-                count_type=TicketDailyCount.TYPE_ASSIGNMENT, scope=f"o:{org.id}:u:{user.id}", day=d, count=1
-            )
-
-        def record_reply(org, user, d: date):
-            TicketDailyCount.objects.create(
-                count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{org.id}", day=d, count=1
-            )
-            if user.team:
-                TicketDailyCount.objects.create(
-                    count_type=TicketDailyCount.TYPE_REPLY, scope=f"t:{user.team.id}", day=d, count=1
-                )
-            TicketDailyCount.objects.create(
-                count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{org.id}:u:{user.id}", day=d, count=1
-            )
-
         sales = Team.create(self.org, self.admin, "Sales")
         self.agent.set_team(sales)
         self.editor.set_team(sales)
 
-        record_opening(self.org, date(2022, 4, 30))
-        record_opening(self.org, date(2022, 5, 3))
-        record_assignment(self.org, self.admin, date(2022, 5, 3))
-        record_reply(self.org, self.admin, date(2022, 5, 3))
+        self._record_opening(self.org, date(2022, 4, 30))
+        self._record_opening(self.org, date(2022, 5, 3))
+        self._record_assignment(self.org, self.admin, date(2022, 5, 3))
+        self._record_reply(self.org, self.admin, date(2022, 5, 3))
 
-        record_reply(self.org, self.editor, date(2022, 5, 4))
-        record_reply(self.org, self.agent, date(2022, 5, 4))
+        self._record_reply(self.org, self.editor, date(2022, 5, 4))
+        self._record_reply(self.org, self.agent, date(2022, 5, 4))
 
-        record_reply(self.org, self.admin, date(2022, 5, 5))
-        record_reply(self.org, self.admin, date(2022, 5, 5))
-        record_opening(self.org, date(2022, 5, 5))
-        record_reply(self.org, self.agent, date(2022, 5, 5))
+        self._record_reply(self.org, self.admin, date(2022, 5, 5))
+        self._record_reply(self.org, self.admin, date(2022, 5, 5))
+        self._record_opening(self.org, date(2022, 5, 5))
+        self._record_reply(self.org, self.agent, date(2022, 5, 5))
 
         def assert_counts():
             # openings tracked at org scope
@@ -839,6 +830,34 @@ class TicketDailyCountTest(TembaTest):
 
         assert_counts()
         self.assertEqual(14, TicketDailyCount.objects.count())
+
+        workbook = TicketDailyCount.export_summary(self.org, date(2022, 4, 30), date(2022, 5, 6))
+        self.assertEqual(["Tickets"], workbook.sheetnames)
+        self.assertExcelRow(workbook.active, 1, ["", "Opened", "Replies"] + ["Assigned", "Replies"] * 5)
+        self.assertExcelRow(workbook.active, 2, [date(2022, 4, 30), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        self.assertExcelRow(workbook.active, 3, [date(2022, 5, 1), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        self.assertExcelRow(workbook.active, 4, [date(2022, 5, 2), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        self.assertExcelRow(workbook.active, 5, [date(2022, 5, 3), 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0])
+        self.assertExcelRow(workbook.active, 6, [date(2022, 5, 4), 0, 2, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0])
+        self.assertExcelRow(workbook.active, 7, [date(2022, 5, 5), 1, 3, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0])
+
+    def _record_opening(self, org, d: date):
+        TicketDailyCount.objects.create(count_type=TicketDailyCount.TYPE_OPENING, scope=f"o:{org.id}", day=d, count=1)
+
+    def _record_assignment(self, org, user, d: date):
+        TicketDailyCount.objects.create(
+            count_type=TicketDailyCount.TYPE_ASSIGNMENT, scope=f"o:{org.id}:u:{user.id}", day=d, count=1
+        )
+
+    def _record_reply(self, org, user, d: date):
+        TicketDailyCount.objects.create(count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{org.id}", day=d, count=1)
+        if user.team:
+            TicketDailyCount.objects.create(
+                count_type=TicketDailyCount.TYPE_REPLY, scope=f"t:{user.team.id}", day=d, count=1
+            )
+        TicketDailyCount.objects.create(
+            count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{org.id}:u:{user.id}", day=d, count=1
+        )
 
 
 class BackfillTicketDailyCountsTest(MigrationTest):
