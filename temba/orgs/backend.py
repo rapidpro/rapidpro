@@ -19,6 +19,6 @@ class AuthenticationBackend(ModelBackend):
     def get_user(self, user_id):
         try:
             user = User.objects.get(pk=user_id)
-        except User.DoesNotExist:
+        except User.DoesNotExist:  # pragma: no cover
             return None
         return user if self.user_can_authenticate(user) else None
