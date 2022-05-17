@@ -204,9 +204,9 @@ class WhatsAppCloudTypeTest(TembaTest):
             MockResponse(200, '{"data": ["foo", "bar"]}'),
             MockResponse(
                 200,
-                '{"data": ["foo"], "paging": {"cursors": {"after": "MjQZD"} } }',
+                '{"data": ["foo"], "paging": {"cursors": {"after": "MjQZD"}, "next": "https://graph.facebook.com/v13.0/111111111111111/message_templates?after=MjQZD" } }',
             ),
-            # MockResponse(200, '{"data": ["bar"], "paging": {"cursors": {"after": null } } }'),
+            MockResponse(200, '{"data": ["bar"], "paging": {"cursors": {"after": "MjQZD"} } }'),
         ]
 
         # RequestException check HTTPLog
@@ -234,8 +234,7 @@ class WhatsAppCloudTypeTest(TembaTest):
         # success no error and pagination
         templates_data, no_error = WhatsAppCloudType().get_api_templates(channel)
         self.assertTrue(no_error)
-        # self.assertEqual(["foo", "bar"], templates_data)
-        self.assertEqual(["foo"], templates_data)
+        self.assertEqual(["foo", "bar"], templates_data)
 
         mock_get.assert_has_calls(
             [
@@ -244,10 +243,10 @@ class WhatsAppCloudTypeTest(TembaTest):
                     params={"limit": 255},
                     headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
                 ),
-                # call(
-                #     "https://graph.facebook.com/v13.0/111111111111111/message_templates?cursor=MjQZD",
-                #     params={"limit": 255},
-                #     headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
-                # ),
+                call(
+                   "https://graph.facebook.com/v13.0/111111111111111/message_templates?after=MjQZD",
+                    params={"limit": 255},
+                    headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
+                ),
             ]
         )
