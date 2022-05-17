@@ -939,7 +939,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             "flow": self.org.flows.filter(is_active=True, uuid__in=identifiers["flow"]),
             "global": self.org.globals.filter(is_active=True, key__in=identifiers["global"]),
             "group": ContactGroup.get_groups(self.org).filter(uuid__in=identifiers["group"]),
-            "label": Label.label_objects.filter(org=self.org, uuid__in=identifiers["label"]),
+            "label": Label.get_active_for_org(self.org).filter(uuid__in=identifiers["label"]),
             "template": self.org.templates.filter(uuid__in=identifiers["template"]),
             "ticketer": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["ticketer"]),
             "topic": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["topic"]),

@@ -247,7 +247,11 @@ class TembaTestMixin:
             return group
 
     def create_label(self, name, *, folder=None, org=None):
-        return Label.create(org or self.org, self.admin, name, folder=folder)
+        label = Label.create(org or self.org, self.admin, name)
+        if folder:
+            label.folder = folder
+            label.save(update_fields=("folder",))
+        return label
 
     def create_field(self, key, name, value_type=ContactField.TYPE_TEXT, priority=0, show_in_table=False, org=None):
         org = org or self.org
@@ -677,21 +681,25 @@ class TembaTestMixin:
         Asserts the cell values in the given worksheet row. Date values are converted using the provided timezone.
         """
 
-        row = tuple(sheet.rows)[row_num]
-
-        for index, expected in enumerate(values):
-            actual = row[index].value if index < len(row) else None
-            if actual is None:
-                actual = ""
-
+        expected = []
+        for val in values:
             # if expected value is datetime, localize and remove microseconds since Excel doesn't have that accuracy
-            if tz and isinstance(expected, datetime):
-                expected = expected.astimezone(tz).replace(microsecond=0, tzinfo=None)
+            if tz and isinstance(val, datetime):
+                val = val.astimezone(tz).replace(microsecond=0, tzinfo=None)
+            elif isinstance(val, UUID):
+                val = str(val)
 
-            if isinstance(expected, UUID):
-                expected = str(expected)
+            expected.append(val)
 
-            self.assertEqual(expected, actual, f"mismatch in cell {chr(index+65)}{row_num+1}")
+        actual = []
+        for val in list(list(sheet.rows)[row_num]):
+            val = val.value
+            if val is None:
+                val = ""
+
+            actual.append(val)
+
+        self.assertEqual(expected, actual, f"mismatch in row {row_num+1}")
 
     def assertExcelSheet(self, sheet, rows, tz=None):
         """

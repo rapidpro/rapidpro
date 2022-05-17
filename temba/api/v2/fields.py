@@ -261,7 +261,6 @@ class FlowField(TembaModelField):
 
 class LabelField(TembaModelField):
     model = Label
-    model_manager = "label_objects"
     lookup_fields = ("uuid", "name")
     ignore_case_for_fields = ("name",)
 

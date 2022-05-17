@@ -274,7 +274,7 @@ class FlowMigrationTest(TembaTest):
         migrated = migrate_to_version_11_11(flow_json, flow)
         migrated_labels = get_labels(migrated)
         for uuid, name in migrated_labels.items():
-            self.assertTrue(Label.label_objects.filter(uuid=uuid, name=name).exists(), msg="Label UUID mismatch")
+            self.assertTrue(Label.objects.filter(uuid=uuid, name=name).exists(), msg="Label UUID mismatch")
 
     def test_migrate_to_11_10(self):
         import_def = self.get_import_json("migrate_to_11_10")

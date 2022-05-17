@@ -10,6 +10,7 @@ from xlsxlite.writer import XLSXBook
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
+from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -214,3 +215,20 @@ class TableExporter:
         temp_file.flush()
 
         return temp_file, "xlsx"
+
+
+def response_from_workbook(workbook, filename: str) -> HttpResponse:
+    """
+    Creates an HTTP response from an openpyxl workbook
+    """
+    with NamedTemporaryFile() as tmp:
+        workbook.save(tmp.name)
+        tmp.seek(0)
+        stream = tmp.read()
+
+    response = HttpResponse(
+        content=stream,
+        content_type="application/ms-excel",
+    )
+    response["Content-Disposition"] = f"attachment; filename={filename}"
+    return response

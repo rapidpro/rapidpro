@@ -2343,11 +2343,14 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     permission = "contacts.label_api"
     model = Label
-    model_manager = "label_objects"
     serializer_class = LabelReadSerializer
     write_serializer_class = LabelWriteSerializer
     pagination_class = CreatedOnCursorPagination
     exclusive_params = ("uuid", "name")
+
+    def derive_queryset(self):
+        org = self.request.user.get_org()
+        return self.model.objects.filter(org=org, is_active=True).exclude(label_type=Label.TYPE_FOLDER)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -2565,7 +2568,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         # filter by label name/uuid (optional)
         label_ref = params.get("label")
         if label_ref:
-            label = Label.label_objects.filter(org=org).filter(Q(name=label_ref) | Q(uuid=label_ref)).first()
+            label = Label.get_active_for_org(org).filter(Q(name=label_ref) | Q(uuid=label_ref)).first()
             if label:
                 queryset = queryset.filter(labels=label, visibility=Msg.VISIBILITY_VISIBLE)
             else:
@@ -2576,7 +2579,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
             Prefetch("contact_urn", queryset=ContactURN.objects.only("scheme", "path", "display")),
             Prefetch("channel", queryset=Channel.objects.only("uuid", "name")),
-            Prefetch("labels", queryset=Label.label_objects.only("uuid", "name").order_by("pk")),
+            Prefetch("labels", queryset=Label.objects.only("uuid", "name").order_by("pk")),
         )
 
         # incoming folder gets sorted by 'modified_on'

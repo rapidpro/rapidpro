@@ -1,3 +1,12 @@
+v7.3.45
+----------
+ * Add endpoint to export Excel sheet of ticket daily counts for last 90 days
+
+v7.3.44
+----------
+ * Remove omnibox support for fetching by label and message
+ * Remove functionality for creating new label folders and creating labels with folders
+
 v7.3.43
 ----------
  * Fix generating cloned flow names so they can't end with trailing spaces

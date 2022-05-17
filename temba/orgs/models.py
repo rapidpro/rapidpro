@@ -1676,7 +1676,7 @@ class Org(SmartModel):
         self.exportmessagestasks.all().delete()
         self.exportflowresultstasks.all().delete()
 
-        for label in self.msgs_labels(manager="all_objects").all():
+        for label in self.msgs_labels.all():
             label.release(user)
             label.delete()
 
