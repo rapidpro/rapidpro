@@ -45,6 +45,81 @@ class WhatsAppCloudTypeTest(TembaTest):
 
             self.assertEqual(response.request["PATH_INFO"], connect_whatsapp_cloud_url)
 
+        with patch("requests.get") as wa_cloud_get:
+            wa_cloud_get.side_effect = [
+                MockResponse(400, {}),
+                # missing permissions
+                MockResponse(
+                    200,
+                    json.dumps({"data": {"scopes": []}}),
+                ),
+                # success
+                MockResponse(
+                    200,
+                    json.dumps(
+                        {
+                            "data": {
+                                "scopes": [
+                                    "business_management",
+                                    "whatsapp_business_management",
+                                    "whatsapp_business_messaging",
+                                ]
+                            }
+                        }
+                    ),
+                ),
+                MockResponse(
+                    200,
+                    json.dumps(
+                        {
+                            "data": {
+                                "scopes": [
+                                    "business_management",
+                                    "whatsapp_business_management",
+                                    "whatsapp_business_messaging",
+                                ]
+                            }
+                        }
+                    ),
+                ),
+                MockResponse(
+                    200,
+                    json.dumps(
+                        {
+                            "data": {
+                                "scopes": [
+                                    "business_management",
+                                    "whatsapp_business_management",
+                                    "whatsapp_business_messaging",
+                                ]
+                            }
+                        }
+                    ),
+                ),
+            ]
+            response = self.client.get(connect_whatsapp_cloud_url)
+            self.assertEqual(response.status_code, 200)
+
+            # 400 status
+            response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
+            self.assertEqual(
+                response.context["form"].errors["__all__"][0], "Sorry account could not be connected. Please try again"
+            )
+
+            # missing permissions
+            response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
+            self.assertEqual(
+                response.context["form"].errors["__all__"][0], "Sorry account could not be connected. Please try again"
+            )
+
+            response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36))
+            self.assertTrue(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.client.session)
+            self.assertEqual(response.url, claim_whatsapp_cloud_url)
+
+            response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
+            self.assertEqual(response.status_code, 200)
+
+
         session = self.client.session
         session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
         session.save()

@@ -65,7 +65,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             response_json = response.json()
 
             waba_targets = []
-            granular_scopes = response_json.get("data", dict()).get("granular_scopes")
+            granular_scopes = response_json.get("data", dict()).get("granular_scopes", [])
             for scope_dict in granular_scopes:
                 if scope_dict["scope"] in ["whatsapp_business_management", "whatsapp_business_messaging"]:
                     waba_targets.extend(scope_dict["target_ids"])
