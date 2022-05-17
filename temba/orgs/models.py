@@ -192,7 +192,7 @@ class UserSettings(models.Model):
     Custom fields for users
     """
 
-    user = models.ForeignKey("auth.User", on_delete=models.PROTECT, related_name="settings")
+    user = models.ForeignKey("auth.User", on_delete=models.PROTECT, related_name="usersettings")
     language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
     team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)

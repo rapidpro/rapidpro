@@ -475,7 +475,7 @@ class Team(TembaModel):
         return org.teams.create(name=name, created_by=user, modified_by=user)
 
     def get_users(self):
-        return User.objects.filter(settings__team=self)
+        return User.objects.filter(usersettings__team=self)
 
     def release(self, user):
         # remove all users from this team
