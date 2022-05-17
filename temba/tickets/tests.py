@@ -9,7 +9,7 @@ from temba.contacts.models import Contact
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 
-from .models import Team, Ticket, TicketCount, TicketDailyCount, Ticketer, TicketEvent, Topic
+from .models import Team, Ticket, TicketCount, TicketDailyCount, TicketDailyTiming, Ticketer, TicketEvent, Topic
 from .tasks import squash_ticketcounts
 from .types import reload_ticketer_types
 from .types.internal import InternalType
@@ -857,6 +857,38 @@ class TicketDailyCountTest(TembaTest):
             )
         TicketDailyCount.objects.create(
             count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{org.id}:u:{user.id}", day=d, count=1
+        )
+
+
+class TicketDailyTimingTest(TembaTest):
+    def test_model(self):
+        self._record_initial_reply(self.org, date(2022, 4, 30), 60)
+        self._record_initial_reply(self.org, date(2022, 5, 1), 60)
+        self._record_initial_reply(self.org, date(2022, 5, 1), 120)
+        self._record_initial_reply(self.org, date(2022, 5, 1), 180)
+        self._record_initial_reply(self.org, date(2022, 5, 2), 10)
+        self._record_initial_reply(self.org, date(2022, 5, 2), 70)
+
+        def assert_timings():
+            self.assertEqual(6, TicketDailyTiming.get_by_org(self.org, TicketDailyTiming.TYPE_INITIAL_REPLY).total())
+            self.assertEqual(
+                [(date(2022, 4, 30), 1), (date(2022, 5, 1), 3), (date(2022, 5, 2), 2)],
+                TicketDailyTiming.get_by_org(self.org, TicketDailyTiming.TYPE_INITIAL_REPLY).day_totals(),
+            )
+            self.assertEqual(
+                [(date(2022, 4, 30), 60.0), (date(2022, 5, 1), 120.0), (date(2022, 5, 2), 40.0)],
+                TicketDailyTiming.get_by_org(self.org, TicketDailyTiming.TYPE_INITIAL_REPLY).day_averages(),
+            )
+
+        assert_timings()
+
+        TicketDailyTiming.squash()
+
+        assert_timings()
+
+    def _record_initial_reply(self, org, d: date, seconds: int):
+        TicketDailyTiming.objects.create(
+            count_type=TicketDailyTiming.TYPE_INITIAL_REPLY, scope=f"o:{org.id}", day=d, count=1, seconds=seconds
         )
 
 
