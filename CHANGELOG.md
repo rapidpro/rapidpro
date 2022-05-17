@@ -1,3 +1,7 @@
+v7.3.45
+----------
+ * Add endpoint to export Excel sheet of ticket daily counts for last 90 days
+
 v7.3.44
 ----------
  * Remove omnibox support for fetching by label and message
