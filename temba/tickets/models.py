@@ -216,8 +216,9 @@ class Ticket(models.Model):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
-    # when this ticket was opened, closed, modified
+    # when this ticket was opened, first replied to, closed, modified
     opened_on = models.DateTimeField(default=timezone.now)
+    replied_on = models.DateTimeField(null=True)
     closed_on = models.DateTimeField(null=True)
     modified_on = models.DateTimeField(default=timezone.now)
 
