@@ -4333,7 +4333,7 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(53):
+        with self.assertNumQueries(55):
             workbook = self._export(flow)
 
         tz = self.org.timezone
