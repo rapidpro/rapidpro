@@ -1042,7 +1042,6 @@ class OrgCRUDL(SmartCRUDL):
         "import",
         "plivo_connect",
         "whatsapp_cloud_connect",
-        "whatsapp_cloud_connected",
         "prometheus",
         "resthooks",
         "service",
@@ -1393,12 +1392,6 @@ class OrgCRUDL(SmartCRUDL):
 
     class Plan(InferOrgMixin, OrgPermsMixin, SmartReadView):
         pass
-
-    class WhatsappCloudConnected(InferOrgMixin, OrgPermsMixin, SmartReadView):
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["auth_token"] = self.request.session.get(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, None)
-            return context
 
     class WhatsappCloudConnect(InferOrgMixin, OrgPermsMixin, SmartFormView):
         class WhatsappCloudConnectForm(forms.Form):
