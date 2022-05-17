@@ -119,7 +119,6 @@ class WhatsAppCloudTypeTest(TembaTest):
             response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
             self.assertEqual(response.status_code, 200)
 
-
         session = self.client.session
         session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
         session.save()
