@@ -213,7 +213,7 @@ class Ticket(models.Model):
 
     # the status of this ticket and who it's currently assigned to
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
-    assignee = models.ForeignKey("auth.User", on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
+    assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
     # when this ticket was opened, closed, modified
     opened_on = models.DateTimeField(default=timezone.now)
@@ -309,9 +309,7 @@ class TicketEvent(models.Model):
     event_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
     note = models.TextField(null=True, max_length=Ticket.MAX_NOTE_LEN)
     topic = models.ForeignKey(Topic, on_delete=models.PROTECT, null=True, related_name="ticket_events")
-    assignee = models.ForeignKey(
-        "auth.User", on_delete=models.PROTECT, null=True, related_name="ticket_assignee_events"
-    )
+    assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="ticket_assignee_events")
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="ticket_events"
@@ -397,7 +395,7 @@ class TicketCount(SquashableModel):
     SQUASH_OVER = ("org_id", "assignee_id", "status")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_counts")
-    assignee = models.ForeignKey("auth.User", null=True, on_delete=models.PROTECT, related_name="ticket_counts")
+    assignee = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="ticket_counts")
     status = models.CharField(max_length=1, choices=Ticket.STATUS_CHOICES)
     count = models.IntegerField(default=0)
 

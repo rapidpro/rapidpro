@@ -851,9 +851,9 @@ class TicketDailyCountTest(TembaTest):
 
     def _record_reply(self, org, user, d: date):
         TicketDailyCount.objects.create(count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{org.id}", day=d, count=1)
-        if user.team:
+        if user.settings.team:
             TicketDailyCount.objects.create(
-                count_type=TicketDailyCount.TYPE_REPLY, scope=f"t:{user.team.id}", day=d, count=1
+                count_type=TicketDailyCount.TYPE_REPLY, scope=f"t:{user.settings.team.id}", day=d, count=1
             )
         TicketDailyCount.objects.create(
             count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{org.id}:u:{user.id}", day=d, count=1

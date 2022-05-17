@@ -174,6 +174,12 @@ class User(AuthUser):
 
         return UserSettings.objects.get_or_create(user=self)[0]
 
+    @cached_property
+    def api_token(self) -> str:
+        from temba.api.models import get_or_create_api_token
+
+        return get_or_create_api_token(self)
+
     def __str__(self):
         return self.name or self.username
 
@@ -1841,7 +1847,7 @@ class Org(SmartModel):
         self.save()
 
     @classmethod
-    def create_user(cls, email: str, password: str, language: str = None):
+    def create_user(cls, email: str, password: str, language: str = None) -> User:
         user = User.objects.create_user(username=email, email=email, password=password)
         if language:
             user_settings = user.get_settings()

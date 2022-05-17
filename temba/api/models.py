@@ -6,13 +6,13 @@ from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group, User as AuthUser
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.models import Org, OrgRole
+from temba.orgs.models import Org, OrgRole, User
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.models import JSONAsTextField
 from temba.utils.uuid import uuid4
@@ -303,4 +303,4 @@ def api_token(user):
     return get_cacheable_attr(user, "__api_token", lambda: get_or_create_api_token(user))
 
 
-User.api_token = property(api_token)
+AuthUser.api_token = property(api_token)
