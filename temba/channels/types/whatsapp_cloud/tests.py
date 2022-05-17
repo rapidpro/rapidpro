@@ -244,7 +244,7 @@ class WhatsAppCloudTypeTest(TembaTest):
                     headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
                 ),
                 call(
-                   "https://graph.facebook.com/v13.0/111111111111111/message_templates?after=MjQZD",
+                    "https://graph.facebook.com/v13.0/111111111111111/message_templates?after=MjQZD",
                     params={"limit": 255},
                     headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
                 ),
