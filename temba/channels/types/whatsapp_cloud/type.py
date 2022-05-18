@@ -85,7 +85,7 @@ class WhatsAppCloudType(ChannelType):
         url = f"https://graph.facebook.com/v13.0/{waba_id}/subscribed_apps"
         resp = requests.post(url, headers=headers)
 
-        if resp.status_code != 200:
+        if resp.status_code != 200:  # pragma: no cover
             raise ValidationError(_("Unable to subscribe to app to WABA with ID %s" % waba_id))
 
     def get_api_templates(self, channel):
