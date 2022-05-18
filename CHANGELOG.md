@@ -1,3 +1,8 @@
+v7.3.46
+----------
+ * Add new squashable model to track average ticket reply times and close times
+ * Add Ticket.replied_on
+
 v7.3.45
 ----------
  * Add endpoint to export Excel sheet of ticket daily counts for last 90 days
