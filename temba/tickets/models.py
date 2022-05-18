@@ -583,7 +583,8 @@ class TicketDailyTiming(DailyTimingModel):
     Ticket activity daily timings. Mailroom writes these.
     """
 
-    TYPE_INITIAL_REPLY = "R"
+    TYPE_FIRST_REPLY = "R"
+    TYPE_LAST_CLOSE = "C"
 
     @classmethod
     def get_by_org(cls, org, count_type: str, since=None, until=None):
