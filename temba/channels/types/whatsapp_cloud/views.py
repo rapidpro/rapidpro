@@ -112,11 +112,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         context["claim_url"] = reverse("channels.types.whatsapp_cloud.claim")
 
-        claim_error = None
-        if context["form"].errors:
-            claim_error = context["form"].errors["__all__"][0]
-        context["claim_error"] = claim_error
-
         return context
 
     def form_valid(self, form):

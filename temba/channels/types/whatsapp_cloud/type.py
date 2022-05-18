@@ -58,7 +58,7 @@ class WhatsAppCloudType(ChannelType):
 
         resp = requests.post(url, params=params, headers=headers)
 
-        if resp.status_code != 200:
+        if resp.status_code != 200:  # pragma: no cover
             raise ValidationError(_("Unable to add system user to %s" % waba_id))
 
         if waba_business_id != settings.WHATSAPP_FACEBOOK_BUSINESS_ID:
@@ -67,7 +67,7 @@ class WhatsAppCloudType(ChannelType):
             params = {"fields": "id,legal_entity_name"}
             resp = requests.get(url, params=params, headers=headers)
 
-            if resp.status_code != 200:
+            if resp.status_code != 200:  # pragma: no cover
                 raise ValidationError(_("Unable to fetch credit line ID"))
 
             data = resp.json().get("data", [])
@@ -78,7 +78,7 @@ class WhatsAppCloudType(ChannelType):
             params = {"waba_id": waba_id, "waba_currency": waba_currency}
             resp = requests.post(url, params=params, headers=headers)
 
-            if resp.status_code != 200:
+            if resp.status_code != 200:  # pragma: no cover
                 raise ValidationError(_("Unable to assign credit line ID"))
 
         # Subscribe to events
@@ -89,11 +89,11 @@ class WhatsAppCloudType(ChannelType):
             raise ValidationError(_("Unable to subscribe to app to WABA with ID %s" % waba_id))
 
     def get_api_templates(self, channel):
-        if not settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN:
+        if not settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN:  # pragma: no cover
             return [], False
 
         waba_id = channel.config.get("wa_waba_id", None)
-        if not waba_id:
+        if not waba_id:  # pragma: no cover
             return [], False
 
         start = timezone.now()
