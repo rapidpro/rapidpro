@@ -119,6 +119,38 @@ class WhatsAppCloudTypeTest(TembaTest):
             response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
             self.assertEqual(response.status_code, 200)
 
+        # make sure the token is set on the session
+        session = self.client.session
+        session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
+        session.save()
+
+        self.assertTrue(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.client.session)
+
+        with patch("requests.get") as wa_cloud_get:
+            with patch("requests.post") as wa_cloud_post:
+
+                wa_cloud_get.side_effect = [
+                    # pre-process missing permissions
+                    MockResponse(
+                        200,
+                        json.dumps(
+                            {
+                                "data": {
+                                    "scopes": [
+                                        "business_management",
+                                        "whatsapp_business_messaging",
+                                    ]
+                                }
+                            }
+                        ),
+                    ),
+                ]
+
+                response = self.client.get(claim_whatsapp_cloud_url, follow=True)
+
+                self.assertFalse(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.client.session)
+
+        # make sure the token is set on the session
         session = self.client.session
         session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
         session.save()
