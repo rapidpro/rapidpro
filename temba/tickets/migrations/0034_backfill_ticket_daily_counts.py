@@ -8,7 +8,7 @@ TYPE_ASSIGNMENT = "A"
 TYPE_REPLY = "R"
 
 
-def backfill_ticket_daily_counts(apps, schema_editor):
+def backfill_ticket_daily_counts(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
     TicketDailyCount = apps.get_model("tickets", "TicketDailyCount")
 
@@ -45,7 +45,7 @@ def backfill_ticket_daily_counts(apps, schema_editor):
             TicketDailyCount.objects.create(count_type=count_type, scope=scope, day=day, count=count, is_squashed=True)
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

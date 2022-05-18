@@ -129,13 +129,17 @@ class DailyCountModel(ScopedCountModel):
         return sql, (distinct_set.count_type, distinct_set.scope, distinct_set.day) * 2
 
     @classmethod
-    def _get_count_set(cls, count_type: str, scopes: dict, since, until):
+    def _get_counts(cls, count_type: str, scopes: dict, since, until):
         counts = cls.objects.filter(count_type=count_type, scope__in=scopes.keys())
         if since:
             counts = counts.filter(day__gte=since)
         if until:
             counts = counts.filter(day__lt=until)
-        return DailyCountModel.CountSet(counts, scopes)
+        return counts
+
+    @classmethod
+    def _get_count_set(cls, count_type: str, scopes: dict, since, until):
+        return DailyCountModel.CountSet(cls._get_counts(count_type, scopes, since, until), scopes)
 
     class CountSet(ScopedCountModel.CountSet):
         """
@@ -154,6 +158,50 @@ class DailyCountModel(ScopedCountModel):
             """
             counts = self.counts.extra(select={"month": 'EXTRACT(month FROM "day")'})
             return list(counts.values_list("month").annotate(replies=Sum("count")).order_by("month"))
+
+    class Meta:
+        abstract = True
+
+
+class DailyTimingModel(DailyCountModel):
+    """
+    Base for daily scoped count+seconds squashable models
+    """
+
+    seconds = models.BigIntegerField()
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = f"""
+        WITH removed as (
+            DELETE FROM {cls._meta.db_table} WHERE count_type = %s AND scope = %s AND day = %s RETURNING count, seconds
+        )
+        INSERT INTO {cls._meta.db_table}(count_type, scope, day, count, seconds, is_squashed)
+        VALUES (%s, %s, %s, GREATEST(0, (SELECT SUM(count) FROM removed)), GREATEST(0, (SELECT SUM(seconds) FROM removed)), TRUE);
+        """
+
+        return sql, (distinct_set.count_type, distinct_set.scope, distinct_set.day) * 2
+
+    @classmethod
+    def _get_count_set(cls, count_type: str, scopes: dict, since, until):
+        return DailyTimingModel.CountSet(cls._get_counts(count_type, scopes, since, until), scopes)
+
+    class CountSet(DailyCountModel.CountSet):
+        """
+        A queryset of counts which can be aggregated in different ways
+        """
+
+        def day_averages(self):
+            """
+            Calculates per-day seconds averages over a set of counts
+            """
+            totals = (
+                self.counts.values_list("day")
+                .annotate(total_count=Sum("count"), total_seconds=Sum("seconds"))
+                .order_by("day")
+            )
+
+            return [(t[0], t[2] / t[1]) for t in totals]
 
     class Meta:
         abstract = True

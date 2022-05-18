@@ -17,7 +17,7 @@ from temba import mailroom
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org, UserSettings
 from temba.utils.dates import date_range
-from temba.utils.models import DailyCountModel, SquashableModel, TembaModel
+from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
 
@@ -216,8 +216,9 @@ class Ticket(models.Model):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
-    # when this ticket was opened, closed, modified
+    # when this ticket was opened, first replied to, closed, modified
     opened_on = models.DateTimeField(default=timezone.now)
+    replied_on = models.DateTimeField(null=True)
     closed_on = models.DateTimeField(null=True)
     modified_on = models.DateTimeField(default=timezone.now)
 
@@ -493,7 +494,7 @@ class Team(TembaModel):
 
 class TicketDailyCount(DailyCountModel):
     """
-    Ticket activity counts by who did it and when. Mailroom writes these.
+    Ticket activity daily counts by who did it and when. Mailroom writes these.
     """
 
     TYPE_OPENING = "O"
@@ -571,6 +572,29 @@ class TicketDailyCount(DailyCountModel):
             models.Index(name="tickets_dailycount_type_scope", fields=("count_type", "scope", "day")),
             models.Index(
                 name="tickets_dailycount_unsquashed",
+                fields=("count_type", "scope", "day"),
+                condition=Q(is_squashed=False),
+            ),
+        ]
+
+
+class TicketDailyTiming(DailyTimingModel):
+    """
+    Ticket activity daily timings. Mailroom writes these.
+    """
+
+    TYPE_FIRST_REPLY = "R"
+    TYPE_LAST_CLOSE = "C"
+
+    @classmethod
+    def get_by_org(cls, org, count_type: str, since=None, until=None):
+        return cls._get_count_set(count_type, {f"o:{org.id}": org}, since, until)
+
+    class Meta:
+        indexes = [
+            models.Index(name="tickets_dailytiming_type_scope", fields=("count_type", "scope", "day")),
+            models.Index(
+                name="tickets_dailytiming_unsquashed",
                 fields=("count_type", "scope", "day"),
                 condition=Q(is_squashed=False),
             ),
