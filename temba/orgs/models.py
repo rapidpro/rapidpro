@@ -165,8 +165,58 @@ class User(AuthUser):
         self.settings.team = team
         self.settings.save(update_fields=("team",))
 
-    def as_engine_ref(self) -> dict:
-        return {"email": self.email, "name": self.name}
+    def record_auth(self):
+        """
+        Records that this user authenticated
+        """
+        self.settings.last_auth_on = timezone.now()
+        self.settings.save(update_fields=("last_auth_on",))
+
+    def enable_2fa(self):
+        """
+        Enables 2FA for this user
+        """
+        self.settings.two_factor_enabled = True
+        self.settings.save(update_fields=("two_factor_enabled",))
+
+        BackupToken.generate_for_user(self)
+
+    def disable_2fa(self):
+        """
+        Disables 2FA for this user
+        """
+        self.settings.two_factor_enabled = False
+        self.settings.save(update_fields=("two_factor_enabled",))
+
+        self.backup_tokens.all().delete()
+
+    def verify_2fa(self, *, otp: str = None, backup_token: str = None) -> bool:
+        """
+        Verifies a user using a 2FA mechanism (OTP or backup token)
+        """
+        if otp:
+            secret = self.settings.otp_secret
+            return pyotp.TOTP(secret).verify(otp, valid_window=2)
+        elif backup_token:
+            token = self.backup_tokens.filter(token=backup_token, is_used=False).first()
+            if token:
+                token.is_used = True
+                token.save(update_fields=("is_used",))
+                return True
+
+        return False
+
+    @cached_property
+    def is_alpha(self):
+        return self.groups.filter(name="Alpha").exists()
+
+    @cached_property
+    def is_beta(self):
+        return self.groups.filter(name="Beta").exists()
+
+    @cached_property
+    def is_support(self):
+        return self.groups.filter(name="Customer Support").exists()
 
     @cached_property
     def settings(self):
@@ -179,6 +229,9 @@ class User(AuthUser):
         from temba.api.models import get_or_create_api_token
 
         return get_or_create_api_token(self)
+
+    def as_engine_ref(self) -> dict:
+        return {"email": self.email, "name": self.name}
 
     def __str__(self):
         return self.name or self.username
@@ -1850,9 +1903,8 @@ class Org(SmartModel):
     def create_user(cls, email: str, password: str, language: str = None) -> User:
         user = User.objects.create_user(username=email, email=email, password=password)
         if language:
-            user_settings = user.get_settings()
-            user_settings.language = language
-            user_settings.save(update_fields=("language",))
+            user.settings.language = language
+            user.settings.save(update_fields=("language",))
         return user
 
     @classmethod
@@ -1942,18 +1994,6 @@ def get_org(obj):
     return getattr(obj, "_org", None)
 
 
-def is_alpha_user(user):  # pragma: needs cover
-    return user.groups.filter(name="Alpha").exists()
-
-
-def is_beta_user(user):  # pragma: needs cover
-    return user.groups.filter(name="Beta").exists()
-
-
-def is_support_user(user):
-    return user.groups.filter(name="Customer Support").exists()
-
-
 def set_org(obj, org):
     obj._org = org
 
@@ -1990,75 +2030,13 @@ def _user_has_org_perm(user, org, permission):
     return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()
 
 
-def _user_get_settings(user):
-    """
-    Gets or creates user settings for this user
-    """
-    assert user and user.is_authenticated, "can't fetch user settings for anonymous users"
-
-    return UserSettings.objects.get_or_create(user=user)[0]
-
-
-def _user_record_auth(user):
-    user_settings = user.get_settings()
-    user_settings.last_auth_on = timezone.now()
-    user_settings.save(update_fields=("last_auth_on",))
-
-
-def _user_enable_2fa(user):
-    """
-    Enables 2FA for this user
-    """
-    user_settings = user.get_settings()
-    user_settings.two_factor_enabled = True
-    user_settings.save(update_fields=("two_factor_enabled",))
-
-    BackupToken.generate_for_user(user)
-
-
-def _user_disable_2fa(user):
-    """
-    Disables 2FA for this user
-    """
-    user_settings = user.get_settings()
-    user_settings.two_factor_enabled = False
-    user_settings.save(update_fields=("two_factor_enabled",))
-
-    user.backup_tokens.all().delete()
-
-
-def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool:
-    """
-    Verifies a user using a 2FA mechanism (OTP or backup token)
-    """
-    if otp:
-        secret = user.get_settings().otp_secret
-        return pyotp.TOTP(secret).verify(otp, valid_window=2)
-    elif backup_token:
-        token = user.backup_tokens.filter(token=backup_token, is_used=False).first()
-        if token:
-            token.is_used = True
-            token.save(update_fields=("is_used",))
-            return True
-
-    return False
-
-
 AuthUser.release = release
 AuthUser.get_org = get_org
 AuthUser.set_org = set_org
-AuthUser.is_alpha = is_alpha_user
-AuthUser.is_beta = is_beta_user
-AuthUser.is_support = is_support_user
 AuthUser.get_user_orgs = get_user_orgs
 AuthUser.get_org_group = get_org_group
 AuthUser.get_owned_orgs = get_owned_orgs
 AuthUser.has_org_perm = _user_has_org_perm
-AuthUser.get_settings = _user_get_settings
-AuthUser.record_auth = _user_record_auth
-AuthUser.enable_2fa = _user_enable_2fa
-AuthUser.disable_2fa = _user_disable_2fa
-AuthUser.verify_2fa = _user_verify_2fa
 
 
 def get_stripe_credentials():

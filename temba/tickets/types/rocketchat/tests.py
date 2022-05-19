@@ -22,6 +22,7 @@ class RocketChatTypeTest(TembaTest):
         self.assertFalse(RocketChatType().is_available_to(self.admin))
 
         Group.objects.get(name="Beta").user_set.add(self.admin)
+        del self.admin.is_beta  # clear cached_property
 
         self.assertTrue(RocketChatType().is_available_to(self.admin))
 

@@ -125,8 +125,9 @@ class UserTest(TembaTest):
             username="jim@rapidpro.io", email="jim@rapidpro.io", password="super", first_name="Jim", last_name="McFlow"
         )
 
-        self.assertFalse(user.is_beta())
-        self.assertFalse(user.is_support())
+        self.assertFalse(user.is_alpha)
+        self.assertFalse(user.is_beta)
+        self.assertFalse(user.is_support)
         self.assertEqual("Jim McFlow", user.name)
         self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim McFlow"}, user.as_engine_ref())
 
@@ -141,8 +142,7 @@ class UserTest(TembaTest):
         verify_url = reverse("users.two_factor_verify")
         backup_url = reverse("users.two_factor_backup")
 
-        user_settings = self.admin.get_settings()
-        self.assertIsNone(user_settings.last_auth_on)
+        self.assertIsNone(self.admin.settings.last_auth_on)
 
         # try to access a non-public page
         response = self.client.get(reverse("msgs.msg_inbox"))
@@ -167,8 +167,8 @@ class UserTest(TembaTest):
         response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
-        user_settings = self.admin.get_settings()
-        self.assertIsNotNone(user_settings.last_auth_on)
+        del self.admin.settings  # clear cached_property
+        self.assertIsNotNone(self.admin.settings.last_auth_on)
 
         # logout and enable 2FA
         self.client.logout()
@@ -298,11 +298,11 @@ class UserTest(TembaTest):
         self.assertEqual(1, len(response.context["formax"].sections))
 
     def test_two_factor(self):
-        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+        self.assertFalse(self.admin.settings.two_factor_enabled)
 
         self.admin.enable_2fa()
 
-        self.assertTrue(self.admin.get_settings().two_factor_enabled)
+        self.assertTrue(self.admin.settings.two_factor_enabled)
         self.assertEqual(10, len(self.admin.backup_tokens.filter(is_used=False)))
 
         # try to verify with.. nothing
@@ -329,7 +329,7 @@ class UserTest(TembaTest):
 
         self.admin.disable_2fa()
 
-        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+        self.assertFalse(self.admin.settings.two_factor_enabled)
 
     def test_two_factor_spa(self):
         enable_url = reverse("orgs.user_two_factor_enable")
@@ -375,7 +375,7 @@ class UserTest(TembaTest):
         with patch("pyotp.TOTP.verify", return_value=True):
             response = self.client.post(enable_url, {"otp": "123456", "password": "Administrator"})
         self.assertRedirect(response, tokens_url)
-        self.assertTrue(self.admin.get_settings().two_factor_enabled)
+        self.assertTrue(self.admin.settings.two_factor_enabled)
 
         # org home page now tells us 2FA is enabled, links to page manage tokens
         response = self.client.get(reverse("orgs.org_home"))
@@ -408,7 +408,9 @@ class UserTest(TembaTest):
         # submit with valid password
         response = self.client.post(disable_url, {"password": "Administrator"})
         self.assertRedirect(response, reverse("orgs.org_home"))
-        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+
+        del self.admin.settings  # clear cached_property
+        self.assertFalse(self.admin.settings.two_factor_enabled)
 
         # trying to view the tokens page now takes us to the enable form
         response = self.client.get(tokens_url)
@@ -545,7 +547,7 @@ class UserTest(TembaTest):
         # our user with lots of orgs should get ellipsized
         self.assertContains(response, ", ...")
 
-        response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), dict(delete=True))
+        response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), {"delete": True})
         self.assertEqual(302, response.status_code)
 
         self.editor.refresh_from_db()
@@ -1182,28 +1184,30 @@ class OrgTest(TembaTest):
 
     def test_user_update(self):
         update_url = reverse("orgs.user_edit")
-        login_url = reverse("users.user_login")
 
         # no access if anonymous
         response = self.client.get(update_url)
-        self.assertRedirect(response, login_url)
+        self.assertLoginRedirect(response)
 
         self.login(self.admin)
 
         # change the user language
-        post_data = dict(
-            language="pt-br",
-            first_name="Admin",
-            last_name="User",
-            email="administrator@temba.com",
-            current_password="Administrator",
+        response = self.client.post(
+            update_url,
+            {
+                "language": "pt-br",
+                "first_name": "Admin",
+                "last_name": "User",
+                "email": "administrator@temba.com",
+                "current_password": "Administrator",
+            },
+            HTTP_X_FORMAX=True,
         )
-        response = self.client.post(update_url, post_data, HTTP_X_FORMAX=True)
         self.assertEqual(200, response.status_code)
 
         # check that our user settings have changed
-        user_settings = self.admin.get_settings()
-        self.assertEqual("pt-br", user_settings.language)
+        del self.admin.settings  # clear cached_property
+        self.assertEqual("pt-br", self.admin.settings.language)
 
     @patch("temba.flows.models.FlowStart.async_start")
     @mock_mailroom

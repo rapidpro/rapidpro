@@ -540,8 +540,6 @@ GROUP_PERMISSIONS = {
     ),
     "Granters": ("orgs.org_grant",),
     "Customer Support": (
-        "auth.user_list",
-        "auth.user_update",
         "apks.apk_create",
         "apks.apk_list",
         "apks.apk_update",
@@ -566,6 +564,8 @@ GROUP_PERMISSIONS = {
         "orgs.topup_create",
         "orgs.topup_manage",
         "orgs.topup_update",
+        "orgs.user_list",
+        "orgs.user_update",
         "policies.policy_create",
         "policies.policy_update",
         "policies.policy_admin",
