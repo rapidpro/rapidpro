@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from unittest.mock import patch
 
 from django.test.utils import override_settings
@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 
 from .models import Team, Ticket, TicketCount, TicketDailyCount, TicketDailyTiming, Ticketer, TicketEvent, Topic
@@ -913,22 +913,78 @@ class TicketDailyTimingTest(TembaTest):
             count_type=TicketDailyTiming.TYPE_LAST_CLOSE, scope=f"o:{org.id}", day=d, count=count, seconds=seconds
         )
 
-        # ticket 4 already has counts which should replaced
-        TicketDailyCount.objects.create(
-            count_type=TicketDailyCount.TYPE_OPENING, scope=f"o:{self.org.id}", day=date(2022, 5, 2), count=1
+
+class BackfillTicketDailyReplyTimingsTest(MigrationTest):
+    app = "tickets"
+    migrate_from = "0035_ticketdailytiming_ticket_replied_on_and_more"
+    migrate_to = "0036_backfill_ticket_reply_timings"
+
+    def setUpBeforeMigration(self, apps):
+        ticketer = self.org.ticketers.get()
+        contact = self.create_contact("Bob", phone="+1234567890")
+
+        # ticket opened on May 1
+        self.ticket1 = self.create_ticket(
+            ticketer, contact, "Help", opened_on=datetime(2022, 5, 1, 10, 30, 0, 0, tzinfo=timezone.utc)
         )
-        TicketDailyCount.objects.create(
-            count_type=TicketDailyCount.TYPE_ASSIGNMENT,
-            scope=f"o:{self.org.id}:u:{self.admin.id}",
+
+        # first reply 30 mins later, then another 30 mins after that
+        self._ticket_reply(
+            self.ticket1, "What is the problem?", datetime(2022, 5, 1, 11, 0, 0, 0, tzinfo=timezone.utc)
+        )
+        self._ticket_reply(self.ticket1, "Still there?", datetime(2022, 5, 1, 11, 30, 0, 0, tzinfo=timezone.utc))
+
+        # another ticket opened on May 1
+        self.ticket2 = self.create_ticket(
+            ticketer, contact, "Help", opened_on=datetime(2022, 5, 1, 13, 0, 0, 0, tzinfo=timezone.utc)
+        )
+
+        # only reply 1 hour later
+        self._ticket_reply(
+            self.ticket2, "What is the problem?", datetime(2022, 5, 1, 14, 0, 0, 0, tzinfo=timezone.utc)
+        )
+
+        # another ticket opened on May 2, no replies
+        self.ticket3 = self.create_ticket(
+            ticketer, contact, "Help", opened_on=datetime(2022, 5, 2, 13, 0, 0, 0, tzinfo=timezone.utc)
+        )
+
+        # finally another ticket on May 2 which has a reply that is already counted
+        self.ticket4 = self.create_ticket(
+            ticketer, contact, "Help", opened_on=datetime(2022, 5, 2, 15, 0, 0, 0, tzinfo=timezone.utc)
+        )
+        self._ticket_reply(self.ticket4, "Hi?", datetime(2022, 5, 2, 15, 30, 0, 0, tzinfo=timezone.utc))
+
+        self.ticket4.replied_on = datetime(2022, 5, 1, 15, 30, 0, 0, tzinfo=timezone.utc)
+        self.ticket4.save(update_fields=("replied_on",))
+
+        TicketDailyTiming.objects.create(
+            count_type=TicketDailyTiming.TYPE_FIRST_REPLY,
+            scope=f"o:{self.org.id}",
             day=date(2022, 5, 2),
             count=1,
+            seconds=30 * 60,
         )
-        TicketDailyCount.objects.create(
-            count_type=TicketDailyCount.TYPE_REPLY, scope=f"o:{self.org.id}", day=date(2022, 5, 4), count=1
+
+    def test_migration(self):
+        self.ticket1.refresh_from_db()
+        self.ticket2.refresh_from_db()
+        self.ticket3.refresh_from_db()
+        self.ticket4.refresh_from_db()
+
+        self.assertEqual(datetime(2022, 5, 1, 11, 0, 0, 0, tzinfo=timezone.utc), self.ticket1.replied_on)
+        self.assertEqual(datetime(2022, 5, 1, 14, 0, 0, 0, tzinfo=timezone.utc), self.ticket2.replied_on)
+        self.assertIsNone(self.ticket3.replied_on)
+        self.assertEqual(datetime(2022, 5, 2, 15, 30, 0, 0, tzinfo=timezone.utc), self.ticket4.replied_on)
+
+        self.assertEqual(
+            [(date(2022, 5, 1), 2), (date(2022, 5, 2), 1)],
+            TicketDailyTiming.get_by_org(self.org, TicketDailyTiming.TYPE_FIRST_REPLY).day_totals(),
         )
-        TicketDailyCount.objects.create(
-            count_type=TicketDailyCount.TYPE_REPLY,
-            scope=f"o:{self.org.id}:u:{self.admin.id}",
-            day=date(2022, 5, 4),
-            count=1,
+        self.assertEqual(
+            [(date(2022, 5, 1), 2700.0), (date(2022, 5, 2), 1800.0)],
+            TicketDailyTiming.get_by_org(self.org, TicketDailyTiming.TYPE_FIRST_REPLY).day_averages(),
         )
+
+    def _ticket_reply(self, ticket, text, when):
+        self.create_broadcast(self.admin, text, contacts=[ticket.contact], ticket=ticket, created_on=when)
