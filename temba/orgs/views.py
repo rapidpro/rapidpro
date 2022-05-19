@@ -709,7 +709,7 @@ class UserCRUDL(SmartCRUDL):
             return mark_safe(f"<a href='{reverse('users.user_update', args=(user.id,))}'>{user.username}</a>")
 
         def get_orgs(self, user):
-            orgs = user.get_user_orgs()[0:6]
+            orgs = user.get_orgs()[0:6]
 
             more = ""
             if len(orgs) > 5:
@@ -2519,7 +2519,7 @@ class OrgCRUDL(SmartCRUDL):
         }
 
         def get_user_orgs(self):
-            return self.request.user.get_user_orgs(self.request.branding.get("keys"))
+            return self.request.user.get_orgs(brands=self.request.branding.get("keys"))
 
         def get_success_url(self):
             role = self.request.org.get_user_role(self.request.user)

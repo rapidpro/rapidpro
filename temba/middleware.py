@@ -139,7 +139,7 @@ class OrgMiddleware:
                 return org
 
         # otherwise if user only belongs to one org, we can use that
-        user_orgs = user.get_user_orgs()
+        user_orgs = user.get_orgs()
         if user_orgs.count() == 1:
             return user_orgs[0]
 

@@ -158,6 +158,29 @@ class User(AuthUser):
     def name(self) -> str:
         return self.get_full_name()
 
+    def get_orgs(self, *, brands=None):
+        """
+        Gets the orgs in the given brands that this user has access to (i.e. a role in).
+        """
+        if self.is_superuser:
+            return Org.objects.all()
+
+        user_orgs = functools.reduce(operator.or_, [role.get_orgs(self) for role in OrgRole])
+        if brands:
+            user_orgs = user_orgs.filter(brand__in=brands)
+
+        return user_orgs.filter(is_active=True).distinct().order_by("name")
+
+    def get_owned_orgs(self, *, brands=None):
+        """
+        Gets the orgs in the given brands where this user is the only user.
+        """
+        owned_orgs = []
+        for org in self.get_orgs(brands=brands):
+            if not org.get_users().exclude(id=self.id).exists():
+                owned_orgs.append(org)
+        return owned_orgs
+
     def set_team(self, team):
         """
         Sets the ticketing team for this user
@@ -233,6 +256,30 @@ class User(AuthUser):
     def as_engine_ref(self) -> dict:
         return {"email": self.email, "name": self.name}
 
+    def release(self, user, *, brand):
+        """
+        Releases this user, and any orgs of which they are the sole owner.
+        """
+
+        # if our user exists across brands don't muck with the user
+        if self.get_orgs().order_by("brand").distinct("brand").count() < 2:
+            user_uuid = str(uuid4())
+            self.first_name = ""
+            self.last_name = ""
+            self.email = f"{user_uuid}@rapidpro.io"
+            self.username = f"{user_uuid}@rapidpro.io"
+            self.password = ""
+            self.is_active = False
+            self.save()
+
+        # release any orgs we own on this brand
+        for org in self.get_owned_orgs(brands=[brand]):
+            org.release(user, release_users=False)
+
+        # remove user from all roles on any org for our brand
+        for org in user.get_orgs(brands=[brand]):
+            org.remove_user(self)
+
     def __str__(self):
         return self.name or self.username
 
@@ -245,7 +292,7 @@ class UserSettings(models.Model):
     Custom fields for users
     """
 
-    user = models.ForeignKey("auth.User", on_delete=models.PROTECT, related_name="usersettings")
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="usersettings")
     language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
     team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
@@ -401,11 +448,11 @@ class Org(SmartModel):
     )
 
     # user role m2ms
-    administrators = models.ManyToManyField("auth.User", related_name=OrgRole.ADMINISTRATOR.rel_name)
-    editors = models.ManyToManyField("auth.User", related_name=OrgRole.EDITOR.rel_name)
-    viewers = models.ManyToManyField("auth.User", related_name=OrgRole.VIEWER.rel_name)
-    agents = models.ManyToManyField("auth.User", related_name=OrgRole.AGENT.rel_name)
-    surveyors = models.ManyToManyField("auth.User", related_name=OrgRole.SURVEYOR.rel_name)
+    administrators = models.ManyToManyField(User, related_name=OrgRole.ADMINISTRATOR.rel_name)
+    editors = models.ManyToManyField(User, related_name=OrgRole.EDITOR.rel_name)
+    viewers = models.ManyToManyField(User, related_name=OrgRole.VIEWER.rel_name)
+    agents = models.ManyToManyField(User, related_name=OrgRole.AGENT.rel_name)
+    surveyors = models.ManyToManyField(User, related_name=OrgRole.SURVEYOR.rel_name)
 
     language = models.CharField(
         verbose_name=_("Default Language"),
@@ -1759,7 +1806,7 @@ class Org(SmartModel):
         if release_users:
             for org_user in self.get_users():
                 # check if this user is a member of any org on any brand
-                other_orgs = org_user.get_user_orgs().exclude(id=self.id)
+                other_orgs = org_user.get_orgs().exclude(id=self.id)
                 if not other_orgs:
                     org_user.release(user, brand=self.brand)
 
@@ -1941,55 +1988,6 @@ class Org(SmartModel):
 # ===================== monkey patch User class with a few extra functions ========================
 
 
-def release(user, releasing_user, *, brand):
-    """
-    Releases this user, and any orgs of which they are the sole owner
-    """
-
-    # if our user exists across brands don't muck with the user
-    if user.get_user_orgs().order_by("brand").distinct("brand").count() < 2:
-        user_uuid = str(uuid4())
-        user.first_name = ""
-        user.last_name = ""
-        user.email = f"{user_uuid}@rapidpro.io"
-        user.username = f"{user_uuid}@rapidpro.io"
-        user.password = ""
-        user.is_active = False
-        user.save()
-
-    # release any orgs we own on this brand
-    for org in user.get_owned_orgs([brand]):
-        org.release(releasing_user, release_users=False)
-
-    # remove user from all roles on any org for our brand
-    for org in user.get_user_orgs([brand]):
-        org.remove_user(user)
-
-
-def get_user_orgs(user, brands=None):
-    if user.is_superuser:
-        return Org.objects.all()
-
-    org_sets = [role.get_orgs(user) for role in OrgRole]
-    user_orgs = functools.reduce(operator.or_, org_sets)
-
-    if brands:
-        user_orgs = user_orgs.filter(brand__in=brands)
-
-    return user_orgs.filter(is_active=True).distinct().order_by("name")
-
-
-def get_owned_orgs(user, brands=None):
-    """
-    Gets all the orgs where this is the only user for the current brand
-    """
-    owned_orgs = []
-    for org in user.get_user_orgs(brands=brands):
-        if not org.get_users().exclude(id=user.id).exists():
-            owned_orgs.append(org)
-    return owned_orgs
-
-
 def get_org(obj):
     return getattr(obj, "_org", None)
 
@@ -2030,12 +2028,9 @@ def _user_has_org_perm(user, org, permission):
     return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()
 
 
-AuthUser.release = release
 AuthUser.get_org = get_org
 AuthUser.set_org = set_org
-AuthUser.get_user_orgs = get_user_orgs
 AuthUser.get_org_group = get_org_group
-AuthUser.get_owned_orgs = get_owned_orgs
 AuthUser.has_org_perm = _user_has_org_perm
 
 
@@ -2471,7 +2466,7 @@ class BackupToken(models.Model):
     A 2FA backup token for a user
     """
 
-    user = models.ForeignKey("auth.User", related_name="backup_tokens", on_delete=models.PROTECT)
+    user = models.ForeignKey(User, related_name="backup_tokens", on_delete=models.PROTECT)
     token = models.CharField(max_length=18, unique=True, default=generate_token)
     is_used = models.BooleanField(default=False)
     created_on = models.DateTimeField(default=timezone.now)

@@ -574,7 +574,7 @@ class UserTest(TembaTest):
         self.assertEqual("Administrator@nyaruka.com", self.admin.email)
 
         # but she should be removed from org
-        self.assertFalse(self.admin.get_user_orgs(settings.DEFAULT_BRAND).exists())
+        self.assertFalse(self.admin.get_orgs(brands=[settings.DEFAULT_BRAND]).exists())
 
         # now lets release her from the branded org
         self.admin.release(self.superuser, brand="some-other-brand.com")
@@ -582,7 +582,7 @@ class UserTest(TembaTest):
         # now she gets deactivated and ambiguated and belongs to no orgs
         self.assertFalse(self.admin.is_active)
         self.assertNotEqual("Administrator@nyaruka.com", self.admin.email)
-        self.assertFalse(self.admin.get_user_orgs().exists())
+        self.assertFalse(self.admin.get_orgs().exists())
 
     def test_brand_aliases(self):
         # set our brand to our custom org
