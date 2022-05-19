@@ -1,3 +1,7 @@
+v7.3.47
+----------
+ * Data migration to backfill ticket first reply timings
+
 v7.3.46
 ----------
  * Add new squashable model to track average ticket reply times and close times
