@@ -1,3 +1,8 @@
+v7.3.48
+----------
+ * Include first reply timings in ticket stats export
+ * Create a proxy model for User and start moving some of the monkey patching to proper methods on that
+
 v7.3.47
 ----------
  * Data migration to backfill ticket first reply timings
