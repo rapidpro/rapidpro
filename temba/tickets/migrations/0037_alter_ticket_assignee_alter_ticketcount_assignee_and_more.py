@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("orgs", "0096_user"),
-        ("tickets", "0034_backfill_ticket_daily_counts"),
+        ("tickets", "0036_backfill_ticket_reply_timings"),
     ]
 
     operations = [
