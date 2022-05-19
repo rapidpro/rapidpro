@@ -8,7 +8,7 @@ import redis
 from smartmin.tests import SmartminTest, SmartminTestMixin
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
 from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
@@ -23,7 +23,7 @@ from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
-from temba.orgs.models import Org, OrgRole
+from temba.orgs.models import Org, OrgRole, User
 from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
@@ -201,6 +201,14 @@ class TembaTestMixin:
     def get_flow_json(self, filename, substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
         return data["flows"][0]
+
+    def create_user(self, username, group_names=()):
+        user = User.objects.create_user(username, "%s@nyaruka.com" % username)
+        user.set_password(username)
+        user.save()
+        for group in group_names:
+            user.groups.add(Group.objects.get(name=group))
+        return user
 
     def create_contact(
         self,

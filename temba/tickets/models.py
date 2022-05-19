@@ -4,7 +4,6 @@ from datetime import date
 import openpyxl
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q, Sum
 from django.db.models.functions import Lower
@@ -15,7 +14,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.contacts.models import Contact
-from temba.orgs.models import DependencyMixin, Org, UserSettings
+from temba.orgs.models import DependencyMixin, Org, User, UserSettings
 from temba.utils.dates import date_range
 from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
@@ -477,7 +476,7 @@ class Team(TembaModel):
         return org.teams.create(name=name, created_by=user, modified_by=user)
 
     def get_users(self):
-        return User.objects.filter(settings__team=self)
+        return User.objects.filter(usersettings__team=self)
 
     def release(self, user):
         # remove all users from this team

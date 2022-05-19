@@ -13,7 +13,7 @@ from dateutil.relativedelta import relativedelta
 from smartmin.users.models import FailedLogin, RecoveryToken
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.test.utils import override_settings
@@ -66,7 +66,7 @@ from temba.triggers.models import Trigger
 from temba.utils import json, languages
 
 from .context_processors import GroupPermWrapper
-from .models import CreditAlert, Invitation, Org, OrgRole, TopUp, TopUpCredits
+from .models import CreditAlert, Invitation, Org, OrgRole, TopUp, TopUpCredits, User
 from .tasks import delete_orgs_task, resume_failed_tasks, squash_topupcredits
 
 
