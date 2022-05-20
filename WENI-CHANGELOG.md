@@ -1,3 +1,8 @@
+1.2.5-rapidpro-7.0.4
+----------
+ * Helphero integration
+ * New Sample Flow
+
 1.2.4-rapidpro-7.0.4
 ----------
  * New Weni announcement
