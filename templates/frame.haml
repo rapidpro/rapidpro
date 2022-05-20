@@ -52,6 +52,9 @@
       <script src="https://cdn.lr-in.com/LogRocket.min.js" crossorigin="anonymous"></script>
       <script>window.LogRocket && window.LogRocket.init("{{logrocket_id}}", {mergeIframes: true, parentDomain: "{{parent_iframe_domain}}"});</script>
 
+    -if use_weni_layout
+      <script defer src="//app.helphero.co/embed/m7dO0to4OK"></script>
+
     -compress js
       :javascript
         var static_url = '{{STATIC_URL}}';
@@ -514,6 +517,8 @@
           inIframe();
 
           enableLinkTranslations();
+
+          HelpHero.anonymous();
 
         {% endif %}
 
