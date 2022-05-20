@@ -873,6 +873,29 @@ class EventTest(TembaTest):
             Event.from_msg(self.org, self.admin, msg_out),
         )
 
+        msg_out = self.create_outgoing_msg(
+            contact1, "Hello", channel=self.channel, status="F", failed_reason=Msg.FAILED_NO_DESTINATION
+        )
+
+        self.assertEqual(
+            {
+                "type": "msg_created",
+                "created_on": matchers.ISODate(),
+                "msg": {
+                    "uuid": str(msg_out.uuid),
+                    "id": msg_out.id,
+                    "urn": "tel:+250979111111",
+                    "text": "Hello",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                },
+                "status": "F",
+                "failed_reason": "D",
+                "failed_reason_display": "No suitable channel found",
+                "logs_url": None,
+            },
+            Event.from_msg(self.org, self.admin, msg_out),
+        )
+
         ivr_out = self.create_outgoing_msg(contact1, "Hello", msg_type="V")
 
         self.assertEqual(
