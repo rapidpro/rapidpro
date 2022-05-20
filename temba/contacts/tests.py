@@ -87,7 +87,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
     @mock_mailroom
     def test_list(self, mr_mocks):
-        self.login(self.user)
+        self.login(self.admin)
         list_url = reverse("contacts.contact_list")
 
         joe = self.create_contact("Joe", phone="123", fields={"age": "20", "home": "Kigali"})
@@ -98,6 +98,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         with self.assertNumQueries(56):
             response = self.client.get(list_url)
+
+        self.login(self.user)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertIsNone(response.context["search_error"])

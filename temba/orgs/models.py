@@ -230,16 +230,38 @@ class User(AuthUser):
         return False
 
     @cached_property
-    def is_alpha(self):
+    def is_alpha(self) -> bool:
         return self.groups.filter(name="Alpha").exists()
 
     @cached_property
-    def is_beta(self):
+    def is_beta(self) -> bool:
         return self.groups.filter(name="Beta").exists()
 
     @cached_property
-    def is_support(self):
+    def is_support(self) -> bool:
         return self.groups.filter(name="Customer Support").exists()
+
+    def has_org_perm(self, org, permission: str) -> bool:
+        """
+        Determines if a user has the given permission in the given org.
+        """
+        if self.is_superuser:
+            return True
+
+        if self.is_anonymous:
+            return False
+
+        # has it innately? (e.g. customer support)
+        if self.has_perm(permission):
+            return True
+
+        org_group = org.get_user_org_group(self)
+        if not org_group:
+            return False
+
+        (app_label, codename) = permission.split(".")
+
+        return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()
 
     @cached_property
     def settings(self):
@@ -2004,34 +2026,9 @@ def get_org_group(obj):
     return org_group
 
 
-def _user_has_org_perm(user, org, permission):
-    """
-    Determines if a user has the given permission in this org
-    """
-    if user.is_superuser:  # pragma: needs cover
-        return True
-
-    if user.is_anonymous:  # pragma: needs cover
-        return False
-
-    # has it innately? (customer support)
-    if user.has_perm(permission):  # pragma: needs cover
-        return True
-
-    org_group = org.get_user_org_group(user)
-
-    if not org_group:  # pragma: needs cover
-        return False
-
-    (app_label, codename) = permission.split(".")
-
-    return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()
-
-
 AuthUser.get_org = get_org
 AuthUser.set_org = set_org
 AuthUser.get_org_group = get_org_group
-AuthUser.has_org_perm = _user_has_org_perm
 
 
 def get_stripe_credentials():

@@ -125,10 +125,10 @@ class UserTest(TembaTest):
             username="jim@rapidpro.io", email="jim@rapidpro.io", password="super", first_name="Jim", last_name="McFlow"
         )
 
+        self.assertEqual("Jim McFlow", user.name)
         self.assertFalse(user.is_alpha)
         self.assertFalse(user.is_beta)
         self.assertFalse(user.is_support)
-        self.assertEqual("Jim McFlow", user.name)
         self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim McFlow"}, user.as_engine_ref())
 
         user.last_name = ""
@@ -136,6 +136,86 @@ class UserTest(TembaTest):
 
         self.assertEqual("Jim", user.name)
         self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim"}, user.as_engine_ref())
+
+    def test_has_org_perm(self):
+        self.customer_support.is_staff = True
+        self.customer_support.save(update_fields=("is_staff",))
+
+        tests = (
+            (
+                self.org,
+                "contacts.contact_list",
+                {
+                    self.agent: False,
+                    self.user: True,
+                    self.admin: True,
+                    self.admin2: False,
+                    self.customer_support: True,
+                },
+            ),
+            (
+                self.org2,
+                "contacts.contact_list",
+                {
+                    self.agent: False,
+                    self.user: False,
+                    self.admin: False,
+                    self.admin2: True,
+                    self.customer_support: True,
+                },
+            ),
+            (
+                self.org,
+                "orgs.org_edit",
+                {
+                    self.agent: False,
+                    self.user: False,
+                    self.admin: True,
+                    self.admin2: False,
+                    self.customer_support: True,
+                },
+            ),
+            (
+                self.org2,
+                "orgs.org_edit",
+                {
+                    self.agent: False,
+                    self.user: False,
+                    self.admin: False,
+                    self.admin2: True,
+                    self.customer_support: True,
+                },
+            ),
+            (
+                self.org,
+                "apks.apk_create",
+                {
+                    self.agent: False,
+                    self.user: False,
+                    self.admin: False,
+                    self.admin2: False,
+                    self.customer_support: True,
+                },
+            ),
+            (
+                self.org,
+                "xxx.yyy_zzz",
+                {
+                    self.agent: False,
+                    self.user: False,
+                    self.admin: False,
+                    self.admin2: False,
+                    self.customer_support: False,
+                },
+            ),
+        )
+        for (org, perm, checks) in tests:
+            for user, has_perm in checks.items():
+                self.assertEqual(
+                    has_perm,
+                    user.has_org_perm(org, perm),
+                    f"expected {user} to{'' if has_perm else ' not'} have perm {perm} in org {org.name}",
+                )
 
     def test_login(self):
         login_url = reverse("users.user_login")
