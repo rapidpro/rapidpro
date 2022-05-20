@@ -191,7 +191,7 @@ class DailyTimingModel(DailyCountModel):
         A queryset of counts which can be aggregated in different ways
         """
 
-        def day_averages(self):
+        def day_averages(self, rounded=False):
             """
             Calculates per-day seconds averages over a set of counts
             """
@@ -201,7 +201,7 @@ class DailyTimingModel(DailyCountModel):
                 .order_by("day")
             )
 
-            return [(t[0], t[2] / t[1]) for t in totals]
+            return [(t[0], round(t[2] / t[1]) if rounded else t[2] / t[1]) for t in totals]
 
     class Meta:
         abstract = True
