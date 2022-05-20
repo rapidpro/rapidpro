@@ -39,25 +39,20 @@ def user_orgs_for_brand(request):
 
 def user_group_perms_processor(request):
     """
-    Sets org_org in the context, and org_perms if user belongs to an auth group.
+    Sets user_org in the context, and org_perms if user belongs to an auth group.
     """
-    org = None
-    group = None
+    context = {}
 
-    if hasattr(request, "user"):
-        if request.user.is_anonymous:
-            group = None
-        else:
-            group = request.user.get_org_group()
-            org = request.user.get_org()
-
-    if group:
-        context = dict(org_perms=GroupPermWrapper(group))
+    if request.user.is_anonymous:
+        org = None
+        group = None
     else:
-        context = dict()
+        org = request.org
+        group = org.get_user_org_group(request.user) if org else None
 
-    # make sure user_org is set on our request based on their session
     context["user_org"] = org
+    if group:
+        context["org_perms"] = GroupPermWrapper(group)
 
     return context
 

@@ -241,6 +241,15 @@ class User(AuthUser):
     def is_support(self) -> bool:
         return self.groups.filter(name="Customer Support").exists()
 
+    def get_org(self):
+        """
+        Gets the request org cached on the user. This should only be used where request.org can't be.
+        """
+        return getattr(self, "_org", None)
+
+    def set_org(self, org):
+        self._org = org
+
     def has_org_perm(self, org, permission: str) -> bool:
         """
         Determines if a user has the given permission in the given org.
@@ -2005,30 +2014,6 @@ class Org(SmartModel):
 
     def __str__(self):
         return self.name
-
-
-# ===================== monkey patch User class with a few extra functions ========================
-
-
-def get_org(obj):
-    return getattr(obj, "_org", None)
-
-
-def set_org(obj, org):
-    obj._org = org
-
-
-def get_org_group(obj):
-    org_group = None
-    org = obj.get_org()
-    if org:
-        org_group = org.get_user_org_group(obj)
-    return org_group
-
-
-AuthUser.get_org = get_org
-AuthUser.set_org = set_org
-AuthUser.get_org_group = get_org_group
 
 
 def get_stripe_credentials():
