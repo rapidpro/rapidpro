@@ -1035,7 +1035,12 @@ class EventTest(TembaTest):
                     "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
                 },
                 "created_on": matchers.ISODate(),
-                "created_by": {"id": self.agent.id, "first_name": "", "last_name": "", "email": "Agent@nyaruka.com"},
+                "created_by": {
+                    "id": self.agent.id,
+                    "first_name": "Agnes",
+                    "last_name": "",
+                    "email": "agent@nyaruka.com",
+                },
             },
             Event.from_ticket_event(self.org, self.user, event1),
         )

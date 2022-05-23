@@ -1061,7 +1061,7 @@ class FlowMigrationTest(TembaTest):
         email_node = order_checker.get_definition()["nodes"][10]
         email_action = email_node["actions"][1]
 
-        self.assertEqual(["Administrator"], email_action["addresses"])
+        self.assertEqual(["admin@nyaruka.com"], email_action["addresses"])
 
     def test_migrate_bad_group_names(self):
         # This test makes sure that bad contact groups (< 25, etc) are migrated forward properly.
