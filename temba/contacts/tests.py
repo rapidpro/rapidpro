@@ -87,7 +87,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
     @mock_mailroom
     def test_list(self, mr_mocks):
-        self.login(self.admin)
+        self.login(self.user)
         list_url = reverse("contacts.contact_list")
 
         joe = self.create_contact("Joe", phone="123", fields={"age": "20", "home": "Kigali"})
@@ -96,10 +96,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         mr_mocks.contact_search('name != ""', contacts=[])
         smart = self.create_group("No Name", query='name = ""')
 
-        with self.assertNumQueries(56):
+        with self.assertNumQueries(68):
             response = self.client.get(list_url)
-
-        self.login(self.user)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertIsNone(response.context["search_error"])
@@ -2230,7 +2228,7 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history, 11, "flow_entered", flow__name="Colors")
         assertHistoryEvent(history, 12, "msg_received", msg__text="Message caption")
         assertHistoryEvent(
-            history, 13, "msg_created", msg__text="A beautiful broadcast", msg__created_by__email="User@nyaruka.com"
+            history, 13, "msg_created", msg__text="A beautiful broadcast", msg__created_by__email="viewer@nyaruka.com"
         )
         assertHistoryEvent(history, 14, "campaign_fired", campaign__name="Planting Reminders")
         assertHistoryEvent(history, -1, "msg_received", msg__text="Inbound message 11")
@@ -2709,9 +2707,6 @@ class ContactTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
     def test_read_with_customer_support(self):
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))

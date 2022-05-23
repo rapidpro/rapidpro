@@ -38,6 +38,7 @@ def add_testing_flag_to_context(*args):
 
 class TembaTestMixin:
     databases = ("default", "readonly")
+    default_password = "Qwerty123"
 
     def setUpOrgs(self):
         # make sure we start off without any service users
@@ -47,19 +48,23 @@ class TembaTestMixin:
 
         self.create_anonymous_user()
 
-        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
+        self.superuser = User.objects.create_superuser(
+            username="super", email="super@user.com", password=self.default_password
+        )
 
         # create different user types
-        self.non_org_user = self.create_user("NonOrg")
-        self.admin = self.create_user("Administrator")
-        self.editor = self.create_user("Editor")
-        self.user = self.create_user("User")
-        self.agent = self.create_user("Agent")
-        self.surveyor = self.create_user("Surveyor")
-        self.customer_support = self.create_user("support", ("Customer Support",))
+        self.non_org_user = self.create_user("nonorg@nyaruka.com")
+        self.admin = self.create_user("admin@nyaruka.com", first_name="Andy")
+        self.editor = self.create_user("editor@nyaruka.com", first_name="Ed", last_name="McEdits")
+        self.user = self.create_user("viewer@nyaruka.com")
+        self.agent = self.create_user("agent@nyaruka.com", first_name="Agnes")
+        self.surveyor = self.create_user("surveyor@nyaruka.com")
+        self.customer_support = self.create_user(
+            "support@nyaruka.com", group_names=("Customer Support",), is_staff=True
+        )
 
         self.org = Org.objects.create(
-            name="Temba",
+            name="Nyaruka",
             timezone=pytz.timezone("Africa/Kigali"),
             brand=settings.DEFAULT_BRAND,
             created_by=self.user,
@@ -84,10 +89,10 @@ class TembaTestMixin:
         self.org.surveyors.add(self.surveyor)
 
         # setup a second org with a single admin
-        self.admin2 = self.create_user("Administrator2")
+        self.admin2 = self.create_user("administrator@trileet.com")
         self.org2 = Org.objects.create(
             name="Trileet Inc.",
-            timezone=pytz.timezone("Africa/Kigali"),
+            timezone=pytz.timezone("US/Pacific"),
             brand="rapidpro.io",
             created_by=self.admin2,
             modified_by=self.admin2,
@@ -163,8 +168,8 @@ class TembaTestMixin:
 
     def login(self, user, update_last_auth_on: bool = True):
         self.assertTrue(
-            self.client.login(username=user.username, password=user.username),
-            "Couldn't login as %(user)s:%(user)s" % dict(user=user.username),
+            self.client.login(username=user.username, password=self.default_password),
+            f"couldn't login as {user.username}:{self.default_password}",
         )
         if update_last_auth_on:
             user.record_auth()
@@ -202,9 +207,9 @@ class TembaTestMixin:
         data = self.get_import_json(filename, substitutions=substitutions)
         return data["flows"][0]
 
-    def create_user(self, username, group_names=()):
-        user = User.objects.create_user(username, "%s@nyaruka.com" % username)
-        user.set_password(username)
+    def create_user(self, email, group_names=(), **kwargs):
+        user = User.objects.create_user(username=email, email=email, **kwargs)
+        user.set_password(self.default_password)
         user.save()
         for group in group_names:
             user.groups.add(Group.objects.get(name=group))
