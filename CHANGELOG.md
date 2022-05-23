@@ -1,3 +1,9 @@
+v7.3.49
+----------
+ * Timings in export stats spreadsheet should be rounded to nearest second
+ * Include failed_reason/failed_reason_display on msg_created events
+ * Move more monkey patching on auth.User to orgs.User
+
 v7.3.48
 ----------
  * Include first reply timings in ticket stats export
