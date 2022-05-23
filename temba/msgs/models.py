@@ -343,17 +343,17 @@ class Msg(models.Model):
         (TYPE_USSD, "USSD Message"),
     )
 
-    FAILED_SUSPENDED = "S"  # org was suspended
-    FAILED_LOOPING = "L"  # message looks like it's part of a loop
-    FAILED_ERROR_LIMIT = "E"  # courier tried to send the message but we reached error limit
-    FAILED_TOO_OLD = "O"  # message has been queued for too long and too late to send message
-    FAILED_NO_DESTINATION = "D"  # no compatible channel + URN destination found
+    FAILED_SUSPENDED = "S"
+    FAILED_LOOPING = "L"
+    FAILED_ERROR_LIMIT = "E"
+    FAILED_TOO_OLD = "O"
+    FAILED_NO_DESTINATION = "D"
     FAILED_CHOICES = (
-        (FAILED_SUSPENDED, "Suspended"),
-        (FAILED_LOOPING, "Looping"),
-        (FAILED_ERROR_LIMIT, "Error Limit"),
-        (FAILED_TOO_OLD, "Too Old"),
-        (FAILED_NO_DESTINATION, "No Destination"),
+        (FAILED_SUSPENDED, _("Workspace suspended")),
+        (FAILED_LOOPING, _("Looping detected")),  # mailroom checks for this
+        (FAILED_ERROR_LIMIT, _("Retry limit reached")),  # courier tried to send but it errored too many times
+        (FAILED_TOO_OLD, _("Too old to send")),  # was queued for too long, would be confusing to send now
+        (FAILED_NO_DESTINATION, _("No suitable channel found")),  # no compatible channel + URN destination found
     )
 
     MEDIA_GPS = "geo"
