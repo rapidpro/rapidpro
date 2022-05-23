@@ -210,6 +210,8 @@ class UserTest(TembaTest):
             ),
         )
         for (org, perm, checks) in tests:
+            self.assertTrue(self.superuser.has_org_perm(org, perm))
+
             for user, has_perm in checks.items():
                 self.assertEqual(
                     has_perm,

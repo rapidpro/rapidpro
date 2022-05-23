@@ -257,7 +257,7 @@ class User(AuthUser):
         if self.is_superuser:
             return True
 
-        if self.is_anonymous:
+        if self.is_anonymous:  # pragma: needs cover
             return False
 
         # has it innately? (e.g. customer support)
