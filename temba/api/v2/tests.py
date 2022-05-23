@@ -295,22 +295,20 @@ class APITest(TembaTest):
             representations={"tel:+18001234567": "tel:+18001234567"},
         )
 
-        self.editor.first_name = "Ed"
-        self.editor.last_name = "Flows"
         self.editor.is_active = False
-        self.editor.save(update_fields=("first_name", "last_name", "is_active"))
+        self.editor.save(update_fields=("is_active",))
 
         assert_field(
             fields.UserField(source="test"),
             submissions={
-                "USER@NYARUKA.COM": self.user,
-                "administrator@nyaruka.com": self.admin,
+                "VIEWER@NYARUKA.COM": self.user,
+                "admin@nyaruka.com": self.admin,
                 self.editor.email: serializers.ValidationError,  # deleted
                 self.admin2.email: serializers.ValidationError,  # not in org
             },
             representations={
-                self.user: {"email": "User@nyaruka.com", "name": ""},
-                self.editor: {"email": "Editor@nyaruka.com", "name": "Ed Flows"},
+                self.user: {"email": "viewer@nyaruka.com", "name": ""},
+                self.editor: {"email": "editor@nyaruka.com", "name": "Ed McEdits"},
             },
         )
         assert_field(
@@ -320,7 +318,7 @@ class APITest(TembaTest):
                 self.admin.email: self.admin,
                 self.agent.email: self.agent,
             },
-            representations={self.agent: {"email": "Agent@nyaruka.com", "name": ""}},
+            representations={self.agent: {"email": "agent@nyaruka.com", "name": "Agnes"}},
         )
 
         field = fields.TranslatableField(source="test", max_length=10)
@@ -376,7 +374,7 @@ class APITest(TembaTest):
             return request(endpoint, HTTP_AUTHORIZATION=f"Token {token}")
 
         def request_by_basic_auth(endpoint, username, token):
-            credentials_base64 = base64.encodebytes(f"{username}:{token}".encode()).decode()
+            credentials_base64 = base64.b64encode(f"{username}:{token}".encode()).decode()
             return request(endpoint, HTTP_AUTHORIZATION=f"Basic {credentials_base64}")
 
         def request_by_session(endpoint, user):
@@ -388,9 +386,6 @@ class APITest(TembaTest):
         contacts_url = reverse("api.v2.contacts")
         campaigns_url = reverse("api.v2.campaigns")
         fields_url = reverse("api.v2.fields")
-
-        self.customer_support.is_staff = True
-        self.customer_support.save(update_fields=("is_staff",))
 
         token1 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Administrators"))
         token2 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Surveyors"))
@@ -591,15 +586,15 @@ class APITest(TembaTest):
         surveyors = Group.objects.get(name="Surveyors")
 
         # try to authenticate with incorrect password
-        response = self.client.post(url, {"username": "Administrator", "password": "XXXX", "role": "A"})
+        response = self.client.post(url, {"username": "admin@nyaruka.com", "password": "XXXX", "role": "A"})
         self.assertEqual(response.status_code, 403)
 
         # try to authenticate with invalid role
-        response = self.client.post(url, {"username": "Administrator", "password": "Administrator", "role": "X"})
+        response = self.client.post(url, {"username": "admin@nyaruka.com", "password": "Qwerty123", "role": "X"})
         self.assertFormError(response, "form", "role", "Select a valid choice. X is not one of the available choices.")
 
         # authenticate an admin as an admin
-        response = self.client.post(url, {"username": "Administrator", "password": "Administrator", "role": "A"})
+        response = self.client.post(url, {"username": "admin@nyaruka.com", "password": "Qwerty123", "role": "A"})
 
         # should have created a new token object
         token_obj1 = APIToken.objects.get(user=self.admin, role=admins)
@@ -608,11 +603,11 @@ class APITest(TembaTest):
         self.assertEqual(len(tokens), 1)
         self.assertEqual(
             tokens[0],
-            {"org": {"id": self.org.pk, "name": "Temba", "uuid": str(self.org.uuid)}, "token": token_obj1.key},
+            {"org": {"id": self.org.pk, "name": "Nyaruka", "uuid": str(self.org.uuid)}, "token": token_obj1.key},
         )
 
         # authenticate an admin as a surveyor
-        response = self.client.post(url, {"username": "Administrator", "password": "Administrator", "role": "S"})
+        response = self.client.post(url, {"username": "admin@nyaruka.com", "password": "Qwerty123", "role": "S"})
 
         # should have created a new token object
         token_obj2 = APIToken.objects.get(user=self.admin, role=surveyors)
@@ -621,7 +616,7 @@ class APITest(TembaTest):
         self.assertEqual(len(tokens), 1)
         self.assertEqual(
             tokens[0],
-            {"org": {"id": self.org.pk, "name": "Temba", "uuid": str(self.org.uuid)}, "token": token_obj2.key},
+            {"org": {"id": self.org.pk, "name": "Nyaruka", "uuid": str(self.org.uuid)}, "token": token_obj2.key},
         )
 
         # the keys should be different
@@ -642,12 +637,12 @@ class APITest(TembaTest):
         self.assertEqual(client.get(reverse("api.v2.contacts") + ".json").status_code, 200)
 
         # our surveyor can't login with an admin role
-        response = self.client.post(url, {"username": "Surveyor", "password": "Surveyor", "role": "A"})
+        response = self.client.post(url, {"username": "surveyor@nyaruka.com", "password": "Qwerty123", "role": "A"})
         tokens = response.json()["tokens"]
         self.assertEqual(len(tokens), 0)
 
         # but they can with a surveyor role
-        response = self.client.post(url, {"username": "Surveyor", "password": "Surveyor", "role": "S"})
+        response = self.client.post(url, {"username": "surveyor@nyaruka.com", "password": "Qwerty123", "role": "S"})
         tokens = response.json()["tokens"]
         self.assertEqual(len(tokens), 1)
 
@@ -3425,7 +3420,7 @@ class APITest(TembaTest):
             response.json(),
             {
                 "uuid": str(self.org.uuid),
-                "name": "Temba",
+                "name": "Nyaruka",
                 "country": "RW",
                 "languages": [],
                 "primary_language": None,
@@ -3443,7 +3438,7 @@ class APITest(TembaTest):
             response.json(),
             {
                 "uuid": str(self.org.uuid),
-                "name": "Temba",
+                "name": "Nyaruka",
                 "country": "RW",
                 "languages": ["eng", "fra"],
                 "primary_language": "eng",
@@ -4572,7 +4567,7 @@ class APITest(TembaTest):
                 {
                     "uuid": str(ticket3.uuid),
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
-                    "assignee": {"email": "Agent@nyaruka.com", "name": ""},
+                    "assignee": {"email": "agent@nyaruka.com", "name": "Agnes"},
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
@@ -4851,7 +4846,7 @@ class APITest(TembaTest):
         self.assertEqual(
             resp_json["results"][0],
             {
-                "email": "Surveyor@nyaruka.com",
+                "email": "surveyor@nyaruka.com",
                 "first_name": "Stu",
                 "last_name": "McSurveys",
                 "role": "surveyor",
@@ -4862,9 +4857,9 @@ class APITest(TembaTest):
         # filter by roles
         response = self.fetchJSON(endpoint_url, "role=agent&role=editor")
         resp_json = response.json()
-        self.assertEqual(["Agent@nyaruka.com", "Editor@nyaruka.com"], [u["email"] for u in resp_json["results"]])
+        self.assertEqual(["agent@nyaruka.com", "editor@nyaruka.com"], [u["email"] for u in resp_json["results"]])
 
         # non-existent roles ignored
         response = self.fetchJSON(endpoint_url, "role=caretaker&role=editor")
         resp_json = response.json()
-        self.assertEqual(["Editor@nyaruka.com"], [u["email"] for u in resp_json["results"]])
+        self.assertEqual(["editor@nyaruka.com"], [u["email"] for u in resp_json["results"]])

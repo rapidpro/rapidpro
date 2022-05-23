@@ -82,7 +82,7 @@ class DashboardTest(TembaTest):
 
         # org message activity
         self.assertEqual(12, response.context["orgs"][0]["count_sum"])
-        self.assertEqual("Temba", response.context["orgs"][0]["channel__org__name"])
+        self.assertEqual("Nyaruka", response.context["orgs"][0]["channel__org__name"])
 
         # our pie chart
         self.assertEqual(5, response.context["channel_types"][0]["count_sum"])

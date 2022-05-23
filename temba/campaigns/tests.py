@@ -661,9 +661,6 @@ class CampaignTest(TembaTest):
         self.assertEqual(response.status_code, 404)
 
     def test_view_campaign_read_with_customer_support(self):
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         campaign = Campaign.create(self.org, self.admin, "Perform the rain dance", self.farmers)
