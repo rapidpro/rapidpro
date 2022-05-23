@@ -3463,6 +3463,16 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         menu = response.json()["results"]
         self.assertEqual(count, len(menu))
 
+    def test_home(self):
+        self.login(self.user)
+
+        home_url = reverse("orgs.org_home")
+
+        with self.assertNumQueries(159):
+            response = self.client.get(home_url)
+
+        self.assertEqual(200, response.status_code)
+
     def test_menu(self):
         self.login(self.admin)
         self.assertMenu(reverse("orgs.org_menu"), 7)
@@ -3475,7 +3485,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # agents should only see tickets and settings
         self.login(self.agent)
-        response = self.client.get(menu_url)
+
+        with self.assertNumQueries(48):
+            response = self.client.get(menu_url)
+
         menu = response.json()["results"]
         self.assertEqual(2, len(menu))
 
@@ -3498,7 +3511,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        response = self.client.get(reverse("orgs.org_workspace"))
+        with self.assertNumQueries(121):
+            response = self.client.get(reverse("orgs.org_workspace"))
 
         # make sure we have the appropriate number of sections
         self.assertContains(response, "Transfer Credits")
