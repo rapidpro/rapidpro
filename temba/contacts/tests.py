@@ -2707,9 +2707,6 @@ class ContactTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
     def test_read_with_customer_support(self):
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
