@@ -301,11 +301,11 @@ class TembaTestMixin:
             contact,
             text,
             Msg.DIRECTION_IN,
-            channel,
-            msg_type,
-            attachments,
-            status,
-            created_on,
+            channel=channel,
+            msg_type=msg_type,
+            attachments=attachments,
+            status=status,
+            created_on=created_on,
             visibility=visibility,
             external_id=external_id,
             surveyor=surveyor,
@@ -330,6 +330,7 @@ class TembaTestMixin:
         high_priority=False,
         surveyor=False,
         next_attempt=None,
+        failed_reason=None,
         flow=None,
     ):
         if status in (Msg.STATUS_WIRED, Msg.STATUS_SENT, Msg.STATUS_DELIVERED) and not sent_on:
@@ -343,17 +344,18 @@ class TembaTestMixin:
             contact,
             text,
             Msg.DIRECTION_OUT,
-            channel,
-            msg_type,
-            attachments,
-            status,
-            created_on,
-            sent_on,
+            channel=channel,
+            msg_type=msg_type,
+            attachments=attachments,
+            status=status,
+            created_on=created_on,
+            sent_on=sent_on,
             high_priority=high_priority,
             surveyor=surveyor,
             flow=flow,
             metadata=metadata,
             next_attempt=next_attempt,
+            failed_reason=failed_reason,
         )
 
     def _create_msg(
@@ -361,6 +363,7 @@ class TembaTestMixin:
         contact,
         text,
         direction,
+        *,
         channel,
         msg_type,
         attachments,
@@ -375,6 +378,7 @@ class TembaTestMixin:
         broadcast=None,
         metadata=None,
         next_attempt=None,
+        failed_reason=None,
     ):
         assert not (surveyor and channel), "surveyor messages don't have channels"
         assert not channel or channel.org == contact.org, "channel belong to different org than contact"
@@ -416,6 +420,7 @@ class TembaTestMixin:
             flow=flow,
             metadata=metadata,
             next_attempt=next_attempt,
+            failed_reason=failed_reason,
         )
 
     def create_broadcast(

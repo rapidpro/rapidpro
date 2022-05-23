@@ -576,7 +576,7 @@ def export_ticket_stats(org: Org, since: date, until: date) -> openpyxl.Workbook
     org_openings = by_day(TicketDailyCount.get_by_org(org, TicketDailyCount.TYPE_OPENING, since, until).day_totals())
     org_replies = by_day(TicketDailyCount.get_by_org(org, TicketDailyCount.TYPE_REPLY, since, until).day_totals())
     org_avg_reply_time = by_day(
-        TicketDailyTiming.get_by_org(org, TicketDailyTiming.TYPE_FIRST_REPLY, since, until).day_averages()
+        TicketDailyTiming.get_by_org(org, TicketDailyTiming.TYPE_FIRST_REPLY, since, until).day_averages(rounded=True)
     )
 
     user_assignments = {}
