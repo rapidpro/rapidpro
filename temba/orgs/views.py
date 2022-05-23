@@ -35,7 +35,7 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
@@ -75,7 +75,17 @@ from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import ComponentFormMixin, NonAtomicMixin, RequireRecentAuthMixin, SpaMixin
 
-from .models import BackupToken, IntegrationType, Invitation, Org, OrgCache, OrgRole, TopUp, get_stripe_credentials
+from .models import (
+    BackupToken,
+    IntegrationType,
+    Invitation,
+    Org,
+    OrgCache,
+    OrgRole,
+    TopUp,
+    User,
+    get_stripe_credentials,
+)
 from .tasks import apply_topups_task
 
 # session key for storing a two-factor enabled user's id once we've checked their password
@@ -498,7 +508,7 @@ class LoginView(Login):
     def form_valid(self, form):
         user = form.get_user()
 
-        if user.get_settings().two_factor_enabled:
+        if user.settings.two_factor_enabled:
             self.request.session[TWO_FACTOR_USER_SESSION_KEY] = str(user.id)
             self.request.session[TWO_FACTOR_STARTED_SESSION_KEY] = timezone.now().isoformat()
 
@@ -699,7 +709,7 @@ class UserCRUDL(SmartCRUDL):
             return mark_safe(f"<a href='{reverse('users.user_update', args=(user.id,))}'>{user.username}</a>")
 
         def get_orgs(self, user):
-            orgs = user.get_user_orgs()[0:6]
+            orgs = user.get_orgs()[0:6]
 
             more = ""
             if len(orgs) > 5:
@@ -722,7 +732,7 @@ class UserCRUDL(SmartCRUDL):
                 fields = ("delete",)
 
         form_class = DeleteForm
-        permission = "auth.user_update"
+        permission = "orgs.user_update"
 
         def form_valid(self, form):
             user = self.get_object()
@@ -837,8 +847,7 @@ class UserCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super().derive_initial()
-            user_settings = self.get_object().get_settings()
-            initial["language"] = user_settings.language
+            initial["language"] = self.get_object().settings.language
             return initial
 
         def pre_save(self, obj):
@@ -855,9 +864,8 @@ class UserCRUDL(SmartCRUDL):
         def post_save(self, obj):
             # save the user settings as well
             obj = super().post_save(obj)
-            user_settings = obj.get_settings()
-            user_settings.language = self.form.cleaned_data["language"]
-            user_settings.save()
+            obj.settings.language = self.form.cleaned_data["language"]
+            obj.settings.save()
             return obj
 
         def has_permission(self, request, *args, **kwargs):
@@ -925,8 +933,7 @@ class UserCRUDL(SmartCRUDL):
 
             brand = self.request.branding["name"]
             user = self.get_user()
-            user_settings = user.get_settings()
-            secret_url = pyotp.TOTP(user_settings.otp_secret).provisioning_uri(user.username, issuer_name=brand)
+            secret_url = pyotp.TOTP(user.settings.otp_secret).provisioning_uri(user.username, issuer_name=brand)
             context["secret_url"] = secret_url
             return context
 
@@ -979,7 +986,7 @@ class UserCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             # if 2FA isn't enabled for this user, take them to the enable view instead
-            if not self.request.user.get_settings().two_factor_enabled:
+            if not self.request.user.settings.two_factor_enabled:
                 return HttpResponseRedirect(reverse("orgs.user_two_factor_enable"))
 
             return super().pre_process(request, *args, **kwargs)
@@ -1006,7 +1013,7 @@ class UserCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["two_factor_enabled"] = self.request.user.get_settings().two_factor_enabled
+            context["two_factor_enabled"] = self.request.user.settings.two_factor_enabled
             return context
 
         def derive_formax_sections(self, formax, context):
@@ -1024,7 +1031,7 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         return context
 
     def has_permission(self, request, *args, **kwargs):
-        return not request.user.is_anonymous and request.user.is_beta()
+        return not request.user.is_anonymous and request.user.is_beta
 
 
 class MenuMixin(OrgPermsMixin):
@@ -1174,7 +1181,7 @@ class OrgCRUDL(SmartCRUDL):
                         self.create_menu_item(name=_("Account"), icon="user", href=reverse("orgs.user_account"))
                     )
 
-                if self.request.user.get_settings().two_factor_enabled:
+                if self.request.user.settings.two_factor_enabled:
                     menu.append(
                         self.create_menu_item(
                             name=_("Security"), icon="shield", href=reverse("orgs.user_two_factor_tokens")
@@ -2512,7 +2519,7 @@ class OrgCRUDL(SmartCRUDL):
         }
 
         def get_user_orgs(self):
-            return self.request.user.get_user_orgs(self.request.branding.get("keys"))
+            return self.request.user.get_orgs(brands=self.request.branding.get("keys"))
 
         def get_success_url(self):
             role = self.request.org.get_user_role(self.request.user)
@@ -2535,7 +2542,7 @@ class OrgCRUDL(SmartCRUDL):
                     return HttpResponseRedirect(self.get_success_url())
 
                 elif user_orgs.count() == 0:
-                    if user.is_support():
+                    if user.is_support:
                         return HttpResponseRedirect(reverse("orgs.org_manage"))
 
                     # for regular users, if there's no orgs, log them out with a message
@@ -3318,7 +3325,7 @@ class OrgCRUDL(SmartCRUDL):
                 )
 
             if self.has_org_perm("orgs.org_two_factor"):
-                if user.get_settings().two_factor_enabled:
+                if user.settings.two_factor_enabled:
                     formax.add_section(
                         "two_factor", reverse("orgs.user_two_factor_tokens"), icon="icon-two-factor", action="link"
                     )

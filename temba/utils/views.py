@@ -244,7 +244,7 @@ class RequireRecentAuthMixin:
     def pre_process(self, request, *args, **kwargs):
         is_formax = "HTTP_X_FORMAX" in request.META
         if not is_formax or self.recent_auth_includes_formax:
-            last_auth_on = request.user.get_settings().last_auth_on
+            last_auth_on = request.user.settings.last_auth_on
             if not last_auth_on or (timezone.now() - last_auth_on).total_seconds() > self.recent_auth_seconds:
                 return HttpResponseRedirect(reverse("users.confirm_access") + f"?next={quote(request.path)}")
 

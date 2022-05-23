@@ -858,9 +858,8 @@ class MiddlewareTest(TembaTest):
         # if we have an authenticated user, their setting takes priority
         self.login(self.admin)
 
-        user_settings = self.admin.get_settings()
-        user_settings.language = "fr"
-        user_settings.save(update_fields=("language",))
+        self.admin.settings.language = "fr"
+        self.admin.settings.save(update_fields=("language",))
 
         assert_text("Créez visuellement des applications mobiles")
 

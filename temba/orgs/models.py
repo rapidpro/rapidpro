@@ -158,6 +158,29 @@ class User(AuthUser):
     def name(self) -> str:
         return self.get_full_name()
 
+    def get_orgs(self, *, brands=None):
+        """
+        Gets the orgs in the given brands that this user has access to (i.e. a role in).
+        """
+        if self.is_superuser:
+            return Org.objects.all()
+
+        user_orgs = functools.reduce(operator.or_, [role.get_orgs(self) for role in OrgRole])
+        if brands:
+            user_orgs = user_orgs.filter(brand__in=brands)
+
+        return user_orgs.filter(is_active=True).distinct().order_by("name")
+
+    def get_owned_orgs(self, *, brands=None):
+        """
+        Gets the orgs in the given brands where this user is the only user.
+        """
+        owned_orgs = []
+        for org in self.get_orgs(brands=brands):
+            if not org.get_users().exclude(id=self.id).exists():
+                owned_orgs.append(org)
+        return owned_orgs
+
     def set_team(self, team):
         """
         Sets the ticketing team for this user
@@ -165,8 +188,58 @@ class User(AuthUser):
         self.settings.team = team
         self.settings.save(update_fields=("team",))
 
-    def as_engine_ref(self) -> dict:
-        return {"email": self.email, "name": self.name}
+    def record_auth(self):
+        """
+        Records that this user authenticated
+        """
+        self.settings.last_auth_on = timezone.now()
+        self.settings.save(update_fields=("last_auth_on",))
+
+    def enable_2fa(self):
+        """
+        Enables 2FA for this user
+        """
+        self.settings.two_factor_enabled = True
+        self.settings.save(update_fields=("two_factor_enabled",))
+
+        BackupToken.generate_for_user(self)
+
+    def disable_2fa(self):
+        """
+        Disables 2FA for this user
+        """
+        self.settings.two_factor_enabled = False
+        self.settings.save(update_fields=("two_factor_enabled",))
+
+        self.backup_tokens.all().delete()
+
+    def verify_2fa(self, *, otp: str = None, backup_token: str = None) -> bool:
+        """
+        Verifies a user using a 2FA mechanism (OTP or backup token)
+        """
+        if otp:
+            secret = self.settings.otp_secret
+            return pyotp.TOTP(secret).verify(otp, valid_window=2)
+        elif backup_token:
+            token = self.backup_tokens.filter(token=backup_token, is_used=False).first()
+            if token:
+                token.is_used = True
+                token.save(update_fields=("is_used",))
+                return True
+
+        return False
+
+    @cached_property
+    def is_alpha(self):
+        return self.groups.filter(name="Alpha").exists()
+
+    @cached_property
+    def is_beta(self):
+        return self.groups.filter(name="Beta").exists()
+
+    @cached_property
+    def is_support(self):
+        return self.groups.filter(name="Customer Support").exists()
 
     @cached_property
     def settings(self):
@@ -180,6 +253,33 @@ class User(AuthUser):
 
         return get_or_create_api_token(self)
 
+    def as_engine_ref(self) -> dict:
+        return {"email": self.email, "name": self.name}
+
+    def release(self, user, *, brand):
+        """
+        Releases this user, and any orgs of which they are the sole owner.
+        """
+
+        # if our user exists across brands don't muck with the user
+        if self.get_orgs().order_by("brand").distinct("brand").count() < 2:
+            user_uuid = str(uuid4())
+            self.first_name = ""
+            self.last_name = ""
+            self.email = f"{user_uuid}@rapidpro.io"
+            self.username = f"{user_uuid}@rapidpro.io"
+            self.password = ""
+            self.is_active = False
+            self.save()
+
+        # release any orgs we own on this brand
+        for org in self.get_owned_orgs(brands=[brand]):
+            org.release(user, release_users=False)
+
+        # remove user from all roles on any org for our brand
+        for org in user.get_orgs(brands=[brand]):
+            org.remove_user(self)
+
     def __str__(self):
         return self.name or self.username
 
@@ -192,7 +292,7 @@ class UserSettings(models.Model):
     Custom fields for users
     """
 
-    user = models.ForeignKey("auth.User", on_delete=models.PROTECT, related_name="usersettings")
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="usersettings")
     language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
     team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
@@ -348,11 +448,11 @@ class Org(SmartModel):
     )
 
     # user role m2ms
-    administrators = models.ManyToManyField("auth.User", related_name=OrgRole.ADMINISTRATOR.rel_name)
-    editors = models.ManyToManyField("auth.User", related_name=OrgRole.EDITOR.rel_name)
-    viewers = models.ManyToManyField("auth.User", related_name=OrgRole.VIEWER.rel_name)
-    agents = models.ManyToManyField("auth.User", related_name=OrgRole.AGENT.rel_name)
-    surveyors = models.ManyToManyField("auth.User", related_name=OrgRole.SURVEYOR.rel_name)
+    administrators = models.ManyToManyField(User, related_name=OrgRole.ADMINISTRATOR.rel_name)
+    editors = models.ManyToManyField(User, related_name=OrgRole.EDITOR.rel_name)
+    viewers = models.ManyToManyField(User, related_name=OrgRole.VIEWER.rel_name)
+    agents = models.ManyToManyField(User, related_name=OrgRole.AGENT.rel_name)
+    surveyors = models.ManyToManyField(User, related_name=OrgRole.SURVEYOR.rel_name)
 
     language = models.CharField(
         verbose_name=_("Default Language"),
@@ -1706,7 +1806,7 @@ class Org(SmartModel):
         if release_users:
             for org_user in self.get_users():
                 # check if this user is a member of any org on any brand
-                other_orgs = org_user.get_user_orgs().exclude(id=self.id)
+                other_orgs = org_user.get_orgs().exclude(id=self.id)
                 if not other_orgs:
                     org_user.release(user, brand=self.brand)
 
@@ -1850,9 +1950,8 @@ class Org(SmartModel):
     def create_user(cls, email: str, password: str, language: str = None) -> User:
         user = User.objects.create_user(username=email, email=email, password=password)
         if language:
-            user_settings = user.get_settings()
-            user_settings.language = language
-            user_settings.save(update_fields=("language",))
+            user.settings.language = language
+            user.settings.save(update_fields=("language",))
         return user
 
     @classmethod
@@ -1889,69 +1988,8 @@ class Org(SmartModel):
 # ===================== monkey patch User class with a few extra functions ========================
 
 
-def release(user, releasing_user, *, brand):
-    """
-    Releases this user, and any orgs of which they are the sole owner
-    """
-
-    # if our user exists across brands don't muck with the user
-    if user.get_user_orgs().order_by("brand").distinct("brand").count() < 2:
-        user_uuid = str(uuid4())
-        user.first_name = ""
-        user.last_name = ""
-        user.email = f"{user_uuid}@rapidpro.io"
-        user.username = f"{user_uuid}@rapidpro.io"
-        user.password = ""
-        user.is_active = False
-        user.save()
-
-    # release any orgs we own on this brand
-    for org in user.get_owned_orgs([brand]):
-        org.release(releasing_user, release_users=False)
-
-    # remove user from all roles on any org for our brand
-    for org in user.get_user_orgs([brand]):
-        org.remove_user(user)
-
-
-def get_user_orgs(user, brands=None):
-    if user.is_superuser:
-        return Org.objects.all()
-
-    org_sets = [role.get_orgs(user) for role in OrgRole]
-    user_orgs = functools.reduce(operator.or_, org_sets)
-
-    if brands:
-        user_orgs = user_orgs.filter(brand__in=brands)
-
-    return user_orgs.filter(is_active=True).distinct().order_by("name")
-
-
-def get_owned_orgs(user, brands=None):
-    """
-    Gets all the orgs where this is the only user for the current brand
-    """
-    owned_orgs = []
-    for org in user.get_user_orgs(brands=brands):
-        if not org.get_users().exclude(id=user.id).exists():
-            owned_orgs.append(org)
-    return owned_orgs
-
-
 def get_org(obj):
     return getattr(obj, "_org", None)
-
-
-def is_alpha_user(user):  # pragma: needs cover
-    return user.groups.filter(name="Alpha").exists()
-
-
-def is_beta_user(user):  # pragma: needs cover
-    return user.groups.filter(name="Beta").exists()
-
-
-def is_support_user(user):
-    return user.groups.filter(name="Customer Support").exists()
 
 
 def set_org(obj, org):
@@ -1990,75 +2028,10 @@ def _user_has_org_perm(user, org, permission):
     return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()
 
 
-def _user_get_settings(user):
-    """
-    Gets or creates user settings for this user
-    """
-    assert user and user.is_authenticated, "can't fetch user settings for anonymous users"
-
-    return UserSettings.objects.get_or_create(user=user)[0]
-
-
-def _user_record_auth(user):
-    user_settings = user.get_settings()
-    user_settings.last_auth_on = timezone.now()
-    user_settings.save(update_fields=("last_auth_on",))
-
-
-def _user_enable_2fa(user):
-    """
-    Enables 2FA for this user
-    """
-    user_settings = user.get_settings()
-    user_settings.two_factor_enabled = True
-    user_settings.save(update_fields=("two_factor_enabled",))
-
-    BackupToken.generate_for_user(user)
-
-
-def _user_disable_2fa(user):
-    """
-    Disables 2FA for this user
-    """
-    user_settings = user.get_settings()
-    user_settings.two_factor_enabled = False
-    user_settings.save(update_fields=("two_factor_enabled",))
-
-    user.backup_tokens.all().delete()
-
-
-def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool:
-    """
-    Verifies a user using a 2FA mechanism (OTP or backup token)
-    """
-    if otp:
-        secret = user.get_settings().otp_secret
-        return pyotp.TOTP(secret).verify(otp, valid_window=2)
-    elif backup_token:
-        token = user.backup_tokens.filter(token=backup_token, is_used=False).first()
-        if token:
-            token.is_used = True
-            token.save(update_fields=("is_used",))
-            return True
-
-    return False
-
-
-AuthUser.release = release
 AuthUser.get_org = get_org
 AuthUser.set_org = set_org
-AuthUser.is_alpha = is_alpha_user
-AuthUser.is_beta = is_beta_user
-AuthUser.is_support = is_support_user
-AuthUser.get_user_orgs = get_user_orgs
 AuthUser.get_org_group = get_org_group
-AuthUser.get_owned_orgs = get_owned_orgs
 AuthUser.has_org_perm = _user_has_org_perm
-AuthUser.get_settings = _user_get_settings
-AuthUser.record_auth = _user_record_auth
-AuthUser.enable_2fa = _user_enable_2fa
-AuthUser.disable_2fa = _user_disable_2fa
-AuthUser.verify_2fa = _user_verify_2fa
 
 
 def get_stripe_credentials():
@@ -2493,7 +2466,7 @@ class BackupToken(models.Model):
     A 2FA backup token for a user
     """
 
-    user = models.ForeignKey("auth.User", related_name="backup_tokens", on_delete=models.PROTECT)
+    user = models.ForeignKey(User, related_name="backup_tokens", on_delete=models.PROTECT)
     token = models.CharField(max_length=18, unique=True, default=generate_token)
     is_used = models.BooleanField(default=False)
     created_on = models.DateTimeField(default=timezone.now)
