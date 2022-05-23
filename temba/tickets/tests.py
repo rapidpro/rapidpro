@@ -351,7 +351,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "direction": "O",
                         "type": "I",
                         "created_on": matchers.ISODate(),
-                        "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
+                        "sender": {"id": self.admin.id, "email": "administrator@nyaruka.com"},
                         "attachments": [],
                     },
                     "ticket": {
@@ -372,16 +372,16 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "direction": "O",
                         "type": "I",
                         "created_on": matchers.ISODate(),
-                        "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
+                        "sender": {"id": self.admin.id, "email": "administrator@nyaruka.com"},
                         "attachments": [],
                     },
                     "ticket": {
                         "uuid": str(joes_open_tickets[1].uuid),
                         "assignee": {
                             "id": self.admin.id,
-                            "first_name": "",
+                            "first_name": "Andy",
                             "last_name": "",
-                            "email": "Administrator@nyaruka.com",
+                            "email": "admin@nyaruka.com",
                         },
                         "topic": {"uuid": matchers.UUID4String(), "name": "General"},
                         "body": "Question 1",
@@ -452,9 +452,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(
             [
                 ("", "Unassigned"),
-                (self.admin.id, "Administrator"),
-                (self.agent.id, "Agent"),
-                (self.editor.id, "Editor"),
+                (self.admin.id, "Andy"),
+                (self.agent.id, "Agnes"),
+                (self.editor.id, "Ed McEdits"),
             ],
             list(response.context["form"].fields["assignee"].choices),
         )
