@@ -65,7 +65,7 @@ from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import json, languages
 
-from .context_processors import GroupPermWrapper
+from .context_processors import RolePermsWrapper
 from .models import CreditAlert, Invitation, Org, OrgRole, TopUp, TopUpCredits, User
 from .tasks import delete_orgs_task, resume_failed_tasks, squash_topupcredits
 
@@ -86,11 +86,7 @@ class OrgRoleTest(TembaTest):
 
 class OrgContextProcessorTest(TembaTest):
     def test_group_perms_wrapper(self):
-        administrators = Group.objects.get(name="Administrators")
-        editors = Group.objects.get(name="Editors")
-        viewers = Group.objects.get(name="Viewers")
-
-        perms = GroupPermWrapper(administrators)
+        perms = RolePermsWrapper(OrgRole.ADMINISTRATOR)
 
         self.assertTrue(perms["msgs"]["msg_inbox"])
         self.assertTrue(perms["contacts"]["contact_update"])
@@ -98,14 +94,14 @@ class OrgContextProcessorTest(TembaTest):
         self.assertTrue(perms["orgs"]["org_manage_accounts"])
         self.assertFalse(perms["orgs"]["org_delete"])
 
-        perms = GroupPermWrapper(editors)
+        perms = RolePermsWrapper(OrgRole.EDITOR)
 
         self.assertTrue(perms["msgs"]["msg_inbox"])
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertFalse(perms["orgs"]["org_manage_accounts"])
         self.assertFalse(perms["orgs"]["org_delete"])
 
-        perms = GroupPermWrapper(viewers)
+        perms = RolePermsWrapper(OrgRole.VIEWER)
 
         self.assertTrue(perms["msgs"]["msg_inbox"])
         self.assertFalse(perms["contacts"]["contact_update"])
@@ -3468,7 +3464,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         home_url = reverse("orgs.org_home")
 
-        with self.assertNumQueries(159):
+        with self.assertNumQueries(130):
             response = self.client.get(home_url)
 
         self.assertEqual(200, response.status_code)
@@ -3486,7 +3482,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # agents should only see tickets and settings
         self.login(self.agent)
 
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(40):
             response = self.client.get(menu_url)
 
         menu = response.json()["results"]
@@ -3511,7 +3507,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(121):
+        with self.assertNumQueries(97):
             response = self.client.get(reverse("orgs.org_workspace"))
 
         # make sure we have the appropriate number of sections

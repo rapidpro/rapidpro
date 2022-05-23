@@ -3,25 +3,19 @@ from collections import defaultdict
 from .models import get_stripe_credentials
 
 
-class GroupPermWrapper:
+class RolePermsWrapper:
     """
-    Provides access in templates to the permissions granted to an auth group.
+    Provides access in templates to the permissions granted to an org role.
     """
 
-    def __init__(self, group):
-        self.group = group
+    def __init__(self, role):
         self.empty = defaultdict(lambda: False)
-        self.apps = dict()
+        self.apps = defaultdict(lambda: defaultdict(lambda: False))
 
-        for perm in self.group.permissions.all().select_related("content_type"):
-            app_name = perm.content_type.app_label
-            app_perms = self.apps.get(app_name, None)
+        for perm in role.permissions:
+            (app_label, codename) = perm.split(".")
 
-            if not app_perms:
-                app_perms = defaultdict(lambda: False)
-                self.apps[app_name] = app_perms
-
-            app_perms[perm.codename] = True
+            self.apps[app_label][codename] = True
 
     def __getitem__(self, module_name):
         return self.apps.get(module_name, self.empty)
@@ -45,14 +39,14 @@ def user_group_perms_processor(request):
 
     if request.user.is_anonymous:
         org = None
-        group = None
+        role = None
     else:
         org = request.org
-        group = org.get_user_org_group(request.user) if org else None
+        role = org.get_user_role(request.user) if org else None
 
     context["user_org"] = org
-    if group:
-        context["org_perms"] = GroupPermWrapper(group)
+    if role:
+        context["org_perms"] = RolePermsWrapper(role)
 
     return context
 

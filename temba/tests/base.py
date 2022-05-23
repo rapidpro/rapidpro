@@ -757,10 +757,11 @@ class TembaTest(TembaTestMixin, SmartminTest):
     def setUp(self):
         self.setUpOrgs()
 
-        # OrgRole.group is a cached property so get that cached before test starts to avoid query count differences
-        # when a test is first to request it and when it's not.
+        # OrgRole.group and OrgRole.permissions are cached properties so get those cached before test starts to avoid
+        # query count differences when a test is first to request it and when it's not.
         for role in OrgRole:
             role.group  # noqa
+            role.permissions  # noqa
 
     def tearDown(self):
         clear_flow_users()
