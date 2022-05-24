@@ -1,3 +1,7 @@
+1.2.6-rapidpro-7.0.4
+----------
+ * HelpHero iframe event
+
 1.2.5-rapidpro-7.0.4
 ----------
  * Helphero integration
