@@ -16,5 +16,5 @@ class RefreshAPITokenView(OrgPermsMixin, SmartView, View):
     permission = "api.apitoken_refresh"
 
     def post(self, request, *args, **kwargs):
-        token = APIToken.get_or_create(request.user.get_org(), request.user, refresh=True)
-        return JsonResponse(dict(token=token.key))
+        token = APIToken.get_or_create(request.org, request.user, refresh=True)
+        return JsonResponse({"token": token.key})

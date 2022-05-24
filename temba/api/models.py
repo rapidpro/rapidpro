@@ -34,14 +34,11 @@ class APIPermission(BasePermission):
             org = request.user.get_org()
 
             if request.auth:
-                role_group = request.auth.role
-                allowed_roles = APIToken.get_allowed_roles(org, request.user)
-
                 # check that user is still allowed to use the token's role
-                if role_group not in allowed_roles:
+                if not request.auth.is_valid():
                     return False
 
-                role = OrgRole.from_group(role_group)
+                role = OrgRole.from_group(request.auth.role)
             elif org:
                 # user may not have used token authentication
                 role = org.get_user_role(request.user)
@@ -166,42 +163,43 @@ class WebHookEvent(models.Model):
 
 class APIToken(models.Model):
     """
-    Our API token, ties in orgs
+    An org+user+role specific access token for the API
     """
 
-    ROLE_GRANTED_TO = {
-        "Administrators": ("Administrators",),
-        "Editors": ("Administrators", "Editors"),
-        "Surveyors": ("Administrators", "Editors", "Surveyors"),
-        "Prometheus": ("Administrators",),
+    GROUP_GRANTED_TO = {
+        "Administrators": (OrgRole.ADMINISTRATOR,),
+        "Editors": (OrgRole.ADMINISTRATOR, OrgRole.EDITOR),
+        "Surveyors": (OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.SURVEYOR),
+        "Prometheus": (OrgRole.ADMINISTRATOR,),
     }
 
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="api_tokens")
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="api_tokens")
+    role = models.ForeignKey(Group, on_delete=models.PROTECT)
+    key = models.CharField(max_length=40, primary_key=True)
+    created = models.DateTimeField(default=timezone.now)
     is_active = models.BooleanField(default=True)
 
-    key = models.CharField(max_length=40, primary_key=True)
-
-    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="api_tokens")
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="api_tokens")
-
-    created = models.DateTimeField(auto_now_add=True)
-
-    role = models.ForeignKey(Group, on_delete=models.PROTECT)
-
     @classmethod
-    def get_or_create(cls, org, user, role=None, refresh=False):
+    def get_or_create(cls, org, user, *, role: OrgRole = None, prometheus: bool = False, refresh: bool = False):
         """
         Gets or creates an API token for this user
         """
-        if not role:
-            role = cls.get_default_role(org, user)
 
-        if not role:
+        assert not (role and prometheus), "can't specify both org role and prometheus = true"
+
+        if prometheus:
+            role_group = Group.objects.get(name="Prometheus")
+        else:
+            role = role or cls.get_default_role(org, user)
+            role_group = role.group if role else None
+
+        if not role_group:
             raise ValueError("User '%s' has no suitable role for API usage" % str(user))
-        elif role.name not in cls.ROLE_GRANTED_TO:
-            raise ValueError("Role %s is not valid for API usage" % role.name)
+        elif role_group.name not in cls.GROUP_GRANTED_TO:
+            raise ValueError("Role %s is not valid for API usage" % role_group.name)
 
-        tokens = cls.objects.filter(is_active=True, user=user, org=org, role=role)
+        tokens = cls.objects.filter(is_active=True, user=user, org=org, role=role_group)
 
         # if we are refreshing the token, clear existing ones
         if refresh and tokens:
@@ -210,20 +208,18 @@ class APIToken(models.Model):
             tokens = None
 
         if not tokens:
-            token = cls.objects.create(user=user, org=org, role=role)
+            return cls.objects.create(user=user, org=org, role=role_group)
         else:
-            token = tokens.first()
-
-        return token
+            return tokens.first()
 
     @classmethod
-    def get_orgs_for_role(cls, user, role):
+    def get_orgs_for_role(cls, user, role: OrgRole):
         """
         Gets all the orgs the user can access the API with the given role
         """
         user_query = Q()
-        for user_group in cls.ROLE_GRANTED_TO.get(role.name):
-            user_query |= Q(**{user_group.lower(): user})
+        for from_role in cls.GROUP_GRANTED_TO.get(role.group.name):
+            user_query |= Q(**{from_role.m2m_name: user})
 
         return Org.objects.filter(user_query)
 
@@ -232,34 +228,20 @@ class APIToken(models.Model):
         """
         Gets the default API role for the given user
         """
-        group = org.get_user_org_group(user)
+        role = org.get_user_role(user)
 
-        if not group or group.name not in cls.ROLE_GRANTED_TO:  # don't allow creating tokens for Viewers group etc
+        if not role or role.group.name not in cls.GROUP_GRANTED_TO:  # don't allow creating tokens for VIEWER role etc
             return None
 
-        return group
+        return role
 
-    @classmethod
-    def get_allowed_roles(cls, org, user):
+    def is_valid(self) -> bool:
         """
-        Gets all of the allowed API roles for the given user
+        A user's role in an org can change so this return whether this token is still valid.
         """
-        group = org.get_user_org_group(user)
-
-        if group:
-            role_names = []
-            for role_name, granted_to in cls.ROLE_GRANTED_TO.items():
-                if group.name in granted_to:
-                    role_names.append(role_name)
-
-            return Group.objects.filter(name__in=role_names)
-        else:
-            return []
-
-    @classmethod
-    def get_role_from_code(cls, code):
-        role = OrgRole.from_code(code)
-        return role.group if role else None
+        role = self.org.get_user_role(self.user)
+        roles_allowed_this_perm_group = self.GROUP_GRANTED_TO.get(self.role.name, ())
+        return role and role in roles_allowed_this_perm_group
 
     def save(self, *args, **kwargs):
         if not self.key:
@@ -272,7 +254,7 @@ class APIToken(models.Model):
 
     def release(self):
         self.is_active = False
-        self.save()
+        self.save(update_fields=("is_active",))
 
     def __str__(self):
         return self.key
