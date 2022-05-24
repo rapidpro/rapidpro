@@ -40,17 +40,18 @@ class APIPermission(BasePermission):
                 # check that user is still allowed to use the token's role
                 if role_group not in allowed_roles:
                     return False
+
+                role = OrgRole.from_group(role_group)
             elif org:
                 # user may not have used token authentication
-                role_group = org.get_user_org_group(request.user)
+                role = org.get_user_role(request.user)
             else:
                 return False
 
-            codename = view.permission.split(".")[-1]
-            has_perm = role_group.permissions.filter(codename=codename).exists()
+            has_perm = role.has_perm(view.permission)
 
             # viewers can only ever get from the API
-            if role_group.name == "Viewers":
+            if role == OrgRole.VIEWER:
                 return has_perm and request.method == "GET"
 
             return has_perm

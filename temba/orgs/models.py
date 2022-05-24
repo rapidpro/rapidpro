@@ -264,13 +264,11 @@ class User(AuthUser):
         if self.has_perm(permission):
             return True
 
-        org_group = org.get_user_org_group(self)
-        if not org_group:
+        role = org.get_user_role(self)
+        if not role:
             return False
 
-        (app_label, codename) = permission.split(".")
-
-        return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()
+        return role.has_perm(permission)
 
     @cached_property
     def settings(self):
@@ -368,6 +366,17 @@ class OrgRole(Enum):
         Gets the auth group which defines the permissions for this role
         """
         return Group.objects.get(name=self.group_name)
+
+    @cached_property
+    def permissions(self) -> set:
+        perms = self.group.permissions.select_related("content_type")
+        return {f"{p.content_type.app_label}.{p.codename}" for p in perms}
+
+    def has_perm(self, permission: str) -> bool:
+        """
+        Returns whether this role has the given permission
+        """
+        return permission in self.permissions
 
     def get_users(self, org):
         """
