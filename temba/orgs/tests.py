@@ -3464,7 +3464,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         home_url = reverse("orgs.org_home")
 
-        with self.assertNumQueries(130):
+        with self.assertNumQueries(125):
             response = self.client.get(home_url)
 
         self.assertEqual(200, response.status_code)
@@ -3507,7 +3507,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(97):
+        with self.assertNumQueries(88):
             response = self.client.get(reverse("orgs.org_workspace"))
 
         # make sure we have the appropriate number of sections

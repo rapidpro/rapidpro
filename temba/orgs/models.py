@@ -268,7 +268,7 @@ class User(AuthUser):
         if not role:
             return False
 
-        return permission in role.permissions
+        return role.has_perm(permission)
 
     @cached_property
     def settings(self):
@@ -368,9 +368,15 @@ class OrgRole(Enum):
         return Group.objects.get(name=self.group_name)
 
     @cached_property
-    def permissions(self):
+    def permissions(self) -> set:
         perms = self.group.permissions.select_related("content_type")
         return {f"{p.content_type.app_label}.{p.codename}" for p in perms}
+
+    def has_perm(self, permission: str) -> bool:
+        """
+        Returns whether this role has the given permission
+        """
+        return permission in self.permissions
 
     def get_users(self, org):
         """
