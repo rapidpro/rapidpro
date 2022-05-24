@@ -1,3 +1,10 @@
+v7.3.50
+----------
+ * Make Twitter channels beta only for now
+ * Use cached role permissions for permission checking and fix incorrect permissions on some 
+API views
+ * Move remaining mockey patched methods on auth.User to orgs.User
+
 v7.3.49
 ----------
  * Timings in export stats spreadsheet should be rounded to nearest second
