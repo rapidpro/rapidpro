@@ -520,6 +520,17 @@
 
           HelpHero.anonymous();
 
+          HelpHero.on('tour_completed', function(event, info) {
+            // Weni Flows Guide Tour Identifier
+            if (info.tour.id === 'PBw8f8pZc2') {
+              // Start Integrations Menu selection Tour at Dash
+              window.parent.postMessage({ 
+                  event: 'startHelpHeroTour',
+                  tourId: 'huNqgL9PTP'
+              }, '*');
+            }
+          })
+
         {% endif %}
 
         function announcementCollapse() {
