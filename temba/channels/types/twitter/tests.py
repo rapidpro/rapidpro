@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from twython import TwythonError
 
+from django.contrib.auth.models import Group
 from django.urls import reverse
 
 from temba.contacts.models import URN, Contact
@@ -46,6 +47,8 @@ class TwitterTypeTest(TembaTest):
     ):
         mock_get_webhooks.return_value = [{"id": "webhook_id"}]
         mock_delete_webhook.return_value = {"ok", True}
+
+        Group.objects.get(name="Beta").user_set.add(self.admin)
 
         url = reverse("channels.types.twitter.claim")
         self.login(self.admin)
