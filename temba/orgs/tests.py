@@ -1470,8 +1470,8 @@ class OrgTest(TembaTest):
         APIToken.get_or_create(self.org, self.admin)
         APIToken.get_or_create(self.org, self.editor)
         APIToken.get_or_create(self.org, self.surveyor)
-        APIToken.get_or_create(self.org, self.admin, role=Group.objects.get(name="Surveyors"))
-        APIToken.get_or_create(self.org, self.editor, role=Group.objects.get(name="Surveyors"))
+        APIToken.get_or_create(self.org, self.admin, role=OrgRole.SURVEYOR)
+        APIToken.get_or_create(self.org, self.editor, role=OrgRole.SURVEYOR)
 
         actual_fields = response.context["form"].fields
         expected_fields = ["loc", "invite_emails", "invite_role"]

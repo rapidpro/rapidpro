@@ -2309,9 +2309,9 @@ class OrgCRUDL(SmartCRUDL):
                     org.add_user(user, new_role)
 
                 # when a user's role changes, delete any API tokens they're no longer allowed to have
-                api_roles = APIToken.get_allowed_roles(org, user)
-                for token in APIToken.objects.filter(org=org, user=user).exclude(role__in=api_roles):
-                    token.release()
+                for token in APIToken.objects.filter(org=org, user=user):
+                    if not token.is_valid():
+                        token.release()
 
             return obj
 
@@ -2875,9 +2875,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 org.surveyors.add(user)
 
-                surveyors_group = Group.objects.get(name="Surveyors")
-                token = APIToken.get_or_create(org, user, role=surveyors_group)
-
+                token = APIToken.get_or_create(org, user, role=OrgRole.SURVEYOR)
                 org_name = quote(org.name)
 
                 return HttpResponseRedirect(
@@ -3085,32 +3083,26 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ""
 
         def post_save(self, obj):
-            group = Group.objects.get(name="Prometheus")
-            user = self.request.user
-            org = user.get_org()
-
-            # look up to see if there is a prometheus token on this org
-            token = APIToken.objects.filter(is_active=True, org=org, role=group)
-
-            # if our org has a token, disable it
-            if token:
-                token.update(is_active=False)
-
-            # otherwise, create a new token (it is created for user but shared for org)
+            # if org has an existing Prometheus token, disable it, otherwise create one
+            org = self.request.org
+            existing = self.get_token(org)
+            if existing:
+                existing.release()
             else:
-                APIToken.get_or_create(org, user, group)
+                APIToken.get_or_create(self.request.org, self.request.user, prometheus=True)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-
-            user = self.request.user
-            org = user.get_org()
-            token = APIToken.objects.filter(is_active=True, org=org, role=Group.objects.get(name="Prometheus")).first()
+            org = self.request.org
+            token = self.get_token(org)
             if token:
                 context["prometheus_token"] = token.key
                 context["prometheus_url"] = f"https://{org.get_branding()['domain']}/mr/org/{org.uuid}/metrics"
 
             return context
+
+        def get_token(self, org):
+            return APIToken.objects.filter(is_active=True, org=org, role=Group.objects.get(name="Prometheus")).first()
 
     class Workspace(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Workspace")

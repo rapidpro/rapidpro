@@ -32,7 +32,7 @@ from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
-from temba.orgs.models import Org, User
+from temba.orgs.models import Org, OrgRole, User
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
@@ -387,10 +387,10 @@ class APITest(TembaTest):
         campaigns_url = reverse("api.v2.campaigns")
         fields_url = reverse("api.v2.fields")
 
-        token1 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Administrators"))
-        token2 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Surveyors"))
-        token3 = APIToken.get_or_create(self.org, self.editor, Group.objects.get(name="Editors"))
-        token4 = APIToken.get_or_create(self.org, self.customer_support, Group.objects.get(name="Administrators"))
+        token1 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.ADMINISTRATOR)
+        token2 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.SURVEYOR)
+        token3 = APIToken.get_or_create(self.org, self.editor, role=OrgRole.EDITOR)
+        token4 = APIToken.get_or_create(self.org, self.customer_support, role=OrgRole.ADMINISTRATOR)
 
         # can request fields endpoint using all 3 methods
         response = request_by_token(fields_url, token1.key)

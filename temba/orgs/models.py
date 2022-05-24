@@ -1165,13 +1165,6 @@ class Org(SmartModel):
 
         return None
 
-    def get_user_org_group(self, user: User):
-        role = self.get_user_role(user)
-
-        user._org_group = role.group if role else None
-
-        return user._org_group
-
     def has_twilio_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="T")
 
