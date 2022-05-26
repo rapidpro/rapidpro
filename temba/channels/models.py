@@ -559,20 +559,19 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         )
 
     @classmethod
-    def add_vonage_bulk_sender(cls, user, channel):
+    def add_vonage_bulk_sender(cls, org, user, channel):
         # vonage ships numbers around as E164 without the leading +
         parsed = phonenumbers.parse(channel.address, None)
         vonage_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip("+")
 
-        org = user.get_org()
         config = {
             Channel.CONFIG_VONAGE_API_KEY: org.config[Org.CONFIG_VONAGE_KEY],
             Channel.CONFIG_VONAGE_API_SECRET: org.config[Org.CONFIG_VONAGE_SECRET],
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 
-        return Channel.create(
-            user.get_org(),
+        return cls.create(
+            org,
             user,
             channel.country,
             "NX",

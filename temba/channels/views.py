@@ -69,12 +69,10 @@ def get_channel_read_url(channel):
 def channel_status_processor(request):
     status = dict()
     user = request.user
+    org = request.org
 
     if user.is_superuser or user.is_anonymous:
         return status
-
-    # from the logged in user get the channel
-    org = user.get_org()
 
     allowed = False
     if org:
@@ -1299,9 +1297,9 @@ class ChannelCRUDL(SmartCRUDL):
             connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
             channel = forms.IntegerField(widget=forms.HiddenInput, required=False)
 
-            def __init__(self, *args, **kwargs):
-                self.org = kwargs["org"]
-                del kwargs["org"]
+            def __init__(self, org, *args, **kwargs):
+                self.org = org
+
                 super().__init__(*args, **kwargs)
 
             def clean_connection(self):
@@ -1322,14 +1320,12 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self, *args, **kwargs):
             form_kwargs = super().get_form_kwargs(*args, **kwargs)
-            form_kwargs["org"] = Org.objects.get(pk=self.request.user.get_org().pk)
+            form_kwargs["org"] = self.request.org
             return form_kwargs
 
         def form_valid(self, form):
-            user = self.request.user
-
             channel = form.cleaned_data["channel"]
-            Channel.add_vonage_bulk_sender(user, channel)
+            Channel.add_vonage_bulk_sender(self.request.org, self.request.user, channel)
             return super().form_valid(form)
 
         def form_invalid(self, form):

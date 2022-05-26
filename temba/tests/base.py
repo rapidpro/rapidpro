@@ -71,22 +71,11 @@ class TembaTestMixin:
             modified_by=self.user,
         )
         self.org.initialize(topup_size=1000)
-
-        # add users to the org
-        self.user.set_org(self.org)
-        self.org.viewers.add(self.user)
-
-        self.editor.set_org(self.org)
-        self.org.editors.add(self.editor)
-
-        self.admin.set_org(self.org)
-        self.org.administrators.add(self.admin)
-
-        self.agent.set_org(self.org)
-        self.org.agents.add(self.agent)
-
-        self.surveyor.set_org(self.org)
-        self.org.surveyors.add(self.surveyor)
+        self.org.add_user(self.admin, OrgRole.ADMINISTRATOR)
+        self.org.add_user(self.editor, OrgRole.EDITOR)
+        self.org.add_user(self.user, OrgRole.VIEWER)
+        self.org.add_user(self.agent, OrgRole.AGENT)
+        self.org.add_user(self.surveyor, OrgRole.SURVEYOR)
 
         # setup a second org with a single admin
         self.admin2 = self.create_user("administrator@trileet.com")
@@ -98,11 +87,7 @@ class TembaTestMixin:
             modified_by=self.admin2,
         )
         self.org2.initialize(topup_size=1000)
-
-        self.org2.administrators.add(self.admin2)
-        self.admin2.set_org(self.org)
-
-        self.superuser.set_org(self.org)
+        self.org2.add_user(self.admin2, OrgRole.ADMINISTRATOR)
 
         # a single Android channel
         self.channel = Channel.create(
