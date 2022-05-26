@@ -25,10 +25,10 @@ from .models import (
     MineFolder,
     Ticket,
     TicketCount,
-    TicketDailyCount,
     Ticketer,
     TicketFolder,
     UnassignedFolder,
+    export_ticket_stats,
 )
 
 
@@ -388,7 +388,7 @@ class TicketCRUDL(SmartCRUDL):
         def render_to_response(self, context, **response_kwargs):
             num_days = self.request.GET.get("days", 90)
             today = timezone.now().date()
-            workbook = TicketDailyCount.export_summary(
+            workbook = export_ticket_stats(
                 self.request.org, today - timedelta(days=num_days), today + timedelta(days=1)
             )
 

@@ -325,13 +325,13 @@ class AuthenticateView(SmartFormView):
         if user and user.is_active:
             login(self.request, user)
 
-            role = APIToken.get_role_from_code(role_code)
+            role = OrgRole.from_code(role_code)
             tokens = []
 
             if role:
                 valid_orgs = APIToken.get_orgs_for_role(user, role)
                 for org in valid_orgs:
-                    token = APIToken.get_or_create(org, user, role)
+                    token = APIToken.get_or_create(org, user, role=role)
                     serialized = {"uuid": str(org.uuid), "name": org.name, "id": org.id}  # for backward compatibility
                     tokens.append({"org": serialized, "token": token.key})
             else:  # pragma: needs cover
@@ -2341,7 +2341,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     You will receive either a 204 response if a label was deleted, or a 404 response if no matching label was found.
     """
 
-    permission = "contacts.label_api"
+    permission = "msgs.label_api"
     model = Label
     serializer_class = LabelReadSerializer
     write_serializer_class = LabelWriteSerializer
@@ -3239,7 +3239,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     """
 
-    permission = "api.flowstart_api"
+    permission = "flows.flowstart_api"
     model = FlowStart
     serializer_class = FlowStartReadSerializer
     write_serializer_class = FlowStartWriteSerializer

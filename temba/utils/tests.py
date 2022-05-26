@@ -28,7 +28,7 @@ from temba.utils import json, uuid
 from temba.utils.templatetags.temba import format_datetime, icon
 
 from . import chunk_list, countries, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
-from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
+from .cache import get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
@@ -512,14 +512,6 @@ class CacheTest(TembaTest):
         with self.assertNumQueries(0):
             self.assertEqual(get_cacheable_result("test_contact_count", calculate), 2)  # from cache
 
-    def test_get_cacheable_attr(self):
-        def calculate():
-            return "CALCULATED"
-
-        self.assertEqual(get_cacheable_attr(self, "_test_value", calculate), "CALCULATED")
-        self._test_value = "CACHED"
-        self.assertEqual(get_cacheable_attr(self, "_test_value", calculate), "CACHED")
-
     def test_incrby_existing(self):
         r = get_redis_connection()
         r.setex("foo", 100, 10)
@@ -866,9 +858,8 @@ class MiddlewareTest(TembaTest):
         # if we have an authenticated user, their setting takes priority
         self.login(self.admin)
 
-        user_settings = self.admin.get_settings()
-        user_settings.language = "fr"
-        user_settings.save(update_fields=("language",))
+        self.admin.settings.language = "fr"
+        self.admin.settings.save(update_fields=("language",))
 
         assert_text("Créez visuellement des applications mobiles")
 

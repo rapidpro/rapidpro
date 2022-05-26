@@ -110,9 +110,6 @@ class ChannelTest(TembaTest):
         raise Exception("Did not find '%s' cmd in response: '%s'" % (cmd_name, response.content))
 
     def test_channel_read_with_customer_support(self):
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
@@ -2100,9 +2097,6 @@ class ChannelLogTest(TembaTest):
             # admin has no access
             self.assertLoginRedirect(response)
 
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         with AnonymousOrg(self.org):
@@ -2162,9 +2156,6 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=9)
 
         # login as customer support, must see URNs
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
@@ -2217,9 +2208,6 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=4)
 
         # login as customer support, must see URNs
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
@@ -2269,9 +2257,6 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=4)
 
         # login as customer support, must see URNs
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         response = self.client.get(read_url)
@@ -2332,9 +2317,6 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=14)
 
         # login as customer support, must see URNs
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
@@ -2388,9 +2370,6 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=4)
 
         # login as customer support, must see URNs
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         response = self.client.get(read_url)
@@ -2452,9 +2431,6 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=4)
 
         # login as customer support, must see URNs
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
@@ -2520,9 +2496,6 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=4)
 
         # login as customer support, must see URNs
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         response = self.client.get(read_url)
@@ -2590,9 +2563,6 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=5)
 
         # login as customer support, must see URNs
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])

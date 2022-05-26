@@ -2471,14 +2471,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(
             [
                 {
-                    "user": {"email": "Administrator@nyaruka.com", "name": ""},
+                    "user": {"email": "admin@nyaruka.com", "name": "Andy"},
                     "created_on": matchers.ISODate(),
                     "id": revisions[0].id,
                     "version": "13.1.0",
                     "revision": 2,
                 },
                 {
-                    "user": {"email": "Administrator@nyaruka.com", "name": ""},
+                    "user": {"email": "admin@nyaruka.com", "name": "Andy"},
                     "created_on": matchers.ISODate(),
                     "id": revisions[1].id,
                     "version": "11.12",
@@ -3956,7 +3956,7 @@ class ExportFlowResultsTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
-                with self.assertNumQueries(45):
+                with self.assertNumQueries(43):
                     workbook = self._export(flow, group_memberships=[devs])
 
                 self.assertEqual(len(captured_logger.output), 3)
@@ -4092,7 +4092,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(41):
             workbook = self._export(flow, responded_only=True, group_memberships=(devs,))
 
         tz = self.org.timezone
@@ -4158,7 +4158,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(45):
+        with self.assertNumQueries(43):
             workbook = self._export(
                 flow,
                 responded_only=True,
@@ -4333,7 +4333,7 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(53):
+        with self.assertNumQueries(54):
             workbook = self._export(flow)
 
         tz = self.org.timezone
@@ -4420,7 +4420,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(36):
+        with self.assertNumQueries(34):
             workbook = self._export(flow, responded_only=True, has_results=False)
 
         (sheet_runs,) = workbook.worksheets
@@ -4969,7 +4969,7 @@ class ExportFlowResultsTest(TembaTest):
             sheet_runs,
             1,
             [
-                "Administrator",
+                "admin@nyaruka.com",
                 run.contact.uuid,
                 "+250788382382",
                 "Eric",
@@ -5161,7 +5161,7 @@ class SimulationTest(TembaTest):
                             "default_country": "RW",
                             "redaction_policy": "none",
                         },
-                        "user": {"email": "Administrator@nyaruka.com", "name": ""},
+                        "user": {"email": "admin@nyaruka.com", "name": "Andy"},
                     },
                     json.loads(mock_post.call_args[1]["data"])["trigger"],
                 )
@@ -5255,7 +5255,7 @@ class FlowSessionCRUDLTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         response_json = json.loads(response.content)
-        self.assertEqual("Temba", response_json["_metadata"]["org"])
+        self.assertEqual("Nyaruka", response_json["_metadata"]["org"])
         self.assertEqual(session.uuid, response_json["uuid"])
 
         # now try with an s3 session
@@ -5271,7 +5271,7 @@ class FlowSessionCRUDLTest(TembaTest):
         with patch("temba.utils.s3.s3.client", return_value=mock_s3):
             response = self.client.get(url)
             self.assertEqual(200, response.status_code)
-            self.assertEqual("Temba", response_json["_metadata"]["org"])
+            self.assertEqual("Nyaruka", response_json["_metadata"]["org"])
             self.assertEqual(session.uuid, response_json["uuid"])
 
 
@@ -5296,7 +5296,7 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
             list_url, allow_viewers=True, allow_editors=True, context_objects=[start3, start2, start1]
         )
 
-        self.assertContains(response, "was started by Administrator for")
+        self.assertContains(response, "was started by admin@nyaruka.com for")
         self.assertContains(response, "was started by an API call for")
         self.assertContains(response, "was started by Zapier for")
         self.assertContains(response, "all contacts")

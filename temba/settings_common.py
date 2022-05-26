@@ -541,8 +541,6 @@ GROUP_PERMISSIONS = {
     ),
     "Granters": ("orgs.org_grant",),
     "Customer Support": (
-        "auth.user_list",
-        "auth.user_update",
         "apks.apk_create",
         "apks.apk_list",
         "apks.apk_update",
@@ -567,6 +565,8 @@ GROUP_PERMISSIONS = {
         "orgs.topup_create",
         "orgs.topup_manage",
         "orgs.topup_update",
+        "orgs.user_list",
+        "orgs.user_update",
         "policies.policy_create",
         "policies.policy_update",
         "policies.policy_admin",
@@ -943,7 +943,7 @@ LOGOUT_URL = "/users/logout/"
 LOGIN_REDIRECT_URL = "/org/choose/"
 LOGOUT_REDIRECT_URL = "/"
 
-AUTHENTICATION_BACKENDS = ("smartmin.backends.CaseInsensitiveBackend",)
+AUTHENTICATION_BACKENDS = ("temba.orgs.backend.AuthenticationBackend",)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},

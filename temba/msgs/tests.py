@@ -402,7 +402,7 @@ class MsgTest(TembaTest):
             return load_workbook(filename=filename)
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(31):
+        with self.assertNumQueries(30):
             with patch("temba.utils.s3.client", return_value=mock_s3):
                 workbook = request_export("?l=I", {"export_all": 1})
 
@@ -894,7 +894,7 @@ class MsgTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 5
 
-                with self.assertNumQueries(31):
+                with self.assertNumQueries(30):
                     self.assertExcelSheet(
                         request_export("?l=I", {"export_all": 1}),
                         [
@@ -1408,7 +1408,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(36):
+        with self.assertNumQueries(32):
             self.client.get(inbox_url)
 
         response = self.assertListFetch(
@@ -1511,7 +1511,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(36):
+        with self.assertNumQueries(32):
             self.client.get(archived_url)
 
         response = self.assertListFetch(
@@ -1554,7 +1554,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(35):
             self.client.get(outbox_url)
 
         # messages sorted by created_on
@@ -1616,7 +1616,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(37):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
@@ -1643,7 +1643,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(36):
             self.client.get(failed_url)
 
         response = self.assertListFetch(
