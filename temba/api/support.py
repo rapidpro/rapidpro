@@ -90,7 +90,7 @@ class OrgUserRateThrottle(ScopedRateThrottle):
     def get_org_rate(self, request):
         default_rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
         org_rates = {}
-        if request.user.using_token:
+        if request.user.is_authenticated and request.user.using_token:
             org = request.user.get_org()
             org_rates = org.api_rates
         return {**default_rates, **org_rates}.get(self.scope)
