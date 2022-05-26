@@ -39,6 +39,10 @@ class WhatsAppCloudType(ChannelType):
     max_length = 4096
     attachment_support = True
 
+    def is_available_to(self, user):
+        return False, False
+
+
     def get_urls(self):
         return [
             self.get_claim_url(),
