@@ -826,7 +826,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "ZVS")
 
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "WA")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "WAC")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "D3")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][3].code, "ZVW")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][4].code, "TWA")
