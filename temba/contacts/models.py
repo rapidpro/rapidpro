@@ -209,7 +209,7 @@ class URN:
 
         # validate Viber URNS look right (this is a guess)
         elif scheme == cls.VIBER_SCHEME:  # pragma: needs cover
-            return regex.match(r"^[a-zA-Z0-9_=]{1,24}$", path, regex.V0)
+            return regex.match(r"^[a-zA-Z0-9_=+/]{1,24}$", path, regex.V0)
 
         # validate Freshchat URNS look right (this is a guess)
         elif scheme == cls.FRESHCHAT_SCHEME:  # pragma: needs cover
