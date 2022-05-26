@@ -509,12 +509,12 @@ PERMISSIONS = {
         "update",
     ),
     "msgs.broadcast": ("api", "detail", "schedule", "schedule_list", "schedule_read", "send"),
-    "msgs.label": ("api", "create_folder", "delete_folder"),
+    "msgs.label": ("api", "delete_folder"),
     "orgs.topup": ("manage",),
     "policies.policy": ("admin", "history", "give_consent"),
     "request_logs.httplog": ("webhooks", "classifier", "ticketer"),
     "templates.template": ("api",),
-    "tickets.ticket": ("api", "assign", "assignee", "menu", "note"),
+    "tickets.ticket": ("api", "assign", "assignee", "menu", "note", "export_stats"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "tickets.topic": ("api",),
     "triggers.trigger": ("archived", "type", "menu"),
@@ -540,8 +540,6 @@ GROUP_PERMISSIONS = {
     ),
     "Granters": ("orgs.org_grant",),
     "Customer Support": (
-        "auth.user_list",
-        "auth.user_update",
         "apks.apk_create",
         "apks.apk_list",
         "apks.apk_update",
@@ -566,6 +564,8 @@ GROUP_PERMISSIONS = {
         "orgs.topup_create",
         "orgs.topup_manage",
         "orgs.topup_update",
+        "orgs.user_list",
+        "orgs.user_update",
         "policies.policy_create",
         "policies.policy_update",
         "policies.policy_admin",
@@ -941,7 +941,7 @@ LOGOUT_URL = "/users/logout/"
 LOGIN_REDIRECT_URL = "/org/choose/"
 LOGOUT_REDIRECT_URL = "/"
 
-AUTHENTICATION_BACKENDS = ("smartmin.backends.CaseInsensitiveBackend",)
+AUTHENTICATION_BACKENDS = ("temba.orgs.backend.AuthenticationBackend",)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},

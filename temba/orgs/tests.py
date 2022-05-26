@@ -13,7 +13,7 @@ from dateutil.relativedelta import relativedelta
 from smartmin.users.models import FailedLogin, RecoveryToken
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.test.utils import override_settings
@@ -65,8 +65,8 @@ from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import json, languages
 
-from .context_processors import GroupPermWrapper
-from .models import CreditAlert, Invitation, Org, OrgRole, TopUp, TopUpCredits
+from .context_processors import RolePermsWrapper
+from .models import CreditAlert, Invitation, Org, OrgRole, TopUp, TopUpCredits, User
 from .tasks import delete_orgs_task, resume_failed_tasks, squash_topupcredits
 
 
@@ -86,11 +86,7 @@ class OrgRoleTest(TembaTest):
 
 class OrgContextProcessorTest(TembaTest):
     def test_group_perms_wrapper(self):
-        administrators = Group.objects.get(name="Administrators")
-        editors = Group.objects.get(name="Editors")
-        viewers = Group.objects.get(name="Viewers")
-
-        perms = GroupPermWrapper(administrators)
+        perms = RolePermsWrapper(OrgRole.ADMINISTRATOR)
 
         self.assertTrue(perms["msgs"]["msg_inbox"])
         self.assertTrue(perms["contacts"]["contact_update"])
@@ -98,14 +94,14 @@ class OrgContextProcessorTest(TembaTest):
         self.assertTrue(perms["orgs"]["org_manage_accounts"])
         self.assertFalse(perms["orgs"]["org_delete"])
 
-        perms = GroupPermWrapper(editors)
+        perms = RolePermsWrapper(OrgRole.EDITOR)
 
         self.assertTrue(perms["msgs"]["msg_inbox"])
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertFalse(perms["orgs"]["org_manage_accounts"])
         self.assertFalse(perms["orgs"]["org_delete"])
 
-        perms = GroupPermWrapper(viewers)
+        perms = RolePermsWrapper(OrgRole.VIEWER)
 
         self.assertTrue(perms["msgs"]["msg_inbox"])
         self.assertFalse(perms["contacts"]["contact_update"])
@@ -125,9 +121,10 @@ class UserTest(TembaTest):
             username="jim@rapidpro.io", email="jim@rapidpro.io", password="super", first_name="Jim", last_name="McFlow"
         )
 
-        self.assertFalse(user.is_beta())
-        self.assertFalse(user.is_support())
         self.assertEqual("Jim McFlow", user.name)
+        self.assertFalse(user.is_alpha)
+        self.assertFalse(user.is_beta)
+        self.assertFalse(user.is_support)
         self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim McFlow"}, user.as_engine_ref())
 
         user.last_name = ""
@@ -136,13 +133,94 @@ class UserTest(TembaTest):
         self.assertEqual("Jim", user.name)
         self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim"}, user.as_engine_ref())
 
+    def test_has_org_perm(self):
+        self.customer_support.is_staff = True
+        self.customer_support.save(update_fields=("is_staff",))
+
+        tests = (
+            (
+                self.org,
+                "contacts.contact_list",
+                {
+                    self.agent: False,
+                    self.user: True,
+                    self.admin: True,
+                    self.admin2: False,
+                    self.customer_support: True,
+                },
+            ),
+            (
+                self.org2,
+                "contacts.contact_list",
+                {
+                    self.agent: False,
+                    self.user: False,
+                    self.admin: False,
+                    self.admin2: True,
+                    self.customer_support: True,
+                },
+            ),
+            (
+                self.org,
+                "orgs.org_edit",
+                {
+                    self.agent: False,
+                    self.user: False,
+                    self.admin: True,
+                    self.admin2: False,
+                    self.customer_support: True,
+                },
+            ),
+            (
+                self.org2,
+                "orgs.org_edit",
+                {
+                    self.agent: False,
+                    self.user: False,
+                    self.admin: False,
+                    self.admin2: True,
+                    self.customer_support: True,
+                },
+            ),
+            (
+                self.org,
+                "apks.apk_create",
+                {
+                    self.agent: False,
+                    self.user: False,
+                    self.admin: False,
+                    self.admin2: False,
+                    self.customer_support: True,
+                },
+            ),
+            (
+                self.org,
+                "xxx.yyy_zzz",
+                {
+                    self.agent: False,
+                    self.user: False,
+                    self.admin: False,
+                    self.admin2: False,
+                    self.customer_support: False,
+                },
+            ),
+        )
+        for (org, perm, checks) in tests:
+            self.assertTrue(self.superuser.has_org_perm(org, perm))
+
+            for user, has_perm in checks.items():
+                self.assertEqual(
+                    has_perm,
+                    user.has_org_perm(org, perm),
+                    f"expected {user} to{'' if has_perm else ' not'} have perm {perm} in org {org.name}",
+                )
+
     def test_login(self):
         login_url = reverse("users.user_login")
         verify_url = reverse("users.two_factor_verify")
         backup_url = reverse("users.two_factor_backup")
 
-        user_settings = self.admin.get_settings()
-        self.assertIsNone(user_settings.last_auth_on)
+        self.assertIsNone(self.admin.settings.last_auth_on)
 
         # try to access a non-public page
         response = self.client.get(reverse("msgs.msg_inbox"))
@@ -164,11 +242,11 @@ class UserTest(TembaTest):
         )
 
         # submit correct username and password
-        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"})
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
-        user_settings = self.admin.get_settings()
-        self.assertIsNotNone(user_settings.last_auth_on)
+        del self.admin.settings  # clear cached_property
+        self.assertIsNotNone(self.admin.settings.last_auth_on)
 
         # logout and enable 2FA
         self.client.logout()
@@ -180,7 +258,7 @@ class UserTest(TembaTest):
 
         # login via login page again
         response = self.client.post(
-            login_url + "?next=/msg/inbox/", {"username": "Administrator", "password": "Administrator"}
+            login_url + "?next=/msg/inbox/", {"username": "admin@nyaruka.com", "password": "Qwerty123"}
         )
         self.assertRedirect(response, verify_url)
         self.assertTrue(response.url.endswith("?next=/msg/inbox/"))
@@ -203,7 +281,7 @@ class UserTest(TembaTest):
         self.client.logout()
 
         # login via login page again
-        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"})
         self.assertRedirect(response, verify_url)
 
         # but this time we've lost our phone so go to the page for backup tokens
@@ -229,9 +307,9 @@ class UserTest(TembaTest):
         failed_url = reverse("users.user_failed")
 
         # submit incorrect username and password 3 times
-        self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
-        self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
-        response = self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+        self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
+        self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
+        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
 
         self.assertRedirect(response, failed_url)
         self.assertRedirect(self.client.get(reverse("msgs.msg_inbox")), login_url)
@@ -240,7 +318,7 @@ class UserTest(TembaTest):
         FailedLogin.objects.all().update(failed_on=timezone.now() - timedelta(minutes=3))
 
         # now we're allowed to make failed logins again
-        response = self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
         self.assertFormError(
             response,
             "form",
@@ -249,7 +327,7 @@ class UserTest(TembaTest):
         )
 
         # and successful logins
-        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"})
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
         # try again with 2FA enabled
@@ -257,16 +335,16 @@ class UserTest(TembaTest):
         self.admin.enable_2fa()
 
         # submit incorrect username and password 3 times
-        self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
-        self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
-        response = self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+        self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
+        self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
+        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
 
         self.assertRedirect(response, failed_url)
         self.assertRedirect(self.client.get(reverse("msgs.msg_inbox")), login_url)
 
         # login correctly
         FailedLogin.objects.all().delete()
-        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"})
         self.assertRedirect(response, verify_url)
 
         # now enter a backup token 3 times incorrectly
@@ -286,7 +364,7 @@ class UserTest(TembaTest):
         response = self.client.post(backup_url, {"token": "nope"})
         self.assertRedirect(response, login_url)
 
-        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"})
         self.assertRedirect(response, verify_url)
 
         response = self.client.post(backup_url, {"token": self.admin.backup_tokens.first()})
@@ -298,11 +376,11 @@ class UserTest(TembaTest):
         self.assertEqual(1, len(response.context["formax"].sections))
 
     def test_two_factor(self):
-        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+        self.assertFalse(self.admin.settings.two_factor_enabled)
 
         self.admin.enable_2fa()
 
-        self.assertTrue(self.admin.get_settings().two_factor_enabled)
+        self.assertTrue(self.admin.settings.two_factor_enabled)
         self.assertEqual(10, len(self.admin.backup_tokens.filter(is_used=False)))
 
         # try to verify with.. nothing
@@ -329,7 +407,7 @@ class UserTest(TembaTest):
 
         self.admin.disable_2fa()
 
-        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+        self.assertFalse(self.admin.settings.two_factor_enabled)
 
     def test_two_factor_spa(self):
         enable_url = reverse("orgs.user_two_factor_enable")
@@ -338,7 +416,7 @@ class UserTest(TembaTest):
 
         # submit with valid OTP and password
         with patch("pyotp.TOTP.verify", return_value=True):
-            response = self.client.post(enable_url, {"otp": "123456", "password": "Administrator"})
+            response = self.client.post(enable_url, {"otp": "123456", "password": "Qwerty123"})
 
         header = {"HTTP_TEMBA_SPA": 1}
         response = self.client.get(tokens_url, **header)
@@ -373,9 +451,9 @@ class UserTest(TembaTest):
 
         # submit with valid OTP and password
         with patch("pyotp.TOTP.verify", return_value=True):
-            response = self.client.post(enable_url, {"otp": "123456", "password": "Administrator"})
+            response = self.client.post(enable_url, {"otp": "123456", "password": "Qwerty123"})
         self.assertRedirect(response, tokens_url)
-        self.assertTrue(self.admin.get_settings().two_factor_enabled)
+        self.assertTrue(self.admin.settings.two_factor_enabled)
 
         # org home page now tells us 2FA is enabled, links to page manage tokens
         response = self.client.get(reverse("orgs.org_home"))
@@ -406,9 +484,11 @@ class UserTest(TembaTest):
         self.assertFormError(response, "form", "password", "Password incorrect.")
 
         # submit with valid password
-        response = self.client.post(disable_url, {"password": "Administrator"})
+        response = self.client.post(disable_url, {"password": "Qwerty123"})
         self.assertRedirect(response, reverse("orgs.org_home"))
-        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+
+        del self.admin.settings  # clear cached_property
+        self.assertFalse(self.admin.settings.two_factor_enabled)
 
         # trying to view the tokens page now takes us to the enable form
         response = self.client.get(tokens_url)
@@ -423,7 +503,7 @@ class UserTest(TembaTest):
 
         # simulate a login for a 2FA user 10 minutes ago
         with patch("django.utils.timezone.now", return_value=timezone.now() - timedelta(minutes=10)):
-            response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+            response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"})
             self.assertRedirect(response, verify_url)
 
             response = self.client.get(verify_url)
@@ -463,7 +543,7 @@ class UserTest(TembaTest):
         self.assertFormError(response, "form", "password", "Password incorrect.")
 
         # submit with real password
-        response = self.client.post(confirm_url, {"password": "Administrator"})
+        response = self.client.post(confirm_url, {"password": "Qwerty123"})
         self.assertRedirect(response, tokens_url)
 
         response = self.client.get(tokens_url)
@@ -493,7 +573,7 @@ class UserTest(TembaTest):
         self.assertRedirect(response, failed_url)
 
         # even correct password now redirects to failed page
-        response = self.client.post(confirm_url, {"password": "Administrator"})
+        response = self.client.post(confirm_url, {"password": "Qwerty123"})
         self.assertRedirect(response, failed_url)
 
         FailedLogin.objects.all().delete()
@@ -503,7 +583,7 @@ class UserTest(TembaTest):
         self.assertFormError(response, "form", "password", "Password incorrect.")
 
         # and also correct ones
-        response = self.client.post(confirm_url, {"password": "Administrator"})
+        response = self.client.post(confirm_url, {"password": "Qwerty123"})
         self.assertRedirect(response, "/msg/inbox/")
 
     def test_ui_permissions(self):
@@ -545,7 +625,7 @@ class UserTest(TembaTest):
         # our user with lots of orgs should get ellipsized
         self.assertContains(response, ", ...")
 
-        response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), dict(delete=True))
+        response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), {"delete": True})
         self.assertEqual(302, response.status_code)
 
         self.editor.refresh_from_db()
@@ -569,18 +649,18 @@ class UserTest(TembaTest):
         # our admin should still be good
         self.admin.refresh_from_db()
         self.assertTrue(self.admin.is_active)
-        self.assertEqual("Administrator@nyaruka.com", self.admin.email)
+        self.assertEqual("admin@nyaruka.com", self.admin.email)
 
         # but she should be removed from org
-        self.assertFalse(self.admin.get_user_orgs(settings.DEFAULT_BRAND).exists())
+        self.assertFalse(self.admin.get_orgs(brands=[settings.DEFAULT_BRAND]).exists())
 
         # now lets release her from the branded org
         self.admin.release(self.superuser, brand="some-other-brand.com")
 
         # now she gets deactivated and ambiguated and belongs to no orgs
         self.assertFalse(self.admin.is_active)
-        self.assertNotEqual("Administrator@nyaruka.com", self.admin.email)
-        self.assertFalse(self.admin.get_user_orgs().exists())
+        self.assertNotEqual("admin@nyaruka.com", self.admin.email)
+        self.assertFalse(self.admin.get_orgs().exists())
 
     def test_brand_aliases(self):
         # set our brand to our custom org
@@ -924,7 +1004,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
                 self.assertFalse(WebHookEvent.objects.filter(org=org).exists())
 
                 # and labels
-                self.assertFalse(Label.all_objects.filter(org=org).exists())
+                self.assertFalse(org.msgs_labels.exists())
 
                 # contacts, groups
                 self.assertFalse(Contact.objects.filter(org=org).exists())
@@ -1182,28 +1262,30 @@ class OrgTest(TembaTest):
 
     def test_user_update(self):
         update_url = reverse("orgs.user_edit")
-        login_url = reverse("users.user_login")
 
         # no access if anonymous
         response = self.client.get(update_url)
-        self.assertRedirect(response, login_url)
+        self.assertLoginRedirect(response)
 
         self.login(self.admin)
 
         # change the user language
-        post_data = dict(
-            language="pt-br",
-            first_name="Admin",
-            last_name="User",
-            email="administrator@temba.com",
-            current_password="Administrator",
+        response = self.client.post(
+            update_url,
+            {
+                "language": "pt-br",
+                "first_name": "Admin",
+                "last_name": "User",
+                "email": "administrator@temba.com",
+                "current_password": "Qwerty123",
+            },
+            HTTP_X_FORMAX=True,
         )
-        response = self.client.post(update_url, post_data, HTTP_X_FORMAX=True)
         self.assertEqual(200, response.status_code)
 
         # check that our user settings have changed
-        user_settings = self.admin.get_settings()
-        self.assertEqual("pt-br", user_settings.language)
+        del self.admin.settings  # clear cached_property
+        self.assertEqual("pt-br", self.admin.settings.language)
 
     @patch("temba.flows.models.FlowStart.async_start")
     @mock_mailroom
@@ -1388,8 +1470,8 @@ class OrgTest(TembaTest):
         APIToken.get_or_create(self.org, self.admin)
         APIToken.get_or_create(self.org, self.editor)
         APIToken.get_or_create(self.org, self.surveyor)
-        APIToken.get_or_create(self.org, self.admin, role=Group.objects.get(name="Surveyors"))
-        APIToken.get_or_create(self.org, self.editor, role=Group.objects.get(name="Surveyors"))
+        APIToken.get_or_create(self.org, self.admin, role=OrgRole.SURVEYOR)
+        APIToken.get_or_create(self.org, self.editor, role=OrgRole.SURVEYOR)
 
         actual_fields = response.context["form"].fields
         expected_fields = ["loc", "invite_emails", "invite_role"]
@@ -1588,7 +1670,7 @@ class OrgTest(TembaTest):
         self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 0)
 
         # make sure an existing user can not be invited again
-        user = Org.create_user("admin1@temba.com", "admin1@temba.com")
+        user = Org.create_user("admin1@temba.com", "Qwerty123")
         user.set_org(self.org)
         self.org.administrators.add(user)
         self.login(user)
@@ -1667,22 +1749,16 @@ class OrgTest(TembaTest):
 
     @patch("temba.utils.email.send_temba_email")
     def test_join(self, mock_send_temba_email):
-        def create_invite(group, username):
+        def create_invite(group, email):
             return Invitation.objects.create(
                 org=self.org,
                 user_group=group,
-                email=f"{username}@nyaruka.com",
+                email=email,
                 created_by=self.admin,
                 modified_by=self.admin,
             )
 
-        def create_user(username):
-            user = User.objects.create_user(f"{username}@nyaruka.com", f"{username}@nyaruka.com")
-            user.set_password(f"{username}@nyaruka.com")
-            user.save()
-            return user
-
-        editor_invitation = create_invite("E", "invitededitor")
+        editor_invitation = create_invite("E", "invitededitor@nyaruka.com")
         editor_invitation.send()
         email_args = mock_send_temba_email.call_args[0]  # all positional args
 
@@ -1704,7 +1780,7 @@ class OrgTest(TembaTest):
         )
 
         # a user is already logged in
-        self.invited_editor = create_user("invitededitor")
+        self.invited_editor = self.create_user("invitededitor@nyaruka.com")
 
         # different user login
         self.login(self.admin)
@@ -1755,18 +1831,18 @@ class OrgTest(TembaTest):
 
         # test it for each role
         for role in roles:
-            invite = create_invite(role[0], "User%s" % role[0])
-            user = create_user("User%s" % role[0])
+            invite = create_invite(role[0], f"user.{role[0]}@nyaruka.com")
+            user = self.create_user(f"user.{role[0]}@nyaruka.com")
             self.login(user)
             response = self.client.post(reverse("orgs.org_join_accept", args=[invite.secret]), follow=True)
             self.assertEqual(200, response.status_code)
             self.assertIsNotNone(role[1].filter(pk=user.pk).first())
 
         # try an expired invite
-        invite = create_invite("S", "invitedexpired")
+        invite = create_invite("S", "invitedexpired@nyaruka.com")
         invite.is_active = False
         invite.save()
-        expired_user = create_user("invitedexpired")
+        expired_user = self.create_user("invitedexpired@nyaruka.com")
         self.login(expired_user)
         response = self.client.post(reverse("orgs.org_join_accept", args=[invite.secret]), follow=True)
         self.assertEqual(200, response.status_code)
@@ -2394,7 +2470,7 @@ class OrgTest(TembaTest):
                     )
                     # name shouldn't change
                     self.org.refresh_from_db()
-                    self.assertEqual(self.org.name, "Temba")
+                    self.assertEqual(self.org.name, "Nyaruka")
 
                     # now disconnect our twilio connection
                     self.assertTrue(self.org.is_connected_to_twilio())
@@ -2468,7 +2544,7 @@ class OrgTest(TembaTest):
         self.assertTrue(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
 
         # other admin sees it enabled too
-        self.other_admin = self.create_user("Other Administrator")
+        self.other_admin = self.create_user("other_admin@nyaruka.com")
         self.org.administrators.add(self.other_admin)
         self.login(self.other_admin)
 
@@ -2706,7 +2782,7 @@ class OrgTest(TembaTest):
 
         # name shouldn't change
         self.org.refresh_from_db()
-        self.assertEqual(self.org.name, "Temba")
+        self.assertEqual(self.org.name, "Nyaruka")
         self.assertTrue(self.org.has_smtp_config())
 
         self.client.post(
@@ -2855,7 +2931,7 @@ class OrgTest(TembaTest):
         )
         # name shouldn't change
         self.org.refresh_from_db()
-        self.assertEqual(self.org.name, "Temba")
+        self.assertEqual(self.org.name, "Nyaruka")
 
         # should change vonage config
         self.client.post(account_url, {"api_key": "other_key", "api_secret": "secret-too", "disconnect": "false"})
@@ -3383,6 +3459,16 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         menu = response.json()["results"]
         self.assertEqual(count, len(menu))
 
+    def test_home(self):
+        self.login(self.user)
+
+        home_url = reverse("orgs.org_home")
+
+        with self.assertNumQueries(125):
+            response = self.client.get(home_url)
+
+        self.assertEqual(200, response.status_code)
+
     def test_menu(self):
         self.login(self.admin)
         self.assertMenu(reverse("orgs.org_menu"), 7)
@@ -3395,7 +3481,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # agents should only see tickets and settings
         self.login(self.agent)
-        response = self.client.get(menu_url)
+
+        with self.assertNumQueries(40):
+            response = self.client.get(menu_url)
+
         menu = response.json()["results"]
         self.assertEqual(2, len(menu))
 
@@ -3418,7 +3507,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        response = self.client.get(reverse("orgs.org_workspace"))
+        with self.assertNumQueries(88):
+            response = self.client.get(reverse("orgs.org_workspace"))
 
         # make sure we have the appropriate number of sections
         self.assertContains(response, "Transfer Credits")
@@ -3431,7 +3521,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(grant_url)
         self.assertRedirect(response, "/users/login/")
 
-        self.user = self.create_user(username="tito")
+        self.user = self.create_user("tito@nyaruka.com")
 
         self.login(self.user)
         response = self.client.get(grant_url)
@@ -3463,8 +3553,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check user exists and is admin
         User.objects.get(username="john@carmack.com")
-        self.assertTrue(org.administrators.filter(username="john@carmack.com"))
-        self.assertTrue(org.administrators.filter(username="tito"))
+        self.assertTrue(org.administrators.filter(username="john@carmack.com").exists())
+        self.assertTrue(org.administrators.filter(username="tito@nyaruka.com").exists())
 
         # try a new org with a user that already exists instead
         del post_data["password"]
@@ -3478,8 +3568,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(100_000, org.get_credits_remaining())
         self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
 
-        self.assertTrue(org.administrators.filter(username="john@carmack.com"))
-        self.assertTrue(org.administrators.filter(username="tito"))
+        self.assertTrue(org.administrators.filter(username="john@carmack.com").exists())
+        self.assertTrue(org.administrators.filter(username="tito@nyaruka.com").exists())
 
         # try a new org with US timezone
         post_data["name"] = "Bulls"
@@ -3553,17 +3643,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         granters = Group.objects.get(name="Granters")
         self.admin.groups.add(granters)
-        self.admin.username = "Administrator@nyaruka.com"
-        self.admin.set_password("Administrator@nyaruka.com")
-        self.admin.save()
 
         self.login(self.admin)
 
-        # user with email Administrator@nyaruka.com already exists and we set a password
+        # user with email admin@nyaruka.com already exists and we set a password
         response = self.client.post(
             grant_url,
             {
-                "email": "Administrator@nyaruka.com",
+                "email": "admin@nyaruka.com",
                 "first_name": "John",
                 "last_name": "Carmack",
                 "name": "Oculus",
@@ -3610,7 +3697,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_new_signup_with_user_logged_in(self, mock_pre_process):
         mock_pre_process.return_value = None
         signup_url = reverse("orgs.org_signup")
-        self.user = self.create_user(username="tito")
+        self.user = self.create_user("tito@nyaruka.com")
 
         self.login(self.user)
 
@@ -4794,7 +4881,7 @@ class BulkExportTest(TembaTest):
             self.assertEqual(1, Trigger.objects.filter(org=self.org, trigger_type="C", is_archived=False).count())
             self.assertEqual(1, Trigger.objects.filter(org=self.org, trigger_type="M", is_archived=False).count())
             self.assertEqual(3, ContactGroup.objects.filter(org=self.org, is_system=False).count())
-            self.assertEqual(1, Label.label_objects.filter(org=self.org).count())
+            self.assertEqual(1, Label.objects.filter(org=self.org).count())
             self.assertEqual(
                 1, ContactField.user_fields.filter(org=self.org, value_type="D", name="Next Appointment").count()
             )
@@ -5048,7 +5135,7 @@ class CreditAlertTest(TembaTest):
         # email sent
         sent_email = mail.outbox[0]
         self.assertEqual(1, len(sent_email.to))
-        self.assertIn("RapidPro workspace for Temba", sent_email.body)
+        self.assertIn("RapidPro workspace for Nyaruka", sent_email.body)
         self.assertIn("expiring credits in less than one month.", sent_email.body)
 
         # check topup expiration, it should no create a new one, because last one is still active
@@ -5087,11 +5174,11 @@ class CreditAlertTest(TembaTest):
             self.assertEqual(len(mail.outbox), 1)
 
             sent_email = mail.outbox[0]
-            self.assertIn("RapidPro workspace for Temba", sent_email.body)
+            self.assertIn("RapidPro workspace for Nyaruka", sent_email.body)
 
             # this email has been sent to multiple recipients
             self.assertListEqual(
-                sent_email.recipients(), ["Administrator@nyaruka.com", "Surveyor@nyaruka.com", "User@nyaruka.com"]
+                sent_email.recipients(), ["admin@nyaruka.com", "surveyor@nyaruka.com", "viewer@nyaruka.com"]
             )
 
     def test_creditalert_sendemail_no_org_admins(self):
@@ -5130,7 +5217,7 @@ class CreditAlertTest(TembaTest):
                 # alert email is for out of credits type
                 sent_email = mail.outbox[0]
                 self.assertEqual(len(sent_email.to), 1)
-                self.assertIn("RapidPro workspace for Temba", sent_email.body)
+                self.assertIn("RapidPro workspace for Nyaruka", sent_email.body)
                 self.assertIn("is out of credit.", sent_email.body)
 
                 # no new alert if one is sent and no new email
@@ -5174,7 +5261,7 @@ class CreditAlertTest(TembaTest):
                     # email sent
                     sent_email = mail.outbox[2]
                     self.assertEqual(len(sent_email.to), 1)
-                    self.assertIn("RapidPro workspace for Temba", sent_email.body)
+                    self.assertIn("RapidPro workspace for Nyaruka", sent_email.body)
                     self.assertIn("is running low on credits", sent_email.body)
 
                     # no new alert if one is sent and no new email
@@ -5309,7 +5396,7 @@ class StripeCreditsTest(TembaTest):
     @patch("stripe.Charge.create")
     @override_settings(SEND_EMAILS=True)
     def test_add_credits_existing_customer(self, charge_create, customer_retrieve, customer_create):
-        self.admin2 = self.create_user("Administrator 2")
+        self.admin2 = self.create_user("admin2@nyaruka.com")
         self.org.administrators.add(self.admin2)
 
         self.org.stripe_customer = "stripe-cust-1"

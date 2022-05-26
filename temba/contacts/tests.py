@@ -30,7 +30,7 @@ from temba.flows.models import Flow, FlowSession, FlowStart
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modifiers
-from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
+from temba.msgs.models import Broadcast, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import (
@@ -96,7 +96,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         mr_mocks.contact_search('name != ""', contacts=[])
         smart = self.create_group("No Name", query='name = ""')
 
-        with self.assertNumQueries(56):
+        with self.assertNumQueries(58):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
@@ -1688,7 +1688,7 @@ class ContactTest(TembaTest):
         # joe's messages should be inactive, blank and have no labels
         self.assertEqual(0, Msg.objects.filter(contact=self.joe, visibility="V").count())
         self.assertEqual(0, Msg.objects.filter(contact=self.joe).exclude(text="").count())
-        self.assertEqual(0, Label.label_objects.get(pk=label.pk).msgs.count())
+        self.assertEqual(0, label.msgs.count())
 
         msg_counts = SystemLabel.get_counts(self.org)
         self.assertEqual(0, msg_counts[SystemLabel.TYPE_INBOX])
@@ -1830,7 +1830,7 @@ class ContactTest(TembaTest):
         # error is swallowed and we show no results
         self.assertEqual([], omnibox_request("search=-123`213"))
 
-        with self.assertNumQueries(17):
+        with self.assertNumQueries(16):
             mock_search_contacts.side_effect = [
                 SearchResults(
                     query="",
@@ -1857,7 +1857,7 @@ class ContactTest(TembaTest):
                 omnibox_request(query="", version="2"),
             )
 
-        with self.assertNumQueries(19):
+        with self.assertNumQueries(18):
             mock_search_contacts.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=QueryMetadata()),
                 SearchResults(
@@ -1892,7 +1892,7 @@ class ContactTest(TembaTest):
                 omnibox_request(query="search=250", version="2"),
             )
 
-        with self.assertNumQueries(17):
+        with self.assertNumQueries(16):
             mock_search_contacts.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=QueryMetadata()),
                 SearchResults(query="", total=0, contact_ids=[], metadata=QueryMetadata()),
@@ -2005,21 +2005,6 @@ class ContactTest(TembaTest):
                 dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
             ],
             omnibox_request(urn_query),
-        )
-
-        # lookup by message ids
-        msg = self.create_incoming_msg(self.joe, "some message")
-        self.assertEqual(
-            [dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80")], omnibox_request(f"m={msg.id}")
-        )
-
-        # lookup by label ids
-        label = self.create_label("msg label")
-        self.assertEqual([], omnibox_request(f"l={label.id}"))
-
-        msg.labels.add(label)
-        self.assertEqual(
-            [dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80")], omnibox_request(f"l={label.id}")
         )
 
         with AnonymousOrg(self.org):
@@ -2214,7 +2199,7 @@ class ContactTest(TembaTest):
         # fetch our contact history
         self.login(self.admin)
         with patch("temba.utils.s3.s3.client", return_value=self.mock_s3):
-            with self.assertNumQueries(47):
+            with self.assertNumQueries(40):
                 response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -2243,7 +2228,7 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history, 11, "flow_entered", flow__name="Colors")
         assertHistoryEvent(history, 12, "msg_received", msg__text="Message caption")
         assertHistoryEvent(
-            history, 13, "msg_created", msg__text="A beautiful broadcast", msg__created_by__email="User@nyaruka.com"
+            history, 13, "msg_created", msg__text="A beautiful broadcast", msg__created_by__email="viewer@nyaruka.com"
         )
         assertHistoryEvent(history, 14, "campaign_fired", campaign__name="Planting Reminders")
         assertHistoryEvent(history, -1, "msg_received", msg__text="Inbound message 11")
@@ -2722,9 +2707,6 @@ class ContactTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
     def test_read_with_customer_support(self):
-        self.customer_support.is_staff = True
-        self.customer_support.save()
-
         self.login(self.customer_support)
 
         response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
@@ -3849,7 +3831,7 @@ class ContactFieldTest(TembaTest):
             self.create_contact_import(path)
 
         # no group specified, so will default to 'Active'
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(40):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3867,6 +3849,7 @@ class ContactFieldTest(TembaTest):
                         "Field:Third",
                         "Field:First",
                         "Field:Second",
+                        "Group:Poppin Tags",
                     ],
                     [
                         contact2.uuid,
@@ -3881,6 +3864,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
+                        True,
                     ],
                     [
                         contact.uuid,
@@ -3895,6 +3879,7 @@ class ContactFieldTest(TembaTest):
                         "20-12-2015 08:30",
                         "One",
                         "",
+                        True,
                     ],
                 ],
                 tz=self.org.timezone,
@@ -3911,7 +3896,7 @@ class ContactFieldTest(TembaTest):
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(40):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3972,7 +3957,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(40):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3991,6 +3976,7 @@ class ContactFieldTest(TembaTest):
                         "Field:Third",
                         "Field:Second",
                         "Field:First",
+                        "Group:Poppin Tags",
                     ],
                     [
                         contact2.uuid,
@@ -4062,7 +4048,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(41):
             self.assertExcelSheet(
                 request_export("?g=%s" % group.uuid)[0],
                 [
@@ -4080,6 +4066,7 @@ class ContactFieldTest(TembaTest):
                         "Field:Third",
                         "Field:Second",
                         "Field:First",
+                        "Group:Poppin Tags",
                     ],
                     [
                         contact2.uuid,
@@ -4095,6 +4082,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
+                        True,
                     ],
                     [
                         contact.uuid,
@@ -4110,6 +4098,7 @@ class ContactFieldTest(TembaTest):
                         "20-12-2015 08:30",
                         "",
                         "One",
+                        True,
                     ],
                 ],
                 tz=self.org.timezone,
@@ -4130,7 +4119,7 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(44):
+                    with self.assertNumQueries(43):
                         self.assertExcelSheet(
                             request_export("?s=name+has+adam+or+name+has+deng")[0],
                             [
@@ -4148,6 +4137,7 @@ class ContactFieldTest(TembaTest):
                                     "Field:Third",
                                     "Field:Second",
                                     "Field:First",
+                                    "Group:Poppin Tags",
                                 ],
                                 [
                                     contact2.uuid,
@@ -4163,6 +4153,7 @@ class ContactFieldTest(TembaTest):
                                     "",
                                     "",
                                     "",
+                                    True,
                                 ],
                                 [
                                     contact3.uuid,
@@ -4178,6 +4169,7 @@ class ContactFieldTest(TembaTest):
                                     "",
                                     "",
                                     "",
+                                    False,
                                 ],
                             ],
                             tz=self.org.timezone,
@@ -4192,7 +4184,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(43):
+            with self.assertNumQueries(42):
                 self.assertExcelSheet(
                     request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [
@@ -4210,6 +4202,7 @@ class ContactFieldTest(TembaTest):
                             "Field:Third",
                             "Field:Second",
                             "Field:First",
+                            "Group:Poppin Tags",
                         ],
                         [
                             contact.uuid,
@@ -4225,6 +4218,7 @@ class ContactFieldTest(TembaTest):
                             "20-12-2015 08:30",
                             "",
                             "One",
+                            True,
                         ],
                     ],
                     tz=self.org.timezone,
@@ -4248,6 +4242,7 @@ class ContactFieldTest(TembaTest):
                         "Field:Third",
                         "Field:Second",
                         "Field:First",
+                        "Group:Poppin Tags",
                     ],
                     [
                         str(contact2.id),
@@ -4260,6 +4255,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
+                        True,
                     ],
                     [
                         str(contact.id),
@@ -4272,6 +4268,7 @@ class ContactFieldTest(TembaTest):
                         "20-12-2015 08:30",
                         "",
                         "One",
+                        True,
                     ],
                     [
                         str(contact3.id),
@@ -4284,6 +4281,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
+                        False,
                     ],
                     [
                         str(contact4.id),
@@ -4296,6 +4294,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
+                        False,
                     ],
                 ],
                 tz=self.org.timezone,

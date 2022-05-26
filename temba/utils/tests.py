@@ -3,6 +3,7 @@ import datetime
 import io
 import os
 from collections import OrderedDict
+from datetime import date
 from decimal import Decimal
 from unittest.mock import PropertyMock, patch
 
@@ -27,9 +28,9 @@ from temba.utils import json, uuid
 from temba.utils.templatetags.temba import format_datetime, icon
 
 from . import chunk_list, countries, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
-from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
+from .cache import get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
-from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
+from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
 from .fields import NameValidator, validate_external_url
@@ -234,6 +235,13 @@ class DatesTest(TembaTest):
         self.assertIsNone(datetime_to_str(None, "%Y-%m-%d %H:%M", tz=tz))
         self.assertEqual(datetime_to_str(d2, "%Y-%m-%d %H:%M", tz=tz), "2014-01-02 03:04")
         self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=pytz.UTC), "2014/01/02 01:04")
+
+    def test_date_range(self):
+        self.assertEqual(
+            [date(2015, 1, 29), date(2015, 1, 30), date(2015, 1, 31), date(2015, 2, 1)],
+            list(date_range(date(2015, 1, 29), date(2015, 2, 2))),
+        )
+        self.assertEqual([], list(date_range(date(2015, 1, 29), date(2015, 1, 29))))
 
 
 class CountriesTest(TembaTest):
@@ -503,14 +511,6 @@ class CacheTest(TembaTest):
             self.assertEqual(get_cacheable_result("test_contact_count", calculate), 2)  # from db
         with self.assertNumQueries(0):
             self.assertEqual(get_cacheable_result("test_contact_count", calculate), 2)  # from cache
-
-    def test_get_cacheable_attr(self):
-        def calculate():
-            return "CALCULATED"
-
-        self.assertEqual(get_cacheable_attr(self, "_test_value", calculate), "CALCULATED")
-        self._test_value = "CACHED"
-        self.assertEqual(get_cacheable_attr(self, "_test_value", calculate), "CACHED")
 
     def test_incrby_existing(self):
         r = get_redis_connection()
@@ -858,9 +858,8 @@ class MiddlewareTest(TembaTest):
         # if we have an authenticated user, their setting takes priority
         self.login(self.admin)
 
-        user_settings = self.admin.get_settings()
-        user_settings.language = "fr"
-        user_settings.save(update_fields=("language",))
+        self.admin.settings.language = "fr"
+        self.admin.settings.save(update_fields=("language",))
 
         assert_text("Créez visuellement des applications mobiles")
 

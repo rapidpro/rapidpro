@@ -1,3 +1,45 @@
+v7.3.50
+----------
+ * Make Twitter channels beta only for now
+ * Use cached role permissions for permission checking and fix incorrect permissions on some 
+API views
+ * Move remaining mockey patched methods on auth.User to orgs.User
+
+v7.3.49
+----------
+ * Timings in export stats spreadsheet should be rounded to nearest second
+ * Include failed_reason/failed_reason_display on msg_created events
+ * Move more monkey patching on auth.User to orgs.User
+
+v7.3.48
+----------
+ * Include first reply timings in ticket stats export
+ * Create a proxy model for User and start moving some of the monkey patching to proper methods on that
+
+v7.3.47
+----------
+ * Data migration to backfill ticket first reply timings
+
+v7.3.46
+----------
+ * Add new squashable model to track average ticket reply times and close times
+ * Add Ticket.replied_on
+
+v7.3.45
+----------
+ * Add endpoint to export Excel sheet of ticket daily counts for last 90 days
+
+v7.3.44
+----------
+ * Remove omnibox support for fetching by label and message
+ * Remove functionality for creating new label folders and creating labels with folders
+
+v7.3.43
+----------
+ * Fix generating cloned flow names so they can't end with trailing spaces
+ * Deleting of globals should be soft like other types
+ * Simplify checking of workspace limits in UI and API
+
 v7.3.42
 ----------
  * Data migration to backfill ticket daily counts

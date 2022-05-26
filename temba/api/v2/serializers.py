@@ -1133,7 +1133,7 @@ class LabelWriteSerializer(WriteSerializer):
         max_length=Label.MAX_NAME_LEN,
         validators=[
             NameValidator(Label.MAX_NAME_LEN),
-            UniqueForOrgValidator(queryset=Label.label_objects.filter(is_active=True), ignore_case=True),
+            UniqueForOrgValidator(queryset=Label.objects.filter(is_active=True), ignore_case=True),
         ],
     )
 
@@ -1293,7 +1293,7 @@ class MsgBulkActionSerializer(WriteSerializer):
                 label.toggle_label(messages, add=True)
         elif action == self.UNLABEL:
             if not label:
-                label = Label.label_objects.filter(org=self.context["org"], is_active=True, name=label_name).first()
+                label = Label.get_active_for_org(self.context["org"]).filter(name=label_name).first()
 
             if label:
                 label.toggle_label(messages, add=False)

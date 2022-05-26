@@ -325,13 +325,13 @@ class AuthenticateView(SmartFormView):
         if user and user.is_active:
             login(self.request, user)
 
-            role = APIToken.get_role_from_code(role_code)
+            role = OrgRole.from_code(role_code)
             tokens = []
 
             if role:
                 valid_orgs = APIToken.get_orgs_for_role(user, role)
                 for org in valid_orgs:
-                    token = APIToken.get_or_create(org, user, role)
+                    token = APIToken.get_or_create(org, user, role=role)
                     serialized = {"uuid": str(org.uuid), "name": org.name, "id": org.id}  # for backward compatibility
                     tokens.append({"org": serialized, "token": token.key})
             else:  # pragma: needs cover
@@ -2341,13 +2341,16 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     You will receive either a 204 response if a label was deleted, or a 404 response if no matching label was found.
     """
 
-    permission = "contacts.label_api"
+    permission = "msgs.label_api"
     model = Label
-    model_manager = "label_objects"
     serializer_class = LabelReadSerializer
     write_serializer_class = LabelWriteSerializer
     pagination_class = CreatedOnCursorPagination
     exclusive_params = ("uuid", "name")
+
+    def derive_queryset(self):
+        org = self.request.user.get_org()
+        return self.model.objects.filter(org=org, is_active=True).exclude(label_type=Label.TYPE_FOLDER)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -2565,7 +2568,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         # filter by label name/uuid (optional)
         label_ref = params.get("label")
         if label_ref:
-            label = Label.label_objects.filter(org=org).filter(Q(name=label_ref) | Q(uuid=label_ref)).first()
+            label = Label.get_active_for_org(org).filter(Q(name=label_ref) | Q(uuid=label_ref)).first()
             if label:
                 queryset = queryset.filter(labels=label, visibility=Msg.VISIBILITY_VISIBLE)
             else:
@@ -2576,7 +2579,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
             Prefetch("contact_urn", queryset=ContactURN.objects.only("scheme", "path", "display")),
             Prefetch("channel", queryset=Channel.objects.only("uuid", "name")),
-            Prefetch("labels", queryset=Label.label_objects.only("uuid", "name").order_by("pk")),
+            Prefetch("labels", queryset=Label.objects.only("uuid", "name").order_by("pk")),
         )
 
         # incoming folder gets sorted by 'modified_on'
@@ -3236,7 +3239,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     """
 
-    permission = "api.flowstart_api"
+    permission = "flows.flowstart_api"
     model = FlowStart
     serializer_class = FlowStartReadSerializer
     write_serializer_class = FlowStartWriteSerializer

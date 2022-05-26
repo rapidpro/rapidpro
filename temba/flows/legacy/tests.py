@@ -274,7 +274,7 @@ class FlowMigrationTest(TembaTest):
         migrated = migrate_to_version_11_11(flow_json, flow)
         migrated_labels = get_labels(migrated)
         for uuid, name in migrated_labels.items():
-            self.assertTrue(Label.label_objects.filter(uuid=uuid, name=name).exists(), msg="Label UUID mismatch")
+            self.assertTrue(Label.objects.filter(uuid=uuid, name=name).exists(), msg="Label UUID mismatch")
 
     def test_migrate_to_11_10(self):
         import_def = self.get_import_json("migrate_to_11_10")
@@ -1061,7 +1061,7 @@ class FlowMigrationTest(TembaTest):
         email_node = order_checker.get_definition()["nodes"][10]
         email_action = email_node["actions"][1]
 
-        self.assertEqual(["Administrator"], email_action["addresses"])
+        self.assertEqual(["admin@nyaruka.com"], email_action["addresses"])
 
     def test_migrate_bad_group_names(self):
         # This test makes sure that bad contact groups (< 25, etc) are migrated forward properly.

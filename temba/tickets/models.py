@@ -1,7 +1,9 @@
 from abc import ABCMeta
+from datetime import date
+
+import openpyxl
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q, Sum
 from django.db.models.functions import Lower
@@ -12,8 +14,9 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.contacts.models import Contact
-from temba.orgs.models import DependencyMixin, Org, UserSettings
-from temba.utils.models import DailyCountModel, SquashableModel, TembaModel
+from temba.orgs.models import DependencyMixin, Org, User, UserSettings
+from temba.utils.dates import date_range
+from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
 
@@ -212,8 +215,9 @@ class Ticket(models.Model):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
-    # when this ticket was opened, closed, modified
+    # when this ticket was opened, first replied to, closed, modified
     opened_on = models.DateTimeField(default=timezone.now)
+    replied_on = models.DateTimeField(null=True)
     closed_on = models.DateTimeField(null=True)
     modified_on = models.DateTimeField(default=timezone.now)
 
@@ -472,7 +476,7 @@ class Team(TembaModel):
         return org.teams.create(name=name, created_by=user, modified_by=user)
 
     def get_users(self):
-        return User.objects.filter(settings__team=self)
+        return User.objects.filter(usersettings__team=self)
 
     def release(self, user):
         # remove all users from this team
@@ -489,7 +493,7 @@ class Team(TembaModel):
 
 class TicketDailyCount(DailyCountModel):
     """
-    Ticket activity counts by who did it and when. Mailroom writes these.
+    Ticket activity daily counts by who did it and when. Mailroom writes these.
     """
 
     TYPE_OPENING = "O"
@@ -517,3 +521,87 @@ class TicketDailyCount(DailyCountModel):
                 condition=Q(is_squashed=False),
             ),
         ]
+
+
+class TicketDailyTiming(DailyTimingModel):
+    """
+    Ticket activity daily timings. Mailroom writes these.
+    """
+
+    TYPE_FIRST_REPLY = "R"
+    TYPE_LAST_CLOSE = "C"
+
+    @classmethod
+    def get_by_org(cls, org, count_type: str, since=None, until=None):
+        return cls._get_count_set(count_type, {f"o:{org.id}": org}, since, until)
+
+    class Meta:
+        indexes = [
+            models.Index(name="tickets_dailytiming_type_scope", fields=("count_type", "scope", "day")),
+            models.Index(
+                name="tickets_dailytiming_unsquashed",
+                fields=("count_type", "scope", "day"),
+                condition=Q(is_squashed=False),
+            ),
+        ]
+
+
+def export_ticket_stats(org: Org, since: date, until: date) -> openpyxl.Workbook:
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Tickets"
+    sheet.merge_cells("A1:A2")
+    sheet.cell(row=1, column=2, value="Workspace")
+    sheet.merge_cells("B1:D1")
+    sheet.cell(row=2, column=2, value="Opened")
+    sheet.cell(row=2, column=3, value="Replies")
+    sheet.cell(row=2, column=4, value="Reply Time (Secs)")
+
+    users = list(org.get_users().order_by("email"))
+
+    user_col = 5
+    for user in users:
+        cell = sheet.cell(row=1, column=user_col, value=str(user))
+        cell.hyperlink = f"mailto:{user.email}"
+        cell.style = "Hyperlink"
+        sheet.merge_cells(start_row=1, start_column=user_col, end_row=1, end_column=user_col + 1)
+
+        sheet.cell(row=2, column=user_col, value="Assigned")
+        sheet.cell(row=2, column=user_col + 1, value="Replies")
+        user_col += 2
+
+    def by_day(cs: list) -> dict:
+        return {c[0]: c[1] for c in cs}
+
+    org_openings = by_day(TicketDailyCount.get_by_org(org, TicketDailyCount.TYPE_OPENING, since, until).day_totals())
+    org_replies = by_day(TicketDailyCount.get_by_org(org, TicketDailyCount.TYPE_REPLY, since, until).day_totals())
+    org_avg_reply_time = by_day(
+        TicketDailyTiming.get_by_org(org, TicketDailyTiming.TYPE_FIRST_REPLY, since, until).day_averages(rounded=True)
+    )
+
+    user_assignments = {}
+    user_replies = {}
+    for user in users:
+        user_assignments[user] = by_day(
+            TicketDailyCount.get_by_users(org, [user], TicketDailyCount.TYPE_ASSIGNMENT, since, until).day_totals()
+        )
+        user_replies[user] = by_day(
+            TicketDailyCount.get_by_users(org, [user], TicketDailyCount.TYPE_REPLY, since, until).day_totals()
+        )
+
+    day_row = 3
+    for day in date_range(since, until):
+        sheet.cell(row=day_row, column=1, value=day)
+        sheet.cell(row=day_row, column=2, value=org_openings.get(day, 0))
+        sheet.cell(row=day_row, column=3, value=org_replies.get(day, 0))
+        sheet.cell(row=day_row, column=4, value=org_avg_reply_time.get(day, ""))
+
+        user_col = 5
+        for user in users:
+            sheet.cell(row=day_row, column=user_col, value=user_assignments[user].get(day, 0))
+            sheet.cell(row=day_row, column=user_col + 1, value=user_replies[user].get(day, 0))
+            user_col += 2
+
+        day_row += 1
+
+    return workbook

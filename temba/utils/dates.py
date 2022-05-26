@@ -1,5 +1,5 @@
 import calendar
-import datetime
+from datetime import date, datetime, time, timedelta
 
 import pytz
 
@@ -17,10 +17,10 @@ def datetime_to_str(date_obj, format, tz):
     if not date_obj:
         return None
 
-    if type(date_obj) == datetime.date:
-        date_obj = tz.localize(datetime.datetime.combine(date_obj, datetime.time(0, 0, 0)))
+    if type(date_obj) == date:
+        date_obj = tz.localize(datetime.combine(date_obj, time(0, 0, 0)))
 
-    if isinstance(date_obj, datetime.datetime):
+    if isinstance(date_obj, datetime):
         date_obj = timezone.localtime(date_obj, tz)
 
     return date_obj.strftime(format)
@@ -38,5 +38,13 @@ def timestamp_to_datetime(ms):
     """
     Converts a UTC microsecond timestamp to a datetime
     """
-    dt = datetime.datetime.utcfromtimestamp(ms / 1_000_000)
+    dt = datetime.utcfromtimestamp(ms / 1_000_000)
     return dt.replace(tzinfo=pytz.utc)
+
+
+def date_range(start: date, stop: date):
+    """
+    A date-based range generator
+    """
+    for n in range(int((stop - start).days)):
+        yield start + timedelta(n)

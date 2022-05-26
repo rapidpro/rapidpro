@@ -1,6 +1,5 @@
 from django.urls import reverse
 
-from temba.msgs.models import Label
 from temba.tests import TembaTest
 
 
@@ -9,9 +8,6 @@ class DashboardTest(TembaTest):
         super().setUp()
 
         self.user = self.create_user("tito")
-        self.flow_label = Label.label_objects.create(
-            name="Color", org=self.org, created_by=self.admin, modified_by=self.admin
-        )
 
     def create_activity(self):
 
@@ -86,7 +82,7 @@ class DashboardTest(TembaTest):
 
         # org message activity
         self.assertEqual(12, response.context["orgs"][0]["count_sum"])
-        self.assertEqual("Temba", response.context["orgs"][0]["channel__org__name"])
+        self.assertEqual("Nyaruka", response.context["orgs"][0]["channel__org__name"])
 
         # our pie chart
         self.assertEqual(5, response.context["channel_types"][0]["count_sum"])
