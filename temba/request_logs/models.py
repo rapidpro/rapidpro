@@ -154,7 +154,12 @@ class HTTPLog(models.Model):
         )
 
     def get_redact_secrets(self):
-        if self.log_type in [self.WHATSAPP_TEMPLATES_SYNCED, self.WHATSAPP_TOKENS_SYNCED, self.WHATSAPP_CONTACTS_REFRESHED, self.WHATSAPP_CHECK_HEALTH]:
+        if self.log_type in [
+            self.WHATSAPP_TEMPLATES_SYNCED,
+            self.WHATSAPP_TOKENS_SYNCED,
+            self.WHATSAPP_CONTACTS_REFRESHED,
+            self.WHATSAPP_CHECK_HEALTH,
+        ]:
             return [settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN]
         return []
 
