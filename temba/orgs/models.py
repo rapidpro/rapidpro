@@ -494,6 +494,8 @@ class Org(SmartModel):
     agents = models.ManyToManyField(User, related_name=OrgRole.AGENT.rel_name)
     surveyors = models.ManyToManyField(User, related_name=OrgRole.SURVEYOR.rel_name)
 
+    users = models.ManyToManyField(User, through="OrgMembership", related_name="memberships")
+
     language = models.CharField(
         verbose_name=_("Default Language"),
         max_length=64,
@@ -1138,12 +1140,16 @@ class Org(SmartModel):
 
         getattr(self, role.m2m_name).add(user)
 
+        self.users.add(user, through_defaults={"role_code": role.code})
+
     def remove_user(self, user: User):
         """
         Removes the given user from this org by removing them from any roles
         """
         for role in OrgRole:
             getattr(self, role.m2m_name).remove(user)
+
+        self.users.remove(user)
 
     def get_owner(self) -> User:
         # look thru roles in order for the first added user
@@ -2024,6 +2030,15 @@ def get_stripe_credentials():
         "STRIPE_PRIVATE_KEY", getattr(settings, "STRIPE_PRIVATE_KEY", "MISSING_STRIPE_PRIVATE_KEY")
     )
     return (public_key, private_key)
+
+
+class OrgMembership(models.Model):
+    org = models.ForeignKey(Org, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    role_code = models.CharField(max_length=1)
+
+    class Meta:
+        unique_together = (("org", "user"),)
 
 
 class Invitation(SmartModel):
