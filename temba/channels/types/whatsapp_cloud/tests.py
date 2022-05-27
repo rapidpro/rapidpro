@@ -113,7 +113,7 @@ class WhatsAppCloudTypeTest(TembaTest):
             )
 
             response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36))
-            self.assertTrue(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.client.session)
+            self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
             self.assertEqual(response.url, claim_whatsapp_cloud_url)
 
             response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
@@ -124,7 +124,7 @@ class WhatsAppCloudTypeTest(TembaTest):
         session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
         session.save()
 
-        self.assertTrue(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.client.session)
+        self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN,  self.client.session)
 
         with patch("requests.get") as wa_cloud_get:
             with patch("requests.post") as wa_cloud_post:
@@ -155,7 +155,7 @@ class WhatsAppCloudTypeTest(TembaTest):
         session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
         session.save()
 
-        self.assertTrue(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.client.session)
+        self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
         with patch("requests.get") as wa_cloud_get:
             with patch("requests.post") as wa_cloud_post:
@@ -271,7 +271,7 @@ class WhatsAppCloudTypeTest(TembaTest):
                 response = self.client.post(claim_whatsapp_cloud_url, post_data, follow=True)
                 self.assertEqual(200, response.status_code)
 
-                self.assertFalse(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.client.session)
+                self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
                 self.assertEqual(3, wa_cloud_post.call_count)
 

@@ -892,8 +892,6 @@ class Label(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     org_limit_key = Org.LIMIT_LABELS
 
-    org_limit_key = Org.LIMIT_LABELS
-
     @classmethod
     def create(cls, org, user, name: str):
         assert cls.is_valid_name(name), f"'{name}' is not a valid label name"
