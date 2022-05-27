@@ -442,7 +442,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for flow in flows:
             # don't archive flows that belong to campaigns
             has_events = CampaignEvent.objects.filter(
-                is_active=True, flow=flow, campaign__org=user.get_org(), campaign__is_archived=False
+                is_active=True, flow=flow, campaign__org=flow.org, campaign__is_archived=False
             ).exists()
 
             if not has_events:

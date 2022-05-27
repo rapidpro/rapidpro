@@ -306,10 +306,9 @@ class FlowTest(TembaTest):
         self.login(self.admin)
         self.get_flow("the_clinic")
 
-        campaign = Campaign.objects.filter(name="Appointment Schedule").first()
-        self.assertIsNotNone(campaign)
-        flow = Flow.objects.filter(name="Confirm Appointment").first()
-        self.assertIsNotNone(flow)
+        campaign = Campaign.objects.get(name="Appointment Schedule")
+        flow = Flow.objects.get(name="Confirm Appointment")
+
         campaign_event = CampaignEvent.objects.filter(flow=flow, campaign=campaign).first()
         self.assertIsNotNone(campaign_event)
 

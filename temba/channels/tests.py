@@ -370,7 +370,7 @@ class ChannelTest(TembaTest):
 
         # add bulk sender
         self.org.connect_vonage("key", "secret", self.admin)
-        vonage = Channel.add_vonage_bulk_sender(self.admin, android)
+        vonage = Channel.add_vonage_bulk_sender(self.org, self.admin, android)
 
         # release it
         android.release(self.admin)
@@ -1352,9 +1352,9 @@ class ChannelTest(TembaTest):
                 return response
 
     def test_channel_status_processor(self):
-
         request = RequestFactory().get("/")
         request.user = self.admin
+        request.org = self.org
 
         def get_context(channel_type, role):
             Channel.objects.all().delete()
@@ -1532,7 +1532,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         android = Channel.create(
             self.org, self.admin, "RW", "A", name="Android", address="+250785551313", role="SR", schemes=("tel",)
         )
-        vonage = Channel.add_vonage_bulk_sender(self.admin, android)
+        vonage = Channel.add_vonage_bulk_sender(self.org, self.admin, android)
 
         delete_url = reverse("channels.channel_delete", args=[vonage.uuid])
 

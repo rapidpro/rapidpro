@@ -2076,7 +2076,7 @@ class OrgTest(TembaTest):
         self.assertEqual(5500, self.org.get_credits_remaining())
 
     def test_topup_model(self):
-        topup = TopUp.create(self.admin, price=None, credits=1000)
+        topup = TopUp.create(self.org, self.admin, price=None, credits=1000)
 
         self.assertEqual(topup.get_price_display(), "")
 
@@ -2127,9 +2127,9 @@ class OrgTest(TembaTest):
         contact = self.create_contact("Usain Bolt", phone="+250788123123")
 
         # add some more unexpire topup credits
-        TopUp.create(self.admin, price=0, credits=1000)
-        TopUp.create(self.admin, price=0, credits=1000)
-        TopUp.create(self.admin, price=0, credits=1000)
+        TopUp.create(self.org, self.admin, price=0, credits=1000)
+        TopUp.create(self.org, self.admin, price=0, credits=1000)
+        TopUp.create(self.org, self.admin, price=0, credits=1000)
 
         # send some messages with a valid topup
         self.create_incoming_msgs(contact, 2200)
@@ -2246,7 +2246,7 @@ class OrgTest(TembaTest):
 
         # raise our topup to take 20 and create another for 5
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=20)
-        new_topup = TopUp.create(self.admin, price=0, credits=5)
+        new_topup = TopUp.create(self.org, self.admin, price=0, credits=5)
 
         # apply topups which will max out both and reduce debt to 5
         self.org.apply_topups()
@@ -2265,7 +2265,7 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.is_multi_org)
 
         # add new topup with lots of credits
-        mega_topup = TopUp.create(self.admin, price=0, credits=100_000)
+        mega_topup = TopUp.create(self.org, self.admin, price=0, credits=100_000)
 
         # after applying this, no messages should be without a topup
         self.org.apply_topups()
@@ -2309,7 +2309,7 @@ class OrgTest(TembaTest):
         TopUp.objects.all().update(expires_on=yesterday)
 
         # we have expiring credits, and no more active
-        gift_topup = TopUp.create(self.admin, price=0, credits=100)
+        gift_topup = TopUp.create(self.org, self.admin, price=0, credits=100)
         next_week = timezone.now() + relativedelta(days=7)
         gift_topup.expires_on = next_week
         gift_topup.save(update_fields=["expires_on"])
@@ -2322,7 +2322,7 @@ class OrgTest(TembaTest):
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
         # some credits expires but more credits will remain active
-        later_active_topup = TopUp.create(self.admin, price=0, credits=200)
+        later_active_topup = TopUp.create(self.org, self.admin, price=0, credits=200)
         five_week_ahead = timezone.now() + relativedelta(days=35)
         later_active_topup.expires_on = five_week_ahead
         later_active_topup.save(update_fields=["expires_on"])
@@ -2366,14 +2366,14 @@ class OrgTest(TembaTest):
             self.assertEqual(0, self.org.get_low_credits_threshold())
 
         # now buy some credits to make us multi user
-        TopUp.create(self.admin, price=100, credits=100_000)
+        TopUp.create(self.org, self.admin, price=100, credits=100_000)
         self.org.clear_credit_cache()
         self.org.reset_capabilities()
         self.assertTrue(self.org.is_multi_user)
         self.assertFalse(self.org.is_multi_org)
 
         # good deal!
-        TopUp.create(self.admin, price=100, credits=1_000_000)
+        TopUp.create(self.org, self.admin, price=100, credits=1_000_000)
         self.org.clear_credit_cache()
         self.org.reset_capabilities()
         self.assertTrue(self.org.is_multi_user)
@@ -3011,7 +3011,7 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
             import_flows=1, multi_user=100_000, multi_org=1_000_000
         )
-        TopUp.create(self.admin, price=100, credits=1_000_000)
+        TopUp.create(self.org, self.admin, price=100, credits=1_000_000)
         self.org.clear_credit_cache()
         self.assertIsNotNone(self.org.create_sub_org("Sub Org B"))
         self.assertTrue(self.org.is_multi_user)
@@ -3101,7 +3101,7 @@ class OrgTest(TembaTest):
         oldest_topup = TopUp.objects.filter(org=self.org).first()
 
         expires = timezone.now() + timedelta(days=400)
-        newer_topup = TopUp.create(self.admin, price=0, credits=1000, org=self.org, expires_on=expires)
+        newer_topup = TopUp.create(self.org, self.admin, price=0, credits=1000, expires_on=expires)
 
         # lower the tier and try again
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
@@ -5110,7 +5110,7 @@ class CreditAlertTest(TembaTest):
         topup.save(update_fields=("expires_on",))
 
         # create another expiring topup, newer than the most recent one
-        TopUp.create(self.admin, 1000, 9876, expires_on=timezone.now() + timedelta(days=25), org=self.org)
+        TopUp.create(self.org, self.admin, 1000, 9876, expires_on=timezone.now() + timedelta(days=25))
 
         # set the org to not use topups
         Org.objects.filter(id=self.org.id).update(uses_topups=False)

@@ -1173,7 +1173,7 @@ class Org(SmartModel):
 
     def init_topups(self, topup_size=None):
         if topup_size:
-            return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
+            return TopUp.create(self, self.created_by, price=0, credits=topup_size)
 
         # set whether we use topups based on our plan
         self.uses_topups = self.plan == settings.TOPUP_PLAN
@@ -1340,7 +1340,7 @@ class Org(SmartModel):
 
                             # create the topup for our child, expiring on the same date
                             new_topup = TopUp.create(
-                                user, credits=debited, org=org, expires_on=topup.expires_on, price=None
+                                org, user, credits=debited, expires_on=topup.expires_on, price=None
                             )
 
                             # create a debit for transaction history
@@ -1573,9 +1573,7 @@ class Org(SmartModel):
             remaining = self.get_credits_remaining()
 
             # create our top up
-            topup = TopUp.create(
-                user, price=bundle["cents"], credits=bundle["credits"], stripe_charge=charge.id, org=self
-            )
+            topup = TopUp.create(self, user, price=bundle["cents"], credits=bundle["credits"], stripe_charge=charge.id)
 
             context = dict(
                 description=bundle["description"],
@@ -2128,17 +2126,15 @@ class TopUp(SmartModel):
     )
 
     @classmethod
-    def create(cls, user, price, credits, stripe_charge=None, org=None, expires_on=None):
+    def create(cls, org, user, price, credits, stripe_charge=None, expires_on=None):
         """
         Creates a new topup
         """
-        if not org:
-            org = user.get_org()
 
         if not expires_on:
             expires_on = timezone.now() + timedelta(days=365)  # credits last 1 year
 
-        topup = TopUp.objects.create(
+        topup = cls.objects.create(
             org=org,
             price=price,
             credits=credits,
