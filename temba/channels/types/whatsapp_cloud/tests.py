@@ -124,7 +124,7 @@ class WhatsAppCloudTypeTest(TembaTest):
         session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
         session.save()
 
-        self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN,  self.client.session)
+        self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
         with patch("requests.get") as wa_cloud_get:
             with patch("requests.post") as wa_cloud_post:
