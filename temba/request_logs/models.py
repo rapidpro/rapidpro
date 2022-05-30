@@ -186,8 +186,7 @@ class HTTPLog(models.Model):
         redact_secrets = self.get_redact_secrets()
 
         for secret in redact_secrets:
-            if secret and original:
-                original = redact.text(original, secret, mask)
+            original = redact.text(original, secret, mask)
         return original
 
     @property
