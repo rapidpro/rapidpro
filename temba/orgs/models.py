@@ -580,6 +580,11 @@ class Org(SmartModel):
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._user_role_cache = {}
+
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -1141,6 +1146,7 @@ class Org(SmartModel):
         getattr(self, role.m2m_name).add(user)
 
         self.users.add(user, through_defaults={"role_code": role.code})
+        self._user_role_cache[user] = role
 
     def remove_user(self, user: User):
         """
@@ -1150,6 +1156,8 @@ class Org(SmartModel):
             getattr(self, role.m2m_name).remove(user)
 
         self.users.remove(user)
+        if user in self._user_role_cache:
+            del self._user_role_cache[user]
 
     def get_owner(self) -> User:
         # look thru roles in order for the first added user
@@ -1162,14 +1170,21 @@ class Org(SmartModel):
         return self.created_by
 
     def get_user_role(self, user: User):
-        if user.is_staff:
-            return OrgRole.ADMINISTRATOR
+        """
+        Gets the role of the given user in this org if any.
+        """
 
-        for role in OrgRole:
-            if self.get_users_with_role(role).filter(id=user.id).exists():
-                return role
+        def get_role():
+            if user.is_staff:
+                return OrgRole.ADMINISTRATOR
+            for role in OrgRole:
+                if self.get_users_with_role(role).filter(id=user.id).exists():
+                    return role
+            return None
 
-        return None
+        if user not in self._user_role_cache:
+            self._user_role_cache[user] = get_role()
+        return self._user_role_cache[user]
 
     def has_twilio_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="T")
