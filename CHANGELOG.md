@@ -1,3 +1,7 @@
+v7.3.52
+----------
+ * Fix field name for submitted token
+
 v7.3.51
 ----------
  * Use default API throttle rates for unauthenticated users
