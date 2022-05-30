@@ -119,6 +119,12 @@ class WhatsAppCloudTypeTest(TembaTest):
             response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
             self.assertEqual(response.status_code, 200)
 
+            self.assertEqual(wa_cloud_get.call_args_list[0][0][0], "https://graph.facebook.com/v13.0/debug_token")
+            self.assertEqual(
+                wa_cloud_get.call_args_list[0][1],
+                {"params": {"access_token": "FB_APP_ID|FB_APP_SECRET", "input_token": "X" * 36}},
+            )
+
         # make sure the token is set on the session
         session = self.client.session
         session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"

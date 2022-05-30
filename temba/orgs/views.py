@@ -1620,7 +1620,7 @@ class OrgCRUDL(SmartCRUDL):
 
             def clean(self):
                 try:
-                    auth_token = self.cleaned_data.get("auth_token", None)
+                    auth_token = self.cleaned_data.get("user_access_token", None)
 
                     app_id = settings.FACEBOOK_APPLICATION_ID
                     app_secret = settings.FACEBOOK_APPLICATION_SECRET
