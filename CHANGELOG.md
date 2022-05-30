@@ -1,3 +1,10 @@
+v7.3.51
+----------
+ * Use default API throttle rates for unauthenticated users
+ * Bump pyjwt from 2.3.0 to 2.4.0
+ * Cache user role on org
+ * Add WhatsApp Cloud channel type
+
 v7.3.50
 ----------
  * Make Twitter channels beta only for now
