@@ -92,6 +92,7 @@ class ChannelType(metaclass=ABCMeta):
 
     redact_request_keys = set()
     redact_response_keys = set()
+    redact_values = set()
 
     def is_available_to(self, user):
         """
@@ -276,6 +277,8 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     CONFIG_MAX_CONCURRENT_EVENTS = "max_concurrent_events"
     CONFIG_ALLOW_INTERNATIONAL = "allow_international"
     CONFIG_MACHINE_DETECTION = "machine_detection"
+
+    CONFIG_WHATSAPP_CLOUD_USER_TOKEN = "whatsapp_cloud_user_token"
 
     CONFIG_VONAGE_API_KEY = "nexmo_api_key"
     CONFIG_VONAGE_API_SECRET = "nexmo_api_secret"
@@ -779,6 +782,9 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         elif URN.FACEBOOK_SCHEME in self.schemes:
             return "%s (%s)" % (self.config.get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
+        elif self.channel_type == "WAC":
+            return "%s (%s)" % (self.config.get("wa_number", ""), self.config.get("wa_verified_name", self.name))
+
         return self.address
 
     def get_last_sent_message(self):
@@ -1221,28 +1227,39 @@ class ChannelLog(models.Model):
         """
         Gets the URL as it should be displayed to the given user
         """
-        return self._get_display_value(user, self.url, anon_mask)
+        redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
+
+        return self._get_display_value(user, self.url, anon_mask, redact_values=redact_values)
 
     def get_request_display(self, user, anon_mask):
         """
         Gets the request trace as it should be displayed to the given user
         """
         redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_request_keys
+        redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
 
-        return self._get_display_value(user, self.request, anon_mask, redact_keys)
+        return self._get_display_value(
+            user, self.request, anon_mask, redact_keys=redact_keys, redact_values=redact_values
+        )
 
     def get_response_display(self, user, anon_mask):
         """
         Gets the response trace as it should be displayed to the given user
         """
         redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_response_keys
+        redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
 
-        return self._get_display_value(user, self.response, anon_mask, redact_keys)
+        return self._get_display_value(
+            user, self.response, anon_mask, redact_keys=redact_keys, redact_values=redact_values
+        )
 
-    def _get_display_value(self, user, original, mask, redact_keys=()):
+    def _get_display_value(self, user, original, mask, redact_keys=(), redact_values=()):
         """
         Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
         """
+
+        for secret_val in redact_values:
+            original = redact.text(original, secret_val, mask)
 
         if not self.channel.org.is_anon or user.has_org_perm(self.channel.org, "contacts.contact_break_anon"):
             return original
