@@ -2,7 +2,6 @@ import logging
 import time
 from array import array
 from datetime import datetime, timedelta
-from typing import Dict, List
 
 import iso8601
 import pytz
@@ -13,7 +12,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction
+from django.db import models
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
@@ -21,7 +20,6 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
-from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org, TopUp
@@ -115,14 +113,14 @@ class Broadcast(models.Model):
         *,
         groups=None,
         contacts=None,
-        urns: List[str] = None,
-        contact_ids: List[int] = None,
+        urns: list[str] = None,
+        contact_ids: list[int] = None,
         base_language: str = None,
         channel: Channel = None,
         ticket=None,
-        media: Dict = None,
+        media: dict = None,
         send_all: bool = False,
-        quick_replies: List[Dict] = None,
+        quick_replies: list[dict] = None,
         template_state: str = TEMPLATE_STATE_LEGACY,
         status: str = STATUS_INITIALIZING,
         **kwargs,
@@ -212,7 +210,7 @@ class Broadcast(models.Model):
         if self.schedule:
             self.schedule.delete()
 
-    def update_recipients(self, *, groups=None, contacts=None, urns: List[str] = None):
+    def update_recipients(self, *, groups=None, contacts=None, urns: list[str] = None):
         """
         Only used to update recipients for scheduled / repeating broadcasts
         """
@@ -222,7 +220,7 @@ class Broadcast(models.Model):
 
         self._set_recipients(groups=groups, contacts=contacts, urns=urns)
 
-    def _set_recipients(self, *, groups=None, contacts=None, urns: List[str] = None, contact_ids=None):
+    def _set_recipients(self, *, groups=None, contacts=None, urns: list[str] = None, contact_ids=None):
         """
         Sets the recipients which may be contact groups, contacts or contact URNs.
         """
@@ -344,9 +342,18 @@ class Msg(models.Model):
         (TYPE_USSD, "USSD Message"),
     )
 
-    DELETE_FOR_ARCHIVE = "A"
-    DELETE_FOR_USER = "U"
-    DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
+    FAILED_SUSPENDED = "S"  # org was suspended
+    FAILED_LOOPING = "L"  # message looks like it's part of a loop
+    FAILED_ERROR_LIMIT = "E"  # courier tried to send the message but we reached error limit
+    FAILED_TOO_OLD = "O"  # message has been queued for too long and too late to send message
+    FAILED_NO_DESTINATION = "D"  # no compatible channel + URN destination found
+    FAILED_CHOICES = (
+        (FAILED_SUSPENDED, "Suspended"),
+        (FAILED_LOOPING, "Looping"),
+        (FAILED_ERROR_LIMIT, "Error Limit"),
+        (FAILED_TOO_OLD, "Too Old"),
+        (FAILED_NO_DESTINATION, "No Destination"),
+    )
 
     MEDIA_GPS = "geo"
     MEDIA_IMAGE = "image"
@@ -379,115 +386,31 @@ class Msg(models.Model):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
     visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE)
 
-    response_to = models.ForeignKey(
-        "Msg", on_delete=models.PROTECT, null=True, blank=True, related_name="responses", db_index=False
-    )
-
     labels = models.ManyToManyField("Label", related_name="msgs")
 
     # the number of actual messages the channel sent this as (outgoing only)
     msg_count = models.IntegerField(default=1)
 
-    # the number of times this message has errored (outgoing only)
-    error_count = models.IntegerField(default=0)
-
-    # when we'll next try to send this message (only set for retries after an error)
-    next_attempt = models.DateTimeField(null=True)
+    # sending issues (outgoing only)
+    error_count = models.IntegerField(default=0)  # number of times this message has errored
+    next_attempt = models.DateTimeField(null=True)  # when we'll next retry
+    failed_reason = models.CharField(null=True, max_length=1, choices=FAILED_CHOICES)  # why we've failed
 
     # the id of this message on the other side of its channel
-    external_id = models.CharField(max_length=255, null=True, blank=True)
+    external_id = models.CharField(max_length=255, null=True)
 
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
 
-    # used for IVR sessions on channels
-    connection = models.ForeignKey(
-        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="msgs", null=True
-    )
-
     metadata = JSONAsTextField(null=True, default=dict)
 
-    # why this message is being deleted - determines what happens with counts
+    # can be set before deletion to indicate deletion by a user which should decrement from counts
+    delete_from_counts = models.BooleanField(null=True, default=False)
+
+    # TODO deprecated in favor of delete_from_counts
+    DELETE_FOR_ARCHIVE = "A"
+    DELETE_FOR_USER = "U"
+    DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, "Archive delete"), (DELETE_FOR_USER, "User delete"))
     delete_reason = models.CharField(null=True, max_length=1, choices=DELETE_CHOICES)
-
-    @classmethod
-    def send_messages(cls, all_msgs):
-        """
-        Adds the passed in messages to our sending queue, this will also update the status of the message to
-        queued.
-        :return:
-        """
-
-        from temba.channels.types.android import AndroidType
-
-        courier_batches = []
-
-        # we send in chunks of 1,000 to help with contention
-        for msgs in chunk_list(all_msgs, 1000):
-            # build our id list
-            msg_ids = set([m.id for m in msgs])
-
-            with transaction.atomic():
-                queued_on = timezone.now()
-                courier_msgs = []
-
-                # update them to queued
-                send_messages = (
-                    Msg.objects.filter(id__in=msg_ids)
-                    .exclude(channel__channel_type=AndroidType.code)
-                    .exclude(msg_type=cls.TYPE_IVR)
-                    .exclude(status=cls.STATUS_FAILED)
-                )
-                send_messages.update(status=cls.STATUS_QUEUED, queued_on=queued_on, modified_on=queued_on)
-
-                # now push each onto our queue
-                for msg in msgs:
-
-                    # in development mode, don't actual send any messages
-                    if not settings.SEND_MESSAGES:
-                        msg.status = cls.STATUS_WIRED
-                        msg.sent_on = timezone.now()
-                        msg.save(update_fields=("status", "sent_on"))
-                        logger.debug(f"FAKED SEND for [{msg.id}]")
-                        continue
-
-                    if (
-                        (msg.msg_type != cls.TYPE_IVR and msg.channel and not msg.channel.is_android())
-                        and msg.status != cls.STATUS_FAILED
-                        and msg.uuid
-                    ):
-                        courier_msgs.append(msg)
-                        continue
-
-                # ok, now batch up our courier msgs
-                last_contact = None
-                last_channel = None
-                task_msgs = []
-                for msg in courier_msgs:
-                    if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
-                        courier_batches.append(
-                            dict(
-                                channel=task_msgs[0].channel, msgs=task_msgs, high_priority=task_msgs[0].high_priority
-                            )
-                        )
-                        task_msgs = []
-
-                    last_contact = msg.contact_id
-                    last_channel = msg.channel_id
-                    task_msgs.append(msg)
-
-                # push any remaining courier msgs
-                if task_msgs:
-                    courier_batches.append(
-                        dict(channel=task_msgs[0].channel, msgs=task_msgs, high_priority=task_msgs[0].high_priority)
-                    )
-
-        # send our batches
-        on_transaction_commit(lambda: cls._send_courier_msg_batches(courier_batches))
-
-    @classmethod
-    def _send_courier_msg_batches(cls, batches):
-        for batch in batches:
-            push_courier_msgs(batch["channel"], batch["msgs"], batch["high_priority"])
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
@@ -519,7 +442,7 @@ class Msg(models.Model):
         )
 
         # fail our messages
-        failed_messages.update(status=cls.STATUS_FAILED, modified_on=timezone.now())
+        failed_messages.update(status=cls.STATUS_FAILED, failed_reason=Msg.FAILED_TOO_OLD, modified_on=timezone.now())
 
     def as_archive_json(self):
         """
@@ -655,41 +578,6 @@ class Msg(models.Model):
 
         mailroom.queue_msg_handling(self)
 
-    def as_task_json(self):
-        """
-        Used internally to serialize to JSON when queueing messages in Redis
-        """
-        data = dict(
-            id=self.id,
-            org=self.org_id,
-            channel=self.channel_id,
-            broadcast=self.broadcast_id,
-            text=self.text,
-            urn_path=self.contact_urn.path,
-            urn=str(self.contact_urn),
-            contact=self.contact_id,
-            contact_urn=self.contact_urn_id,
-            error_count=self.error_count,
-            next_attempt=self.next_attempt,
-            status=self.status,
-            direction=self.direction,
-            attachments=self.attachments,
-            external_id=self.external_id,
-            response_to_id=self.response_to_id,
-            sent_on=self.sent_on,
-            queued_on=self.queued_on,
-            created_on=self.created_on,
-            modified_on=self.modified_on,
-            high_priority=self.high_priority,
-            metadata=self.metadata,
-            connection_id=self.connection_id,
-        )
-
-        if self.contact_urn.auth:  # pragma: no cover
-            data.update(dict(auth=self.contact_urn.auth))
-
-        return data
-
     def __str__(self):  # pragma: needs cover
         return self.text
 
@@ -765,14 +653,13 @@ class Msg(models.Model):
         """
         Releases (i.e. deletes) this message
         """
-        Msg.objects.filter(response_to=self).update(response_to=None)
 
         for log in ChannelLog.objects.filter(msg=self):
             log.release()
 
-        if delete_reason:
-            self.delete_reason = delete_reason
-            self.save(update_fields=["delete_reason"])
+        self.delete_reason = delete_reason
+        self.delete_from_counts = delete_reason == self.DELETE_FOR_USER
+        self.save(update_fields=("delete_reason", "delete_from_counts"))
 
         # delete this object
         self.delete()

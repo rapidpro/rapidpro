@@ -39,9 +39,8 @@ from django.views.decorators.csrf import csrf_exempt
 from temba.contacts.models import URN
 from temba.msgs.models import Msg, SystemLabel
 from temba.msgs.views import InboxView
-from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.models import Org
-from temba.orgs.views import AnonMixin, DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import AnonMixin, DependencyDeleteModal, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, countries, json
 from temba.utils.fields import SelectWidget
 from temba.utils.models import patch_queryset_count
@@ -741,8 +740,8 @@ class ChannelCRUDL(SmartCRUDL):
     )
     permissions = True
 
-    class Menu(OrgPermsMixin, SmartTemplateView):  # pragma: no cover
-        def render_to_response(self, context, **response_kwargs):
+    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):  # pragma: no cover
+        def derive_menu(self):
             org = self.request.user.get_org()
 
             menu = []
@@ -753,31 +752,23 @@ class ChannelCRUDL(SmartCRUDL):
                 for channel in channels:
                     icon = channel.get_type().icon.replace("icon-", "")
                     icon = icon.replace("power-cord", "box")
+
                     menu.append(
-                        {
-                            "id": channel.uuid,
-                            "name": channel.name,
-                            "href": get_channel_read_url(channel),
-                            "icon": icon,
-                        }
+                        self.create_menu_item(
+                            menu_id=channel.uuid,
+                            name=channel.name,
+                            href=get_channel_read_url(channel),
+                            icon=icon,
+                        )
                     )
 
-            menu.append(
-                {
-                    "id": "claim",
-                    "href": reverse("channels.channel_claim"),
-                    "name": _("Add Channel"),
-                }
-            )
+            menu.append(self.create_menu_item(menu_id="claim", name=_("Add Channel"), href="channels.channel_claim"))
 
-            return JsonResponse({"results": menu})
+            return menu
 
-    class Read(SpaMixin, OrgObjPermsMixin, NotificationTargetMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
-
-        def get_notification_scope(self) -> tuple:
-            return "channel:alert", str(self.object.uuid)
 
         def get_queryset(self):
             return Channel.objects.filter(is_active=True)
@@ -1391,7 +1382,7 @@ class ChannelCRUDL(SmartCRUDL):
             channel = self.form.cleaned_data["channel"]
             return reverse("channels.channel_read", args=[channel.uuid])
 
-    class Configuration(OrgObjPermsMixin, SmartReadView):
+    class Configuration(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def get_context_data(self, **kwargs):
@@ -1475,7 +1466,7 @@ class ChannelLogCRUDL(SmartCRUDL):
     model = ChannelLog
     actions = ("list", "read", "connection")
 
-    class List(OrgPermsMixin, SmartListView):
+    class List(SpaMixin, OrgPermsMixin, SmartListView):
         fields = ("channel", "description", "created_on")
         link_fields = ("channel", "description", "created_on")
         paginate_by = 50
@@ -1572,6 +1563,11 @@ class ChannelLogCRUDL(SmartCRUDL):
 
     class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
+        slug_url_kwarg = "pk"
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<channel_uuid>[0-9a-f-]+)/(?P<pk>\d+)/$" % (path, action)
 
         def get_gear_links(self):
             return [

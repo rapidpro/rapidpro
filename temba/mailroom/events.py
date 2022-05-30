@@ -79,7 +79,11 @@ class Event:
         """
 
         channel_log = obj.get_last_log()
-        logs_url = _url_for_user(org, user, "channels.channellog_read", args=[channel_log.id]) if channel_log else None
+        logs_url = (
+            _url_for_user(org, user, "channels.channellog_read", args=[channel_log.channel.uuid, channel_log.id])
+            if channel_log
+            else None
+        )
 
         if obj.direction == Msg.DIRECTION_IN:
             return {

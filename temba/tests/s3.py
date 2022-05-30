@@ -2,7 +2,6 @@ import gzip
 import io
 from collections import defaultdict
 from datetime import datetime
-from typing import Dict, List
 from unittest.mock import call
 
 import iso8601
@@ -13,7 +12,7 @@ from temba.utils import chunk_list, json
 
 
 class MockEventStream:
-    def __init__(self, records: List[Dict], max_payload_size: int = 256):
+    def __init__(self, records: list[dict], max_payload_size: int = 256):
         # serialize records as a JSONL payload
         buffer = io.BytesIO()
         for record in records:

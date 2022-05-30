@@ -40,7 +40,7 @@
       -for archive in object_list
         %tr.archive-row
           %td
-            .hover-linked(onclick="goto(event)" href="{% url 'archives.archive_read' archive.id %}")
+            .hover-linked.break-all(onclick="goto(event)" href="{% url 'archives.archive_read' archive.id %}")
               {{archive.filename}}
           %td.archive-record-count.cell
             {{archive.record_count|intcomma}}

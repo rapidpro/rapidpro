@@ -17,13 +17,13 @@
         -trans "Recipient"
       -block log-recipient
         -if object.msg
-          %a(href='{% url "contacts.contact_read" object.msg.contact.uuid %}')
+          %temba-anchor(href='{% url "contacts.contact_read" object.msg.contact.uuid %}')
             {{ object.msg.contact_urn.get_display }}
 
     .inline-flex.mr-8
       .font-normal.mr-2
         -trans "Channel"
-      %a(href='{% url "channels.channel_read" object.channel.uuid %}')
+      %temba-anchor(href='{% url "channels.channel_read" object.channel.uuid %}')
         {{ object.channel }}
 
     .inline-flex.mr-8

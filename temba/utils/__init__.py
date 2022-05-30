@@ -2,8 +2,6 @@ import locale
 import resource
 from itertools import islice
 
-import iso8601
-
 from django.conf import settings
 from django.db import transaction
 
@@ -52,62 +50,6 @@ def sizeof_fmt(num, suffix="b"):
             return "%3.1f %s%s" % (num, unit, suffix)
         num /= 1024.0
     return "%.1f %s%s" % (num, "Y", suffix)
-
-
-def get_dict_from_cursor(cursor):
-    """
-    Returns all rows from a cursor as a dict
-    """
-    desc = cursor.description
-    return [dict(zip([col[0] for col in desc], row)) for row in cursor.fetchall()]
-
-
-class DictStruct(object):
-    """
-    Wraps a dictionary turning it into a structure looking object. This is useful to 'mock' dictionaries
-    coming from Redis to look like normal objects
-    """
-
-    def __init__(self, classname, entries, datetime_fields=()):
-        self._classname = classname
-        self._values = entries
-
-        # for each of our datetime fields, convert back to datetimes
-        for field in datetime_fields:
-            value = self._values.get(field, None)
-            if value:
-                self._values[field] = iso8601.parse_date(value)
-
-        self._initialized = True
-
-    def __getattr__(self, item):
-        if item not in self._values:
-            raise AttributeError("%s does not have a %s field" % (self._classname, item))
-
-        return self._values[item]
-
-    def __setattr__(self, item, value):
-        # needed to prevent infinite loop
-        if "_initialized" not in self.__dict__:
-            return object.__setattr__(self, item, value)
-
-        if item not in self._values:
-            raise AttributeError("%s does not have a %s field" % (self._classname, item))
-
-        self._values[item] = value
-
-    def __str__(self):
-        return "%s [%s]" % (self._classname, self._values)
-
-
-def dict_to_struct(classname, attributes, datetime_fields=()):
-    """
-    Given a classname and a dictionary will return an object that allows for dot access to
-    the passed in attributes.
-
-    ex: dict_to_struct('MsgStruct', attributes)
-    """
-    return DictStruct(classname, attributes, datetime_fields)
 
 
 def prepped_request_to_str(prepped):

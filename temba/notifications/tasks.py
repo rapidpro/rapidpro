@@ -18,15 +18,19 @@ def send_notification_emails():
     )
     start = timezone.now()
 
+    num_sent, num_errored = 0, 0
+
     for notification in pending:
         try:
             notification.send_email()
+            num_sent += 1
         except Exception:  # pragma: no cover
             logger.error(f"error sending notification email", exc_info=True)
+            num_errored += 1
 
-    if pending:
+    if num_sent or num_errored:
         time_taken = (timezone.now() - start).total_seconds()
-        logger.info(f"{len(pending)} notification emails sent in {time_taken} seconds")
+        logger.info(f"{num_sent} notification emails sent in {time_taken} seconds ({num_errored} errored)")
 
 
 @nonoverlapping_task(track_started=True, name="squash_notificationcounts", lock_timeout=1800)

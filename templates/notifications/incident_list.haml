@@ -1,0 +1,50 @@
+-extends "smartmin/list.html"
+-load smartmin i18n
+
+-block title
+  {{ title }}
+
+-block page-title
+  -trans "Incidents"
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-global
+
+-block content
+  #pjax
+    -block pjax
+      %table.list.lined.mb-6
+        %thead
+          %tr
+            %th(colspan="2")
+              -trans "Ongoing"
+        %tbody
+          -for obj in ongoing
+            %tr
+              %td
+                -include obj.template with incident=obj
+              %td.text-right.whitespace-nowrap
+                -format_datetime obj.started_on
+          -empty
+            %tr
+              %td(colspan='2')
+                -trans "None"
+      %table.list.lined
+        %thead
+          %tr
+            %th(colspan="2")
+              -trans "Previous"
+        %tbody
+          -for obj in object_list
+            %tr
+              %td
+                -include obj.template with incident=obj
+              %td.text-right.whitespace-nowrap
+                -format_datetime obj.started_on
+          -empty
+            %tr
+              %td(colspan='2')
+                -trans "None"
+
+      -include "includes/pagination.haml"

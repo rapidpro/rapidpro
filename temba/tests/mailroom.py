@@ -4,7 +4,6 @@ from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from functools import wraps
-from typing import Dict, List
 from unittest.mock import call, patch
 
 from django_redis import get_redis_connection
@@ -43,7 +42,7 @@ class Mocks:
         self.queued_batch_tasks = []
 
     @staticmethod
-    def _parse_query_response(query: str, elastic: Dict, fields: List, allow_as_group: bool):
+    def _parse_query_response(query: str, elastic: dict, fields: list, allow_as_group: bool):
         def field_ref(f):
             return {"key": f.key, "name": f.label} if isinstance(f, ContactField) else {"key": f}
 
@@ -85,7 +84,7 @@ class Mocks:
 
         self._contact_search[query] = mock
 
-    def error(self, msg: str, code: str = None, extra: Dict = None):
+    def error(self, msg: str, code: str = None, extra: dict = None):
         """
         Queues an error which will become a mailroom exception at the next client call
         """
@@ -131,7 +130,7 @@ class TestClient(MailroomClient):
         return {"contact": {"id": obj.id, "uuid": str(obj.uuid), "name": obj.name}}
 
     @_client_method
-    def contact_modify(self, org_id, user_id, contact_ids, modifiers: List[Modifier]):
+    def contact_modify(self, org_id, user_id, contact_ids, modifiers: list[Modifier]):
         org = Org.objects.get(id=org_id)
         user = User.objects.get(id=user_id)
         contacts = org.contacts.filter(id__in=contact_ids)
@@ -306,7 +305,7 @@ def _wrap_test_method(f, mock_client: bool, mock_queue: bool, instance, *args, *
             patch_queue_batch_task.stop()
 
 
-def apply_modifiers(org, user, contacts, modifiers: List):
+def apply_modifiers(org, user, contacts, modifiers: list):
     """
     Approximates mailroom applying modifiers but doesn't do dynamic group re-evaluation.
     """
@@ -429,7 +428,7 @@ def update_field_locally(user, contact, key, value, label=None):
                 EventFire.objects.create(contact=contact, event=event, scheduled=scheduled)
 
 
-def update_urns_locally(contact, urns: List[str]):
+def update_urns_locally(contact, urns: list[str]):
     country = contact.org.default_country_code
     priority = ContactURN.PRIORITY_HIGHEST
 

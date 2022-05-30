@@ -167,8 +167,14 @@ def decode_stream(f):
     data = f.read()
     f.seek(0)
 
-    encoding = chardet.detect(data)["encoding"]
-    if encoding == "ascii":
+    encodings = [d["encoding"] for d in chardet.detect_all(data)]
+
+    if "utf-8" in encodings:  # always go with UTF-8 if it appears to be an option
+        encoding = "utf-8"
+    else:
+        encoding = encodings[0]
+
+    if not encoding or encoding == "ascii":
         encoding = "utf-8"
 
     return io.TextIOWrapper(f, encoding=encoding)

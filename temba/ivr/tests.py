@@ -16,11 +16,9 @@ class IVRCallTest(TembaTest):
         self.assertEqual(FlowSession.objects.count(), 2)
 
         self.assertEqual(call1.runs.count(), 1)
-        self.assertEqual(call1.msgs.count(), 1)
         self.assertEqual(call1.channel_logs.count(), 1)
 
         self.assertEqual(call2.runs.count(), 1)
-        self.assertEqual(call2.msgs.count(), 1)
         self.assertEqual(call2.channel_logs.count(), 1)
 
         call2.release()
@@ -29,11 +27,9 @@ class IVRCallTest(TembaTest):
 
         # call #1 unaffected
         self.assertEqual(call1.runs.count(), 1)
-        self.assertEqual(call1.msgs.count(), 1)
         self.assertEqual(call1.channel_logs.count(), 1)
 
         self.assertEqual(call2.runs.count(), 0)
-        self.assertEqual(call2.msgs.count(), 0)
         self.assertEqual(call2.channel_logs.count(), 0)
 
         self.assertFalse(IVRCall.objects.filter(id=call2.id).exists())
