@@ -92,6 +92,7 @@ class ChannelType(metaclass=ABCMeta):
 
     redact_request_keys = set()
     redact_response_keys = set()
+    redact_values = set()
 
     def is_available_to(self, user):
         """
@@ -1227,33 +1228,39 @@ class ChannelLog(models.Model):
         """
         Gets the URL as it should be displayed to the given user
         """
-        return self._get_display_value(user, self.url, anon_mask)
+        redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
+
+        return self._get_display_value(user, self.url, anon_mask, redact_values=redact_values)
 
     def get_request_display(self, user, anon_mask):
         """
         Gets the request trace as it should be displayed to the given user
         """
         redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_request_keys
+        redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
 
-        return self._get_display_value(user, self.request, anon_mask, redact_keys)
+        return self._get_display_value(
+            user, self.request, anon_mask, redact_keys=redact_keys, redact_values=redact_values
+        )
 
     def get_response_display(self, user, anon_mask):
         """
         Gets the response trace as it should be displayed to the given user
         """
         redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_response_keys
+        redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
 
-        return self._get_display_value(user, self.response, anon_mask, redact_keys)
+        return self._get_display_value(
+            user, self.response, anon_mask, redact_keys=redact_keys, redact_values=redact_values
+        )
 
-    def _get_display_value(self, user, original, mask, redact_keys=()):
+    def _get_display_value(self, user, original, mask, redact_keys=(), redact_values=()):
         """
         Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
         """
 
-        if self.channel.channel_type == "WAC":
-            secrets = [settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN]
-            for secret in secrets:
-                original = redact.text(original, secret, mask)
+        for secret_val in redact_values:
+            original = redact.text(original, secret_val, mask)
 
         if not self.channel.org.is_anon or user.has_org_perm(self.channel.org, "contacts.contact_break_anon"):
             return original

@@ -2580,7 +2580,6 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "Quito", count=1)
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-    @override_settings(WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN")
     def test_channellog_hide_whatsapp_cloud(self):
         urn = "whatsapp:15128505839"
         contact = self.create_contact("Fred Jones", urns=[urn])
@@ -2595,7 +2594,7 @@ class ChannelLogTest(TembaTest):
             url=f"https://example.com/send/message?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}",
             method="POST",
             request=f"""
-POST /send/message?access_token=WA_ADMIN_TOKEN HTTP/1.1
+POST /send/message?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN} HTTP/1.1
 Host: example.com
 Accept: */*
 Accept-Encoding: gzip;q=1.0,deflate;q=0.6,identity;q=0.3
