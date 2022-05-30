@@ -1,3 +1,7 @@
+1.2.6-rapidpro-7.1.27
+----------
+* RapidPro updated to v7.1.27
+
 1.2.6-rapidpro-7.0.4
 ----------
  * HelpHero iframe event
