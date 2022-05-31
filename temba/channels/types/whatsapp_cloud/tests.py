@@ -20,7 +20,10 @@ class WhatsAppCloudTypeTest(TembaTest):
         FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET",
         WHATSAPP_FACEBOOK_BUSINESS_ID="FB_BUSINESS_ID",
     )
-    def test_claim(self):
+    @patch("temba.channels.types.whatsapp_cloud.views.randint")
+    def test_claim(self, mock_randint):
+        mock_randint.return_value = 111111
+
         Channel.objects.all().delete()
         self.login(self.admin)
 
@@ -279,7 +282,10 @@ class WhatsAppCloudTypeTest(TembaTest):
 
                 self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
-                self.assertEqual(3, wa_cloud_post.call_count)
+                self.assertEqual(4, wa_cloud_post.call_count)
+
+                self.assertEqual("https://graph.facebook.com/v13.0/123123123/register", wa_cloud_post.call_args[0][0])
+                self.assertEqual({'messaging_product': 'whatsapp', 'pin': '111111'}, wa_cloud_post.call_args[1]['data'])
 
                 channel = Channel.objects.get()
 
@@ -293,6 +299,7 @@ class WhatsAppCloudTypeTest(TembaTest):
                 self.assertEqual("111111111111111", channel.config["wa_waba_id"])
                 self.assertEqual("USD", channel.config["wa_currency"])
                 self.assertEqual("2222222222222", channel.config["wa_business_id"])
+                self.assertEqual("111111", channel.config["wa_pin"])
                 self.assertEqual("namespace-uuid", channel.config["wa_message_template_namespace"])
 
     @override_settings(WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN")

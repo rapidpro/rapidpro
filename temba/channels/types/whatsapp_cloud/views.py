@@ -1,3 +1,5 @@
+from random import randint
+
 import requests
 from smartmin.views import SmartFormView
 
@@ -124,6 +126,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         business_id = form.cleaned_data["business_id"]
         currency = form.cleaned_data["currency"]
         message_template_namespace = form.cleaned_data["message_template_namespace"]
+        pin = str(randint(100000, 999999))
 
         config = {
             "wa_number": number,
@@ -132,6 +135,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             "wa_currency": currency,
             "wa_business_id": business_id,
             "wa_message_template_namespace": message_template_namespace,
+            "wa_pin": pin,
         }
 
         self.object = Channel.create(
