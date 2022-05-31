@@ -12,7 +12,7 @@ We've noticed that the Android phone for {{ org_name }} is having trouble sendin
 Please check on your phone to make sure it has sufficient credit and can send text messages.  If problems persist you may want to try turning the phone off then back on.  Currently your Android phone has {{ unsent_count }} messages which haven't sent in over an hour.
 {% endblocktrans %}
 
-{% elif channel.get_type.free_sending %}
+{% elif channel.type.free_sending %}
 {% blocktrans with org_name=org.name channel_type=channel.get_channel_type_name %}
 Hi {{ org_name }},
 

@@ -48,7 +48,7 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
         return [
             dict(
                 title=_("Sync Logs"),
-                href=reverse(f"channels.types.{self.object.get_type().slug}.sync_logs", args=[self.object.uuid]),
+                href=reverse(f"channels.types.{self.object.type.slug}.sync_logs", args=[self.object.uuid]),
             )
         ]
 
@@ -79,7 +79,7 @@ class SyncLogsView(OrgPermsMixin, SmartReadView):
         return [
             dict(
                 title=_("Message Templates"),
-                href=reverse(f"channels.types.{self.object.get_type().slug}.templates", args=[self.object.uuid]),
+                href=reverse(f"channels.types.{self.object.type.slug}.templates", args=[self.object.uuid]),
             )
         ]
 

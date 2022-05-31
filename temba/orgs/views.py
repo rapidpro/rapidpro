@@ -1231,7 +1231,7 @@ class OrgCRUDL(SmartCRUDL):
                     items = []
                     channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
                     for channel in channels:
-                        icon = channel.get_type().icon.replace("icon-", "")
+                        icon = channel.type.icon.replace("icon-", "")
                         icon = icon.replace("power-cord", "box")
                         items.append(
                             self.create_menu_item(
@@ -3274,9 +3274,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("channels.channel_read"):
                 from temba.channels.views import get_channel_read_url
 
-                formax.add_section(
-                    "channel", get_channel_read_url(channel), icon=channel.get_type().icon, action="link"
-                )
+                formax.add_section("channel", get_channel_read_url(channel), icon=channel.type.icon, action="link")
 
         def add_classifier_section(self, formax, classifier):
 

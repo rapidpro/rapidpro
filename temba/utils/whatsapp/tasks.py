@@ -177,7 +177,7 @@ def refresh_whatsapp_templates():
             # fetch all our templates
             try:
 
-                templates_data, valid = channel.get_type().get_api_templates(channel)
+                templates_data, valid = channel.type.get_api_templates(channel)
                 if not valid:
                     continue
 
