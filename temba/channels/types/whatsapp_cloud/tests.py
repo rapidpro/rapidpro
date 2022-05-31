@@ -16,9 +16,9 @@ from .type import WhatsAppCloudType
 
 class WhatsAppCloudTypeTest(TembaTest):
     @override_settings(
-        FACEBOOK_APPLICATION_ID="FB_APP_ID",
-        FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET",
-        WHATSAPP_FACEBOOK_BUSINESS_ID="FB_BUSINESS_ID",
+        WHATSAPP_APPLICATION_ID="WAC_APP_ID",
+        WHATSAPP_APPLICATION_SECRET="WAC_APP_SECRET",
+        WHATSAPP_FACEBOOK_BUSINESS_ID="WAC_BUSINESS_ID",
     )
     def test_claim(self):
         Channel.objects.all().delete()

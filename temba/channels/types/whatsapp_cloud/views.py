@@ -28,8 +28,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.remove_token_credentials_from_session()
             return HttpResponseRedirect(reverse("orgs.org_whatsapp_cloud_connect"))
 
-        app_id = settings.FACEBOOK_APPLICATION_ID
-        app_secret = settings.FACEBOOK_APPLICATION_SECRET
+        app_id = settings.WHATSAPP_APPLICATION_ID
+        app_secret = settings.WHATSAPP_APPLICATION_SECRET
 
         url = "https://graph.facebook.com/v13.0/debug_token"
         params = {"access_token": f"{app_id}|{app_secret}", "input_token": oauth_user_token}
@@ -51,8 +51,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         context = super().get_context_data(**kwargs)
 
         oauth_user_token = self.request.session.get(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, None)
-        app_id = settings.FACEBOOK_APPLICATION_ID
-        app_secret = settings.FACEBOOK_APPLICATION_SECRET
+        app_id = settings.WHATSAPP_APPLICATION_ID
+        app_secret = settings.WHATSAPP_APPLICATION_SECRET
 
         url = "https://graph.facebook.com/v13.0/debug_token"
         params = {"access_token": f"{app_id}|{app_secret}", "input_token": oauth_user_token}
