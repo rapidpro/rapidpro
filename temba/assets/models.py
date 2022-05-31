@@ -47,7 +47,7 @@ class AssetFileNotFound(AssetException):
     pass
 
 
-class BaseAssetStore(object):
+class BaseAssetStore:
     """
     Base class for asset handlers. Assumes that pk is primary key of a db object with an associated asset.
     """

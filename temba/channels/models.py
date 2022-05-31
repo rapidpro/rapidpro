@@ -30,7 +30,6 @@ from temba import mailroom
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, countries, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
-from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
 
@@ -858,25 +857,6 @@ class Channel(TembaModel, DependencyMixin):
         # is this channel newer than an hour
         return self.created_on > timezone.now() - timedelta(hours=1) or not self.get_last_sync()
 
-    def calculate_tps_cost(self, msg):
-        """
-        Calculates the TPS cost for sending the passed in message. We look at the URN type and for any
-        `tel` URNs we just use the calculated segments here. All others have a cost of 1.
-
-        In the case of attachments, our cost is the number of attachments.
-        """
-        from temba.contacts.models import URN
-
-        cost = 1
-        if msg.contact_urn.scheme == URN.TEL_SCHEME:
-            cost = calculate_num_segments(msg.text)
-
-        # if we have attachments then use that as our cost (MMS bundles text into the attachment, but only one per)
-        if msg.attachments:
-            cost = len(msg.attachments)
-
-        return cost
-
     def claim(self, org, user, phone):
         """
         Claims this channel for the given org/user
@@ -919,9 +899,8 @@ class Channel(TembaModel, DependencyMixin):
         # disassociate them
         Channel.objects.filter(parent=self).update(parent=None)
 
-        # delete any alerts or notifications
+        # delete any alerts
         self.alerts.all().delete()
-        self.notifications.all().delete()
 
         # any related sync events
         for sync_event in self.sync_events.all():
@@ -1012,33 +991,6 @@ class Channel(TembaModel, DependencyMixin):
             text = text.replace("{{%s}}" % key, replacement)
 
         return text
-
-    @classmethod
-    def get_pending_messages(cls, org):
-        """
-        We want all messages that are:
-            1. Pending, ie, never queued
-            2. Queued over twelve hours ago (something went awry and we need to re-queue)
-            3. Errored and are ready for a retry
-        """
-
-        from temba.channels.types.android import AndroidType
-        from temba.msgs.models import Msg
-
-        now = timezone.now()
-        hours_ago = now - timedelta(hours=12)
-        five_minutes_ago = now - timedelta(minutes=5)
-
-        return (
-            Msg.objects.filter(org=org, direction=Msg.DIRECTION_OUT)
-            .filter(
-                Q(status=Msg.STATUS_PENDING, created_on__lte=five_minutes_ago)
-                | Q(status=Msg.STATUS_QUEUED, queued_on__lte=hours_ago)
-                | Q(status=Msg.STATUS_ERRORED, next_attempt__lte=now)
-            )
-            .exclude(channel__channel_type=AndroidType.code)
-            .order_by("created_on")
-        )
 
     def get_count(self, count_types):
         count = (
@@ -1250,13 +1202,6 @@ class ChannelLog(models.Model):
     response_status = models.IntegerField(null=True)
     created_on = models.DateTimeField(default=timezone.now)
     request_time = models.IntegerField(null=True)
-
-    @classmethod
-    def log_error(cls, msg, description):
-        print("[%d] ERROR - %s" % (msg.id, description))
-        return ChannelLog.objects.create(
-            channel_id=msg.channel, msg_id=msg.id, is_error=True, description=description[:255]
-        )
 
     @classmethod
     def log_channel_request(cls, channel_id, description, event, start, is_error=False):
@@ -1485,8 +1430,6 @@ class Alert(SmartModel):
 
     @classmethod
     def create_and_send(cls, channel, alert_type: str, *, sync_event=None):
-        from temba.notifications.models import Notification
-
         user = get_alert_user()
         alert = cls.objects.create(
             channel=channel,
@@ -1496,8 +1439,6 @@ class Alert(SmartModel):
             modified_by=user,
         )
         alert.send_alert()
-
-        Notification.channel_alert(alert)
 
         return alert
 
@@ -1655,7 +1596,6 @@ class Alert(SmartModel):
         context = dict(
             org=self.channel.org,
             channel=self.channel,
-            now=timezone.now(),
             last_seen=self.channel.last_seen,
             sync=self.sync_event,
         )
@@ -1795,9 +1735,6 @@ class ChannelConnection(models.Model):
         session = self.get_session()
         if session:
             session.release()
-
-        for msg in self.msgs.all():
-            msg.release()
 
         self.delete()
 

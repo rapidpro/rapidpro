@@ -693,8 +693,23 @@ code {
       box-shadow: var(--widget-box-shadow-focused);
     }
 
+    &.action-summary, &.action-link {
+      @apply border border-gray-400 shadow-none bg-transparent;
+
+      background-color: rgba(0,0,0,.015);
+
+      .formax-summary {
+        @apply py-6 !important;
+        @apply bg-transparent;
+      }
+
+      .formax-icon {
+        @apply bg-transparent;
+      }
+    }
+
     &.action-summary:hover {
-      @apply shadow;
+      @apply shadow-none;
 
       .formax-icon {
         @apply cursor;

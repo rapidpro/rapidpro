@@ -2,10 +2,10 @@ import logging
 import time
 from array import array
 from collections import defaultdict
-from datetime import timedelta
-from typing import Dict
+from datetime import datetime, timedelta
 
 import iso8601
+import pytz
 import regex
 from django_redis import get_redis_connection
 from packaging.version import Version
@@ -214,7 +214,7 @@ class Flow(TembaModel):
                 },
             )
 
-        analytics.track(user, "temba.flow_created", dict(name=name))
+        analytics.track(user, "temba.flow_created", dict(name=name, uuid=flow.uuid))
         return flow
 
     @classmethod
@@ -662,6 +662,36 @@ class Flow(TembaModel):
             "completion": int(completed * 100 // total_runs) if total_runs else 0,
         }
 
+    def get_recent_contacts(self, exit_uuid: str, dest_uuid: str) -> list:
+        r = get_redis_connection()
+        key = f"recent_contacts:{exit_uuid}:{dest_uuid}"
+
+        # fetch members of the sorted set from redis and save as tuples of (contact_id, operand, time)
+        contact_ids = set()
+        raw = []
+        for member, score in r.zrange(key, start=0, end=-1, desc=True, withscores=True):
+            rand, contact_id, operand = member.decode().split("|", maxsplit=2)
+            contact_ids.add(int(contact_id))
+            raw.append((int(contact_id), operand, datetime.utcfromtimestamp(score).replace(tzinfo=pytz.UTC)))
+
+        # lookup all the referenced contacts
+        contacts_by_id = {c.id: c for c in self.org.contacts.filter(id__in=contact_ids, is_active=True)}
+
+        # if contact still exists, include in results
+        recent = []
+        for r in raw:
+            contact = contacts_by_id.get(r[0])
+            if contact:
+                recent.append(
+                    {
+                        "contact": {"uuid": str(contact.uuid), "name": contact.get_display(org=self.org)},
+                        "operand": r[1],
+                        "time": r[2].isoformat(),
+                    }
+                )
+
+        return recent
+
     def async_start(self, user, groups, contacts, query=None, restart_participants=False, include_active=True):
         """
         Causes us to schedule a flow to start in a background thread.
@@ -709,11 +739,11 @@ class Flow(TembaModel):
         """
         return Version(self.version_number) < Version(Flow.INITIAL_GOFLOW_VERSION)
 
-    def as_export_ref(self) -> Dict:
+    def as_export_ref(self) -> dict:
         return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
 
     @classmethod
-    def get_metadata(cls, flow_info) -> Dict:
+    def get_metadata(cls, flow_info) -> dict:
         return {
             Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
             Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
@@ -737,7 +767,7 @@ class Flow(TembaModel):
             self.save_revision(user=None, definition=flow_def)
             self.refresh_from_db()
 
-    def get_definition(self) -> Dict:
+    def get_definition(self) -> dict:
         """
         Returns the current definition of this flow
         """
@@ -1022,6 +1052,7 @@ class FlowSession(models.Model):
         (STATUS_FAILED, "Failed"),
     )
 
+    id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(unique=True)
     org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
@@ -1128,6 +1159,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
 
+    id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="runs", db_index=False)
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="runs")
@@ -1158,9 +1190,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     # if this run is part of a Surveyor session, the user that submitted it
     submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, db_index=False)
-
-    # parent run that started this run (if any)
-    parent = models.ForeignKey("flows.FlowRun", on_delete=models.PROTECT, null=True)
 
     # UUID of the parent run (if any)
     parent_uuid = models.UUIDField(null=True)
@@ -1233,9 +1262,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 self.delete_reason = delete_reason
                 self.save(update_fields=["delete_reason"])
 
-            # clear any runs that reference us
-            FlowRun.objects.filter(parent=self).update(parent=None)
-
             # and any recent runs
             for recent in FlowPathRecentRun.objects.filter(run=self):
                 recent.release()
@@ -1259,10 +1285,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             # save our updated fields
             self.save(update_fields=["expires_on", "modified_on"])
-
-        # parent should always have a later expiration than the children
-        if self.parent:
-            self.parent.update_expiration(self.expires_on)
 
     def as_archive_json(self):
         def convert_step(step):
@@ -1404,7 +1426,7 @@ class FlowRevision(SmartModel):
             for rule in ruleset["rules"]:
                 validate_localization(rule["category"])
 
-    def get_migrated_definition(self, to_version: str = Flow.CURRENT_SPEC_VERSION) -> Dict:
+    def get_migrated_definition(self, to_version: str = Flow.CURRENT_SPEC_VERSION) -> dict:
         definition = self.definition
 
         # if it's previous to version 6, wrap the definition to

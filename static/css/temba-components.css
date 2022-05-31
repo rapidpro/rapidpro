@@ -98,7 +98,7 @@ html {
   --icon-color: var(--text-color);
   --icon-color-hover: var(--icon-color);
   
-  --transition-speed: 200ms;
+  --transition-speed: 250ms;
   --event-padding: 0.5em 1em;
   --temba-select-selected-padding: 9px;
   --temba-select-selected-line-height: 16px;
@@ -130,6 +130,7 @@ html {
 
   --menu-padding: 1em;
   --bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
 }
 
 temba-button {

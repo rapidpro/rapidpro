@@ -1,0 +1,139 @@
+-extends "smartmin/list.html"
+-load smartmin sms temba compress i18n humanize
+
+-block title
+  {{ title }}
+
+-block page-title
+  {{ title }}
+
+-block summary
+  -if archive_count
+    {% blocktrans trimmed with counter=archive_count|intcomma count num=archive_count  %}
+    You have {{ counter }} archive
+    {% plural %}
+    You have {{ counter }} archives
+    {% endblocktrans %}
+
+    {% blocktrans trimmed with counter=record_count|intcomma count num=record_count %}
+    containing {{ counter }} record.
+    {% plural %}
+    containing {{ counter }} records.
+    {% endblocktrans %}
+  -else
+    -trans "You do not have any message or run archives yet."
+
+-block content
+  -if object_list
+    %table.archives.list.lined
+      %thead
+        %th
+          -trans "Records"
+        %th
+          -trans "Size"
+        %th
+          -trans "Period"
+        %th
+
+      -for archive in object_list
+        %tr.archive-row
+          %td.archive-record-count.cell
+            .pl-6
+              {{archive.record_count|intcomma}}
+          %td.archive-size.cell.whitespace-nowrap
+            .pl-32
+              {{archive.size_display}}
+          %td.archive-period.cell.w-full
+            -if archive.period == 'D'
+              {{archive.start_date|date:"M j, Y"}}
+            -else
+              {{archive.start_date|date:"F Y"}}
+          %td.text-gray-500
+            -if archive.period == 'D'
+              %temba-button(name="Download" onclick="goto(event)" href="{% url 'archives.archive_read' archive.id %}")
+            -else
+              %temba-button(name="Download" onclick="goto(event)" href="{% url 'archives.archive_read' archive.id %}")
+  -else
+
+    -blocktrans trimmed
+      No archives found. Archives are created after 90 days of inactivity for messages and flow runs. Check back later to
+      see a list of all archives.
+
+
+  -block paginator
+    -if object_list.count
+      -include "includes/pagination.haml"
+
+
+-block extra-style
+  :css
+    .page-content {
+        align-self: auto;
+        max-width: 1024px;
+    }
+
+    .title-icon {
+      margin-bottom: -5px;
+    }
+    .icon-session:before {
+      content: "\e03e";
+      color: #999
+    }
+
+    .cell {
+      overflow: clip;
+      padding: 5px 5px 5px 5px;
+
+    }
+
+    .archive-row {
+
+    }
+
+    .archive-period {
+      text-align: right;
+    }
+
+    .archive-size {
+      text-align: right;
+    }
+
+    .archive-record-count {
+      width: 130px;
+      text-align: right;
+    }
+
+    .archives {
+      width: 100%;
+    }
+
+    .archive-icon {
+      width: 30px;
+      text-align: center;
+    }
+
+    thead {
+      border-top: none;
+    }
+
+    table.archives.list thead th {
+      text-align: right;
+    }
+
+    table.archives.list thead th.name {
+      text-align: left;
+    }
+
+    th.empty {
+      border: 0px solid green;
+    }
+
+    .icon {
+      color: #ddd;
+      padding-top: 2px;
+    }
+
+    .icon:hover {
+      color: #aaa;
+      cursor: pointer;
+    }

@@ -117,6 +117,10 @@
     var modax = link.getAttribute("data-modax");
     if (modax) {
       showModax(modax, href);
+    } else {
+      if (href) {
+        fetchURL(href);
+      }
     }
   }
 
@@ -124,6 +128,7 @@
     const modax = document.querySelector("temba-modax#gear-modax");
     modax.header = header;
     modax.endpoint = endpoint;
+    modax.headers = { "TEMBA-SPA": 1}
     modax.open = true;
   }
 

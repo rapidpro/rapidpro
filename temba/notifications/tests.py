@@ -1,18 +1,112 @@
 from datetime import datetime
 
+import pytz
+
 from django.core import mail
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
-from temba.channels.models import Alert
 from temba.contacts.models import ContactImport, ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import OrgRole
-from temba.tests import TembaTest, matchers
+from temba.tests import CRUDLTestMixin, TembaTest, matchers
 
-from .models import Notification
+from .models import Incident, Notification
 from .tasks import send_notification_emails, squash_notificationcounts
+
+
+class IncidentTest(TembaTest):
+    def test_create(self):
+        # we use a unique constraint to enforce uniqueness on org+type+scope for ongoing incidents which allows use of
+        # INSERT .. ON CONFLICT DO NOTHING
+        incident1 = Incident._create(self.org, "incident:test", scope="scope1")
+
+        # try to create another for the same scope
+        incident2 = Incident._create(self.org, "incident:test", scope="scope1")
+
+        # different scope
+        incident3 = Incident._create(self.org, "incident:test", scope="scope2")
+
+        self.assertEqual(incident1, incident2)
+        self.assertNotEqual(incident1, incident3)
+
+        # each created incident creates a notification for the workspace admin
+        self.assertEqual(2, Notification.objects.count())
+        self.assertEqual(1, incident1.notifications.count())
+        self.assertEqual(1, incident2.notifications.count())
+
+        # check that once incident 1 ends, new incidents can be created for same scope
+        incident1.end()
+
+        incident4 = Incident._create(self.org, "incident:test", scope="scope1")
+
+        self.assertNotEqual(incident1, incident4)
+        self.assertEqual(3, Notification.objects.count())
+        self.assertEqual(1, incident4.notifications.count())
+
+    def test_org_flagged(self):
+        self.org.flag()
+
+        incident = Incident.objects.get()
+        self.assertEqual("org:flagged", incident.incident_type)
+        self.assertEqual({self.admin}, set(n.user for n in incident.notifications.all()))
+
+        self.assertEqual(
+            {"type": "org:flagged", "started_on": matchers.ISODate(), "ended_on": None}, incident.as_json()
+        )
+
+        self.org.unflag()
+
+        incident = Incident.objects.get()  # still only have 1 incident, but now it has ended
+        self.assertEqual("org:flagged", incident.incident_type)
+        self.assertIsNotNone(incident.ended_on)
+
+    def test_webhooks_unhealthy(self):
+        incident = Incident.objects.create(  # mailroom will create these
+            org=self.org,
+            incident_type="webhooks:unhealthy",
+            scope="",
+            started_on=datetime(2021, 11, 12, 14, 23, 30, 123456, tzinfo=pytz.UTC),
+        )
+
+        self.assertEqual(
+            {
+                "type": "webhooks:unhealthy",
+                "started_on": "2021-11-12T14:23:30.123456+00:00",
+                "ended_on": None,
+            },
+            incident.as_json(),
+        )
+
+
+class IncidentCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_list(self):
+        list_url = reverse("notifications.incident_list")
+
+        # create 2 org flagged incidents (1 ended, 1 ongoing)
+        incident1 = Incident.flagged(self.org)
+        Incident.flagged(self.org).end()
+        incident2 = Incident.flagged(self.org)
+
+        # create 2 flow webhook incidents (1 ended, 1 ongoing)
+        incident3 = Incident.objects.create(
+            org=self.org,
+            incident_type="webhooks:unhealthy",
+            scope="",
+            started_on=timezone.now(),
+            ended_on=timezone.now(),
+        )
+        incident4 = Incident.objects.create(org=self.org, incident_type="webhooks:unhealthy", scope="")
+
+        # main list items are the ended incidents
+        response = self.assertListFetch(
+            list_url, allow_viewers=False, allow_editors=False, context_objects=[incident3, incident1]
+        )
+
+        # with ongoing ones in separate list
+        self.assertEqual({incident4, incident2}, set(response.context["ongoing"]))
 
 
 @override_settings(SEND_EMAILS=True)
@@ -33,71 +127,6 @@ class NotificationTest(TembaTest):
 
         # check who was notified
         self.assertEqual(expected_users, actual_users)
-
-    def test_channel_alert(self):
-        self.org.add_user(self.editor, OrgRole.ADMINISTRATOR)  # upgrade editor to administrator
-
-        alert1 = Alert.create_and_send(self.channel, Alert.TYPE_POWER)
-
-        self.assert_notifications(
-            after=alert1.created_on,
-            expected_json={
-                "type": "channel:alert",
-                "created_on": matchers.ISODate(),
-                "target_url": f"/channels/channel/read/{self.channel.uuid}/",
-                "is_seen": False,
-                "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
-            },
-            expected_users={self.admin, self.editor},
-            email=False,
-        )
-
-        # creating another alert for the same channel won't create any new notifications
-        alert2 = Alert.create_and_send(self.channel, Alert.TYPE_POWER)
-
-        self.assert_notifications(after=alert2.created_on, expected_json={}, expected_users=set(), email=False)
-
-        # if a user clears their notifications however, they will get new ones for this channel
-        self.admin.notifications.update(is_seen=True)
-
-        alert3 = Alert.create_and_send(self.channel, Alert.TYPE_POWER)
-
-        self.assert_notifications(
-            after=alert3.created_on,
-            expected_json={
-                "type": "channel:alert",
-                "created_on": matchers.ISODate(),
-                "target_url": f"/channels/channel/read/{self.channel.uuid}/",
-                "is_seen": False,
-                "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
-            },
-            expected_users={self.admin},
-            email=False,
-        )
-
-        # an alert for a different channel will also create new notifications
-        vonage = self.create_channel("NX", "Vonage", "1234")
-        alert4 = Alert.create_and_send(vonage, Alert.TYPE_POWER)
-
-        self.assert_notifications(
-            after=alert4.created_on,
-            expected_json={
-                "type": "channel:alert",
-                "created_on": matchers.ISODate(),
-                "target_url": f"/channels/channel/read/{vonage.uuid}/",
-                "is_seen": False,
-                "channel": {"uuid": str(vonage.uuid), "name": "Vonage"},
-            },
-            expected_users={self.admin, self.editor},
-            email=False,
-        )
-
-        # if a user visits the channel read page, their notification for that channel is now read
-        self.login(self.admin)
-        self.client.get(reverse("channels.channel_read", kwargs={"uuid": vonage.uuid}))
-
-        self.assertTrue(self.admin.notifications.get(channel=vonage).is_seen)
-        self.assertFalse(self.editor.notifications.get(channel=vonage).is_seen)
 
     def test_contact_export_finished(self):
         export = ExportContactsTask.create(self.org, self.editor)
@@ -281,6 +310,34 @@ class NotificationTest(TembaTest):
 
         self.assertTrue(self.agent.notifications.get().is_seen)
         self.assertFalse(self.editor.notifications.get().is_seen)
+
+    def test_incident_started(self):
+        self.org.add_user(self.editor, OrgRole.ADMINISTRATOR)  # upgrade editor to administrator
+
+        Incident.flagged(self.org)
+
+        self.assert_notifications(
+            expected_json={
+                "type": "incident:started",
+                "created_on": matchers.ISODate(),
+                "target_url": "/incident/",
+                "is_seen": False,
+                "incident": {
+                    "type": "org:flagged",
+                    "started_on": matchers.ISODate(),
+                    "ended_on": None,
+                },
+            },
+            expected_users={self.editor, self.admin},
+            email=False,
+        )
+
+        # if a user visits the incident page, all incident notifications are now read
+        self.login(self.editor)
+        self.client.get(f"/incident/")
+
+        self.assertTrue(self.editor.notifications.get().is_seen)
+        self.assertFalse(self.admin.notifications.get().is_seen)
 
     def test_get_unseen_count(self):
         imp = ContactImport.objects.create(

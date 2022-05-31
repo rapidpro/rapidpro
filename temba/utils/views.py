@@ -29,22 +29,27 @@ class SpaMixin(View):
     def spa_referrer_path(self) -> tuple:
         return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
 
+    def is_spa(self):
+        is_spa = "HTTP_TEMBA_SPA" in self.request.META
+        return is_spa
+
     def get_template_names(self):
         templates = super().get_template_names()
+        spa_templates = []
 
-        if "HTTP_TEMBA_SPA" in self.request.META:
-            original = templates[0].split(".")
-            if len(original) == 2:
-                spa_template = original[0] + "_spa." + original[1]
-
-            if spa_template:
-                templates.insert(0, spa_template)
-        return templates
+        if self.is_spa():
+            for template in templates:
+                original = template.split(".")
+                if len(original) == 2:
+                    spa_template = original[0] + "_spa." + original[1]
+                if spa_template:
+                    spa_templates.append(spa_template)
+        return spa_templates + templates
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        if "HTTP_TEMBA_SPA" in self.request.META:
+        if self.is_spa():
             context["base_template"] = "spa.html"
             context["is_spa"] = True
             context["temba_path"] = self.spa_path

@@ -22,7 +22,7 @@ class KaleyraType(ChannelType):
     icon = "icon-whatsapp"
 
     claim_blurb = _(
-        """Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href="https://www.kaleyra.com/whatsapp/">Learn more about Kaleyra WhatsApp"""
+        """Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href="https://www.kaleyra.com/whatsapp/">Learn more about Kaleyra WhatsApp</a>"""
     )
     claim_view = ClaimView
 

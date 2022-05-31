@@ -1,7 +1,6 @@
 import logging
 from collections import OrderedDict
 from datetime import timedelta
-from typing import Dict, List
 
 import iso8601
 from smartmin.views import (
@@ -41,7 +40,14 @@ from temba.flows.models import Flow, FlowStart
 from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.models import Org
-from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import (
+    DependencyDeleteModal,
+    DependencyUsagesModal,
+    MenuMixin,
+    ModalMixin,
+    OrgObjPermsMixin,
+    OrgPermsMixin,
+)
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
@@ -566,7 +572,7 @@ class ContactCRUDL(SmartCRUDL):
         "start",
     )
 
-    class Menu(OrgPermsMixin, SmartTemplateView):
+    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
         def render_to_response(self, context, **response_kwargs):
             org = self.request.user.get_org()
             counts = ContactGroup.get_system_group_counts(org)
@@ -576,7 +582,9 @@ class ContactCRUDL(SmartCRUDL):
                     count=counts[ContactGroup.TYPE_ACTIVE],
                     name=_("Active"),
                     href=reverse("contacts.contact_list"),
+                    icon="user",
                 ),
+                self.create_divider(),
                 dict(
                     id="blocked",
                     count=counts[ContactGroup.TYPE_BLOCKED],
@@ -595,22 +603,16 @@ class ContactCRUDL(SmartCRUDL):
                     name=_("Archived"),
                     href=reverse("contacts.contact_archived"),
                 ),
+                self.create_divider(),
             ]
 
             groups = ContactGroup.get_user_groups(org, ready_only=False).select_related("org").order_by(Upper("name"))
             menu += [
                 {
-                    "id": "smart",
-                    "icon": "atom",
-                    "name": _("Smart Groups"),
-                    "href": reverse("contacts.contactgroup_list") + "?type=smart",
-                    "count": len(groups.exclude(query=None)),
-                },
-                {
                     "id": "groups",
                     "icon": "users",
                     "name": _("Groups"),
-                    "href": reverse("contacts.contactgroup_list") + "?type=static",
+                    "endpoint": reverse("contacts.contactgroup_menu"),
                     "count": len(groups.filter(query=None)),
                 },
             ]
@@ -620,12 +622,10 @@ class ContactCRUDL(SmartCRUDL):
                 menu.append(
                     dict(
                         id="fields",
-                        icon="layers",
+                        icon="list",
                         count=count,
                         name=_("Fields"),
-                        href=reverse("contacts.contactfield_list"),
                         endpoint=reverse("contacts.contactfield_menu"),
-                        inline=True,
                     )
                 )
 
@@ -635,7 +635,7 @@ class ContactCRUDL(SmartCRUDL):
                     "icon": "upload-cloud",
                     "href": reverse("contacts.contactimport_create"),
                     "name": _("Import"),
-                }
+                },
             )
 
             return JsonResponse({"results": menu})
@@ -1548,24 +1548,36 @@ class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
     actions = ("list", "create", "update", "usages", "delete", "menu")
 
-    class Menu(OrgPermsMixin, SmartTemplateView):  # pragma: no cover
-        def render_to_response(self, context, **response_kwargs):
+    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):  # pragma: no cover
+        def derive_menu(self):
             org = self.request.user.get_org()
-            groups = ContactGroup.get_user_groups(org, ready_only=False).select_related("org").order_by(Upper("name"))
-            group_counts = ContactGroupCount.get_totals(groups)
+            dynamic_groups = (
+                ContactGroup.get_user_groups(org, dynamic=True, ready_only=False)
+                .select_related("org")
+                .order_by(Upper("name"))
+            )
+
+            groups = (
+                ContactGroup.get_user_groups(org, dynamic=False, ready_only=False)
+                .select_related("org")
+                .order_by(Upper("name"))
+            )
+
+            all_groups = list(dynamic_groups) + list(groups)
+            group_counts = ContactGroupCount.get_totals(all_groups)
 
             menu = []
-            for g in groups:
+            for g in all_groups:
                 menu.append(
-                    {
-                        "id": g.uuid,
-                        "name": g.name,
-                        "count": group_counts[g],
-                        "href": reverse("contacts.contact_filter", args=[g.uuid]),
-                        "icon": "loader" if g.status != ContactGroup.STATUS_READY else "",
-                    }
+                    self.create_menu_item(
+                        menu_id=g.uuid,
+                        name=g.name,
+                        icon="loader" if g.status != ContactGroup.STATUS_READY else "atom" if g.query else "",
+                        count=group_counts[g],
+                        href=reverse("contacts.contact_filter", args=[g.uuid]),
+                    )
                 )
-            return JsonResponse({"results": menu})
+            return menu
 
     class List(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         fields = ("name", "query", "count", "created_on")
@@ -1828,12 +1840,18 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                 menu = [
                     {
+                        "id": "all",
+                        "name": _("All"),
+                        "count": len(active_user_fields),
+                        "href": reverse("contacts.contactfield_list"),
+                    },
+                    {
                         "icon": "bookmark",
                         "id": "featured",
                         "name": _("Featured"),
                         "count": featured_count,
                         "href": reverse("contacts.contactfield_featured"),
-                    }
+                    },
                 ]
 
             return JsonResponse({"results": menu})
@@ -2092,7 +2110,7 @@ class ContactImportCRUDL(SmartCRUDL):
                         "name"
                     )
 
-            def get_form_values(self) -> List[Dict]:
+            def get_form_values(self) -> list[dict]:
                 """
                 Gather form data into a list the same size as the mappings
                 """

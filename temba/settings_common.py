@@ -374,7 +374,7 @@ PERMISSIONS = {
     "api.resthooksubscriber": ("api",),
     "campaigns.campaign": ("api", "archived", "archive", "activate"),
     "campaigns.campaignevent": ("api",),
-    "classifiers.classifier": ("connect", "api", "sync"),
+    "classifiers.classifier": ("connect", "api", "sync", "menu"),
     "classifiers.intent": ("api",),
     "contacts.contact": (
         "api",
@@ -403,6 +403,7 @@ PERMISSIONS = {
     "globals.global": ("api", "unused"),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
     "orgs.org": (
+        "account",
         "accounts",
         "smtp_server",
         "api",
@@ -445,6 +446,7 @@ PERMISSIONS = {
         "twilio_connect",
         "two_factor",
         "token",
+        "workspace",
     ),
     "channels.channel": (
         "api",
@@ -479,7 +481,9 @@ PERMISSIONS = {
         "import_translation",
         "export_results",
         "filter",
+        "menu",
         "recent_messages",
+        "recent_contacts",
         "results",
         "revisions",
         "run_table",
@@ -581,6 +585,7 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_read",
         "classifiers.classifier_delete",
         "classifiers.classifier_list",
+        "classifiers.classifier_menu",
         "classifiers.classifier_sync",
         "classifiers.intent_api",
         "contacts.contact_api",
@@ -614,7 +619,9 @@ GROUP_PERMISSIONS = {
         "locations.adminboundary_api",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
-        "notifications.notification_list",
+        "notifications.notification.*",
+        "notifications.incident.*",
+        "orgs.org_account",
         "orgs.org_accounts",
         "orgs.org_smtp_server",
         "orgs.org_api",
@@ -647,6 +654,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_twilio_connect",
         "orgs.org_two_factor",
         "orgs.org_token",
+        "orgs.org_workspace",
         "orgs.topup_list",
         "orgs.topup_read",
         "channels.channel_api",
@@ -716,6 +724,7 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_api",
         "classifiers.classifier_read",
         "classifiers.classifier_list",
+        "classifiers.classifier_menu",
         "classifiers.intent_api",
         "contacts.contact_api",
         "contacts.contact_archive",
@@ -749,6 +758,7 @@ GROUP_PERMISSIONS = {
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
         "notifications.notification_list",
+        "orgs.org_account",
         "orgs.org_api",
         "orgs.org_download",
         "orgs.org_export",
@@ -760,6 +770,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_spa",
         "orgs.org_two_factor",
         "orgs.org_token",
+        "orgs.org_workspace",
         "orgs.topup_list",
         "orgs.topup_read",
         "channels.channel_api",
@@ -816,6 +827,7 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_api",
         "classifiers.classifier_read",
         "classifiers.classifier_list",
+        "classifiers.classifier_menu",
         "classifiers.intent_api",
         "contacts.contact_archived",
         "contacts.contact_blocked",
@@ -838,6 +850,7 @@ GROUP_PERMISSIONS = {
         "locations.adminboundary_geometry",
         "locations.adminboundary_alias",
         "notifications.notification_list",
+        "orgs.org_account",
         "orgs.org_download",
         "orgs.org_export",
         "orgs.org_home",
@@ -845,6 +858,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_profile",
         "orgs.org_spa",
         "orgs.org_two_factor",
+        "orgs.org_workspace",
         "orgs.topup_list",
         "orgs.topup_read",
         "channels.channel_list",
@@ -861,8 +875,10 @@ GROUP_PERMISSIONS = {
         "flows.flow_export_results",
         "flows.flow_filter",
         "flows.flow_list",
+        "flows.flow_menu",
         "flows.flow_editor",
         "flows.flow_recent_messages",
+        "flows.flow_recent_contacts",
         "flows.flow_results",
         "flows.flow_revisions",
         "flows.flow_run_table",
@@ -906,6 +922,7 @@ GROUP_PERMISSIONS = {
         "tickets.ticket_menu",
         "tickets.ticket_note",
         "tickets.topic_api",
+        "orgs.org_account",
         "orgs.org_home",
         "orgs.org_menu",
         "orgs.org_profile",
@@ -998,7 +1015,6 @@ CELERY_BEAT_SCHEDULE = {
     "delete-orgs": {"task": "delete_orgs_task", "schedule": crontab(hour=4, minute=0)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
     "resolve-twitter-ids-task": {"task": "resolve_twitter_ids_task", "schedule": timedelta(seconds=900)},
-    "retry-errored-messages": {"task": "retry_errored_messages", "schedule": timedelta(seconds=60)},
     "refresh-jiochat-access-tokens": {"task": "refresh_jiochat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": crontab(hour=6, minute=0)},
@@ -1081,11 +1097,6 @@ for brand in BRANDING.values():
 
 ######
 # DANGER: only turn this on if you know what you are doing!
-#         could cause messages to be sent to live customer aggregators
-SEND_MESSAGES = False
-
-######
-# DANGER: only turn this on if you know what you are doing!
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
 
@@ -1094,7 +1105,6 @@ SEND_RECEIPTS = True
 
 INTEGRATION_TYPES = [
     "temba.orgs.integrations.dtone.DTOneType",
-    "temba.orgs.integrations.chatbase.ChatbaseType",
 ]
 
 CLASSIFIER_TYPES = [
@@ -1201,8 +1211,14 @@ TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET", "MISSING_TWITTER_API_S
 SEGMENT_IO_KEY = os.environ.get("SEGMENT_IO_KEY", "")
 
 # Intercom token and app_id for support
-INTERCOM_APP_ID = os.environ.get("INTERCOM_APP_ID" "")
+INTERCOM_APP_ID = os.environ.get("INTERCOM_APP_ID", "")
 INTERCOM_TOKEN = os.environ.get("INTERCOM_TOKEN", "")
+
+# Crisp id and key support option
+SUPPORT_SECRET = os.environ.get("SUPPORT_SECRET", "")
+CRISP_IDENTIFIER = os.environ.get("CRISP_IDENTIFIER", "")
+CRISP_KEY = os.environ.get("CRISP_KEY", "")
+CRISP_WEBSITE_ID = os.environ.get("CRISP_WEBSITE_ID", "")
 
 # Google analytics tracking ID
 GOOGLE_TRACKING_ID = os.environ.get("GOOGLE_TRACKING_ID", "")

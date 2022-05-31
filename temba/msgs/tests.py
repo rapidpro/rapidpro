@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.archives.models import Archive
-from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
+from temba.channels.models import ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.msgs.models import (
@@ -24,11 +24,11 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest
+from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 
-from .tasks import retry_errored_messages, squash_msgcounts
+from .tasks import squash_msgcounts
 from .templatetags.sms import as_icon
 
 
@@ -286,40 +286,6 @@ class MsgTest(TembaTest):
             broadcast.metadata,
             {"quick_replies": [{"eng": "Yes", "fra": "Oui"}, {"eng": "No"}], "template_state": "legacy"},
         )
-
-    def test_retry_errored(self):
-        # change our default channel to external
-        self.channel.channel_type = "EX"
-        self.channel.save()
-
-        android_channel = self.create_channel(
-            "A",
-            "Android Channel",
-            "+250785551414",
-            country="RW",
-            secret="12345678",
-            config={Channel.CONFIG_FCM_ID: "123"},
-        )
-
-        msg1 = self.create_outgoing_msg(self.joe, "errored", status="E", channel=self.channel)
-        msg1.next_attempt = timezone.now()
-        msg1.save(update_fields=["next_attempt"])
-
-        msg2 = self.create_outgoing_msg(self.joe, "android", status="E", channel=android_channel)
-        msg2.next_attempt = None
-        msg2.save(update_fields=["next_attempt"])
-
-        msg3 = self.create_outgoing_msg(self.joe, "failed", status="F", channel=self.channel)
-
-        retry_errored_messages()
-
-        msg1.refresh_from_db()
-        msg2.refresh_from_db()
-        msg3.refresh_from_db()
-
-        self.assertEqual("W", msg1.status)
-        self.assertEqual("E", msg2.status)
-        self.assertEqual("F", msg3.status)
 
     @patch("temba.utils.email.send_temba_email")
     def test_message_export_from_archives(self, mock_send_temba_email):
@@ -1577,7 +1543,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(40):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
@@ -1604,7 +1570,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(39):
             self.client.get(failed_url)
 
         response = self.assertListFetch(
@@ -1612,12 +1578,12 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertEqual(("resend",), response.context["actions"])
-        self.assertContains(response, reverse("channels.channellog_read", args=[log.id]))
+        self.assertContains(response, reverse("channels.channellog_read", args=[log.channel.uuid, log.id]))
 
         # make the org anonymous
         with AnonymousOrg(self.org):
             response = self.requestView(failed_url, self.admin)
-            self.assertNotContains(response, reverse("channels.channellog_read", args=[log.id]))
+            self.assertNotContains(response, reverse("channels.channellog_read", args=[log.channel.uuid, log.id]))
 
         # resend some messages
         self.client.post(failed_url, {"action": "resend", "objects": [msg2.id]})
@@ -1726,7 +1692,7 @@ class BroadcastTest(TembaTest):
         self.create_incoming_msg(self.frank, "Bonjour")
 
         # create a broadcast which is a response to an incoming message
-        self.create_broadcast(self.user, "Noted", contacts=[self.joe], response_to=msg_in1)
+        self.create_broadcast(self.user, "Noted", contacts=[self.joe])
 
         # create a broadcast which is to several contacts
         broadcast2 = self.create_broadcast(
@@ -2842,43 +2808,3 @@ class TagsTest(TembaTest):
         # exception if tag not used correctly
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render with bob %}{% endrender %}")
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render as %}{% endrender %}")
-
-
-class ScheduledBroadcastCleanupTest(MigrationTest):
-    app = "msgs"
-    migrate_from = "0157_auto_20211028_1300"
-    migrate_to = "0158_scheduled_bcast_cleanup"
-
-    def setUpBeforeMigration(self, apps):
-        self.contact1 = self.create_contact("Bob", urns=["tel:+593979111111"])
-        self.contact2 = self.create_contact("Jim", urns=["tel:+593979222222"])
-
-        self.group1 = self.create_group("Testers", contacts=[])
-        self.group2 = self.create_group("Farmers", contacts=[])
-
-        self.bcast1 = self.create_broadcast(
-            self.admin,
-            "Hi 1",
-            contacts=[self.contact1, self.contact2],
-            groups=[self.group1, self.group2],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
-        )
-
-        # a regular non-scheduled broadcast
-        self.bcast2 = self.create_broadcast(
-            self.admin, "Hi 1", contacts=[self.contact1, self.contact2], groups=[self.group1, self.group2]
-        )
-
-        # simulate previous releasing code which didn't remove from scheduled broadcasts..
-        self.contact1.is_active = False
-        self.contact1.save(update_fields=("is_active",))
-
-        self.group1.is_active = False
-        self.group1.save(update_fields=("is_active",))
-
-    def test_migration(self):
-        self.assertEqual({self.contact2}, set(self.bcast1.contacts.all()))
-        self.assertEqual({self.group2}, set(self.bcast1.groups.all()))
-
-        self.assertEqual({self.contact1, self.contact2}, set(self.bcast2.contacts.all()))
-        self.assertEqual({self.group1, self.group2}, set(self.bcast2.groups.all()))

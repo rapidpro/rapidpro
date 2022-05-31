@@ -8,6 +8,7 @@ from unittest.mock import PropertyMock, patch
 
 import iso8601
 import pytz
+from django_redis import get_redis_connection
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -1758,24 +1759,11 @@ class FlowTest(TembaTest):
         self.assertEqual(0, parent.group_dependencies.all().count())
 
     def test_update_expiration(self):
-        flow1 = self.get_flow("favorites")
-        flow2 = Flow.copy(flow1, self.admin)
+        flow = self.get_flow("favorites")
 
-        parent = FlowRun.objects.create(
+        run = FlowRun.objects.create(
             org=self.org,
-            flow=flow1,
-            contact=self.contact,
-            path=[
-                {
-                    FlowRun.PATH_STEP_UUID: "1b9c7862-55fb-4ad8-9c81-203a12a63a63",
-                    FlowRun.PATH_NODE_UUID: "93a9f3b9-3471-4849-b6af-daec7c431e2a",
-                    FlowRun.PATH_ARRIVED_ON: datetime.datetime(2019, 1, 1, 0, 0, 0, 0, pytz.UTC),
-                }
-            ],
-        )
-        child = FlowRun.objects.create(
-            org=self.org,
-            flow=flow2,
+            flow=flow,
             contact=self.contact,
             path=[
                 {
@@ -1784,22 +1772,25 @@ class FlowTest(TembaTest):
                     FlowRun.PATH_ARRIVED_ON: datetime.datetime(2019, 1, 1, 0, 0, 0, 0, pytz.UTC),
                 }
             ],
-            parent=parent,
         )
 
-        update_run_expirations_task(flow2.id)
+        update_run_expirations_task(flow.id)
 
-        parent.refresh_from_db()
-        child.refresh_from_db()
+        run.refresh_from_db()
 
-        # child expiration should be last arrived_on + 12 hours
-        self.assertEqual(datetime.datetime(2019, 1, 1, 12, 0, 0, 0, pytz.UTC), child.expires_on)
-
-        # parent expiration should be that + 12 hours
-        self.assertEqual(datetime.datetime(2019, 1, 2, 0, 0, 0, 0, pytz.UTC), parent.expires_on)
+        # run expiration should be last arrived_on + 12 hours
+        self.assertEqual(datetime.datetime(2019, 1, 1, 12, 0, 0, 0, pytz.UTC), run.expires_on)
 
 
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_menu(self):
+        menu_url = reverse("flows.flow_menu")
+        FlowLabel.create(self.org, "Important")
+
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+        self.assertEqual(3, len(menu))
+
     def test_create(self):
         create_url = reverse("flows.flow_create")
 
@@ -2822,6 +2813,50 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(recent_messages_url + blue_params)
         assert_recent(response, ["blue"])
 
+    def test_recent_contacts(self):
+        flow = self.create_flow()
+        contact1 = self.create_contact("Bob", phone="0979111111")
+        contact2 = self.create_contact("", phone="0979222222")
+        node1_exit1_uuid = "805f5073-ce96-4b6a-ab9f-e77dd412f83b"
+        node2_uuid = "fcc47dc4-306b-4b2f-ad72-7e53f045c3c4"
+
+        seg1_url = reverse("flows.flow_recent_contacts", args=[flow.uuid, node1_exit1_uuid, node2_uuid])
+
+        # nothing set in redis just means empty list
+        response = self.assertReadFetch(seg1_url, allow_viewers=True, allow_editors=True)
+        self.assertEqual([], response.json())
+
+        def add_recent_contact(exit_uuid: str, dest_uuid: str, contact, text: str, ts: float):
+            r = get_redis_connection()
+            member = f"{uuid4()}|{contact.id}|{text}"  # text is prefixed with a random value to keep it unique
+            r.zadd(f"recent_contacts:{exit_uuid}:{dest_uuid}", mapping={member: ts})
+
+        add_recent_contact(node1_exit1_uuid, node2_uuid, contact1, "Hi there", 1639338554.969123)
+        add_recent_contact(node1_exit1_uuid, node2_uuid, contact2, "|x|", 1639338555.234567)
+        add_recent_contact(node1_exit1_uuid, node2_uuid, contact1, "Sounds good", 1639338561.345678)
+
+        response = self.assertReadFetch(seg1_url, allow_viewers=True, allow_editors=True)
+        self.assertEqual(
+            [
+                {
+                    "contact": {"uuid": str(contact1.uuid), "name": "Bob"},
+                    "operand": "Sounds good",
+                    "time": "2021-12-12T19:49:21.345678+00:00",
+                },
+                {
+                    "contact": {"uuid": str(contact2.uuid), "name": "0979 222 222"},
+                    "operand": "|x|",
+                    "time": "2021-12-12T19:49:15.234567+00:00",
+                },
+                {
+                    "contact": {"uuid": str(contact1.uuid), "name": "Bob"},
+                    "operand": "Hi there",
+                    "time": "2021-12-12T19:49:14.969123+00:00",
+                },
+            ],
+            response.json(),
+        )
+
     def test_results(self):
         flow = self.get_flow("favorites_v13")
         flow_nodes = flow.get_definition()["nodes"]
@@ -3613,6 +3648,50 @@ class FlowRunTest(TembaTest):
             },
         )
         self.assertFalse(mock_queue_interrupt.called)
+
+    def test_big_ids(self):
+        # create a session and run with big ids
+        session = FlowSession.objects.create(
+            id=3_000_000_000,
+            uuid=uuid4(),
+            org=self.org,
+            contact=self.contact,
+            status=FlowSession.STATUS_WAITING,
+            created_on=timezone.now(),
+        )
+        FlowRun.objects.create(
+            id=4_000_000_000,
+            uuid=uuid4(),
+            org=self.org,
+            session=session,
+            flow=self.create_flow(),
+            contact=self.contact,
+            status=FlowRun.STATUS_WAITING,
+            created_on=timezone.now(),
+            modified_on=timezone.now(),
+            path=[
+                {
+                    "uuid": "b5c3421c-3bbb-4dc7-9bda-683456588a6d",
+                    "node_uuid": "857a1498-3d5f-40f5-8185-2ce596ce2677",
+                    "arrived_on": "2021-12-20T08:47:30.123Z",
+                    "exit_uuid": "6fc14d2c-3b4d-49c7-b342-4b2b2ebf7678",
+                },
+                {
+                    "uuid": "4a254612-8437-47e1-b7bd-feb97ee60bf6",
+                    "node_uuid": "59d992c6-c491-473d-a7e9-4f431d705c01",
+                    "arrived_on": "2021-12-20T08:47:30.234Z",
+                    "exit_uuid": None,
+                },
+            ],
+        )
+        self.assertEqual(
+            {"6fc14d2c-3b4d-49c7-b342-4b2b2ebf7678:59d992c6-c491-473d-a7e9-4f431d705c01": 1},
+            {f"{c.from_uuid}:{c.to_uuid}": c.count for c in FlowPathCount.objects.all()},
+        )
+        self.assertEqual(
+            {"59d992c6-c491-473d-a7e9-4f431d705c01": 1},
+            {str(c.node_uuid): c.count for c in FlowNodeCount.objects.all()},
+        )
 
 
 class FlowSessionTest(TembaTest):
@@ -5439,7 +5518,7 @@ class FlowLabelTest(TembaTest):
         self.login(self.admin)
         favorites = self.get_flow("favorites")
         label.toggle_label([favorites], True)
-        response = self.client.get(reverse("flows.flow_filter", args=[label.pk]))
+        response = self.client.get(reverse("flows.flow_filter", args=[label.uuid]))
         self.assertEqual([favorites], list(response.context["object_list"]))
         # our child label
         self.assertContains(response, "child")
@@ -5450,12 +5529,12 @@ class FlowLabelTest(TembaTest):
         favorites.is_active = False
         favorites.save()
 
-        response = self.client.get(reverse("flows.flow_filter", args=[label.pk]))
+        response = self.client.get(reverse("flows.flow_filter", args=[label.uuid]))
         self.assertFalse(response.context["object_list"])
 
         # try to view our cat label in our other org
         cat = FlowLabel.create(self.org2, "cat")
-        response = self.client.get(reverse("flows.flow_filter", args=[cat.pk]))
+        response = self.client.get(reverse("flows.flow_filter", args=[cat.uuid]))
         self.assertLoginRedirect(response)
 
     def test_toggle_label(self):
