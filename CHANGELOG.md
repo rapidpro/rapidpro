@@ -1,3 +1,7 @@
+v7.3.54
+----------
+ * Make channel type a property and use to determine redact values in HTTP request logs
+
 v7.3.53
 ----------
  * Make WAC channel visible to beta group
