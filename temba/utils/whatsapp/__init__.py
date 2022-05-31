@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def update_api_version(channel):
     start = timezone.now()
     try:
-        response = channel.get_type().check_health(channel)
+        response = channel.type.check_health(channel)
         api_status = response.json()
         version = api_status["meta"]["version"]
         if not version.startswith("v"):

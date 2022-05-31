@@ -2,7 +2,6 @@ import logging
 
 from requests_toolbelt.utils import dump
 
-from django.conf import settings
 from django.db import models
 from django.db.models import Index, Q
 from django.utils import timezone
@@ -153,15 +152,10 @@ class HTTPLog(models.Model):
             ticketer=ticketer,
         )
 
-    def get_redact_secrets(self):
-        if self.log_type in [
-            self.WHATSAPP_TEMPLATES_SYNCED,
-            self.WHATSAPP_TOKENS_SYNCED,
-            self.WHATSAPP_CONTACTS_REFRESHED,
-            self.WHATSAPP_CHECK_HEALTH,
-        ]:
-            return [settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN]
-        return []
+    def get_redact_secrets(self) -> tuple:
+        if self.channel:
+            return self.channel.type.redact_values
+        return ()
 
     def get_url_display(self):
         """
@@ -182,7 +176,6 @@ class HTTPLog(models.Model):
         return self._get_display_value(self.response, ContactURN.ANON_MASK)
 
     def _get_display_value(self, original, mask):
-
         redact_secrets = self.get_redact_secrets()
 
         for secret in redact_secrets:

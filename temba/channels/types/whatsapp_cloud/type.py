@@ -39,7 +39,7 @@ class WhatsAppCloudType(ChannelType):
     max_length = 4096
     attachment_support = True
 
-    redact_values = {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}
+    redact_values = (settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN,)
 
     def get_urls(self):
         return [

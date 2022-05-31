@@ -286,7 +286,7 @@ class WhatsAppCloudTypeTest(TembaTest):
                 self.assertEqual("WABA name", channel.name)
                 self.assertEqual("123123123", channel.address)
                 self.assertEqual("WAC", channel.channel_type)
-                self.assertTrue(channel.get_type().has_attachment_support(channel))
+                self.assertTrue(channel.type.has_attachment_support(channel))
 
                 self.assertEqual("1234", channel.config["wa_number"])
                 self.assertEqual("WABA name", channel.config["wa_verified_name"])

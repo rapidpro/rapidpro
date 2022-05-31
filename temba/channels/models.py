@@ -90,9 +90,9 @@ class ChannelType(metaclass=ABCMeta):
     # during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
     async_activation = True
 
-    redact_request_keys = set()
-    redact_response_keys = set()
-    redact_values = set()
+    redact_request_keys = ()
+    redact_response_keys = ()
+    redact_values = ()
 
     def is_available_to(self, user):
         """
@@ -499,7 +499,8 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         return TYPES.values()
 
-    def get_type(self):
+    @property
+    def type(self) -> ChannelType:
         return self.get_type_from_code(self.channel_type)
 
     @classmethod
@@ -749,7 +750,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             return _("Android Phone")
 
     def get_channel_type_display(self):
-        return self.get_type().name
+        return self.type.name
 
     def get_channel_type_name(self):
         if self.is_android():
@@ -881,11 +882,9 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         super().release(user)
 
-        channel_type = self.get_type()
-
         # ask the channel type to deactivate - as this usually means calling out to external APIs it can fail
         try:
-            channel_type.deactivate(self)
+            self.type.deactivate(self)
         except TwilioRestException as e:
             raise e
         except Exception as e:

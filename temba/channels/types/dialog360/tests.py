@@ -60,7 +60,7 @@ class Dialog360TypeTest(TembaTest):
         self.assertEqual("RW", channel.country)
         self.assertEqual("D3", channel.channel_type)
         self.assertEqual(45, channel.tps)
-        self.assertTrue(channel.get_type().has_attachment_support(channel))
+        self.assertTrue(channel.type.has_attachment_support(channel))
 
         # test activating the channel
         with patch("requests.post") as mock_post:
@@ -244,10 +244,10 @@ class Dialog360TypeTest(TembaTest):
                 MockResponse(200, '{"meta": {"api_status": "stable", "version": "2.35.4"}}'),
                 MockResponse(401, '{"meta": {"api_status": "stable", "version": "2.35.4"}}'),
             ]
-            channel.get_type().check_health(channel)
+            channel.type.check_health(channel)
             mock_get.assert_called_with(
                 "https://example.com/whatsapp/v1/health",
                 headers={"D360-API-KEY": "123456789", "Content-Type": "application/json"},
             )
             with self.assertRaises(Exception):
-                channel.get_type().check_health(channel)
+                channel.type.check_health(channel)
