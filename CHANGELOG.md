@@ -1,3 +1,7 @@
+v7.3.53
+----------
+ * Make WAC channel visible to beta group
+
 v7.3.52
 ----------
  * Fix field name for submitted token
