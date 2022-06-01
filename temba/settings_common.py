@@ -1190,6 +1190,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.discord.DiscordType",
     "temba.channels.types.rocketchat.RocketChatType",
     "temba.channels.types.instagram.InstagramType",
+    "temba.channels.types.slack.SlackType",
 ]
 
 ANALYTICS_TYPES = [
