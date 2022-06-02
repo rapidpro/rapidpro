@@ -1,3 +1,7 @@
+1.2.7-rapidpro-7.1.27
+----------
+* Link translation using MutationObserver for FlowEditor links
+
 1.2.6-rapidpro-7.1.27
 ----------
 * RapidPro updated to v7.1.27
