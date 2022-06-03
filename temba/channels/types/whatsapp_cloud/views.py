@@ -7,6 +7,7 @@ from django import forms
 from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -114,6 +115,15 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         context["claim_url"] = reverse("channels.types.whatsapp_cloud.claim")
 
+        claim_error = None
+        if context["form"].errors:
+            claim_error = context["form"].errors["__all__"][0]
+        context["claim_error"] = claim_error
+
+        # make sure we clear the session credentials if not number was granted
+        if not context.get("phone_numbers", []):
+            self.remove_token_credentials_from_session()
+
         return context
 
     def form_valid(self, form):
@@ -138,8 +148,37 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             "wa_pin": pin,
         }
 
+        # don't add the same number twice to the same account
+        existing = org.channels.filter(
+            is_active=True, address=phone_number_id, schemes__overlap=list(self.channel_type.schemes)
+        ).first()
+        if existing:  # pragma: needs cover
+            form._errors["__all__"] = form.error_class([_("That number is already connected (%s)" % number)])
+            return self.form_invalid(form)
+
+        existing = Channel.objects.filter(
+            is_active=True, address=phone_number_id, schemes__overlap=list(self.channel_type.schemes)
+        ).first()
+        if existing:  # pragma: needs cover
+            form._errors["__all__"] = form.error_class(
+                [
+                    _(
+                        "That number is already connected to another account - %(org)s (%(user)s)"
+                        % dict(org=existing.org, user=existing.created_by.username)
+                    )
+                ]
+            )
+            return self.form_invalid(form)
+
         self.object = Channel.create(
-            org, self.request.user, None, self.channel_type, name=verified_name, address=phone_number_id, config=config
+            org,
+            self.request.user,
+            None,
+            self.channel_type,
+            name=verified_name,
+            address=phone_number_id,
+            config=config,
+            tps=80,
         )
         self.remove_token_credentials_from_session()
         return super().form_valid(form)
