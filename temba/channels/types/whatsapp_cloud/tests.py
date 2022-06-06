@@ -282,14 +282,18 @@ class WhatsAppCloudTypeTest(TembaTest):
 
                 self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
-                self.assertEqual(4, wa_cloud_post.call_count)
+                self.assertEqual(3, wa_cloud_post.call_count)
 
-                self.assertEqual("https://graph.facebook.com/v13.0/123123123/register", wa_cloud_post.call_args[0][0])
                 self.assertEqual(
-                    {"messaging_product": "whatsapp", "pin": "111111"}, wa_cloud_post.call_args[1]["data"]
+                    "https://graph.facebook.com/v13.0/111111111111111/subscribed_apps", wa_cloud_post.call_args[0][0]
                 )
 
                 channel = Channel.objects.get()
+
+                self.assertEqual(
+                    response.request["PATH_INFO"],
+                    reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)),
+                )
 
                 self.assertEqual("WABA name", channel.name)
                 self.assertEqual("123123123", channel.address)
@@ -303,6 +307,29 @@ class WhatsAppCloudTypeTest(TembaTest):
                 self.assertEqual("2222222222222", channel.config["wa_business_id"])
                 self.assertEqual("111111", channel.config["wa_pin"])
                 self.assertEqual("namespace-uuid", channel.config["wa_message_template_namespace"])
+
+                # request verification code
+                response = self.client.post(
+                    reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)), dict(), follow=True
+                )
+                self.assertEqual(200, response.status_code)
+
+                self.assertEqual(
+                    "https://graph.facebook.com/v13.0/123123123/request_code", wa_cloud_post.call_args[0][0]
+                )
+
+                # submit verification code
+                response = self.client.post(
+                    reverse("channels.types.whatsapp_cloud.verify_code", args=(channel.uuid,)),
+                    dict(code="000000"),
+                    follow=True,
+                )
+                self.assertEqual(200, response.status_code)
+
+                self.assertEqual("https://graph.facebook.com/v13.0/123123123/register", wa_cloud_post.call_args[0][0])
+                self.assertEqual(
+                    {"messaging_product": "whatsapp", "pin": "111111"}, wa_cloud_post.call_args[1]["data"]
+                )
 
         # make sure the token is set on the session
         session = self.client.session

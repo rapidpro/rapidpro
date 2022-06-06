@@ -1,13 +1,16 @@
 from random import randint
 
 import requests
-from smartmin.views import SmartFormView
+from smartmin.views import SmartFormView, SmartModelActionView
 
 from django import forms
 from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
+
+from temba.orgs.views import ModalMixin, OrgObjPermsMixin
+from temba.utils.fields import InputWidget
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -49,6 +52,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 return HttpResponseRedirect(reverse("orgs.org_whatsapp_cloud_connect"))
 
         return super().pre_process(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse("channels.types.whatsapp_cloud.request_code", args=[self.object.uuid])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -186,3 +192,93 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def remove_token_credentials_from_session(self):
         if Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.request.session:
             del self.request.session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN]
+
+
+class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+    class Form(forms.Form):
+        pass
+
+    slug_url_kwarg = "uuid"
+    success_message = ""
+    form_class = Form
+    permission = "channels.channel_claim"
+    fields = ()
+    template_name = "channels/types/whatsapp_cloud/request_code.html"
+    title = _("Request Verification Code")
+    submit_button_name = _("Request Code")
+
+    def get_queryset(self):
+        return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="WAC")
+
+    def get_success_url(self):
+        return reverse("channels.types.whatsapp_cloud.verify_code", args=[self.object.uuid])
+
+    def execute_action(self):
+        channel = self.object
+
+        phone_number_id = channel.address
+
+        request_code_url = f"https://graph.facebook.com/v13.0/{phone_number_id}/request_code"
+        params = {"code_method": "SMS", "language": "en_US"}
+        headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
+
+        resp = requests.post(request_code_url, params=params, headers=headers)
+
+        if resp.status_code != 200:  # pragma: no cover
+            raise forms.ValidationError(
+                _("Failed to request phone number verification code. Please remove the channel and add it again.")
+            )
+
+
+class VerifyCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+    class Form(forms.Form):
+        code = forms.CharField(
+            min_length=6, required=True, help_text=_("The 6-digits number verification code"), widget=InputWidget()
+        )
+
+    slug_url_kwarg = "uuid"
+    success_url = "uuid@channels.channel_read"
+    form_class = Form
+    permission = "channels.channel_claim"
+    fields = ("code",)
+    template_name = "channels/types/whatsapp_cloud/verify_code.html"
+    title = _("Verify Number")
+    submit_button_name = _("Verify Number")
+
+    def get_queryset(self):
+        return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="WAC")
+
+    def execute_action(self):
+
+        form = self.form
+        channel = self.object
+
+        code = form.data["code"]
+
+        phone_number_id = channel.address
+        wa_number = channel.config.get("wa_number")
+        waba_id = channel.config.get("wa_waba_id")
+        wa_pin = channel.config.get("wa_pin")
+
+        request_code_url = f"https://graph.facebook.com/v13.0/{phone_number_id}/verify_code"
+        params = {"code": f"{code}"}
+        headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
+
+        resp = requests.post(request_code_url, params=params, headers=headers)
+
+        if resp.status_code != 200:  # pragma: no cover
+            raise forms.ValidationError(f"Failed to verify phone number with code {code}")
+
+        # register numbers
+        url = f"https://graph.facebook.com/v13.0/{channel.address}/register"
+        data = {"messaging_product": "whatsapp", "pin": wa_pin}
+
+        resp = requests.post(url, data=data, headers=headers)
+
+        if resp.status_code != 200:  # pragma: no cover
+            raise forms.ValidationError(
+                _(
+                    "Unable to register phone %s with ID %s from WABA with ID %s"
+                    % (wa_number, channel.address, waba_id)
+                )
+            )
