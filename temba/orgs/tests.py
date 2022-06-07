@@ -4460,6 +4460,39 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         languages.reload()
 
 
+class UserCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_update(self):
+        update_url = reverse("orgs.user_update", args=[self.editor.id])
+
+        # this is a customer support only view
+        self.assertLoginRedirect(self.requestView(update_url, self.editor))
+        self.assertLoginRedirect(self.requestView(update_url, self.admin))
+
+        response = self.requestView(update_url, self.customer_support)
+        self.assertEqual(200, response.status_code)
+
+        betas = Group.objects.get(name="Beta")
+
+        response = self.requestView(
+            update_url,
+            self.customer_support,
+            post_data={
+                "username": "eddy@nyaruka.com",
+                "first_name": "Edward",
+                "last_name": "",
+                "email": "eddy@nyaruka.com",
+                "groups": f"{betas.id}",
+                "is_active": True,
+            },
+        )
+        self.assertEqual(302, response.status_code)
+
+        self.editor.refresh_from_db()
+        self.assertEqual("eddy@nyaruka.com", self.editor.username)
+        self.assertEqual("Edward", self.editor.first_name)
+        self.assertTrue(self.editor.is_beta)
+
+
 class BulkExportTest(TembaTest):
     def test_import_validation(self):
         # export must include version field

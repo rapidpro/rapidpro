@@ -15,8 +15,8 @@ import pyotp
 import pytz
 import requests
 from packaging.version import Version
-from smartmin.users.models import FailedLogin, RecoveryToken
-from smartmin.users.views import Login
+from smartmin.users.models import FailedLogin, PasswordHistory, RecoveryToken
+from smartmin.users.views import Login, UserUpdateForm
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -690,6 +690,7 @@ class UserCRUDL(SmartCRUDL):
     model = User
     actions = (
         "list",
+        "update",
         "edit",
         "delete",
         "forget",
@@ -706,7 +707,7 @@ class UserCRUDL(SmartCRUDL):
         search_fields = ("username",)
 
         def get_username(self, user):
-            return mark_safe(f"<a href='{reverse('users.user_update', args=(user.id,))}'>{user.username}</a>")
+            return mark_safe(f"<a href='{reverse('orgs.user_update', args=(user.id,))}'>{user.username}</a>")
 
         def get_orgs(self, user):
             orgs = user.get_orgs()[0:6]
@@ -722,6 +723,41 @@ class UserCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             return super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
+
+    class Update(ComponentFormMixin, SmartUpdateView):
+        class Form(UserUpdateForm):
+            pass
+
+        form_class = Form
+        template_name = "smartmin/users/user_update.html"
+        success_message = "User saved successfully."
+        fields = ("username", "new_password", "first_name", "last_name", "email", "groups", "is_active", "last_login")
+        field_config = {
+            "last_login": dict(readonly=True, label=_("Last Login")),
+            "is_active": dict(label=_("Is Active"), help=_("Whether this user is allowed to log into the site")),
+            "groups": dict(
+                label=_("Groups"), help=_("Users will only get those permissions that are allowed for their group")
+            ),
+            "new_password": dict(
+                label=_("New Password"), help=_("You can reset the user's password by entering a new password here")
+            ),
+        }
+
+        def post_save(self, obj):
+            """
+            Make sure our groups are up to date
+            """
+            if "groups" in self.form.cleaned_data:
+                obj.groups.clear()
+                for group in self.form.cleaned_data["groups"]:
+                    obj.groups.add(group)
+
+            # if a new password was set, reset our failed logins
+            if "new_password" in self.form.cleaned_data and self.form.cleaned_data["new_password"]:
+                FailedLogin.objects.filter(username__iexact=self.object.username).delete()
+                PasswordHistory.objects.create(user=obj, password=obj.password)
+
+            return obj
 
     class Delete(SmartUpdateView):
         class DeleteForm(forms.ModelForm):
