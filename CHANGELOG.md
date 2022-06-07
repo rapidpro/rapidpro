@@ -1,3 +1,7 @@
+v7.3.55
+----------
+ * Update contact search summary encoding
+
 v7.3.54
 ----------
  * Make channel type a property and use to determine redact values in HTTP request logs
