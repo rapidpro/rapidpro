@@ -172,7 +172,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             is_active=True, address=phone_number_id, schemes__overlap=list(self.channel_type.schemes)
         ).first()
         if existing:  # pragma: needs cover
-            form._errors["__all__"] = form.error_class([_("That number is already connected (%s)" % number)])
+            form._errors["__all__"] = form.error_class([_("That number is already connected (%s)") % number])
             return self.form_invalid(form)
 
         existing = Channel.objects.filter(
@@ -181,10 +181,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         if existing:  # pragma: needs cover
             form._errors["__all__"] = form.error_class(
                 [
-                    _(
-                        "That number is already connected to another account - %(org)s (%(user)s)"
-                        % dict(org=existing.org, user=existing.created_by.username)
-                    )
+                    _("That number is already connected to another account - %(org)s (%(user)s)")
+                    % dict(org=existing.org, user=existing.created_by.username)
                 ]
             )
             return self.form_invalid(form)
@@ -221,7 +219,7 @@ class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     submit_button_name = _("Request Code")
 
     def get_queryset(self):
-        return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="WAC")
+        return Channel.objects.filter(is_active=True, org=self.request.org, channel_type="WAC")
 
     def get_success_url(self):
         return reverse("channels.types.whatsapp_cloud.verify_code", args=[self.object.uuid])
@@ -259,7 +257,7 @@ class VerifyCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     submit_button_name = _("Verify Number")
 
     def get_queryset(self):
-        return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="WAC")
+        return Channel.objects.filter(is_active=True, org=self.request.org, channel_type="WAC")
 
     def execute_action(self):
 
@@ -280,7 +278,7 @@ class VerifyCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         resp = requests.post(request_code_url, params=params, headers=headers)
 
         if resp.status_code != 200:  # pragma: no cover
-            raise forms.ValidationError(f"Failed to verify phone number with code {code}")
+            raise forms.ValidationError(_("Failed to verify phone number with code %s") % code)
 
         # register numbers
         url = f"https://graph.facebook.com/v13.0/{channel.address}/register"
@@ -290,8 +288,6 @@ class VerifyCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
 
         if resp.status_code != 200:  # pragma: no cover
             raise forms.ValidationError(
-                _(
-                    "Unable to register phone %s with ID %s from WABA with ID %s"
-                    % (wa_number, channel.address, waba_id)
-                )
+                _("Unable to register phone %s with ID %s from WABA with ID %s")
+                % (wa_number, channel.address, waba_id)
             )
