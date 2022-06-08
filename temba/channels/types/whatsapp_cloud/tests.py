@@ -19,6 +19,7 @@ class WhatsAppCloudTypeTest(TembaTest):
         FACEBOOK_APPLICATION_ID="FB_APP_ID",
         FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET",
         WHATSAPP_FACEBOOK_BUSINESS_ID="FB_BUSINESS_ID",
+        ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS=["2222222222222"],
     )
     @patch("temba.channels.types.whatsapp_cloud.views.randint")
     def test_claim(self, mock_randint):
