@@ -80,7 +80,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             for scope_dict in granular_scopes:
                 if scope_dict["scope"] == "business_management":
                     for business_id in scope_dict["target_ids"]:
-                        if business_id not in settings.ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS:
+                        if business_id not in settings.ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS:  # pragma: no cover
                             unsupported_facebook_business_id = True
 
                 if scope_dict["scope"] in ["whatsapp_business_management", "whatsapp_business_messaging"]:
@@ -106,7 +106,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 target_waba_details = response_json
 
                 business_id = target_waba_details["on_behalf_of_business_info"]["id"]
-                if business_id not in settings.ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS:
+                if business_id not in settings.ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS:  # pragma: no cover
                     continue
 
                 url = f"https://graph.facebook.com/v13.0/{target_waba}/phone_numbers"
