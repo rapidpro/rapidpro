@@ -183,7 +183,7 @@
         .title
           -trans "channels"
 
-  -if request.user.is_superuser or perms.auth.user_list
+  -if request.user.is_superuser or perms.orgs.user_list
     -if not user_org
       %a{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
         .circle
@@ -221,7 +221,7 @@
 
           -block loggedin-submenu
 
-          -if request.user.is_superuser or perms.auth.user_list
+          -if request.user.is_superuser or perms.orgs.user_list
             -if user_org
               %a{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
                 .circle

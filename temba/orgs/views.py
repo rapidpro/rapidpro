@@ -15,8 +15,8 @@ import pyotp
 import pytz
 import requests
 from packaging.version import Version
-from smartmin.users.models import FailedLogin, RecoveryToken
-from smartmin.users.views import Login
+from smartmin.users.models import FailedLogin, PasswordHistory, RecoveryToken
+from smartmin.users.views import Login, UserUpdateForm
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -690,6 +690,7 @@ class UserCRUDL(SmartCRUDL):
     model = User
     actions = (
         "list",
+        "update",
         "edit",
         "delete",
         "forget",
@@ -706,7 +707,7 @@ class UserCRUDL(SmartCRUDL):
         search_fields = ("username",)
 
         def get_username(self, user):
-            return mark_safe(f"<a href='{reverse('users.user_update', args=(user.id,))}'>{user.username}</a>")
+            return mark_safe(f"<a href='{reverse('orgs.user_update', args=(user.id,))}'>{user.username}</a>")
 
         def get_orgs(self, user):
             orgs = user.get_orgs()[0:6]
@@ -723,18 +724,69 @@ class UserCRUDL(SmartCRUDL):
         def derive_queryset(self, **kwargs):
             return super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
 
-    class Delete(SmartUpdateView):
-        class DeleteForm(forms.ModelForm):
-            delete = forms.BooleanField()
+    class Update(ComponentFormMixin, SmartUpdateView):
+        class Form(UserUpdateForm):
+            groups = forms.ModelMultipleChoiceField(
+                widget=SelectMultipleWidget(
+                    attrs={"placeholder": _("Optional: Select permissions groups."), "searchable": True}
+                ),
+                queryset=Group.objects.all(),
+                required=False,
+            )
 
             class Meta:
                 model = User
-                fields = ("delete",)
+                fields = ("email", "new_password", "first_name", "last_name", "groups")
+                help_texts = {"new_password": _("You can reset the user's password by entering a new password here")}
 
-        form_class = DeleteForm
+        form_class = Form
+        success_message = "User updated successfully."
+        title = "Update"
+
+        def get_gear_links(self):
+            return [
+                dict(
+                    id="user-delete",
+                    title=_("Delete"),
+                    modax=_("Delete User"),
+                    href=reverse("orgs.user_delete", args=[self.object.id]),
+                )
+            ]
+
+        def pre_save(self, obj):
+            obj.username = obj.email
+            return obj
+
+        def post_save(self, obj):
+            """
+            Make sure our groups are up-to-date
+            """
+            if "groups" in self.form.cleaned_data:
+                obj.groups.clear()
+                for group in self.form.cleaned_data["groups"]:
+                    obj.groups.add(group)
+
+            # if a new password was set, reset our failed logins
+            if "new_password" in self.form.cleaned_data and self.form.cleaned_data["new_password"]:
+                FailedLogin.objects.filter(username__iexact=self.object.username).delete()
+                PasswordHistory.objects.create(user=obj, password=obj.password)
+
+            return obj
+
+    class Delete(ModalMixin, SmartDeleteView):
+        fields = ("id",)
         permission = "orgs.user_update"
+        submit_button_name = _("Delete")
+        cancel_url = "@orgs.user_list"
 
-        def form_valid(self, form):
+        def get_context_data(self, **kwargs):
+            brand = self.request.branding.get("brand")
+
+            context = super().get_context_data(**kwargs)
+            context["owned_orgs"] = self.get_object().get_owned_orgs(brand=brand)
+            return context
+
+        def post(self, request, *args, **kwargs):
             user = self.get_object()
             username = user.username
 
