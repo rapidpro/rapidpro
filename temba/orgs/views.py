@@ -740,8 +740,18 @@ class UserCRUDL(SmartCRUDL):
                 help_texts = {"new_password": _("You can reset the user's password by entering a new password here")}
 
         form_class = Form
-        template_name = "smartmin/users/user_update.html"
-        success_message = "User saved successfully."
+        success_message = "User updated successfully."
+        title = "Update"
+
+        def get_gear_links(self):
+            return [
+                dict(
+                    id="user-delete",
+                    title=_("Delete"),
+                    modax=_("Delete User"),
+                    href=reverse("orgs.user_delete", args=[self.object.id]),
+                )
+            ]
 
         def pre_save(self, obj):
             obj.username = obj.email
@@ -763,18 +773,20 @@ class UserCRUDL(SmartCRUDL):
 
             return obj
 
-    class Delete(SmartUpdateView):
-        class DeleteForm(forms.ModelForm):
-            delete = forms.BooleanField()
-
-            class Meta:
-                model = User
-                fields = ("delete",)
-
-        form_class = DeleteForm
+    class Delete(ModalMixin, SmartDeleteView):
+        fields = ("id",)
         permission = "orgs.user_update"
+        submit_button_name = _("Delete")
+        cancel_url = "@orgs.user_list"
 
-        def form_valid(self, form):
+        def get_context_data(self, **kwargs):
+            brand = self.request.branding.get("brand")
+
+            context = super().get_context_data(**kwargs)
+            context["owned_orgs"] = self.get_object().get_owned_orgs(brand=brand)
+            return context
+
+        def post(self, request, *args, **kwargs):
             user = self.get_object()
             username = user.username
 
