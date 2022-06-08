@@ -4518,6 +4518,36 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("", self.editor.last_name)
         self.assertEqual({alphas}, set(self.editor.groups.all()))
 
+    def test_delete(self):
+        delete_url = reverse("orgs.user_delete", args=[self.editor.id])
+
+        # this is a customer support only view
+        self.assertLoginRedirect(self.requestView(delete_url, self.editor))
+        self.assertLoginRedirect(self.requestView(delete_url, self.admin))
+
+        response = self.requestView(delete_url, self.customer_support)
+        self.assertEqual(200, response.status_code)
+        self.assertNotContains(response, "Nyaruka")  # editor doesn't own this org
+
+        # make editor the owner of the org
+        self.org.administrators.clear()
+        self.org.viewers.clear()
+        self.org.surveyors.clear()
+        self.org.agents.clear()
+
+        response = self.requestView(delete_url, self.customer_support)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Nyaruka")
+
+        response = self.requestView(delete_url, self.customer_support, post_data={})
+        self.assertEqual(302, response.status_code)
+
+        self.editor.refresh_from_db()
+        self.assertFalse(self.editor.is_active)
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_active)
+
 
 class BulkExportTest(TembaTest):
     def test_import_validation(self):
