@@ -726,26 +726,30 @@ class UserCRUDL(SmartCRUDL):
 
     class Update(ComponentFormMixin, SmartUpdateView):
         class Form(UserUpdateForm):
-            pass
+            groups = forms.ModelMultipleChoiceField(
+                widget=SelectMultipleWidget(
+                    attrs={"placeholder": _("Optional: Select permissions groups."), "searchable": True}
+                ),
+                queryset=Group.objects.all(),
+                required=False,
+            )
+
+            class Meta:
+                model = User
+                fields = ("email", "new_password", "first_name", "last_name", "groups")
+                help_texts = {"new_password": _("You can reset the user's password by entering a new password here")}
 
         form_class = Form
         template_name = "smartmin/users/user_update.html"
         success_message = "User saved successfully."
-        fields = ("username", "new_password", "first_name", "last_name", "email", "groups", "is_active", "last_login")
-        field_config = {
-            "last_login": dict(readonly=True, label=_("Last Login")),
-            "is_active": dict(label=_("Is Active"), help=_("Whether this user is allowed to log into the site")),
-            "groups": dict(
-                label=_("Groups"), help=_("Users will only get those permissions that are allowed for their group")
-            ),
-            "new_password": dict(
-                label=_("New Password"), help=_("You can reset the user's password by entering a new password here")
-            ),
-        }
+
+        def pre_save(self, obj):
+            obj.username = obj.email
+            return obj
 
         def post_save(self, obj):
             """
-            Make sure our groups are up to date
+            Make sure our groups are up-to-date
             """
             if "groups" in self.form.cleaned_data:
                 obj.groups.clear()
