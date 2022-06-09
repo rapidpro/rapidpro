@@ -1245,6 +1245,10 @@ WHATSAPP_FACEBOOK_BUSINESS_ID = os.environ.get(
     "WHATSAPP_FACEBOOK_BUSINESS_ID", "MISSING_WHATSAPP_FACEBOOK_BUSINESS_ID"
 )
 
+ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS = [
+    os.environ.get("WHATSAPP_FACEBOOK_BUSINESS_ID", "MISSING_WHATSAPP_FACEBOOK_BUSINESS_ID")
+]
+
 
 # -----------------------------------------------------------------------------------
 # IP Addresses

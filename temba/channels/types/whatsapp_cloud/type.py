@@ -6,7 +6,7 @@ from django.urls import re_path
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.types.whatsapp_cloud.views import ClaimView
+from temba.channels.types.whatsapp_cloud.views import ClaimView, RequestCode, VerifyCode
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
 from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
@@ -19,7 +19,10 @@ class WhatsAppCloudType(ChannelType):
     A WhatsApp Cloud Channel Type
     """
 
-    extra_links = [dict(name=_("Message Templates"), link="channels.types.whatsapp_cloud.templates")]
+    extra_links = [
+        dict(name=_("Message Templates"), link="channels.types.whatsapp_cloud.templates"),
+        dict(name=_("Verify Number"), link="channels.types.whatsapp_cloud.request_code"),
+    ]
 
     code = "WAC"
     category = ChannelType.Category.SOCIAL_MEDIA
@@ -46,6 +49,8 @@ class WhatsAppCloudType(ChannelType):
             self.get_claim_url(),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/templates$", TemplatesView.as_view(), name="templates"),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/sync_logs$", SyncLogsView.as_view(), name="sync_logs"),
+            re_path(r"^(?P<uuid>[a-z0-9\-]+)/request_code$", RequestCode.as_view(), name="request_code"),
+            re_path(r"^(?P<uuid>[a-z0-9\-]+)/verify_code$", VerifyCode.as_view(), name="verify_code"),
         ]
 
     def activate(self, channel):

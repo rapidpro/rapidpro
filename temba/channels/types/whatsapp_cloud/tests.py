@@ -19,8 +19,12 @@ class WhatsAppCloudTypeTest(TembaTest):
         FACEBOOK_APPLICATION_ID="FB_APP_ID",
         FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET",
         WHATSAPP_FACEBOOK_BUSINESS_ID="FB_BUSINESS_ID",
+        ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS=["2222222222222"],
     )
-    def test_claim(self):
+    @patch("temba.channels.types.whatsapp_cloud.views.randint")
+    def test_claim(self, mock_randint):
+        mock_randint.return_value = 111111
+
         Channel.objects.all().delete()
         self.login(self.admin)
 
@@ -281,7 +285,16 @@ class WhatsAppCloudTypeTest(TembaTest):
 
                 self.assertEqual(3, wa_cloud_post.call_count)
 
+                self.assertEqual(
+                    "https://graph.facebook.com/v13.0/111111111111111/subscribed_apps", wa_cloud_post.call_args[0][0]
+                )
+
                 channel = Channel.objects.get()
+
+                self.assertEqual(
+                    response.request["PATH_INFO"],
+                    reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)),
+                )
 
                 self.assertEqual("WABA name", channel.name)
                 self.assertEqual("123123123", channel.address)
@@ -293,7 +306,195 @@ class WhatsAppCloudTypeTest(TembaTest):
                 self.assertEqual("111111111111111", channel.config["wa_waba_id"])
                 self.assertEqual("USD", channel.config["wa_currency"])
                 self.assertEqual("2222222222222", channel.config["wa_business_id"])
+                self.assertEqual("111111", channel.config["wa_pin"])
                 self.assertEqual("namespace-uuid", channel.config["wa_message_template_namespace"])
+
+                # request verification code
+                response = self.client.post(
+                    reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)), dict(), follow=True
+                )
+                self.assertEqual(200, response.status_code)
+
+                self.assertEqual(
+                    "https://graph.facebook.com/v13.0/123123123/request_code", wa_cloud_post.call_args[0][0]
+                )
+
+                # submit verification code
+                response = self.client.post(
+                    reverse("channels.types.whatsapp_cloud.verify_code", args=(channel.uuid,)),
+                    dict(code="000000"),
+                    follow=True,
+                )
+                self.assertEqual(200, response.status_code)
+
+                self.assertEqual("https://graph.facebook.com/v13.0/123123123/register", wa_cloud_post.call_args[0][0])
+                self.assertEqual(
+                    {"messaging_product": "whatsapp", "pin": "111111"}, wa_cloud_post.call_args[1]["data"]
+                )
+
+        # make sure the token is set on the session
+        session = self.client.session
+        session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
+        session.save()
+
+        self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+
+        with patch("requests.get") as wa_cloud_get:
+            with patch("requests.post") as wa_cloud_post:
+
+                wa_cloud_get.side_effect = [
+                    # pre-process for get
+                    MockResponse(
+                        200,
+                        json.dumps(
+                            {
+                                "data": {
+                                    "scopes": [
+                                        "business_management",
+                                        "whatsapp_business_management",
+                                        "whatsapp_business_messaging",
+                                    ]
+                                }
+                            }
+                        ),
+                    ),
+                    # getting target waba
+                    MockResponse(
+                        200,
+                        json.dumps(
+                            {
+                                "data": {
+                                    "granular_scopes": [
+                                        {
+                                            "scope": "business_management",
+                                            "target_ids": [
+                                                "2222222222222",
+                                            ],
+                                        },
+                                        {
+                                            "scope": "whatsapp_business_management",
+                                            "target_ids": [
+                                                "111111111111111",
+                                            ],
+                                        },
+                                        {
+                                            "scope": "whatsapp_business_messaging",
+                                            "target_ids": [
+                                                "111111111111111",
+                                            ],
+                                        },
+                                    ]
+                                }
+                            }
+                        ),
+                    ),
+                    # getting waba details
+                    MockResponse(
+                        200,
+                        json.dumps(
+                            {
+                                "id": "111111111111111",
+                                "currency": "USD",
+                                "message_template_namespace": "namespace-uuid",
+                                "on_behalf_of_business_info": {"id": "2222222222222"},
+                            }
+                        ),
+                    ),
+                    # getting waba phone numbers
+                    MockResponse(
+                        200,
+                        json.dumps(
+                            {
+                                "data": [
+                                    {"id": "123123123", "display_phone_number": "1234", "verified_name": "WABA name"}
+                                ]
+                            }
+                        ),
+                    ),
+                    # pre-process for post
+                    MockResponse(
+                        200,
+                        json.dumps(
+                            {
+                                "data": {
+                                    "scopes": [
+                                        "business_management",
+                                        "whatsapp_business_management",
+                                        "whatsapp_business_messaging",
+                                    ]
+                                }
+                            }
+                        ),
+                    ),
+                    # getting target waba
+                    MockResponse(
+                        200,
+                        json.dumps(
+                            {
+                                "data": {
+                                    "granular_scopes": [
+                                        {
+                                            "scope": "business_management",
+                                            "target_ids": [
+                                                "2222222222222",
+                                            ],
+                                        },
+                                        {
+                                            "scope": "whatsapp_business_management",
+                                            "target_ids": [
+                                                "111111111111111",
+                                            ],
+                                        },
+                                        {
+                                            "scope": "whatsapp_business_messaging",
+                                            "target_ids": [
+                                                "111111111111111",
+                                            ],
+                                        },
+                                    ]
+                                }
+                            }
+                        ),
+                    ),
+                    # getting waba details
+                    MockResponse(
+                        200,
+                        json.dumps(
+                            {
+                                "id": "111111111111111",
+                                "currency": "USD",
+                                "message_template_namespace": "namespace-uuid",
+                                "on_behalf_of_business_info": {"id": "2222222222222"},
+                            }
+                        ),
+                    ),
+                    # getting waba phone numbers
+                    MockResponse(
+                        200,
+                        json.dumps(
+                            {
+                                "data": [
+                                    {"id": "123123123", "display_phone_number": "1234", "verified_name": "WABA name"}
+                                ]
+                            }
+                        ),
+                    ),
+                    # getting te credit line ID
+                    MockResponse(200, json.dumps({"data": [{"id": "567567567"}]})),
+                ]
+
+                wa_cloud_post.return_value = MockResponse(200, json.dumps({"success": "true"}))
+
+                response = self.client.get(claim_whatsapp_cloud_url, follow=True)
+
+                wa_cloud_get.reset_mock()
+
+                response = self.client.post(claim_whatsapp_cloud_url, post_data, follow=True)
+                self.assertEqual(200, response.status_code)
+                self.assertEqual(
+                    response.context["form"].errors["__all__"][0],
+                    "That number is already connected (1234)",
+                )
 
     @override_settings(WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN")
     @patch("requests.get")
