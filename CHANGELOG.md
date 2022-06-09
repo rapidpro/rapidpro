@@ -1,3 +1,10 @@
+v7.3.56
+----------
+ * Fix deletion of users
+ * Cleanup user update form
+ * Fix missing users manage link page
+ * Add views to verify and register a WAC number
+
 v7.3.55
 ----------
  * Update contact search summary encoding
