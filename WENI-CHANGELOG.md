@@ -1,5 +1,6 @@
 1.3.0-rapidpro-7.1.27
 ----------
+* Update weni-rp-apps to 1.0.18
 * WhatsApp Cloud New Channel Feature
 * Slack channel
 
