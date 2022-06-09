@@ -431,6 +431,7 @@ PERMISSIONS = {
         "vonage_connect",
         "plan",
         "plivo_connect",
+        "whatsapp_cloud_connect",
         "profile",
         "prometheus",
         "resthooks",
@@ -642,6 +643,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_vonage_connect",
         "orgs.org_plan",
         "orgs.org_plivo_connect",
+        "orgs.org_whatsapp_cloud_connect",
         "orgs.org_profile",
         "orgs.org_prometheus",
         "orgs.org_resthooks",
@@ -1122,6 +1124,7 @@ TICKETER_TYPES = [
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
+    "temba.channels.types.whatsapp_cloud.WhatsAppCloudType",
     "temba.channels.types.dialog360.Dialog360Type",
     "temba.channels.types.zenvia_whatsapp.ZenviaWhatsAppType",
     "temba.channels.types.twilio.TwilioType",
@@ -1246,6 +1249,13 @@ ZENDESK_CLIENT_SECRET = os.environ.get("ZENDESK_CLIENT_SECRET", "")
 FACEBOOK_APPLICATION_ID = os.environ.get("FACEBOOK_APPLICATION_ID", "")
 FACEBOOK_APPLICATION_SECRET = os.environ.get("FACEBOOK_APPLICATION_SECRET", "")
 FACEBOOK_WEBHOOK_SECRET = os.environ.get("FACEBOOK_WEBHOOK_SECRET", "")
+
+WHATSAPP_ADMIN_SYSTEM_USER_ID = os.environ.get("WHATSAPP_ADMIN_SYSTEM_USER_ID", "")
+WHATSAPP_ADMIN_SYSTEM_USER_TOKEN = os.environ.get("WHATSAPP_ADMIN_SYSTEM_USER_TOKEN", "")
+WHATSAPP_FACEBOOK_BUSINESS_ID = os.environ.get("WHATSAPP_FACEBOOK_BUSINESS_ID", "")
+WHATSAPP_APPLICATION_ID = os.environ.get("WHATSAPP_APPLICATION_ID", "")
+WHATSAPP_APPLICATION_SECRET = os.environ.get("WHATSAPP_APPLICATION_SECRET", "")
+WHATSAPP_WEBHOOK_SECRET = os.environ.get("WHATSAPP_WEBHOOK_SECRET", "")
 
 
 # -----------------------------------------------------------------------------------

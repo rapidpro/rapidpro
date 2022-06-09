@@ -277,6 +277,8 @@ class Channel(TembaModel, DependencyMixin):
     CONFIG_ALLOW_INTERNATIONAL = "allow_international"
     CONFIG_MACHINE_DETECTION = "machine_detection"
 
+    CONFIG_WHATSAPP_CLOUD_USER_TOKEN = "whatsapp_cloud_user_token"
+
     CONFIG_VONAGE_API_KEY = "nexmo_api_key"
     CONFIG_VONAGE_API_SECRET = "nexmo_api_secret"
     CONFIG_VONAGE_APP_ID = "nexmo_app_id"
@@ -780,6 +782,9 @@ class Channel(TembaModel, DependencyMixin):
         elif URN.FACEBOOK_SCHEME in self.schemes:
             return "%s (%s)" % (self.config.get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
+        elif self.channel_type == "WAC":
+            return "%s (%s)" % (self.config.get("wa_number", ""), self.config.get("wa_verified_name", self.name))
+
         return self.address
 
     def get_last_sent_message(self):
@@ -1247,6 +1252,10 @@ class ChannelLog(models.Model):
         """
         Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
         """
+        secrets = [settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN]
+        for secret in secrets:
+            if secret and original:
+                original = redact.text(original, secret, mask)
 
         if not self.channel.org.is_anon or user.has_org_perm(self.channel.org, "contacts.contact_break_anon"):
             return original

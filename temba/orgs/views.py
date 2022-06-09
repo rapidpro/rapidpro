@@ -1105,6 +1105,7 @@ class OrgCRUDL(SmartCRUDL):
         "export",
         "import",
         "plivo_connect",
+        "whatsapp_cloud_connect",
         "prometheus",
         "resthooks",
         "service",
@@ -1559,8 +1560,6 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = Form
         submit_button_name = "Save"
-        success_url = "@channels.types.vonage.claim"
-        field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
         success_message = "Vonage Account successfully connected."
 
         def form_valid(self, form):
@@ -1577,6 +1576,68 @@ class OrgCRUDL(SmartCRUDL):
 
     class Plan(InferOrgMixin, OrgPermsMixin, SmartReadView):
         pass
+
+    class WhatsappCloudConnect(InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class WhatsappCloudConnectForm(forms.Form):
+            user_access_token = forms.CharField(min_length=32, required=True)
+
+            def clean(self):
+                try:
+                    auth_token = self.cleaned_data.get("auth_token", None)
+
+                    app_id = settings.WHATSAPP_APPLICATION_ID
+                    app_secret = settings.WHATSAPP_APPLICATION_SECRET
+
+                    url = "https://graph.facebook.com/v13.0/debug_token"
+                    params = {"access_token": f"{app_id}|{app_secret}", "input_token": auth_token}
+
+                    response = requests.get(url, params=params)
+                    if response.status_code != 200:  # pragma: no cover
+                        raise Exception("Failed to debug user token")
+
+                    response_json = response.json()
+
+                    for perm in ["business_management", "whatsapp_business_management", "whatsapp_business_messaging"]:
+                        if perm not in response_json.get("data", dict()).get("scopes", []):
+                            raise Exception(
+                                'Missing permission, we need all the following permissions "business_management", "whatsapp_business_management", "whatsapp_business_messaging"'
+                            )
+                except Exception:
+                    raise forms.ValidationError(
+                        _("Sorry account could not be connected. Please try again"), code="invalid"
+                    )
+
+                return self.cleaned_data
+
+        form_class = WhatsappCloudConnectForm
+        success_url = "@channels.types.whatsapp_cloud.claim"
+        field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
+
+        def pre_process(self, request, *args, **kwargs):
+            session_token = self.request.session.get(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, None)
+            if session_token:
+                return HttpResponseRedirect(self.get_success_url())
+
+            return super().pre_process(request, *args, **kwargs)
+
+        def form_valid(self, form):
+            auth_token = form.cleaned_data["user_access_token"]
+
+            # add the credentials to the session
+            self.request.session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = auth_token
+            return HttpResponseRedirect(self.get_success_url())
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["connect_url"] = reverse("orgs.org_whatsapp_cloud_connect")
+            context["whatsapp_app_id"] = settings.WHATSAPP_APPLICATION_ID
+
+            claim_error = None
+            if context["form"].errors:
+                claim_error = context["form"].errors.get("__all__", [""])[0]
+            context["claim_error"] = claim_error
+
+            return context
 
     class PlivoConnect(ModalMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class PlivoConnectForm(forms.Form):
