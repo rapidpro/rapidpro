@@ -1,0 +1,15 @@
+-extends "channels/channel_claim_form.html"
+-load i18n compress temba
+
+-block pre-form
+  -blocktrans trimmed with name=brand.name
+    You can connect a <a href="https://slack.com/app">Slack Bot</a> to your {{name}} workspace to automate sending and receiving messages.
+
+  -blocktrans trimmed
+    To do it, you will need to create a new slack app and configure it.
+
+  %ol.steps.card
+    %li
+      -blocktrans trimmed
+        You'll need to create a <a href="https://api.slack.com/apps">Slack app</a> if you haven't already, setup a bot to it, add the needed scopes and install app on your slack workspace.
+        If you need help how to do this, read this guide <a href="https://api.slack.com/bot-users">here</a>.

@@ -344,43 +344,63 @@
           if (!connectBaseURL) {
             return;
           }
+
           const url = new URL(connectBaseURL);
-          const debug = url.host && url.host.includes('develop');
+
           document.querySelectorAll('a[href]').forEach((link) => {
             const internalHref = link.getAttribute('internal-href') || link.getAttribute('href');
+
             if (['http://', 'https://'].some((initial) => internalHref.startsWith(initial))) {
               return;
             }
+
             const dashHref = connectBaseURL + internalHref;
+
             if (link.translateLinkConnect) {
               if (link.getAttribute('href') === dashHref) {
                 return;
               }
               link.removeEventListener('click', link.translateLinkConnect);
             }
+
             link.setAttribute('internal-href', internalHref);
             link.setAttribute('href', dashHref);
-            const randomId = Math.floor(Math.random() * 100);
             link.addEventListener(
               'click',
               (link.translateLinkConnect = () => {
-                if (debug) {
-                  console.log(`TranslateLinkConnectId ${randomId}`);
+                if(link.getAttribute('target') !== '_blank') {
+                  link.setAttribute('href', internalHref);
+                  setTimeout(() => {
+                    link.setAttribute('href', dashHref);
+                  }, 0);
                 }
-                link.setAttribute('href', internalHref);
-                setTimeout(() => {
-                  link.setAttribute('href', dashHref);
-                }, 0);
               }),
             );
           });
         };
+
+        function initializeObserver() {
+          const targetNode = document.getElementById('pageBody');
+          const config = { attributes: true, childList: true, subtree: true };
+
+          const callback = function(mutationList, observer) {
+            mutationList.forEach((mutation) => {
+                if (mutation.type === 'childList') {
+                  translateAllLinks();
+                }
+            })
+          };
+
+          const observer = new MutationObserver(callback);
+          observer.observe(targetNode, config);
+        }
 
         window.addEventListener('message', (event) => {
           const eventName = event.data && event.data.event;
           if (eventName === 'setConnectBaseURL') {
             connectBaseURL = event.data.connectBaseURL;
             translateAllLinks();
+            initializeObserver();
           }
         });
 
