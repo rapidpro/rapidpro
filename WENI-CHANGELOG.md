@@ -1,3 +1,8 @@
+1.3.0-rapidpro-7.1.27
+----------
+* WhatsApp Cloud New Channel Feature
+* Slack channel
+
 1.2.7-rapidpro-7.1.27
 ----------
 * Link translation using MutationObserver for FlowEditor links
