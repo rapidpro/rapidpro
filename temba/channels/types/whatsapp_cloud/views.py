@@ -139,7 +139,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         context["unsupported_facebook_business_id"] = unsupported_facebook_business_id
 
-        # make sure we clear the session credentials if not number was granted
+        # make sure we clear the session credentials if no number was granted
         if not context.get("phone_numbers", []):
             self.remove_token_credentials_from_session()
 
