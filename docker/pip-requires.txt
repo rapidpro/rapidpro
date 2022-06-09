@@ -5,3 +5,4 @@ django-templates-macros@^0.2
 django-csp@^3.7
 weni-rp-apps@==1.0.16
 elasticsearch==7.13.4
+slack_sdk==3.17.0
