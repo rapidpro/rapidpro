@@ -557,6 +557,66 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
 
+    def test_schedule(self):
+        contact = self.create_contact("Joe", phone="+1234567890")
+        schedule_url = reverse("contacts.contact_schedule", args=[contact.uuid])
+
+        response = self.assertReadFetch(schedule_url, allow_viewers=True, allow_editors=True)
+        self.assertEqual({"events": []}, response.json())
+
+        # create a campaign and event fires for this contact
+        campaign = Campaign.create(self.org, self.admin, "Reminders", self.create_group("Farmers"))
+        joined = self.create_field("joined", "Joined On", value_type=ContactField.TYPE_DATETIME)
+        flow = self.create_flow("Reminder Flow")
+        event1 = CampaignEvent.create_message_event(self.org, self.admin, campaign, joined, 2, unit="D", message="Hi")
+        event2 = CampaignEvent.create_flow_event(self.org, self.admin, campaign, joined, 2, unit="D", flow=flow)
+        fire1 = EventFire.objects.create(event=event1, contact=contact, scheduled=timezone.now() + timedelta(days=2))
+        fire2 = EventFire.objects.create(event=event2, contact=contact, scheduled=timezone.now() + timedelta(days=5))
+
+        # create scheduled and regular broadcasts which send to both groups
+        bcast1 = self.create_broadcast(
+            self.admin,
+            "Hi again",
+            contacts=[contact],
+            schedule=Schedule.create_schedule(
+                self.org, self.admin, timezone.now() + timedelta(days=3), Schedule.REPEAT_DAILY
+            ),
+        )
+        self.create_broadcast(self.admin, "Bye", contacts=[contact])  # not scheduled
+
+        response = self.requestView(schedule_url, self.admin)
+        self.assertEqual(
+            {
+                "events": [
+                    {
+                        "type": "flow",
+                        "scheduled": fire2.scheduled.isoformat(),
+                        "repeat_period": None,
+                        "flow": {"uuid": str(flow.uuid), "name": "Reminder Flow"},
+                    },
+                    {
+                        "type": "message",
+                        "scheduled": bcast1.schedule.next_fire.astimezone(timezone.utc).isoformat(),
+                        "repeat_period": "D",
+                        "message": "Hi again",
+                    },
+                    {
+                        "type": "message",
+                        "scheduled": fire1.scheduled.isoformat(),
+                        "repeat_period": None,
+                        "message": "Hi",
+                    },
+                ]
+            },
+            response.json(),
+        )
+
+        # fires for archived campaigns shouldn't appear
+        campaign.archive(self.admin)
+
+        response = self.requestView(schedule_url, self.admin)
+        self.assertEqual(1, len(response.json()["events"]))
+
     @mock_mailroom
     def test_archive(self, mr_mocks):
         contact = self.create_contact("Joe", phone="+593979000111")

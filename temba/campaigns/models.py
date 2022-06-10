@@ -24,6 +24,15 @@ class Campaign(TembaModel):
 
         return cls.objects.create(org=org, name=name, group=group, created_by=user, modified_by=user)
 
+    def archive(self, user):
+        self.is_archived = True
+        self.modified_by = user
+        self.modified_on = timezone.now()
+        self.save(update_fields=("is_archived", "modified_by", "modified_on"))
+
+        # recreate events so existing event fires will be ignored
+        self.recreate_events()
+
     def recreate_events(self):
         """
         Recreates all the events in this campaign - called when something like the group changes.
@@ -148,11 +157,8 @@ class Campaign(TembaModel):
 
     @classmethod
     def apply_action_archive(cls, user, campaigns):
-        campaigns.update(is_archived=True, modified_by=user, modified_on=timezone.now())
-
-        # recreate events so existing event fires will be ignored
         for campaign in campaigns:
-            campaign.recreate_events()
+            campaign.archive(user)
 
     @classmethod
     def apply_action_restore(cls, user, campaigns):
