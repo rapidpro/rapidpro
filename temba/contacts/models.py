@@ -690,6 +690,47 @@ class Contact(LegacyUUIDMixin, SmartModel):
             .order_by("schedule__next_fire")
         )
 
+    def get_scheduled(self) -> list:
+        """
+        Gets this contact's upcoming scheduled events
+        """
+        from temba.campaigns.models import CampaignEvent
+
+        fires = (
+            self.campaign_fires.filter(
+                event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
+            )
+            .select_related("event", "event__flow")
+            .order_by("scheduled")
+        )
+
+        merged = []
+        for fire in fires:
+            is_flow = fire.event.event_type == CampaignEvent.TYPE_FLOW
+            obj = {
+                "type": "flow" if is_flow else "message",
+                "scheduled": fire.scheduled.isoformat(),
+                "repeat_period": None,
+            }
+            if is_flow:
+                obj["flow"] = fire.event.flow.as_export_ref()
+            else:
+                obj["message"] = fire.event.get_message(contact=self)
+
+            merged.append(obj)
+
+        for broadcast in self.get_scheduled_messages():
+            merged.append(
+                {
+                    "type": "message",
+                    "scheduled": broadcast.schedule.next_fire.isoformat(),
+                    "repeat_period": broadcast.schedule.repeat_period,
+                    "message": broadcast.get_text(self),
+                }
+            )
+
+        return sorted(merged, key=lambda k: k["scheduled"], reverse=True)
+
     def get_history(self, after: datetime, before: datetime, include_event_types: set, ticket, limit: int) -> list:
         """
         Gets this contact's history of messages, calls, runs etc in the given time window

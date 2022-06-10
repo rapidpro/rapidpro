@@ -33,7 +33,6 @@ from django.utils.translation import gettext_lazy as _
 from django.views import View
 
 from temba.archives.models import Archive
-from temba.campaigns.models import CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.flows.models import Flow, FlowStart
@@ -568,7 +567,7 @@ class ContactCRUDL(SmartCRUDL):
         "restore",
         "archive",
         "delete",
-        "schedule",
+        "scheduled",
         "history",
         "start",
     )
@@ -788,54 +787,16 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-
             contact = self.object
 
-            # the users group membership
             context["contact_groups"] = contact.get_groups().order_by(Lower("name"))
-
-            # campaign event fires
-            event_fires = contact.campaign_fires.filter(
-                event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
-            ).order_by("scheduled")
-
-            scheduled_messages = contact.get_scheduled_messages()
-
-            merged_upcoming_events = []
-            for fire in event_fires:
-                merged_upcoming_events.append(
-                    dict(
-                        event_type=fire.event.event_type,
-                        message=fire.event.get_message(contact=contact),
-                        flow_uuid=fire.event.flow.uuid,
-                        flow_name=fire.event.flow.name,
-                        scheduled=fire.scheduled,
-                    )
-                )
-
-            for sched_broadcast in scheduled_messages:
-                merged_upcoming_events.append(
-                    dict(
-                        repeat_period=sched_broadcast.schedule.repeat_period,
-                        event_type="M",
-                        message=sched_broadcast.get_text(contact),
-                        flow_uuid=None,
-                        flow_name=None,
-                        scheduled=sched_broadcast.schedule.next_fire,
-                    )
-                )
-
-            # upcoming scheduled events
-            context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"], reverse=True)
-
-            # open tickets
+            context["upcoming_events"] = contact.get_scheduled()
             context["open_tickets"] = list(
                 contact.tickets.filter(status=Ticket.STATUS_OPEN).select_related("ticketer").order_by("-opened_on")
             )
 
             # divide contact's URNs into those we can send to, and those we can't
             sendable_schemes = contact.org.get_schemes(Channel.ROLE_SEND)
-
             urns = contact.get_urns()
             has_sendable_urn = False
 
@@ -987,7 +948,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return links
 
-    class Schedule(OrgObjPermsMixin, SmartReadView):
+    class Scheduled(OrgObjPermsMixin, SmartReadView):
         """
         Merged list of upcoming scheduled events (campaign event fires and scheduled broadcasts)
         """
@@ -998,48 +959,8 @@ class ContactCRUDL(SmartCRUDL):
         def get_queryset(self):
             return Contact.objects.filter(is_active=True).select_related("org")
 
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            contact = self.get_object()
-
-            event_fires = (
-                contact.campaign_fires.filter(
-                    event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
-                )
-                .select_related("event", "event__flow")
-                .order_by("scheduled")
-            )
-
-            merged = []
-            for fire in event_fires:
-                is_flow = fire.event.event_type == CampaignEvent.TYPE_FLOW
-                obj = {
-                    "type": "flow" if is_flow else "message",
-                    "scheduled": fire.scheduled.isoformat(),
-                    "repeat_period": None,
-                }
-                if is_flow:
-                    obj["flow"] = fire.event.flow.as_export_ref()
-                else:
-                    obj["message"] = fire.event.get_message(contact=contact)
-
-                merged.append(obj)
-
-            for broadcast in contact.get_scheduled_messages():
-                merged.append(
-                    {
-                        "type": "message",
-                        "scheduled": broadcast.schedule.next_fire.isoformat(),
-                        "repeat_period": broadcast.schedule.repeat_period,
-                        "message": broadcast.get_text(contact),
-                    }
-                )
-
-            context["events"] = sorted(merged, key=lambda k: k["scheduled"], reverse=True)
-            return context
-
         def render_to_response(self, context, **response_kwargs):
-            return JsonResponse({"events": context["events"]})
+            return JsonResponse({"events": self.object.get_scheduled()})
 
     class History(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"

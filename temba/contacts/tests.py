@@ -557,9 +557,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
 
-    def test_schedule(self):
+    def test_scheduled(self):
         contact = self.create_contact("Joe", phone="+1234567890")
-        schedule_url = reverse("contacts.contact_schedule", args=[contact.uuid])
+        schedule_url = reverse("contacts.contact_scheduled", args=[contact.uuid])
 
         response = self.assertReadFetch(schedule_url, allow_viewers=True, allow_editors=True)
         self.assertEqual({"events": []}, response.json())
@@ -1400,7 +1400,7 @@ class ContactTest(TembaTest):
     def create_campaign(self):
         # create a campaign with a future event and add joe
         self.farmers = self.create_group("Farmers", [self.joe])
-        self.reminder_flow = self.get_flow("color")
+        self.reminder_flow = self.create_flow("Reminder Flow")
         self.planting_date = self.create_field("planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME)
         self.campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
@@ -2675,11 +2675,10 @@ class ContactTest(TembaTest):
         # should show the next seven events to fire in reverse order
         self.assertEqual(7, len(upcoming))
 
-        self.assertEqual(upcoming[4]["message"], "Sent 10 days after planting date")
-        self.assertEqual(upcoming[5]["message"], "Sent 7 days after planting date")
-        self.assertEqual(upcoming[6]["message"], None)
-        self.assertEqual(upcoming[6]["flow_uuid"], self.reminder_flow.uuid)
-        self.assertEqual(upcoming[6]["flow_name"], self.reminder_flow.name)
+        self.assertEqual("Sent 10 days after planting date", upcoming[4]["message"])
+        self.assertEqual("Sent 7 days after planting date", upcoming[5]["message"])
+        self.assertNotIn("message", upcoming[6])
+        self.assertEqual({"uuid": str(self.reminder_flow.uuid), "name": "Reminder Flow"}, upcoming[6]["flow"])
 
         self.assertGreater(upcoming[4]["scheduled"], upcoming[5]["scheduled"])
 
@@ -2696,11 +2695,10 @@ class ContactTest(TembaTest):
         # should show the next 2 events to fire and the scheduled broadcast in reverse order by schedule time
         self.assertEqual(8, len(upcoming))
 
-        self.assertEqual(upcoming[5]["message"], "Sent 7 days after planting date")
-        self.assertEqual(upcoming[6]["message"], "Hello")
-        self.assertEqual(upcoming[7]["message"], None)
-        self.assertEqual(upcoming[7]["flow_uuid"], self.reminder_flow.uuid)
-        self.assertEqual(upcoming[7]["flow_name"], self.reminder_flow.name)
+        self.assertEqual("Sent 7 days after planting date", upcoming[5]["message"])
+        self.assertEqual("Hello", upcoming[6]["message"])
+        self.assertNotIn("message", upcoming[7])
+        self.assertEqual({"uuid": str(self.reminder_flow.uuid), "name": "Reminder Flow"}, upcoming[7]["flow"])
 
         self.assertGreater(upcoming[6]["scheduled"], upcoming[7]["scheduled"])
 
