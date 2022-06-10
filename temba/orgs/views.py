@@ -2028,7 +2028,7 @@ class OrgCRUDL(SmartCRUDL):
         def lookup_field_link(self, context, field, obj):
             if field == "owner":
                 owner = obj.get_owner()
-                return reverse("users.user_update", args=[owner.pk])
+                return reverse("orgs.user_update", args=[owner.pk])
             return super().lookup_field_link(context, field, obj)
 
         def get_created_by(self, obj):  # pragma: needs cover
