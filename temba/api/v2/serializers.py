@@ -1429,6 +1429,7 @@ class TicketReadSerializer(ReadSerializer):
     topic = fields.TopicField()
     assignee = fields.UserField()
     opened_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     closed_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_status(self, obj):
@@ -1436,7 +1437,18 @@ class TicketReadSerializer(ReadSerializer):
 
     class Meta:
         model = Ticket
-        fields = ("uuid", "ticketer", "contact", "status", "topic", "body", "assignee", "opened_on", "closed_on")
+        fields = (
+            "uuid",
+            "ticketer",
+            "contact",
+            "status",
+            "topic",
+            "body",
+            "assignee",
+            "opened_on",
+            "modified_on",
+            "closed_on",
+        )
 
 
 class TicketBulkActionSerializer(WriteSerializer):
