@@ -1,3 +1,10 @@
+v7.3.57
+----------
+ * Improve WAC phone number verification flow and feedback
+ * Adjust name of WAC channels to include the number
+ * Fix manage user update URL on org update page
+ * Support missing target_ids key in WAC responses
+
 v7.3.56
 ----------
  * Fix deletion of users
