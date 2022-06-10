@@ -4554,10 +4554,6 @@ class APITest(TembaTest):
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
         self.create_ticket(zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Stuff")
 
-        response = self.fetchJSON(url, "ticketer_type=zendesk")
-        resp_json = response.json()
-        self.assertEqual(0, len(resp_json["results"]))
-
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url, readonly_models={Ticket})
@@ -4577,6 +4573,7 @@ class APITest(TembaTest):
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Pleeeease help",
                     "opened_on": format_datetime(ticket3.opened_on),
+                    "modified_on": format_datetime(ticket3.modified_on),
                     "closed_on": None,
                 },
                 {
@@ -4588,6 +4585,7 @@ class APITest(TembaTest):
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Really",
                     "opened_on": format_datetime(ticket2.opened_on),
+                    "modified_on": format_datetime(ticket2.modified_on),
                     "closed_on": None,
                 },
                 {
@@ -4599,6 +4597,7 @@ class APITest(TembaTest):
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Help",
                     "opened_on": format_datetime(ticket1.opened_on),
+                    "modified_on": format_datetime(ticket1.modified_on),
                     "closed_on": "2021-01-01T12:30:45.123456Z",
                 },
             ],

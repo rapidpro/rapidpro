@@ -3483,6 +3483,8 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **topic** - the topic of the ticket (object).
      * **body** - the body of the ticket (string).
      * **opened_on** - when this ticket was opened (datetime).
+     * **modified_on** - when this ticket was last modified (datetime).
+     * **closed_on** - when this ticket was closed (datetime).
 
     Example:
 
@@ -3501,7 +3503,9 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                 "status": "open",
                 "topic": {"uuid": "040edbfe-be55-48f3-864d-a4a7147c447b", "name": "Support"},
                 "body": "Where did I leave my shorts?",
-                "opened_on": "2013-02-27T09:06:15.456"
+                "opened_on": "2013-02-27T09:06:15.456",
+                "modified_on": "2013-02-27T09:07:18.234",
+                "closed_on": null
             },
             ...
     """
@@ -3529,11 +3533,6 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         uuid = params.get("uuid") or params.get("ticket")
         if uuid:
             queryset = queryset.filter(uuid=uuid)
-
-        # filter by ticketer type if provided, unpublished support for agents
-        ticketer_type = params.get("ticketer_type")
-        if ticketer_type:
-            queryset = queryset.filter(ticketer__ticketer_type=ticketer_type)
 
         queryset = queryset.prefetch_related(
             Prefetch("ticketer", queryset=Ticketer.objects.only("uuid", "name")),
