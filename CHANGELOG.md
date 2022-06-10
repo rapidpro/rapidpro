@@ -1,3 +1,10 @@
+v7.3.58
+----------
+ * Clean up chat media treatment
+ * Add endpoint to get upcoming scheduled events for a contact
+ * Remove filtering by ticketer on tickets API endpoint and add indexes
+ * Add status to contacts API endpoint
+
 v7.3.57
 ----------
  * Improve WAC phone number verification flow and feedback
