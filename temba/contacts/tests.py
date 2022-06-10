@@ -562,7 +562,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         schedule_url = reverse("contacts.contact_scheduled", args=[contact.uuid])
 
         response = self.assertReadFetch(schedule_url, allow_viewers=True, allow_editors=True)
-        self.assertEqual({"events": []}, response.json())
+        self.assertEqual({"results": []}, response.json())
 
         # create a campaign and event fires for this contact
         campaign = Campaign.create(self.org, self.admin, "Reminders", self.create_group("Farmers"))
@@ -587,7 +587,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.requestView(schedule_url, self.admin)
         self.assertEqual(
             {
-                "events": [
+                "results": [
                     {
                         "type": "campaign_event",
                         "scheduled": fire2.scheduled.isoformat(),
@@ -617,7 +617,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         campaign.archive(self.admin)
 
         response = self.requestView(schedule_url, self.admin)
-        self.assertEqual(1, len(response.json()["events"]))
+        self.assertEqual(1, len(response.json()["results"]))
 
     @mock_mailroom
     def test_archive(self, mr_mocks):

@@ -960,7 +960,7 @@ class ContactCRUDL(SmartCRUDL):
             return Contact.objects.filter(is_active=True).select_related("org")
 
         def render_to_response(self, context, **response_kwargs):
-            return JsonResponse({"events": self.object.get_scheduled()})
+            return JsonResponse({"results": self.object.get_scheduled()})
 
     class History(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
