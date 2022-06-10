@@ -680,16 +680,56 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
         contact_urns = self.get_urns()
         contact_groups = self.groups.all()
-        now = timezone.now()
 
-        scheduled_broadcasts = SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED)
-        scheduled_broadcasts = scheduled_broadcasts.exclude(schedule__next_fire=None)
-        scheduled_broadcasts = scheduled_broadcasts.filter(schedule__next_fire__gte=now)
-        scheduled_broadcasts = scheduled_broadcasts.filter(
-            Q(contacts__in=[self]) | Q(urns__in=contact_urns) | Q(groups__in=contact_groups)
+        return (
+            SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED)
+            .exclude(schedule__next_fire=None)
+            .filter(schedule__next_fire__gte=timezone.now())
+            .filter(Q(contacts__in=[self]) | Q(urns__in=contact_urns) | Q(groups__in=contact_groups))
+            .select_related("org")
+            .order_by("schedule__next_fire")
         )
 
-        return scheduled_broadcasts.select_related("org").order_by("schedule__next_fire")
+    def get_scheduled(self) -> list:
+        """
+        Gets this contact's upcoming scheduled events
+        """
+        from temba.campaigns.models import CampaignEvent
+
+        fires = (
+            self.campaign_fires.filter(
+                event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
+            )
+            .select_related("event", "event__flow", "event__campaign")
+            .order_by("scheduled")
+        )
+
+        merged = []
+        for fire in fires:
+            obj = {
+                "type": "campaign_event",
+                "scheduled": fire.scheduled.isoformat(),
+                "repeat_period": None,
+                "campaign": fire.event.campaign.as_export_ref(),
+            }
+            if fire.event.event_type == CampaignEvent.TYPE_FLOW:
+                obj["flow"] = fire.event.flow.as_export_ref()
+            else:
+                obj["message"] = fire.event.get_message(contact=self)
+
+            merged.append(obj)
+
+        for broadcast in self.get_scheduled_messages():
+            merged.append(
+                {
+                    "type": "scheduled_broadcast",
+                    "scheduled": broadcast.schedule.next_fire.isoformat(),
+                    "repeat_period": broadcast.schedule.repeat_period,
+                    "message": broadcast.get_text(self),
+                }
+            )
+
+        return sorted(merged, key=lambda k: k["scheduled"], reverse=True)
 
     def get_history(self, after: datetime, before: datetime, include_event_types: set, ticket, limit: int) -> list:
         """

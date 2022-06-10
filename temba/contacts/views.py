@@ -567,6 +567,7 @@ class ContactCRUDL(SmartCRUDL):
         "restore",
         "archive",
         "delete",
+        "scheduled",
         "history",
         "start",
     )
@@ -786,54 +787,16 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-
             contact = self.object
 
-            # the users group membership
             context["contact_groups"] = contact.get_groups().order_by(Lower("name"))
-
-            # campaign event fires
-            event_fires = contact.campaign_fires.filter(
-                event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
-            ).order_by("scheduled")
-
-            scheduled_messages = contact.get_scheduled_messages()
-
-            merged_upcoming_events = []
-            for fire in event_fires:
-                merged_upcoming_events.append(
-                    dict(
-                        event_type=fire.event.event_type,
-                        message=fire.event.get_message(contact=contact),
-                        flow_uuid=fire.event.flow.uuid,
-                        flow_name=fire.event.flow.name,
-                        scheduled=fire.scheduled,
-                    )
-                )
-
-            for sched_broadcast in scheduled_messages:
-                merged_upcoming_events.append(
-                    dict(
-                        repeat_period=sched_broadcast.schedule.repeat_period,
-                        event_type="M",
-                        message=sched_broadcast.get_text(contact),
-                        flow_uuid=None,
-                        flow_name=None,
-                        scheduled=sched_broadcast.schedule.next_fire,
-                    )
-                )
-
-            # upcoming scheduled events
-            context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"], reverse=True)
-
-            # open tickets
+            context["upcoming_events"] = contact.get_scheduled()
             context["open_tickets"] = list(
                 contact.tickets.filter(status=Ticket.STATUS_OPEN).select_related("ticketer").order_by("-opened_on")
             )
 
             # divide contact's URNs into those we can send to, and those we can't
             sendable_schemes = contact.org.get_schemes(Channel.ROLE_SEND)
-
             urns = contact.get_urns()
             has_sendable_urn = False
 
@@ -984,6 +947,20 @@ class ContactCRUDL(SmartCRUDL):
                 )
 
             return links
+
+    class Scheduled(OrgObjPermsMixin, SmartReadView):
+        """
+        Merged list of upcoming scheduled events (campaign event fires and scheduled broadcasts)
+        """
+
+        permission = "contacts.contact_read"
+        slug_url_kwarg = "uuid"
+
+        def get_queryset(self):
+            return Contact.objects.filter(is_active=True).select_related("org")
+
+        def render_to_response(self, context, **response_kwargs):
+            return JsonResponse({"results": self.object.get_scheduled()})
 
     class History(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
