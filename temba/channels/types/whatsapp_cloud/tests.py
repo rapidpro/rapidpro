@@ -256,6 +256,19 @@ class WhatsAppCloudTypeTest(TembaTest):
                     ),
                     # getting te credit line ID
                     MockResponse(200, json.dumps({"data": [{"id": "567567567"}]})),
+                    # phone number verification status
+                    MockResponse(
+                        200,
+                        json.dumps(
+                            {
+                                "verified_name": "WABA name",
+                                "code_verification_status": "VERIFIED",
+                                "display_phone_number": "1234",
+                                "quality_rating": "GREEN",
+                                "id": "123123123",
+                            }
+                        ),
+                    ),
                 ]
 
                 wa_cloud_post.return_value = MockResponse(200, json.dumps({"success": "true"}))
