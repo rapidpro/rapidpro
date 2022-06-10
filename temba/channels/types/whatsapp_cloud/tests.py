@@ -296,7 +296,7 @@ class WhatsAppCloudTypeTest(TembaTest):
                     reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)),
                 )
 
-                self.assertEqual("WABA name", channel.name)
+                self.assertEqual("1234 - WABA name", channel.name)
                 self.assertEqual("123123123", channel.address)
                 self.assertEqual("WAC", channel.channel_type)
                 self.assertTrue(channel.type.has_attachment_support(channel))

@@ -193,7 +193,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.request.user,
             None,
             self.channel_type,
-            name=verified_name,
+            name=f"{number} - {verified_name}",
             address=phone_number_id,
             config=config,
             tps=80,
