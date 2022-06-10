@@ -680,16 +680,15 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
         contact_urns = self.get_urns()
         contact_groups = self.groups.all()
-        now = timezone.now()
 
-        scheduled_broadcasts = SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED)
-        scheduled_broadcasts = scheduled_broadcasts.exclude(schedule__next_fire=None)
-        scheduled_broadcasts = scheduled_broadcasts.filter(schedule__next_fire__gte=now)
-        scheduled_broadcasts = scheduled_broadcasts.filter(
-            Q(contacts__in=[self]) | Q(urns__in=contact_urns) | Q(groups__in=contact_groups)
+        return (
+            SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED)
+            .exclude(schedule__next_fire=None)
+            .filter(schedule__next_fire__gte=timezone.now())
+            .filter(Q(contacts__in=[self]) | Q(urns__in=contact_urns) | Q(groups__in=contact_groups))
+            .select_related("org")
+            .order_by("schedule__next_fire")
         )
-
-        return scheduled_broadcasts.select_related("org").order_by("schedule__next_fire")
 
     def get_history(self, after: datetime, before: datetime, include_event_types: set, ticket, limit: int) -> list:
         """
