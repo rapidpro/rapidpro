@@ -589,21 +589,23 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             {
                 "events": [
                     {
-                        "type": "flow",
+                        "type": "campaign_event",
                         "scheduled": fire2.scheduled.isoformat(),
                         "repeat_period": None,
+                        "campaign": {"uuid": str(campaign.uuid), "name": "Reminders"},
                         "flow": {"uuid": str(flow.uuid), "name": "Reminder Flow"},
                     },
                     {
-                        "type": "message",
+                        "type": "scheduled_broadcast",
                         "scheduled": bcast1.schedule.next_fire.astimezone(timezone.utc).isoformat(),
                         "repeat_period": "D",
                         "message": "Hi again",
                     },
                     {
-                        "type": "message",
+                        "type": "campaign_event",
                         "scheduled": fire1.scheduled.isoformat(),
                         "repeat_period": None,
+                        "campaign": {"uuid": str(campaign.uuid), "name": "Reminders"},
                         "message": "Hi",
                     },
                 ]

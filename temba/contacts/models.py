@@ -700,19 +700,19 @@ class Contact(LegacyUUIDMixin, SmartModel):
             self.campaign_fires.filter(
                 event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
             )
-            .select_related("event", "event__flow")
+            .select_related("event", "event__flow", "event__campaign")
             .order_by("scheduled")
         )
 
         merged = []
         for fire in fires:
-            is_flow = fire.event.event_type == CampaignEvent.TYPE_FLOW
             obj = {
-                "type": "flow" if is_flow else "message",
+                "type": "campaign_event",
                 "scheduled": fire.scheduled.isoformat(),
                 "repeat_period": None,
+                "campaign": fire.event.campaign.as_export_ref(),
             }
-            if is_flow:
+            if fire.event.event_type == CampaignEvent.TYPE_FLOW:
                 obj["flow"] = fire.event.flow.as_export_ref()
             else:
                 obj["message"] = fire.event.get_message(contact=self)
@@ -722,7 +722,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         for broadcast in self.get_scheduled_messages():
             merged.append(
                 {
-                    "type": "message",
+                    "type": "scheduled_broadcast",
                     "scheduled": broadcast.schedule.next_fire.isoformat(),
                     "repeat_period": broadcast.schedule.repeat_period,
                     "message": broadcast.get_text(self),
