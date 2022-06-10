@@ -79,12 +79,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             granular_scopes = response_json.get("data", dict()).get("granular_scopes", [])
             for scope_dict in granular_scopes:
                 if scope_dict["scope"] == "business_management":
-                    for business_id in scope_dict["target_ids"]:
+                    for business_id in scope_dict.get("target_ids", []):
                         if business_id not in settings.ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS:  # pragma: no cover
                             unsupported_facebook_business_id = True
 
                 if scope_dict["scope"] in ["whatsapp_business_management", "whatsapp_business_messaging"]:
-                    waba_targets.extend(scope_dict["target_ids"])
+                    waba_targets.extend(scope_dict.get("target_ids", []))
 
             seen_waba = []
             phone_numbers = []
@@ -107,6 +107,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
                 business_id = target_waba_details["on_behalf_of_business_info"]["id"]
                 if business_id not in settings.ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS:  # pragma: no cover
+                    unsupported_facebook_business_id = True
                     continue
 
                 url = f"https://graph.facebook.com/v13.0/{target_waba}/phone_numbers"
@@ -192,7 +193,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.request.user,
             None,
             self.channel_type,
-            name=verified_name,
+            name=f"{number} - {verified_name}",
             address=phone_number_id,
             config=config,
             tps=80,
@@ -215,7 +216,7 @@ class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     permission = "channels.channel_claim"
     fields = ()
     template_name = "channels/types/whatsapp_cloud/request_code.html"
-    title = _("Request Verification Code")
+    title = _("Verification Code")
     submit_button_name = _("Request Code")
 
     def get_queryset(self):
@@ -223,6 +224,27 @@ class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
 
     def get_success_url(self):
         return reverse("channels.types.whatsapp_cloud.verify_code", args=[self.object.uuid])
+
+    def get_gear_links(self):
+        return [
+            dict(
+                title=_("Channel"),
+                href=reverse("channels.channel_read", args=[self.object.uuid]),
+            )
+        ]
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        phone_number_url = f"https://graph.facebook.com/v13.0/{self.object.address}"
+        headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
+        resp = requests.get(phone_number_url, headers=headers)
+
+        verified_status = False
+        if resp.status_code == 200:
+            verified_status = resp.json().get("code_verification_status") == "VERIFIED"
+
+        context["verified_status"] = verified_status
+        return context
 
     def execute_action(self):
         channel = self.object
@@ -236,9 +258,17 @@ class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         resp = requests.post(request_code_url, params=params, headers=headers)
 
         if resp.status_code != 200:  # pragma: no cover
-            raise forms.ValidationError(
-                _("Failed to request phone number verification code. Please remove the channel and add it again.")
-            )
+            phone_number_url = f"https://graph.facebook.com/v13.0/{phone_number_id}"
+            resp = requests.get(phone_number_url, headers=headers)
+
+            verified_status = False
+            if resp.status_code == 200:
+                verified_status = resp.json().get("code_verification_status") == "VERIFIED"
+
+            if not verified_status:
+                raise forms.ValidationError(
+                    _("Failed to request phone number verification code. Please remove the channel and add it again.")
+                )
 
 
 class VerifyCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
@@ -255,6 +285,14 @@ class VerifyCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     template_name = "channels/types/whatsapp_cloud/verify_code.html"
     title = _("Verify Number")
     submit_button_name = _("Verify Number")
+
+    def get_gear_links(self):
+        return [
+            dict(
+                title=_("Channel"),
+                href=reverse("channels.channel_read", args=[self.object.uuid]),
+            )
+        ]
 
     def get_queryset(self):
         return Channel.objects.filter(is_active=True, org=self.request.org, channel_type="WAC")

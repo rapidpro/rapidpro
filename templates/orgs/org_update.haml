@@ -31,7 +31,7 @@
           Administrators
 
         -for user in org.administrators.all
-          %a{href:'{% url "users.user_update" user.id %}'}
+          %a{href:'{% url "orgs.user_update" user.id %}'}
             {{user.email}}
 
     -if org.editors.all
@@ -40,7 +40,7 @@
           Editors
 
         -for user in org.editors.all
-          %a{href:'{% url "users.user_update" user.id %}'}
+          %a{href:'{% url "orgs.user_update" user.id %}'}
             {{user.email}}
 
     -if org.viewers.all
@@ -49,7 +49,7 @@
           Viewers
 
         -for user in org.viewers.all
-          %a{href:'{% url "users.user_update" user.id %}'}
+          %a{href:'{% url "orgs.user_update" user.id %}'}
             {{user.email}}
 
     -if org.surveyors.all
@@ -58,5 +58,5 @@
           Surveyors
 
         -for user in org.surveyors.all
-          %a{href:'{% url "users.user_update" user.id %}'}
+          %a{href:'{% url "orgs.user_update" user.id %}'}
             {{user.email}}
