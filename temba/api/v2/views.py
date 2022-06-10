@@ -1271,13 +1271,12 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
      * **uuid** - the UUID of the contact (string), filterable as `uuid`.
      * **name** - the name of the contact (string).
+     * **status** - the status of the contact (one of "active", "blocked", "stopped" or "archived").
      * **language** - the preferred language of the contact (string).
      * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
      * **groups** - the UUIDs of any groups the contact is part of (array of objects), filterable as `group` with group name or UUID.
      * **fields** - any contact fields on this contact (object).
      * **flow** - the flow that the contact is currently in, if any (object).
-     * **blocked** - whether the contact is blocked (boolean).
-     * **stopped** - whether the contact is stopped, i.e. has opted out (boolean).
      * **created_on** - when this contact was created (datetime).
      * **modified_on** - when this contact was last modified (datetime), filterable as `before` and `after`.
      * **last_seen_on** - when this contact last communicated with us (datetime).
@@ -1295,6 +1294,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             {
                 "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "name": "Ben Haggerty",
+                "status": "active",
                 "language": null,
                 "urns": ["tel:+250788123123"],
                 "groups": [{"name": "Customers", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
@@ -1303,8 +1303,6 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
                   "side_kick": "Ryan Lewis"
                 },
                 "flow": {"uuid": "c1bc5fcf-3e27-4265-97bf-f6c3a385c2d6", "name": "Registration"},
-                "blocked": false,
-                "stopped": false,
                 "created_on": "2015-11-11T13:05:57.457742Z",
                 "modified_on": "2020-08-11T13:05:57.576056Z",
                 "last_seen_on": "2020-07-11T13:05:57.576056Z"
@@ -1340,6 +1338,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         {
             "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
             "name": "Ben Haggerty",
+            "status": "active",
             "language": "eng",
             "urns": ["tel:+250788123123", "twitter:ben"],
             "groups": [{"name": "Devs", "uuid": "6685e933-26e1-4363-a468-8f7268ab63a9"}],
@@ -1348,8 +1347,6 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
               "side_kick": "Ryan Lewis"
             },
             "flow": null,
-            "blocked": false,
-            "stopped": false,
             "created_on": "2015-11-11T13:05:57.457742Z",
             "modified_on": "2015-11-11T13:05:57.576056Z",
             "last_seen_on": null
