@@ -188,6 +188,25 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             )
             return self.form_invalid(form)
 
+        oauth_user_token = self.request.session.get(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, None)
+        # Assigh system user to WABA
+        url = f"https://graph.facebook.com/v13.0/{waba_id}/assigned_users"
+        params = {"user": f"{settings.WHATSAPP_ADMIN_SYSTEM_USER_ID}", "tasks": ["MANAGE"]}
+        headers = {"Authorization": f"Bearer {oauth_user_token}"}
+
+        resp = requests.post(url, params=params, headers=headers)
+
+        if resp.status_code != 200:  # pragma: no cover
+            form._errors["__all__"] = form.error_class(
+                [
+                    _(
+                        "Unable to add system user to %s, please make sure you have business admin manager privileges on the Facebook business"
+                    )
+                    % waba_id
+                ]
+            )
+            return self.form_invalid(form)
+
         self.object = Channel.create(
             org,
             self.request.user,

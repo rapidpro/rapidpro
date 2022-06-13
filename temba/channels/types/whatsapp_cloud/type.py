@@ -58,15 +58,7 @@ class WhatsAppCloudType(ChannelType):
         waba_currency = channel.config.get("wa_currency")
         waba_business_id = channel.config.get("wa_business_id")
 
-        # Assigh system user to WABA
-        url = f"https://graph.facebook.com/v13.0/{waba_id}/assigned_users"
-        params = {"user": f"{settings.WHATSAPP_ADMIN_SYSTEM_USER_ID}", "tasks": ["MANAGE"]}
         headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
-
-        resp = requests.post(url, params=params, headers=headers)
-
-        if resp.status_code != 200:  # pragma: no cover
-            raise ValidationError(_("Unable to add system user to %s" % waba_id))
 
         if waba_business_id != settings.WHATSAPP_FACEBOOK_BUSINESS_ID:
             # Get credit line ID
