@@ -867,7 +867,6 @@ class ContactCRUDL(SmartCRUDL):
 
             if self.object.status == Contact.STATUS_ACTIVE:
 
-
                 if not self.is_spa() and self.has_org_perm("msgs.broadcast_send"):
                     links.append(
                         dict(
@@ -1436,7 +1435,7 @@ class ContactCRUDL(SmartCRUDL):
             field_key = self.request.GET.get("key")
             if field_key:
                 context["contact_field"] = org.fields.get(is_system=False, key=field_key)
-            
+
             return context
 
         def save(self, obj):
