@@ -115,7 +115,9 @@
         }                    
       }     
 
-      updatePageTitle();
+      if (window.updatePageTitle) {
+        updatePageTitle();
+      }
     }
 
     function updateTicketList() {
@@ -162,7 +164,7 @@
 
       var chat = document.querySelector("temba-contact-chat");
       if (contact) {
-        chat.contactUUID = contact.uuid;
+        chat.contact = contact.uuid;
         chat.currentTicket = contact.ticket;
 
         var filterNote = document.querySelector(".filter-note");
@@ -176,7 +178,7 @@
           ticketUUID = null;
         }
       } else {
-        chat.contactUUID = null;
+        chat.contact = null;
         chat.currentTicket = null;
         chat.currentContact = null;
       }

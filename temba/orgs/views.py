@@ -235,6 +235,7 @@ class ModalMixin(SmartFormView):
         return context
 
     def render_modal_response(self, form=None):
+        success_url = self.get_success_url()
         response = self.render_to_response(
             self.get_context_data(
                 form=form,
@@ -242,7 +243,8 @@ class ModalMixin(SmartFormView):
                 success_script=getattr(self, "success_script", None),
             )
         )
-        response["Temba-Success"] = self.get_success_url()
+
+        response["Temba-Success"] = success_url
         return response
 
     def form_valid(self, form):

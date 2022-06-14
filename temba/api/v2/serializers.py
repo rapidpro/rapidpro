@@ -712,7 +712,7 @@ class ContactFieldReadSerializer(ReadSerializer):
 
     class Meta:
         model = ContactField
-        fields = ("key", "label", "value_type", "pinned")
+        fields = ("key", "label", "value_type", "pinned", "priority")
 
 
 class ContactFieldWriteSerializer(WriteSerializer):
