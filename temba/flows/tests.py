@@ -1770,6 +1770,7 @@ class FlowTest(TembaTest):
             contact=self.contact,
             current_flow=flow1,
             status=FlowSession.STATUS_WAITING,
+            output_url="http://sessions.com/123.json",
             wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
             wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
             wait_resume_on_expire=False,
@@ -1782,6 +1783,7 @@ class FlowTest(TembaTest):
             contact=self.contact,
             current_flow=flow1,
             status=FlowSession.STATUS_COMPLETED,
+            output_url="http://sessions.com/234.json",
             wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
             wait_expires_on=None,
             wait_resume_on_expire=False,
@@ -1794,6 +1796,7 @@ class FlowTest(TembaTest):
             contact=self.contact,
             current_flow=flow2,
             status=FlowSession.STATUS_WAITING,
+            output_url="http://sessions.com/345.json",
             wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
             wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
             wait_resume_on_expire=False,
@@ -3626,6 +3629,7 @@ class FlowRunTest(TembaTest):
             org=self.org,
             contact=self.contact,
             status=FlowSession.STATUS_WAITING,
+            output_url="http://sessions.com/123.json",
             created_on=timezone.now(),
             wait_started_on=timezone.now(),
             wait_expires_on=timezone.now() + timedelta(days=7),
@@ -3673,9 +3677,27 @@ class FlowSessionTest(TembaTest):
         flow = self.get_flow("color")
 
         # create some runs that have sessions
-        session1 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False)
-        session2 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False)
-        session3 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False)
+        session1 = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=contact,
+            output_url="http://sessions.com/123.json",
+            wait_resume_on_expire=False,
+        )
+        session2 = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=contact,
+            output_url="http://sessions.com/234.json",
+            wait_resume_on_expire=False,
+        )
+        session3 = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=contact,
+            output_url="http://sessions.com/345.json",
+            wait_resume_on_expire=False,
+        )
         run1 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session1)
         run2 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session2)
         run3 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session3)
@@ -3725,7 +3747,11 @@ class FlowStartTest(TembaTest):
             start.save(update_fields=("status", "modified_on"))
 
             session = FlowSession.objects.create(
-                uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False
+                uuid=uuid4(),
+                org=self.org,
+                contact=contact,
+                output_url="http://sessions.com/123.json",
+                wait_resume_on_expire=False,
             )
             FlowRun.objects.create(org=self.org, contact=contact, flow=flow, session=session, start=start)
 
