@@ -299,7 +299,18 @@ class WhatsAppCloudTypeTest(TembaTest):
                 self.assertEqual(3, wa_cloud_post.call_count)
 
                 self.assertEqual(
-                    "https://graph.facebook.com/v13.0/111111111111111/subscribed_apps", wa_cloud_post.call_args[0][0]
+                    "https://graph.facebook.com/v13.0/111111111111111/assigned_users",
+                    wa_cloud_post.call_args_list[0][0][0],
+                )
+                self.assertEqual({"Authorization": "Bearer user-token"}, wa_cloud_post.call_args_list[0][1]["headers"])
+
+                self.assertEqual(
+                    "https://graph.facebook.com/v13.0/567567567/whatsapp_credit_sharing_and_attach",
+                    wa_cloud_post.call_args_list[1][0][0],
+                )
+                self.assertEqual(
+                    "https://graph.facebook.com/v13.0/111111111111111/subscribed_apps",
+                    wa_cloud_post.call_args_list[2][0][0],
                 )
 
                 channel = Channel.objects.get()
