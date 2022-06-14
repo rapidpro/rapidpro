@@ -3267,7 +3267,9 @@ class ContactTest(TembaTest):
 
         # Update with spa flag
         post_data = dict(name="Joe Spa")
-        self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True, HTTP_TEMBA_SPA=True)
+        self.client.post(
+            reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True, HTTP_TEMBA_SPA=True
+        )
         self.joe.refresh_from_db()
         self.assertEqual(self.joe.name, "Joe Spa")
 
