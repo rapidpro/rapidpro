@@ -2551,7 +2551,13 @@ class APITest(TembaTest):
         self.assertEqual(
             resp_json["results"],
             [
-                {"key": "registered", "label": "Registered On", "value_type": "datetime", "pinned": False, "priority": 0},
+                {
+                    "key": "registered",
+                    "label": "Registered On",
+                    "value_type": "datetime",
+                    "pinned": False,
+                    "priority": 0,
+                },
                 {"key": "nick_name", "label": "Nick Name", "value_type": "text", "pinned": False, "priority": 0},
             ],
         )
