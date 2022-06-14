@@ -1,3 +1,8 @@
+v7.3.59
+----------
+ * Spreadsheet layout for contact fields in new UI
+ * Adjust WAC channel claim to add system admin with user token
+
 v7.3.58
 ----------
  * Clean up chat media treatment
