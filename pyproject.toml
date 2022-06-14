@@ -58,6 +58,7 @@ packaging = "^20.9"
 requests-toolbelt = "^0.9.1"
 chardet = "^4.0.0"
 openpyxl = "^3.0.9"
+slack-sdk = "3.17.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"
