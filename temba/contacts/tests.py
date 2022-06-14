@@ -3265,6 +3265,12 @@ class ContactTest(TembaTest):
         self.assertFalse(ChannelEvent.objects.filter(contact=self.frank))
         self.assertFalse(ChannelEvent.objects.filter(id=event.id))
 
+        # Update with spa flag
+        post_data = dict(name="Joe Spa")
+        self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True, HTTP_TEMBA_SPA=True)
+        self.joe.refresh_from_db()
+        self.assertEqual(self.joe.name, "Joe Spa")
+
     @patch("temba.mailroom.client.MailroomClient.contact_modify")
     def test_update_with_mailroom_error(self, mock_modify):
         mock_modify.side_effect = MailroomException("", "", {"error": "Error updating contact"})
