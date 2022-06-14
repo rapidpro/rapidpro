@@ -3267,12 +3267,17 @@ class ContactTest(TembaTest):
 
         # Update with spa flag
         self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]), {"name": "Joe Spa"}, follow=True, HTTP_TEMBA_SPA=True
+            reverse("contacts.contact_update", args=[self.joe.id]),
+            {"name": "Joe Spa"},
+            follow=True,
+            HTTP_TEMBA_SPA=True,
         )
 
         self.client.post(
             reverse("contacts.contact_update_fields", args=[self.joe.id]),
-            dict(contact_field=state.id, field_value="western province"), follow=True, HTTP_TEMBA_SPA=True,
+            dict(contact_field=state.id, field_value="western province"),
+            follow=True,
+            HTTP_TEMBA_SPA=True,
         )
 
         self.joe.refresh_from_db()
