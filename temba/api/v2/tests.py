@@ -2551,8 +2551,8 @@ class APITest(TembaTest):
         self.assertEqual(
             resp_json["results"],
             [
-                {"key": "registered", "label": "Registered On", "value_type": "datetime", "pinned": False},
-                {"key": "nick_name", "label": "Nick Name", "value_type": "text", "pinned": False},
+                {"key": "registered", "label": "Registered On", "value_type": "datetime", "pinned": False, "priority": 0},
+                {"key": "nick_name", "label": "Nick Name", "value_type": "text", "pinned": False, "priority": 0},
             ],
         )
 
@@ -2560,7 +2560,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "key=nick_name")
         self.assertEqual(
             response.json()["results"],
-            [{"key": "nick_name", "label": "Nick Name", "pinned": False, "value_type": "text"}],
+            [{"key": "nick_name", "label": "Nick Name", "pinned": False, "value_type": "text", "priority": 0}],
         )
 
         # try to create empty field
