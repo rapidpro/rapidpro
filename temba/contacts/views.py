@@ -1432,10 +1432,6 @@ class ContactCRUDL(SmartCRUDL):
             if field_id:
                 context["contact_field"] = org.fields.get(is_system=False, id=field_id)
 
-            field_key = self.request.GET.get("key")
-            if field_key:
-                context["contact_field"] = org.fields.get(is_system=False, key=field_key)
-
             return context
 
         def save(self, obj):
