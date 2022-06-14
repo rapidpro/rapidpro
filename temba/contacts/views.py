@@ -790,7 +790,7 @@ class ContactCRUDL(SmartCRUDL):
             contact = self.object
 
             context["contact_groups"] = contact.get_groups().order_by(Lower("name"))
-            context["upcoming_events"] = contact.get_scheduled()
+            context["upcoming_events"] = contact.get_scheduled(reverse=True)
             context["open_tickets"] = list(
                 contact.tickets.filter(status=Ticket.STATUS_OPEN).select_related("ticketer").order_by("-opened_on")
             )
