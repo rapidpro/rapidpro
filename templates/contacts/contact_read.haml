@@ -221,6 +221,8 @@
                   -trans 'repeats daily'
                 -elif evt.repeat_period == 'W'
                   -trans 'repeats weekly'
+                -elif evt.repeat_period == 'M'
+                  -trans 'repeats monthly'
 
     -if upcoming_events|length > 3
       %a.pull-right.show-all.upcoming
