@@ -4,11 +4,11 @@ from django.db import migrations
 from django.db.models import Q
 
 
-def clean_name(original: str) -> str:
+def clean_name(original: str) -> str:  # pragma: no cover
     return original.strip().replace('"', "'").replace("\\", "/").replace("\0", "")
 
 
-def fix_invalid_flow_names(apps, schema_editor):
+def fix_invalid_flow_names(apps, schema_editor):  # pragma: no cover
     Flow = apps.get_model("flows", "Flow")
 
     for flow in Flow.objects.filter(Q(name__icontains='"') | Q(name__icontains="\\")):
@@ -20,7 +20,7 @@ def fix_invalid_flow_names(apps, schema_editor):
         print(f" > flow {flow.uuid} '{old_name}' renamed to '{new_name}'")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
