@@ -305,8 +305,8 @@ class UserField(TembaModelField):
     def get_queryset(self):
         org = self.context["org"]
         if self.assignable_only:
-            qs = org.get_users_with_perm(Ticket.ASSIGNEE_PERMISSION)
+            qs = org.get_users(with_perm=Ticket.ASSIGNEE_PERMISSION)
         else:
             qs = org.get_users()
 
-        return qs.filter(is_active=True)
+        return qs
