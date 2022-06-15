@@ -1,3 +1,9 @@
+v7.3.60
+----------
+ * Data migration to fail active/waiting runs with no session
+ * Include scheduled triggers in upcoming contact events
+ * Add OrgMembership model
+
 v7.3.59
 ----------
  * Spreadsheet layout for contact fields in new UI
