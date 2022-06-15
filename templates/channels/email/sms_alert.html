@@ -19,7 +19,7 @@
       {% endblocktrans %}
     </p>
 
-  {% elif channel.get_type.free_sending %}
+  {% elif channel.type.free_sending %}
     <p>
       {% blocktrans trimmed with org_name=org.name channel_type=channel.get_channel_type_name %}
         We've noticed that the {{ channel_type }} for {{ org_name }} is having trouble sending text messages.  This might be

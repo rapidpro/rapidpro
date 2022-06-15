@@ -1,3 +1,45 @@
+v7.3.59
+----------
+ * Spreadsheet layout for contact fields in new UI
+ * Adjust WAC channel claim to add system admin with user token
+
+v7.3.58
+----------
+ * Clean up chat media treatment
+ * Add endpoint to get upcoming scheduled events for a contact
+ * Remove filtering by ticketer on tickets API endpoint and add indexes
+ * Add status to contacts API endpoint
+
+v7.3.57
+----------
+ * Improve WAC phone number verification flow and feedback
+ * Adjust name of WAC channels to include the number
+ * Fix manage user update URL on org update page
+ * Support missing target_ids key in WAC responses
+
+v7.3.56
+----------
+ * Fix deletion of users
+ * Cleanup user update form
+ * Fix missing users manage link page
+ * Add views to verify and register a WAC number
+
+v7.3.55
+----------
+ * Update contact search summary encoding
+
+v7.3.54
+----------
+ * Make channel type a property and use to determine redact values in HTTP request logs
+
+v7.3.53
+----------
+ * Make WAC channel visible to beta group
+
+v7.3.52
+----------
+ * Fix field name for submitted token
+
 v7.3.51
 ----------
  * Use default API throttle rates for unauthenticated users

@@ -557,6 +557,122 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
 
+    def test_scheduled(self):
+        contact1 = self.create_contact("Joe", phone="+1234567890")
+        contact2 = self.create_contact("Frank", phone="+1204567802")
+        farmers = self.create_group("Farmers", contacts=[contact1, contact2])
+
+        schedule_url = reverse("contacts.contact_scheduled", args=[contact1.uuid])
+
+        response = self.assertReadFetch(schedule_url, allow_viewers=True, allow_editors=True)
+        self.assertEqual({"results": []}, response.json())
+
+        # create a campaign and event fires for this contact
+        campaign = Campaign.create(self.org, self.admin, "Reminders", farmers)
+        joined = self.create_field("joined", "Joined On", value_type=ContactField.TYPE_DATETIME)
+        event2_flow = self.create_flow("Reminder Flow")
+        event1 = CampaignEvent.create_message_event(self.org, self.admin, campaign, joined, 2, unit="D", message="Hi")
+        event2 = CampaignEvent.create_flow_event(self.org, self.admin, campaign, joined, 2, unit="D", flow=event2_flow)
+        fire1 = EventFire.objects.create(event=event1, contact=contact1, scheduled=timezone.now() + timedelta(days=2))
+        fire2 = EventFire.objects.create(event=event2, contact=contact1, scheduled=timezone.now() + timedelta(days=5))
+
+        # create scheduled and regular broadcasts which send to both groups
+        bcast1 = self.create_broadcast(
+            self.admin,
+            "Hi again",
+            contacts=[contact1, contact2],
+            schedule=Schedule.create_schedule(
+                self.org, self.admin, timezone.now() + timedelta(days=3), Schedule.REPEAT_DAILY
+            ),
+        )
+        self.create_broadcast(self.admin, "Bye", contacts=[contact1, contact2])  # not scheduled
+
+        # create scheduled trigger which this contact is explicitly added to
+        trigger1_flow = self.create_flow("Favorites 1")
+        trigger1 = Trigger.create(
+            self.org,
+            self.admin,
+            trigger_type=Trigger.TYPE_SCHEDULE,
+            flow=trigger1_flow,
+            schedule=Schedule.create_schedule(
+                self.org, self.admin, timezone.now() + timedelta(days=4), Schedule.REPEAT_WEEKLY
+            ),
+        )
+        trigger1.contacts.add(contact1, contact2)
+
+        # create scheduled trigger which this contact is added to via a group
+        trigger2_flow = self.create_flow("Favorites 2")
+        trigger2 = Trigger.create(
+            self.org,
+            self.admin,
+            trigger_type=Trigger.TYPE_SCHEDULE,
+            flow=trigger2_flow,
+            schedule=Schedule.create_schedule(
+                self.org, self.admin, timezone.now() + timedelta(days=6), Schedule.REPEAT_MONTHLY
+            ),
+        )
+        trigger2.groups.add(farmers)
+
+        # create scheduled trigger which this contact is explicitly added to... but also excluded from
+        trigger3 = Trigger.create(
+            self.org,
+            self.admin,
+            trigger_type=Trigger.TYPE_SCHEDULE,
+            flow=self.create_flow("Favorites 3"),
+            schedule=Schedule.create_schedule(
+                self.org, self.admin, timezone.now() + timedelta(days=4), Schedule.REPEAT_WEEKLY
+            ),
+        )
+        trigger3.contacts.add(contact1, contact2)
+        trigger3.exclude_groups.add(farmers)
+
+        response = self.requestView(schedule_url, self.admin)
+        self.assertEqual(
+            {
+                "results": [
+                    {
+                        "type": "campaign_event",
+                        "scheduled": fire1.scheduled.isoformat(),
+                        "repeat_period": None,
+                        "campaign": {"uuid": str(campaign.uuid), "name": "Reminders"},
+                        "message": "Hi",
+                    },
+                    {
+                        "type": "scheduled_broadcast",
+                        "scheduled": bcast1.schedule.next_fire.astimezone(timezone.utc).isoformat(),
+                        "repeat_period": "D",
+                        "message": "Hi again",
+                    },
+                    {
+                        "type": "scheduled_trigger",
+                        "scheduled": trigger1.schedule.next_fire.astimezone(timezone.utc).isoformat(),
+                        "repeat_period": "W",
+                        "flow": {"uuid": str(trigger1_flow.uuid), "name": "Favorites 1"},
+                    },
+                    {
+                        "type": "campaign_event",
+                        "scheduled": fire2.scheduled.isoformat(),
+                        "repeat_period": None,
+                        "campaign": {"uuid": str(campaign.uuid), "name": "Reminders"},
+                        "flow": {"uuid": str(event2_flow.uuid), "name": "Reminder Flow"},
+                    },
+                    {
+                        "type": "scheduled_trigger",
+                        "scheduled": trigger2.schedule.next_fire.astimezone(timezone.utc).isoformat(),
+                        "repeat_period": "M",
+                        "flow": {"uuid": str(trigger2_flow.uuid), "name": "Favorites 2"},
+                    },
+                ]
+            },
+            response.json(),
+        )
+
+        # fires for archived campaigns shouldn't appear
+        campaign.archive(self.admin)
+
+        response = self.requestView(schedule_url, self.admin)
+        self.assertEqual(3, len(response.json()["results"]))
+
     @mock_mailroom
     def test_archive(self, mr_mocks):
         contact = self.create_contact("Joe", phone="+593979000111")
@@ -1340,7 +1456,7 @@ class ContactTest(TembaTest):
     def create_campaign(self):
         # create a campaign with a future event and add joe
         self.farmers = self.create_group("Farmers", [self.joe])
-        self.reminder_flow = self.get_flow("color")
+        self.reminder_flow = self.create_flow("Reminder Flow")
         self.planting_date = self.create_field("planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME)
         self.campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
@@ -2499,39 +2615,39 @@ class ContactTest(TembaTest):
     def test_get_scheduled_messages(self):
         self.just_joe = self.create_group("Just Joe", [self.joe])
 
-        self.assertFalse(self.joe.get_scheduled_messages())
+        self.assertFalse(self.joe.get_scheduled_broadcasts())
 
         broadcast = Broadcast.create(self.org, self.admin, "Hello", contacts=[self.frank])
-        self.assertFalse(self.joe.get_scheduled_messages())
+        self.assertFalse(self.joe.get_scheduled_broadcasts())
 
         broadcast.contacts.add(self.joe)
 
-        self.assertFalse(self.joe.get_scheduled_messages())
+        self.assertFalse(self.joe.get_scheduled_broadcasts())
 
         schedule_time = timezone.now() + timedelta(days=2)
         broadcast.schedule = Schedule.create_schedule(self.org, self.admin, schedule_time, Schedule.REPEAT_NEVER)
         broadcast.save()
 
-        self.assertEqual(self.joe.get_scheduled_messages().count(), 1)
-        self.assertTrue(broadcast in self.joe.get_scheduled_messages())
+        self.assertEqual(self.joe.get_scheduled_broadcasts().count(), 1)
+        self.assertTrue(broadcast in self.joe.get_scheduled_broadcasts())
 
         broadcast.contacts.remove(self.joe)
-        self.assertFalse(self.joe.get_scheduled_messages())
+        self.assertFalse(self.joe.get_scheduled_broadcasts())
 
         broadcast.groups.add(self.just_joe)
-        self.assertEqual(self.joe.get_scheduled_messages().count(), 1)
-        self.assertTrue(broadcast in self.joe.get_scheduled_messages())
+        self.assertEqual(self.joe.get_scheduled_broadcasts().count(), 1)
+        self.assertTrue(broadcast in self.joe.get_scheduled_broadcasts())
 
         broadcast.groups.remove(self.just_joe)
-        self.assertFalse(self.joe.get_scheduled_messages())
+        self.assertFalse(self.joe.get_scheduled_broadcasts())
 
         broadcast.urns.add(self.joe.get_urn())
-        self.assertEqual(self.joe.get_scheduled_messages().count(), 1)
-        self.assertTrue(broadcast in self.joe.get_scheduled_messages())
+        self.assertEqual(self.joe.get_scheduled_broadcasts().count(), 1)
+        self.assertTrue(broadcast in self.joe.get_scheduled_broadcasts())
 
         broadcast.schedule.next_fire = None
         broadcast.schedule.save(update_fields=["next_fire"])
-        self.assertFalse(self.joe.get_scheduled_messages())
+        self.assertFalse(self.joe.get_scheduled_broadcasts())
 
     def test_update_urns_field(self):
         update_url = reverse("contacts.contact_update", args=[self.joe.pk])
@@ -2615,11 +2731,10 @@ class ContactTest(TembaTest):
         # should show the next seven events to fire in reverse order
         self.assertEqual(7, len(upcoming))
 
-        self.assertEqual(upcoming[4]["message"], "Sent 10 days after planting date")
-        self.assertEqual(upcoming[5]["message"], "Sent 7 days after planting date")
-        self.assertEqual(upcoming[6]["message"], None)
-        self.assertEqual(upcoming[6]["flow_uuid"], self.reminder_flow.uuid)
-        self.assertEqual(upcoming[6]["flow_name"], self.reminder_flow.name)
+        self.assertEqual("Sent 10 days after planting date", upcoming[4]["message"])
+        self.assertEqual("Sent 7 days after planting date", upcoming[5]["message"])
+        self.assertNotIn("message", upcoming[6])
+        self.assertEqual({"uuid": str(self.reminder_flow.uuid), "name": "Reminder Flow"}, upcoming[6]["flow"])
 
         self.assertGreater(upcoming[4]["scheduled"], upcoming[5]["scheduled"])
 
@@ -2636,11 +2751,10 @@ class ContactTest(TembaTest):
         # should show the next 2 events to fire and the scheduled broadcast in reverse order by schedule time
         self.assertEqual(8, len(upcoming))
 
-        self.assertEqual(upcoming[5]["message"], "Sent 7 days after planting date")
-        self.assertEqual(upcoming[6]["message"], "Hello")
-        self.assertEqual(upcoming[7]["message"], None)
-        self.assertEqual(upcoming[7]["flow_uuid"], self.reminder_flow.uuid)
-        self.assertEqual(upcoming[7]["flow_name"], self.reminder_flow.name)
+        self.assertEqual("Sent 7 days after planting date", upcoming[5]["message"])
+        self.assertEqual("Hello", upcoming[6]["message"])
+        self.assertNotIn("message", upcoming[7])
+        self.assertEqual({"uuid": str(self.reminder_flow.uuid), "name": "Reminder Flow"}, upcoming[7]["flow"])
 
         self.assertGreater(upcoming[6]["scheduled"], upcoming[7]["scheduled"])
 
@@ -3204,6 +3318,25 @@ class ContactTest(TembaTest):
 
         self.assertFalse(ChannelEvent.objects.filter(contact=self.frank))
         self.assertFalse(ChannelEvent.objects.filter(id=event.id))
+
+        # Update with spa flag
+        self.client.post(
+            reverse("contacts.contact_update", args=[self.joe.id]),
+            {"name": "Joe Spa"},
+            follow=True,
+            HTTP_TEMBA_SPA=True,
+        )
+
+        self.client.post(
+            reverse("contacts.contact_update_fields", args=[self.joe.id]),
+            dict(contact_field=state.id, field_value="western province"),
+            follow=True,
+            HTTP_TEMBA_SPA=True,
+        )
+
+        self.joe.refresh_from_db()
+        self.assertEqual(self.joe.name, "Joe Spa")
+        self.assertEqual(self.joe.fields[str(state.uuid)]["text"], "western province")
 
     @patch("temba.mailroom.client.MailroomClient.contact_modify")
     def test_update_with_mailroom_error(self, mock_modify):

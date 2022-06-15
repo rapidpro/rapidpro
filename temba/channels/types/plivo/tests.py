@@ -165,7 +165,7 @@ class PlivoTypeTest(TembaTest):
                 )
 
         with patch("requests.delete") as mock_delete:
-            channel.get_type().deactivate(channel)
+            channel.type.deactivate(channel)
             mock_delete.assert_called_once()
 
     @patch("requests.get")

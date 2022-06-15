@@ -753,7 +753,7 @@ class ChannelCRUDL(SmartCRUDL):
 
                 channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
                 for channel in channels:
-                    icon = channel.get_type().icon.replace("icon-", "")
+                    icon = channel.type.icon.replace("icon-", "")
                     icon = icon.replace("power-cord", "box")
 
                     menu.append(
@@ -779,7 +779,7 @@ class ChannelCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            extra_links = self.object.get_type().extra_links
+            extra_links = self.object.type.extra_links
             if extra_links:
                 for extra in extra_links:
                     links.append(dict(title=extra["name"], href=reverse(extra["link"], args=[self.object.uuid])))
@@ -793,7 +793,7 @@ class ChannelCRUDL(SmartCRUDL):
                     )
                 )
 
-            if self.object.get_type().show_config_page:
+            if self.object.type.show_config_page:
                 links.append(
                     dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[self.object.uuid]))
                 )

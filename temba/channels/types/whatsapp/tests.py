@@ -104,7 +104,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("RW", channel.country)
         self.assertEqual("WA", channel.channel_type)
         self.assertEqual(45, channel.tps)
-        self.assertTrue(channel.get_type().has_attachment_support(channel))
+        self.assertTrue(channel.type.has_attachment_support(channel))
 
         # test activating the channel
         with patch("requests.patch") as mock_patch:
@@ -294,7 +294,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("RW", channel.country)
         self.assertEqual("WA", channel.channel_type)
         self.assertEqual(45, channel.tps)
-        self.assertTrue(channel.get_type().has_attachment_support(channel))
+        self.assertTrue(channel.type.has_attachment_support(channel))
 
     @patch("requests.get")
     def test_get_api_templates(self, mock_get):
@@ -502,11 +502,11 @@ class WhatsAppTypeTest(TembaTest):
             ]
 
             with self.assertRaises(Exception):
-                channel.get_type().check_health(channel)
+                channel.type.check_health(channel)
 
-            channel.get_type().check_health(channel)
+            channel.type.check_health(channel)
             mock_get.assert_called_with(
                 "https://nyaruka.com/whatsapp/v1/health", headers={"Authorization": "Bearer authtoken123"}
             )
             with self.assertRaises(Exception):
-                channel.get_type().check_health(channel)
+                channel.type.check_health(channel)

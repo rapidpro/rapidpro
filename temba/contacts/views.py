@@ -567,6 +567,7 @@ class ContactCRUDL(SmartCRUDL):
         "restore",
         "archive",
         "delete",
+        "scheduled",
         "history",
         "start",
     )
@@ -621,7 +622,7 @@ class ContactCRUDL(SmartCRUDL):
                 menu.append(
                     dict(
                         id="fields",
-                        icon="list",
+                        icon="database",
                         count=count,
                         name=_("Fields"),
                         endpoint=reverse("contacts.contactfield_menu"),
@@ -786,54 +787,16 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-
             contact = self.object
 
-            # the users group membership
             context["contact_groups"] = contact.get_groups().order_by(Lower("name"))
-
-            # campaign event fires
-            event_fires = contact.campaign_fires.filter(
-                event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
-            ).order_by("scheduled")
-
-            scheduled_messages = contact.get_scheduled_messages()
-
-            merged_upcoming_events = []
-            for fire in event_fires:
-                merged_upcoming_events.append(
-                    dict(
-                        event_type=fire.event.event_type,
-                        message=fire.event.get_message(contact=contact),
-                        flow_uuid=fire.event.flow.uuid,
-                        flow_name=fire.event.flow.name,
-                        scheduled=fire.scheduled,
-                    )
-                )
-
-            for sched_broadcast in scheduled_messages:
-                merged_upcoming_events.append(
-                    dict(
-                        repeat_period=sched_broadcast.schedule.repeat_period,
-                        event_type="M",
-                        message=sched_broadcast.get_text(contact),
-                        flow_uuid=None,
-                        flow_name=None,
-                        scheduled=sched_broadcast.schedule.next_fire,
-                    )
-                )
-
-            # upcoming scheduled events
-            context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"], reverse=True)
-
-            # open tickets
+            context["upcoming_events"] = contact.get_scheduled(reverse=True)
             context["open_tickets"] = list(
                 contact.tickets.filter(status=Ticket.STATUS_OPEN).select_related("ticketer").order_by("-opened_on")
             )
 
             # divide contact's URNs into those we can send to, and those we can't
             sendable_schemes = contact.org.get_schemes(Channel.ROLE_SEND)
-
             urns = contact.get_urns()
             has_sendable_urn = False
 
@@ -903,7 +866,8 @@ class ContactCRUDL(SmartCRUDL):
             links = []
 
             if self.object.status == Contact.STATUS_ACTIVE:
-                if self.has_org_perm("msgs.broadcast_send"):
+
+                if not self.is_spa() and self.has_org_perm("msgs.broadcast_send"):
                     links.append(
                         dict(
                             id="send-message",
@@ -930,18 +894,21 @@ class ContactCRUDL(SmartCRUDL):
                         id="edit-contact",
                         title=_("Edit"),
                         modax=_("Edit Contact"),
+                        on_submit="contactUpdated()",
                         href=f"{reverse('contacts.contact_update', args=[self.object.pk])}",
                     )
                 )
 
-                links.append(
-                    dict(
-                        id="update-custom-fields",
-                        title=_("Custom Fields"),
-                        modax=_("Custom Fields"),
-                        href=f"{reverse('contacts.contact_update_fields', args=[self.object.pk])}",
+                if not self.is_spa():
+                    links.append(
+                        dict(
+                            id="update-custom-fields",
+                            title=_("Custom Fields"),
+                            modax=_("Custom Fields"),
+                            on_submit="contactUpdated()",
+                            href=f"{reverse('contacts.contact_update_fields', args=[self.object.pk])}",
+                        )
                     )
-                )
 
                 if self.object.status != Contact.STATUS_ACTIVE and self.has_org_perm("contacts.contact_restore"):
                     links.append(
@@ -984,6 +951,20 @@ class ContactCRUDL(SmartCRUDL):
                 )
 
             return links
+
+    class Scheduled(OrgObjPermsMixin, SmartReadView):
+        """
+        Merged list of upcoming scheduled events (campaign event fires and scheduled broadcasts)
+        """
+
+        permission = "contacts.contact_read"
+        slug_url_kwarg = "uuid"
+
+        def get_queryset(self):
+            return Contact.objects.filter(is_active=True).select_related("org")
+
+        def render_to_response(self, context, **response_kwargs):
+            return JsonResponse({"results": self.object.get_scheduled()})
 
     class History(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
@@ -1340,6 +1321,11 @@ class ContactCRUDL(SmartCRUDL):
         success_message = ""
         submit_button_name = _("Save Changes")
 
+        def get_success_url(self):
+            if "HTTP_TEMBA_SPA" in self.request.META:
+                return "hide"
+            return super().get_success_url()
+
         def derive_exclude(self):
             obj = self.get_object()
             exclude = []
@@ -1429,6 +1415,11 @@ class ContactCRUDL(SmartCRUDL):
         success_message = ""
         submit_button_name = _("Save Changes")
 
+        def get_success_url(self):
+            if "HTTP_TEMBA_SPA" in self.request.META:
+                return "hide"
+            return super().get_success_url()
+
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
@@ -1440,6 +1431,7 @@ class ContactCRUDL(SmartCRUDL):
             field_id = self.request.GET.get("field", 0)
             if field_id:
                 context["contact_field"] = org.fields.get(is_system=False, id=field_id)
+
             return context
 
         def save(self, obj):

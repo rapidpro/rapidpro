@@ -1,15 +1,19 @@
 -extends "channels/channel_claim_form.html"
--load i18n compress temba
-
+-load i18n
 
 -block pre-form
-  -blocktrans trimmed with name=brand.name
+  -blocktrans trimmed
     You can connect your WhatsApp number by clicking on it below.
 
   -if claim_error
     .alert-error.my-4
       {{ claim_error }}
 
+  -if unsupported_facebook_business_id
+    .alert-error.my-4
+      -blocktrans trimmed
+        One of the Facebook business manager you are trying to connect is not configured.
+        If you do not see the WhatsApp business number you want to connect, please reach out for support.
 
 -block form
   .mt-4

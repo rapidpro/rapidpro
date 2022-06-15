@@ -171,12 +171,12 @@ class User(AuthUser):
 
         return user_orgs.filter(is_active=True).distinct().order_by("name")
 
-    def get_owned_orgs(self, *, brands=None):
+    def get_owned_orgs(self, *, brand=None):
         """
         Gets the orgs in the given brands where this user is the only user.
         """
         owned_orgs = []
-        for org in self.get_orgs(brands=brands):
+        for org in self.get_orgs(brands=[brand] if brand else None):
             if not org.get_users().exclude(id=self.id).exists():
                 owned_orgs.append(org)
         return owned_orgs
@@ -302,7 +302,7 @@ class User(AuthUser):
             self.save()
 
         # release any orgs we own on this brand
-        for org in self.get_owned_orgs(brands=[brand]):
+        for org in self.get_owned_orgs(brand=brand):
             org.release(user, release_users=False)
 
         # remove user from all roles on any org for our brand

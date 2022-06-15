@@ -7,7 +7,7 @@ register = template.Library()
 
 @register.filter
 def channel_icon(channel):
-    return channel.get_type().icon
+    return channel.type.icon
 
 
 @register.simple_tag(takes_context=True)

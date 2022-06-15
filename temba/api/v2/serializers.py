@@ -494,20 +494,32 @@ class ClassifierReadSerializer(ReadSerializer):
 
 
 class ContactReadSerializer(ReadSerializer):
+    STATUSES = {
+        Contact.STATUS_ACTIVE: "active",
+        Contact.STATUS_BLOCKED: "blocked",
+        Contact.STATUS_STOPPED: "stopped",
+        Contact.STATUS_ARCHIVED: "archived",
+    }
+
     name = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
     language = serializers.SerializerMethodField()
     flow = fields.FlowField(source="current_flow")
     urns = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
     fields = serializers.SerializerMethodField("get_contact_fields")
-    blocked = serializers.SerializerMethodField()
-    stopped = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     last_seen_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
+    blocked = serializers.SerializerMethodField()  # deprecated
+    stopped = serializers.SerializerMethodField()  # deprecated
+
     def get_name(self, obj):
         return obj.name if obj.is_active else None
+
+    def get_status(self, obj):
+        return self.STATUSES[obj.status] if obj.is_active else None
 
     def get_language(self, obj):
         return obj.language if obj.is_active else None
@@ -545,16 +557,17 @@ class ContactReadSerializer(ReadSerializer):
         fields = (
             "uuid",
             "name",
+            "status",
             "language",
             "urns",
             "groups",
             "fields",
             "flow",
-            "blocked",
-            "stopped",
             "created_on",
             "modified_on",
             "last_seen_on",
+            "blocked",
+            "stopped",
         )
 
 
@@ -699,7 +712,7 @@ class ContactFieldReadSerializer(ReadSerializer):
 
     class Meta:
         model = ContactField
-        fields = ("key", "label", "value_type", "pinned")
+        fields = ("key", "label", "value_type", "pinned", "priority")
 
 
 class ContactFieldWriteSerializer(WriteSerializer):
@@ -1429,6 +1442,7 @@ class TicketReadSerializer(ReadSerializer):
     topic = fields.TopicField()
     assignee = fields.UserField()
     opened_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     closed_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_status(self, obj):
@@ -1436,7 +1450,18 @@ class TicketReadSerializer(ReadSerializer):
 
     class Meta:
         model = Ticket
-        fields = ("uuid", "ticketer", "contact", "status", "topic", "body", "assignee", "opened_on", "closed_on")
+        fields = (
+            "uuid",
+            "ticketer",
+            "contact",
+            "status",
+            "topic",
+            "body",
+            "assignee",
+            "opened_on",
+            "modified_on",
+            "closed_on",
+        )
 
 
 class TicketBulkActionSerializer(WriteSerializer):

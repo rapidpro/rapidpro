@@ -4460,6 +4460,95 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         languages.reload()
 
 
+class UserCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_update(self):
+        update_url = reverse("orgs.user_update", args=[self.editor.id])
+
+        # this is a customer support only view
+        self.assertLoginRedirect(self.requestView(update_url, self.editor))
+        self.assertLoginRedirect(self.requestView(update_url, self.admin))
+
+        response = self.requestView(update_url, self.customer_support)
+        self.assertEqual(200, response.status_code)
+
+        alphas = Group.objects.get(name="Alpha")
+        betas = Group.objects.get(name="Beta")
+        current_password = self.editor.password
+
+        # submit without new password
+        response = self.requestView(
+            update_url,
+            self.customer_support,
+            post_data={
+                "email": "eddy@nyaruka.com",
+                "first_name": "Edward",
+                "last_name": "",
+                "groups": [alphas.id, betas.id],
+            },
+        )
+        self.assertEqual(302, response.status_code)
+
+        self.editor.refresh_from_db()
+        self.assertEqual("eddy@nyaruka.com", self.editor.email)
+        self.assertEqual("eddy@nyaruka.com", self.editor.username)  # should match email
+        self.assertEqual(current_password, self.editor.password)
+        self.assertEqual("Edward", self.editor.first_name)
+        self.assertEqual("", self.editor.last_name)
+        self.assertEqual({alphas, betas}, set(self.editor.groups.all()))
+
+        # submit with new password and one less group
+        response = self.requestView(
+            update_url,
+            self.customer_support,
+            post_data={
+                "email": "eddy@nyaruka.com",
+                "new_password": "Asdf1234",
+                "first_name": "Edward",
+                "last_name": "",
+                "groups": [alphas.id],
+            },
+        )
+        self.assertEqual(302, response.status_code)
+
+        self.editor.refresh_from_db()
+        self.assertEqual("eddy@nyaruka.com", self.editor.email)
+        self.assertEqual("eddy@nyaruka.com", self.editor.username)
+        self.assertNotEqual(current_password, self.editor.password)
+        self.assertEqual("Edward", self.editor.first_name)
+        self.assertEqual("", self.editor.last_name)
+        self.assertEqual({alphas}, set(self.editor.groups.all()))
+
+    def test_delete(self):
+        delete_url = reverse("orgs.user_delete", args=[self.editor.id])
+
+        # this is a customer support only view
+        self.assertLoginRedirect(self.requestView(delete_url, self.editor))
+        self.assertLoginRedirect(self.requestView(delete_url, self.admin))
+
+        response = self.requestView(delete_url, self.customer_support)
+        self.assertEqual(200, response.status_code)
+        self.assertNotContains(response, "Nyaruka")  # editor doesn't own this org
+
+        # make editor the owner of the org
+        self.org.administrators.clear()
+        self.org.viewers.clear()
+        self.org.surveyors.clear()
+        self.org.agents.clear()
+
+        response = self.requestView(delete_url, self.customer_support)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Nyaruka")
+
+        response = self.requestView(delete_url, self.customer_support, post_data={})
+        self.assertEqual(302, response.status_code)
+
+        self.editor.refresh_from_db()
+        self.assertFalse(self.editor.is_active)
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_active)
+
+
 class BulkExportTest(TembaTest):
     def test_import_validation(self):
         # export must include version field

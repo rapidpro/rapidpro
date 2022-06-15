@@ -1696,16 +1696,17 @@ class APITest(TembaTest):
             {
                 "uuid": contact4.uuid,
                 "name": "Don",
+                "status": "active",
                 "language": "fra",
                 "urns": ["tel:+250788000004"],
                 "groups": [{"uuid": group.uuid, "name": group.name}],
                 "fields": {"nickname": "Donnie", "gender": "male"},
                 "flow": {"uuid": str(survey.uuid), "name": "Survey"},
-                "blocked": False,
-                "stopped": False,
                 "created_on": format_datetime(contact4.created_on),
                 "modified_on": format_datetime(contact4.modified_on),
                 "last_seen_on": "2020-08-12T13:30:45.123456Z",
+                "blocked": False,
+                "stopped": False,
             },
             resp_json["results"][0],
         )
@@ -1731,16 +1732,17 @@ class APITest(TembaTest):
                 {
                     "uuid": contact4.uuid,
                     "name": "Don",
+                    "status": "active",
                     "language": "fra",
                     "urns": ["tel:********"],
                     "groups": [{"uuid": group.uuid, "name": group.name}],
                     "fields": {"nickname": "Donnie", "gender": "male"},
                     "flow": {"uuid": str(survey.uuid), "name": "Survey"},
-                    "blocked": False,
-                    "stopped": False,
                     "created_on": format_datetime(contact4.created_on),
                     "modified_on": format_datetime(contact4.modified_on),
                     "last_seen_on": "2020-08-12T13:30:45.123456Z",
+                    "blocked": False,
+                    "stopped": False,
                 },
                 resp_json["results"][0],
             )
@@ -1784,16 +1786,17 @@ class APITest(TembaTest):
             {
                 "uuid": contact3.uuid,
                 "name": None,
+                "status": None,
                 "language": None,
                 "urns": [],
                 "groups": [],
                 "fields": {},
                 "flow": None,
-                "blocked": None,
-                "stopped": None,
                 "created_on": format_datetime(contact3.created_on),
                 "modified_on": format_datetime(contact3.modified_on),
                 "last_seen_on": None,
+                "blocked": None,
+                "stopped": None,
             },
             response.json()["results"][0],
         )
@@ -1812,16 +1815,17 @@ class APITest(TembaTest):
             {
                 "uuid": empty.uuid,
                 "name": None,
+                "status": "active",
                 "language": None,
                 "urns": [],
                 "groups": [],
                 "fields": {"nickname": None, "gender": None},
                 "flow": None,
-                "blocked": False,
-                "stopped": False,
                 "created_on": format_datetime(empty.created_on),
                 "modified_on": format_datetime(empty.modified_on),
                 "last_seen_on": None,
+                "blocked": False,
+                "stopped": False,
             },
             response.json(),
         )
@@ -2547,8 +2551,14 @@ class APITest(TembaTest):
         self.assertEqual(
             resp_json["results"],
             [
-                {"key": "registered", "label": "Registered On", "value_type": "datetime", "pinned": False},
-                {"key": "nick_name", "label": "Nick Name", "value_type": "text", "pinned": False},
+                {
+                    "key": "registered",
+                    "label": "Registered On",
+                    "value_type": "datetime",
+                    "pinned": False,
+                    "priority": 0,
+                },
+                {"key": "nick_name", "label": "Nick Name", "value_type": "text", "pinned": False, "priority": 0},
             ],
         )
 
@@ -2556,7 +2566,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "key=nick_name")
         self.assertEqual(
             response.json()["results"],
-            [{"key": "nick_name", "label": "Nick Name", "pinned": False, "value_type": "text"}],
+            [{"key": "nick_name", "label": "Nick Name", "pinned": False, "value_type": "text", "priority": 0}],
         )
 
         # try to create empty field
@@ -4550,10 +4560,6 @@ class APITest(TembaTest):
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
         self.create_ticket(zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Stuff")
 
-        response = self.fetchJSON(url, "ticketer_type=zendesk")
-        resp_json = response.json()
-        self.assertEqual(0, len(resp_json["results"]))
-
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url, readonly_models={Ticket})
@@ -4573,6 +4579,7 @@ class APITest(TembaTest):
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Pleeeease help",
                     "opened_on": format_datetime(ticket3.opened_on),
+                    "modified_on": format_datetime(ticket3.modified_on),
                     "closed_on": None,
                 },
                 {
@@ -4584,6 +4591,7 @@ class APITest(TembaTest):
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Really",
                     "opened_on": format_datetime(ticket2.opened_on),
+                    "modified_on": format_datetime(ticket2.modified_on),
                     "closed_on": None,
                 },
                 {
@@ -4595,6 +4603,7 @@ class APITest(TembaTest):
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Help",
                     "opened_on": format_datetime(ticket1.opened_on),
+                    "modified_on": format_datetime(ticket1.modified_on),
                     "closed_on": "2021-01-01T12:30:45.123456Z",
                 },
             ],

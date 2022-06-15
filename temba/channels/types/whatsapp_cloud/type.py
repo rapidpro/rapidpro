@@ -6,7 +6,7 @@ from django.urls import re_path
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.types.whatsapp_cloud.views import ClaimView
+from temba.channels.types.whatsapp_cloud.views import ClaimView, RequestCode, VerifyCode
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
 from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
@@ -19,7 +19,10 @@ class WhatsAppCloudType(ChannelType):
     A WhatsApp Cloud Channel Type
     """
 
-    extra_links = [dict(name=_("Message Templates"), link="channels.types.whatsapp_cloud.templates")]
+    extra_links = [
+        dict(name=_("Message Templates"), link="channels.types.whatsapp_cloud.templates"),
+        dict(name=_("Verify Number"), link="channels.types.whatsapp_cloud.request_code"),
+    ]
 
     code = "WAC"
     category = ChannelType.Category.SOCIAL_MEDIA
@@ -39,16 +42,15 @@ class WhatsAppCloudType(ChannelType):
     max_length = 4096
     attachment_support = True
 
-    redact_values = {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}
-
-    def is_available_to(self, user):
-        return False, False
+    redact_values = (settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN,)
 
     def get_urls(self):
         return [
             self.get_claim_url(),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/templates$", TemplatesView.as_view(), name="templates"),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/sync_logs$", SyncLogsView.as_view(), name="sync_logs"),
+            re_path(r"^(?P<uuid>[a-z0-9\-]+)/request_code$", RequestCode.as_view(), name="request_code"),
+            re_path(r"^(?P<uuid>[a-z0-9\-]+)/verify_code$", VerifyCode.as_view(), name="verify_code"),
         ]
 
     def activate(self, channel):
@@ -56,15 +58,7 @@ class WhatsAppCloudType(ChannelType):
         waba_currency = channel.config.get("wa_currency")
         waba_business_id = channel.config.get("wa_business_id")
 
-        # Assigh system user to WABA
-        url = f"https://graph.facebook.com/v13.0/{waba_id}/assigned_users"
-        params = {"user": f"{settings.WHATSAPP_ADMIN_SYSTEM_USER_ID}", "tasks": ["MANAGE"]}
         headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
-
-        resp = requests.post(url, params=params, headers=headers)
-
-        if resp.status_code != 200:  # pragma: no cover
-            raise ValidationError(_("Unable to add system user to %s" % waba_id))
 
         if waba_business_id != settings.WHATSAPP_FACEBOOK_BUSINESS_ID:
             # Get credit line ID

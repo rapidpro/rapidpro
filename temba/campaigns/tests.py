@@ -41,6 +41,7 @@ class CampaignTest(TembaTest):
 
     @mock_mailroom
     def test_model(self, mr_mocks):
+        contact = self.create_contact("Joe", phone="+1234567890")
         campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
         flow = self.create_flow("Test Flow")
 
@@ -55,6 +56,8 @@ class CampaignTest(TembaTest):
         self.assertEqual("Reminders", str(campaign))
         self.assertEqual('Event[relative_to=planting_date, offset=1, flow="Test Flow"]', str(event1))
         self.assertEqual([event1, event2], list(campaign.get_events()))
+        self.assertEqual(None, event1.get_message(contact))
+        self.assertEqual("Hello", event2.get_message(contact))
 
         campaign.schedule_events_async()
 
@@ -274,8 +277,10 @@ class CampaignTest(TembaTest):
     def test_views(self, mr_mocks):
         open_tickets = self.org.groups.get(name="Open Tickets")
 
+        current_year = timezone.now().year
+
         # update the planting date for our contacts
-        self.set_contact_field(self.farmer1, "planting_date", "1/10/2020")
+        self.set_contact_field(self.farmer1, "planting_date", f"1/10/{current_year-2}")
 
         # don't log in, try to create a new campaign
         response = self.client.get(reverse("campaigns.campaign_create"))
@@ -577,14 +582,14 @@ class CampaignTest(TembaTest):
         self.assertEqual(5, len(mr_mocks.queued_batch_tasks))
 
         # set a planting date on our other farmer
-        self.set_contact_field(self.farmer2, "planting_date", "1/6/2022")
+        self.set_contact_field(self.farmer2, "planting_date", f"1/6/{current_year+1}")
 
         # should have an event fire now
         fires = EventFire.objects.filter(event__is_active=True)
         self.assertEqual(1, len(fires))
 
         # setting a planting date on our outside contact has no effect
-        self.set_contact_field(self.nonfarmer, "planting_date", "1/7/2025")
+        self.set_contact_field(self.nonfarmer, "planting_date", f"1/7/{current_year+3}")
         self.assertEqual(1, EventFire.objects.filter(event__is_active=True).count())
 
         planting_date_field = self.org.fields.get(key="planting_date")
@@ -593,7 +598,7 @@ class CampaignTest(TembaTest):
 
         response = self.client.post(
             reverse("contacts.contact_update_fields", args=[self.farmer1.id]),
-            dict(contact_field=planting_date_field.id, field_value="4/8/2020"),
+            dict(contact_field=planting_date_field.id, field_value=f"4/8/{current_year-2}"),
         )
         self.assertRedirect(response, reverse("contacts.contact_read", args=[self.farmer1.uuid]))
 
