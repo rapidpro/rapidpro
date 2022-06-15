@@ -5457,21 +5457,61 @@ class FlowRevisionTest(TembaTest):
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
 
 
-class FixInvalidNamesTest(MigrationTest):
+class FailGhostRunsMigrationTest(MigrationTest):
     app = "flows"
-    migrate_from = "0284_flow_unique_flow_names"
-    migrate_to = "0285_fix_invalid_names"
+    migrate_from = "0288_flowlabel_is_system"
+    migrate_to = "0289_fail_ghost_runs"
 
     def setUpBeforeMigration(self, apps):
-        self.flow1 = Flow.objects.create(
-            org=self.org,
-            name='Say "Hi"\\ There',
-            is_system=False,
-            saved_by=self.admin,
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
+        contact = self.create_contact("Bob", phone="+1234567890")
+        flow = self.create_flow("Flow")
+
+        def create_session(status: str):
+            return FlowSession.objects.create(
+                uuid=uuid4(),
+                org=self.org,
+                contact=contact,
+                status=status,
+                created_on=timezone.now(),
+                wait_started_on=timezone.now(),
+                wait_expires_on=timezone.now() + timedelta(days=7),
+                wait_resume_on_expire=False,
+            )
+
+        def create_run(session, status: str):
+            return FlowRun.objects.create(
+                uuid=uuid4(),
+                org=self.org,
+                session=session,
+                flow=flow,
+                contact=contact,
+                status=status,
+                created_on=timezone.now(),
+                modified_on=timezone.now(),
+            )
+
+        self.run1 = create_run(create_session(FlowSession.STATUS_WAITING), FlowRun.STATUS_WAITING)
+        self.run2 = create_run(create_session(FlowSession.STATUS_WAITING), FlowRun.STATUS_ACTIVE)
+        self.run3 = create_run(None, FlowRun.STATUS_ACTIVE)
+        self.run4 = create_run(None, FlowRun.STATUS_WAITING)
+        self.run5 = create_run(None, FlowRun.STATUS_COMPLETED)
 
     def test_migration(self):
-        self.flow1.refresh_from_db()
-        self.assertEqual("Say 'Hi'/ There", self.flow1.name)
+        self.run1.refresh_from_db()
+        self.assertEqual(FlowRun.STATUS_WAITING, self.run1.status)  # unchanged
+        self.assertIsNone(self.run1.exited_on)
+
+        self.run2.refresh_from_db()
+        self.assertEqual(FlowRun.STATUS_ACTIVE, self.run2.status)  # unchanged
+        self.assertIsNone(self.run2.exited_on)
+
+        self.run3.refresh_from_db()
+        self.assertEqual(FlowRun.STATUS_FAILED, self.run3.status)
+        self.assertIsNotNone(self.run3.exited_on)
+
+        self.run4.refresh_from_db()
+        self.assertEqual(FlowRun.STATUS_FAILED, self.run4.status)
+        self.assertIsNotNone(self.run4.exited_on)
+
+        self.run5.refresh_from_db()
+        self.assertEqual(FlowRun.STATUS_COMPLETED, self.run5.status)  # unchanged
