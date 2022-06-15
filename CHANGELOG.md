@@ -1,3 +1,8 @@
+v7.3.62
+----------
+ * Fix rendering of dates on upcoming events list
+ * Data migration to backfill OrgMembership
+
 v7.3.61
 ----------
  * Add missing migration
