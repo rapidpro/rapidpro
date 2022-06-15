@@ -214,15 +214,13 @@
                   {{ evt.flow.name }}
           %td.whitespace-nowrap.text-right
             .pr-6
-              {{ evt.scheduled|naturaltime }}
-
-              .repeats
-                -if evt.repeat_period == 'D'
-                  -trans 'repeats daily'
-                -elif evt.repeat_period == 'W'
-                  -trans 'repeats weekly'
-                -elif evt.repeat_period == 'M'
-                  -trans 'repeats monthly'
+              {{ evt.scheduled|parse_isodate|naturaltime }}{% if evt.repeat_period %}, {% endif %}
+              -if evt.repeat_period == 'D'
+                -trans 'repeats daily'
+              -elif evt.repeat_period == 'W'
+                -trans 'repeats weekly'
+              -elif evt.repeat_period == 'M'
+                -trans 'repeats monthly'
 
     -if upcoming_events|length > 3
       %a.pull-right.show-all.upcoming
