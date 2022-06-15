@@ -1,5 +1,6 @@
 import io
 import smtplib
+from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
@@ -43,13 +44,14 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg
 from temba.notifications.models import Notification
-from temba.orgs.models import BackupToken, Debit, OrgActivity
+from temba.orgs.models import BackupToken, Debit, OrgActivity, OrgMembership
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     MockResponse,
     TembaNonAtomicTest,
     TembaTest,
@@ -5653,3 +5655,33 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class BackfillOrgMembershipMigrationTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0098_orgmembership_org_users_orgmembership_org_and_more"
+    migrate_to = "0099_backfill_org_membership"
+
+    def setUpBeforeMigration(self, apps):
+        # remove membership objects for admin and editor
+        OrgMembership.objects.filter(user=self.admin).delete()
+        OrgMembership.objects.filter(user=self.editor).delete()
+
+        # change surveyor to be an agent
+        self.org.add_user(self.surveyor, OrgRole.AGENT)
+
+        # add new surveyor to org2
+        self.surveyor2 = Org.create_user("surveyor@trileet.com", "Querty123")
+        self.org2.add_user(self.surveyor2, OrgRole.SURVEYOR)
+
+    def test_migration(self):
+        def assert_users(org, expected: dict):
+            actual = defaultdict(set)
+            for m in OrgMembership.objects.filter(org=org):
+                actual[m.role_code].add(m.user)
+            self.assertEqual(expected, dict(actual))
+
+        assert_users(
+            self.org, {"A": {self.admin}, "E": {self.editor}, "V": {self.user}, "T": {self.surveyor, self.agent}}
+        )
+        assert_users(self.org2, {"A": {self.admin2}, "S": {self.surveyor2}})
