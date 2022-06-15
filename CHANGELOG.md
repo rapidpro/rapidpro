@@ -1,3 +1,7 @@
+v7.3.61
+----------
+ * Add missing migration
+
 v7.3.60
 ----------
  * Data migration to fail active/waiting runs with no session
