@@ -11,34 +11,34 @@
       "users": [
         {
           "email": "admin1@nyaruka.com",
-          "role": "administrators",
+          "role": "A",
           "first_name": "Andy",
           "last_name": "Admin",
           "team": "Office"
         },
         {
           "email": "editor1@nyaruka.com",
-          "role": "editors",
+          "role": "E",
           "first_name": "Ed",
           "last_name": "McEditor",
           "team": "Office"
         },
         {
           "email": "viewer1@nyaruka.com",
-          "role": "viewers",
+          "role": "V",
           "first_name": "Veronica",
           "last_name": "Views"
         },
         {
           "email": "agent1@nyaruka.com",
-          "role": "agents",
+          "role": "T",
           "first_name": "Ann",
           "last_name": "D'Agent",
           "team": "Partners"
         },
         {
           "email": "surveyor1@nyaruka.com",
-          "role": "surveyors",
+          "role": "S",
           "first_name": "Steve",
           "last_name": "Surveys"
         }
@@ -441,7 +441,7 @@
       "users": [
         {
           "email": "admin2@nyaruka.com",
-          "role": "administrators",
+          "role": "A",
           "first_name": "",
           "last_name": ""
         }
