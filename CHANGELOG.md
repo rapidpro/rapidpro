@@ -1,3 +1,8 @@
+v7.3.63
+----------
+ * Update mailroom_db command to correctly add users to orgs
+ * Stop reading from org role m2m tables
+
 v7.3.62
 ----------
  * Fix rendering of dates on upcoming events list
