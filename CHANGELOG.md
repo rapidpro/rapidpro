@@ -1,3 +1,7 @@
+v7.3.64
+----------
+ * Fix fetching org users with given roles
+
 v7.3.63
 ----------
  * Update mailroom_db command to correctly add users to orgs
