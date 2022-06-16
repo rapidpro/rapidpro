@@ -1090,12 +1090,31 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
 class OrgTest(TembaTest):
     def test_get_users(self):
+        admin3 = self.create_user("bob@nyaruka.com")
+
+        self.org.add_user(admin3, OrgRole.ADMINISTRATOR)
+        self.org2.add_user(self.admin, OrgRole.ADMINISTRATOR)
+
         self.assertEqual(
-            {self.admin, self.editor}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR, OrgRole.EDITOR]))
+            [self.admin, self.editor, admin3],
+            list(self.org.get_users(roles=[OrgRole.ADMINISTRATOR, OrgRole.EDITOR]).order_by("id")),
+        )
+        self.assertEqual([self.user], list(self.org.get_users(roles=[OrgRole.VIEWER]).order_by("id")))
+        self.assertEqual(
+            [self.admin, self.admin2],
+            list(self.org2.get_users(roles=[OrgRole.ADMINISTRATOR, OrgRole.EDITOR]).order_by("id")),
+        )
+
+        self.assertEqual(
+            [self.admin, self.editor, self.agent, admin3],
+            list(self.org.get_users(with_perm="tickets.ticket_assignee").order_by("id")),
         )
         self.assertEqual(
-            {self.admin, self.agent, self.editor}, set(self.org.get_users(with_perm="tickets.ticket_assignee"))
+            [self.admin, self.admin2], list(self.org2.get_users(with_perm="tickets.ticket_assignee").order_by("id"))
         )
+
+        self.assertEqual([self.admin, admin3], list(self.org.get_admins().order_by("id")))
+        self.assertEqual([self.admin, self.admin2], list(self.org2.get_admins().order_by("id")))
 
     def test_get_owner(self):
         # admins take priority
