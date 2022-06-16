@@ -2226,7 +2226,7 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             role_summary = []
             for role in OrgRole:
-                num_users = org.get_users_with_role(role).count()
+                num_users = org.get_users(roles=[role]).count()
                 if num_users == 1:
                     role_summary.append(f"1 {role.display}")
                 elif num_users > 1:
@@ -2258,7 +2258,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.add_per_invite_fields(org)
 
             def add_per_user_fields(self, org: Org, role_choices: list):
-                for user in org.get_users().order_by("email"):
+                for user in org.users.order_by("email"):
                     role_field = forms.ChoiceField(
                         choices=role_choices,
                         required=True,
@@ -2307,7 +2307,7 @@ class OrgCRUDL(SmartCRUDL):
             def clean_invite_emails(self):
                 emails = self.cleaned_data["invite_emails"].lower().strip()
                 existing_users_emails = set(
-                    list(self.org.get_users().values_list("username", flat=True))
+                    list(self.org.users.values_list("username", flat=True))
                     + list(self.org.invitations.filter(is_active=True).values_list("email", flat=True))
                 )
                 cleaned_emails = []

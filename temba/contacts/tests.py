@@ -31,7 +31,7 @@ from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modifiers
 from temba.msgs.models import Broadcast, Msg, SystemLabel
-from temba.orgs.models import Org
+from temba.orgs.models import Org, OrgRole
 from temba.schedules.models import Schedule
 from temba.tests import (
     AnonymousOrg,
@@ -96,7 +96,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         mr_mocks.contact_search('name != ""', contacts=[])
         smart = self.create_group("No Name", query='name = ""')
 
-        with self.assertNumQueries(31):
+        with self.assertNumQueries(29):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
@@ -462,7 +462,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertLoginRedirect(response)
 
         # if the user has access to that org, we redirect to the org choose page
-        self.org2.administrators.add(self.admin)
+        self.org2.add_user(self.admin, OrgRole.ADMINISTRATOR)
         response = self.requestView(group3_url, self.admin)
         self.assertRedirect(response, "/org/choose/")
 
@@ -5185,8 +5185,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
         )
 
         self.org.initialize(topup_size=1000)
-        self.admin.set_org(self.org)
-        self.org.administrators.add(self.admin)
+        self.org.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
         self.client.login(username=self.admin.username, password=self.admin.username)
 

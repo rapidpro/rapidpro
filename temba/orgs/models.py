@@ -1,7 +1,5 @@
-import functools
 import itertools
 import logging
-import operator
 import os
 from abc import ABCMeta
 from collections import defaultdict
@@ -165,11 +163,11 @@ class User(AuthUser):
         if self.is_superuser:
             return Org.objects.all()
 
-        user_orgs = functools.reduce(operator.or_, [role.get_orgs(self) for role in OrgRole])
+        orgs = self.orgs.filter(is_active=True).order_by("name")
         if brands:
-            user_orgs = user_orgs.filter(brand__in=brands)
+            orgs = orgs.filter(brand__in=brands)
 
-        return user_orgs.filter(is_active=True).distinct().order_by("name")
+        return orgs
 
     def get_owned_orgs(self, *, brand=None):
         """
@@ -177,7 +175,7 @@ class User(AuthUser):
         """
         owned_orgs = []
         for org in self.get_orgs(brands=[brand] if brand else None):
-            if not org.get_users().exclude(id=self.id).exists():
+            if not org.users.exclude(id=self.id).exists():
                 owned_orgs.append(org)
         return owned_orgs
 
@@ -332,19 +330,18 @@ class UserSettings(models.Model):
 
 
 class OrgRole(Enum):
-    ADMINISTRATOR = ("A", _("Administrator"), _("Administrators"), "Administrators", "administrators", "org_admins")
-    EDITOR = ("E", _("Editor"), _("Editors"), "Editors", "editors", "org_editors")
-    VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers", "viewers", "org_viewers")
-    AGENT = ("T", _("Agent"), _("Agents"), "Agents", "agents", "org_agents")
-    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "surveyors", "org_surveyors")
+    ADMINISTRATOR = ("A", _("Administrator"), _("Administrators"), "Administrators", "administrators")
+    EDITOR = ("E", _("Editor"), _("Editors"), "Editors", "editors")
+    VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers", "viewers")
+    AGENT = ("T", _("Agent"), _("Agents"), "Agents", "agents")
+    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "surveyors")
 
-    def __init__(self, code: str, display: str, display_plural: str, group_name: str, m2m_name: str, rel_name: str):
+    def __init__(self, code: str, display: str, display_plural: str, group_name: str, m2m_name: str):
         self.code = code
         self.display = display
         self.display_plural = display_plural
         self.group_name = group_name
-        self.m2m_name = m2m_name
-        self.rel_name = rel_name
+        self.m2m_name = m2m_name  # TODO remove
 
     @classmethod
     def from_code(cls, code: str):
@@ -363,7 +360,7 @@ class OrgRole(Enum):
     @cached_property
     def group(self):
         """
-        Gets the auth group which defines the permissions for this role
+        The auth group which defines the permissions for this role
         """
         return Group.objects.get(name=self.group_name)
 
@@ -377,18 +374,6 @@ class OrgRole(Enum):
         Returns whether this role has the given permission
         """
         return permission in self.permissions
-
-    def get_users(self, org):
-        """
-        The users with this role in the given org
-        """
-        return getattr(org, self.m2m_name).all()
-
-    def get_orgs(self, user):
-        """
-        The orgs which the given user belongs to with this role
-        """
-        return getattr(user, self.rel_name).all()
 
 
 class OrgLock(Enum):
@@ -487,14 +472,7 @@ class Org(SmartModel):
         help_text=_("Our Stripe customer id for your organization"),
     )
 
-    # user role m2ms
-    administrators = models.ManyToManyField(User, related_name=OrgRole.ADMINISTRATOR.rel_name)
-    editors = models.ManyToManyField(User, related_name=OrgRole.EDITOR.rel_name)
-    viewers = models.ManyToManyField(User, related_name=OrgRole.VIEWER.rel_name)
-    agents = models.ManyToManyField(User, related_name=OrgRole.AGENT.rel_name)
-    surveyors = models.ManyToManyField(User, related_name=OrgRole.SURVEYOR.rel_name)
-
-    users = models.ManyToManyField(User, through="OrgMembership", related_name="memberships")
+    users = models.ManyToManyField(User, through="OrgMembership", related_name="orgs")
 
     language = models.CharField(
         verbose_name=_("Default Language"),
@@ -579,6 +557,13 @@ class Org(SmartModel):
     # when this org was released and when it was actually deleted
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
+
+    # TODO deprecated and will be removed
+    administrators = models.ManyToManyField(User, related_name="org_admins")
+    editors = models.ManyToManyField(User, related_name="org_editors")
+    viewers = models.ManyToManyField(User, related_name="org_viewers")
+    agents = models.ManyToManyField(User, related_name="org_agents")
+    surveyors = models.ManyToManyField(User, related_name="org_surveyors")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1097,42 +1082,35 @@ class Org(SmartModel):
         format = formats[1] if show_time else formats[0]
         return datetime_to_str(d, format, self.timezone)
 
-    def get_users_with_role(self, role: OrgRole):
+    def get_users(self, *, roles: list = None, with_perm: str = None):
         """
-        Gets the users who have the given role in this org
+        Gets users in this org, filtered by role or permission.
         """
-        return role.get_users(self)
+
+        qs = self.users.filter(is_active=True)
+
+        if with_perm:
+            app_label, codename = with_perm.split(".")
+            permission = Permission.objects.get(content_type__app_label=app_label, codename=codename)
+            groups = Group.objects.filter(permissions=permission)
+            roles = [OrgRole.from_group(g) for g in groups]
+
+        if roles:
+            qs = qs.filter(orgmembership__role_code__in=[r.code for r in roles])
+
+        return qs
 
     def get_admins(self):
         """
         Convenience method for getting all org administrators
         """
-        return self.get_users_with_role(OrgRole.ADMINISTRATOR)
-
-    def get_users(self, *, roles=None):
-        """
-        Gets all of the users across all roles for this org
-        """
-        user_sets = [role.get_users(self) for role in roles or OrgRole]
-        all_users = functools.reduce(operator.or_, user_sets)
-        return all_users.distinct()
-
-    def get_users_with_perm(self, perm: str):
-        """
-        Gets all of the users with the given permission for this org
-        """
-
-        app_label, codename = perm.split(".")
-        permission = Permission.objects.get(content_type__app_label=app_label, codename=codename)
-        groups = Group.objects.filter(permissions=permission)
-
-        return self.get_users(roles=[OrgRole.from_group(g) for g in groups])
+        return self.get_users(roles=[OrgRole.ADMINISTRATOR])
 
     def has_user(self, user: User) -> bool:
         """
         Returns whether the given user has a role in this org (only explicit roles, so doesn't include customer support)
         """
-        return self.get_users().filter(id=user.id).exists()
+        return self.users.filter(id=user.id).exists()
 
     def add_user(self, user: User, role: OrgRole):
         """
@@ -1162,7 +1140,7 @@ class Org(SmartModel):
     def get_owner(self) -> User:
         # look thru roles in order for the first added user
         for role in OrgRole:
-            user = self.get_users_with_role(role).order_by("id").first()
+            user = self.users.filter(orgmembership__role_code=role.code).order_by("id").first()
             if user:
                 return user
 
@@ -1177,10 +1155,9 @@ class Org(SmartModel):
         def get_role():
             if user.is_staff:
                 return OrgRole.ADMINISTRATOR
-            for role in OrgRole:
-                if self.get_users_with_role(role).filter(id=user.id).exists():
-                    return role
-            return None
+
+            membership = OrgMembership.objects.filter(org=self, user=user).first()
+            return membership.role if membership else None
 
         if user not in self._user_role_cache:
             self._user_role_cache[user] = get_role()
@@ -1856,14 +1833,14 @@ class Org(SmartModel):
 
         # release any user that belongs only to us
         if release_users:
-            for org_user in self.get_users():
+            for org_user in self.users.all():
                 # check if this user is a member of any org on any brand
                 other_orgs = org_user.get_orgs().exclude(id=self.id)
                 if not other_orgs:
                     org_user.release(user, brand=self.brand)
 
         # remove all the org users
-        for org_user in self.get_users():
+        for org_user in self.users.all():
             self.remove_user(org_user)
 
     def delete(self):
@@ -2051,6 +2028,10 @@ class OrgMembership(models.Model):
     org = models.ForeignKey(Org, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     role_code = models.CharField(max_length=1)
+
+    @property
+    def role(self):
+        return OrgRole.from_code(self.role_code)
 
     class Meta:
         unique_together = (("org", "user"),)
