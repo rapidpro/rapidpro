@@ -3956,7 +3956,7 @@ class StripeHandler(View):  # pragma: no cover
                 topup.save()
 
             # we know this org, trigger an event for a payment succeeding
-            if org.administrators.all():
+            if org.get_admins().exists():
                 if event.type == "charge_succeeded":
                     track = "temba.charge_succeeded"
                 else:
@@ -3979,7 +3979,7 @@ class StripeHandler(View):  # pragma: no cover
                     context["cc_type"] = "bitcoin"
                     context["cc_name"] = charge.source.bitcoin.address
 
-                admin = org.administrators.all().first()
+                admin = org.get_admins().first()
 
                 analytics.track(admin, track, context)
                 return HttpResponse("Event '%s': %s" % (track, context))

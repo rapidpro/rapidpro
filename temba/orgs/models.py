@@ -1086,7 +1086,6 @@ class Org(SmartModel):
         """
         Gets users in this org, filtered by role or permission.
         """
-
         qs = self.users.filter(is_active=True)
 
         if with_perm:
@@ -1096,7 +1095,7 @@ class Org(SmartModel):
             roles = [OrgRole.from_group(g) for g in groups]
 
         if roles:
-            qs = qs.filter(orgmembership__role_code__in=[r.code for r in roles])
+            qs = qs.filter(orgmembership__org=self, orgmembership__role_code__in=[r.code for r in roles])
 
         return qs
 
