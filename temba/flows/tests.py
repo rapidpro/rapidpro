@@ -26,7 +26,6 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
-from temba.orgs.models import OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
@@ -1369,10 +1368,6 @@ class FlowTest(TembaTest):
     def test_views_viewers(self):
         flow = self.get_flow("color")
 
-        # create a viewer
-        viewer = self.create_user("Viewer")
-        self.org.add_user(viewer, OrgRole.VIEWER)
-
         # create a flow for another org and a flow label
         flow2 = Flow.create(self.org2, self.admin2, "Flow2")
         flow_label = FlowLabel.create(self.org, self.admin, "one")
@@ -1386,10 +1381,11 @@ class FlowTest(TembaTest):
         response = self.client.get(flow_list_url)
         self.assertRedirect(response, reverse("users.user_login"))
 
-        viewer.first_name = "Test"
-        viewer.last_name = "Contact"
-        viewer.save()
-        self.login(viewer)
+        self.user.first_name = "Test"
+        self.user.last_name = "Contact"
+        self.user.save()
+
+        self.login(self.user)
 
         # list, should have only one flow (the one created in setUp)
 
