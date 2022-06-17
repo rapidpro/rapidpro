@@ -184,7 +184,9 @@ class LanguageMiddleware:
         else:
             translation.activate(user.settings.language)
 
-        return self.get_response(request)
+        response = self.get_response(request)
+        response.headers.setdefault('Content-Language', translation.get_language())
+        return response
 
 
 class ProfilerMiddleware:  # pragma: no cover

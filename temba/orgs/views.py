@@ -1340,13 +1340,13 @@ class OrgCRUDL(SmartCRUDL):
             else:
 
                 return [
-                    self.create_menu_item(name=_("Messages"), icon="message-square", endpoint="msgs.msg_menu"),
-                    self.create_menu_item(name=_("Contacts"), icon="contact", endpoint="contacts.contact_menu"),
-                    self.create_menu_item(name=_("Flows"), icon="flow", endpoint="flows.flow_menu"),
-                    self.create_menu_item(name=_("Triggers"), icon="radio", endpoint="triggers.trigger_menu"),
-                    self.create_menu_item(name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaign_menu"),
+                    self.create_menu_item(menu_id="messages", name=_("Messages"), icon="message-square", endpoint="msgs.msg_menu"),
+                    self.create_menu_item(menu_id="contacts", name=_("Contacts"), icon="contact", endpoint="contacts.contact_menu"),
+                    self.create_menu_item(menu_id="flows", name=_("Flows"), icon="flow", endpoint="flows.flow_menu"),
+                    self.create_menu_item(menu_id="triggers", name=_("Triggers"), icon="radio", endpoint="triggers.trigger_menu"),
+                    self.create_menu_item(menu_id="campaigns", name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaign_menu"),
                     self.create_menu_item(
-                        name=_("Tickets"), icon="agent", endpoint="tickets.ticket_menu", href="tickets.ticket_list"
+                        menu_id="tickets", name=_("Tickets"), icon="agent", endpoint="tickets.ticket_menu", href="tickets.ticket_list"
                     ),
                     {
                         "id": "settings",
