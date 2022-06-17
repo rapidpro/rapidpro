@@ -8,7 +8,6 @@ from smartmin.models import SmartModel
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.db import models
-from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -217,11 +216,8 @@ class APIToken(models.Model):
         """
         Gets all the orgs the user can access the API with the given role
         """
-        user_query = Q()
-        for from_role in cls.GROUP_GRANTED_TO.get(role.group.name):
-            user_query |= Q(**{from_role.m2m_name: user})
-
-        return Org.objects.filter(user_query)
+        granting_roles = cls.GROUP_GRANTED_TO.get(role.group.name, [])
+        return user.get_orgs(roles=granting_roles) if granting_roles else Org.objects.none()
 
     @classmethod
     def get_default_role(cls, org, user):
@@ -266,7 +262,7 @@ def get_or_create_api_token(user):
     """
     org = user.get_org()
     if not org:
-        org = user.orgs.filter(orgmembership__user=user, orgmembership__role_code=OrgRole.ADMINISTRATOR.code).first()
+        org = user.get_orgs(roles=[OrgRole.ADMINISTRATOR]).first()
 
     if org:
         try:

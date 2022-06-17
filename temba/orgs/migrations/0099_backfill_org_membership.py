@@ -10,7 +10,7 @@ ROLE_AGENT = "T"
 ROLE_SURVEYOR = "S"
 
 
-def backfill_org_membership(apps, schema_editor):
+def backfill_org_membership(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
 
     role_counts = defaultdict(int)
@@ -35,7 +35,7 @@ def backfill_org_membership(apps, schema_editor):
         print(f"Added {count} users with role {role} to orgs")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
