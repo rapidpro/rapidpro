@@ -330,18 +330,17 @@ class UserSettings(models.Model):
 
 
 class OrgRole(Enum):
-    ADMINISTRATOR = ("A", _("Administrator"), _("Administrators"), "Administrators", "administrators")
-    EDITOR = ("E", _("Editor"), _("Editors"), "Editors", "editors")
-    VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers", "viewers")
-    AGENT = ("T", _("Agent"), _("Agents"), "Agents", "agents")
-    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "surveyors")
+    ADMINISTRATOR = ("A", _("Administrator"), _("Administrators"), "Administrators")
+    EDITOR = ("E", _("Editor"), _("Editors"), "Editors")
+    VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers")
+    AGENT = ("T", _("Agent"), _("Agents"), "Agents")
+    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors")
 
-    def __init__(self, code: str, display: str, display_plural: str, group_name: str, m2m_name: str):
+    def __init__(self, code: str, display: str, display_plural: str, group_name: str):
         self.code = code
         self.display = display
         self.display_plural = display_plural
         self.group_name = group_name
-        self.m2m_name = m2m_name  # TODO remove
 
     @classmethod
     def from_code(cls, code: str):
@@ -1115,12 +1114,8 @@ class Org(SmartModel):
         """
         Adds the given user to this org with the given role
         """
-
-        # remove user from any existing roles
-        if self.has_user(user):
+        if self.has_user(user):  # remove user from any existing roles
             self.remove_user(user)
-
-        getattr(self, role.m2m_name).add(user)
 
         self.users.add(user, through_defaults={"role_code": role.code})
         self._user_role_cache[user] = role
@@ -1129,9 +1124,6 @@ class Org(SmartModel):
         """
         Removes the given user from this org by removing them from any roles
         """
-        for role in OrgRole:
-            getattr(self, role.m2m_name).remove(user)
-
         self.users.remove(user)
         if user in self._user_role_cache:
             del self._user_role_cache[user]
