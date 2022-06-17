@@ -119,15 +119,18 @@ class OrgContextProcessorTest(TembaTest):
 
 class UserTest(TembaTest):
     def test_model(self):
-        user = User.objects.create(
-            username="jim@rapidpro.io", email="jim@rapidpro.io", password="super", first_name="Jim", last_name="McFlow"
-        )
+        user = User.create("jim@rapidpro.io", "Jim", "McFlow", password="super")
+        self.org.add_user(user, OrgRole.EDITOR)
+        self.org2.add_user(user, OrgRole.EDITOR)
 
         self.assertEqual("Jim McFlow", user.name)
         self.assertFalse(user.is_alpha)
         self.assertFalse(user.is_beta)
         self.assertFalse(user.is_support)
         self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim McFlow"}, user.as_engine_ref())
+        self.assertEqual([self.org, self.org2], list(user.get_orgs().order_by("id")))
+        self.assertEqual([], list(user.get_orgs(roles=[OrgRole.ADMINISTRATOR]).order_by("id")))
+        self.assertEqual([self.org, self.org2], list(user.get_orgs(roles=[OrgRole.EDITOR]).order_by("id")))
 
         user.last_name = ""
         user.save(update_fields=("last_name",))
@@ -1689,7 +1692,7 @@ class OrgTest(TembaTest):
         self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 0)
 
         # make sure an existing user can not be invited again
-        user = Org.create_user("admin1@temba.com", "Qwerty123")
+        user = self.create_user("admin1@temba.com")
         self.org.add_user(user, OrgRole.ADMINISTRATOR)
         self.login(user)
 
@@ -5676,7 +5679,7 @@ class BackfillOrgMembershipMigrationTest(MigrationTest):
         self.org.add_user(self.surveyor, OrgRole.AGENT)
 
         # add new surveyor to org2
-        self.surveyor2 = Org.create_user("surveyor@trileet.com", "Querty123")
+        self.surveyor2 = self.create_user("surveyor@trileet.com")
         self.org2.add_user(self.surveyor2, OrgRole.SURVEYOR)
 
     def test_migration(self):
