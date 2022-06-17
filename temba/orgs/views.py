@@ -2717,11 +2717,13 @@ class OrgCRUDL(SmartCRUDL):
             self.invitation = self.get_invitation()
             email = self.invitation.email
 
-            user = Org.create_user(email, self.form.cleaned_data["password"], language=obj.language)
-
-            user.first_name = self.form.cleaned_data["first_name"]
-            user.last_name = self.form.cleaned_data["last_name"]
-            user.save()
+            user = User.create(
+                email,
+                self.form.cleaned_data["first_name"],
+                self.form.cleaned_data["last_name"],
+                password=self.form.cleaned_data["password"],
+                language=obj.language,
+            )
 
             # log the user in
             user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
@@ -2977,12 +2979,13 @@ class OrgCRUDL(SmartCRUDL):
                 org = self.form.cleaned_data["org"]
 
                 # create our user
-                username = self.form.cleaned_data["email"]
-                user = Org.create_user(username, self.form.cleaned_data["password"], language=org.language)
-
-                user.first_name = self.form.cleaned_data["first_name"]
-                user.last_name = self.form.cleaned_data["last_name"]
-                user.save()
+                user = User.create(
+                    self.form.cleaned_data["email"],
+                    self.form.cleaned_data["first_name"],
+                    self.form.cleaned_data["last_name"],
+                    password=self.form.cleaned_data["password"],
+                    language=org.language,
+                )
 
                 # log the user in
                 user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
@@ -2994,7 +2997,7 @@ class OrgCRUDL(SmartCRUDL):
                 org_name = quote(org.name)
 
                 return HttpResponseRedirect(
-                    f"{self.get_success_url()}?org={org_name}&uuid={str(org.uuid)}&token={token}&user={username}"
+                    f"{self.get_success_url()}?org={org_name}&uuid={str(org.uuid)}&token={token}&user={user.email}"
                 )
 
         def form_invalid(self, form):
@@ -3022,15 +3025,15 @@ class OrgCRUDL(SmartCRUDL):
         permission = "orgs.org_grant"
         success_url = "@orgs.org_grant"
 
-        def create_user(self):
-            user = User.objects.filter(username__iexact=self.form.cleaned_data["email"]).first()
-            if not user:
-                user = Org.create_user(self.form.cleaned_data["email"], self.form.cleaned_data["password"])
+        def get_or_create_user(self, email, first_name, last_name, password, language):
+            user = User.objects.filter(username__iexact=email).first()
+            if user:
+                user.first_name = first_name
+                user.last_name = last_name
+                user.save(update_fields=("first_name", "last_name"))
+                return user
 
-            user.first_name = self.form.cleaned_data["first_name"]
-            user.last_name = self.form.cleaned_data["last_name"]
-            user.save(update_fields=("first_name", "last_name"))
-            return user
+            return User.create(email, first_name, last_name, password=password, language=language)
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -3040,12 +3043,20 @@ class OrgCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             obj = super().pre_save(obj)
 
-            self.user = self.create_user()
+            brand_language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
+
+            self.user = self.get_or_create_user(
+                self.form.cleaned_data["email"],
+                self.form.cleaned_data["first_name"],
+                self.form.cleaned_data["last_name"],
+                self.form.cleaned_data["password"],
+                language=brand_language,
+            )
 
             obj.created_by = self.user
             obj.modified_by = self.user
             obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
-            obj.language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
+            obj.language = brand_language
             obj.plan = self.request.branding.get("default_plan", settings.DEFAULT_PLAN)
 
             if obj.timezone.zone in pytz.country_timezones("US"):

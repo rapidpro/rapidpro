@@ -152,11 +152,21 @@ class User(AuthUser):
     related model.
     """
 
+    @classmethod
+    def create(cls, email: str, first_name: str, last_name: str, password: str, language: str = None):
+        obj = cls.objects.create_user(
+            username=email, email=email, first_name=first_name, last_name=last_name, password=password
+        )
+        if language:
+            obj.settings.language = language
+            obj.settings.save(update_fields=("language",))
+        return obj
+
     @property
     def name(self) -> str:
         return self.get_full_name()
 
-    def get_orgs(self, *, brands=None):
+    def get_orgs(self, *, brands=None, roles=None):
         """
         Gets the orgs in the given brands that this user has access to (i.e. a role in).
         """
@@ -164,8 +174,10 @@ class User(AuthUser):
             return Org.objects.all()
 
         orgs = self.orgs.filter(is_active=True).order_by("name")
-        if brands:
+        if brands is not None:
             orgs = orgs.filter(brand__in=brands)
+        if roles is not None:
+            orgs = orgs.filter(orgmembership__user=self, orgmembership__role_code__in=[r.code for r in roles])
 
         return orgs
 
@@ -1094,7 +1106,7 @@ class Org(SmartModel):
             groups = Group.objects.filter(permissions=permission)
             roles = [OrgRole.from_group(g) for g in groups]
 
-        if roles:
+        if roles is not None:
             qs = qs.filter(orgmembership__org=self, orgmembership__role_code__in=[r.code for r in roles])
 
         return qs
@@ -1973,14 +1985,6 @@ class Org(SmartModel):
         self.config = {}
         self.surveyor_password = None
         self.save()
-
-    @classmethod
-    def create_user(cls, email: str, password: str, language: str = None) -> User:
-        user = User.objects.create_user(username=email, email=email, password=password)
-        if language:
-            user.settings.language = language
-            user.settings.save(update_fields=("language",))
-        return user
 
     @classmethod
     def get_org(cls, user):
