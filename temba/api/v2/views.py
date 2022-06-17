@@ -3709,7 +3709,7 @@ class UsersEndpoint(ListAPIMixin, BaseAPIView):
             role_by_name = {name: role for role, name in UserReadSerializer.ROLES.items()}
             roles = [role_by_name.get(r) for r in roles if r in role_by_name]
         else:
-            roles = []
+            roles = None
 
         return org.get_users(roles=roles)
 

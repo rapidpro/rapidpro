@@ -1986,18 +1986,6 @@ class Org(SmartModel):
         self.surveyor_password = None
         self.save()
 
-    @classmethod
-    def get_org(cls, user):
-        if not user:  # pragma: needs cover
-            return None
-
-        if not hasattr(user, "_org"):
-            org = Org.objects.filter(administrators=user, is_active=True).first()
-            if org:
-                user._org = org
-
-        return getattr(user, "_org", None)
-
     def as_environment_def(self):
         """
         Returns this org as an environment definition as used by the flow engine

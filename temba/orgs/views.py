@@ -2991,7 +2991,7 @@ class OrgCRUDL(SmartCRUDL):
                 user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
                 login(self.request, user)
 
-                org.surveyors.add(user)
+                org.add_user(user, OrgRole.SURVEYOR)
 
                 token = APIToken.get_or_create(org, user, role=OrgRole.SURVEYOR)
                 org_name = quote(org.name)
