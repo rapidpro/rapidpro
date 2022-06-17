@@ -18,7 +18,7 @@ class APITokenTest(TembaTest):
         self.editors_group = Group.objects.get(name="Editors")
         self.surveyors_group = Group.objects.get(name="Surveyors")
 
-        self.org2.surveyors.add(self.admin)  # our admin can act as surveyor for other org
+        self.org2.add_user(self.admin, OrgRole.SURVEYOR)  # our admin can act as surveyor for other org
 
     def test_get_or_create(self):
         token1 = APIToken.get_or_create(self.org, self.admin)
