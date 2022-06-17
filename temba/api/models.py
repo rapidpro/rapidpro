@@ -266,7 +266,7 @@ def get_or_create_api_token(user):
     """
     org = user.get_org()
     if not org:
-        org = Org.get_org(user)
+        org = user.orgs.filter(orgmembership__user=user, orgmembership__role_code=OrgRole.ADMINISTRATOR.code).first()
 
     if org:
         try:
