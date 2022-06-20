@@ -1,3 +1,7 @@
+v7.3.65
+----------
+ * Fix surveyor joins so new users are added to orgmembership as well.
+
 v7.3.64
 ----------
  * Fix fetching org users with given roles
