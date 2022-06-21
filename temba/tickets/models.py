@@ -391,7 +391,6 @@ class AllFolder(TicketFolder):
     def get_queryset(self, org, user, ordered):
         return super().get_queryset(org, user, ordered)
 
-
 FOLDERS = {f.slug: f() for f in TicketFolder.__subclasses__()}
 
 

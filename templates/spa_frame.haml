@@ -445,8 +445,7 @@
     });
   
   :javascript
-
-    document.addEventListener("DOMContentLoaded", function() {
+    function handleMenuReady() {
       var selection = window.location.pathname.split("/").filter(function(path){ return !!path});
       var menu = document.querySelector("temba-menu");
       if (menu) {
@@ -460,8 +459,7 @@
           // menu.collapsed = !!window.matchMedia("(max-width: 800px)").matches
         });
       }
-    });
-
+    }
 
     document.addEventListener("temba-pjax-complete", function() {
       hideLoading();
@@ -599,7 +597,7 @@
       
       updatePageTitle();
       var menu = document.querySelector("temba-menu");
-      menu.refresh();
+      // menu.refresh();
 
       document.querySelectorAll(".posterize").forEach(function(ele){
         ele.addEventListener("click", function(){ 
@@ -636,10 +634,15 @@
     var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user|settings).*/;
 
     function handleNoPath(event) {
+
       var details = event.detail;
       var menu = document.querySelector("temba-menu");
 
       var path = details.selection + "/" + details.path;
+      if (path[path.length-1] != "/") {
+        path += "/";
+      }
+
       var mapped = mapUrl(path, true);
 
       if (path != mapped){
@@ -737,7 +740,7 @@
   .flex-col
     .flex.widget-container(style="height:100vh;")
       .folders       
-        %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)")
+        %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)" -temba-ready="handleMenuReady")
       .flex-grow.spa-container.flex.flex-col
         .spa-loader.hide.absolute
           .wrapper(style="display:flex;z-index:100000;margin-top:2px;")
