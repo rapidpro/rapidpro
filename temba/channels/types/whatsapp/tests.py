@@ -76,7 +76,7 @@ class WhatsAppTypeTest(TembaTest):
         #         self.assertEqual(200, response.status_code)
         #         self.assertFalse(Channel.objects.all())
         #         mock_get.assert_called_with(
-        #             "https://graph.facebook.com/v3.3/1234/message_templates", params={"access_token": "token123"}
+        #             "https://graph.facebook.com/v14.0/1234/message_templates", params={"access_token": "token123"}
         #         )
         #
         #         self.assertContains(response, "check user id and access token")
@@ -263,7 +263,7 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual(200, response.status_code)
             self.assertFalse(Channel.objects.all())
             mock_get.assert_called_with(
-                "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123"}
+                "https://example.org/v14.0/1234/message_templates", params={"access_token": "token123"}
             )
 
             self.assertContains(response, "check user id and access token")
@@ -279,7 +279,7 @@ class WhatsAppTypeTest(TembaTest):
             response = self.client.post(url, post_data)
             self.assertEqual(302, response.status_code)
             mock_get.assert_called_with(
-                "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123"}
+                "https://example.org/v14.0/1234/message_templates", params={"access_token": "token123"}
             )
 
         channel = Channel.objects.get()
@@ -323,7 +323,7 @@ class WhatsAppTypeTest(TembaTest):
             MockResponse(200, '{"data": ["foo", "bar"]}'),
             MockResponse(
                 200,
-                '{"data": ["foo"], "paging": {"next": "https://graph.facebook.com/v3.3/1234/message_templates?cursor=MjQZD"} }',
+                '{"data": ["foo"], "paging": {"next": "https://graph.facebook.com/v14.0/1234/message_templates?cursor=MjQZD"} }',
             ),
             MockResponse(200, '{"data": ["bar"], "paging": {"next": null} }'),
         ]
@@ -345,7 +345,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual(["foo", "bar"], templates_data)
 
         mock_get.assert_called_with(
-            "https://graph.facebook.com/v3.3/1234/message_templates",
+            "https://graph.facebook.com/v14.0/1234/message_templates",
             params={"access_token": "token123", "limit": 255},
         )
 
@@ -357,11 +357,11 @@ class WhatsAppTypeTest(TembaTest):
         mock_get.assert_has_calls(
             [
                 call(
-                    "https://graph.facebook.com/v3.3/1234/message_templates",
+                    "https://graph.facebook.com/v14.0/1234/message_templates",
                     params={"access_token": "token123", "limit": 255},
                 ),
                 call(
-                    "https://graph.facebook.com/v3.3/1234/message_templates?cursor=MjQZD",
+                    "https://graph.facebook.com/v14.0/1234/message_templates?cursor=MjQZD",
                     params={"access_token": "token123", "limit": 255},
                 ),
             ]

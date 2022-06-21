@@ -116,12 +116,11 @@ def track_org_channel_counts(now=None):
 
     # calculate each stat and track
     for stat in stats:
-        org_counts = (
-            Org.objects.filter(
-                channels__counts__day=yesterday, channels__counts__count_type=stat["count_type"]
-            ).annotate(count=Sum("channels__counts__count"))
-        ).prefetch_related("administrators")
+        org_counts = Org.objects.filter(
+            channels__counts__day=yesterday, channels__counts__count_type=stat["count_type"]
+        ).annotate(count=Sum("channels__counts__count"))
 
         for org in org_counts:
-            if org.administrators.all():
-                track(org.administrators.all()[0], stat["key"], dict(count=org.count))
+            admin = org.get_admins().first()
+            if admin:
+                track(admin, stat["key"], dict(count=org.count))

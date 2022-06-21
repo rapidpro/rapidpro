@@ -333,12 +333,8 @@ class CampaignTest(TembaTest):
         # test viewers cannot use action archive or restore
         self.client.logout()
 
-        # create a viewer
-        self.viewer = self.create_user("Viewer")
-        self.org.viewers.add(self.viewer)
-        self.viewer.set_org(self.org)
-
-        self.login(self.viewer)
+        # login as a viewer
+        self.login(self.user)
 
         # go to the list page, should be there as well
         response = self.client.get(reverse("campaigns.campaign_list"))

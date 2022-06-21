@@ -1,5 +1,6 @@
 import io
 import smtplib
+from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
@@ -43,13 +44,14 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg
 from temba.notifications.models import Notification
-from temba.orgs.models import BackupToken, Debit, OrgActivity
+from temba.orgs.models import BackupToken, Debit, OrgActivity, OrgMembership
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     MockResponse,
     TembaNonAtomicTest,
     TembaTest,
@@ -117,15 +119,18 @@ class OrgContextProcessorTest(TembaTest):
 
 class UserTest(TembaTest):
     def test_model(self):
-        user = User.objects.create(
-            username="jim@rapidpro.io", email="jim@rapidpro.io", password="super", first_name="Jim", last_name="McFlow"
-        )
+        user = User.create("jim@rapidpro.io", "Jim", "McFlow", password="super")
+        self.org.add_user(user, OrgRole.EDITOR)
+        self.org2.add_user(user, OrgRole.EDITOR)
 
         self.assertEqual("Jim McFlow", user.name)
         self.assertFalse(user.is_alpha)
         self.assertFalse(user.is_beta)
         self.assertFalse(user.is_support)
         self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim McFlow"}, user.as_engine_ref())
+        self.assertEqual([self.org, self.org2], list(user.get_orgs().order_by("id")))
+        self.assertEqual([], list(user.get_orgs(roles=[OrgRole.ADMINISTRATOR]).order_by("id")))
+        self.assertEqual([self.org, self.org2], list(user.get_orgs(roles=[OrgRole.EDITOR]).order_by("id")))
 
         user.last_name = ""
         user.save(update_fields=("last_name",))
@@ -617,7 +622,7 @@ class UserTest(TembaTest):
                 created_by=self.user,
                 modified_by=self.user,
             )
-            org.administrators.add(self.admin)
+            org.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
         response = self.client.get(reverse("orgs.user_list"))
         self.assertEqual(200, response.status_code)
@@ -641,7 +646,7 @@ class UserTest(TembaTest):
             modified_by=self.admin,
         )
 
-        branded_org.administrators.add(self.admin)
+        branded_org.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
         # now release our user on our primary brand
         self.admin.release(self.superuser, brand=settings.DEFAULT_BRAND)
@@ -675,8 +680,8 @@ class UserTest(TembaTest):
             created_by=self.admin,
             modified_by=self.admin,
         )
-        branded_org.administrators.add(self.admin)
-        self.org2.administrators.add(self.admin)
+        branded_org.add_user(self.admin, OrgRole.ADMINISTRATOR)
+        self.org2.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
         # log in as admin
         self.login(self.admin)
@@ -774,7 +779,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # our user is a member of two orgs
         self.parent_org = self.org
-        self.child_org.administrators.add(self.user)
+        self.child_org.add_user(self.user, OrgRole.ADMINISTRATOR)
         self.child_org.initialize(topup_size=0)
         self.child_org.parent = self.parent_org
         self.child_org.save()
@@ -953,7 +958,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         with patch("temba.utils.s3.client", return_value=self.mock_s3):
             # save off the ids of our current users
-            org_user_ids = list(org.get_users().values_list("id", flat=True))
+            org_user_ids = list(org.users.values_list("id", flat=True))
 
             # we should be starting with some mock s3 objects
             self.assertEqual(5, len(self.mock_s3.objects))
@@ -1088,30 +1093,45 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
 class OrgTest(TembaTest):
     def test_get_users(self):
-        # should return all org users
-        self.assertEqual({self.admin, self.editor, self.user, self.agent, self.surveyor}, set(self.org.get_users()))
+        admin3 = self.create_user("bob@nyaruka.com")
 
-        # can filter by roles
-        self.assertEqual({self.agent, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR, OrgRole.AGENT])))
+        self.org.add_user(admin3, OrgRole.ADMINISTRATOR)
+        self.org2.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
-        # can get users with a specific permission
         self.assertEqual(
-            {self.admin, self.agent, self.editor}, set(self.org.get_users_with_perm("tickets.ticket_assignee"))
+            [self.admin, self.editor, admin3],
+            list(self.org.get_users(roles=[OrgRole.ADMINISTRATOR, OrgRole.EDITOR]).order_by("id")),
         )
+        self.assertEqual([self.user], list(self.org.get_users(roles=[OrgRole.VIEWER]).order_by("id")))
+        self.assertEqual(
+            [self.admin, self.admin2],
+            list(self.org2.get_users(roles=[OrgRole.ADMINISTRATOR, OrgRole.EDITOR]).order_by("id")),
+        )
+
+        self.assertEqual(
+            [self.admin, self.editor, self.agent, admin3],
+            list(self.org.get_users(with_perm="tickets.ticket_assignee").order_by("id")),
+        )
+        self.assertEqual(
+            [self.admin, self.admin2], list(self.org2.get_users(with_perm="tickets.ticket_assignee").order_by("id"))
+        )
+
+        self.assertEqual([self.admin, admin3], list(self.org.get_admins().order_by("id")))
+        self.assertEqual([self.admin, self.admin2], list(self.org2.get_admins().order_by("id")))
 
     def test_get_owner(self):
         # admins take priority
         self.assertEqual(self.admin, self.org.get_owner())
 
-        self.org.administrators.clear()
+        OrgMembership.objects.filter(org=self.org, role_code="A").delete()
 
         # then editors etc
         self.assertEqual(self.editor, self.org.get_owner())
 
-        self.org.editors.clear()
-        self.org.viewers.clear()
-        self.org.agents.clear()
-        self.org.surveyors.clear()
+        OrgMembership.objects.filter(org=self.org, role_code=OrgRole.EDITOR.code).delete()
+        OrgMembership.objects.filter(org=self.org, role_code=OrgRole.VIEWER.code).delete()
+        OrgMembership.objects.filter(org=self.org, role_code=OrgRole.AGENT.code).delete()
+        OrgMembership.objects.filter(org=self.org, role_code=OrgRole.SURVEYOR.code).delete()
 
         # finally defaulting to org creator
         self.assertEqual(self.user, self.org.get_owner())
@@ -1395,7 +1415,7 @@ class OrgTest(TembaTest):
 
         # add an extra editor
         editor = self.create_user("EditorTwo")
-        self.org.editors.add(editor)
+        self.org.add_user(editor, OrgRole.EDITOR)
         self.surveyor.delete()
 
         # fetch it as a formax so we can inspect the summary
@@ -1475,7 +1495,7 @@ class OrgTest(TembaTest):
 
         actual_fields = response.context["form"].fields
         expected_fields = ["loc", "invite_emails", "invite_role"]
-        for user in self.org.get_users():
+        for user in self.org.users.all():
             expected_fields.extend([f"user_{user.id}_role", f"user_{user.id}_remove"])
 
         self.assertEqual(set(expected_fields), set(actual_fields.keys()))
@@ -1501,12 +1521,12 @@ class OrgTest(TembaTest):
         )
         self.assertRedirect(response, reverse("orgs.org_manage_accounts"))
 
-        self.org.refresh_from_db()
-        self.assertEqual(set(self.org.administrators.all()), {self.admin})
-        self.assertEqual(set(self.org.editors.all()), {self.user, self.editor})
-        self.assertFalse(set(self.org.viewers.all()), set())
-        self.assertEqual(set(self.org.surveyors.all()), set())
-        self.assertEqual(set(self.org.agents.all()), {self.agent})
+        self.assertEqual({self.admin, self.agent, self.editor, self.user}, set(self.org.users.all()))
+        self.assertEqual({self.admin}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
+        self.assertEqual({self.user, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
+        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
+        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
+        self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.AGENT])))
 
         # our surveyor's API token will have been deleted
         self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 2)
@@ -1597,11 +1617,12 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         self.org.refresh_from_db()
-        self.assertEqual(set(self.org.administrators.all()), {self.admin})
-        self.assertEqual(set(self.org.editors.all()), {self.user, self.editor})
-        self.assertFalse(set(self.org.viewers.all()), set())
-        self.assertEqual(set(self.org.surveyors.all()), set())
-        self.assertEqual(set(self.org.agents.all()), {self.agent})
+        self.assertEqual(set(self.org.users.all()), {self.admin, self.agent, self.editor, self.user})
+        self.assertEqual({self.admin}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
+        self.assertEqual({self.user, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
+        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
+        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
+        self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.AGENT])))
 
         # try to remove ourselves as admin
         response = self.client.post(
@@ -1655,11 +1676,12 @@ class OrgTest(TembaTest):
 
         # and removed from this org
         self.org.refresh_from_db()
-        self.assertEqual(set(self.org.administrators.all()), {self.agent})
-        self.assertEqual(set(self.org.editors.all()), {self.user})
-        self.assertEqual(set(self.org.viewers.all()), set())
-        self.assertEqual(set(self.org.surveyors.all()), {self.editor})
-        self.assertEqual(set(self.org.agents.all()), set())
+        self.assertEqual(set(self.org.users.all()), {self.agent, self.editor, self.user})
+        self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
+        self.assertEqual({self.user}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
+        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
+        self.assertEqual({self.editor}, set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
+        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.AGENT])))
 
         # editor will have lost their editor API token, but not their surveyor token
         self.editor.refresh_from_db()
@@ -1670,9 +1692,8 @@ class OrgTest(TembaTest):
         self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 0)
 
         # make sure an existing user can not be invited again
-        user = Org.create_user("admin1@temba.com", "Qwerty123")
-        user.set_org(self.org)
-        self.org.administrators.add(user)
+        user = self.create_user("admin1@temba.com")
+        self.org.add_user(user, OrgRole.ADMINISTRATOR)
         self.login(user)
 
         self.assertEqual(1, Invitation.objects.filter(is_active=True).count())
@@ -1819,24 +1840,17 @@ class OrgTest(TembaTest):
         response = self.client.post(editor_join_accept_url, post_data, follow=True)
         self.assertEqual(200, response.status_code)
 
-        self.assertIn(self.invited_editor, self.org.editors.all())
+        self.assertEqual(OrgRole.EDITOR, self.org.get_user_role(self.invited_editor))
         self.assertFalse(Invitation.objects.get(pk=editor_invitation.pk).is_active)
 
-        roles = (
-            ("V", self.org.viewers),
-            ("S", self.org.surveyors),
-            ("A", self.org.administrators),
-            ("E", self.org.editors),
-        )
-
         # test it for each role
-        for role in roles:
-            invite = create_invite(role[0], f"user.{role[0]}@nyaruka.com")
-            user = self.create_user(f"user.{role[0]}@nyaruka.com")
+        for role in OrgRole:
+            invite = create_invite(role.code, f"user.{role.code}@nyaruka.com")
+            user = self.create_user(f"user.{role.code}@nyaruka.com")
             self.login(user)
             response = self.client.post(reverse("orgs.org_join_accept", args=[invite.secret]), follow=True)
             self.assertEqual(200, response.status_code)
-            self.assertIsNotNone(role[1].filter(pk=user.pk).first())
+            self.assertTrue(self.org.get_users(roles=[role]).filter(pk=user.pk).exists())
 
         # try an expired invite
         invite = create_invite("S", "invitedexpired@nyaruka.com")
@@ -1846,7 +1860,7 @@ class OrgTest(TembaTest):
         self.login(expired_user)
         response = self.client.post(reverse("orgs.org_join_accept", args=[invite.secret]), follow=True)
         self.assertEqual(200, response.status_code)
-        self.assertIsNone(self.org.surveyors.filter(pk=expired_user.pk).first())
+        self.assertFalse(self.org.get_users(roles=[OrgRole.SURVEYOR]).filter(id=expired_user.id).exists())
 
         response = self.client.post(reverse("orgs.org_join", args=[invite.secret]))
         self.assertEqual(302, response.status_code)
@@ -1883,7 +1897,7 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         new_invited_user = User.objects.get(email="norkans7@gmail.com")
-        self.assertTrue(new_invited_user in self.org.administrators.all())
+        self.assertEqual(OrgRole.ADMINISTRATOR, self.org.get_user_role(new_invited_user))
         self.assertFalse(Invitation.objects.get(pk=admin_invitation.pk).is_active)
 
         invitation = Invitation.objects.create(
@@ -1952,7 +1966,7 @@ class OrgTest(TembaTest):
 
         # make sure we are a surveyor
         new_invited_user = User.objects.get(email="surveyor@gmail.com")
-        self.assertIn(new_invited_user, self.org.surveyors.all())
+        self.assertEqual(OrgRole.SURVEYOR, self.org.get_user_role(new_invited_user))
 
         # if we login, we should be rerouted too
         self.client.logout()
@@ -2031,11 +2045,8 @@ class OrgTest(TembaTest):
         success = self.client.login(username="beastmode@seahawks.com", password="beastmode24")
         self.assertTrue(success)
 
-        # and that we only have the surveyor role
-        self.assertIsNotNone(self.org.surveyors.filter(username="beastmode@seahawks.com").first())
-        self.assertIsNone(self.org.administrators.filter(username="beastmode@seahawks.com").first())
-        self.assertIsNone(self.org.editors.filter(username="beastmode@seahawks.com").first())
-        self.assertIsNone(self.org.viewers.filter(username="beastmode@seahawks.com").first())
+        # and that we have the surveyor role
+        self.assertEqual(OrgRole.SURVEYOR, self.org.get_user_role(User.objects.get(username="beastmode@seahawks.com")))
 
     def test_topup_admin(self):
         self.login(self.admin)
@@ -2545,7 +2556,7 @@ class OrgTest(TembaTest):
 
         # other admin sees it enabled too
         self.other_admin = self.create_user("other_admin@nyaruka.com")
-        self.org.administrators.add(self.other_admin)
+        self.org.add_user(self.other_admin, OrgRole.ADMINISTRATOR)
         self.login(self.other_admin)
 
         response = self.client.get(org_home_url)
@@ -3243,7 +3254,7 @@ class OrgTest(TembaTest):
         self.assertRedirect(response, reverse("orgs.org_sub_orgs"))
         sub_org = Org.objects.filter(name="Sub Org").first()
         self.assertIsNotNone(sub_org)
-        self.assertIn(self.admin, sub_org.administrators.all())
+        self.assertEqual(OrgRole.ADMINISTRATOR, sub_org.get_user_role(self.admin))
 
         # create a second org to test sorting
         new_org = dict(name="A Second Org", timezone=self.org.timezone, date_format=self.org.date_format)
@@ -3464,7 +3475,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         home_url = reverse("orgs.org_home")
 
-        with self.assertNumQueries(26):
+        with self.assertNumQueries(24):
             response = self.client.get(home_url)
 
         self.assertEqual(200, response.status_code)
@@ -3482,7 +3493,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # agents should only see tickets and settings
         self.login(self.agent)
 
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(9):
             response = self.client.get(menu_url)
 
         menu = response.json()["results"]
@@ -3552,9 +3563,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
 
         # check user exists and is admin
-        User.objects.get(username="john@carmack.com")
-        self.assertTrue(org.administrators.filter(username="john@carmack.com").exists())
-        self.assertTrue(org.administrators.filter(username="tito@nyaruka.com").exists())
+        self.assertEqual(OrgRole.ADMINISTRATOR, org.get_user_role(User.objects.get(username="john@carmack.com")))
+        self.assertEqual(OrgRole.ADMINISTRATOR, org.get_user_role(User.objects.get(username="tito@nyaruka.com")))
 
         # try a new org with a user that already exists instead
         del post_data["password"]
@@ -3568,8 +3578,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(100_000, org.get_credits_remaining())
         self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
 
-        self.assertTrue(org.administrators.filter(username="john@carmack.com").exists())
-        self.assertTrue(org.administrators.filter(username="tito@nyaruka.com").exists())
+        self.assertEqual(OrgRole.ADMINISTRATOR, org.get_user_role(User.objects.get(username="john@carmack.com")))
+        self.assertEqual(OrgRole.ADMINISTRATOR, org.get_user_role(User.objects.get(username="tito@nyaruka.com")))
 
         # try a new org with US timezone
         post_data["name"] = "Bulls"
@@ -3953,7 +3963,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             modified_by=self.user,
             is_active=False,
         )
-        org3.editors.add(self.editor)
+        org3.add_user(self.editor, OrgRole.EDITOR)
 
         # and another org that none of our users belong to
         org4 = Org.objects.create(
@@ -3983,7 +3993,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(self.requestView(choose_url, self.superuser), "/org/manage/")
 
         # turn editor into a multi-org user
-        self.org2.editors.add(self.editor)
+        self.org2.add_user(self.editor, OrgRole.EDITOR)
 
         # now we see a page to choose one of the two orgs
         response = self.requestView(choose_url, self.editor)
@@ -4530,10 +4540,10 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "Nyaruka")  # editor doesn't own this org
 
         # make editor the owner of the org
-        self.org.administrators.clear()
-        self.org.viewers.clear()
-        self.org.surveyors.clear()
-        self.org.agents.clear()
+        OrgMembership.objects.filter(org=self.org, role_code=OrgRole.ADMINISTRATOR.code).delete()
+        OrgMembership.objects.filter(org=self.org, role_code=OrgRole.VIEWER.code).delete()
+        OrgMembership.objects.filter(org=self.org, role_code=OrgRole.AGENT.code).delete()
+        OrgMembership.objects.filter(org=self.org, role_code=OrgRole.SURVEYOR.code).delete()
 
         response = self.requestView(delete_url, self.customer_support)
         self.assertEqual(200, response.status_code)
@@ -5250,8 +5260,8 @@ class CreditAlertTest(TembaTest):
 
     def test_creditalert_sendemail_all_org_admins(self):
         # add some administrators to the org
-        self.org.administrators.add(self.user)
-        self.org.administrators.add(self.surveyor)
+        self.org.add_user(self.user, OrgRole.ADMINISTRATOR)
+        self.org.add_user(self.surveyor, OrgRole.ADMINISTRATOR)
 
         # create a CreditAlert
         creditalert = CreditAlert.objects.create(
@@ -5272,7 +5282,7 @@ class CreditAlertTest(TembaTest):
 
     def test_creditalert_sendemail_no_org_admins(self):
         # remove administrators from org
-        self.org.administrators.clear()
+        self.org.users.clear()
 
         # create a CreditAlert
         creditalert = CreditAlert.objects.create(
@@ -5486,7 +5496,7 @@ class StripeCreditsTest(TembaTest):
     @override_settings(SEND_EMAILS=True)
     def test_add_credits_existing_customer(self, charge_create, customer_retrieve, customer_create):
         self.admin2 = self.create_user("admin2@nyaruka.com")
-        self.org.administrators.add(self.admin2)
+        self.org.add_user(self.admin2, OrgRole.ADMINISTRATOR)
 
         self.org.stripe_customer = "stripe-cust-1"
         self.org.save()
@@ -5653,3 +5663,33 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class BackfillOrgMembershipMigrationTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0098_orgmembership_org_users_orgmembership_org_and_more"
+    migrate_to = "0099_backfill_org_membership"
+
+    def setUpBeforeMigration(self, apps):
+        # remove membership objects for admin and editor
+        OrgMembership.objects.filter(user=self.admin).delete()
+        OrgMembership.objects.filter(user=self.editor).delete()
+
+        # change surveyor to be an agent
+        self.org.add_user(self.surveyor, OrgRole.AGENT)
+
+        # add new surveyor to org2
+        self.surveyor2 = self.create_user("surveyor@trileet.com")
+        self.org2.add_user(self.surveyor2, OrgRole.SURVEYOR)
+
+    def test_migration(self):
+        def assert_users(org, expected: dict):
+            actual = defaultdict(set)
+            for m in OrgMembership.objects.filter(org=org):
+                actual[m.role_code].add(m.user)
+            self.assertEqual(expected, dict(actual))
+
+        assert_users(
+            self.org, {"A": {self.admin}, "E": {self.editor}, "V": {self.user}, "T": {self.surveyor, self.agent}}
+        )
+        assert_users(self.org2, {"A": {self.admin2}, "S": {self.surveyor2}})

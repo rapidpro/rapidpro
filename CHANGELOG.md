@@ -1,3 +1,32 @@
+v7.3.67
+----------
+ * Merge pull request #3865 from nyaruka/plivo_claim
+ * formatting
+ * Sanitize plivo app names to match new rules
+
+v7.3.66
+----------
+ * Merge pull request #3864 from nyaruka/fix-WA-templates
+ * Fix message templates syncing for new categories
+
+v7.3.65
+----------
+ * Fix surveyor joins so new users are added to orgmembership as well.
+
+v7.3.64
+----------
+ * Fix fetching org users with given roles
+
+v7.3.63
+----------
+ * Update mailroom_db command to correctly add users to orgs
+ * Stop reading from org role m2m tables
+
+v7.3.62
+----------
+ * Fix rendering of dates on upcoming events list
+ * Data migration to backfill OrgMembership
+
 v7.3.61
 ----------
  * Add missing migration

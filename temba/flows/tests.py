@@ -1368,11 +1368,6 @@ class FlowTest(TembaTest):
     def test_views_viewers(self):
         flow = self.get_flow("color")
 
-        # create a viewer
-        self.viewer = self.create_user("Viewer")
-        self.org.viewers.add(self.viewer)
-        self.viewer.set_org(self.org)
-
         # create a flow for another org and a flow label
         flow2 = Flow.create(self.org2, self.admin2, "Flow2")
         flow_label = FlowLabel.create(self.org, self.admin, "one")
@@ -1386,11 +1381,11 @@ class FlowTest(TembaTest):
         response = self.client.get(flow_list_url)
         self.assertRedirect(response, reverse("users.user_login"))
 
-        user = self.viewer
-        user.first_name = "Test"
-        user.last_name = "Contact"
-        user.save()
-        self.login(user)
+        self.user.first_name = "Test"
+        self.user.last_name = "Contact"
+        self.user.save()
+
+        self.login(self.user)
 
         # list, should have only one flow (the one created in setUp)
 
