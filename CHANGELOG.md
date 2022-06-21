@@ -1,3 +1,9 @@
+v7.3.67
+----------
+ * Merge pull request #3865 from nyaruka/plivo_claim
+ * formatting
+ * Sanitize plivo app names to match new rules
+
 v7.3.66
 ----------
  * Merge pull request #3864 from nyaruka/fix-WA-templates
