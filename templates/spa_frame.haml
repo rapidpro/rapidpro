@@ -254,11 +254,6 @@
       margin-right: 0 !important;
     }
 
-
-    #crisp-chatbox [data-chat-status = "ongoing"] {
-      border-radius: 10px !important;
-    }
-
     .spa-footer {
       background: rgba(0,0,0,.05);
       padding: 18px;
@@ -729,7 +724,9 @@
     languages="/org/languages/"
     fields="/api/v2/fields.json"
     globals="/api/v2/globals.json"
-    groups="/api/v2/groups.json")
+    groups="/api/v2/groups.json"
+    workspace="/api/v2/workspace.json"
+  )
       
 -block page-container
   -include "includes/frame_top.html"
