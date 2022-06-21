@@ -91,41 +91,8 @@
         $("#page-id").val($(this).data("fb-id"));
         $("#page-name").val($(this).data("fb-name"));
         $("#claim-form").submit();
-    });
-
-
-    window.fbAsyncInit = function() {
-      FB.init({
-        appId      : '{{ facebook_app_id }}',
-        cookie     : true,
-        xfbml      : true,
-        version    : 'v7.0'
       });
-    };
-
     
-    (function(d, s, id) {
-      var js, fjs = d.getElementsByTagName(s)[0];
-      if (d.getElementById(id)) return;
-      js = d.createElement(s); js.id = id;
-      js.src = "https://connect.facebook.net/en_US/sdk.js";
-      fjs.parentNode.insertBefore(js, fjs);
-    }(document, 'script', 'facebook-jssdk'));
-
-
-    $(document).ready(function(){
-      $(".connect-facebook").click(function(evt){
-        $("#throbber").show();
-        FB.login(function(response) {
-          if (response.status === 'connected') {
-            $("#fb-user-id").val(response.authResponse.userID);
-            getFBPages(response.authResponse.accessToken);
-          }
-
-        }, 
-        {scope: 'pages_messaging,pages_show_list,pages_manage_metadata'});
-
-      })
     });
 
     function getFBPages(token) {
