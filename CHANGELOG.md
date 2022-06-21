@@ -1,3 +1,8 @@
+v7.3.66
+----------
+ * Merge pull request #3864 from nyaruka/fix-WA-templates
+ * Fix message templates syncing for new categories
+
 v7.3.65
 ----------
  * Fix surveyor joins so new users are added to orgmembership as well.
