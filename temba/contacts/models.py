@@ -73,6 +73,7 @@ class URN:
     WENIWEBCHAT_SCHEME = "weniwebchat"
     INSTAGRAM_SCHEME = "instagram"
     SLACK_SCHEME = "slack"
+    TEAMS_SCHEME = "teams"
 
     SCHEME_CHOICES = (
         (TEL_SCHEME, _("Phone number")),
@@ -95,6 +96,7 @@ class URN:
         (DISCORD_SCHEME, _("Discord Identifier")),
         (WENIWEBCHAT_SCHEME, _("WeniWebChat Identifier")),
         (SLACK_SCHEME, _("Slack Identifier")),
+        (TEAMS_SCHEME, _("Teams Identifier")),
     )
 
     VALID_SCHEMES = {s[0] for s in SCHEME_CHOICES}

@@ -1190,7 +1190,8 @@ CHANNEL_TYPES = [
     "temba.channels.types.rocketchat.RocketChatType",
     "temba.channels.types.weniwebchat.WeniWebChatType",
     "temba.channels.types.instagram.InstagramType",
-    "temba.channels.types.slack.SlackType",
+    "temba.channels.types.slack.SlackType"
+    "temba.channels.types.teams.TeamsType",
 ]
 
 # set of ISO-639-3 codes of languages to allow in addition to all ISO-639-1 languages
