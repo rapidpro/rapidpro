@@ -38,6 +38,20 @@ class SlackTypeTest(TembaTest):
         response = self.client.get(url)
         self.assertContains(response, "Connect Slack")
 
+        # claim with already used user_token and bot_token
+        response = self.client.post(url, {"user_token": "123456789:ABCDEFabcdef-1a2b3c4d"})
+        print(response)
+        self.assertEqual(
+            "A slack channel for this bot already exists.",
+            response.context["form"].errors["user_token"][0],
+        )
+        response = self.client.post(url, {"bot_token": "123456789:ABCDEFabcdef-1a2b3c4d"})
+        print(response)
+        self.assertEqual(
+            "A slack channel for this bot already exists.",
+            response.context["form"].errors["bot_token"][0],
+        )
+
         # claim with invalid token
         mock_api_call.side_effect = slack_sdk.errors.SlackApiError("", "")
         response = self.client.post(url, {"user_token": "invalid"})
@@ -62,6 +76,7 @@ class SlackTypeTest(TembaTest):
             "user": "dummy",
             "team_id": "T0DUMMY",
             "user_id": "U0DUMMY",
+            "bot_id": "B0TDUMMY",
             "is_enterprise_install": False,
         }
 
@@ -76,7 +91,7 @@ class SlackTypeTest(TembaTest):
                 "verification_token": "VTK0123456789ABCDEFabcdef-1a2b3c4d",
             },
         )
-        channel = Channel.objects.get(address="dummy")
+        channel = Channel.objects.get(address="B0TDUMMY")
         self.assertEqual(channel.channel_type, "SL")
         self.assertEqual(
             channel.config,
@@ -102,7 +117,7 @@ class SlackTypeTest(TembaTest):
             },
         )
         self.assertEqual(
-            "A slack channel for this bot already exists on your account.",
+            "A slack channel for this bot already exists.",
             response.context["form"].errors["user_token"][0],
         )
 

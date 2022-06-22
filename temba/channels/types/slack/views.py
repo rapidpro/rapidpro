@@ -31,12 +31,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         def clean_user_token(self):
-            org = self.request.user.get_org()
             value = self.cleaned_data["user_token"]
 
-            for channel in Channel.objects.filter(org=org, is_active=True, channel_type=self.channel_type.code):
-                if channel.config["user_token"] == value:
-                    raise ValidationError(_("A slack channel for this bot already exists on your account."))
+            existing = Channel.objects.filter(
+                is_active=True, channel_type=self.channel_type.code, config__contains=value
+            ).first()
+            if existing:
+                raise ValidationError(_("A slack channel for this bot already exists."))
 
             try:
                 client = slack_sdk.WebClient(token=value)
@@ -47,12 +48,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             return value
 
         def clean_bot_token(self):
-            org = self.request.user.get_org()
             value = self.cleaned_data["bot_token"]
 
-            for channel in Channel.objects.filter(org=org, is_active=True, channel_type=self.channel_type.code):
-                if channel.config["bot_token"] == value:
-                    raise ValidationError(_("A slack channel for this bot already exists on your account."))
+            existing = Channel.objects.filter(
+                is_active=True, channel_type=self.channel_type.code, config__contains=value
+            ).first()
+            if existing:
+                raise ValidationError(_("A slack channel for this bot already exists."))
 
             try:
                 client = slack_sdk.WebClient(token=value)
@@ -87,7 +89,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             country=None,
             channel_type=self.channel_type,
             name=auth_test["user"],
-            address=auth_test["user"],
+            address=auth_test["bot_id"],
             config=config,
         )
 
