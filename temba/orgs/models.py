@@ -569,13 +569,6 @@ class Org(SmartModel):
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
 
-    # TODO deprecated and will be removed
-    administrators = models.ManyToManyField(User, related_name="org_admins")
-    editors = models.ManyToManyField(User, related_name="org_editors")
-    viewers = models.ManyToManyField(User, related_name="org_viewers")
-    agents = models.ManyToManyField(User, related_name="org_agents")
-    surveyors = models.ManyToManyField(User, related_name="org_surveyors")
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
