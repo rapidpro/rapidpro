@@ -68,29 +68,11 @@
   {{ block.super }}
 
   :javascript
-    $(document).ready(function(){
-      $(".connect-facebook").click(function(evt){
-        location.replace("https://www.facebook.com/v12.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&scope=pages_messaging,pages_show_list,pages_manage_metadata,pages_read_engagement&response_type=token")
-
-      });
-
-      var hash = window.location.hash.substring(1)
-      var result = hash.split('&').reduce(function (res, item) {
-        var parts = item.split('=');
-        res[parts[0]] = parts[1];
-        return res;
-      }, {});
-
-      var accessToken = result.long_lived_token || result.access_token;
-      if (accessToken) {
-        getFBPages(accessToken);
-      }
-
-      $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e){
-        $("#user-access-token").val($(this).data("fb-access-token"));
-        $("#page-id").val($(this).data("fb-id"));
-        $("#page-name").val($(this).data("fb-name"));
-        $("#claim-form").submit();
+    $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e){
+      $("#user-access-token").val($(this).data("fb-access-token"));
+      $("#page-id").val($(this).data("fb-id"));
+      $("#page-name").val($(this).data("fb-name"));
+      $("#claim-form").submit();
     });
 
 
@@ -99,11 +81,11 @@
         appId      : '{{ facebook_app_id }}',
         cookie     : true,
         xfbml      : true,
-        version    : 'v7.0'
+        version    : 'v12.0'
       });
     };
 
-    
+
     (function(d, s, id) {
       var js, fjs = d.getElementsByTagName(s)[0];
       if (d.getElementById(id)) return;
@@ -111,7 +93,6 @@
       js.src = "https://connect.facebook.net/en_US/sdk.js";
       fjs.parentNode.insertBefore(js, fjs);
     }(document, 'script', 'facebook-jssdk'));
-
 
     $(document).ready(function(){
       $(".connect-facebook").click(function(evt){
@@ -121,9 +102,8 @@
             $("#fb-user-id").val(response.authResponse.userID);
             getFBPages(response.authResponse.accessToken);
           }
-
         }, 
-        {scope: 'pages_messaging,pages_show_list,pages_manage_metadata'});
+        {scope: 'pages_messaging,pages_show_list,pages_manage_metadata,pages_read_engagement'});
 
       })
     });
