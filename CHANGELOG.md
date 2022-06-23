@@ -1,3 +1,9 @@
+v7.3.68
+----------
+ * Add WhatsApp API version choice field
+ * Stop writing to the role specific m2m tables
+ * Add pending events tab to contact details
+
 v7.3.67
 ----------
  * Merge pull request #3865 from nyaruka/plivo_claim
