@@ -1,3 +1,7 @@
+v7.3.69
+----------
+ * Fix campaign links
+
 v7.3.68
 ----------
  * Add WhatsApp API version choice field
