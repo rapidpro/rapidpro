@@ -21,7 +21,7 @@
           {{ event.status_display }}
 
       -elif event.type == 'campaign_fired'
-        %a(href='{%url "campaigns.campaign_read" event.campaign.id %}')><
+        %a(href='{%url "campaigns.campaign_read" event.campaign.uuid %}')><
           {{ event.campaign.name }}
 
         -if event.fired_result == 'S'
