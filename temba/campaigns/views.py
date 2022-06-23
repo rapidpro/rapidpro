@@ -186,7 +186,7 @@ class CampaignCRUDL(SmartCRUDL):
                     dict(
                         title=_("Service"),
                         posterize=True,
-                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("campaigns.campaign_read", args=[self.object.id])}',
+                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("campaigns.campaign_read", args=[self.object.uuid])}',
                     )
                 )
 
@@ -545,7 +545,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             event = self.get_object()
             if not event.is_active:
                 messages.error(self.request, "Campaign event no longer exists")
-                return HttpResponseRedirect(reverse("campaigns.campaign_read", args=[event.campaign.pk]))
+                return HttpResponseRedirect(reverse("campaigns.campaign_read", args=[event.campaign.uuid]))
 
         def get_object_org(self):
             return self.get_object().campaign.org

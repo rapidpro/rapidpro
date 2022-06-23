@@ -506,7 +506,7 @@ class CampaignTest(TembaTest):
         response = self.client.get(
             reverse("campaigns.campaignevent_read", args=[previous_event.campaign.uuid, previous_event.pk])
         )
-        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[previous_event.campaign.pk]))
+        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[previous_event.campaign.uuid]))
 
         # attempting to update our old event gives a 404
         response = self.client.post(reverse("campaigns.campaignevent_update", args=[previous_event.pk]), post_data)
@@ -672,7 +672,7 @@ class CampaignTest(TembaTest):
         self.assertListEqual([gl["title"] for gl in gear_links], ["Service"])
         self.assertEqual(
             gear_links[-1]["href"],
-            f"/org/service/?organization={campaign.org_id}&redirect_url=/campaign/read/{campaign.id}/",
+            f"/org/service/?organization={campaign.org_id}&redirect_url=/campaign/read/{campaign.uuid}/",
         )
 
     def test_view_campaign_read_archived(self):
