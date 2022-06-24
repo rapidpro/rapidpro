@@ -1267,6 +1267,7 @@ FLOW_START_PARAMS_SIZE = 256  # used for params passed to flow start API endpoin
 GLOBAL_VALUE_SIZE = 10_000  # max length of global values
 
 ORG_LIMIT_DEFAULTS = {
+    "channels": 10,
     "fields": 250,
     "globals": 250,
     "groups": 250,

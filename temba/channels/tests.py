@@ -735,6 +735,28 @@ class ChannelTest(TembaTest):
         self.assertEqual(401, response.status_code)
         self.assertEqual(4, response.json()["error_id"])
 
+    def test_get_org_limit_progress(self):
+        Channel.objects.all().delete()
+
+        self.assertEqual((0, 10), Channel.get_org_limit_progress(self.org))
+
+        channel1 = self.create_channel(
+            "A", "Test Channel", "+250785551212", country="RW", secret="12345", config={"FCM_ID": "123"}
+        )
+
+        self.assertEqual((1, 10), Channel.get_org_limit_progress(self.org))
+
+        with override_settings(ORG_LIMIT_DEFAULTS={"channels": 2}):
+            self.assertEqual((1, 2), Channel.get_org_limit_progress(self.org))
+
+        # Do not include delegate channels
+        self.org.connect_vonage("key", "secret", self.admin)
+        Channel.add_vonage_bulk_sender(self.org, self.admin, channel1)
+        self.assertEqual((1, 10), Channel.get_org_limit_progress(self.org))
+
+        with override_settings(ORG_LIMIT_DEFAULTS={"channels": 2}):
+            self.assertEqual((1, 2), Channel.get_org_limit_progress(self.org))
+
     def test_claim(self):
         # no access for regular users
         self.login(self.user)
@@ -776,6 +798,28 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "I2")
         self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "IB")
         self.assertEqual(response.context["channel_types"]["PHONE"][4].code, "JS")
+
+        with override_settings(ORG_LIMIT_DEFAULTS={"channels": 2}):
+            response = self.client.get(reverse("channels.channel_claim"))
+            self.assertEqual(200, response.status_code)
+
+            self.assertEqual(2, response.context["total_count"])
+            self.assertEqual(2, response.context["total_limit"])
+            self.assertContains(
+                response,
+                "You have reached the limit of 2 channels per workspace. Please remove channels that you are no longer using.",
+            )
+
+        with override_settings(ORG_LIMIT_DEFAULTS={"channels": 3}):
+            response = self.client.get(reverse("channels.channel_claim"))
+            self.assertEqual(200, response.status_code)
+
+            self.assertEqual(2, response.context["total_count"])
+            self.assertEqual(3, response.context["total_limit"])
+            self.assertContains(
+                response,
+                "You are approaching the limit of 3 channels per workspace. You should remove channels that you are no longer using.",
+            )
 
     def test_claim_all(self):
         # no access for regular users

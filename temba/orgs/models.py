@@ -445,6 +445,7 @@ class Org(SmartModel):
     EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
 
+    LIMIT_CHANNELS = "channels"
     LIMIT_FIELDS = "fields"
     LIMIT_GLOBALS = "globals"
     LIMIT_GROUPS = "groups"

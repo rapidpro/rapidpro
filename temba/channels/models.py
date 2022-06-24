@@ -336,6 +336,8 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         "roles": ["send"],
     }
 
+    org_limit_key = Org.LIMIT_CHANNELS
+
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="channels", null=True)
     channel_type = models.CharField(max_length=3)
     name = models.CharField(max_length=64, null=True)
@@ -412,6 +414,15 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         null=True,
         help_text=_("The max number of messages that will be sent per second"),
     )
+
+    @classmethod
+    def get_org_limit_progress(cls, org) -> tuple:
+        """
+        Gets a tuple of the count of channels and the limit. A limit of None means unlimited.
+        """
+        limit = org.get_limit(cls.org_limit_key) if cls.org_limit_key else None
+
+        return cls.get_active_for_org(org).filter(parent=None).count(), limit
 
     @classmethod
     def create(
