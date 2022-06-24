@@ -6141,7 +6141,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create some groups
         self.create_group("Testers", contacts=[])
-        self.create_group("Doctors", contacts=[])
+        doctors = self.create_group("Doctors", contacts=[])
 
         # try creating new group but not providing a name
         response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "  "})
@@ -6171,6 +6171,18 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         new_group = ContactGroup.objects.get(name="Import")
         imp.refresh_from_db()
         self.assertEqual(new_group, imp.group)
+
+        # existing group should not check for workspace limit
+        imp = self.create_contact_import("media/test_imports/simple.csv")
+        preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
+        read_url = reverse("contacts.contactimport_read", args=[imp.id])
+        with override_settings(ORG_LIMIT_DEFAULTS={"groups": 2}):
+            response = self.client.post(
+                preview_url, {"add_to_group": True, "group_mode": "E", "existing_group": doctors.id}
+            )
+            self.assertRedirect(response, read_url)
+            imp.refresh_from_db()
+            self.assertEqual(doctors, imp.group)
 
     @mock_mailroom
     def test_using_existing_group(self, mr_mocks):
