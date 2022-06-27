@@ -2077,7 +2077,7 @@ class OrgCRUDL(SmartCRUDL):
                 return self.cleaned_data
 
             def add_limits_fields(self, org: Org):
-                for limit_type in [Org.LIMIT_FIELDS, Org.LIMIT_GROUPS, Org.LIMIT_GLOBALS]:
+                for limit_type in settings.ORG_LIMIT_DEFAULTS.keys():
                     initial = org.limits.get(limit_type)
                     limit_field = forms.IntegerField(required=False, initial=initial)
                     field_key = f"{limit_type}_limit"

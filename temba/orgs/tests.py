@@ -4150,9 +4150,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(200, response.status_code)
 
         # We should have the limits fields
-        self.assertIn("fields_limit", response.context["form"].fields.keys())
-        self.assertIn("globals_limit", response.context["form"].fields.keys())
-        self.assertIn("groups_limit", response.context["form"].fields.keys())
+        self.assertEqual(17, len(response.context["form"].fields))
+        for elt in settings.ORG_LIMIT_DEFAULTS.keys():
+            self.assertIn(f"{elt}_limit", response.context["form"].fields.keys())
 
         parent = Org.objects.create(
             name="Parent",
@@ -4185,6 +4185,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "surveyor_password": "",
                 "fields_limit": 300,
                 "groups_limit": 400,
+                "channels_limit": 20,
             },
         )
         self.assertEqual(302, response.status_code)
@@ -4192,6 +4193,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.refresh_from_db()
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_CHANNELS), 20)
 
         # reset groups limit
         post_data = {
@@ -4213,6 +4215,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             "surveyor_password": "",
             "fields_limit": 300,
             "groups_limit": "",
+            "channels_limit": "",
         }
 
         response = self.client.post(update_url, post_data)
@@ -4221,6 +4224,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.refresh_from_db()
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_CHANNELS), 10)
 
         # unflag org
         post_data["action"] = "unflag"
