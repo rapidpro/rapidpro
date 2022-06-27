@@ -2127,6 +2127,13 @@ class ContactImportCRUDL(SmartCRUDL):
                 if add_to_group:
                     group_mode = self.cleaned_data["group_mode"]
                     if group_mode == self.GROUP_MODE_NEW:
+                        group_count, group_limit = ContactGroup.get_org_limit_progress(self.org)
+                        if group_limit is not None and group_count >= group_limit:
+                            raise forms.ValidationError(
+                                _("This workspace has reached its limit of %(limit)d groups."),
+                                params={"limit": group_limit},
+                            )
+
                         new_group_name = self.cleaned_data.get("new_group_name")
                         if not new_group_name:
                             self.add_error("new_group_name", _("Required."))
@@ -2138,13 +2145,6 @@ class ContactImportCRUDL(SmartCRUDL):
                         existing_group = self.cleaned_data.get("existing_group")
                         if not existing_group:
                             self.add_error("existing_group", _("Required."))
-
-                    group_count, group_limit = ContactGroup.get_org_limit_progress(self.org)
-                    if group_limit is not None and group_count >= group_limit:
-                        raise forms.ValidationError(
-                            _("This workspace has reached its limit of %(limit)d groups."),
-                            params={"limit": group_limit},
-                        )
 
                 return self.cleaned_data
 
