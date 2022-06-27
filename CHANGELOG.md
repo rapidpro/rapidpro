@@ -1,3 +1,7 @@
+v7.3.72
+----------
+ * Add DB constraint to enforce that flow sessions always have output or output_url
+
 v7.3.71
 ----------
  * Make sure all limits are updatable on the workspace update view
