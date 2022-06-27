@@ -57,6 +57,7 @@ class CampaignCRUDL(SmartCRUDL):
             menu = []
             menu.append(
                 self.create_menu_item(
+                    menu_id="active",
                     name=_("Active"),
                     icon="campaign",
                     href="campaigns.campaign_list",
@@ -65,6 +66,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             menu.append(
                 self.create_menu_item(
+                    menu_id="archived",
                     name=_("Archived"),
                     icon="archive",
                     href="campaigns.campaign_archived",
@@ -95,7 +97,7 @@ class CampaignCRUDL(SmartCRUDL):
                     raise Http404("Campaign not found")
 
         def get_success_url(self):
-            return reverse("campaigns.campaign_read", args=[self.object.pk])
+            return reverse("campaigns.campaign_read", args=[self.object.uuid])
 
         def get_form_kwargs(self, *args, **kwargs):
             form_kwargs = super().get_form_kwargs(*args, **kwargs)
@@ -118,6 +120,8 @@ class CampaignCRUDL(SmartCRUDL):
             return self.render_modal_response(form)
 
     class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = "uuid"
+
         def derive_title(self):
             return self.object.name
 
@@ -182,7 +186,7 @@ class CampaignCRUDL(SmartCRUDL):
                     dict(
                         title=_("Service"),
                         posterize=True,
-                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("campaigns.campaign_read", args=[self.object.id])}',
+                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("campaigns.campaign_read", args=[self.object.uuid])}',
                     )
                 )
 
@@ -192,7 +196,7 @@ class CampaignCRUDL(SmartCRUDL):
         fields = ("name", "group")
         form_class = CampaignForm
         success_message = ""
-        success_url = "id@campaigns.campaign_read"
+        success_url = "uuid@campaigns.campaign_read"
 
         def pre_save(self, obj):
             obj = super().pre_save(obj)
@@ -263,7 +267,7 @@ class CampaignCRUDL(SmartCRUDL):
     class Archive(OrgFilterMixin, OrgPermsMixin, SmartUpdateView):
 
         fields = ()
-        success_url = "id@campaigns.campaign_read"
+        success_url = "uuid@campaigns.campaign_read"
         success_message = _("Campaign archived")
 
         def save(self, obj):
@@ -272,7 +276,7 @@ class CampaignCRUDL(SmartCRUDL):
 
     class Activate(OrgFilterMixin, OrgPermsMixin, SmartUpdateView):
         fields = ()
-        success_url = "id@campaigns.campaign_read"
+        success_url = "uuid@campaigns.campaign_read"
         success_message = _("Campaign activated")
 
         def save(self, obj):
@@ -541,7 +545,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             event = self.get_object()
             if not event.is_active:
                 messages.error(self.request, "Campaign event no longer exists")
-                return HttpResponseRedirect(reverse("campaigns.campaign_read", args=[event.campaign.pk]))
+                return HttpResponseRedirect(reverse("campaigns.campaign_read", args=[event.campaign.uuid]))
 
         def get_object_org(self):
             return self.get_object().campaign.org
@@ -607,10 +611,10 @@ class CampaignEventCRUDL(SmartCRUDL):
             return HttpResponseRedirect(redirect_url)
 
         def get_redirect_url(self):
-            return reverse("campaigns.campaign_read", args=[self.object.campaign.pk])
+            return reverse("campaigns.campaign_read", args=[self.object.campaign.uuid])
 
         def get_cancel_url(self):  # pragma: needs cover
-            return reverse("campaigns.campaign_read", args=[self.object.campaign.pk])
+            return reverse("campaigns.campaign_read", args=[self.object.campaign.uuid])
 
     class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         success_message = ""
@@ -765,7 +769,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             return fields
 
         def get_success_url(self):
-            return reverse("campaigns.campaign_read", args=[self.object.campaign.pk])
+            return reverse("campaigns.campaign_read", args=[self.object.campaign.uuid])
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()

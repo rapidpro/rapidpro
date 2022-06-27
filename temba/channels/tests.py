@@ -23,7 +23,7 @@ from temba.channels.views import channel_status_processor
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
-from temba.orgs.models import Org
+from temba.orgs.models import Org, OrgRole
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -524,8 +524,8 @@ class ChannelTest(TembaTest):
 
         # test that editors have the channel of the the org the are using
         other_user = self.create_user("Other")
-        self.org2.administrators.add(other_user)
-        self.org.editors.add(other_user)
+        self.org2.add_user(other_user, OrgRole.ADMINISTRATOR)
+        self.org.add_user(other_user, OrgRole.EDITOR)
         self.assertFalse(self.org2.channels.all())
 
         self.login(other_user)
@@ -777,6 +777,28 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "IB")
         self.assertEqual(response.context["channel_types"]["PHONE"][4].code, "JS")
 
+        with override_settings(ORG_LIMIT_DEFAULTS={"channels": 2}):
+            response = self.client.get(reverse("channels.channel_claim"))
+            self.assertEqual(200, response.status_code)
+
+            self.assertEqual(2, response.context["total_count"])
+            self.assertEqual(2, response.context["total_limit"])
+            self.assertContains(
+                response,
+                "You have reached the limit of 2 channels per workspace. Please remove channels that you are no longer using.",
+            )
+
+        with override_settings(ORG_LIMIT_DEFAULTS={"channels": 3}):
+            response = self.client.get(reverse("channels.channel_claim"))
+            self.assertEqual(200, response.status_code)
+
+            self.assertEqual(2, response.context["total_count"])
+            self.assertEqual(3, response.context["total_limit"])
+            self.assertContains(
+                response,
+                "You are approaching the limit of 3 channels per workspace. You should remove channels that you are no longer using.",
+            )
+
     def test_claim_all(self):
         # no access for regular users
         self.login(self.user)
@@ -938,9 +960,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(11, len(response["cmds"]))
 
     def test_sync_broadcast_multiple_channels(self):
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
-
         channel2 = Channel.create(
             self.org,
             self.user,
@@ -1011,9 +1030,6 @@ class ChannelTest(TembaTest):
         incoming_message = self.create_incoming_msg(
             contact, "hey", channel=self.tel_channel, status=Msg.STATUS_PENDING
         )
-
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
 
         # Check our sync point has all three messages queued for delivery
         response = self.sync(self.tel_channel, cmds=[])

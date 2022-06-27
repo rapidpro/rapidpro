@@ -49,7 +49,7 @@
     %table.list.lined.selectable.scrolled
       %tbody
         -for obj in object_list
-          %tr.campaign.object-row.select-row(data-object-id="{{ obj.id }}" onclick='handleRowClicked(event)')
+          %tr.campaign.object-row.select-row(data-object-id="{{ obj.uuid }}" onclick='handleRowClicked(event)')
             - if org_perms.campaigns.campaign_update
               %td.campaign.checkbox.object-row-checkbox
                 %temba-checkbox{onclick:"handleRowSelection(this)"}

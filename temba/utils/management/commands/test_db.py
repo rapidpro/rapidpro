@@ -13,7 +13,7 @@ import pytz
 from django_redis import get_redis_connection
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
 from django.core.management import BaseCommand, CommandError
 from django.db import connection
 from django.utils import timezone
@@ -25,7 +25,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup, Cont
 from temba.flows.models import Flow
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
-from temba.orgs.models import Org
+from temba.orgs.models import Org, OrgRole, User
 from temba.utils import chunk_list
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 
@@ -49,11 +49,16 @@ ORG_NAMES = (
 
 # the users, channels, groups, labels and fields to create for each organization
 USERS = (
-    {"email": "admin%(orgid)d@nyaruka.com", "role": "administrators", "first_name": "Adam", "last_name": "McAdmin"},
-    {"email": "editor%(orgid)d@nyaruka.com", "role": "editors", "first_name": "Eddy", "last_name": "McEditor"},
-    {"email": "viewer%(orgid)d@nyaruka.com", "role": "viewers", "first_name": "Veronica", "last_name": "McViews"},
-    {"email": "surveyor%(orgid)d@nyaruka.com", "role": "surveyors", "first_name": "", "last_name": ""},
-    {"email": "agent%(orgid)d@nyaruka.com", "role": "agents", "first_name": "Agnes", "last_name": "McAgent"},
+    {
+        "email": "admin%(orgid)d@nyaruka.com",
+        "role": OrgRole.ADMINISTRATOR,
+        "first_name": "Adam",
+        "last_name": "McAdmin",
+    },
+    {"email": "editor%(orgid)d@nyaruka.com", "role": OrgRole.EDITOR, "first_name": "Eddy", "last_name": "McEditor"},
+    {"email": "viewer%(orgid)d@nyaruka.com", "role": OrgRole.VIEWER, "first_name": "Veronica", "last_name": "McViews"},
+    {"email": "surveyor%(orgid)d@nyaruka.com", "role": OrgRole.SURVEYOR, "first_name": "", "last_name": ""},
+    {"email": "agent%(orgid)d@nyaruka.com", "role": OrgRole.AGENT, "first_name": "Agnes", "last_name": "McAgent"},
 )
 CHANNELS = (
     {"name": "Android", "channel_type": "A", "scheme": "tel", "address": "1234"},
@@ -286,7 +291,7 @@ class Command(BaseCommand):
                 user = User.objects.create_user(
                     email, email, password, first_name=u["first_name"], last_name=u["last_name"]
                 )
-                getattr(org, u["role"]).add(user)
+                org.add_user(user, u["role"])
                 user.set_org(org)
                 org.cache["users"].append(user)
 

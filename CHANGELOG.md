@@ -1,3 +1,61 @@
+v7.3.72
+----------
+ * Add DB constraint to enforce that flow sessions always have output or output_url
+
+v7.3.71
+----------
+ * Make sure all limits are updatable on the workspace update view
+ * Remove duplicated pagination
+ * Enforce channels limit per workspace
+
+v7.3.70
+----------
+ * Fix workspace group limit check for existing group import
+ * Drop no longer used role m2ms
+
+v7.3.69
+----------
+ * Fix campaign links
+
+v7.3.68
+----------
+ * Add WhatsApp API version choice field
+ * Stop writing to the role specific m2m tables
+ * Add pending events tab to contact details
+
+v7.3.67
+----------
+ * Merge pull request #3865 from nyaruka/plivo_claim
+ * formatting
+ * Sanitize plivo app names to match new rules
+
+v7.3.66
+----------
+ * Merge pull request #3864 from nyaruka/fix-WA-templates
+ * Fix message templates syncing for new categories
+
+v7.3.65
+----------
+ * Fix surveyor joins so new users are added to orgmembership as well.
+
+v7.3.64
+----------
+ * Fix fetching org users with given roles
+
+v7.3.63
+----------
+ * Update mailroom_db command to correctly add users to orgs
+ * Stop reading from org role m2m tables
+
+v7.3.62
+----------
+ * Fix rendering of dates on upcoming events list
+ * Data migration to backfill OrgMembership
+
+v7.3.61
+----------
+ * Add missing migration
+
 v7.3.60
 ----------
  * Data migration to fail active/waiting runs with no session

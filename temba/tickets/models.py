@@ -258,7 +258,7 @@ class Ticket(models.Model):
 
     @classmethod
     def get_allowed_assignees(cls, org):
-        return org.get_users_with_perm(cls.ASSIGNEE_PERMISSION)
+        return org.get_users(with_perm=cls.ASSIGNEE_PERMISSION)
 
     def delete(self):
         self.events.all().delete()
@@ -564,7 +564,7 @@ def export_ticket_stats(org: Org, since: date, until: date) -> openpyxl.Workbook
     sheet.cell(row=2, column=3, value="Replies")
     sheet.cell(row=2, column=4, value="Reply Time (Secs)")
 
-    users = list(org.get_users().order_by("email"))
+    users = list(org.users.order_by("email"))
 
     user_col = 5
     for user in users:

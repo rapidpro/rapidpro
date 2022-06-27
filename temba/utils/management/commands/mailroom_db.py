@@ -6,7 +6,6 @@ import pytz
 from django_redis import get_redis_connection
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.core.management import BaseCommand, CommandError, call_command
 from django.db import connection
 from django.utils import timezone
@@ -19,7 +18,7 @@ from temba.flows.models import Flow
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
-from temba.orgs.models import Org
+from temba.orgs.models import Org, OrgRole, User
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Team, Ticketer, Topic
 
@@ -273,8 +272,7 @@ class Command(BaseCommand):
             user = User.objects.create_user(
                 u["email"], u["email"], USER_PASSWORD, first_name=u["first_name"], last_name=u["last_name"]
             )
-            getattr(org, u["role"]).add(user)
-            user.set_org(org)
+            org.add_user(user, OrgRole.from_code(u["role"]))
             if u.get("team"):
                 user.set_team(Team.objects.get(name=u["team"]))
 
