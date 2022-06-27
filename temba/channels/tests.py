@@ -735,28 +735,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(401, response.status_code)
         self.assertEqual(4, response.json()["error_id"])
 
-    def test_get_org_limit_progress(self):
-        Channel.objects.all().delete()
-
-        self.assertEqual((0, 10), Channel.get_org_limit_progress(self.org))
-
-        channel1 = self.create_channel(
-            "A", "Test Channel", "+250785551212", country="RW", secret="12345", config={"FCM_ID": "123"}
-        )
-
-        self.assertEqual((1, 10), Channel.get_org_limit_progress(self.org))
-
-        with override_settings(ORG_LIMIT_DEFAULTS={"channels": 2}):
-            self.assertEqual((1, 2), Channel.get_org_limit_progress(self.org))
-
-        # Do not include delegate channels
-        self.org.connect_vonage("key", "secret", self.admin)
-        Channel.add_vonage_bulk_sender(self.org, self.admin, channel1)
-        self.assertEqual((1, 10), Channel.get_org_limit_progress(self.org))
-
-        with override_settings(ORG_LIMIT_DEFAULTS={"channels": 2}):
-            self.assertEqual((1, 2), Channel.get_org_limit_progress(self.org))
-
     def test_claim(self):
         # no access for regular users
         self.login(self.user)

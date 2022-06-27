@@ -416,15 +416,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     )
 
     @classmethod
-    def get_org_limit_progress(cls, org) -> tuple:
-        """
-        Gets a tuple of the count of channels and the limit. A limit of None means unlimited.
-        """
-        limit = org.get_limit(cls.org_limit_key) if cls.org_limit_key else None
-
-        return cls.get_active_for_org(org).filter(parent=None).count(), limit
-
-    @classmethod
     def create(
         cls,
         org,
