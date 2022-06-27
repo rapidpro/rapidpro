@@ -1,3 +1,9 @@
+v7.3.71
+----------
+ * Make sure all limits are updatable on the workspace update view
+ * Remove duplicated pagination
+ * Enforce channels limit per workspace
+
 v7.3.70
 ----------
  * Fix workspace group limit check for existing group import
