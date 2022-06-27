@@ -505,9 +505,17 @@ class TembaTestMixin:
             duration=15,
         )
         session = FlowSession.objects.create(
-            uuid=uuid4(), org=contact.org, contact=contact, connection=call, wait_resume_on_expire=False
+            uuid=uuid4(),
+            org=contact.org,
+            contact=contact,
+            status=FlowSession.STATUS_COMPLETED,
+            output_url="http://sessions.com/123.json",
+            connection=call,
+            wait_resume_on_expire=False,
         )
-        FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session)
+        FlowRun.objects.create(
+            org=self.org, flow=flow, contact=contact, status=FlowRun.STATUS_COMPLETED, session=session
+        )
         Msg.objects.create(
             org=self.org,
             channel=self.channel,

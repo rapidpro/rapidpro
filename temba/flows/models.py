@@ -1154,6 +1154,11 @@ class FlowSession(models.Model):
                 check=~Q(status="W") | Q(wait_started_on__isnull=False, wait_expires_on__isnull=False),
                 name="flows_session_waiting_has_started_and_expires",
             ),
+            # ensure that all sessions have output or output_url
+            models.CheckConstraint(
+                check=Q(output__isnull=False) | Q(output_url__isnull=False),
+                name="flows_session_has_output_or_url",
+            ),
         ]
 
 
