@@ -348,6 +348,18 @@ class ClaimViewMixin(SpaMixin, OrgPermsMixin, ComponentFormMixin):
             self.channel_type = kwargs.pop("channel_type")
             super().__init__(**kwargs)
 
+        def clean(self):
+            count, limit = Channel.get_org_limit_progress(self.request.user.get_org())
+            if limit is not None and count >= limit:
+                raise forms.ValidationError(
+                    _(
+                        "This workspace has reached its limit of %(limit)d channels. "
+                        "You must delete existing ones before you can create new ones."
+                    ),
+                    params={"limit": limit},
+                )
+            return super().clean()
+
     def __init__(self, channel_type):
         self.channel_type = channel_type
         super().__init__()
@@ -1265,6 +1277,10 @@ class ChannelCRUDL(SmartCRUDL):
             org = user.get_org()
             context["org_timezone"] = str(org.timezone)
             context["brand"] = org.get_branding()
+
+            channel_count, org_limit = Channel.get_org_limit_progress(org)
+            context["total_count"] = channel_count
+            context["total_limit"] = org_limit
 
             # fetch channel types, sorted by category and name
             recommended_channels, types_by_category, only_regional_channels = self.channel_types_groups()
