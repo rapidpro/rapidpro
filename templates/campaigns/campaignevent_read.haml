@@ -9,7 +9,7 @@
     %span.glyph.icon-campaign
 
 -block title
-  %a{href:"{% url 'campaigns.campaign_read' object.campaign.pk %}"}
+  %a{href:"{% url 'campaigns.campaign_read' object.campaign.uuid %}"}
     {{object.campaign.name}}
     -if object.campaign.is_archived
       -trans "(Archived)"

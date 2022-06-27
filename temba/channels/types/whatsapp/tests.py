@@ -17,6 +17,7 @@ from .type import (
     CONFIG_FB_ACCESS_TOKEN,
     CONFIG_FB_BUSINESS_ID,
     CONFIG_FB_NAMESPACE,
+    CONFIG_FB_TEMPLATE_API_VERSION,
     CONFIG_FB_TEMPLATE_LIST_DOMAIN,
     WhatsAppType,
 )
@@ -48,6 +49,7 @@ class WhatsAppTypeTest(TembaTest):
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
         post_data["facebook_template_list_domain"] = "graph.facebook.com"
+        post_data["facebook_template_list_api_version"] = ""
 
         # will fail with invalid phone number
         response = self.client.post(url, post_data)
@@ -76,7 +78,7 @@ class WhatsAppTypeTest(TembaTest):
         #         self.assertEqual(200, response.status_code)
         #         self.assertFalse(Channel.objects.all())
         #         mock_get.assert_called_with(
-        #             "https://graph.facebook.com/v3.3/1234/message_templates", params={"access_token": "token123"}
+        #             "https://graph.facebook.com/v14.0/1234/message_templates", params={"access_token": "token123"}
         #         )
         #
         #         self.assertContains(response, "check user id and access token")
@@ -99,6 +101,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("tembapasswd", channel.config[Channel.CONFIG_PASSWORD])
         self.assertEqual("abc123", channel.config[Channel.CONFIG_AUTH_TOKEN])
         self.assertEqual("https://nyaruka.com/whatsapp", channel.config[Channel.CONFIG_BASE_URL])
+        self.assertNotIn(CONFIG_FB_TEMPLATE_API_VERSION, channel.config)
 
         self.assertEqual("+250788123123", channel.address)
         self.assertEqual("RW", channel.country)
@@ -254,6 +257,7 @@ class WhatsAppTypeTest(TembaTest):
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
         post_data["facebook_template_list_domain"] = "example.org"
+        post_data["facebook_template_list_api_version"] = "v3.3"
 
         with patch("requests.post") as mock_post, patch("requests.get") as mock_get:
             mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
@@ -289,6 +293,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("tembapasswd", channel.config[Channel.CONFIG_PASSWORD])
         self.assertEqual("abc123", channel.config[Channel.CONFIG_AUTH_TOKEN])
         self.assertEqual("https://nyaruka.com/whatsapp", channel.config[Channel.CONFIG_BASE_URL])
+        self.assertEqual("v3.3", channel.config[CONFIG_FB_TEMPLATE_API_VERSION])
 
         self.assertEqual("+250788123123", channel.address)
         self.assertEqual("RW", channel.country)
@@ -323,7 +328,7 @@ class WhatsAppTypeTest(TembaTest):
             MockResponse(200, '{"data": ["foo", "bar"]}'),
             MockResponse(
                 200,
-                '{"data": ["foo"], "paging": {"next": "https://graph.facebook.com/v3.3/1234/message_templates?cursor=MjQZD"} }',
+                '{"data": ["foo"], "paging": {"next": "https://graph.facebook.com/v14.0/1234/message_templates?cursor=MjQZD"} }',
             ),
             MockResponse(200, '{"data": ["bar"], "paging": {"next": null} }'),
         ]
@@ -345,7 +350,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual(["foo", "bar"], templates_data)
 
         mock_get.assert_called_with(
-            "https://graph.facebook.com/v3.3/1234/message_templates",
+            "https://graph.facebook.com/v14.0/1234/message_templates",
             params={"access_token": "token123", "limit": 255},
         )
 
@@ -357,11 +362,11 @@ class WhatsAppTypeTest(TembaTest):
         mock_get.assert_has_calls(
             [
                 call(
-                    "https://graph.facebook.com/v3.3/1234/message_templates",
+                    "https://graph.facebook.com/v14.0/1234/message_templates",
                     params={"access_token": "token123", "limit": 255},
                 ),
                 call(
-                    "https://graph.facebook.com/v3.3/1234/message_templates?cursor=MjQZD",
+                    "https://graph.facebook.com/v14.0/1234/message_templates?cursor=MjQZD",
                     params={"access_token": "token123", "limit": 255},
                 ),
             ]

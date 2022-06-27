@@ -1,3 +1,4 @@
+from django.test.utils import override_settings
 from django.urls import reverse
 
 from temba.tests import TembaTest
@@ -58,3 +59,12 @@ class KannelTypeTest(TembaTest):
         self.assertContains(
             response, "https://custom-brand.io" + reverse("courier.kn", args=[channel.uuid, "receive"])
         )
+
+        with override_settings(ORG_LIMIT_DEFAULTS={"channels": 1}):
+            response = self.client.post(url, post_data)
+            self.assertFormError(
+                response,
+                "form",
+                None,
+                "This workspace has reached its limit of 1 channels. You must delete existing ones before you can create new ones.",
+            )

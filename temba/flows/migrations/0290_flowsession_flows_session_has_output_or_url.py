@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("flows", "0288_flowlabel_is_system"),
+        ("flows", "0289_fail_ghost_runs"),
     ]
 
     operations = [

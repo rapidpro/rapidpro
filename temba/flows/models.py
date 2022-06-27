@@ -943,7 +943,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             "template": self.org.templates.filter(uuid__in=identifiers["template"]),
             "ticketer": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["ticketer"]),
             "topic": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["topic"]),
-            "user": self.org.get_users().filter(is_active=True, email__in=identifiers["user"]),
+            "user": self.org.users.filter(is_active=True, email__in=identifiers["user"]),
         }
 
         # reset the m2m for each type

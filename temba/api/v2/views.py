@@ -37,7 +37,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
-from temba.orgs.models import OrgRole
+from temba.orgs.models import OrgMembership, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import splitting_getlist, str_to_bool
@@ -3709,19 +3709,17 @@ class UsersEndpoint(ListAPIMixin, BaseAPIView):
             role_by_name = {name: role for role, name in UserReadSerializer.ROLES.items()}
             roles = [role_by_name.get(r) for r in roles if r in role_by_name]
         else:
-            roles = []
+            roles = None
 
-        return org.get_users(roles=roles).filter(is_active=True)
+        return org.get_users(roles=roles)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
 
-        # build a map of users to roles so that serializing multiple users only uses on query per role
-        org = self.request.user.get_org()
+        # build a map of users to roles
         user_roles = {}
-        for role in OrgRole:
-            for user in role.get_users(org):
-                user_roles[user] = role
+        for m in OrgMembership.objects.filter(org=self.request.user.get_org()).select_related("user"):
+            user_roles[m.user] = m.role
 
         context["user_roles"] = user_roles
         return context
