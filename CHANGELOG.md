@@ -1,3 +1,8 @@
+v7.3.70
+----------
+ * Fix workspace group limit check for existing group import
+ * Drop no longer used role m2ms
+
 v7.3.69
 ----------
  * Fix campaign links
