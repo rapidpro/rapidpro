@@ -1,3 +1,7 @@
+v7.3.73
+----------
+ * Add DB constraint to disallow active or waiting runs without a session
+
 v7.3.72
 ----------
  * Add DB constraint to enforce that flow sessions always have output or output_url
