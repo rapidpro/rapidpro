@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+-load compress i18n
+%html
+  %head
+    %meta{name:"viewport",content:"width=device-width, initial-scale=1.0"}
+    %title
+      {{ brand.name }} Redirect
+    :css
+      body { 
+        margin: 0 
+      }
+    -compress css
+      {% lessblock %}
+        :plain
+          @import (optional) "../brands/{{brand.slug}}/less/style.less";
+      {% endlessblock %}
+
+      // any additional brand styling such as fonts, etc
+      -for style in brand.styles
+        -if 'less' in style
+          %link{type:'text/less', rel:'stylesheet', href:'/sitestatic/{{style}}', media:'all'}
+        -else
+          %link{type:'text/css', rel:'stylesheet', href:"/sitestatic/{{style}}", media:'all'}
+
+  %body
+    #redirect-splash
+      %div.rbackground
+      %div.rinfo
+        %div.rtitle
+          Este link não está mais disponível
+        %div.rdesc
+          Agora você acessa seus projetos em
+          %a{href:"https://dash.weni.ai"}
+            https://dash.weni.ai
+  

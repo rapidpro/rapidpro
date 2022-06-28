@@ -6,11 +6,14 @@ from io import StringIO
 
 from django.conf import settings
 from django.http import HttpResponseRedirect
+from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone, translation
 
 from temba.orgs.models import Org
 from temba.policies.models import Policy
+
+from .context_processors_weni import use_weni_layout
 
 logger = logging.getLogger(__name__)
 
@@ -230,3 +233,14 @@ class ProfilerMiddleware:  # pragma: no cover
             self.profiler = cProfile.Profile()
             args = (request,) + callback_args
             return self.profiler.runcall(callback, *args, **callback_kwargs)
+
+class RedirectMiddleware:
+    def __init__(self, get_response=None):
+        self.get_response = get_response
+    def __call__(self, request):
+        if hasattr(settings, 'WENI_DOMAINS'):
+            if use_weni_layout(request)['use_weni_layout']:
+                return self.get_response(request)
+        if not request.path.startswith("/redirect"):
+            return HttpResponseRedirect(reverse("weni.redirect"))
+        return self.get_response(request)

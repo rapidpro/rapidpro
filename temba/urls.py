@@ -10,6 +10,8 @@ from celery.signals import worker_process_init
 from temba.channels.views import register, sync
 from temba.utils.analytics import init_analytics
 
+from .views import WeniRedirect
+
 # javascript translation packages
 js_info_dict = {"packages": ()}  # this is empty due to the fact that all translation are in one folder
 
@@ -43,6 +45,7 @@ urlpatterns = [
     url(r"^imports/", include("smartmin.csv_imports.urls")),
     url(r"^assets/", include("temba.assets.urls")),
     url(r"^jsi18n/$", JavaScriptCatalog.as_view(), js_info_dict, name="django.views.i18n.javascript_catalog"),
+    url(r"^redirect/", WeniRedirect.as_view(), {}, "weni.redirect")
 ]
 
 if settings.DEBUG:
