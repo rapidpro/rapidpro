@@ -234,6 +234,17 @@ class TriggerTest(TembaTest):
 
         self.assertEqual(3, Trigger.objects.count())  # no new triggers imported
 
+        # and new conversation triggers with no channel
+        self._import_trigger(
+            {
+                "trigger_type": "N",
+                "flow": {"uuid": "8907acb0-4f32-41c2-887d-b5d2ffcc2da9", "name": "Reminder"},
+                "groups": [],
+            }
+        )
+
+        self.assertEqual(3, Trigger.objects.count())  # no new triggers imported
+
     def test_import_invalid(self):
         flow = self.create_flow("Test")
         flow_ref = {"uuid": str(flow.uuid), "name": "Test Flow"}
@@ -261,16 +272,6 @@ class TriggerTest(TembaTest):
         self.assert_import_error(
             {"trigger_type": "K", "flow": flow_ref, "groups": [], "keyword": "12345678901234567"},
             "12345678901234567 is not a valid keyword",
-        )
-
-        # new conversation without a channel
-        self.assert_import_error(
-            {
-                "trigger_type": "N",
-                "flow": flow_ref,
-                "groups": [],
-            },
-            "Field 'channel' is required.",
         )
 
         # fields which don't apply to the trigger type are ignored
