@@ -2174,6 +2174,21 @@ class OrgCRUDL(SmartCRUDL):
                     )
             return links
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            org = self.get_object()
+
+            users_roles = []
+
+            for role in OrgRole:
+                role_users = list(org.get_users(roles=[role]).values("id", "email"))
+                users_roles.append(dict(role_display=role.display_plural, users=role_users))
+
+            context["users_roles"] = users_roles
+
+            return context
+
         def post(self, request, *args, **kwargs):
             if "action" in request.POST:
                 action = request.POST["action"]
