@@ -188,12 +188,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             )
             return self.form_invalid(form)
 
-        oauth_user_token = self.request.session.get(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, None)
-
         # assign system user to WABA
         url = f"https://graph.facebook.com/v13.0/{waba_id}/assigned_users"
         params = {"user": f"{settings.WHATSAPP_ADMIN_SYSTEM_USER_ID}", "tasks": ["MANAGE"]}
-        headers = {"Authorization": f"Bearer {oauth_user_token}"}
+        headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
 
         resp = requests.post(url, params=params, headers=headers)
 

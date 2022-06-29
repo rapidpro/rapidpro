@@ -19,6 +19,7 @@ class WhatsAppCloudTypeTest(TembaTest):
         FACEBOOK_APPLICATION_ID="FB_APP_ID",
         FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET",
         WHATSAPP_FACEBOOK_BUSINESS_ID="FB_BUSINESS_ID",
+        WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN",
         ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS=["2222222222222"],
     )
     @patch("temba.channels.types.whatsapp_cloud.views.randint")
@@ -302,7 +303,9 @@ class WhatsAppCloudTypeTest(TembaTest):
                     "https://graph.facebook.com/v13.0/111111111111111/assigned_users",
                     wa_cloud_post.call_args_list[0][0][0],
                 )
-                self.assertEqual({"Authorization": "Bearer user-token"}, wa_cloud_post.call_args_list[0][1]["headers"])
+                self.assertEqual(
+                    {"Authorization": "Bearer WA_ADMIN_TOKEN"}, wa_cloud_post.call_args_list[0][1]["headers"]
+                )
 
                 self.assertEqual(
                     "https://graph.facebook.com/v13.0/567567567/whatsapp_credit_sharing_and_attach",
