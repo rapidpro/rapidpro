@@ -2183,7 +2183,8 @@ class OrgCRUDL(SmartCRUDL):
 
             for role in OrgRole:
                 role_users = list(org.get_users(roles=[role]).values("id", "email"))
-                users_roles.append(dict(role_display=role.display_plural, users=role_users))
+                if role_users:
+                    users_roles.append(dict(role_display=role.display_plural, users=role_users))
 
             context["users_roles"] = users_roles
 
