@@ -1,3 +1,7 @@
+v7.3.74
+----------
+ * Use FB JS SDK for WAC signups
+
 v7.3.73
 ----------
  * Add DB constraint to disallow active or waiting runs without a session
