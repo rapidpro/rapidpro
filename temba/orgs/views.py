@@ -15,8 +15,8 @@ import pyotp
 import pytz
 import requests
 from packaging.version import Version
-from smartmin.users.models import FailedLogin, RecoveryToken
-from smartmin.users.views import Login
+from smartmin.users.models import FailedLogin, PasswordHistory, RecoveryToken
+from smartmin.users.views import Login, UserUpdateForm
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -235,6 +235,7 @@ class ModalMixin(SmartFormView):
         return context
 
     def render_modal_response(self, form=None):
+        success_url = self.get_success_url()
         response = self.render_to_response(
             self.get_context_data(
                 form=form,
@@ -242,7 +243,8 @@ class ModalMixin(SmartFormView):
                 success_script=getattr(self, "success_script", None),
             )
         )
-        response["Temba-Success"] = self.get_success_url()
+
+        response["Temba-Success"] = success_url
         return response
 
     def form_valid(self, form):
@@ -690,6 +692,7 @@ class UserCRUDL(SmartCRUDL):
     model = User
     actions = (
         "list",
+        "update",
         "edit",
         "delete",
         "forget",
@@ -706,7 +709,7 @@ class UserCRUDL(SmartCRUDL):
         search_fields = ("username",)
 
         def get_username(self, user):
-            return mark_safe(f"<a href='{reverse('users.user_update', args=(user.id,))}'>{user.username}</a>")
+            return mark_safe(f"<a href='{reverse('orgs.user_update', args=(user.id,))}'>{user.username}</a>")
 
         def get_orgs(self, user):
             orgs = user.get_orgs()[0:6]
@@ -723,18 +726,69 @@ class UserCRUDL(SmartCRUDL):
         def derive_queryset(self, **kwargs):
             return super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
 
-    class Delete(SmartUpdateView):
-        class DeleteForm(forms.ModelForm):
-            delete = forms.BooleanField()
+    class Update(ComponentFormMixin, SmartUpdateView):
+        class Form(UserUpdateForm):
+            groups = forms.ModelMultipleChoiceField(
+                widget=SelectMultipleWidget(
+                    attrs={"placeholder": _("Optional: Select permissions groups."), "searchable": True}
+                ),
+                queryset=Group.objects.all(),
+                required=False,
+            )
 
             class Meta:
                 model = User
-                fields = ("delete",)
+                fields = ("email", "new_password", "first_name", "last_name", "groups")
+                help_texts = {"new_password": _("You can reset the user's password by entering a new password here")}
 
-        form_class = DeleteForm
+        form_class = Form
+        success_message = "User updated successfully."
+        title = "Update"
+
+        def get_gear_links(self):
+            return [
+                dict(
+                    id="user-delete",
+                    title=_("Delete"),
+                    modax=_("Delete User"),
+                    href=reverse("orgs.user_delete", args=[self.object.id]),
+                )
+            ]
+
+        def pre_save(self, obj):
+            obj.username = obj.email
+            return obj
+
+        def post_save(self, obj):
+            """
+            Make sure our groups are up-to-date
+            """
+            if "groups" in self.form.cleaned_data:
+                obj.groups.clear()
+                for group in self.form.cleaned_data["groups"]:
+                    obj.groups.add(group)
+
+            # if a new password was set, reset our failed logins
+            if "new_password" in self.form.cleaned_data and self.form.cleaned_data["new_password"]:
+                FailedLogin.objects.filter(username__iexact=self.object.username).delete()
+                PasswordHistory.objects.create(user=obj, password=obj.password)
+
+            return obj
+
+    class Delete(ModalMixin, SmartDeleteView):
+        fields = ("id",)
         permission = "orgs.user_update"
+        submit_button_name = _("Delete")
+        cancel_url = "@orgs.user_list"
 
-        def form_valid(self, form):
+        def get_context_data(self, **kwargs):
+            brand = self.request.branding.get("brand")
+
+            context = super().get_context_data(**kwargs)
+            context["owned_orgs"] = self.get_object().get_owned_orgs(brand=brand)
+            return context
+
+        def post(self, request, *args, **kwargs):
             user = self.get_object()
             username = user.username
 
@@ -1149,6 +1203,7 @@ class OrgCRUDL(SmartCRUDL):
         "export",
         "import",
         "plivo_connect",
+        "whatsapp_cloud_connect",
         "prometheus",
         "resthooks",
         "service",
@@ -1230,7 +1285,7 @@ class OrgCRUDL(SmartCRUDL):
                     items = []
                     channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
                     for channel in channels:
-                        icon = channel.get_type().icon.replace("icon-", "")
+                        icon = channel.type.icon.replace("icon-", "")
                         icon = icon.replace("power-cord", "box")
                         items.append(
                             self.create_menu_item(
@@ -1285,13 +1340,25 @@ class OrgCRUDL(SmartCRUDL):
             else:
 
                 return [
-                    self.create_menu_item(name=_("Messages"), icon="message-square", endpoint="msgs.msg_menu"),
-                    self.create_menu_item(name=_("Contacts"), icon="contact", endpoint="contacts.contact_menu"),
-                    self.create_menu_item(name=_("Flows"), icon="flow", endpoint="flows.flow_menu"),
-                    self.create_menu_item(name=_("Triggers"), icon="radio", endpoint="triggers.trigger_menu"),
-                    self.create_menu_item(name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaign_menu"),
                     self.create_menu_item(
-                        name=_("Tickets"), icon="agent", endpoint="tickets.ticket_menu", href="tickets.ticket_list"
+                        menu_id="messages", name=_("Messages"), icon="message-square", endpoint="msgs.msg_menu"
+                    ),
+                    self.create_menu_item(
+                        menu_id="contacts", name=_("Contacts"), icon="contact", endpoint="contacts.contact_menu"
+                    ),
+                    self.create_menu_item(menu_id="flows", name=_("Flows"), icon="flow", endpoint="flows.flow_menu"),
+                    self.create_menu_item(
+                        menu_id="triggers", name=_("Triggers"), icon="radio", endpoint="triggers.trigger_menu"
+                    ),
+                    self.create_menu_item(
+                        menu_id="campaigns", name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaign_menu"
+                    ),
+                    self.create_menu_item(
+                        menu_id="tickets",
+                        name=_("Tickets"),
+                        icon="agent",
+                        endpoint="tickets.ticket_menu",
+                        href="tickets.ticket_list",
                     ),
                     {
                         "id": "settings",
@@ -1596,8 +1663,6 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = Form
         submit_button_name = "Save"
-        success_url = "@channels.types.vonage.claim"
-        field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
         success_message = "Vonage Account successfully connected."
 
         def form_valid(self, form):
@@ -1614,6 +1679,68 @@ class OrgCRUDL(SmartCRUDL):
 
     class Plan(InferOrgMixin, OrgPermsMixin, SmartReadView):
         pass
+
+    class WhatsappCloudConnect(InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class WhatsappCloudConnectForm(forms.Form):
+            user_access_token = forms.CharField(min_length=32, required=True)
+
+            def clean(self):
+                try:
+                    auth_token = self.cleaned_data.get("user_access_token", None)
+
+                    app_id = settings.FACEBOOK_APPLICATION_ID
+                    app_secret = settings.FACEBOOK_APPLICATION_SECRET
+
+                    url = "https://graph.facebook.com/v13.0/debug_token"
+                    params = {"access_token": f"{app_id}|{app_secret}", "input_token": auth_token}
+
+                    response = requests.get(url, params=params)
+                    if response.status_code != 200:  # pragma: no cover
+                        raise Exception("Failed to debug user token")
+
+                    response_json = response.json()
+
+                    for perm in ["business_management", "whatsapp_business_management", "whatsapp_business_messaging"]:
+                        if perm not in response_json.get("data", dict()).get("scopes", []):
+                            raise Exception(
+                                'Missing permission, we need all the following permissions "business_management", "whatsapp_business_management", "whatsapp_business_messaging"'
+                            )
+                except Exception:
+                    raise forms.ValidationError(
+                        _("Sorry account could not be connected. Please try again"), code="invalid"
+                    )
+
+                return self.cleaned_data
+
+        form_class = WhatsappCloudConnectForm
+        success_url = "@channels.types.whatsapp_cloud.claim"
+        field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
+
+        def pre_process(self, request, *args, **kwargs):
+            session_token = self.request.session.get(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, None)
+            if session_token:
+                return HttpResponseRedirect(self.get_success_url())
+
+            return super().pre_process(request, *args, **kwargs)
+
+        def form_valid(self, form):
+            auth_token = form.cleaned_data["user_access_token"]
+
+            # add the credentials to the session
+            self.request.session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = auth_token
+            return HttpResponseRedirect(self.get_success_url())
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["connect_url"] = reverse("orgs.org_whatsapp_cloud_connect")
+            context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
+
+            claim_error = None
+            if context["form"].errors:
+                claim_error = context["form"].errors.get("__all__", [""])[0]
+            context["claim_error"] = claim_error
+
+            return context
 
     class PlivoConnect(ModalMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class PlivoConnectForm(forms.Form):
@@ -1915,7 +2042,7 @@ class OrgCRUDL(SmartCRUDL):
         def lookup_field_link(self, context, field, obj):
             if field == "owner":
                 owner = obj.get_owner()
-                return reverse("users.user_update", args=[owner.pk])
+                return reverse("orgs.user_update", args=[owner.pk])
             return super().lookup_field_link(context, field, obj)
 
         def get_created_by(self, obj):  # pragma: needs cover
@@ -1950,7 +2077,7 @@ class OrgCRUDL(SmartCRUDL):
                 return self.cleaned_data
 
             def add_limits_fields(self, org: Org):
-                for limit_type in [Org.LIMIT_FIELDS, Org.LIMIT_GROUPS, Org.LIMIT_GLOBALS]:
+                for limit_type in settings.ORG_LIMIT_DEFAULTS.keys():
                     initial = org.limits.get(limit_type)
                     limit_field = forms.IntegerField(required=False, initial=initial)
                     field_key = f"{limit_type}_limit"
@@ -2111,7 +2238,7 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             role_summary = []
             for role in OrgRole:
-                num_users = org.get_users_with_role(role).count()
+                num_users = org.get_users(roles=[role]).count()
                 if num_users == 1:
                     role_summary.append(f"1 {role.display}")
                 elif num_users > 1:
@@ -2143,7 +2270,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.add_per_invite_fields(org)
 
             def add_per_user_fields(self, org: Org, role_choices: list):
-                for user in org.get_users().order_by("email"):
+                for user in org.users.order_by("email"):
                     role_field = forms.ChoiceField(
                         choices=role_choices,
                         required=True,
@@ -2192,7 +2319,7 @@ class OrgCRUDL(SmartCRUDL):
             def clean_invite_emails(self):
                 emails = self.cleaned_data["invite_emails"].lower().strip()
                 existing_users_emails = set(
-                    list(self.org.get_users().values_list("username", flat=True))
+                    list(self.org.users.values_list("username", flat=True))
                     + list(self.org.invitations.filter(is_active=True).values_list("email", flat=True))
                 )
                 cleaned_emails = []
@@ -2602,11 +2729,13 @@ class OrgCRUDL(SmartCRUDL):
             self.invitation = self.get_invitation()
             email = self.invitation.email
 
-            user = Org.create_user(email, self.form.cleaned_data["password"], language=obj.language)
-
-            user.first_name = self.form.cleaned_data["first_name"]
-            user.last_name = self.form.cleaned_data["last_name"]
-            user.save()
+            user = User.create(
+                email,
+                self.form.cleaned_data["first_name"],
+                self.form.cleaned_data["last_name"],
+                password=self.form.cleaned_data["password"],
+                language=obj.language,
+            )
 
             # log the user in
             user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
@@ -2862,24 +2991,25 @@ class OrgCRUDL(SmartCRUDL):
                 org = self.form.cleaned_data["org"]
 
                 # create our user
-                username = self.form.cleaned_data["email"]
-                user = Org.create_user(username, self.form.cleaned_data["password"], language=org.language)
-
-                user.first_name = self.form.cleaned_data["first_name"]
-                user.last_name = self.form.cleaned_data["last_name"]
-                user.save()
+                user = User.create(
+                    self.form.cleaned_data["email"],
+                    self.form.cleaned_data["first_name"],
+                    self.form.cleaned_data["last_name"],
+                    password=self.form.cleaned_data["password"],
+                    language=org.language,
+                )
 
                 # log the user in
                 user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
                 login(self.request, user)
 
-                org.surveyors.add(user)
+                org.add_user(user, OrgRole.SURVEYOR)
 
                 token = APIToken.get_or_create(org, user, role=OrgRole.SURVEYOR)
                 org_name = quote(org.name)
 
                 return HttpResponseRedirect(
-                    f"{self.get_success_url()}?org={org_name}&uuid={str(org.uuid)}&token={token}&user={username}"
+                    f"{self.get_success_url()}?org={org_name}&uuid={str(org.uuid)}&token={token}&user={user.email}"
                 )
 
         def form_invalid(self, form):
@@ -2907,15 +3037,15 @@ class OrgCRUDL(SmartCRUDL):
         permission = "orgs.org_grant"
         success_url = "@orgs.org_grant"
 
-        def create_user(self):
-            user = User.objects.filter(username__iexact=self.form.cleaned_data["email"]).first()
-            if not user:
-                user = Org.create_user(self.form.cleaned_data["email"], self.form.cleaned_data["password"])
+        def get_or_create_user(self, email, first_name, last_name, password, language):
+            user = User.objects.filter(username__iexact=email).first()
+            if user:
+                user.first_name = first_name
+                user.last_name = last_name
+                user.save(update_fields=("first_name", "last_name"))
+                return user
 
-            user.first_name = self.form.cleaned_data["first_name"]
-            user.last_name = self.form.cleaned_data["last_name"]
-            user.save(update_fields=("first_name", "last_name"))
-            return user
+            return User.create(email, first_name, last_name, password=password, language=language)
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -2925,12 +3055,20 @@ class OrgCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             obj = super().pre_save(obj)
 
-            self.user = self.create_user()
+            brand_language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
+
+            self.user = self.get_or_create_user(
+                self.form.cleaned_data["email"],
+                self.form.cleaned_data["first_name"],
+                self.form.cleaned_data["last_name"],
+                self.form.cleaned_data["password"],
+                language=brand_language,
+            )
 
             obj.created_by = self.user
             obj.modified_by = self.user
             obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
-            obj.language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
+            obj.language = brand_language
             obj.plan = self.request.branding.get("default_plan", settings.DEFAULT_PLAN)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
@@ -3213,9 +3351,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("channels.channel_read"):
                 from temba.channels.views import get_channel_read_url
 
-                formax.add_section(
-                    "channel", get_channel_read_url(channel), icon=channel.get_type().icon, action="link"
-                )
+                formax.add_section("channel", get_channel_read_url(channel), icon=channel.type.icon, action="link")
 
         def add_classifier_section(self, formax, classifier):
 
@@ -3741,7 +3877,7 @@ class TopUpCRUDL(SmartCRUDL):
 
         def save(self, obj):
             obj.org = Org.objects.get(pk=self.request.GET["org"])
-            return TopUp.create(self.request.user, price=obj.price, credits=obj.credits, org=obj.org)
+            return TopUp.create(obj.org, self.request.user, price=obj.price, credits=obj.credits)
 
         def post_save(self, obj):
             obj = super().post_save(obj)
@@ -3843,7 +3979,7 @@ class StripeHandler(View):  # pragma: no cover
                 topup.save()
 
             # we know this org, trigger an event for a payment succeeding
-            if org.administrators.all():
+            if org.get_admins().exists():
                 if event.type == "charge_succeeded":
                     track = "temba.charge_succeeded"
                 else:
@@ -3866,7 +4002,7 @@ class StripeHandler(View):  # pragma: no cover
                     context["cc_type"] = "bitcoin"
                     context["cc_name"] = charge.source.bitcoin.address
 
-                admin = org.administrators.all().first()
+                admin = org.get_admins().first()
 
                 analytics.track(admin, track, context)
                 return HttpResponse("Event '%s': %s" % (track, context))

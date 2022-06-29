@@ -306,10 +306,9 @@ class FlowTest(TembaTest):
         self.login(self.admin)
         self.get_flow("the_clinic")
 
-        campaign = Campaign.objects.filter(name="Appointment Schedule").first()
-        self.assertIsNotNone(campaign)
-        flow = Flow.objects.filter(name="Confirm Appointment").first()
-        self.assertIsNotNone(flow)
+        campaign = Campaign.objects.get(name="Appointment Schedule")
+        flow = Flow.objects.get(name="Confirm Appointment")
+
         campaign_event = CampaignEvent.objects.filter(flow=flow, campaign=campaign).first()
         self.assertIsNotNone(campaign_event)
 
@@ -1369,11 +1368,6 @@ class FlowTest(TembaTest):
     def test_views_viewers(self):
         flow = self.get_flow("color")
 
-        # create a viewer
-        self.viewer = self.create_user("Viewer")
-        self.org.viewers.add(self.viewer)
-        self.viewer.set_org(self.org)
-
         # create a flow for another org and a flow label
         flow2 = Flow.create(self.org2, self.admin2, "Flow2")
         flow_label = FlowLabel.create(self.org, self.admin, "one")
@@ -1387,11 +1381,11 @@ class FlowTest(TembaTest):
         response = self.client.get(flow_list_url)
         self.assertRedirect(response, reverse("users.user_login"))
 
-        user = self.viewer
-        user.first_name = "Test"
-        user.last_name = "Contact"
-        user.save()
-        self.login(user)
+        self.user.first_name = "Test"
+        self.user.last_name = "Contact"
+        self.user.save()
+
+        self.login(self.user)
 
         # list, should have only one flow (the one created in setUp)
 
@@ -1771,6 +1765,7 @@ class FlowTest(TembaTest):
             contact=self.contact,
             current_flow=flow1,
             status=FlowSession.STATUS_WAITING,
+            output_url="http://sessions.com/123.json",
             wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
             wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
             wait_resume_on_expire=False,
@@ -1783,6 +1778,7 @@ class FlowTest(TembaTest):
             contact=self.contact,
             current_flow=flow1,
             status=FlowSession.STATUS_COMPLETED,
+            output_url="http://sessions.com/234.json",
             wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
             wait_expires_on=None,
             wait_resume_on_expire=False,
@@ -1795,6 +1791,7 @@ class FlowTest(TembaTest):
             contact=self.contact,
             current_flow=flow2,
             status=FlowSession.STATUS_WAITING,
+            output_url="http://sessions.com/345.json",
             wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
             wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
             wait_resume_on_expire=False,
@@ -3627,6 +3624,7 @@ class FlowRunTest(TembaTest):
             org=self.org,
             contact=self.contact,
             status=FlowSession.STATUS_WAITING,
+            output_url="http://sessions.com/123.json",
             created_on=timezone.now(),
             wait_started_on=timezone.now(),
             wait_expires_on=timezone.now() + timedelta(days=7),
@@ -3674,9 +3672,27 @@ class FlowSessionTest(TembaTest):
         flow = self.get_flow("color")
 
         # create some runs that have sessions
-        session1 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False)
-        session2 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False)
-        session3 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False)
+        session1 = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=contact,
+            output_url="http://sessions.com/123.json",
+            wait_resume_on_expire=False,
+        )
+        session2 = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=contact,
+            output_url="http://sessions.com/234.json",
+            wait_resume_on_expire=False,
+        )
+        session3 = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=contact,
+            output_url="http://sessions.com/345.json",
+            wait_resume_on_expire=False,
+        )
         run1 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session1)
         run2 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session2)
         run3 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session3)
@@ -3726,7 +3742,11 @@ class FlowStartTest(TembaTest):
             start.save(update_fields=("status", "modified_on"))
 
             session = FlowSession.objects.create(
-                uuid=uuid4(), org=self.org, contact=contact, wait_resume_on_expire=False
+                uuid=uuid4(),
+                org=self.org,
+                contact=contact,
+                output_url="http://sessions.com/123.json",
+                wait_resume_on_expire=False,
             )
             FlowRun.objects.create(org=self.org, contact=contact, flow=flow, session=session, start=start)
 
@@ -5432,21 +5452,61 @@ class FlowRevisionTest(TembaTest):
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
 
 
-class FixInvalidNamesTest(MigrationTest):
+class FailGhostRunsMigrationTest(MigrationTest):
     app = "flows"
-    migrate_from = "0284_flow_unique_flow_names"
-    migrate_to = "0285_fix_invalid_names"
+    migrate_from = "0288_flowlabel_is_system"
+    migrate_to = "0289_fail_ghost_runs"
 
     def setUpBeforeMigration(self, apps):
-        self.flow1 = Flow.objects.create(
-            org=self.org,
-            name='Say "Hi"\\ There',
-            is_system=False,
-            saved_by=self.admin,
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
+        contact = self.create_contact("Bob", phone="+1234567890")
+        flow = self.create_flow("Flow")
+
+        def create_session(status: str):
+            return FlowSession.objects.create(
+                uuid=uuid4(),
+                org=self.org,
+                contact=contact,
+                status=status,
+                created_on=timezone.now(),
+                wait_started_on=timezone.now(),
+                wait_expires_on=timezone.now() + timedelta(days=7),
+                wait_resume_on_expire=False,
+            )
+
+        def create_run(session, status: str):
+            return FlowRun.objects.create(
+                uuid=uuid4(),
+                org=self.org,
+                session=session,
+                flow=flow,
+                contact=contact,
+                status=status,
+                created_on=timezone.now(),
+                modified_on=timezone.now(),
+            )
+
+        self.run1 = create_run(create_session(FlowSession.STATUS_WAITING), FlowRun.STATUS_WAITING)
+        self.run2 = create_run(create_session(FlowSession.STATUS_WAITING), FlowRun.STATUS_ACTIVE)
+        self.run3 = create_run(None, FlowRun.STATUS_ACTIVE)
+        self.run4 = create_run(None, FlowRun.STATUS_WAITING)
+        self.run5 = create_run(None, FlowRun.STATUS_COMPLETED)
 
     def test_migration(self):
-        self.flow1.refresh_from_db()
-        self.assertEqual("Say 'Hi'/ There", self.flow1.name)
+        self.run1.refresh_from_db()
+        self.assertEqual(FlowRun.STATUS_WAITING, self.run1.status)  # unchanged
+        self.assertIsNone(self.run1.exited_on)
+
+        self.run2.refresh_from_db()
+        self.assertEqual(FlowRun.STATUS_ACTIVE, self.run2.status)  # unchanged
+        self.assertIsNone(self.run2.exited_on)
+
+        self.run3.refresh_from_db()
+        self.assertEqual(FlowRun.STATUS_FAILED, self.run3.status)
+        self.assertIsNotNone(self.run3.exited_on)
+
+        self.run4.refresh_from_db()
+        self.assertEqual(FlowRun.STATUS_FAILED, self.run4.status)
+        self.assertIsNotNone(self.run4.exited_on)
+
+        self.run5.refresh_from_db()
+        self.assertEqual(FlowRun.STATUS_COMPLETED, self.run5.status)  # unchanged

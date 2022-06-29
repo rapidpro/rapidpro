@@ -1,0 +1,57 @@
+-extends "channels/channel_claim_form.html"
+-load i18n
+
+-block pre-form
+  -blocktrans trimmed
+    You can connect your WhatsApp number by clicking on it below.
+
+  -if claim_error
+    .alert-error.my-4
+      {{ claim_error }}
+
+  -if unsupported_facebook_business_id
+    .alert-error.my-4
+      -blocktrans trimmed
+        One of the Facebook business manager you are trying to connect is not configured.
+        If you do not see the WhatsApp business number you want to connect, please reach out for support.
+
+-block form
+  .mt-4
+    %form#claim-form(style="display:none;" method="POST" action="{{ claim_url }}")
+      {% csrf_token %}
+      %input#number(type="text" name="number")
+      %input#verified_name(type="text" name="verified_name")
+      %input#phone_number_id(type="text" name="phone_number_id")
+      %input#waba_id(type="text" name="waba_id")
+      %input#business_id(type="text" name="business_id")
+      %input#currency(type="text" name="currency")
+      %input#message_template_namespace(type="text" name="message_template_namespace")
+
+  .mt-4.card#fb-channel-options
+    %p(style="font-size:1rem;")
+      -trans "Select the number you want to add as a channel:"
+    
+    -for phone_num in phone_numbers
+      .fb-page-channel-option.lbl.mt-3.mr-2.p-2.linked(class="" data-number="{{phone_num.display_phone_number}}" data-verified_name="{{phone_num.verified_name}}" data-phone_number_id="{{phone_num.phone_number_id}}" data-waba_id="{{phone_num.waba_id}}" data-business_id="{{phone_num.business_id}}" data-currency="{{phone_num.currency}}" data-message_template_namespace="{{phone_num.message_template_namespace}}")
+        {{phone_num.display_phone_number}} ({{phone_num.verified_name}})
+
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(document).ready(function(){
+
+      $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e){
+        $("#number").val($(this).data("number"));
+        $("#verified_name").val($(this).data("verified_name"));
+        $("#phone_number_id").val($(this).data("phone_number_id"));
+        $("#business_id").val($(this).data("business_id"));
+        $("#waba_id").val($(this).data("waba_id"));
+        $("#currency").val($(this).data("currency"));
+        $("#message_template_namespace").val($(this).data("message_template_namespace"));
+        $("#claim-form").submit();
+      });
+
+    });
+

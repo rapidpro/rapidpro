@@ -4,6 +4,7 @@ from django.urls import reverse
 from temba.contacts.models import ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask, SystemLabel
+from temba.orgs.models import OrgRole
 from temba.tests import TembaTest
 
 from .checks import storage_url
@@ -73,11 +74,10 @@ class AssetTest(TembaTest):
         self.assertContains(response, "Your download should start automatically", status_code=200)
 
         # add our admin to another org
-        self.org2.administrators.add(self.admin)
-        self.admin.set_org(self.org2)
+        self.org2.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
         s = self.client.session
-        s["org_id"] = self.org2.pk
+        s["org_id"] = self.org2.id
         s.save()
 
         # as this asset belongs to org #1, request will have that context

@@ -11,9 +11,11 @@ from django.utils.translation import gettext_lazy as _
 from temba.airtime.models import AirtimeTransfer
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
+from temba.contacts.models import ContactURN
 from temba.flows.models import Flow
 from temba.orgs.models import Org
 from temba.tickets.models import Ticketer
+from temba.utils import redact
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +151,36 @@ class HTTPLog(models.Model):
             classifier=classifier,
             ticketer=ticketer,
         )
+
+    def get_redact_secrets(self) -> tuple:
+        if self.channel:
+            return self.channel.type.redact_values
+        return ()
+
+    def get_url_display(self):
+        """
+        Gets the URL as it should be displayed to users
+        """
+        return self._get_display_value(self.url, ContactURN.ANON_MASK)
+
+    def get_request_display(self):
+        """
+        Gets the request trace as it should be displayed to users
+        """
+        return self._get_display_value(self.request, ContactURN.ANON_MASK)
+
+    def get_response_display(self):
+        """
+        Gets the response trace as it should be displayed to users
+        """
+        return self._get_display_value(self.response, ContactURN.ANON_MASK)
+
+    def _get_display_value(self, original, mask):
+        redact_secrets = self.get_redact_secrets()
+
+        for secret in redact_secrets:
+            original = redact.text(original, secret, mask)
+        return original
 
     @property
     def is_healthy(self):

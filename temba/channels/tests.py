@@ -23,7 +23,7 @@ from temba.channels.views import channel_status_processor
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
-from temba.orgs.models import Org
+from temba.orgs.models import Org, OrgRole
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -370,7 +370,7 @@ class ChannelTest(TembaTest):
 
         # add bulk sender
         self.org.connect_vonage("key", "secret", self.admin)
-        vonage = Channel.add_vonage_bulk_sender(self.admin, android)
+        vonage = Channel.add_vonage_bulk_sender(self.org, self.admin, android)
 
         # release it
         android.release(self.admin)
@@ -524,8 +524,8 @@ class ChannelTest(TembaTest):
 
         # test that editors have the channel of the the org the are using
         other_user = self.create_user("Other")
-        self.org2.administrators.add(other_user)
-        self.org.editors.add(other_user)
+        self.org2.add_user(other_user, OrgRole.ADMINISTRATOR)
+        self.org.add_user(other_user, OrgRole.EDITOR)
         self.assertFalse(self.org2.channels.all())
 
         self.login(other_user)
@@ -777,6 +777,28 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "IB")
         self.assertEqual(response.context["channel_types"]["PHONE"][4].code, "JS")
 
+        with override_settings(ORG_LIMIT_DEFAULTS={"channels": 2}):
+            response = self.client.get(reverse("channels.channel_claim"))
+            self.assertEqual(200, response.status_code)
+
+            self.assertEqual(2, response.context["total_count"])
+            self.assertEqual(2, response.context["total_limit"])
+            self.assertContains(
+                response,
+                "You have reached the limit of 2 channels per workspace. Please remove channels that you are no longer using.",
+            )
+
+        with override_settings(ORG_LIMIT_DEFAULTS={"channels": 3}):
+            response = self.client.get(reverse("channels.channel_claim"))
+            self.assertEqual(200, response.status_code)
+
+            self.assertEqual(2, response.context["total_count"])
+            self.assertEqual(3, response.context["total_limit"])
+            self.assertContains(
+                response,
+                "You are approaching the limit of 3 channels per workspace. You should remove channels that you are no longer using.",
+            )
+
     def test_claim_all(self):
         # no access for regular users
         self.login(self.user)
@@ -822,9 +844,10 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "ZVS")
 
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "WA")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "D3")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "ZVW")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][3].code, "TWA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "WAC")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "D3")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][3].code, "ZVW")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][4].code, "TWA")
 
     def test_register_unsupported_android(self):
         # remove our explicit country so it needs to be derived from channels
@@ -937,9 +960,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(11, len(response["cmds"]))
 
     def test_sync_broadcast_multiple_channels(self):
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
-
         channel2 = Channel.create(
             self.org,
             self.user,
@@ -1010,9 +1030,6 @@ class ChannelTest(TembaTest):
         incoming_message = self.create_incoming_msg(
             contact, "hey", channel=self.tel_channel, status=Msg.STATUS_PENDING
         )
-
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
 
         # Check our sync point has all three messages queued for delivery
         response = self.sync(self.tel_channel, cmds=[])
@@ -1352,9 +1369,9 @@ class ChannelTest(TembaTest):
                 return response
 
     def test_channel_status_processor(self):
-
         request = RequestFactory().get("/")
         request.user = self.admin
+        request.org = self.org
 
         def get_context(channel_type, role):
             Channel.objects.all().delete()
@@ -1532,7 +1549,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         android = Channel.create(
             self.org, self.admin, "RW", "A", name="Android", address="+250785551313", role="SR", schemes=("tel",)
         )
-        vonage = Channel.add_vonage_bulk_sender(self.admin, android)
+        vonage = Channel.add_vonage_bulk_sender(self.org, self.admin, android)
 
         delete_url = reverse("channels.channel_delete", args=[vonage.uuid])
 
@@ -2579,6 +2596,48 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "979099111", count=1)
             self.assertContains(response, "Quito", count=1)
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
+    def test_channellog_hide_whatsapp_cloud(self):
+        urn = "whatsapp:15128505839"
+        contact = self.create_contact("Fred Jones", urns=[urn])
+        channel = self.create_channel("WAC", "Test WAC Channel", "54764868534")
+        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
+
+        success_log = ChannelLog.objects.create(
+            channel=channel,
+            msg=msg,
+            description="Successfully Sent",
+            is_error=False,
+            url=f"https://example.com/send/message?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}",
+            method="POST",
+            request=f"""
+POST /send/message?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN} HTTP/1.1
+Host: example.com
+Accept: */*
+Accept-Encoding: gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+Content-Length: 343
+Content-Type: application/x-www-form-urlencoded
+User-Agent: SignalwireCallback/1.0
+Authorizatio: Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}
+
+MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5900db47e262&AccountSid=<redacted>&From=%2B15618981512&To=%2B15128505839&Body=Hi+Ben+Google+Voice%2C+Did+you+enjoy+your+stay+at+White+Bay+Villas%3F++Answer+with+Yes+or+No.+reply+STOP+to+opt-out.&NumMedia=0&NumSegments=1&MessageStatus=sent""",
+            response='{"success": true }',
+            response_status=200,
+        )
+
+        self.login(self.admin)
+
+        list_url = reverse("channels.channellog_list", args=[channel.uuid])
+        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+
+        # check list page shows un-redacted content for a regular org
+        response = self.client.get(list_url)
+        self.assertNotContains(response, settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN)
+
+        response = self.client.get(read_url)
+        self.assertNotContains(response, settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN)
+        self.assertContains(response, f"https://example.com/send/message?access_token={ContactURN.ANON_MASK}")
+        self.assertContains(response, f"Authorizatio: Bearer {ContactURN.ANON_MASK}")
 
     def test_channellog_anonymous_org_no_msg(self):
         tw_urn = "15128505839"

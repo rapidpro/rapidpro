@@ -41,6 +41,7 @@ class CampaignTest(TembaTest):
 
     @mock_mailroom
     def test_model(self, mr_mocks):
+        contact = self.create_contact("Joe", phone="+1234567890")
         campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
         flow = self.create_flow("Test Flow")
 
@@ -55,6 +56,8 @@ class CampaignTest(TembaTest):
         self.assertEqual("Reminders", str(campaign))
         self.assertEqual('Event[relative_to=planting_date, offset=1, flow="Test Flow"]', str(event1))
         self.assertEqual([event1, event2], list(campaign.get_events()))
+        self.assertEqual(None, event1.get_message(contact))
+        self.assertEqual("Hello", event2.get_message(contact))
 
         campaign.schedule_events_async()
 
@@ -274,8 +277,10 @@ class CampaignTest(TembaTest):
     def test_views(self, mr_mocks):
         open_tickets = self.org.groups.get(name="Open Tickets")
 
+        current_year = timezone.now().year
+
         # update the planting date for our contacts
-        self.set_contact_field(self.farmer1, "planting_date", "1/10/2020")
+        self.set_contact_field(self.farmer1, "planting_date", f"1/10/{current_year-2}")
 
         # don't log in, try to create a new campaign
         response = self.client.get(reverse("campaigns.campaign_create"))
@@ -297,7 +302,7 @@ class CampaignTest(TembaTest):
 
         # should redirect to read page for this campaign
         campaign = Campaign.objects.filter(is_active=True).first()
-        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.id]))
+        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.uuid]))
 
         # go to the list page, should be there as well
         response = self.client.get(reverse("campaigns.campaign_list"))
@@ -328,12 +333,8 @@ class CampaignTest(TembaTest):
         # test viewers cannot use action archive or restore
         self.client.logout()
 
-        # create a viewer
-        self.viewer = self.create_user("Viewer")
-        self.org.viewers.add(self.viewer)
-        self.viewer.set_org(self.org)
-
-        self.login(self.viewer)
+        # login as a viewer
+        self.login(self.user)
 
         # go to the list page, should be there as well
         response = self.client.get(reverse("campaigns.campaign_list"))
@@ -431,7 +432,7 @@ class CampaignTest(TembaTest):
 
         event = CampaignEvent.objects.filter(is_active=True).get()
         # should be redirected back to our campaign read page
-        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.pk]))
+        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.uuid]))
 
         self.assertEqual(self.reminder_flow, event.flow)
         self.assertEqual(self.planting_date, event.relative_to)
@@ -439,7 +440,7 @@ class CampaignTest(TembaTest):
         self.assertEqual("I", event.start_mode)
 
         # read the campaign read page
-        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
+        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.uuid]))
         self.assertContains(response, "Reminder Flow")
         self.assertContains(response, "1")
 
@@ -505,7 +506,7 @@ class CampaignTest(TembaTest):
         response = self.client.get(
             reverse("campaigns.campaignevent_read", args=[previous_event.campaign.uuid, previous_event.pk])
         )
-        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[previous_event.campaign.pk]))
+        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[previous_event.campaign.uuid]))
 
         # attempting to update our old event gives a 404
         response = self.client.post(reverse("campaigns.campaignevent_update", args=[previous_event.pk]), post_data)
@@ -577,14 +578,14 @@ class CampaignTest(TembaTest):
         self.assertEqual(5, len(mr_mocks.queued_batch_tasks))
 
         # set a planting date on our other farmer
-        self.set_contact_field(self.farmer2, "planting_date", "1/6/2022")
+        self.set_contact_field(self.farmer2, "planting_date", f"1/6/{current_year+1}")
 
         # should have an event fire now
         fires = EventFire.objects.filter(event__is_active=True)
         self.assertEqual(1, len(fires))
 
         # setting a planting date on our outside contact has no effect
-        self.set_contact_field(self.nonfarmer, "planting_date", "1/7/2025")
+        self.set_contact_field(self.nonfarmer, "planting_date", f"1/7/{current_year+3}")
         self.assertEqual(1, EventFire.objects.filter(event__is_active=True).count())
 
         planting_date_field = self.org.fields.get(key="planting_date")
@@ -593,7 +594,7 @@ class CampaignTest(TembaTest):
 
         response = self.client.post(
             reverse("contacts.contact_update_fields", args=[self.farmer1.id]),
-            dict(contact_field=planting_date_field.id, field_value="4/8/2020"),
+            dict(contact_field=planting_date_field.id, field_value=f"4/8/{current_year-2}"),
         )
         self.assertRedirect(response, reverse("contacts.contact_read", args=[self.farmer1.uuid]))
 
@@ -608,7 +609,7 @@ class CampaignTest(TembaTest):
         # delete the event
         self.client.post(reverse("campaigns.campaignevent_delete", args=[event.id]), dict())
         self.assertFalse(CampaignEvent.objects.filter(is_active=True).exists())
-        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.id]))
+        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.uuid]))
         self.assertNotContains(response, "Color Flow")
 
         post_data = dict(
@@ -665,13 +666,13 @@ class CampaignTest(TembaTest):
 
         campaign = Campaign.create(self.org, self.admin, "Perform the rain dance", self.farmers)
 
-        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
+        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.uuid]))
 
         gear_links = response.context["view"].get_gear_links()
         self.assertListEqual([gl["title"] for gl in gear_links], ["Service"])
         self.assertEqual(
             gear_links[-1]["href"],
-            f"/org/service/?organization={campaign.org_id}&redirect_url=/campaign/read/{campaign.id}/",
+            f"/org/service/?organization={campaign.org_id}&redirect_url=/campaign/read/{campaign.uuid}/",
         )
 
     def test_view_campaign_read_archived(self):
@@ -679,7 +680,7 @@ class CampaignTest(TembaTest):
 
         campaign = Campaign.create(self.org, self.admin, "Perform the rain dance", self.farmers)
 
-        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
+        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.uuid]))
 
         # page title and main content title should NOT contain (Archived)
         self.assertContains(response, "Perform the rain dance", count=2)
@@ -692,7 +693,7 @@ class CampaignTest(TembaTest):
         campaign.is_archived = True
         campaign.save()
 
-        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
+        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.uuid]))
 
         # page title and main content title should contain (Archived)
         self.assertContains(response, "Perform the rain dance", count=2)
@@ -712,7 +713,7 @@ class CampaignTest(TembaTest):
         # archive the campaign
         response = self.client.post(reverse("campaigns.campaign_archive", args=[campaign.pk]))
 
-        self.assertRedirect(response, f"/campaign/read/{campaign.pk}/")
+        self.assertRedirect(response, f"/campaign/read/{campaign.uuid}/")
 
         campaign.refresh_from_db()
         self.assertTrue(campaign.is_archived)
@@ -728,7 +729,7 @@ class CampaignTest(TembaTest):
         # activate the campaign
         response = self.client.post(reverse("campaigns.campaign_activate", args=[campaign.pk]))
 
-        self.assertRedirect(response, f"/campaign/read/{campaign.pk}/")
+        self.assertRedirect(response, f"/campaign/read/{campaign.uuid}/")
 
         campaign.refresh_from_db()
         self.assertFalse(campaign.is_archived)
@@ -838,7 +839,7 @@ class CampaignTest(TembaTest):
             reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
         )
 
-        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.pk]))
+        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.uuid]))
 
         # archive the campaign
         campaign.is_archived = True
@@ -1282,7 +1283,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         group = self.create_group("Reporters", contacts=[])
         campaign = self.create_campaign(self.org, "Welcomes", group)
 
-        read_url = reverse("campaigns.campaign_read", args=[campaign.id])
+        read_url = reverse("campaigns.campaign_read", args=[campaign.uuid])
 
         response = self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=campaign)
         self.assertContains(response, "Welcomes")
@@ -1548,7 +1549,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # should be redirected back to our campaign read page
-        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.id]))
+        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.uuid]))
 
         event = CampaignEvent.objects.get(campaign=campaign, event_type="M", offset=-2)
         self.assertEqual(-2, event.offset)

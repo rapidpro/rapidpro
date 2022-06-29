@@ -258,7 +258,7 @@ class Ticket(models.Model):
 
     @classmethod
     def get_allowed_assignees(cls, org):
-        return org.get_users_with_perm(cls.ASSIGNEE_PERMISSION)
+        return org.get_users(with_perm=cls.ASSIGNEE_PERMISSION)
 
     def delete(self):
         self.events.all().delete()
@@ -277,10 +277,17 @@ class Ticket(models.Model):
                 name="tickets_org_assignee_status",
                 fields=["org", "assignee", "status", "-last_activity_on", "-id"],
             ),
-            # used by the list of tickets on contact page and also message handling to find open tickets for contact
+            # used by message handling to find open tickets for contact
             models.Index(name="tickets_contact_open", fields=["contact", "-opened_on"], condition=Q(status="O")),
             # used by ticket handlers in mailroom to find tickets from their external IDs
-            models.Index(name="tickets_ticketer_external_id", fields=["ticketer", "external_id"]),
+            models.Index(
+                name="tickets_ticketer_external_id",
+                fields=["ticketer", "external_id"],
+                condition=Q(external_id__isnull=False),
+            ),
+            # used by API tickets endpoint
+            models.Index(name="tickets_modified_on", fields=["-modified_on"]),
+            models.Index(name="tickets_contact_modified_on", fields=["contact", "-modified_on"]),
         ]
 
 
@@ -557,7 +564,7 @@ def export_ticket_stats(org: Org, since: date, until: date) -> openpyxl.Workbook
     sheet.cell(row=2, column=3, value="Replies")
     sheet.cell(row=2, column=4, value="Reply Time (Secs)")
 
-    users = list(org.get_users().order_by("email"))
+    users = list(org.users.order_by("email"))
 
     user_col = 5
     for user in users:

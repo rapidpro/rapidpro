@@ -177,7 +177,7 @@ class Trigger(SmartModel):
         trigger.archive_conflicts(user)
 
         if trigger.channel:
-            trigger.channel.get_type().activate_trigger(trigger)
+            trigger.channel.type.activate_trigger(trigger)
 
         return trigger
 
@@ -196,7 +196,7 @@ class Trigger(SmartModel):
         self.save(update_fields=("modified_by", "modified_on", "is_archived"))
 
         if self.channel:
-            self.channel.get_type().deactivate_trigger(self)
+            self.channel.type.deactivate_trigger(self)
 
     def restore(self, user):
         self.modified_by = user
@@ -207,7 +207,7 @@ class Trigger(SmartModel):
         self.archive_conflicts(user)
 
         if self.channel:
-            self.channel.get_type().activate_trigger(self)
+            self.channel.type.activate_trigger(self)
 
     def archive_conflicts(self, user):
         """

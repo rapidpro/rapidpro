@@ -50,6 +50,8 @@ html {
 
   --color-available: #00f100;
 
+  --color-tertiary: rgb(var(--tertiary-rgb));
+
   /* light text goes over dark, dark over lights */
   --color-text-light: rgba(255, 255, 255, 1);
   --color-text-dark: rgba(0, 0, 0, 0.5);
@@ -58,7 +60,7 @@ html {
   /* solid overlays with text */
   --color-overlay-dark: rgba(0, 0, 0, 0.2);
   --color-overlay-dark-text: rgba(255, 255, 255, 0.9);
-  --color-overlay-light: rgba(0, 0, 0, 0.05);
+  --color-overlay-light: rgba(0, 0, 0, 0.035);
   --color-overlay-light-text: rgba(0, 0, 0, 0.6);
 
   /* links, buttons, and label badges */
@@ -80,8 +82,10 @@ html {
 
   --color-label-primary: var(--color-primary-dark);
   --color-label-primary-text: var(--color-text-light);
-  --color-label-secondary: rgba(0, 0, 0, 0.2);
-  --color-label-secondary-text: rgba(255, 255, 255, 0.9);
+  --color-label-secondary: var(--color-secondary-dark);
+  --color-label-secondary-text: var(--color-text-light);
+  --color-label-tertiary: var(--color-tertiary);
+  --color-label-tertiary-text: var(--color-text-light);
 
   --color-nav-unselected: #fff;
   --color-nav-selected-bg: #fff;
@@ -94,6 +98,8 @@ html {
   --color-warning-border: rgb(251, 246, 176);
 
   --color-error: rgb(var(--error-rgb));
+  --color-alert: rgb(var(--error-rgb));
+
   --font-size: 14px;
   --button-font-size: 1.125rem;
 

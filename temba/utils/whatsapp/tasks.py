@@ -168,7 +168,7 @@ def refresh_whatsapp_templates():
 
     with r.lock("refresh_whatsapp_templates", 1800):
         # for every whatsapp channel
-        for channel in Channel.objects.filter(is_active=True, channel_type__in=["WA", "D3"]):
+        for channel in Channel.objects.filter(is_active=True, channel_type__in=["WA", "D3", "WAC"]):
 
             # update the version only when have it set in the config
             if channel.config.get("version"):
@@ -177,7 +177,7 @@ def refresh_whatsapp_templates():
             # fetch all our templates
             try:
 
-                templates_data, valid = channel.get_type().get_api_templates(channel)
+                templates_data, valid = channel.type.get_api_templates(channel)
                 if not valid:
                     continue
 

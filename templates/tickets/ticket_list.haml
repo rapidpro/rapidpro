@@ -115,7 +115,9 @@
         }                    
       }     
 
-      updatePageTitle();
+      if (window.updatePageTitle) {
+        updatePageTitle();
+      }
     }
 
     function updateTicketList() {
@@ -162,7 +164,7 @@
 
       var chat = document.querySelector("temba-contact-chat");
       if (contact) {
-        chat.contactUUID = contact.uuid;
+        chat.contact = contact.uuid;
         chat.currentTicket = contact.ticket;
 
         var filterNote = document.querySelector(".filter-note");
@@ -176,7 +178,7 @@
           ticketUUID = null;
         }
       } else {
-        chat.contactUUID = null;
+        chat.contact = null;
         chat.currentTicket = null;
         chat.currentContact = null;
       }
@@ -193,7 +195,7 @@
     }
 
     function handleTicketsRefreshed(event) {
-      var menu = document.querySelector('temba-menu');
+      // var menu = document.querySelector('temba-menu');
       var tickets = event.target;
 
       // tell our chat to refresh since we know things are new in our list
@@ -209,7 +211,7 @@
         empty.style.opacity = '1';
       }
 
-      menu.refresh();
+      // menu.refresh();
     }
 
     function removeTicket(uuid) {
@@ -259,7 +261,7 @@
         tickets.refresh();
       }
 
-      menu.refresh();
+      // menu.refresh();
     }
 
 -block page-container
