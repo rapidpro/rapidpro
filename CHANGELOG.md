@@ -1,3 +1,10 @@
+v7.3.75
+----------
+ * Redirect to channel page after WAC claim
+ * Fix org update pre form users roles list
+ * Adjust permission for org whatsapp connect view
+ * Ignore new conversation triggers without channels in imports
+
 v7.3.74
 ----------
  * Use FB JS SDK for WAC signups
