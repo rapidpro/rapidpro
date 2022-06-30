@@ -336,6 +336,9 @@ class WhatsAppCloudTypeTest(TembaTest):
                 self.assertEqual("111111", channel.config["wa_pin"])
                 self.assertEqual("namespace-uuid", channel.config["wa_message_template_namespace"])
 
+                response = self.client.get(reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)))
+                self.assertEqual(200, response.status_code)
+
                 # request verification code
                 response = self.client.post(
                     reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)), dict(), follow=True
