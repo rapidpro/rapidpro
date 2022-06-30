@@ -2,6 +2,8 @@ from unittest.mock import patch
 from temba.tests import TembaTest
 from ...models import Channel
 from django.urls import reverse
+from temba.tests import MockResponse, TembaTest
+from temba.utils import json
 
 class TeamsTypeTest(TembaTest):
     def setUp(self):
@@ -36,22 +38,20 @@ class TeamsTypeTest(TembaTest):
         response = self.client.get(url)
         self.assertContains(response, "Connect Teams")
 
-        token = "0123456789:ABCDEFabcdef-1a2b3c4d5e"
-
-        mock_post.return_value = MockResponse(200, f'{"token_type": "Bearer","expires_in": 86399,"ext_expires_in": 86399,"access_token": token}')
+        mock_post.side_effect = [MockResponse(200, json.dumps({"token_type": "Bearer","expires_in": 86399,"ext_expires_in": 86399,"access_token": "0123456789:ABCDEFabcdef-1a2b3c4d5e"}))]
 
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         request_body = {
-            "client_id": "789456123",
+            "client_id": "123456",
             "grant_type": "client_credentials",
             "scope": "https://api.botframework.com/.default",
-            "client_secret": "0123456789"
+            "client_secret": "a1b2c3"
         }
 
         mock_post.assert_any_call(
             "https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token",
             data=request_body,
-            headers=headers
+            headers=headers,
         )
 
         post_data = response.context["form"].initial
@@ -73,9 +73,3 @@ class TeamsTypeTest(TembaTest):
         self.assertEqual(channel.address, "45612")
 
         self.assertEqual(response.request["PATH_INFO"], reverse("channels.channel_read", args=[channel.uuid]))
-
-
-
-
-
-

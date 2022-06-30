@@ -42,6 +42,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
             return self.cleaned_data
 
+    form_class = Form
+
     def form_valid(self, form):
         from .type import TeamsType
         
