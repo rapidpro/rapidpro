@@ -54,7 +54,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return super().pre_process(request, *args, **kwargs)
 
     def get_success_url(self):
-        return reverse("channels.types.whatsapp_cloud.request_code", args=[self.object.uuid])
+        return reverse("channels.channel_read", args=[self.object.uuid])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
