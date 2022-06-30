@@ -11,7 +11,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         bot_id = forms.CharField(required=True, help_text=_("The ID of bot"))
         app_id = forms.CharField(required=True, help_text=_("The App ID"))
         app_password = forms.CharField(required=True, help_text=_("The application password"))
-        tenant_id = forms.IntegerField(required=True, help_text=_("The Tenant ID"))
+        tenant_id = forms.CharField(required=True, help_text=_("The Tenant ID"))
 
         def clean(self):
             try:
