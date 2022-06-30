@@ -320,7 +320,7 @@ class WhatsAppCloudTypeTest(TembaTest):
 
                 self.assertEqual(
                     response.request["PATH_INFO"],
-                    reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)),
+                    reverse("channels.channel_read", args=(channel.uuid,)),
                 )
 
                 self.assertEqual("1234 - WABA name", channel.name)
