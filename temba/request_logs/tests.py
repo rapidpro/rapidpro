@@ -193,7 +193,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
 
         log1 = HTTPLog.create_from_exception(
             HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
-            "https://graph.facebook.com/v3.3/1234/message_templates",
+            "https://graph.facebook.com/v14.0/1234/message_templates",
             exception,
             start,
             channel=channel,
@@ -204,11 +204,11 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(log_url)
         self.assertContains(response, "200")
         self.assertContains(response, "Connection Error")
-        self.assertContains(response, "https://graph.facebook.com/v3.3/1234/message_templates")
+        self.assertContains(response, "https://graph.facebook.com/v14.0/1234/message_templates")
 
         log2 = HTTPLog.create_from_exception(
             HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
-            f"https://graph.facebook.com/v3.3/1234/message_templates?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}",
+            f"https://graph.facebook.com/v14.0/1234/message_templates?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}",
             exception,
             start,
             channel=channel,
@@ -218,7 +218,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "200")
         self.assertContains(response, "Connection Error")
         self.assertContains(
-            response, f"https://graph.facebook.com/v3.3/1234/message_templates?access_token={ContactURN.ANON_MASK}"
+            response, f"https://graph.facebook.com/v14.0/1234/message_templates?access_token={ContactURN.ANON_MASK}"
         )
 
         # and can't be from other org
