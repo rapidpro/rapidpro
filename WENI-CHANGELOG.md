@@ -1,3 +1,6 @@
+1.3.4-rapidpro-7.1.27
+*  Fix message templates syncing for new categories #321 (Nyaruka refference change api facebook version)
+
 1.3.3-rapidpro-7.1.27
 ----------
 * Fix Facebook channel creation #319 
