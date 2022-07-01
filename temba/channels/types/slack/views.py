@@ -33,12 +33,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         def clean_user_token(self):
             value = self.cleaned_data["user_token"]
 
-            existing = Channel.objects.filter(
-                is_active=True, channel_type=self.channel_type.code, config__contains=value
-            ).first()
-            if existing:
-                raise ValidationError(_("A slack channel for this bot already exists."))
-
             try:
                 client = slack_sdk.WebClient(token=value)
                 client.api_call(api_method="auth.test")
@@ -50,17 +44,20 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         def clean_bot_token(self):
             value = self.cleaned_data["bot_token"]
 
-            existing = Channel.objects.filter(
-                is_active=True, channel_type=self.channel_type.code, config__contains=value
-            ).first()
-            if existing:
-                raise ValidationError(_("A slack channel for this bot already exists."))
-
             try:
                 client = slack_sdk.WebClient(token=value)
-                client.api_call(api_method="auth.test")
+                appAuthTest = client.api_call(api_method="auth.test")
             except slack_sdk.errors.SlackApiError:
                 raise ValidationError(_("Your bot user token is invalid, please check and try again"))
+
+            existing = Channel.objects.filter(
+                is_active=True, channel_type=self.channel_type.code, address=appAuthTest["bot_id"]
+            ).first()
+
+            if existing:
+                if existing.org_id == self.request.user.get_org().id:
+                    raise ValidationError(_("A slack channel for this bot already exists in this organization."))
+                raise ValidationError(_("A slack channel for this bot already exists in another organization."))
 
             return value
 
