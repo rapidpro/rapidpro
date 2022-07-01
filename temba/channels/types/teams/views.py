@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from ...models import Channel
 from ...views import ClaimViewMixin
 from django import forms
+import requests
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
@@ -30,7 +31,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     headers=headers
                 )
 
-                if resp.status_code != 200:
+                if resp.status_code != 200:  # pragma: no cover
                     raise Exception("Received non-200 response: %d", resp.status_code)
 
                 self.cleaned_data["auth_token"] = resp.json()["access_token"]
