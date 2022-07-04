@@ -102,7 +102,7 @@ class WhatsAppCloudType(ChannelType):
         start = timezone.now()
         try:
             template_data = []
-            url = f"https://graph.facebook.com/v13.0/{waba_id}/message_templates"
+            url = f"https://graph.facebook.com/v14.0/{waba_id}/message_templates"
 
             headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
             while url:
