@@ -1,0 +1,8 @@
+-extends "channels/channel_claim_form.html"
+-load i18n
+
+-block pre-form
+  -blocktrans trimmed with name=brand.name
+    You can connect a Teams Bot to your {{ name}} workspace
+    to automate sending and receiving Teams messages.
+    For this, you will need to create and register a Bot-type application in Microsoft Azure.
