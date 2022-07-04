@@ -241,6 +241,6 @@ class RedirectMiddleware:
         if hasattr(settings, 'WENI_DOMAINS'):
             if use_weni_layout(request)['use_weni_layout']:
                 return self.get_response(request)
-        if not request.path.startswith("/redirect"):
+        if not request.path.startswith("/redirect") and not request.path.startswith("/api"):
             return HttpResponseRedirect(reverse("weni.redirect"))
         return self.get_response(request)
