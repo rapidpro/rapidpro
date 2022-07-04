@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+-load compress i18n
+%html
+  %head
+    %meta{name:"viewport",content:"width=device-width, initial-scale=1.0"}
+    %title
+      {{ brand.name }} Redirect
+    :css
+      body { 
+        margin: 0 
+      }
+    -compress css
+      {% lessblock %}
+        :plain
+          @import (optional) "../brands/{{brand.slug}}/less/style.less";
+      {% endlessblock %}
+
+      // any additional brand styling such as fonts, etc
+      -for style in brand.styles
+        -if 'less' in style
+          %link{type:'text/less', rel:'stylesheet', href:'/sitestatic/{{style}}', media:'all'}
+        -else
+          %link{type:'text/css', rel:'stylesheet', href:"/sitestatic/{{style}}", media:'all'}
+
+  %body
+    #redirect-splash
+      %div.rbackground
+      %div.rlogo
+        %a{href:"https://dash.weni.ai"}
+          %img{src:"/sitestatic/brands/push/logo-weni.png",width:84, height:24}
+
+      %div.rinfo
+        %div.rtitle
+          Este página não está mais disponível
+        %div.rdesc
+          Agora você acessa seus projetos através da plataforma
+          %a{href:"https://dash.weni.ai"}
+            https://dash.weni.ai
+        %br
+        %div.rdesc
+          Em caso de dúvidas, entre em contato conosco através do e-mail
+          %br
+          %a{href:"mailto:suporte@weni.ai"}
+            suporte@weni.ai
+  

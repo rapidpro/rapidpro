@@ -440,3 +440,10 @@ if DISABLE_OIDC:
     AUTHENTICATION_BACKENDS = tuple(authentication_backend_list)
 
     OIDC_DRF_AUTH_BACKEND = None
+
+# ----------------------------------------------------------------------------------------
+# Option to enable redirect all routes (except api), to redirect view 
+# ----------------------------------------------------------------------------------------
+WENI_REDIRECT_DEPRECATED_DOMAIN = env.bool("WENI_REDIRECT_DEPRECATED_DOMAIN", default=False)
+if WENI_REDIRECT_DEPRECATED_DOMAIN:
+    MIDDLEWARE = ("temba.middleware.RedirectMiddleware",) + MIDDLEWARE
