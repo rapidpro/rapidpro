@@ -1,5 +1,11 @@
+1.3.5-rapidpro-7.1.27
+----------
+* Update FB api version to 14.0 to get templates for WhatsApp Cloud
+* Redirect advice #325 
+
 1.3.4-rapidpro-7.1.27
-*  Fix message templates syncing for new categories #321 (Nyaruka refference change api facebook version)
+----------
+* Fix message templates syncing for new categories #321 (Nyaruka refference change api facebook version)
 
 1.3.3-rapidpro-7.1.27
 ----------
