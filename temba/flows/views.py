@@ -25,7 +25,6 @@ from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -1986,13 +1985,6 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean_query(self):
                 query = self.cleaned_data.get("query")
-                exclude_inactive = self.data.get("exclude_inactive")
-
-                if exclude_inactive:
-                    now = timezone.now()
-                    recency_window = now - timedelta(days=90)
-                    query = f"({query}) AND last_seen_on > {self.instance.org.format_datetime(recency_window, show_time=False)}"
-
                 if query:
                     try:
                         parsed = parse_query(self.org, query)
