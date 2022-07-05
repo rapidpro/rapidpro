@@ -2563,6 +2563,34 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 {"query": "", "total": 0, "sample": [], "error": "Invalid query syntax at '((('"}, response.json()
             )
 
+            # suspended orgs should block
+            self.org.is_suspended = True
+            self.org.save()
+            mr_mocks.flow_preview_start(query='age > 30', total=2, sample=[contact1, contact2])
+            response = self.client.post(preview_url, { "query": "age > 30" }, content_type="application/json")
+            self.assertEqual(
+                [
+                    "Sorry, your workspace is currently suspended. To re-enable starting flows and sending messages, please contact support."
+                ],
+                response.json()["blockers"],
+            )
+
+            # flagged orgs should block
+            self.org.is_suspended = False
+            self.org.is_flagged = True
+            self.org.save()
+            mr_mocks.flow_preview_start(query='age > 30', total=2, sample=[contact1, contact2])
+            response = self.client.post(preview_url, { "query": "age > 30" }, content_type="application/json")
+            self.assertEqual(
+                [
+                    "Sorry, your workspace is currently flagged. To re-enable starting flows and sending messages, please contact support."
+                ],
+                response.json()["blockers"],
+            )
+
+            self.org.is_flagged = False
+            self.org.save()
+
             # trying to start again should fail because there is already a pending start for this flow
             mock_flow_is_starting.return_value = True
             mr_mocks.flow_preview_start(
@@ -2860,6 +2888,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             allow_org2=True,
             form_fields=["query", "flow", "recipients"],
         )
+
+        # fetch the broadcast with flow prepopulated
+        response = self.client.get(f"{broadcast_url}?flow={flow.id}")
+        self.assertContains(response, flow.name)
 
         # create flow start with a query
         mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
