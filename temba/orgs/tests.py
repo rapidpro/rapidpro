@@ -1339,7 +1339,8 @@ class OrgTest(TembaTest):
 
         # we also can't start flows
         response = self.client.post(
-            reverse("flows.flow_broadcast", args=[]), {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"}
+            reverse("flows.flow_broadcast", args=[]),
+            {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"},
         )
         self.assertContains(response, "Unexpected error")
 
@@ -1361,7 +1362,8 @@ class OrgTest(TembaTest):
 
         # we also can't start flows
         response = self.client.post(
-            reverse("flows.flow_broadcast", args=[]), {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"}
+            reverse("flows.flow_broadcast", args=[]),
+            {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"},
         )
         self.assertContains(response, "Unexpected error")
 
@@ -1384,7 +1386,8 @@ class OrgTest(TembaTest):
         self.org.save(update_fields=("is_suspended",))
 
         self.client.post(
-            reverse("flows.flow_broadcast", args=[]), {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"}
+            reverse("flows.flow_broadcast", args=[]),
+            {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"},
         )
 
         mock_async_start.assert_called_once()

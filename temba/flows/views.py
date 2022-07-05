@@ -1983,7 +1983,7 @@ class FlowCRUDL(SmartCRUDL):
                     raise ValidationError(_("Unexpected error"))
 
                 return flow
-                
+
             def clean_query(self):
                 query = self.cleaned_data.get("query")
                 exclude_inactive = self.data.get("exclude_inactive")
