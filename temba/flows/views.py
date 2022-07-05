@@ -1975,6 +1975,15 @@ class FlowCRUDL(SmartCRUDL):
                     is_active=True,
                 ).order_by("name")
 
+            def clean_flow(self):
+                flow = self.cleaned_data.get("flow")
+
+                # this is a failsafe, these should be caught as part of StartPreview
+                if flow.org.is_suspended or flow.org.is_flagged or flow.is_starting():
+                    raise ValidationError(_("Unexpected error"))
+
+                return flow
+                
             def clean_query(self):
                 query = self.cleaned_data.get("query")
                 exclude_inactive = self.data.get("exclude_inactive")
