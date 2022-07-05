@@ -2566,8 +2566,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             # suspended orgs should block
             self.org.is_suspended = True
             self.org.save()
-            mr_mocks.flow_preview_start(query='age > 30', total=2, sample=[contact1, contact2])
-            response = self.client.post(preview_url, { "query": "age > 30" }, content_type="application/json")
+            mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[contact1, contact2])
+            response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
             self.assertEqual(
                 [
                     "Sorry, your workspace is currently suspended. To re-enable starting flows and sending messages, please contact support."
@@ -2579,8 +2579,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             self.org.is_suspended = False
             self.org.is_flagged = True
             self.org.save()
-            mr_mocks.flow_preview_start(query='age > 30', total=2, sample=[contact1, contact2])
-            response = self.client.post(preview_url, { "query": "age > 30" }, content_type="application/json")
+            mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[contact1, contact2])
+            response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
             self.assertEqual(
                 [
                     "Sorry, your workspace is currently flagged. To re-enable starting flows and sending messages, please contact support."
