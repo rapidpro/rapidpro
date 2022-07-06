@@ -37,6 +37,22 @@
 -block extra-script
   {{ block.super }}
   :javascript
+    $(document).ready(function(){
+      var hash = window.location.hash.substring(1)
+      var result = hash.split('&').reduce(function (res, item) {
+        var parts = item.split('=');
+        res[parts[0]] = parts[1];
+        return res;
+      }, {});
+
+      var accessToken = result.long_lived_token || result.access_token;
+      if (accessToken) {
+        $("#user-access-token").val(accessToken);
+        $("#claim-form").submit();
+      }
+    });
+
+
     window.fbAsyncInit = function () {
       // JavaScript SDK configuration and setup
       FB.init({
@@ -67,7 +83,8 @@
           }
           //Use this token to call the debug_token API and get the shared WABA's ID
         } else {
-          console.log('User cancelled login or did not fully authorize.');
+          console.log('User cancelled login or did not fully authorize, redirect to the dialog auth');
+          location.replace("https://www.facebook.com/v14.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&scope=business_management,whatsapp_business_management,whatsapp_business_messaging&response_type=token")
         }
       }, {
         scope: 'business_management,whatsapp_business_management,whatsapp_business_messaging',
