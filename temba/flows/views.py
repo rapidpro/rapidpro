@@ -25,7 +25,6 @@ from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -52,7 +51,16 @@ from temba.orgs.views import (
 )
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
-from temba.utils.fields import CheckboxWidget, ContactSearchWidget, InputWidget, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import (
+    CheckboxWidget,
+    ContactSearchWidget,
+    InputWidget,
+    OmniboxChoice,
+    OmniboxField,
+    SelectMultipleWidget,
+    SelectWidget,
+    TembaChoiceField,
+)
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
@@ -1057,7 +1065,7 @@ class FlowCRUDL(SmartCRUDL):
                         id="start-flow",
                         title=_("Start Flow"),
                         style="button-primary",
-                        href=f"{reverse('flows.flow_broadcast', args=[self.object.pk])}",
+                        href=f"{reverse('flows.flow_broadcast', args=[])}?flow={self.object.id}",
                         modax=_("Start Flow"),
                     )
                 )
@@ -1789,6 +1797,100 @@ class FlowCRUDL(SmartCRUDL):
     class PreviewStart(OrgObjPermsMixin, SmartReadView):
         permission = "flows.flow_broadcast"
 
+        blockers = {
+            "already_starting": _(
+                "This flow is already being started - please wait until that process completes before starting "
+                "more contacts."
+            ),
+            "no_send_channel": _(
+                'To start this flow you need to <a href="%(link)s">add a channel</a> to your workspace which will allow '
+                "you to send messages to your contacts."
+            ),
+            "no_call_channel": _(
+                'To start this flow you need to <a href="%(link)s">add a voice channel</a> to your workspace which will '
+                "allow you to make and receive calls."
+            ),
+        }
+
+        warnings = {
+            "facebook_topic": _(
+                "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who "
+                "have not sent an incoming message in the last 24 hours may not receive it."
+            ),
+            "no_templates": _(
+                "This flow does not use message templates. You may still start this flow but WhatsApp contacts who "
+                "have not sent an incoming message in the last 24 hours may not receive it."
+            ),
+            "inactive_threshold": _(
+                "You've selected a lot of contacts! Depending on your channel "
+                "it could take days to reach everybody and could reduce response rates. "
+                "Click on <b>Skip inactive contacts</b> below "
+                "to limit your selection to contacts who are more likely to respond."
+            ),
+        }
+
+        def get_blockers(self, flow) -> list:
+            blockers = []
+
+            if flow.org.is_suspended:
+                blockers.append(Org.BLOCKER_SUSPENDED)
+            elif flow.org.is_flagged:
+                blockers.append(Org.BLOCKER_FLAGGED)
+            elif flow.is_starting():
+                blockers.append(self.blockers["already_starting"])
+
+            if flow.flow_type == Flow.TYPE_MESSAGE and not flow.org.get_send_channel():
+                blockers.append(self.blockers["no_send_channel"] % {"link": reverse("channels.channel_claim")})
+            elif flow.flow_type == Flow.TYPE_VOICE and not flow.org.get_call_channel():
+                blockers.append(self.blockers["no_call_channel"] % {"link": reverse("channels.channel_claim")})
+
+            return blockers
+
+        def get_warnings(self, flow, query, total) -> list:
+
+            warnings = []
+
+            # if we are over our threshold, show the amount warning
+            threshold = self.request.branding.get("inactive_threshold", 0)
+            if "last_seen_on" not in query and threshold > 0 and total > threshold:
+                warnings.append(self.warnings["inactive_threshold"])
+
+            # facebook channels need to warn if no topic is set
+            facebook_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
+            if facebook_channel and not self.has_facebook_topic(flow):
+                warnings.append(self.warnings["facebook_topic"])
+
+            # if we have a whatsapp channel that requires a message template; exclude twilio whatsApp
+            whatsapp_channel = flow.org.channels.filter(
+                role__contains=Channel.ROLE_SEND, schemes__contains=[URN.WHATSAPP_SCHEME], is_active=True
+            ).exclude(channel_type__in=["TWA"])
+            if whatsapp_channel:
+                # check to see we are using templates
+                templates = flow.get_dependencies_metadata("template")
+                if not templates:
+                    warnings.append(self.warnings["no_templates"])
+
+                # check that this template is synced and ready to go
+                for ref in templates:
+                    template = flow.org.templates.filter(uuid=ref["uuid"]).first()
+                    if not template:
+                        warnings.append(
+                            _(f"The message template {ref['name']} does not exist on your account and cannot be sent.")
+                        )
+                    elif not template.is_approved():
+                        warnings.append(
+                            _(f"Your message template {template.name} is not approved and cannot be sent.")
+                        )
+            return warnings
+
+        def has_facebook_topic(self, flow):
+            if not flow.is_legacy():
+                definition = flow.get_current_revision().get_migrated_definition()
+                for node in definition.get("nodes", []):
+                    for action in node.get("actions", []):
+                        if action.get("type", "") == "send_msg" and action.get("topic", ""):
+                            return True
+
         def post(self, request, *args, **kwargs):
             payload = json.loads(request.body)
             include = mailroom.QueryInclusions(**payload.get("include", {}))
@@ -1825,55 +1927,66 @@ class FlowCRUDL(SmartCRUDL):
                     "total": total,
                     "sample": contacts,
                     "fields": [{"key": f.key, "name": f.name} for f in query_fields],
+                    "warnings": self.get_warnings(flow, query, total),
+                    "blockers": self.get_blockers(flow),
                 }
             )
 
-    class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Broadcast(OrgPermsMixin, ModalMixin):
         class Form(forms.ModelForm):
+
+            flow = TembaChoiceField(
+                queryset=Flow.objects.none(),
+                required=True,
+                widget=SelectWidget(
+                    attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
+                ),
+            )
+
+            recipients = OmniboxField(
+                label=_("Recipients"),
+                required=False,
+                help_text=_("The contacts to send the message to"),
+                widget=OmniboxChoice(
+                    attrs={
+                        "placeholder": _("Recipients, enter contacts or groups"),
+                        "widget_only": True,
+                        "groups": True,
+                        "contacts": True,
+                        "urns": True,
+                    }
+                ),
+            )
 
             query = forms.CharField(
                 required=False,
                 widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")}),
             )
 
-            exclude_inactive = forms.BooleanField(
-                label=_("Exclude inactive contacts"),
-                required=False,
-                initial=False,
-                help_text=_("Any contacts who have not sent a message in the last 90 days will not be started."),
-                widget=CheckboxWidget(),
-            )
+            def __init__(self, org, **kwargs):
+                super().__init__(**kwargs)
+                self.org = org
 
-            exclude_in_other = forms.BooleanField(
-                label=_("Exclude contacts currently in a flow"),
-                required=False,
-                initial=False,
-                help_text=_("Any contacts currently in a flow will not be interrupted and not started in this flow."),
-                widget=CheckboxWidget(),
-            )
+                self.fields["flow"].queryset = org.flows.filter(
+                    flow_type__in=(Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND),
+                    is_archived=False,
+                    is_system=False,
+                    is_active=True,
+                ).order_by("name")
 
-            exclude_reruns = forms.BooleanField(
-                label=_("Exclude contacts previously in this flow"),
-                required=False,
-                initial=False,
-                help_text=_(
-                    "Any contacts who have gone through this flow in the last 90 days will not be started again."
-                ),
-                widget=CheckboxWidget(),
-            )
+            def clean_flow(self):
+                flow = self.cleaned_data.get("flow")
+
+                # these should be caught as part of StartPreview
+                assert not flow.org.is_suspended and not flow.org.is_flagged and not flow.is_starting()
+
+                return flow
 
             def clean_query(self):
                 query = self.cleaned_data.get("query")
-                exclude_inactive = self.data.get("exclude_inactive")
-
-                if exclude_inactive:
-                    now = timezone.now()
-                    recency_window = now - timedelta(days=90)
-                    query = f"({query}) AND last_seen_on > {self.instance.org.format_datetime(recency_window, show_time=False)}"
-
                 if query:
                     try:
-                        parsed = parse_query(self.instance.org, query)
+                        parsed = parse_query(self.org, query)
                         query = parsed.query
                     except SearchException as e:
                         raise ValidationError(str(e))
@@ -1893,124 +2006,56 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = ("query", "exclude_inactive", "exclude_in_other", "exclude_reruns")
+                fields = ("query",)
 
         form_class = Form
-        success_message = ""
         submit_button_name = _("Start Flow")
-        success_url = "uuid@flows.flow_editor"
+        success_message = ""
+        success_url = "hide"
 
-        blockers = {
-            "already_starting": _(
-                "This flow is already being started - please wait until that process completes before starting "
-                "more contacts."
-            ),
-            "no_send_channel": _(
-                'To get started you need to <a href="%(link)s">add a channel</a> to your workspace which will allow '
-                "you to send messages to your contacts."
-            ),
-            "no_call_channel": _(
-                'To get started you need to <a href="%(link)s">add a voice channel</a> to your workspace which will '
-                "allow you to make and receive calls."
-            ),
-        }
+        def derive_initial(self):
+            org = self.request.org
+            contacts = self.request.GET.get("c", "")
+            contacts = org.contacts.filter(uuid__in=contacts.split(","))
+            recipients = []
+            for contact in contacts:
+                urn = contact.get_urn()
+                if urn:
+                    urn = urn.get_display(org=org, international=True)
+                recipients.append({"id": contact.uuid, "name": contact.name, "urn": urn, "type": "contact"})
 
-        warnings = {
-            "facebook_topic": _(
-                "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who "
-                "have not sent an incoming message in the last 24 hours may not receive it."
-            ),
-            "no_templates": _(
-                "This flow does not use message templates. You may still start this flow but WhatsApp contacts who "
-                "have not sent an incoming message in the last 24 hours may not receive it."
-            ),
-        }
+            initial = {"recipients": recipients}
+            flow_id = self.request.GET.get("flow", None)
+            if flow_id:
+                initial["flow"] = flow_id
 
-        def has_facebook_topic(self, flow):
-            if not flow.is_legacy():
-                definition = flow.get_current_revision().get_migrated_definition()
-                for node in definition.get("nodes", []):
-                    for action in node.get("actions", []):
-                        if action.get("type", "") == "send_msg" and action.get("topic", ""):
-                            return True
+            return initial
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
+            return kwargs
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            flow = self.get_object()
-            context["warnings"] = self.get_warnings(flow)
-            context["blockers"] = self.get_blockers(flow)
-
-            now = timezone.now()
-            recency_window = now - timedelta(days=90)
-            context["recency_window"] = flow.org.format_datetime(recency_window, show_time=False)
-            context["inactive_threshold"] = self.request.branding.get("inactive_threshold", 0)
+            context["flow"] = self.request.GET.get("flow", None)
             return context
 
-        def get_blockers(self, flow) -> list:
-            blockers = []
-
-            if flow.org.is_suspended:
-                blockers.append(Org.BLOCKER_SUSPENDED)
-            elif flow.org.is_flagged:
-                blockers.append(Org.BLOCKER_FLAGGED)
-            elif flow.is_starting():
-                blockers.append(self.blockers["already_starting"])
-
-            if flow.flow_type == Flow.TYPE_MESSAGE and not flow.org.get_send_channel():
-                blockers.append(self.blockers["no_send_channel"] % {"link": reverse("channels.channel_claim")})
-            elif flow.flow_type == Flow.TYPE_VOICE and not flow.org.get_call_channel():
-                blockers.append(self.blockers["no_call_channel"] % {"link": reverse("channels.channel_claim")})
-
-            return blockers
-
-        def get_warnings(self, flow) -> list:
-            warnings = []
-
-            # facebook channels need to warn if no topic is set
-            facebook_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
-            if facebook_channel and not self.has_facebook_topic(flow):
-                warnings.append(self.warnings["facebook_topic"])
-
-            # if we have a whatsapp channel that requires a message template; exclude twilio whatsApp
-            whatsapp_channel = flow.org.channels.filter(
-                role__contains=Channel.ROLE_SEND, schemes__contains=[URN.WHATSAPP_SCHEME], is_active=True
-            ).exclude(channel_type__in=["TWA"])
-            if whatsapp_channel:
-                # check to see we are using templates
-                templates = flow.get_dependencies_metadata("template")
-                if not templates:
-                    warnings.append(self.warnings["no_templates"])
-
-                # check that this template is synced and ready to go
-                for ref in templates:
-                    template = flow.org.templates.filter(uuid=ref["uuid"]).first()
-                    if not template:
-                        warnings.append(
-                            _(f"The message template {ref['name']} does not exist on your account and cannot be sent.")
-                        )
-                    elif not template.is_approved():
-                        warnings.append(
-                            _(f"Your message template {template.name} is not approved and cannot be sent.")
-                        )
-            return warnings
-
-        def save(self, *args, **kwargs):
-            query = self.form.cleaned_data["query"]
-            restart_participants = not self.form.cleaned_data["exclude_reruns"]
-            include_contacts_with_runs = not self.form.cleaned_data["exclude_in_other"]
-
+        def form_valid(self, form):
+            query = form.cleaned_data["query"]
+            flow = form.cleaned_data["flow"]
             analytics.track(self.request.user, "temba.flow_broadcast", dict(query=query))
 
             # queue the flow start to be started by mailroom
-            self.object.async_start(
+            flow.async_start(
                 self.request.user,
                 groups=(),
                 contacts=(),
                 query=query,
-                restart_participants=restart_participants,
-                include_active=include_contacts_with_runs,
+                restart_participants=True,
+                include_active=True,
             )
-            return self.object
+            return super().form_valid(form)
 
     class Assets(OrgPermsMixin, SmartTemplateView):
         """

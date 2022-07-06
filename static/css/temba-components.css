@@ -2,6 +2,11 @@ html input {
   font-weight: 300;
 }
 
+html.dragging * {
+  user-select: none;  
+  pointer-events: none;
+}
+
 html {
 
   --font-family: 'Roboto', Helvetica, Arial, sans-serif;

@@ -785,9 +785,16 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         archived_flow.archive(self.admin)
 
         contact = self.create_contact("Joe", phone="+593979000111")
-        start_url = reverse("contacts.contact_start", args=[contact.id])
+        start_url = reverse("flows.flow_broadcast", args=[]) + "?c=" + contact.uuid
 
-        response = self.assertUpdateFetch(start_url, allow_viewers=False, allow_editors=True, form_fields=["flow"])
+        response = self.assertUpdateFetch(
+            start_url,
+            allow_viewers=False,
+            allow_editors=True,
+            allow_org2=True,
+            form_fields=["query", "flow", "recipients"],
+        )
+
         self.assertEqual([background_flow] + sample_flows, list(response.context["form"].fields["flow"].queryset))
 
         # try to submit without specifying a flow
@@ -796,12 +803,13 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         )
 
         # submit with flow...
-        self.assertUpdateSubmit(start_url, data={"flow": background_flow.id})
+        query = f"uuid='{contact.uuid}'"
+        self.assertUpdateSubmit(start_url, data={"flow": background_flow.id, "query": query})
 
         # should now have a flow start
         start = FlowStart.objects.get()
         self.assertEqual(background_flow, start.flow)
-        self.assertEqual({contact}, set(start.contacts.all()))
+        self.assertEqual(query, start.query)
         self.assertTrue(start.restart_participants)
         self.assertTrue(start.include_active)
 
