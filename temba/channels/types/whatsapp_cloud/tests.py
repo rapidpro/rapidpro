@@ -48,6 +48,17 @@ class WhatsAppCloudTypeTest(TembaTest):
 
             response = self.client.get(claim_whatsapp_cloud_url, follow=True)
 
+            self.assertEqual(response.request["PATH_INFO"], "/users/login/")
+
+        self.make_beta(self.admin)
+        with patch("requests.get") as wa_cloud_get:
+            wa_cloud_get.return_value = MockResponse(400, {})
+            response = self.client.get(claim_whatsapp_cloud_url)
+
+            self.assertEqual(response.status_code, 302)
+
+            response = self.client.get(claim_whatsapp_cloud_url, follow=True)
+
             self.assertEqual(response.request["PATH_INFO"], connect_whatsapp_cloud_url)
 
         with patch("requests.get") as wa_cloud_get:
