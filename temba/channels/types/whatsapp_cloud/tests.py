@@ -297,7 +297,7 @@ class WhatsAppCloudTypeTest(TembaTest):
 
                 self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
-                self.assertEqual(3, wa_cloud_post.call_count)
+                self.assertEqual(4, wa_cloud_post.call_count)
 
                 self.assertEqual(
                     "https://graph.facebook.com/v13.0/111111111111111/assigned_users",
@@ -314,6 +314,13 @@ class WhatsAppCloudTypeTest(TembaTest):
                 self.assertEqual(
                     "https://graph.facebook.com/v13.0/111111111111111/subscribed_apps",
                     wa_cloud_post.call_args_list[2][0][0],
+                )
+
+                self.assertEqual(
+                    "https://graph.facebook.com/v13.0/123123123/register", wa_cloud_post.call_args_list[3][0][0]
+                )
+                self.assertEqual(
+                    {"messaging_product": "whatsapp", "pin": "111111"}, wa_cloud_post.call_args_list[3][1]["data"]
                 )
 
                 channel = Channel.objects.get()
