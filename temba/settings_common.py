@@ -1190,7 +1190,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.rocketchat.RocketChatType",
     "temba.channels.types.weniwebchat.WeniWebChatType",
     "temba.channels.types.instagram.InstagramType",
-    "temba.channels.types.slack.SlackType"
+    "temba.channels.types.slack.SlackType",
     "temba.channels.types.teams.TeamsType",
 ]
 
