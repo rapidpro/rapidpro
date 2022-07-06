@@ -187,7 +187,7 @@
                               .mr-2.glyph.icon-bubble-3(style="font-size:14px")
                               -trans "Send"
 
-                        -if org_perms.msgs.broadcast_send and not reply_disabled
+                        -if org_perms.flows.flow_broadcast
                           %temba-modax#start-flow(header='{{_("Start Flow")|escapejs}}' endpoint="{% url 'flows.flow_broadcast' %}")
                             .button-action.no-loading(onclick="handleStartFlowClicked()")
                               .mr-2.glyph.icon-flow(style="font-size:14px")
