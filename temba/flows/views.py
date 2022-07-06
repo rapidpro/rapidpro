@@ -1977,9 +1977,8 @@ class FlowCRUDL(SmartCRUDL):
             def clean_flow(self):
                 flow = self.cleaned_data.get("flow")
 
-                # this is a failsafe, these should be caught as part of StartPreview
-                if flow.org.is_suspended or flow.org.is_flagged or flow.is_starting():
-                    raise ValidationError(_("Unexpected error"))
+                # these should be caught as part of StartPreview
+                assert not flow.org.is_suspended and not flow.org.is_flagged and not flow.is_starting()
 
                 return flow
 
