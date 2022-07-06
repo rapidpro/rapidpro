@@ -462,12 +462,33 @@ class WhatsAppTypeTest(TembaTest):
             "foo_namespace",
         )
 
+        foo = TemplateTranslation.get_or_create(
+            channel,
+            "hi",
+            "eng",
+            "US",
+            "Hi {{1}}",
+            1,
+            TemplateTranslation.STATUS_APPROVED,
+            "1235",
+            "foo_namespace",
+        )
+
         self.login(self.admin)
         # hit our template page
         response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
         # should have our template translations
         self.assertContains(response, "Hello")
+        self.assertContains(response, "Hi")
         self.assertContains(response, reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
+
+        foo.is_active = False
+        foo.save()
+
+        response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
+        # should have our template translations
+        self.assertContains(response, "Hello")
+        self.assertNotContains(response, "Hi")
 
         # Check if message templates link are in sync_logs view
         response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
