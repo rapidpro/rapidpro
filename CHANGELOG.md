@@ -1,3 +1,12 @@
+v7.3.76
+----------
+ * Add the Facebook dialog login if the token is not submitted successfully on WAC org connect
+ * Fix campaigns archive and activate buttons
+ * Update to latest Django
+ * Only display WA templates that are active
+ * Update flow start dialog to use start preview endpoint  
+ * Add start flow bulk action for contacts
+
 v7.3.75
 ----------
  * Redirect to channel page after WAC claim
