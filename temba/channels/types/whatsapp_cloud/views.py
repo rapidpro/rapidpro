@@ -133,6 +133,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         context["claim_url"] = reverse("channels.types.whatsapp_cloud.claim")
         context["connect_whatsapp_url"] = reverse("orgs.org_whatsapp_cloud_connect")
+        context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
 
         claim_error = None
         if context["form"].errors:
