@@ -1,3 +1,7 @@
+v7.3.78
+----------
+ * Add button to allow admin to choose more FB WAC numbers
+
 v7.3.77
 ----------
  * Add contact ticket list in new UI
