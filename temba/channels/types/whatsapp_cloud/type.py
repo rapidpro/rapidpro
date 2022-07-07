@@ -57,6 +57,7 @@ class WhatsAppCloudType(ChannelType):
         waba_id = channel.config.get("wa_waba_id")
         waba_currency = channel.config.get("wa_currency")
         waba_business_id = channel.config.get("wa_business_id")
+        wa_pin = channel.config.get("wa_pin")
 
         headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
 
@@ -86,6 +87,17 @@ class WhatsAppCloudType(ChannelType):
 
         if resp.status_code != 200:  # pragma: no cover
             raise ValidationError(_("Unable to subscribe to app to WABA with ID %s" % waba_id))
+
+        # register numbers
+        url = f"https://graph.facebook.com/v13.0/{channel.address}/register"
+        data = {"messaging_product": "whatsapp", "pin": wa_pin}
+
+        resp = requests.post(url, data=data, headers=headers)
+
+        if resp.status_code != 200:  # pragma: no cover
+            raise ValidationError(
+                _("Unable to register phone with ID %s from WABA with ID %s" % (channel.address, waba_id))
+            )
 
     def get_api_templates(self, channel):
         if not settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN:  # pragma: no cover

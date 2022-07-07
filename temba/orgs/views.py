@@ -1681,8 +1681,6 @@ class OrgCRUDL(SmartCRUDL):
         pass
 
     class WhatsappCloudConnect(InferOrgMixin, OrgPermsMixin, SmartFormView):
-        permission = "channels.channel_claim"
-
         class WhatsappCloudConnectForm(forms.Form):
             user_access_token = forms.CharField(min_length=32, required=True)
 
