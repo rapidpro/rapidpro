@@ -1,3 +1,7 @@
+v7.3.79
+----------
+ * Add missing Facebook ID
+
 v7.3.78
 ----------
  * Add button to allow admin to choose more FB WAC numbers
