@@ -22,9 +22,9 @@ class TeamsType(ChannelType):
     name = "Teams"
     icon = "icon-power-cord"
     schemes = [URN.TEAMS_SCHEME]
+    attachment_support = True
 
-
-    courier_url = r"^sl/(?P<uuid>[a-z0-9\-]+)/receive$"
+    courier_url = r"^tm/(?P<uuid>[a-z0-9\-]+)/receive$"
 
     claim_blurb = _("Add a %(link)s bot to send and receive messages to Microsoft Teams users.") % {
         "link": '<a href="https://teams.microsoft.com">Microsoft Teams</a>'
