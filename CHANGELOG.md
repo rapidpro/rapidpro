@@ -1,3 +1,9 @@
+v7.3.77
+----------
+ * Add contact ticket list in new UI
+ * Fix permissions to connect WAC
+ * Register the WAC number in the activate method
+
 v7.3.76
 ----------
  * Add the Facebook dialog login if the token is not submitted successfully on WAC org connect
