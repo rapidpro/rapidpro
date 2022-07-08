@@ -1091,7 +1091,7 @@ class ContactCRUDL(SmartCRUDL):
             return JsonResponse(summary)
 
     class List(ContactListView):
-        title = _("Contacts")
+        title = _("Active Contacts")
         system_group = ContactGroup.TYPE_DB_ACTIVE
 
         def get_bulk_actions(self):
