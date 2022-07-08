@@ -251,7 +251,7 @@ class FlowCRUDL(SmartCRUDL):
 
             if label_items:
                 menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
-            
+
             menu += [
                 self.create_space(),
                 self.create_divider(),
