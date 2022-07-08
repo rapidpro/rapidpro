@@ -5,7 +5,7 @@ from smartmin.views import SmartFormView, SmartModelActionView, SmartTemplateVie
 
 from django import forms
 from django.conf import settings
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
@@ -230,11 +230,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
 class ClearSessionToken(OrgPermsMixin, SmartTemplateView):
     permission = "channels.channel_claim"
-    template_name = "channels/types/whatsapp_cloud/clear_session_token.html"
 
     def pre_process(self, request, *args, **kwargs):
         if Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.request.session:
             del self.request.session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN]
+
+    def render_to_response(self, context, **response_kwargs):
+        return JsonResponse({})
 
 
 class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
