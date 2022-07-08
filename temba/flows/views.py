@@ -251,8 +251,16 @@ class FlowCRUDL(SmartCRUDL):
 
             if label_items:
                 menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
+            
+            menu += [
+                self.create_space(),
+                self.create_divider(),
+                self.create_modax_button(
+                    name=_("New Flow"),
+                    href="flows.flow_create",
+                ),
+            ]
 
-            menu.append(self.create_space())
             menu.append(
                 self.create_modax_button(
                     name=_("New Label"), href="flows.flowlabel_create", on_submit="handleCreateLabelModalSubmitted()"
@@ -847,6 +855,7 @@ class FlowCRUDL(SmartCRUDL):
             return links
 
     class Archived(BaseList):
+        title = _("Archived Flows")
         bulk_actions = ("restore",)
         default_order = ("-created_on",)
 
@@ -854,7 +863,7 @@ class FlowCRUDL(SmartCRUDL):
             return super().derive_queryset(*args, **kwargs).filter(is_active=True, is_archived=True)
 
     class List(BaseList):
-        title = _("Flows")
+        title = _("Active Flows")
         bulk_actions = ("archive", "label")
 
         def derive_queryset(self, *args, **kwargs):
