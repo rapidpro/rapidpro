@@ -544,6 +544,27 @@ class WhatsAppCloudTypeTest(TembaTest):
                     "That number is already connected (1234)",
                 )
 
+    def test_clear_session_token(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        clear_session_token_url = reverse("channels.types.whatsapp_cloud.clear_session_token")
+        response = self.client.get(clear_session_token_url)
+        self.assertEqual(200, response.status_code)
+
+        self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+
+        session = self.client.session
+        session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
+        session.save()
+
+        self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+
+        response = self.client.get(clear_session_token_url)
+        self.assertEqual(200, response.status_code)
+
+        self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+
     @override_settings(WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN")
     @patch("requests.get")
     def test_get_api_templates(self, mock_get):

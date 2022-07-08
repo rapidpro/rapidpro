@@ -6,7 +6,7 @@ from django.urls import re_path
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.types.whatsapp_cloud.views import ClaimView, RequestCode, VerifyCode
+from temba.channels.types.whatsapp_cloud.views import ClaimView, ClearSessionToken, RequestCode, VerifyCode
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
 from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
@@ -47,6 +47,7 @@ class WhatsAppCloudType(ChannelType):
     def get_urls(self):
         return [
             self.get_claim_url(),
+            re_path(r"^clear_session_token$", ClearSessionToken.as_view(), name="clear_session_token"),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/templates$", TemplatesView.as_view(), name="templates"),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/sync_logs$", SyncLogsView.as_view(), name="sync_logs"),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/request_code$", RequestCode.as_view(), name="request_code"),

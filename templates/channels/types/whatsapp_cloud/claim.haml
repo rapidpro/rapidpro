@@ -38,7 +38,9 @@
   #fb-app-connect.flex.mt-4
     .button-primary.connect-facebook
       -trans "Connect other Facebook Business numbers"
-
+  .mt-4
+    %form#clear-session-form(style="display:none;" method="POST" action="{{ clear_session_token_url }}")
+       {% csrf_token %}
 
 -block extra-script
   {{ block.super }}
@@ -47,7 +49,7 @@
     $(document).ready(function(){
       $(".connect-facebook").click(function(evt){
         location.replace("https://www.facebook.com/v13.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&scope=business_management,whatsapp_business_management,whatsapp_business_messaging&response_type=token")
-
+        $("#clear-session-form").submit();
       });
 
 
