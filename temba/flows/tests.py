@@ -1729,7 +1729,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
-        self.assertEqual(5, len(menu))
+        self.assertEqual(
+            ["Active", "Archived", "Labels", "space", "divider", "New Flow", "New Label"],
+            [m.get("name") or m.get("type") for m in menu],
+        )
 
     def test_create(self):
         create_url = reverse("flows.flow_create")
