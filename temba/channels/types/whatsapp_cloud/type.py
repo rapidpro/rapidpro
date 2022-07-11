@@ -6,7 +6,7 @@ from django.urls import re_path
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.types.whatsapp_cloud.views import ClaimView, RequestCode, VerifyCode
+from temba.channels.types.whatsapp_cloud.views import ClaimView, ClearSessionToken, RequestCode, VerifyCode
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
 from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
@@ -47,6 +47,7 @@ class WhatsAppCloudType(ChannelType):
     def get_urls(self):
         return [
             self.get_claim_url(),
+            re_path(r"^clear_session_token$", ClearSessionToken.as_view(), name="clear_session_token"),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/templates$", TemplatesView.as_view(), name="templates"),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/sync_logs$", SyncLogsView.as_view(), name="sync_logs"),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/request_code$", RequestCode.as_view(), name="request_code"),
@@ -57,6 +58,7 @@ class WhatsAppCloudType(ChannelType):
         waba_id = channel.config.get("wa_waba_id")
         waba_currency = channel.config.get("wa_currency")
         waba_business_id = channel.config.get("wa_business_id")
+        wa_pin = channel.config.get("wa_pin")
 
         headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
 
@@ -86,6 +88,17 @@ class WhatsAppCloudType(ChannelType):
 
         if resp.status_code != 200:  # pragma: no cover
             raise ValidationError(_("Unable to subscribe to app to WABA with ID %s" % waba_id))
+
+        # register numbers
+        url = f"https://graph.facebook.com/v13.0/{channel.address}/register"
+        data = {"messaging_product": "whatsapp", "pin": wa_pin}
+
+        resp = requests.post(url, data=data, headers=headers)
+
+        if resp.status_code != 200:  # pragma: no cover
+            raise ValidationError(
+                _("Unable to register phone with ID %s from WABA with ID %s" % (channel.address, waba_id))
+            )
 
     def get_api_templates(self, channel):
         if not settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN:  # pragma: no cover

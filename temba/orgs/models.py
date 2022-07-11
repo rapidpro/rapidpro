@@ -747,7 +747,7 @@ class Org(SmartModel):
         if export_version < Version(Flow.CURRENT_SPEC_VERSION):
             export_json = Flow.migrate_export(self, export_json, same_site, export_version)
 
-        self.validate_import(export_json)
+        self.clean_import(export_json)
 
         export_fields = export_json.get("fields", [])
         export_groups = export_json.get("groups", [])
@@ -776,11 +776,24 @@ class Org(SmartModel):
             flow.has_issues = len(flow_info[Flow.INSPECT_ISSUES]) > 0
             flow.save(update_fields=("has_issues",))
 
-    def validate_import(self, import_def):
+    def clean_import(self, import_def):
         from temba.triggers.models import Trigger
 
+        cleaned_triggers = []
+
         for trigger_def in import_def.get("triggers", []):
+            trigger_type = trigger_def.get("trigger_type", "")
+            channel_uuid = trigger_def.get("channel")
+
+            # TODO need better way to report import results back to users
+            # ignore scheduled triggers and new conversation triggers without channels
+            if trigger_type == "S" or (trigger_type == "N" and not channel_uuid):
+                continue
+
             Trigger.validate_import_def(trigger_def)
+            cleaned_triggers.append(trigger_def)
+
+        import_def["triggers"] = cleaned_triggers
 
     @classmethod
     def export_definitions(cls, site_link, components, include_fields=True, include_groups=True):

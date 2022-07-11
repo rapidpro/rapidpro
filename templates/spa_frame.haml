@@ -530,8 +530,7 @@
       let state = event.state;
       if (state) {
         showLoading();
-
-        gotoURL(state.url, state.show);
+        gotoURL(state.url, state.show, false, true);
         var menu = document.querySelector("temba-menu");
         menu.setFocusedItem(state.show);
       }
@@ -618,10 +617,14 @@
       }
     }
 
-    function gotoURL(urlToGo, urlToShow, ignoreEvents) {
+    function gotoURL(urlToGo, urlToShow, ignoreEvents, ignoreHistory) {
       var refererPath = window.location.pathname;
       window.lastFetch = urlToGo;
-      window.history.pushState({ url: urlToGo, show: urlToShow }, "", urlToShow);
+
+      if (!ignoreHistory) {
+        window.history.pushState({ url: urlToGo, show: urlToShow }, "", urlToShow);
+      }
+
       fetchAjax(urlToGo, ".spa-content", { "headers": { 
           "TEMBA-SPA": "1", 
           "TEMBA-REFERER-PATH": refererPath,
@@ -638,9 +641,15 @@
       var details = event.detail;
       var menu = document.querySelector("temba-menu");
 
-      var path = details.selection + "/" + details.path;
+      var pathBits = details.path.split("?");
+      var path = details.selection + "/" + pathBits[0];
       if (path[path.length-1] != "/") {
         path += "/";
+      }
+
+      // add our query string if we have one
+      if (pathBits.length > 1) {
+        path += "?" + pathBits[1];
       }
 
       var mapped = mapUrl(path, true);

@@ -1,3 +1,39 @@
+v7.4.0
+----------
+ * Remove superfulous Beta group perm
+ * Update new UI opt in permissions
+ * More tweaks to WhatsApp Cloud channel claiming
+
+v7.3.79
+----------
+ * Add missing Facebook ID
+
+v7.3.78
+----------
+ * Add button to allow admin to choose more FB WAC numbers
+
+v7.3.77
+----------
+ * Add contact ticket list in new UI
+ * Fix permissions to connect WAC
+ * Register the WAC number in the activate method
+
+v7.3.76
+----------
+ * Add the Facebook dialog login if the token is not submitted successfully on WAC org connect
+ * Fix campaigns archive and activate buttons
+ * Update to latest Django
+ * Only display WA templates that are active
+ * Update flow start dialog to use start preview endpoint  
+ * Add start flow bulk action for contacts
+
+v7.3.75
+----------
+ * Redirect to channel page after WAC claim
+ * Fix org update pre form users roles list
+ * Adjust permission for org whatsapp connect view
+ * Ignore new conversation triggers without channels in imports
+
 v7.3.74
 ----------
  * Use FB JS SDK for WAC signups

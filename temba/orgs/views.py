@@ -1085,7 +1085,7 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         return context
 
     def has_permission(self, request, *args, **kwargs):
-        return not request.user.is_anonymous and request.user.is_beta
+        return not request.user.is_anonymous and request.user.is_staff
 
 
 class MenuMixin(OrgPermsMixin):
@@ -2171,6 +2171,22 @@ class OrgCRUDL(SmartCRUDL):
                         )
                     )
             return links
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            org = self.get_object()
+
+            users_roles = []
+
+            for role in OrgRole:
+                role_users = list(org.get_users(roles=[role]).values("id", "email"))
+                if role_users:
+                    users_roles.append(dict(role_display=role.display_plural, users=role_users))
+
+            context["users_roles"] = users_roles
+
+            return context
 
         def post(self, request, *args, **kwargs):
             if "action" in request.POST:

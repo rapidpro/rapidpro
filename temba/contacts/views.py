@@ -35,7 +35,6 @@ from django.views import View
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
-from temba.flows.models import Flow, FlowStart
 from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.views import (
@@ -569,7 +568,6 @@ class ContactCRUDL(SmartCRUDL):
         "delete",
         "scheduled",
         "history",
-        "start",
     )
 
     class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
@@ -878,13 +876,13 @@ class ContactCRUDL(SmartCRUDL):
                         )
                     )
 
-                if self.has_org_perm("contacts.contact_start"):
+                if self.has_org_perm("flows.flow_broadcast"):
                     links.append(
                         dict(
                             id="start-flow",
-                            title=_("Start In Flow"),
-                            href=f"{reverse('contacts.contact_start', args=[self.object.id])}",
-                            modax=_("Start In Flow"),
+                            title=_("Start Flow"),
+                            href=f"{reverse('flows.flow_broadcast', args=[])}?c={self.object.uuid}",
+                            modax=_("Start Flow"),
                         )
                     )
 
@@ -1093,7 +1091,7 @@ class ContactCRUDL(SmartCRUDL):
             return JsonResponse(summary)
 
     class List(ContactListView):
-        title = _("Contacts")
+        title = _("Active Contacts")
         system_group = ContactGroup.TYPE_DB_ACTIVE
 
         def get_bulk_actions(self):
@@ -1516,39 +1514,6 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             obj.release(self.request.user)
             return obj
-
-    class Start(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        """
-        Starts this contact in a flow
-        """
-
-        class Form(forms.Form):
-            flow = TembaChoiceField(
-                queryset=Flow.objects.none(),
-                widget=SelectWidget(
-                    attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
-                ),
-            )
-
-            def __init__(self, instance, **kwargs):
-                super().__init__(**kwargs)
-
-                self.fields["flow"].queryset = instance.org.flows.filter(
-                    flow_type__in=(Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND),
-                    is_archived=False,
-                    is_system=False,
-                    is_active=True,
-                ).order_by("name")
-
-        form_class = Form
-        success_url = "hide"
-        success_message = ""
-        submit_button_name = _("Start")
-
-        def save(self, obj):
-            self.flow = self.form.cleaned_data["flow"]
-            start = FlowStart.create(self.flow, self.request.user, FlowStart.TYPE_MANUAL, contacts=[obj])
-            start.async_start()
 
 
 class ContactGroupCRUDL(SmartCRUDL):

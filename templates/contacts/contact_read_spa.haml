@@ -67,6 +67,12 @@
       var openTickets = evt.detail.data.filter(function (ticket) { 
         return ticket.status === "open"
       });      
+      
+      var tabs = document.querySelector("temba-tabs");
+      var ticketsTab = tabs.getTab(3);
+      ticketsTab.count = openTickets.length;
+      tabs.requestUpdate();
+
     }
 
     function handleTabChanged() {
@@ -87,10 +93,8 @@
     
 -block content
 
-  %temba-tabs.flex-grow.mt-4(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}")
+  %temba-tabs.flex-grow.mt-4(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}" collapses="true")
     %temba-tab(icon="message-square" name='{{_("Chat")|escapejs}}')
-      %temba-contact-tickets.absolute.m-6.z-10(contact="{{object.uuid}}" -temba-refreshed="handleTicketsRefreshed")
-
       .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
         %temba-contact-chat(contact="{{object.uuid}}" monitor="true")
 
@@ -115,3 +119,14 @@
 
             -blocktrans trimmed
               Nothing to see here yet. Any messages or flows scheduled to be sent to this contact in the future will be shown here.  
+
+    %temba-tab(icon="agent" name='{{_("Tickets")|escapejs}}')    
+      .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
+        %temba-contact-tickets(contact="{{object.uuid}}" -temba-refreshed="handleTicketsRefreshed")
+
+          .no-tickets.p-16.text-center(slot="empty")
+            .text-xl.mb-4
+              -trans "No Tickets"
+
+            -blocktrans trimmed
+              Nothing to see here yet. Use the Open Ticket action in one of your flows to open tickets.

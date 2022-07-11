@@ -35,12 +35,22 @@
       .fb-page-channel-option.lbl.mt-3.mr-2.p-2.linked(class="" data-number="{{phone_num.display_phone_number}}" data-verified_name="{{phone_num.verified_name}}" data-phone_number_id="{{phone_num.phone_number_id}}" data-waba_id="{{phone_num.waba_id}}" data-business_id="{{phone_num.business_id}}" data-currency="{{phone_num.currency}}" data-message_template_namespace="{{phone_num.message_template_namespace}}")
         {{phone_num.display_phone_number}} ({{phone_num.verified_name}})
 
+  #fb-app-connect.flex.mt-4
+    .button-primary.connect-facebook
+      -trans "Connect other Facebook Business numbers"
+
 
 -block extra-script
   {{ block.super }}
 
   :javascript
     $(document).ready(function(){
+      $(".connect-facebook").click(function(evt){
+        $.ajax({type: "GET", url: "{{clear_session_token_url}}" });
+        location.replace("https://www.facebook.com/v13.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&scope=business_management,whatsapp_business_management,whatsapp_business_messaging&response_type=token")
+
+      });
+
 
       $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e){
         $("#number").val($(this).data("number"));

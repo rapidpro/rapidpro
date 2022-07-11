@@ -15,7 +15,7 @@
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
-    -if user.is_beta
+    -if user.is_staff
       %script{src:"{{ STATIC_URL }}js/urls.js"}
 
       :javascript

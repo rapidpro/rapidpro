@@ -60,7 +60,9 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
         context = super().get_context_data(**kwargs)
 
         # include all our templates as well
-        context["translations"] = TemplateTranslation.objects.filter(channel=self.object).order_by("template__name")
+        context["translations"] = TemplateTranslation.objects.filter(channel=self.object, is_active=True).order_by(
+            "template__name"
+        )
         return context
 
 

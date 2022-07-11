@@ -465,7 +465,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             else "flow"
         )
 
-        return {"icon": icon, "type": self.flow_type}
+        return {"icon": icon, "type": self.flow_type, "uuid": self.uuid}
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]

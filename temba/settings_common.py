@@ -526,7 +526,7 @@ PERMISSIONS = {
 GROUP_PERMISSIONS = {
     "Service Users": ("flows.flow_assets", "msgs.msg_create"),  # internal Temba services have limited permissions
     "Alpha": (),
-    "Beta": ("tickets.ticket_list",),
+    "Beta": ("orgs.org_whatsapp_cloud_connect",),
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
         "contacts.contact_api",
@@ -606,7 +606,6 @@ GROUP_PERMISSIONS = {
         "contacts.contact_read",
         "contacts.contact_restore",
         "contacts.contact_search",
-        "contacts.contact_start",
         "contacts.contact_stopped",
         "contacts.contact_update",
         "contacts.contact_update_fields",
@@ -645,7 +644,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_vonage_connect",
         "orgs.org_plan",
         "orgs.org_plivo_connect",
-        "orgs.org_whatsapp_cloud_connect",
         "orgs.org_profile",
         "orgs.org_prometheus",
         "orgs.org_resthooks",
@@ -744,7 +742,6 @@ GROUP_PERMISSIONS = {
         "contacts.contact_read",
         "contacts.contact_restore",
         "contacts.contact_search",
-        "contacts.contact_start",
         "contacts.contact_stopped",
         "contacts.contact_update",
         "contacts.contact_update_fields",

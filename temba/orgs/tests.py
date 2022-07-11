@@ -1338,8 +1338,12 @@ class OrgTest(TembaTest):
         self.assertContains(response, expected_message)
 
         # we also can't start flows
-        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
-        self.assertContains(response, expected_message)
+        self.assertRaises(
+            AssertionError,
+            self.client.post,
+            reverse("flows.flow_broadcast", args=[]),
+            {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"},
+        )
 
         response = send_broadcast_via_api()
         self.assertContains(response, expected_message, status_code=400)
@@ -1358,8 +1362,12 @@ class OrgTest(TembaTest):
         self.assertContains(response, expected_message)
 
         # we also can't start flows
-        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
-        self.assertContains(response, expected_message)
+        self.assertRaises(
+            AssertionError,
+            self.client.post,
+            reverse("flows.flow_broadcast", args=[]),
+            {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"},
+        )
 
         response = send_broadcast_via_api()
         self.assertContains(response, expected_message, status_code=400)
@@ -1380,7 +1388,8 @@ class OrgTest(TembaTest):
         self.org.save(update_fields=("is_suspended",))
 
         self.client.post(
-            reverse("flows.flow_broadcast", args=[flow.id]), {"query": f'uuid="{mark.uuid}"', "type": "contact"}
+            reverse("flows.flow_broadcast", args=[]),
+            {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"},
         )
 
         mock_async_start.assert_called_once()
@@ -3457,7 +3466,8 @@ class AnonOrgTest(TembaTest):
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_spa(self):
-        self.make_beta(self.admin)
+        self.admin.is_staff = True
+        self.admin.save()
         self.login(self.admin)
         deep_link = reverse("spa.level_2", args=["tickets", "all", "open"])
         response = self.client.get(deep_link)
@@ -3473,7 +3483,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         home_url = reverse("orgs.org_home")
 
-        with self.assertNumQueries(24):
+        with self.assertNumQueries(23):
             response = self.client.get(home_url)
 
         self.assertEqual(200, response.status_code)
@@ -3516,7 +3526,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(55):
+        with self.assertNumQueries(54):
             response = self.client.get(reverse("orgs.org_workspace"))
 
         # make sure we have the appropriate number of sections

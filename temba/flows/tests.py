@@ -1,3 +1,4 @@
+import copy
 import decimal
 import io
 import os
@@ -208,99 +209,6 @@ class FlowTest(TembaTest):
 
         response = self.client.get(reverse("flows.flow_campaign", args=[campaign2.id]))
         self.assertLoginRedirect(response)
-
-    def test_facebook_warnings(self):
-        no_topic = self.get_flow("pick_a_number")
-        with_topic = self.get_flow("with_message_topic")
-
-        # bring up broadcast dialog
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_broadcast", args=[no_topic.id]))
-
-        # no warning, we don't have a facebook channel
-        self.assertNotContains(response, "does not specify a Facebook topic")
-
-        # change our channel to use a facebook scheme
-        self.channel.schemes = [URN.FACEBOOK_SCHEME]
-        self.channel.save()
-
-        # should see a warning for no topic now
-        response = self.client.get(reverse("flows.flow_broadcast", args=[no_topic.id]))
-        self.assertContains(response, "does not specify a Facebook topic")
-
-        # warning shouldn't be present for flow with a topic
-        response = self.client.get(reverse("flows.flow_broadcast", args=[with_topic.id]))
-        self.assertNotContains(response, "does not specify a Facebook topic")
-
-    def test_template_warnings(self):
-        self.login(self.admin)
-        flow = self.get_flow("whatsapp_template")
-
-        # bring up broadcast dialog
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
-
-        # no warning, we don't have a whatsapp channel
-        self.assertNotContains(response, "affirmation")
-
-        # change our channel to use a whatsapp scheme
-        self.channel.schemes = [URN.WHATSAPP_SCHEME]
-        self.channel.channel_type = "TWA"
-        self.channel.save()
-
-        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
-
-        # no warning, we don't have a whatsapp channel that requires a message template
-        self.assertNotContains(response, "affirmation")
-
-        self.channel.channel_type = "WA"
-        self.channel.save()
-
-        # clear dependencies, this will cause our flow to look like it isn't using templates
-        metadata = flow.metadata
-        flow.metadata = {}
-        flow.save(update_fields=["metadata"])
-
-        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
-        self.assertContains(response, "does not use message")
-
-        # restore our dependency
-        flow.metadata = metadata
-        flow.save(update_fields=["metadata"])
-
-        # template doesn't exit, will be warned
-        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
-        self.assertContains(response, "affirmation")
-
-        # create the template, but no translations
-        Template.objects.create(org=self.org, name="affirmation", uuid="f712e05c-bbed-40f1-b3d9-671bb9b60775")
-
-        # will be warned again
-        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
-        self.assertContains(response, "affirmation")
-
-        # create a translation, but not approved
-        TemplateTranslation.get_or_create(
-            self.channel,
-            "affirmation",
-            "eng",
-            "US",
-            "good boy",
-            0,
-            TemplateTranslation.STATUS_REJECTED,
-            "id1",
-            "foo_namespace",
-        )
-
-        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
-        self.assertContains(response, "affirmation")
-
-        # finally, set our translation to approved
-        TemplateTranslation.objects.update(status=TemplateTranslation.STATUS_APPROVED)
-
-        # no warnings again
-        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
-        self.assertNotContains(response, "affirmation")
 
     def test_flow_archive_with_campaign(self):
         self.login(self.admin)
@@ -1821,7 +1729,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
-        self.assertEqual(5, len(menu))
+        self.assertEqual(
+            ["Active", "Archived", "Labels", "space", "divider", "New Flow", "New Label"],
+            [m.get("name") or m.get("type") for m in menu],
+        )
 
     def test_create(self):
         create_url = reverse("flows.flow_create")
@@ -2577,92 +2488,420 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(404, response.status_code)
 
     @mock_mailroom
-    def test_preview_start(self, mr_mocks):
-        flow = self.create_flow("Test")
-        self.create_field("age", "Age")
-        contact1 = self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
-        contact2 = self.create_contact("Bob", phone="+16303333333", fields={"age": 33})
+    @patch("temba.flows.models.Flow.is_starting")
+    def test_preview_start(self, mr_mocks, mock_flow_is_starting):
 
-        mr_mocks.flow_preview_start(
-            query='age > 30 AND status = "active" AND history != "Test Flow"', total=100, sample=[contact1, contact2]
-        )
+        mock_flow_is_starting.return_value = False
 
-        preview_url = reverse("flows.flow_preview_start", args=[flow.id])
+        # now set our brand to redirect
+        branding = copy.deepcopy(settings.BRANDING)
+        branding["rapidpro.io"]["inactive_threshold"] = 1000
 
-        self.login(self.editor)
+        with self.settings(BRANDING=branding):
+            flow = self.create_flow("Test")
+            self.create_field("age", "Age")
+            contact1 = self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
+            contact2 = self.create_contact("Bob", phone="+16303333333", fields={"age": 33})
 
+            mr_mocks.flow_preview_start(
+                query='age > 30 AND status = "active" AND history != "Test Flow"',
+                total=100,
+                sample=[contact1, contact2],
+            )
+
+            preview_url = reverse("flows.flow_preview_start", args=[flow.id])
+
+            self.login(self.editor)
+
+            response = self.client.post(
+                preview_url,
+                {
+                    "query": "age > 30",
+                    "exclusions": {"non_active": True, "started_previously": True},
+                },
+                content_type="application/json",
+            )
+            self.assertEqual(
+                {
+                    "query": 'age > 30 AND status = "active" AND history != "Test Flow"',
+                    "total": 100,
+                    "sample": [
+                        {
+                            "uuid": contact1.uuid,
+                            "name": "Ann",
+                            "primary_urn": "+1 630-222-2222",
+                            "fields": {"age": "40"},
+                            "created_on": contact1.created_on.isoformat(),
+                            "last_seen_on": None,
+                        },
+                        {
+                            "uuid": contact2.uuid,
+                            "name": "Bob",
+                            "primary_urn": "+1 630-333-3333",
+                            "fields": {"age": "33"},
+                            "created_on": contact2.created_on.isoformat(),
+                            "last_seen_on": None,
+                        },
+                    ],
+                    "fields": [{"key": "age", "name": "Age"}],
+                    "warnings": [],
+                    "blockers": [],
+                },
+                response.json(),
+            )
+
+            # try with a bad query
+            mr_mocks.error("mismatched input at (((", code="unexpected_token", extra={"token": "((("})
+
+            response = self.client.post(
+                preview_url,
+                {
+                    "query": "(((",
+                    "exclusions": {"non_active": True, "started_previously": True},
+                },
+                content_type="application/json",
+            )
+            self.assertEqual(400, response.status_code)
+            self.assertEqual(
+                {"query": "", "total": 0, "sample": [], "error": "Invalid query syntax at '((('"}, response.json()
+            )
+
+            # suspended orgs should block
+            self.org.is_suspended = True
+            self.org.save()
+            mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[contact1, contact2])
+            response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
+            self.assertEqual(
+                [
+                    "Sorry, your workspace is currently suspended. To re-enable starting flows and sending messages, please contact support."
+                ],
+                response.json()["blockers"],
+            )
+
+            # flagged orgs should block
+            self.org.is_suspended = False
+            self.org.is_flagged = True
+            self.org.save()
+            mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[contact1, contact2])
+            response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
+            self.assertEqual(
+                [
+                    "Sorry, your workspace is currently flagged. To re-enable starting flows and sending messages, please contact support."
+                ],
+                response.json()["blockers"],
+            )
+
+            self.org.is_flagged = False
+            self.org.save()
+
+            # trying to start again should fail because there is already a pending start for this flow
+            mock_flow_is_starting.return_value = True
+            mr_mocks.flow_preview_start(
+                query='age > 30 AND status = "active" AND history != "Test Flow"',
+                total=100,
+                sample=[contact1, contact2],
+            )
+
+            response = self.client.post(
+                preview_url,
+                {
+                    "query": "age > 30",
+                    "exclusions": {"non_active": True, "started_previously": True},
+                },
+                content_type="application/json",
+            )
+
+            self.assertEqual(
+                [
+                    "This flow is already being started - please wait until that process completes before starting more contacts."
+                ],
+                response.json()["blockers"],
+            )
+
+            ivr_flow = self.create_flow("IVR Test", flow_type=Flow.TYPE_VOICE)
+
+            preview_url = reverse("flows.flow_preview_start", args=[ivr_flow.id])
+
+            # shouldn't be able to since we don't have a call channel
+            mock_flow_is_starting.return_value = False
+            mr_mocks.flow_preview_start(
+                query='age > 30 AND status = "active" AND history != "Test Flow"',
+                total=100,
+                sample=[contact1, contact2],
+            )
+
+            response = self.client.post(
+                preview_url,
+                {
+                    "query": "age > 30",
+                    "exclusions": {"non_active": True, "started_previously": True},
+                },
+                content_type="application/json",
+            )
+
+            self.assertEqual(
+                response.json()["blockers"][0],
+                'To start this flow you need to <a href="/channels/channel/claim/">add a voice channel</a> to your workspace which will allow you to make and receive calls.',
+            )
+
+            # check warning for lots of contacts
+            preview_url = reverse("flows.flow_preview_start", args=[flow.id])
+            mr_mocks.flow_preview_start(
+                query='age > 30 AND status = "active" AND history != "Test Flow"',
+                total=10000,
+                sample=[contact1, contact2],
+            )
+
+            response = self.client.post(
+                preview_url,
+                {
+                    "query": "age > 30",
+                    "exclusions": {"non_active": True, "started_previously": True},
+                },
+                content_type="application/json",
+            )
+
+            self.assertEqual(
+                response.json()["warnings"][0],
+                "You've selected a lot of contacts! Depending on your channel it could take days to reach everybody and could reduce response rates. Click on <b>Skip inactive contacts</b> below to limit your selection to contacts who are more likely to respond.",
+            )
+
+            # if we release our send channel we also can't start a regular messaging flow
+            self.channel.release(self.admin)
+            mr_mocks.flow_preview_start(
+                query='age > 30 AND status = "active" AND history != "Test Flow"',
+                total=100,
+                sample=[contact1, contact2],
+            )
+
+            response = self.client.post(
+                preview_url,
+                {
+                    "query": "age > 30",
+                    "exclusions": {"non_active": True, "started_previously": True},
+                },
+                content_type="application/json",
+            )
+
+            self.assertEqual(
+                response.json()["blockers"][0],
+                'To start this flow you need to <a href="/channels/channel/claim/">add a channel</a> to your workspace which will allow you to send messages to your contacts.',
+            )
+
+    @mock_mailroom
+    def test_facebook_warnings(self, mr_mocks):
+        no_topic = self.get_flow("pick_a_number")
+        with_topic = self.get_flow("with_message_topic")
+
+        self.login(self.admin)
+
+        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
         response = self.client.post(
-            preview_url,
+            reverse("flows.flow_preview_start", args=[no_topic.id]),
             {
                 "query": "age > 30",
-                "exclusions": {"non_active": True, "started_previously": True},
             },
             content_type="application/json",
         )
-        self.assertEqual(
-            {
-                "query": 'age > 30 AND status = "active" AND history != "Test Flow"',
-                "total": 100,
-                "sample": [
-                    {
-                        "uuid": contact1.uuid,
-                        "name": "Ann",
-                        "primary_urn": "+1 630-222-2222",
-                        "fields": {"age": "40"},
-                        "created_on": contact1.created_on.isoformat(),
-                        "last_seen_on": None,
-                    },
-                    {
-                        "uuid": contact2.uuid,
-                        "name": "Bob",
-                        "primary_urn": "+1 630-333-3333",
-                        "fields": {"age": "33"},
-                        "created_on": contact2.created_on.isoformat(),
-                        "last_seen_on": None,
-                    },
-                ],
-                "fields": [{"key": "age", "name": "Age"}],
-            },
-            response.json(),
-        )
 
-        # try with a bad query
-        mr_mocks.error("mismatched input at (((", code="unexpected_token", extra={"token": "((("})
+        # no warning, we don't have a facebook channel
+        self.assertEqual(response.json()["warnings"], [])
 
+        # change our channel to use a facebook scheme
+        self.channel.schemes = [URN.FACEBOOK_SCHEME]
+        self.channel.save()
+
+        # should see a warning for no topic now
+        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
         response = self.client.post(
-            preview_url,
+            reverse("flows.flow_preview_start", args=[no_topic.id]),
             {
-                "query": "(((",
-                "exclusions": {"non_active": True, "started_previously": True},
+                "query": "age > 30",
             },
             content_type="application/json",
         )
-        self.assertEqual(400, response.status_code)
+
         self.assertEqual(
-            {"query": "", "total": 0, "sample": [], "error": "Invalid query syntax at '((('"}, response.json()
+            response.json()["warnings"][0],
+            "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it.",
         )
+
+        # warning shouldn't be present for flow with a topic
+        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        response = self.client.post(
+            reverse("flows.flow_preview_start", args=[with_topic.id]),
+            {
+                "query": "age > 30",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.json()["warnings"], [])
+
+    @mock_mailroom
+    def test_template_warnings(self, mr_mocks):
+        self.login(self.admin)
+        flow = self.get_flow("whatsapp_template")
+
+        # bring up broadcast dialog
+        self.login(self.admin)
+
+        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        response = self.client.post(
+            reverse("flows.flow_preview_start", args=[flow.id]),
+            {
+                "query": "age > 30",
+            },
+            content_type="application/json",
+        )
+
+        # no warning, we don't have a whatsapp channel
+        self.assertEqual(response.json()["warnings"], [])
+
+        # change our channel to use a whatsapp scheme
+        self.channel.schemes = [URN.WHATSAPP_SCHEME]
+        self.channel.channel_type = "TWA"
+        self.channel.save()
+
+        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        response = self.client.post(
+            reverse("flows.flow_preview_start", args=[flow.id]),
+            {
+                "query": "age > 30",
+            },
+            content_type="application/json",
+        )
+
+        # no warning, we don't have a whatsapp channel that requires a message template
+        self.assertEqual(response.json()["warnings"], [])
+
+        self.channel.channel_type = "WA"
+        self.channel.save()
+
+        # clear dependencies, this will cause our flow to look like it isn't using templates
+        metadata = flow.metadata
+        flow.metadata = {}
+        flow.save(update_fields=["metadata"])
+
+        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        response = self.client.post(
+            reverse("flows.flow_preview_start", args=[flow.id]),
+            {
+                "query": "age > 30",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(
+            response.json()["warnings"],
+            [
+                "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
+            ],
+        )
+
+        # restore our dependency
+        flow.metadata = metadata
+        flow.save(update_fields=["metadata"])
+
+        # template doesn't exit, will be warned
+        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        response = self.client.post(
+            reverse("flows.flow_preview_start", args=[flow.id]),
+            {
+                "query": "age > 30",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEquals(
+            response.json()["warnings"],
+            ["The message template affirmation does not exist on your account and cannot be sent."],
+        )
+
+        # create the template, but no translations
+        Template.objects.create(org=self.org, name="affirmation", uuid="f712e05c-bbed-40f1-b3d9-671bb9b60775")
+
+        # will be warned again
+        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        response = self.client.post(
+            reverse("flows.flow_preview_start", args=[flow.id]),
+            {
+                "query": "age > 30",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEquals(
+            response.json()["warnings"], ["Your message template affirmation is not approved and cannot be sent."]
+        )
+
+        # create a translation, but not approved
+        TemplateTranslation.get_or_create(
+            self.channel,
+            "affirmation",
+            "eng",
+            "US",
+            "good boy",
+            0,
+            TemplateTranslation.STATUS_REJECTED,
+            "id1",
+            "foo_namespace",
+        )
+
+        # will be warned again
+        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        response = self.client.post(
+            reverse("flows.flow_preview_start", args=[flow.id]),
+            {
+                "query": "age > 30",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEquals(
+            response.json()["warnings"], ["Your message template affirmation is not approved and cannot be sent."]
+        )
+
+        # finally, set our translation to approved
+        TemplateTranslation.objects.update(status=TemplateTranslation.STATUS_APPROVED)
+
+        # no warnings
+        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        response = self.client.post(
+            reverse("flows.flow_preview_start", args=[flow.id]),
+            {
+                "query": "age > 30",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEquals(response.json()["warnings"], [])
 
     @mock_mailroom
     def test_broadcast(self, mr_mocks):
         contact = self.create_contact("Bob", phone="+593979099111")
         flow = self.create_flow("Test")
-        ivr_flow = self.create_flow("IVR Test", flow_type=Flow.TYPE_VOICE)
 
-        broadcast_url = reverse("flows.flow_broadcast", args=[flow.id])
+        broadcast_url = reverse("flows.flow_broadcast", args=[])
 
         self.assertUpdateFetch(
             broadcast_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["query", "exclude_inactive", "exclude_in_other", "exclude_reruns"],
+            allow_org2=True,
+            form_fields=["query", "flow", "recipients"],
         )
+
+        # fetch the broadcast with flow prepopulated
+        response = self.client.get(f"{broadcast_url}?flow={flow.id}")
+        self.assertContains(response, flow.name)
 
         # create flow start with a query
         mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
 
         self.assertUpdateSubmit(
             broadcast_url,
-            {"query": "frank", "exclude_in_other": False, "exclude_reruns": False},
+            {"flow": flow.id, "query": "frank"},
         )
 
         start = FlowStart.objects.get()
@@ -2682,7 +2921,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateSubmit(
             broadcast_url,
-            {"query": 'name = "frank', "exclude_in_other": False, "exclude_reruns": False},
+            {"flow": flow.id, "query": 'name = "frank'},
             form_errors={"query": "query contains an error"},
             object_unchanged=flow,
         )
@@ -2690,7 +2929,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to create with an empty query
         self.assertUpdateSubmit(
             broadcast_url,
-            {"query": "", "exclude_in_other": False, "exclude_reruns": False},
+            {"flow": flow.id, "query": ""},
             form_errors={"query": "This field is required."},
             object_unchanged=flow,
         )
@@ -2701,7 +2940,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # create flow start with exclude_in_other and exclude_reruns both left unchecked
         self.assertUpdateSubmit(
             broadcast_url,
-            {"query": query, "exclude_in_other": False, "exclude_reruns": False},
+            {"flow": flow.id, "query": query},
         )
 
         start = FlowStart.objects.get()
@@ -2718,70 +2957,15 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         FlowStart.objects.all().delete()
 
-        # create selection based flow start with exclusions checked
-        self.assertUpdateSubmit(
-            broadcast_url, {"query": query, "exclude_inactive": True, "exclude_in_other": True, "exclude_reruns": True}
-        )
-
-        # exclude inactive will tack on last_seen_on to our query
-        now = timezone.now()
-        recency_window = now - timedelta(days=90)
-        query = f"({query}) AND last_seen_on > {self.org.format_datetime(recency_window, show_time=False)}"
-
-        start = FlowStart.objects.get()
-        self.assertEqual(query, start.query)
-        self.assertEqual(flow, start.flow)
-        self.assertEqual(FlowStart.STATUS_PENDING, start.status)
-        self.assertFalse(start.restart_participants)
-        self.assertFalse(start.include_active)
-
-        self.assertEqual(3, len(mr_mocks.queued_batch_tasks))
-
-        # trying to start again should fail because there is already a pending start for this flow
-        response = self.requestView(broadcast_url, self.admin)
-        self.assertContains(response, "This flow is already being started - please wait")
-        self.assertNotContains(response, "Start Flow")
-
-        # clear that start and try to start the IVR flow
-        FlowStart.objects.all().delete()
-        ivr_bcast_url = reverse("flows.flow_broadcast", args=[ivr_flow.id])
-
-        # shouldn't be able to since we don't have a call channel
-        response = self.requestView(ivr_bcast_url, self.admin)
-        self.assertContains(
-            response, 'To get started you need to <a href="/channels/channel/claim/">add a voice channel</a>'
-        )
-        self.assertNotContains(response, "Start Flow")
-
-        # if we release our send channel we also can't start a regular messaging flow
-        self.channel.release(self.admin)
-
-        response = self.requestView(broadcast_url, self.admin)
-        self.assertContains(
-            response, 'To get started you need to <a href="/channels/channel/claim/">add a channel</a>'
-        )
-        self.assertNotContains(response, "Start Flow")
-
     @mock_mailroom
     def test_broadcast_background_flow(self, mr_mocks):
         flow = self.create_flow("Background", flow_type=Flow.TYPE_BACKGROUND)
 
-        broadcast_url = reverse("flows.flow_broadcast", args=[flow.id])
-
-        response = self.assertUpdateFetch(
-            broadcast_url,
-            allow_viewers=False,
-            allow_editors=True,
-            form_fields=["query", "exclude_inactive", "exclude_in_other", "exclude_reruns"],
-        )
-
-        # option to exclude contact in other flows is hidden
-        self.assertNotContains(response, "Exclude contacts currently in a flow")
-
         # create flow start with a query
         mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
 
-        self.assertUpdateSubmit(broadcast_url, {"query": "frank", "exclude_reruns": False})
+        broadcast_url = reverse("flows.flow_broadcast", args=[])
+        self.assertUpdateSubmit(broadcast_url, {"flow": flow.id, "query": "frank"})
 
         start = FlowStart.objects.get()
         self.assertEqual(flow, start.flow)

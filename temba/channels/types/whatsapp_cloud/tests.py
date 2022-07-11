@@ -48,6 +48,17 @@ class WhatsAppCloudTypeTest(TembaTest):
 
             response = self.client.get(claim_whatsapp_cloud_url, follow=True)
 
+            self.assertEqual(response.request["PATH_INFO"], "/users/login/")
+
+        self.make_beta(self.admin)
+        with patch("requests.get") as wa_cloud_get:
+            wa_cloud_get.return_value = MockResponse(400, {})
+            response = self.client.get(claim_whatsapp_cloud_url)
+
+            self.assertEqual(response.status_code, 302)
+
+            response = self.client.get(claim_whatsapp_cloud_url, follow=True)
+
             self.assertEqual(response.request["PATH_INFO"], connect_whatsapp_cloud_url)
 
         with patch("requests.get") as wa_cloud_get:
@@ -297,7 +308,7 @@ class WhatsAppCloudTypeTest(TembaTest):
 
                 self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
-                self.assertEqual(3, wa_cloud_post.call_count)
+                self.assertEqual(4, wa_cloud_post.call_count)
 
                 self.assertEqual(
                     "https://graph.facebook.com/v13.0/111111111111111/assigned_users",
@@ -316,11 +327,18 @@ class WhatsAppCloudTypeTest(TembaTest):
                     wa_cloud_post.call_args_list[2][0][0],
                 )
 
+                self.assertEqual(
+                    "https://graph.facebook.com/v13.0/123123123/register", wa_cloud_post.call_args_list[3][0][0]
+                )
+                self.assertEqual(
+                    {"messaging_product": "whatsapp", "pin": "111111"}, wa_cloud_post.call_args_list[3][1]["data"]
+                )
+
                 channel = Channel.objects.get()
 
                 self.assertEqual(
                     response.request["PATH_INFO"],
-                    reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)),
+                    reverse("channels.channel_read", args=(channel.uuid,)),
                 )
 
                 self.assertEqual("1234 - WABA name", channel.name)
@@ -335,6 +353,9 @@ class WhatsAppCloudTypeTest(TembaTest):
                 self.assertEqual("2222222222222", channel.config["wa_business_id"])
                 self.assertEqual("111111", channel.config["wa_pin"])
                 self.assertEqual("namespace-uuid", channel.config["wa_message_template_namespace"])
+
+                response = self.client.get(reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)))
+                self.assertEqual(200, response.status_code)
 
                 # request verification code
                 response = self.client.post(
@@ -522,6 +543,27 @@ class WhatsAppCloudTypeTest(TembaTest):
                     response.context["form"].errors["__all__"][0],
                     "That number is already connected (1234)",
                 )
+
+    def test_clear_session_token(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        clear_session_token_url = reverse("channels.types.whatsapp_cloud.clear_session_token")
+        response = self.client.get(clear_session_token_url)
+        self.assertEqual(200, response.status_code)
+
+        self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+
+        session = self.client.session
+        session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
+        session.save()
+
+        self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+
+        response = self.client.get(clear_session_token_url)
+        self.assertEqual(200, response.status_code)
+
+        self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
     @override_settings(WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN")
     @patch("requests.get")
