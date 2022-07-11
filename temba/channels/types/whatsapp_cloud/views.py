@@ -1,15 +1,15 @@
 from random import randint
 
 import requests
-from smartmin.views import SmartFormView, SmartModelActionView
+from smartmin.views import SmartFormView, SmartModelActionView, SmartTemplateView
 
 from django import forms
 from django.conf import settings
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin
+from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 
 from ...models import Channel
@@ -132,6 +132,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             context["phone_numbers"] = phone_numbers
 
         context["claim_url"] = reverse("channels.types.whatsapp_cloud.claim")
+        context["clear_session_token_url"] = reverse("channels.types.whatsapp_cloud.clear_session_token")
         context["connect_whatsapp_url"] = reverse("orgs.org_whatsapp_cloud_connect")
         context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
 
@@ -225,6 +226,17 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def remove_token_credentials_from_session(self):
         if Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.request.session:
             del self.request.session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN]
+
+
+class ClearSessionToken(OrgPermsMixin, SmartTemplateView):
+    permission = "channels.channel_claim"
+
+    def pre_process(self, request, *args, **kwargs):
+        if Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.request.session:
+            del self.request.session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN]
+
+    def render_to_response(self, context, **response_kwargs):
+        return JsonResponse({})
 
 
 class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):

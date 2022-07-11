@@ -46,6 +46,7 @@
   :javascript
     $(document).ready(function(){
       $(".connect-facebook").click(function(evt){
+        $.ajax({type: "GET", url: "{{clear_session_token_url}}" });
         location.replace("https://www.facebook.com/v13.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&scope=business_management,whatsapp_business_management,whatsapp_business_messaging&response_type=token")
 
       });
