@@ -1,3 +1,9 @@
+v7.4.0
+----------
+ * Remove superfulous Beta group perm
+ * Update new UI opt in permissions
+ * More tweaks to WhatsApp Cloud channel claiming
+
 v7.3.79
 ----------
  * Add missing Facebook ID
