@@ -593,6 +593,10 @@
       if (container) {
         container.classList.remove("loading");
       }
+
+      // scroll our content to the top if needed
+      var content = document.querySelector(".spa-content");
+      content.scrollTo(0, 0);
       
       updatePageTitle();
       var menu = document.querySelector("temba-menu");
