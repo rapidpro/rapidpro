@@ -17,7 +17,7 @@ def refresh_teams_tokens():
     r = get_redis_connection()
     if r.get("refresh_teams_tokens"):  # pragma: no cover
         return
-     with r.lock("refresh_teams_tokens", 1800):
+    with r.lock("refresh_teams_tokens", 1800):
         # iterate across each of our teams channels and get a new token
         for channel in Channel.objects.filter(is_active=True, channel_type="TM").order_by("id"):
             try:
