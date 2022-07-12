@@ -515,7 +515,12 @@ class TembaTestMixin:
             ended_on=timezone.now(),
         )
         FlowRun.objects.create(
-            org=self.org, flow=flow, contact=contact, status=FlowRun.STATUS_COMPLETED, session=session
+            org=self.org,
+            flow=flow,
+            contact=contact,
+            status=FlowRun.STATUS_COMPLETED,
+            session=session,
+            exited_on=timezone.now(),
         )
         Msg.objects.create(
             org=self.org,

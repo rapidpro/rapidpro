@@ -1310,10 +1310,16 @@ class FlowRun(models.Model):
             models.Index(name="flows_flowrun_contact_inc_flow", fields=("contact",), include=("flow",)),
         ]
         constraints = [
+            # all active/waiting runs must have a session
             models.CheckConstraint(
                 check=~Q(status__in=("A", "W")) | Q(session__isnull=False),
                 name="flows_run_active_or_waiting_has_session",
-            )
+            ),
+            # all non-active/waiting runs must have an exited_on
+            models.CheckConstraint(
+                check=Q(status__in=("A", "W")) | Q(exited_on__isnull=False),
+                name="flows_run_inactive_has_exited_on",
+            ),
         ]
 
 
