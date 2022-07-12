@@ -1086,31 +1086,16 @@ class FlowTest(TembaTest):
         for i in range(10):
             start.contacts.add(self.create_contact("Bob", urns=[f"twitter:bobby{i}"]))
 
-        def create_run(contact):
-            session = FlowSession.objects.create(
-                uuid=uuid4(),
-                org=self.org,
-                contact=contact,
-                status=FlowSession.STATUS_WAITING,
-                output_url="http://sessions.com/123.json",
-                wait_started_on=timezone.now(),
-                wait_expires_on=timezone.now() + timedelta(days=7),
-                wait_resume_on_expire=False,
-            )
-            FlowRun.objects.create(
-                org=self.org, flow=flow, contact=contact, session=session, start=start, status=FlowRun.STATUS_WAITING
-            )
-
         # create runs for first 5
         for c in start.contacts.order_by("id")[:5]:
-            create_run(c)
+            MockSessionWriter(contact=c, flow=flow, start=start).wait().save()
 
         # check our count
         self.assertEqual(FlowStartCount.get_count(start), 5)
 
         # create runs for last 5
         for c in start.contacts.order_by("id")[5:]:
-            create_run(c)
+            MockSessionWriter(contact=c, flow=flow, start=start).wait().save()
 
         # check our count
         self.assertEqual(FlowStartCount.get_count(start), 10)
