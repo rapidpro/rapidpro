@@ -5,6 +5,8 @@ from django.urls import reverse
 from temba.tests import MockResponse, TembaTest
 from temba.utils import json
 from .type import TeamsType
+from temba.request_logs.models import HTTPLog
+from .tasks import refresh_teams_tokens
 
 class TeamsTypeTest(TembaTest):
     def setUp(self):
@@ -64,3 +66,61 @@ class TeamsTypeTest(TembaTest):
         self.assertEqual(channel.config[TeamsType.CONFIG_TEAMS_APPLICATION_PASSWORD], "a1b2c3")
         self.assertEqual(channel.config[TeamsType.CONFIG_TEAMS_APPLICATION_ID], "123456")
         self.assertEqual(channel.address, "45612")
+
+    def test_refresh_tokens(self):
+
+        Channel.objects.all().delete()
+
+        channel = self.create_channel(
+            "TM",
+            "Teams: 1234",
+            "1234",
+            config={
+                Channel.CONFIG_AUTH_TOKEN: "authtoken123",
+                TeamsType.CONFIG_TEAMS_APPLICATION_ID: "1234",
+                TeamsType.CONFIG_TEAMS_BOT_ID: "1234",
+                TeamsType.CONFIG_TEAMS_TENANT_ID: "4123",
+                TeamsType.CONFIG_TEAMS_APPLICATION_PASSWORD: "a1b2n3",
+                TeamsType.CONFIG_TEAMS_BOT_NAME: "test_bot",
+            },
+        )
+
+        channel2 = self.create_channel(
+            "TM",
+            "Teams: 1235",
+            "1235",
+            config={
+                Channel.CONFIG_AUTH_TOKEN: "authtoken125",
+                TeamsType.CONFIG_TEAMS_APPLICATION_ID: "1235",
+                TeamsType.CONFIG_TEAMS_BOT_ID: "1235",
+                TeamsType.CONFIG_TEAMS_TENANT_ID: "4125",
+                TeamsType.CONFIG_TEAMS_APPLICATION_PASSWORD: "a1b2n5",
+                TeamsType.CONFIG_TEAMS_BOT_NAME: "test_bot2",
+            },
+        )
+
+        # and fetching new tokens
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"access_token": "abc345"}')
+            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.TEAMS_TOKENS_SYNCED, is_error=False))
+            refresh_teams_tokens()
+            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.TEAMS_TOKENS_SYNCED, is_error=False))
+            channel.refresh_from_db()
+            self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
+        
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(400, '{ "error": true }')
+            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.TEAMS_TOKENS_SYNCED, is_error=True))
+            refresh_teams_tokens()
+            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.TEAMS_TOKENS_SYNCED, is_error=True))
+            channel.refresh_from_db()
+            self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
+
+        with patch("requests.post") as mock_post:
+            mock_post.side_effect = [MockResponse(200, ""), MockResponse(200, '{"access_token": "abc098"}')]
+            refresh_teams_tokens()
+
+            channel.refresh_from_db()
+            channel2.refresh_from_db()
+            self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
+            self.assertEqual("abc098", channel2.config[Channel.CONFIG_AUTH_TOKEN])

@@ -12,6 +12,8 @@ from temba.request_logs.models import HTTPLog
 
 from .type import TeamsType
 
+logger = logging.getLogger(__name__)
+
 @shared_task(track_started=True, name="refresh_teams_tokens")
 def refresh_teams_tokens():
     r = get_redis_connection()
