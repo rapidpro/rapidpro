@@ -1,10 +1,12 @@
-from django.utils.translation import ugettext_lazy as _
+import requests
 from smartmin.views import SmartFormView
-from django.core.exceptions import ValidationError
+
+from django import forms
+from django.utils.translation import gettext_lazy as _
+
 from ...models import Channel
 from ...views import ClaimViewMixin
-from django import forms
-import requests
+
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
@@ -17,18 +19,18 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         def clean(self):
             try:
 
-                headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+                headers = {"Content-Type": "application/x-www-form-urlencoded"}
                 request_body = {
                     "client_id": self.cleaned_data["app_id"],
                     "grant_type": "client_credentials",
                     "scope": "https://api.botframework.com/.default",
-                    "client_secret": self.cleaned_data["app_password"]
+                    "client_secret": self.cleaned_data["app_password"],
                 }
 
                 resp = requests.post(
                     "https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token",
                     data=request_body,
-                    headers=headers
+                    headers=headers,
                 )
 
                 if resp.status_code != 200:  # pragma: no cover
@@ -38,7 +40,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
             except Exception:
                 raise forms.ValidationError(
-                    _("Unable to complete login for your Microsoft Teams bot, please check information about your APP.")
+                    _(
+                        "Unable to complete login for your Microsoft Teams bot, please check information about your APP."
+                    )
                 )
 
             return self.cleaned_data
@@ -47,7 +51,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
     def form_valid(self, form):
         from .type import TeamsType
-        
+
         org = self.request.user.get_org()
 
         auth_token = form.cleaned_data["auth_token"]

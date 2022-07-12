@@ -14,6 +14,7 @@ from .type import TeamsType
 
 logger = logging.getLogger(__name__)
 
+
 @shared_task(track_started=True, name="refresh_teams_tokens")
 def refresh_teams_tokens():
     r = get_redis_connection()
@@ -29,9 +30,9 @@ def refresh_teams_tokens():
                     "client_id": channel.config[TeamsType.CONFIG_TEAMS_APPLICATION_ID],
                     "grant_type": "client_credentials",
                     "scope": "https://api.botframework.com/.default",
-                    "client_secret": channel.config[TeamsType.CONFIG_TEAMS_APPLICATION_PASSWORD]
+                    "client_secret": channel.config[TeamsType.CONFIG_TEAMS_APPLICATION_PASSWORD],
                 }
-                headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+                headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
                 start = timezone.now()
                 resp = requests.post(url, data=request_body, headers=headers)

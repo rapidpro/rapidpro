@@ -1,12 +1,15 @@
 from unittest.mock import patch
-from temba.tests import TembaTest
-from ...models import Channel
+
 from django.urls import reverse
+
+from temba.request_logs.models import HTTPLog
 from temba.tests import MockResponse, TembaTest
 from temba.utils import json
-from .type import TeamsType
-from temba.request_logs.models import HTTPLog
+
+from ...models import Channel
 from .tasks import refresh_teams_tokens
+from .type import TeamsType
+
 
 class TeamsTypeTest(TembaTest):
     def setUp(self):
@@ -27,9 +30,19 @@ class TeamsTypeTest(TembaTest):
         )
 
     @patch("requests.post")
-    def test_claim(self,mock_post):        
+    def test_claim(self, mock_post):
         url = reverse("channels.types.teams.claim")
-        mock_post.return_value = MockResponse(200, json.dumps({"token_type": "Bearer","expires_in": 86399,"ext_expires_in": 86399,"access_token": "0123456789:ABCDEFabcdef-1a2b3c4d5e"}))
+        mock_post.return_value = MockResponse(
+            200,
+            json.dumps(
+                {
+                    "token_type": "Bearer",
+                    "expires_in": 86399,
+                    "ext_expires_in": 86399,
+                    "access_token": "0123456789:ABCDEFabcdef-1a2b3c4d5e",
+                }
+            ),
+        )
         self.login(self.admin)
 
         # check that claim page URL appears on claim list page
@@ -55,9 +68,9 @@ class TeamsTypeTest(TembaTest):
                 "client_id": "123456",
                 "grant_type": "client_credentials",
                 "scope": "https://api.botframework.com/.default",
-                "client_secret": "a1b2c3"
+                "client_secret": "a1b2c3",
             },
-            headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
 
         # assert our channel got created
@@ -107,7 +120,7 @@ class TeamsTypeTest(TembaTest):
             self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.TEAMS_TOKENS_SYNCED, is_error=False))
             channel.refresh_from_db()
             self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
-        
+
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(400, '{ "error": true }')
             self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.TEAMS_TOKENS_SYNCED, is_error=True))
