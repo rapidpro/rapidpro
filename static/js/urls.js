@@ -22,6 +22,7 @@ window.urls = [
   { old: /\/channels\/channel\/read\/(.*)/,              new: /\/settings\/channels\/(.*)/ },
   { old: /\/channels\/types\/(.*)\/claim/,               new: /\/settings\/channel\/(.*)/ },
   { old: /\/org\/manage_accounts\/(.*)/,                 new: /\/settings\/logins/ },
+  { old: /\/user\/account\//,                            new: /\/settings\/account/ },
   { old: /\/user\/two_factor_disable\//,                 new: /\/settings\/authentication\/2fa-disable/ }
 ]
 
