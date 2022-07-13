@@ -19,13 +19,18 @@
     }
 
 -block page-header
-  .text-xl.w-full.mb-4
-    %temba-select.w-full(onchange="handleWorkspaceChanged(event)")
-      -for org in user_orgs
-        -if org.id == user_org.id
-          %temba-option(name='{{ org.name|escapejs }}' value="{{org.id}}" selected="true")
-        -else
-          %temba-option(name='{{ org.name|escapejs }}' value="{{org.id}}")
+
+  -if user_orgs|length > 1
+    .text-xl.w-full.mb-4
+      %temba-select.w-full(onchange="handleWorkspaceChanged(event)")
+        -for org in user_orgs
+          -if org.id == user_org.id
+            %temba-option(name='{{ org.name|escapejs }}' value="{{org.id}}" selected="true")
+          -else
+            %temba-option(name='{{ org.name|escapejs }}' value="{{org.id}}")
+  - else
+    {{block.super}}
+
 
 -block content
   -if not two_factor_enabled
