@@ -77,7 +77,12 @@
             .linked.ml-4(onclick='runActionOnObjectRows("block")')
               %temba-tip(position="top" text='{{_("Block")|escapejs}}')
                 %temba-icon.show-loading(name="slash" clickable="true")
-        
+
+          -if org_perms.flows.flow_broadcast
+            .linked.ml-4(onclick='handleStartFlowClicked(event)')
+              %temba-tip(position="top" text='{{_("Start Flow")|escapejs}}')
+                %temba-icon.show-loading(name="flow" clickable="true")
+
   .paging-range.mr-4
     -blocktrans trimmed with start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma total=paginator.count|intcomma
         {{ start }} - {{ end }} of {{ total }}
