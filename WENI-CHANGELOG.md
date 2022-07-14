@@ -1,3 +1,7 @@
+1.4.0-rapidpro-7.1.27
+----------
+* Integration support with Microsoft Teams
+
 1.3.5-rapidpro-7.1.27
 ----------
 * Update FB api version to 14.0 to get templates for WhatsApp Cloud
