@@ -69,7 +69,7 @@
             %table.list.lined.selectable
               %tbody
                 -for obj in object_list
-                  %tr.campaign.object-row.select-row{ data-object-id: "{{ obj.id }}", onrowclick:'gotoLink("{% url "campaigns.campaign_read" obj.id%}")'}
+                  %tr.campaign.object-row.select-row{ data-object-id: "{{ obj.id }}", onrowclick:'gotoLink("{% url "campaigns.campaign_read" obj.uuid%}")'}
                     - if org_perms.campaigns.campaign_update
                       %td.campaign.checkbox.object-row-checkbox
                         %temba-checkbox{onclick:"handleRowSelection(this)"}

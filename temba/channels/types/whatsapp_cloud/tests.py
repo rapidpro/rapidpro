@@ -19,6 +19,7 @@ class WhatsAppCloudTypeTest(TembaTest):
         FACEBOOK_APPLICATION_ID="FB_APP_ID",
         FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET",
         WHATSAPP_FACEBOOK_BUSINESS_ID="FB_BUSINESS_ID",
+        WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN",
         ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS=["2222222222222"],
     )
     @patch("temba.channels.types.whatsapp_cloud.views.randint")
@@ -39,6 +40,17 @@ class WhatsAppCloudTypeTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertNotContains(response, claim_whatsapp_cloud_url)
 
+        with patch("requests.get") as wa_cloud_get:
+            wa_cloud_get.return_value = MockResponse(400, {})
+            response = self.client.get(claim_whatsapp_cloud_url)
+
+            self.assertEqual(response.status_code, 302)
+
+            response = self.client.get(claim_whatsapp_cloud_url, follow=True)
+
+            self.assertEqual(response.request["PATH_INFO"], "/users/login/")
+
+        self.make_beta(self.admin)
         with patch("requests.get") as wa_cloud_get:
             wa_cloud_get.return_value = MockResponse(400, {})
             response = self.client.get(claim_whatsapp_cloud_url)
@@ -296,17 +308,37 @@ class WhatsAppCloudTypeTest(TembaTest):
 
                 self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
-                self.assertEqual(3, wa_cloud_post.call_count)
+                self.assertEqual(4, wa_cloud_post.call_count)
 
                 self.assertEqual(
-                    "https://graph.facebook.com/v13.0/111111111111111/subscribed_apps", wa_cloud_post.call_args[0][0]
+                    "https://graph.facebook.com/v13.0/111111111111111/assigned_users",
+                    wa_cloud_post.call_args_list[0][0][0],
+                )
+                self.assertEqual(
+                    {"Authorization": "Bearer WA_ADMIN_TOKEN"}, wa_cloud_post.call_args_list[0][1]["headers"]
+                )
+
+                self.assertEqual(
+                    "https://graph.facebook.com/v13.0/567567567/whatsapp_credit_sharing_and_attach",
+                    wa_cloud_post.call_args_list[1][0][0],
+                )
+                self.assertEqual(
+                    "https://graph.facebook.com/v13.0/111111111111111/subscribed_apps",
+                    wa_cloud_post.call_args_list[2][0][0],
+                )
+
+                self.assertEqual(
+                    "https://graph.facebook.com/v13.0/123123123/register", wa_cloud_post.call_args_list[3][0][0]
+                )
+                self.assertEqual(
+                    {"messaging_product": "whatsapp", "pin": "111111"}, wa_cloud_post.call_args_list[3][1]["data"]
                 )
 
                 channel = Channel.objects.get()
 
                 self.assertEqual(
                     response.request["PATH_INFO"],
-                    reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)),
+                    reverse("channels.channel_read", args=(channel.uuid,)),
                 )
 
                 self.assertEqual("1234 - WABA name", channel.name)
@@ -321,6 +353,9 @@ class WhatsAppCloudTypeTest(TembaTest):
                 self.assertEqual("2222222222222", channel.config["wa_business_id"])
                 self.assertEqual("111111", channel.config["wa_pin"])
                 self.assertEqual("namespace-uuid", channel.config["wa_message_template_namespace"])
+
+                response = self.client.get(reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)))
+                self.assertEqual(200, response.status_code)
 
                 # request verification code
                 response = self.client.post(
@@ -509,6 +544,27 @@ class WhatsAppCloudTypeTest(TembaTest):
                     "That number is already connected (1234)",
                 )
 
+    def test_clear_session_token(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        clear_session_token_url = reverse("channels.types.whatsapp_cloud.clear_session_token")
+        response = self.client.get(clear_session_token_url)
+        self.assertEqual(200, response.status_code)
+
+        self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+
+        session = self.client.session
+        session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
+        session.save()
+
+        self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+
+        response = self.client.get(clear_session_token_url)
+        self.assertEqual(200, response.status_code)
+
+        self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+
     @override_settings(WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN")
     @patch("requests.get")
     def test_get_api_templates(self, mock_get):
@@ -530,7 +586,7 @@ class WhatsAppCloudTypeTest(TembaTest):
             MockResponse(200, '{"data": ["foo", "bar"]}'),
             MockResponse(
                 200,
-                '{"data": ["foo"], "paging": {"cursors": {"after": "MjQZD"}, "next": "https://graph.facebook.com/v13.0/111111111111111/message_templates?after=MjQZD" } }',
+                '{"data": ["foo"], "paging": {"cursors": {"after": "MjQZD"}, "next": "https://graph.facebook.com/v14.0/111111111111111/message_templates?after=MjQZD" } }',
             ),
             MockResponse(200, '{"data": ["bar"], "paging": {"cursors": {"after": "MjQZD"} } }'),
         ]
@@ -552,7 +608,7 @@ class WhatsAppCloudTypeTest(TembaTest):
         self.assertEqual(["foo", "bar"], templates_data)
 
         mock_get.assert_called_with(
-            "https://graph.facebook.com/v13.0/111111111111111/message_templates",
+            "https://graph.facebook.com/v14.0/111111111111111/message_templates",
             params={"limit": 255},
             headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
         )
@@ -565,12 +621,12 @@ class WhatsAppCloudTypeTest(TembaTest):
         mock_get.assert_has_calls(
             [
                 call(
-                    "https://graph.facebook.com/v13.0/111111111111111/message_templates",
+                    "https://graph.facebook.com/v14.0/111111111111111/message_templates",
                     params={"limit": 255},
                     headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
                 ),
                 call(
-                    "https://graph.facebook.com/v13.0/111111111111111/message_templates?after=MjQZD",
+                    "https://graph.facebook.com/v14.0/111111111111111/message_templates?after=MjQZD",
                     params={"limit": 255},
                     headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
                 ),

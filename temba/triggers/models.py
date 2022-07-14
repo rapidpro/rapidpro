@@ -279,55 +279,57 @@ class Trigger(SmartModel):
         """
 
         for trigger_def in trigger_defs:
-            trigger_type = cls.get_type(code=trigger_def["trigger_type"])
+            cls.import_def(org, user, trigger_def, same_site=same_site)
 
-            # old exports might include scheduled triggers without schedules
-            if not trigger_type.exportable:
-                continue
+    @classmethod
+    def import_def(cls, org, user, definition: dict, same_site: bool = False):
+        trigger_type = cls.get_type(code=definition["trigger_type"])
 
-            # only consider fields which are valid for this type of trigger
-            trigger_def = {k: v for k, v in trigger_def.items() if k in trigger_type.export_fields}
+        # only consider fields which are valid for this type of trigger
+        trigger_def = {k: v for k, v in definition.items() if k in trigger_type.export_fields}
 
-            # resolve groups, channel and flow
-            groups = cls._resolve_import_groups(org, user, same_site, trigger_def["groups"])
-            exclude_groups = cls._resolve_import_groups(org, user, same_site, trigger_def.get("exclude_groups", []))
+        # resolve groups, channel and flow
+        groups = cls._resolve_import_groups(org, user, same_site, trigger_def["groups"])
+        exclude_groups = cls._resolve_import_groups(org, user, same_site, trigger_def.get("exclude_groups", []))
 
-            channel_uuid = trigger_def.get("channel")
-            channel = org.channels.filter(uuid=channel_uuid, is_active=True).first() if channel_uuid else None
+        channel_uuid = trigger_def.get("channel")
+        channel = org.channels.filter(uuid=channel_uuid, is_active=True).first() if channel_uuid else None
 
-            flow_uuid = trigger_def["flow"]["uuid"]
-            flow = org.flows.get(uuid=flow_uuid, is_active=True)
+        flow_uuid = trigger_def["flow"]["uuid"]
+        flow = org.flows.get(uuid=flow_uuid, is_active=True)
 
-            # see if that trigger already exists
-            conflicts = cls.get_conflicts(
+        # see if that trigger already exists
+        conflicts = cls.get_conflicts(
+            org,
+            trigger_def["trigger_type"],
+            groups=groups,
+            keyword=trigger_def.get("keyword"),
+            channel=channel,
+            include_archived=True,
+        )
+
+        # if one of our conflicts is an exact match, we can keep it
+        exact_match = conflicts.filter(flow=flow).order_by("-created_on").first()
+        if exact_match and set(exact_match.exclude_groups.all()) != set(exclude_groups):
+            exact_match = None
+
+        if exact_match:
+            # tho maybe it needs restored...
+            if exact_match.is_archived:
+                exact_match.restore(user)
+
+            return exact_match
+        else:
+            return cls.create(
                 org,
+                user,
                 trigger_def["trigger_type"],
-                groups=groups,
-                keyword=trigger_def.get("keyword"),
+                flow,
                 channel=channel,
-                include_archived=True,
+                groups=groups,
+                exclude_groups=exclude_groups,
+                keyword=trigger_def.get("keyword"),
             )
-
-            # if one of our conflicts is an exact match, we can keep it
-            exact_match = conflicts.filter(flow=flow).order_by("-created_on").first()
-            if exact_match and set(exact_match.exclude_groups.all()) != set(exclude_groups):
-                exact_match = None
-
-            if exact_match:
-                # tho maybe it needs restored...
-                if exact_match.is_archived:
-                    exact_match.restore(user)
-            else:
-                cls.create(
-                    org,
-                    user,
-                    trigger_def["trigger_type"],
-                    flow,
-                    channel=channel,
-                    groups=groups,
-                    exclude_groups=exclude_groups,
-                    keyword=trigger_def.get("keyword"),
-                )
 
     @classmethod
     def _resolve_import_groups(cls, org, user, same_site: bool, specs):

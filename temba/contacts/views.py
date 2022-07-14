@@ -35,7 +35,6 @@ from django.views import View
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
-from temba.flows.models import Flow, FlowStart
 from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.views import (
@@ -569,7 +568,6 @@ class ContactCRUDL(SmartCRUDL):
         "delete",
         "scheduled",
         "history",
-        "start",
     )
 
     class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
@@ -622,7 +620,7 @@ class ContactCRUDL(SmartCRUDL):
                 menu.append(
                     dict(
                         id="fields",
-                        icon="list",
+                        icon="database",
                         count=count,
                         name=_("Fields"),
                         endpoint=reverse("contacts.contactfield_menu"),
@@ -790,7 +788,7 @@ class ContactCRUDL(SmartCRUDL):
             contact = self.object
 
             context["contact_groups"] = contact.get_groups().order_by(Lower("name"))
-            context["upcoming_events"] = contact.get_scheduled()
+            context["upcoming_events"] = contact.get_scheduled(reverse=True)
             context["open_tickets"] = list(
                 contact.tickets.filter(status=Ticket.STATUS_OPEN).select_related("ticketer").order_by("-opened_on")
             )
@@ -866,7 +864,8 @@ class ContactCRUDL(SmartCRUDL):
             links = []
 
             if self.object.status == Contact.STATUS_ACTIVE:
-                if self.has_org_perm("msgs.broadcast_send"):
+
+                if not self.is_spa() and self.has_org_perm("msgs.broadcast_send"):
                     links.append(
                         dict(
                             id="send-message",
@@ -877,13 +876,13 @@ class ContactCRUDL(SmartCRUDL):
                         )
                     )
 
-                if self.has_org_perm("contacts.contact_start"):
+                if self.has_org_perm("flows.flow_broadcast"):
                     links.append(
                         dict(
                             id="start-flow",
-                            title=_("Start In Flow"),
-                            href=f"{reverse('contacts.contact_start', args=[self.object.id])}",
-                            modax=_("Start In Flow"),
+                            title=_("Start Flow"),
+                            href=f"{reverse('flows.flow_broadcast', args=[])}?c={self.object.uuid}",
+                            modax=_("Start Flow"),
                         )
                     )
 
@@ -893,18 +892,21 @@ class ContactCRUDL(SmartCRUDL):
                         id="edit-contact",
                         title=_("Edit"),
                         modax=_("Edit Contact"),
+                        on_submit="contactUpdated()",
                         href=f"{reverse('contacts.contact_update', args=[self.object.pk])}",
                     )
                 )
 
-                links.append(
-                    dict(
-                        id="update-custom-fields",
-                        title=_("Custom Fields"),
-                        modax=_("Custom Fields"),
-                        href=f"{reverse('contacts.contact_update_fields', args=[self.object.pk])}",
+                if not self.is_spa():
+                    links.append(
+                        dict(
+                            id="update-custom-fields",
+                            title=_("Custom Fields"),
+                            modax=_("Custom Fields"),
+                            on_submit="contactUpdated()",
+                            href=f"{reverse('contacts.contact_update_fields', args=[self.object.pk])}",
+                        )
                     )
-                )
 
                 if self.object.status != Contact.STATUS_ACTIVE and self.has_org_perm("contacts.contact_restore"):
                     links.append(
@@ -1089,7 +1091,7 @@ class ContactCRUDL(SmartCRUDL):
             return JsonResponse(summary)
 
     class List(ContactListView):
-        title = _("Contacts")
+        title = _("Active Contacts")
         system_group = ContactGroup.TYPE_DB_ACTIVE
 
         def get_bulk_actions(self):
@@ -1317,6 +1319,11 @@ class ContactCRUDL(SmartCRUDL):
         success_message = ""
         submit_button_name = _("Save Changes")
 
+        def get_success_url(self):
+            if "HTTP_TEMBA_SPA" in self.request.META:
+                return "hide"
+            return super().get_success_url()
+
         def derive_exclude(self):
             obj = self.get_object()
             exclude = []
@@ -1406,6 +1413,11 @@ class ContactCRUDL(SmartCRUDL):
         success_message = ""
         submit_button_name = _("Save Changes")
 
+        def get_success_url(self):
+            if "HTTP_TEMBA_SPA" in self.request.META:
+                return "hide"
+            return super().get_success_url()
+
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
@@ -1417,6 +1429,7 @@ class ContactCRUDL(SmartCRUDL):
             field_id = self.request.GET.get("field", 0)
             if field_id:
                 context["contact_field"] = org.fields.get(is_system=False, id=field_id)
+
             return context
 
         def save(self, obj):
@@ -1501,39 +1514,6 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             obj.release(self.request.user)
             return obj
-
-    class Start(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        """
-        Starts this contact in a flow
-        """
-
-        class Form(forms.Form):
-            flow = TembaChoiceField(
-                queryset=Flow.objects.none(),
-                widget=SelectWidget(
-                    attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
-                ),
-            )
-
-            def __init__(self, instance, **kwargs):
-                super().__init__(**kwargs)
-
-                self.fields["flow"].queryset = instance.org.flows.filter(
-                    flow_type__in=(Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND),
-                    is_archived=False,
-                    is_system=False,
-                    is_active=True,
-                ).order_by("name")
-
-        form_class = Form
-        success_url = "hide"
-        success_message = ""
-        submit_button_name = _("Start")
-
-        def save(self, obj):
-            self.flow = self.form.cleaned_data["flow"]
-            start = FlowStart.create(self.flow, self.request.user, FlowStart.TYPE_MANUAL, contacts=[obj])
-            start.async_start()
 
 
 class ContactGroupCRUDL(SmartCRUDL):
@@ -2112,6 +2092,13 @@ class ContactImportCRUDL(SmartCRUDL):
                 if add_to_group:
                     group_mode = self.cleaned_data["group_mode"]
                     if group_mode == self.GROUP_MODE_NEW:
+                        group_count, group_limit = ContactGroup.get_org_limit_progress(self.org)
+                        if group_limit is not None and group_count >= group_limit:
+                            raise forms.ValidationError(
+                                _("This workspace has reached its limit of %(limit)d groups."),
+                                params={"limit": group_limit},
+                            )
+
                         new_group_name = self.cleaned_data.get("new_group_name")
                         if not new_group_name:
                             self.add_error("new_group_name", _("Required."))
@@ -2123,13 +2110,6 @@ class ContactImportCRUDL(SmartCRUDL):
                         existing_group = self.cleaned_data.get("existing_group")
                         if not existing_group:
                             self.add_error("existing_group", _("Required."))
-
-                    group_count, group_limit = ContactGroup.get_org_limit_progress(self.org)
-                    if group_limit is not None and group_count >= group_limit:
-                        raise forms.ValidationError(
-                            _("This workspace has reached its limit of %(limit)d groups."),
-                            params={"limit": group_limit},
-                        )
 
                 return self.cleaned_data
 

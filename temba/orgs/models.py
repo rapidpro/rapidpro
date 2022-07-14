@@ -1,7 +1,5 @@
-import functools
 import itertools
 import logging
-import operator
 import os
 from abc import ABCMeta
 from collections import defaultdict
@@ -154,22 +152,34 @@ class User(AuthUser):
     related model.
     """
 
+    @classmethod
+    def create(cls, email: str, first_name: str, last_name: str, password: str, language: str = None):
+        obj = cls.objects.create_user(
+            username=email, email=email, first_name=first_name, last_name=last_name, password=password
+        )
+        if language:
+            obj.settings.language = language
+            obj.settings.save(update_fields=("language",))
+        return obj
+
     @property
     def name(self) -> str:
         return self.get_full_name()
 
-    def get_orgs(self, *, brands=None):
+    def get_orgs(self, *, brands=None, roles=None):
         """
         Gets the orgs in the given brands that this user has access to (i.e. a role in).
         """
         if self.is_superuser:
             return Org.objects.all()
 
-        user_orgs = functools.reduce(operator.or_, [role.get_orgs(self) for role in OrgRole])
-        if brands:
-            user_orgs = user_orgs.filter(brand__in=brands)
+        orgs = self.orgs.filter(is_active=True).order_by("name")
+        if brands is not None:
+            orgs = orgs.filter(brand__in=brands)
+        if roles is not None:
+            orgs = orgs.filter(orgmembership__user=self, orgmembership__role_code__in=[r.code for r in roles])
 
-        return user_orgs.filter(is_active=True).distinct().order_by("name")
+        return orgs
 
     def get_owned_orgs(self, *, brand=None):
         """
@@ -177,7 +187,7 @@ class User(AuthUser):
         """
         owned_orgs = []
         for org in self.get_orgs(brands=[brand] if brand else None):
-            if not org.get_users().exclude(id=self.id).exists():
+            if not org.users.exclude(id=self.id).exists():
                 owned_orgs.append(org)
         return owned_orgs
 
@@ -332,19 +342,17 @@ class UserSettings(models.Model):
 
 
 class OrgRole(Enum):
-    ADMINISTRATOR = ("A", _("Administrator"), _("Administrators"), "Administrators", "administrators", "org_admins")
-    EDITOR = ("E", _("Editor"), _("Editors"), "Editors", "editors", "org_editors")
-    VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers", "viewers", "org_viewers")
-    AGENT = ("T", _("Agent"), _("Agents"), "Agents", "agents", "org_agents")
-    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "surveyors", "org_surveyors")
+    ADMINISTRATOR = ("A", _("Administrator"), _("Administrators"), "Administrators")
+    EDITOR = ("E", _("Editor"), _("Editors"), "Editors")
+    VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers")
+    AGENT = ("T", _("Agent"), _("Agents"), "Agents")
+    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors")
 
-    def __init__(self, code: str, display: str, display_plural: str, group_name: str, m2m_name: str, rel_name: str):
+    def __init__(self, code: str, display: str, display_plural: str, group_name: str):
         self.code = code
         self.display = display
         self.display_plural = display_plural
         self.group_name = group_name
-        self.m2m_name = m2m_name
-        self.rel_name = rel_name
 
     @classmethod
     def from_code(cls, code: str):
@@ -363,7 +371,7 @@ class OrgRole(Enum):
     @cached_property
     def group(self):
         """
-        Gets the auth group which defines the permissions for this role
+        The auth group which defines the permissions for this role
         """
         return Group.objects.get(name=self.group_name)
 
@@ -377,18 +385,6 @@ class OrgRole(Enum):
         Returns whether this role has the given permission
         """
         return permission in self.permissions
-
-    def get_users(self, org):
-        """
-        The users with this role in the given org
-        """
-        return getattr(org, self.m2m_name).all()
-
-    def get_orgs(self, user):
-        """
-        The orgs which the given user belongs to with this role
-        """
-        return getattr(user, self.rel_name).all()
 
 
 class OrgLock(Enum):
@@ -449,6 +445,7 @@ class Org(SmartModel):
     EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
 
+    LIMIT_CHANNELS = "channels"
     LIMIT_FIELDS = "fields"
     LIMIT_GLOBALS = "globals"
     LIMIT_GROUPS = "groups"
@@ -487,12 +484,7 @@ class Org(SmartModel):
         help_text=_("Our Stripe customer id for your organization"),
     )
 
-    # user role m2ms
-    administrators = models.ManyToManyField(User, related_name=OrgRole.ADMINISTRATOR.rel_name)
-    editors = models.ManyToManyField(User, related_name=OrgRole.EDITOR.rel_name)
-    viewers = models.ManyToManyField(User, related_name=OrgRole.VIEWER.rel_name)
-    agents = models.ManyToManyField(User, related_name=OrgRole.AGENT.rel_name)
-    surveyors = models.ManyToManyField(User, related_name=OrgRole.SURVEYOR.rel_name)
+    users = models.ManyToManyField(User, through="OrgMembership", related_name="orgs")
 
     language = models.CharField(
         verbose_name=_("Default Language"),
@@ -755,7 +747,7 @@ class Org(SmartModel):
         if export_version < Version(Flow.CURRENT_SPEC_VERSION):
             export_json = Flow.migrate_export(self, export_json, same_site, export_version)
 
-        self.validate_import(export_json)
+        self.clean_import(export_json)
 
         export_fields = export_json.get("fields", [])
         export_groups = export_json.get("groups", [])
@@ -784,11 +776,24 @@ class Org(SmartModel):
             flow.has_issues = len(flow_info[Flow.INSPECT_ISSUES]) > 0
             flow.save(update_fields=("has_issues",))
 
-    def validate_import(self, import_def):
+    def clean_import(self, import_def):
         from temba.triggers.models import Trigger
 
+        cleaned_triggers = []
+
         for trigger_def in import_def.get("triggers", []):
+            trigger_type = trigger_def.get("trigger_type", "")
+            channel_uuid = trigger_def.get("channel")
+
+            # TODO need better way to report import results back to users
+            # ignore scheduled triggers and new conversation triggers without channels
+            if trigger_type == "S" or (trigger_type == "N" and not channel_uuid):
+                continue
+
             Trigger.validate_import_def(trigger_def)
+            cleaned_triggers.append(trigger_def)
+
+        import_def["triggers"] = cleaned_triggers
 
     @classmethod
     def export_definitions(cls, site_link, components, include_fields=True, include_groups=True):
@@ -1095,70 +1100,57 @@ class Org(SmartModel):
         format = formats[1] if show_time else formats[0]
         return datetime_to_str(d, format, self.timezone)
 
-    def get_users_with_role(self, role: OrgRole):
+    def get_users(self, *, roles: list = None, with_perm: str = None):
         """
-        Gets the users who have the given role in this org
+        Gets users in this org, filtered by role or permission.
         """
-        return role.get_users(self)
+        qs = self.users.filter(is_active=True)
+
+        if with_perm:
+            app_label, codename = with_perm.split(".")
+            permission = Permission.objects.get(content_type__app_label=app_label, codename=codename)
+            groups = Group.objects.filter(permissions=permission)
+            roles = [OrgRole.from_group(g) for g in groups]
+
+        if roles is not None:
+            qs = qs.filter(orgmembership__org=self, orgmembership__role_code__in=[r.code for r in roles])
+
+        return qs
 
     def get_admins(self):
         """
         Convenience method for getting all org administrators
         """
-        return self.get_users_with_role(OrgRole.ADMINISTRATOR)
-
-    def get_users(self, *, roles=None):
-        """
-        Gets all of the users across all roles for this org
-        """
-        user_sets = [role.get_users(self) for role in roles or OrgRole]
-        all_users = functools.reduce(operator.or_, user_sets)
-        return all_users.distinct()
-
-    def get_users_with_perm(self, perm: str):
-        """
-        Gets all of the users with the given permission for this org
-        """
-
-        app_label, codename = perm.split(".")
-        permission = Permission.objects.get(content_type__app_label=app_label, codename=codename)
-        groups = Group.objects.filter(permissions=permission)
-
-        return self.get_users(roles=[OrgRole.from_group(g) for g in groups])
+        return self.get_users(roles=[OrgRole.ADMINISTRATOR])
 
     def has_user(self, user: User) -> bool:
         """
         Returns whether the given user has a role in this org (only explicit roles, so doesn't include customer support)
         """
-        return self.get_users().filter(id=user.id).exists()
+        return self.users.filter(id=user.id).exists()
 
     def add_user(self, user: User, role: OrgRole):
         """
         Adds the given user to this org with the given role
         """
-
-        # remove user from any existing roles
-        if self.has_user(user):
+        if self.has_user(user):  # remove user from any existing roles
             self.remove_user(user)
 
-        getattr(self, role.m2m_name).add(user)
-
+        self.users.add(user, through_defaults={"role_code": role.code})
         self._user_role_cache[user] = role
 
     def remove_user(self, user: User):
         """
         Removes the given user from this org by removing them from any roles
         """
-        for role in OrgRole:
-            getattr(self, role.m2m_name).remove(user)
-
+        self.users.remove(user)
         if user in self._user_role_cache:
             del self._user_role_cache[user]
 
     def get_owner(self) -> User:
         # look thru roles in order for the first added user
         for role in OrgRole:
-            user = self.get_users_with_role(role).order_by("id").first()
+            user = self.users.filter(orgmembership__role_code=role.code).order_by("id").first()
             if user:
                 return user
 
@@ -1173,10 +1165,9 @@ class Org(SmartModel):
         def get_role():
             if user.is_staff:
                 return OrgRole.ADMINISTRATOR
-            for role in OrgRole:
-                if self.get_users_with_role(role).filter(id=user.id).exists():
-                    return role
-            return None
+
+            membership = OrgMembership.objects.filter(org=self, user=user).first()
+            return membership.role if membership else None
 
         if user not in self._user_role_cache:
             self._user_role_cache[user] = get_role()
@@ -1852,14 +1843,14 @@ class Org(SmartModel):
 
         # release any user that belongs only to us
         if release_users:
-            for org_user in self.get_users():
+            for org_user in self.users.all():
                 # check if this user is a member of any org on any brand
                 other_orgs = org_user.get_orgs().exclude(id=self.id)
                 if not other_orgs:
                     org_user.release(user, brand=self.brand)
 
         # remove all the org users
-        for org_user in self.get_users():
+        for org_user in self.users.all():
             self.remove_user(org_user)
 
     def delete(self):
@@ -1994,26 +1985,6 @@ class Org(SmartModel):
         self.surveyor_password = None
         self.save()
 
-    @classmethod
-    def create_user(cls, email: str, password: str, language: str = None) -> User:
-        user = User.objects.create_user(username=email, email=email, password=password)
-        if language:
-            user.settings.language = language
-            user.settings.save(update_fields=("language",))
-        return user
-
-    @classmethod
-    def get_org(cls, user):
-        if not user:  # pragma: needs cover
-            return None
-
-        if not hasattr(user, "_org"):
-            org = Org.objects.filter(administrators=user, is_active=True).first()
-            if org:
-                user._org = org
-
-        return getattr(user, "_org", None)
-
     def as_environment_def(self):
         """
         Returns this org as an environment definition as used by the flow engine
@@ -2041,6 +2012,19 @@ def get_stripe_credentials():
         "STRIPE_PRIVATE_KEY", getattr(settings, "STRIPE_PRIVATE_KEY", "MISSING_STRIPE_PRIVATE_KEY")
     )
     return (public_key, private_key)
+
+
+class OrgMembership(models.Model):
+    org = models.ForeignKey(Org, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    role_code = models.CharField(max_length=1)
+
+    @property
+    def role(self):
+        return OrgRole.from_code(self.role_code)
+
+    class Meta:
+        unique_together = (("org", "user"),)
 
 
 class Invitation(SmartModel):

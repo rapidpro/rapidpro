@@ -336,6 +336,8 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         "roles": ["send"],
     }
 
+    org_limit_key = Org.LIMIT_CHANNELS
+
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="channels", null=True)
     channel_type = models.CharField(max_length=3)
     name = models.CharField(max_length=64, null=True)

@@ -677,34 +677,35 @@ class Contact(LegacyUUIDMixin, SmartModel):
         groups = org.groups.filter(group_type__in=ContactGroup.CONTACT_STATUS_TYPES)
         return {g.group_type: count for g, count in ContactGroupCount.get_totals(groups).items()}
 
-    def get_scheduled_messages(self):
+    def get_scheduled_broadcasts(self):
         from temba.msgs.models import SystemLabel
-
-        contact_urns = self.get_urns()
-        contact_groups = self.groups.all()
 
         return (
             SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED)
-            .exclude(schedule__next_fire=None)
             .filter(schedule__next_fire__gte=timezone.now())
-            .filter(Q(contacts__in=[self]) | Q(urns__in=contact_urns) | Q(groups__in=contact_groups))
-            .select_related("org")
-            .order_by("schedule__next_fire")
+            .filter(Q(contacts__in=[self]) | Q(urns__in=self.get_urns()) | Q(groups__in=self.groups.all()))
+            .select_related("org", "schedule")
         )
 
-    def get_scheduled(self) -> list:
+    def get_scheduled_triggers(self):
+        from temba.triggers.models import Trigger
+
+        return (
+            self.org.triggers.filter(trigger_type=Trigger.TYPE_SCHEDULE, schedule__next_fire__gte=timezone.now())
+            .filter(Q(contacts__in=[self]) | Q(groups__in=self.groups.all()))
+            .exclude(exclude_groups__in=self.groups.all())
+            .select_related("schedule")
+        )
+
+    def get_scheduled(self, *, reverse: bool = False) -> list:
         """
         Gets this contact's upcoming scheduled events
         """
         from temba.campaigns.models import CampaignEvent
 
-        fires = (
-            self.campaign_fires.filter(
-                event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
-            )
-            .select_related("event", "event__flow", "event__campaign")
-            .order_by("scheduled")
-        )
+        fires = self.campaign_fires.filter(
+            event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
+        ).select_related("event", "event__flow", "event__campaign")
 
         merged = []
         for fire in fires:
@@ -721,7 +722,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
             merged.append(obj)
 
-        for broadcast in self.get_scheduled_messages():
+        for broadcast in self.get_scheduled_broadcasts():
             merged.append(
                 {
                     "type": "scheduled_broadcast",
@@ -731,7 +732,17 @@ class Contact(LegacyUUIDMixin, SmartModel):
                 }
             )
 
-        return sorted(merged, key=lambda k: k["scheduled"], reverse=True)
+        for trigger in self.get_scheduled_triggers():
+            merged.append(
+                {
+                    "type": "scheduled_trigger",
+                    "scheduled": trigger.schedule.next_fire.isoformat(),
+                    "repeat_period": trigger.schedule.repeat_period,
+                    "flow": trigger.flow.as_export_ref(),
+                }
+            )
+
+        return sorted(merged, key=lambda k: k["scheduled"], reverse=reverse)
 
     def get_history(self, after: datetime, before: datetime, include_event_types: set, ticket, limit: int) -> list:
         """

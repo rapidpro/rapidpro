@@ -19,8 +19,9 @@ CONFIG_FB_BUSINESS_ID = "fb_business_id"
 CONFIG_FB_ACCESS_TOKEN = "fb_access_token"
 CONFIG_FB_NAMESPACE = "fb_namespace"
 CONFIG_FB_TEMPLATE_LIST_DOMAIN = "fb_template_list_domain"
+CONFIG_FB_TEMPLATE_API_VERSION = "fb_template_list_domain_api_version"
 
-TEMPLATE_LIST_URL = "https://%s/v3.3/%s/message_templates"
+TEMPLATE_LIST_URL = "https://%s/%s/%s/message_templates"
 
 
 class WhatsAppType(ChannelType):
@@ -101,7 +102,8 @@ class WhatsAppType(ChannelType):
             # that have been setup earlier for backwards compatibility
             facebook_template_domain = channel.config.get(CONFIG_FB_TEMPLATE_LIST_DOMAIN, "graph.facebook.com")
             facebook_business_id = channel.config.get(CONFIG_FB_BUSINESS_ID)
-            url = TEMPLATE_LIST_URL % (facebook_template_domain, facebook_business_id)
+            facebook_template_api_version = channel.config.get(CONFIG_FB_TEMPLATE_API_VERSION, "v14.0")
+            url = TEMPLATE_LIST_URL % (facebook_template_domain, facebook_template_api_version, facebook_business_id)
             template_data = []
             while url:
                 response = requests.get(

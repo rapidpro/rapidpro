@@ -1,15 +1,15 @@
 from random import randint
 
 import requests
-from smartmin.views import SmartFormView, SmartModelActionView
+from smartmin.views import SmartFormView, SmartModelActionView, SmartTemplateView
 
 from django import forms
 from django.conf import settings
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin
+from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 
 from ...models import Channel
@@ -54,7 +54,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return super().pre_process(request, *args, **kwargs)
 
     def get_success_url(self):
-        return reverse("channels.types.whatsapp_cloud.request_code", args=[self.object.uuid])
+        return reverse("channels.channel_read", args=[self.object.uuid])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -132,6 +132,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             context["phone_numbers"] = phone_numbers
 
         context["claim_url"] = reverse("channels.types.whatsapp_cloud.claim")
+        context["clear_session_token_url"] = reverse("channels.types.whatsapp_cloud.clear_session_token")
+        context["connect_whatsapp_url"] = reverse("orgs.org_whatsapp_cloud_connect")
+        context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
 
         claim_error = None
         if context["form"].errors:
@@ -188,6 +191,25 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             )
             return self.form_invalid(form)
 
+        # assign system user to WABA
+        url = f"https://graph.facebook.com/v13.0/{waba_id}/assigned_users"
+        params = {"user": f"{settings.WHATSAPP_ADMIN_SYSTEM_USER_ID}", "tasks": ["MANAGE"]}
+        headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
+
+        resp = requests.post(url, params=params, headers=headers)
+
+        if resp.status_code != 200:  # pragma: no cover
+            form._errors["__all__"] = form.error_class(
+                [
+                    _(
+                        "Unable to add system user to %s, please make sure you have business admin manager privileges "
+                        "on the Facebook business."
+                    )
+                    % waba_id
+                ]
+            )
+            return self.form_invalid(form)
+
         self.object = Channel.create(
             org,
             self.request.user,
@@ -204,6 +226,17 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def remove_token_credentials_from_session(self):
         if Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.request.session:
             del self.request.session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN]
+
+
+class ClearSessionToken(OrgPermsMixin, SmartTemplateView):
+    permission = "channels.channel_claim"
+
+    def pre_process(self, request, *args, **kwargs):
+        if Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.request.session:
+            del self.request.session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN]
+
+    def render_to_response(self, context, **response_kwargs):
+        return JsonResponse({})
 
 
 class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):

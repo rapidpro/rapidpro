@@ -1,7 +1,132 @@
 -extends "contacts/contact_read.html" 
+-load i18n
+
+-block extra-style
+  {{block.super}}
+  :css
+    html {
+      overflow-y: hidden !important;
+    }
+
+    temba-contact-tickets {
+      font-size: 1.1em;
+    }
+
+    temba-contact-tikets:hover {
+      background: pink !important;
+    }
+
+-block extra-script
+  :javascript
+    function contactUpdated() {
+      var groups = document.querySelector("temba-contact-groups");
+      groups.refresh();
+    }
+
+    function handlePendingRefreshed(evt) {
+      var pendingEvents = evt.detail.data;
+      
+      var tabs = document.querySelector("temba-tabs");
+      var pendingTab = tabs.getTab(2);
+      pendingTab.count = pendingEvents.length;
+      tabs.requestUpdate();
+    }
+
+    function handleContactRefreshed(evt) {
+      var contact = evt.detail.data;
+      var tabs = document.querySelector("temba-tabs");
+
+      // update our set field count
+      var fields = Object.keys(contact.fields).filter(function (key) {
+        return !!contact.fields[key]
+      });
+
+      var fieldTab = tabs.getTab(1);
+      fieldTab.count = fields.length;
+
+      // render our tabs
+      tabs.requestUpdate();
+
+      var store = document.querySelector("temba-store");
+      
+      var pinned = document.querySelector(".pinned-fields");
+      var all = document.querySelector(".all-fields");
+
+      var pinnedCount = store.getPinnedFields().length;
+      var fieldCount = Object.keys(contact.fields).length;
+      
+      // pinned.classList.toggle("hidden", pinnedCount == 0);
+      all.classList.toggle("hidden", pinnedCount > 0 && fieldCount-pinnedCount === 0);
+
+      // if our contact refershes, refresh our pendingEvents
+      var pending = document.querySelector("temba-contact-pending");
+      pending.refresh();
+    }
+
+    function handleTicketsRefreshed(evt) {
+      var openTickets = evt.detail.data.filter(function (ticket) { 
+        return ticket.status === "open"
+      });      
+      
+      var tabs = document.querySelector("temba-tabs");
+      var ticketsTab = tabs.getTab(3);
+      ticketsTab.count = openTickets.length;
+      tabs.requestUpdate();
+
+    }
+
+    function handleTabChanged() {
+      var tab = document.querySelector("temba-tabs").index;
+      window.history.replaceState(null, null, "?tab=" + tab);
+    }
+
+    function handleFieldSearch(evt) {
+      fetchURL("/contact/?search=" + encodeURIComponent(evt.detail.key) + "+%3D+" + encodeURIComponent("\"" + evt.detail.value + "\""))
+    }
+
+-block spa-title
+  %temba-contact-name(contact="{{object.uuid}}" -temba-refreshed="handleContactRefreshed")
 
 -block subtitle
+  .summary.-mt-2
+    %temba-contact-groups(contact="{{object.uuid}}")
+    
 -block content
-  %temba-tabs.flex-grow
-    %temba-tab(icon="message-square" name="Chat")
-      %temba-contact-chat(contact="{{object.uuid}}" monitor="true")
+
+  %temba-tabs.flex-grow.mt-4(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}" collapses="true")
+    %temba-tab(icon="message-square" name='{{_("Chat")|escapejs}}')
+      .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
+        %temba-contact-chat(contact="{{object.uuid}}" monitor="true")
+
+    %temba-tab(icon="grid" name='{{_("Fields")|escapejs}}')
+      .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
+        %temba-contact-fields.pinned-fields.pb-4(contact="{{object.uuid}}" pinned="true" -temba-button-clicked="handleFieldSearch")
+        %temba-contact-fields.all-fields(contact="{{object.uuid}}" -temba-button-clicked="handleFieldSearch")
+          .no-fields.p-16.text-center(slot="empty")
+            .text-xl.mb-4
+              -trans "No Fields"
+
+            -blocktrans trimmed
+              Nothing to see here yet. Create a new field to save data to your contacts.
+
+    %temba-tab(icon="campaign" name='{{_("Next Up")|escapejs}}')
+      .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
+        %temba-contact-pending(contact="{{object.uuid}}" -temba-refreshed="handlePendingRefreshed")
+
+          .no-pending.p-16.text-center(slot="empty")
+            .text-xl.mb-4
+              -trans "No Upcoming Events"
+
+            -blocktrans trimmed
+              Nothing to see here yet. Any messages or flows scheduled to be sent to this contact in the future will be shown here.  
+
+    %temba-tab(icon="agent" name='{{_("Tickets")|escapejs}}')    
+      .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
+        %temba-contact-tickets(contact="{{object.uuid}}" -temba-refreshed="handleTicketsRefreshed")
+
+          .no-tickets.p-16.text-center(slot="empty")
+            .text-xl.mb-4
+              -trans "No Tickets"
+
+            -blocktrans trimmed
+              Nothing to see here yet. Use the Open Ticket action in one of your flows to open tickets.

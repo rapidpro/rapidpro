@@ -1,3 +1,116 @@
+v7.4.0
+----------
+ * Remove superfulous Beta group perm
+ * Update new UI opt in permissions
+ * More tweaks to WhatsApp Cloud channel claiming
+
+v7.3.79
+----------
+ * Add missing Facebook ID
+
+v7.3.78
+----------
+ * Add button to allow admin to choose more FB WAC numbers
+
+v7.3.77
+----------
+ * Add contact ticket list in new UI
+ * Fix permissions to connect WAC
+ * Register the WAC number in the activate method
+
+v7.3.76
+----------
+ * Add the Facebook dialog login if the token is not submitted successfully on WAC org connect
+ * Fix campaigns archive and activate buttons
+ * Update to latest Django
+ * Only display WA templates that are active
+ * Update flow start dialog to use start preview endpoint  
+ * Add start flow bulk action for contacts
+
+v7.3.75
+----------
+ * Redirect to channel page after WAC claim
+ * Fix org update pre form users roles list
+ * Adjust permission for org whatsapp connect view
+ * Ignore new conversation triggers without channels in imports
+
+v7.3.74
+----------
+ * Use FB JS SDK for WAC signups
+
+v7.3.73
+----------
+ * Add DB constraint to disallow active or waiting runs without a session
+
+v7.3.72
+----------
+ * Add DB constraint to enforce that flow sessions always have output or output_url
+
+v7.3.71
+----------
+ * Make sure all limits are updatable on the workspace update view
+ * Remove duplicated pagination
+ * Enforce channels limit per workspace
+
+v7.3.70
+----------
+ * Fix workspace group limit check for existing group import
+ * Drop no longer used role m2ms
+
+v7.3.69
+----------
+ * Fix campaign links
+
+v7.3.68
+----------
+ * Add WhatsApp API version choice field
+ * Stop writing to the role specific m2m tables
+ * Add pending events tab to contact details
+
+v7.3.67
+----------
+ * Merge pull request #3865 from nyaruka/plivo_claim
+ * formatting
+ * Sanitize plivo app names to match new rules
+
+v7.3.66
+----------
+ * Merge pull request #3864 from nyaruka/fix-WA-templates
+ * Fix message templates syncing for new categories
+
+v7.3.65
+----------
+ * Fix surveyor joins so new users are added to orgmembership as well.
+
+v7.3.64
+----------
+ * Fix fetching org users with given roles
+
+v7.3.63
+----------
+ * Update mailroom_db command to correctly add users to orgs
+ * Stop reading from org role m2m tables
+
+v7.3.62
+----------
+ * Fix rendering of dates on upcoming events list
+ * Data migration to backfill OrgMembership
+
+v7.3.61
+----------
+ * Add missing migration
+
+v7.3.60
+----------
+ * Data migration to fail active/waiting runs with no session
+ * Include scheduled triggers in upcoming contact events
+ * Add OrgMembership model
+
+v7.3.59
+----------
+ * Spreadsheet layout for contact fields in new UI
+ * Adjust WAC channel claim to add system admin with user token
+
 v7.3.58
 ----------
  * Clean up chat media treatment

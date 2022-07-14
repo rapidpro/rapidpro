@@ -235,6 +235,7 @@ class ModalMixin(SmartFormView):
         return context
 
     def render_modal_response(self, form=None):
+        success_url = self.get_success_url()
         response = self.render_to_response(
             self.get_context_data(
                 form=form,
@@ -242,7 +243,8 @@ class ModalMixin(SmartFormView):
                 success_script=getattr(self, "success_script", None),
             )
         )
-        response["Temba-Success"] = self.get_success_url()
+
+        response["Temba-Success"] = success_url
         return response
 
     def form_valid(self, form):
@@ -1083,7 +1085,7 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         return context
 
     def has_permission(self, request, *args, **kwargs):
-        return not request.user.is_anonymous and request.user.is_beta
+        return not request.user.is_anonymous and request.user.is_staff
 
 
 class MenuMixin(OrgPermsMixin):
@@ -1338,13 +1340,25 @@ class OrgCRUDL(SmartCRUDL):
             else:
 
                 return [
-                    self.create_menu_item(name=_("Messages"), icon="message-square", endpoint="msgs.msg_menu"),
-                    self.create_menu_item(name=_("Contacts"), icon="contact", endpoint="contacts.contact_menu"),
-                    self.create_menu_item(name=_("Flows"), icon="flow", endpoint="flows.flow_menu"),
-                    self.create_menu_item(name=_("Triggers"), icon="radio", endpoint="triggers.trigger_menu"),
-                    self.create_menu_item(name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaign_menu"),
                     self.create_menu_item(
-                        name=_("Tickets"), icon="agent", endpoint="tickets.ticket_menu", href="tickets.ticket_list"
+                        menu_id="messages", name=_("Messages"), icon="message-square", endpoint="msgs.msg_menu"
+                    ),
+                    self.create_menu_item(
+                        menu_id="contacts", name=_("Contacts"), icon="contact", endpoint="contacts.contact_menu"
+                    ),
+                    self.create_menu_item(menu_id="flows", name=_("Flows"), icon="flow", endpoint="flows.flow_menu"),
+                    self.create_menu_item(
+                        menu_id="triggers", name=_("Triggers"), icon="radio", endpoint="triggers.trigger_menu"
+                    ),
+                    self.create_menu_item(
+                        menu_id="campaigns", name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaign_menu"
+                    ),
+                    self.create_menu_item(
+                        menu_id="tickets",
+                        name=_("Tickets"),
+                        icon="agent",
+                        endpoint="tickets.ticket_menu",
+                        href="tickets.ticket_list",
                     ),
                     {
                         "id": "settings",
@@ -2063,7 +2077,7 @@ class OrgCRUDL(SmartCRUDL):
                 return self.cleaned_data
 
             def add_limits_fields(self, org: Org):
-                for limit_type in [Org.LIMIT_FIELDS, Org.LIMIT_GROUPS, Org.LIMIT_GLOBALS]:
+                for limit_type in settings.ORG_LIMIT_DEFAULTS.keys():
                     initial = org.limits.get(limit_type)
                     limit_field = forms.IntegerField(required=False, initial=initial)
                     field_key = f"{limit_type}_limit"
@@ -2158,6 +2172,22 @@ class OrgCRUDL(SmartCRUDL):
                     )
             return links
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            org = self.get_object()
+
+            users_roles = []
+
+            for role in OrgRole:
+                role_users = list(org.get_users(roles=[role]).values("id", "email"))
+                if role_users:
+                    users_roles.append(dict(role_display=role.display_plural, users=role_users))
+
+            context["users_roles"] = users_roles
+
+            return context
+
         def post(self, request, *args, **kwargs):
             if "action" in request.POST:
                 action = request.POST["action"]
@@ -2224,7 +2254,7 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             role_summary = []
             for role in OrgRole:
-                num_users = org.get_users_with_role(role).count()
+                num_users = org.get_users(roles=[role]).count()
                 if num_users == 1:
                     role_summary.append(f"1 {role.display}")
                 elif num_users > 1:
@@ -2256,7 +2286,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.add_per_invite_fields(org)
 
             def add_per_user_fields(self, org: Org, role_choices: list):
-                for user in org.get_users().order_by("email"):
+                for user in org.users.order_by("email"):
                     role_field = forms.ChoiceField(
                         choices=role_choices,
                         required=True,
@@ -2305,7 +2335,7 @@ class OrgCRUDL(SmartCRUDL):
             def clean_invite_emails(self):
                 emails = self.cleaned_data["invite_emails"].lower().strip()
                 existing_users_emails = set(
-                    list(self.org.get_users().values_list("username", flat=True))
+                    list(self.org.users.values_list("username", flat=True))
                     + list(self.org.invitations.filter(is_active=True).values_list("email", flat=True))
                 )
                 cleaned_emails = []
@@ -2715,11 +2745,13 @@ class OrgCRUDL(SmartCRUDL):
             self.invitation = self.get_invitation()
             email = self.invitation.email
 
-            user = Org.create_user(email, self.form.cleaned_data["password"], language=obj.language)
-
-            user.first_name = self.form.cleaned_data["first_name"]
-            user.last_name = self.form.cleaned_data["last_name"]
-            user.save()
+            user = User.create(
+                email,
+                self.form.cleaned_data["first_name"],
+                self.form.cleaned_data["last_name"],
+                password=self.form.cleaned_data["password"],
+                language=obj.language,
+            )
 
             # log the user in
             user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
@@ -2975,24 +3007,25 @@ class OrgCRUDL(SmartCRUDL):
                 org = self.form.cleaned_data["org"]
 
                 # create our user
-                username = self.form.cleaned_data["email"]
-                user = Org.create_user(username, self.form.cleaned_data["password"], language=org.language)
-
-                user.first_name = self.form.cleaned_data["first_name"]
-                user.last_name = self.form.cleaned_data["last_name"]
-                user.save()
+                user = User.create(
+                    self.form.cleaned_data["email"],
+                    self.form.cleaned_data["first_name"],
+                    self.form.cleaned_data["last_name"],
+                    password=self.form.cleaned_data["password"],
+                    language=org.language,
+                )
 
                 # log the user in
                 user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
                 login(self.request, user)
 
-                org.surveyors.add(user)
+                org.add_user(user, OrgRole.SURVEYOR)
 
                 token = APIToken.get_or_create(org, user, role=OrgRole.SURVEYOR)
                 org_name = quote(org.name)
 
                 return HttpResponseRedirect(
-                    f"{self.get_success_url()}?org={org_name}&uuid={str(org.uuid)}&token={token}&user={username}"
+                    f"{self.get_success_url()}?org={org_name}&uuid={str(org.uuid)}&token={token}&user={user.email}"
                 )
 
         def form_invalid(self, form):
@@ -3020,15 +3053,15 @@ class OrgCRUDL(SmartCRUDL):
         permission = "orgs.org_grant"
         success_url = "@orgs.org_grant"
 
-        def create_user(self):
-            user = User.objects.filter(username__iexact=self.form.cleaned_data["email"]).first()
-            if not user:
-                user = Org.create_user(self.form.cleaned_data["email"], self.form.cleaned_data["password"])
+        def get_or_create_user(self, email, first_name, last_name, password, language):
+            user = User.objects.filter(username__iexact=email).first()
+            if user:
+                user.first_name = first_name
+                user.last_name = last_name
+                user.save(update_fields=("first_name", "last_name"))
+                return user
 
-            user.first_name = self.form.cleaned_data["first_name"]
-            user.last_name = self.form.cleaned_data["last_name"]
-            user.save(update_fields=("first_name", "last_name"))
-            return user
+            return User.create(email, first_name, last_name, password=password, language=language)
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -3038,12 +3071,20 @@ class OrgCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             obj = super().pre_save(obj)
 
-            self.user = self.create_user()
+            brand_language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
+
+            self.user = self.get_or_create_user(
+                self.form.cleaned_data["email"],
+                self.form.cleaned_data["first_name"],
+                self.form.cleaned_data["last_name"],
+                self.form.cleaned_data["password"],
+                language=brand_language,
+            )
 
             obj.created_by = self.user
             obj.modified_by = self.user
             obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
-            obj.language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
+            obj.language = brand_language
             obj.plan = self.request.branding.get("default_plan", settings.DEFAULT_PLAN)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
@@ -3954,7 +3995,7 @@ class StripeHandler(View):  # pragma: no cover
                 topup.save()
 
             # we know this org, trigger an event for a payment succeeding
-            if org.administrators.all():
+            if org.get_admins().exists():
                 if event.type == "charge_succeeded":
                     track = "temba.charge_succeeded"
                 else:
@@ -3977,7 +4018,7 @@ class StripeHandler(View):  # pragma: no cover
                     context["cc_type"] = "bitcoin"
                     context["cc_name"] = charge.source.bitcoin.address
 
-                admin = org.administrators.all().first()
+                admin = org.get_admins().first()
 
                 analytics.track(admin, track, context)
                 return HttpResponse("Event '%s': %s" % (track, context))

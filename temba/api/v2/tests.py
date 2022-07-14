@@ -467,8 +467,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 429)
 
         # if user loses access to the token's role, don't allow the request
-        self.org.administrators.remove(self.admin)
-        self.org.surveyors.add(self.admin)
+        self.org.add_user(self.admin, OrgRole.SURVEYOR)
 
         self.assertEqual(request_by_token(campaigns_url, token1.key).status_code, 403)
         self.assertEqual(request_by_basic_auth(campaigns_url, self.admin.username, token1.key).status_code, 403)
@@ -2551,8 +2550,14 @@ class APITest(TembaTest):
         self.assertEqual(
             resp_json["results"],
             [
-                {"key": "registered", "label": "Registered On", "value_type": "datetime", "pinned": False},
-                {"key": "nick_name", "label": "Nick Name", "value_type": "text", "pinned": False},
+                {
+                    "key": "registered",
+                    "label": "Registered On",
+                    "value_type": "datetime",
+                    "pinned": False,
+                    "priority": 0,
+                },
+                {"key": "nick_name", "label": "Nick Name", "value_type": "text", "pinned": False, "priority": 0},
             ],
         )
 
@@ -2560,7 +2565,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "key=nick_name")
         self.assertEqual(
             response.json()["results"],
-            [{"key": "nick_name", "label": "Nick Name", "pinned": False, "value_type": "text"}],
+            [{"key": "nick_name", "label": "Nick Name", "pinned": False, "value_type": "text", "priority": 0}],
         )
 
         # try to create empty field
@@ -4839,7 +4844,7 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(endpoint_url)
 
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
             response = self.fetchJSON(endpoint_url, readonly_models={User})
 
         resp_json = response.json()

@@ -32,7 +32,10 @@
     -if title or gear_links
       .spa-title.no-menu.flex.items-center.mb-4
         .text-container.text-2xl.text-gray-700
-          {{title}}
+          .flex.flex-row
+            -block spa-title
+              #title-text
+                {{title}}
         .line.flex-grow.mr-2.ml-6
           .h-0.border.border-gray-200
         

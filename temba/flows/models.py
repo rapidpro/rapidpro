@@ -465,7 +465,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             else "flow"
         )
 
-        return {"icon": icon, "type": self.flow_type}
+        return {"icon": icon, "type": self.flow_type, "uuid": self.uuid}
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
@@ -943,7 +943,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             "template": self.org.templates.filter(uuid__in=identifiers["template"]),
             "ticketer": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["ticketer"]),
             "topic": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["topic"]),
-            "user": self.org.get_users().filter(is_active=True, email__in=identifiers["user"]),
+            "user": self.org.users.filter(is_active=True, email__in=identifiers["user"]),
         }
 
         # reset the m2m for each type
@@ -1154,6 +1154,11 @@ class FlowSession(models.Model):
                 check=~Q(status="W") | Q(wait_started_on__isnull=False, wait_expires_on__isnull=False),
                 name="flows_session_waiting_has_started_and_expires",
             ),
+            # ensure that all sessions have output or output_url
+            models.CheckConstraint(
+                check=Q(output__isnull=False) | Q(output_url__isnull=False),
+                name="flows_session_has_output_or_url",
+            ),
         ]
 
 
@@ -1299,6 +1304,12 @@ class FlowRun(models.Model):
                 include=("contact",),
             ),
             models.Index(name="flows_flowrun_contact_inc_flow", fields=("contact",), include=("flow",)),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=~Q(status__in=("A", "W")) | Q(session__isnull=False),
+                name="flows_run_active_or_waiting_has_session",
+            )
         ]
 
 
