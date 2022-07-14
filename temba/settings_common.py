@@ -1039,6 +1039,7 @@ CELERY_BEAT_SCHEDULE = {
     "trim-sync-events": {"task": "trim_sync_events_task", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
     "update-org-activity": {"task": "update_org_activity_task", "schedule": crontab(hour=3, minute=5)},
+    "refresh-teams-tokens": {"task": "refresh_teams_tokens", "schedule": crontab(hour=8, minute=0)},
 }
 
 # -----------------------------------------------------------------------------------
@@ -1191,6 +1192,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.weniwebchat.WeniWebChatType",
     "temba.channels.types.instagram.InstagramType",
     "temba.channels.types.slack.SlackType",
+    "temba.channels.types.teams.TeamsType",
 ]
 
 # set of ISO-639-3 codes of languages to allow in addition to all ISO-639-1 languages
