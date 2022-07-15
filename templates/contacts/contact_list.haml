@@ -94,7 +94,7 @@
           
           .secondary-buttons.mb-6
             -if org_perms.contacts.contact_create
-              %temba-modax#create-label-modal(header='{% trans "Create Contact" %}' endpoint="{% url 'contacts.contact_create' %}")
+              %temba-modax#create-contact-modal(header='{% trans "Create Contact" %}' endpoint="{% url 'contacts.contact_create' %}")
                 .button-light.block.mt-3
                   -trans "Create Contact"
 
@@ -136,17 +136,17 @@
                       .list-buttons.flex.items-center.-mx-2.h-full
 
                         -if 'restore' in actions
-                          .button-action(onclick='runActionOnObjectRows("restore")')
+                          .button-action(onclick='runActionOnObjectRows("restore", wireTableListeners)')
                             .-mt-1.mr-2.glyph.icon-checkmark
                             -trans "Activate"
 
                         -if 'block' in actions
-                          .button-action(onclick='runActionOnObjectRows("block")')
+                          .button-action(onclick='runActionOnObjectRows("block", wireTableListeners)')
                             .-mt-1.mr-2.glyph.icon-user-block
                             -trans "Block"
 
                         -if 'archive' in actions
-                          .button-action(onclick='runActionOnObjectRows("archive")')
+                          .button-action(onclick='runActionOnObjectRows("archive", wireTableListeners)')
                             .-mt-1.mr-2.glyph.icon-box
                             -trans "Archive"
 
@@ -156,7 +156,7 @@
                             -trans "Delete"
 
                         -if 'unlabel' in actions
-                          .button-action(onclick="unlabelObjectRows({{current_group.pk}});")
+                          .button-action(onclick="unlabelObjectRows({{current_group.pk}}, wireTableListeners);")
                             .-mt-1.mr-2.glyph.icon-user-remove
                             -trans "Remove From Group"
 
@@ -251,7 +251,7 @@
 
         deleteConfirmation.addEventListener("temba-button-clicked", function(event){
           if (!event.detail.button.secondary) {
-            runActionOnObjectRows("delete");
+            runActionOnObjectRows("delete", wireTableListeners);
           }
           deleteConfirmation.open = false;
         });
@@ -341,16 +341,16 @@
 
       {% if org_perms.contacts.contact_block %}
         $(".lp-frame").on('click', ".object-btn-unblock", function() {
-          runActionOnObjectRows("unblock");
+          runActionOnObjectRows("unblock", wireTableListeners);
         });
         $(".lp-frame").on('click', ".object-btn-block", function() {
-          runActionOnObjectRows("block");
+          runActionOnObjectRows("block", wireTableListeners);
         });
       {% endif %}
 
       {% if org_perms.contacts.contact_unstop %}
         $(".lp-frame").on('click', ".object-btn-unstop", function() {
-          runActionOnObjectRows("unstop");
+          runActionOnObjectRows("unstop", wireTableListeners);
         });
       {% endif %}
 
