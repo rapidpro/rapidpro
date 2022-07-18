@@ -1063,7 +1063,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
             body=body,
             assignee=modifiers.UserRef(email=assignee.email, name=assignee.name) if assignee else None,
         )
-        self.modify(user, [mod])
+        self.modify(user, [mod], refresh=False)
         return self.tickets.order_by("id").last()
 
     def block(self, user):
