@@ -1548,6 +1548,17 @@ class ContactTest(TembaTest):
         mock_contact_modify.reset_mock()
 
     @mock_mailroom
+    def test_open_ticket(self, mock_contact_modify):
+        mock_contact_modify.return_value = {self.joe.id: {"contact": {}, "events": []}}
+
+        ticket = self.joe.open_ticket(
+            self.admin, self.org.ticketers.get(), self.org.default_ticket_topic, "Looks sus", assignee=self.agent
+        )
+
+        self.assertEqual(self.org.default_ticket_topic, ticket.topic)
+        self.assertEqual("Looks sus", ticket.body)
+
+    @mock_mailroom
     def test_release(self, mr_mocks):
         # create a contact with a message
         old_contact = self.create_contact("Jose", phone="+12065552000")
