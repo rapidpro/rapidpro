@@ -4132,14 +4132,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         assert_superuser_only(update_url)
         assert_superuser_only(delete_url)
 
-        response = self.client.get(manage_url + "?flagged=1")
-        self.assertFalse(self.org in response.context["object_list"])
+        response = self.client.get(manage_url + "?filter=flagged")
+        self.assertNotIn(self.org, response.context["object_list"])
 
-        response = self.client.get(manage_url + "?anon=1")
-        self.assertFalse(self.org in response.context["object_list"])
+        response = self.client.get(manage_url + "?filter=anon")
+        self.assertNotIn(self.org, response.context["object_list"])
 
-        response = self.client.get(manage_url + "?suspended=1")
-        self.assertFalse(self.org in response.context["object_list"])
+        response = self.client.get(manage_url + "?filter=suspended")
+        self.assertNotIn(self.org, response.context["object_list"])
 
         response = self.client.get(manage_url)
         self.assertEqual(200, response.status_code)
