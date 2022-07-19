@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-07-19 16:52+0000\n"
+"POT-Creation-Date: 2022-07-19 17:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2430,9 +2430,6 @@ msgstr ""
 msgid "Start Flow"
 msgstr ""
 
-msgid "Open Ticket"
-msgstr ""
-
 msgid "Edit Contact"
 msgstr ""
 
@@ -2485,24 +2482,6 @@ msgid "An error occurred updating your contact. Please try again later."
 msgstr ""
 
 msgid "Select a field to update"
-msgstr ""
-
-msgid "Ticket Service"
-msgstr ""
-
-msgid "Topic"
-msgstr ""
-
-msgid "Body"
-msgstr ""
-
-msgid "Assignee"
-msgstr ""
-
-msgid "Unassigned"
-msgstr ""
-
-msgid "Open"
 msgstr ""
 
 msgid "Can only contain letters, numbers and hypens."
@@ -3936,10 +3915,16 @@ msgstr ""
 msgid "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."
 msgstr ""
 
+msgid "Open"
+msgstr ""
+
 msgid "Closed"
 msgstr ""
 
 msgid "My Tickets"
+msgstr ""
+
+msgid "Unassigned"
 msgstr ""
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."

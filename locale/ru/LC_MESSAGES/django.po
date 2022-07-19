@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-07-19 16:52+0000\n"
+"POT-Creation-Date: 2022-07-19 17:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1823,15 +1823,11 @@ msgstr "Домен шаблонов"
 msgid "Which domain to retrieve the message templates from"
 msgstr "С какого домена запрашивать шаблоны сообщения"
 
-#, fuzzy
-#| msgid "Templates Domain"
 msgid "Templates API version"
-msgstr "Домен шаблонов"
+msgstr ""
 
-#, fuzzy
-#| msgid "Which domain to retrieve the message templates from"
 msgid "Which API version to retrieve the message templates with"
-msgstr "С какого домена запрашивать шаблоны сообщения"
+msgstr ""
 
 msgid "The Facebook waba-id that will be used for template syncing"
 msgstr "Facebook waba-id, который будет использоваться для синхронизации шаблона"
@@ -1848,10 +1844,8 @@ msgstr "Невозможно проверить корпоративный сч�
 msgid "Unable to access Facebook templates, please check user id and access token and make sure the whatsapp_business_management permission is enabled"
 msgstr "Невозможно получить доступ к шаблонам Facebook, пожалуйста, проверьте id пользователя и токен доступа и убедитесь, что включено разрешение whatsapp_business_management."
 
-#, fuzzy
-#| msgid "Verify Token"
 msgid "Verify Number"
-msgstr "Проверить Токен"
+msgstr ""
 
 msgid "Unable to fetch credit line ID"
 msgstr ""
@@ -1879,15 +1873,11 @@ msgstr "Указанный номер уже подключен к другой 
 msgid "Unable to add system user to %s, please make sure you have business admin manager privileges on the Facebook business."
 msgstr ""
 
-#, fuzzy
-#| msgid "Notification Title"
 msgid "Verification Code"
-msgstr "Наименование Уведомления"
+msgstr ""
 
-#, fuzzy
-#| msgid "Request Body"
 msgid "Request Code"
-msgstr "Тело Запроса"
+msgstr ""
 
 msgid "Failed to request phone number verification code. Please remove the channel and add it again."
 msgstr ""
@@ -1974,10 +1964,9 @@ msgstr ""
 msgid "POST Required"
 msgstr "Требуется POST"
 
-#, fuzzy, python-format
-#| msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d channels. You must delete existing ones before you can create new ones."
-msgstr "Эта организация имеет %(count)d групп и предел составляет %(limit)d. Вы должны удалить существующие группы, прежде чем сможете создавать новые."
+msgstr ""
 
 #, python-format
 msgid "Connect %(channel_type)s"
@@ -2188,10 +2177,8 @@ msgstr ""
 msgid "Unable to sync classifier. See the log for details."
 msgstr "Невозможно синхронизировать классификатор. Смотрите детальную информацию в журнале."
 
-#, fuzzy
-#| msgid "Phone number"
 msgid "Phone Number"
-msgstr "Номер телефона"
+msgstr ""
 
 msgid "Discord Identifier"
 msgstr ""
@@ -2199,81 +2186,53 @@ msgstr ""
 msgid "Email Address"
 msgstr "Адрес электронной почты"
 
-#, fuzzy
-#| msgid "External identifier"
 msgid "External Identifier"
-msgstr "Внешний идентификатор "
+msgstr ""
 
-#, fuzzy
-#| msgid "Facebook identifier"
 msgid "Facebook Identifier"
-msgstr "Идентификатор Facebook "
+msgstr ""
 
-#, fuzzy
-#| msgid "Firebase Cloud Messaging identifier"
 msgid "Firebase Cloud Messaging Identifier"
-msgstr "Идентификатор Firebase Cloud Messaging"
+msgstr ""
 
-#, fuzzy
-#| msgid "Freshchat identifier"
 msgid "Freshchat Identifier"
-msgstr "Идентификатор Freshchat"
+msgstr ""
 
 msgid "Instagram Handle"
 msgstr ""
 
-#, fuzzy
-#| msgid "JioChat identifier"
 msgid "JioChat Identifier"
-msgstr "Идентификатор JioChat "
+msgstr ""
 
-#, fuzzy
-#| msgid "LINE identifier"
 msgid "LINE Identifier"
-msgstr "Идентификатор LINE"
+msgstr ""
 
-#, fuzzy
-#| msgid "WeChat identifier"
 msgid "RocketChat Identifier"
-msgstr "Идентификатор WeChat"
+msgstr ""
 
-#, fuzzy
-#| msgid "Telegram identifier"
 msgid "Telegram Identifier"
-msgstr "Идентификатор Telegram"
+msgstr ""
 
 msgid "Twitter ID"
 msgstr "Twitter ID"
 
-#, fuzzy
-#| msgid "Twitter handle"
 msgid "Twitter Handle"
-msgstr "Дескриптор Twitter "
+msgstr ""
 
-#, fuzzy
-#| msgid "Viber identifier"
 msgid "Viber Identifier"
-msgstr "Идентификатор Viber"
+msgstr ""
 
-#, fuzzy
-#| msgid "VK identifier"
 msgid "VK Identifier"
-msgstr "Идентификатор VK"
+msgstr ""
 
-#, fuzzy
-#| msgid "WeChat identifier"
 msgid "WeChat Identifier"
-msgstr "Идентификатор WeChat"
+msgstr ""
 
-#, fuzzy
-#| msgid "WeChat identifier"
 msgid "Webchat Identifier"
-msgstr "Идентификатор WeChat"
+msgstr ""
 
-#, fuzzy
-#| msgid "WhatsApp identifier"
 msgid "WhatsApp Identifier"
-msgstr "Идентификатор WhatsApp"
+msgstr ""
 
 msgid "Text"
 msgstr "Текст"
@@ -2368,10 +2327,9 @@ msgstr ""
 msgid "'%(value)s' is not a valid language code"
 msgstr ""
 
-#, fuzzy, python-format
-#| msgid "This file is not a valid flow definition file."
+#, python-format
 msgid "'%(value)s' is not a valid flow name"
-msgstr "Этот файл не является допустимым файлом определения потока."
+msgstr ""
 
 #, python-format
 msgid "'%(value)s' is not a valid group name"
@@ -2403,15 +2361,12 @@ msgstr ""
 msgid "Can't query on URNs in an anonymous workspace"
 msgstr ""
 
-#, fuzzy
-#| msgid "Name is used by another group"
 msgid "Already used by another group."
-msgstr "Название используется другой группой"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d groups. You must delete existing ones before you can create new ones."
-msgstr "Эта организация имеет %(count)d групп и предел составляет %(limit)d. Вы должны удалить существующие группы, прежде чем сможете создавать новые."
+msgstr ""
 
 msgid "You cannot create a smart group based on \"id\" or \"group\"."
 msgstr ""
@@ -2496,9 +2451,6 @@ msgstr "Отправить Сообщение"
 msgid "Start Flow"
 msgstr "Начать поток"
 
-msgid "Open Ticket"
-msgstr ""
-
 msgid "Edit Contact"
 msgstr ""
 
@@ -2511,10 +2463,8 @@ msgstr "Активировать"
 msgid "Block"
 msgstr "Блокировать"
 
-#, fuzzy
-#| msgid "Blocked Contacts"
 msgid "Active Contacts"
-msgstr "Заблокированные Контакты"
+msgstr ""
 
 msgid "Create Smart Group"
 msgstr ""
@@ -2555,28 +2505,6 @@ msgstr "При обновлении Вашего контакта произош
 msgid "Select a field to update"
 msgstr ""
 
-#, fuzzy
-#| msgid "Ticketing Service Called"
-msgid "Ticket Service"
-msgstr "Служба обработки запросов клиентов вызвана"
-
-msgid "Topic"
-msgstr ""
-
-#, fuzzy
-#| msgid "Post Body"
-msgid "Body"
-msgstr "Тело Post"
-
-msgid "Assignee"
-msgstr ""
-
-msgid "Unassigned"
-msgstr ""
-
-msgid "Open"
-msgstr "Открыто"
-
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Может содержать только буквы, числа и дефисы."
 
@@ -2604,10 +2532,9 @@ msgstr "Управление Полями Контактов"
 msgid "All"
 msgstr "Все"
 
-#, fuzzy, python-format
-#| msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d fields. You must delete existing ones before you can create new ones."
-msgstr "Эта организация имеет %(count)d групп и предел составляет %(limit)d. Вы должны удалить существующие группы, прежде чем сможете создавать новые."
+msgstr ""
 
 msgid "Update"
 msgstr "Обновить"
@@ -2746,33 +2673,26 @@ msgstr "Любые варианты конфигурации для экспор
 msgid "Starting"
 msgstr "Начинается"
 
-#, fuzzy
-#| msgid "Name is used by another group"
 msgid "Already used by another flow."
-msgstr "Название используется другой группой"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "\"%(keyword)s\" must be a single word, less than %(limit)d characters, containing only letter and numbers"
+#, python-format
 msgid "Must be single words, less than %(limit)d characters, containing only letters and numbers."
-msgstr "\"%(keyword)s\" должно быть одним словом, длиной менее %(limit)d символов, содержащим только буквы и цифры"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "The keywords \"%s\" are already used for another flow"
+#, python-format
 msgid "%(keywords)s are already used for another flow."
-msgstr "Ключевые слова \"%s\" уже используются для другого потока"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "The keyword \"%s\" is already used for another flow"
+#, python-format
 msgid "%(keyword)s is already used for another flow."
-msgstr "Ключевое слово \"%s\" уже используется для другого потока"
+msgstr ""
 
 msgid "Labels"
 msgstr "Метки"
 
-#, fuzzy
-#| msgid "Flow"
 msgid "New Flow"
-msgstr "Поток"
+msgstr ""
 
 msgid "New Label"
 msgstr ""
@@ -2808,10 +2728,8 @@ msgstr ""
 msgid "Choose the method for your flow"
 msgstr "Выберите метод для Вашего потока"
 
-#, fuzzy
-#| msgid "Choose a name to describe this flow, e.g. Demographic Survey"
 msgid "Choose a unique name to describe this flow, e.g. Registration"
-msgstr "Выберите название для описания этого потока, например, «Демографическое обследование»"
+msgstr ""
 
 msgid "Create a contact "
 msgstr "Создать контакт"
@@ -2844,15 +2762,11 @@ msgstr ""
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
 
-#, fuzzy
-#| msgid "Archived"
 msgid "Archived Flows"
-msgstr "Архивировано"
+msgstr ""
 
-#, fuzzy
-#| msgid "Active"
 msgid "Active Flows"
-msgstr "Активный"
+msgstr ""
 
 msgid "Edit Label"
 msgstr ""
@@ -3011,10 +2925,9 @@ msgstr "Журнал запуска потока"
 msgid "Key"
 msgstr "Ключ"
 
-#, fuzzy, python-format
-#| msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d globals. You must delete existing ones before you can create new ones."
-msgstr "Эта организация имеет %(count)d групп и предел составляет %(limit)d. Вы должны удалить существующие группы, прежде чем сможете создавать новые."
+msgstr ""
 
 msgid "Isn't a valid name"
 msgstr "Не является допустимым именем"
@@ -3173,10 +3086,9 @@ msgstr ""
 msgid "Delete Folder"
 msgstr ""
 
-#, fuzzy, python-format
-#| msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d labels. You must delete existing ones before you can create new ones."
-msgstr "Эта организация имеет %(count)d групп и предел составляет %(limit)d. Вы должны удалить существующие группы, прежде чем сможете создавать новые."
+msgstr ""
 
 msgid "Folder"
 msgstr "Папка"
@@ -3463,10 +3375,8 @@ msgstr ""
 msgid "You can reset the user's password by entering a new password here"
 msgstr ""
 
-#, fuzzy
-#| msgid "Delete "
 msgid "Delete User"
-msgstr "Удалить"
+msgstr ""
 
 #, python-brace-format
 msgid "Deleted user {username}"
@@ -4026,10 +3936,16 @@ msgstr "Наглядно создавайте масштабируемые на 
 msgid "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."
 msgstr "Авторское право &copy; 2012-2017 ЮНИСЕФ, Nyaruka. Все права защищены."
 
+msgid "Open"
+msgstr "Открыто"
+
 msgid "Closed"
 msgstr "Закрыто"
 
 msgid "My Tickets"
+msgstr ""
+
+msgid "Unassigned"
 msgstr ""
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
@@ -4138,10 +4054,8 @@ msgstr ""
 msgid "The associated channel."
 msgstr ""
 
-#, fuzzy
-#| msgid "Triggers"
 msgid "Trigger"
-msgstr "Триггеры"
+msgstr ""
 
 msgid "Keyword Triggers"
 msgstr ""
@@ -5454,18 +5368,14 @@ msgstr ""
 msgid "In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh the contacts on the WhatsApp application. This may take a few minutes."
 msgstr ""
 
-#, fuzzy
-#| msgid "You can connect your BurstSMS number by entering the settings below."
 msgid "You can connect your WhatsApp number by clicking on it below."
-msgstr "Вы можете подключить свой номер BurstSMS, введя настройки ниже"
+msgstr ""
 
 msgid "One of the Facebook business manager you are trying to connect is not configured. If you do not see the WhatsApp business number you want to connect, please reach out for support."
 msgstr ""
 
-#, fuzzy
-#| msgid "The ThinQ number you want to connect"
 msgid "Select the number you want to add as a channel:"
-msgstr "Номер ThinQ, который Вы хотите подключить"
+msgstr ""
 
 msgid "Connect other Facebook Business numbers"
 msgstr ""
@@ -5479,10 +5389,8 @@ msgstr ""
 msgid "Resetting Verification Code in WhatsApp Manager"
 msgstr ""
 
-#, fuzzy
-#| msgid "Name already used"
 msgid "Number already verified"
-msgstr "Название уже используется"
+msgstr ""
 
 msgid "Fill the code you received on the phone for verification below."
 msgstr ""
@@ -5724,10 +5632,8 @@ msgstr "повторяется ежедневно"
 msgid "repeats weekly"
 msgstr "повторяется еженедельно"
 
-#, fuzzy
-#| msgid "repeats daily"
 msgid "repeats monthly"
-msgstr "повторяется ежедневно"
+msgstr ""
 
 msgid "History"
 msgstr "История"
@@ -5738,10 +5644,8 @@ msgstr "Полностью"
 msgid "Chat"
 msgstr ""
 
-#, fuzzy
-#| msgid "No fields"
 msgid "No Fields"
-msgstr "Нет полей"
+msgstr ""
 
 msgid "Nothing to see here yet. Create a new field to save data to your contacts."
 msgstr ""
@@ -5749,10 +5653,8 @@ msgstr ""
 msgid "Next Up"
 msgstr ""
 
-#, fuzzy
-#| msgid "Upcoming"
 msgid "No Upcoming Events"
-msgstr "Ожидается"
+msgstr ""
 
 msgid "Nothing to see here yet. Any messages or flows scheduled to be sent to this contact in the future will be shown here."
 msgstr ""
@@ -6268,15 +6170,11 @@ msgstr ""
 msgid "New Label..."
 msgstr "Новая Метка..."
 
-#, fuzzy
-#| msgid "Activate"
 msgid "Reactivate"
-msgstr "Активировать"
+msgstr ""
 
-#, fuzzy
-#| msgid "Removed from groups"
 msgid "Remove from group"
-msgstr "Удалено из групп"
+msgstr ""
 
 #, python-format
 msgid "%(start)s - %(end)s of %(total)s"
@@ -7113,10 +7011,8 @@ msgstr ""
 msgid "Approve the permissions, these are required for us to access the API on your behalf."
 msgstr ""
 
-#, fuzzy
-#| msgid "Facebook identifier"
 msgid "Add Facebook Business"
-msgstr "Идентификатор Facebook "
+msgstr ""
 
 msgid "Top Ups"
 msgstr "Пополнения"
@@ -7170,10 +7066,9 @@ msgstr ""
 msgid "Deleting this user will also delete the following workspaces owned by this user."
 msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Are you sure you want to remove this label?"
+#, python-format
 msgid "Are you sure you want to delete <b>%(username)s</b>?\""
-msgstr "Вы действительно хотите удалить эту метку?"
+msgstr ""
 
 msgid "Confirm your current password to save these changes"
 msgstr ""
@@ -7225,10 +7120,8 @@ msgstr ""
 msgid "Two-factor authentication is <b>enabled</b>."
 msgstr ""
 
-#, fuzzy
-#| msgid "Update Folder"
 msgid "Update User"
-msgstr "Обновить Папку"
+msgstr ""
 
 msgid "Policies"
 msgstr ""
@@ -7809,28 +7702,20 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
-#, fuzzy
-#| msgid "Expire inactive contacts"
 msgid "Skip inactive contacts"
-msgstr "Аннулировать неактивные контакты"
+msgstr ""
 
 msgid "Only include contacts who have sent a message in the last 90 days."
 msgstr ""
 
-#, fuzzy
-#| msgid "contacts not in other flows"
 msgid "Skip contacts currently in a flow"
-msgstr "контактов, не находящихся в других потоках"
+msgstr ""
 
-#, fuzzy
-#| msgid "If the contact is already active in a flow"
 msgid "Avoid interrupting a contact who is already in a flow."
-msgstr "Активен ли уже контакт в потоке"
+msgstr ""
 
-#, fuzzy
-#| msgid "Stopped Contacts"
 msgid "Skip repeat contacts"
-msgstr "Остановленные Контакты"
+msgstr ""
 
 msgid "Avoid restarting a contact who has been in this flow in the last 90 days."
 msgstr ""
@@ -7849,106 +7734,3 @@ msgstr ""
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
-
-#~ msgid "Burkina Faso"
-#~ msgstr "Буркина-Фасо"
-
-#~ msgid "Côte d'Ivoire"
-#~ msgstr "Кот-д'Ивуар"
-
-#~ msgid "Ethiopia"
-#~ msgstr "Эфиопия"
-
-#~ msgid "Kenya"
-#~ msgstr "Кения"
-
-#~ msgid "Nigeria"
-#~ msgstr "Нигерия"
-
-#~ msgid "Rwanda"
-#~ msgstr "Руанда"
-
-#~ msgid "Tanzania"
-#~ msgstr "Танзания"
-
-#~ msgid "South Africa"
-#~ msgstr "ЮАР"
-
-#~ msgid "Zambia"
-#~ msgstr "Замбия"
-
-#~ msgid "Email address"
-#~ msgstr "Адрес электронной почты:"
-
-#~ msgid "Group name must not be blank or begin with + or -"
-#~ msgstr "Название группы не должно быть пустым или начинаться с + или -"
-
-#, python-format
-#~ msgid "Cannot create a new field as limit is %(limit)s."
-#~ msgstr "Невозможно создать новое поле, так как предел равен %(limit)s."
-
-#~ msgid "The name for this flow"
-#~ msgstr "Название данного потока"
-
-#, python-format
-#~ msgid "Cannot create a new global as limit is %(limit)s."
-#~ msgstr "Невозможно создать новый глобальный объект, так как ограничение равно %(limit)s."
-
-#~ msgid "Export only messages from these contact groups. (Leave blank to export all messages)."
-#~ msgstr "Экспортировать сообщения только из этих групп контактов. (Оставьте пустым для экспорта всех сообщений)."
-
-#~ msgid "Send All"
-#~ msgstr "Отправить Все"
-
-#~ msgid "Name must not be blank or begin with punctuation"
-#~ msgstr "Название не должно быть пустым или начинаться с пунктуационных знаков"
-
-#~ msgid "Name must be unique"
-#~ msgstr "Название должно быть уникальным"
-
-#~ msgid "The parent org that manages this org"
-#~ msgstr "Родительская организация, которая управляет данной организацией"
-
-#, python-format
-#~ msgid "This group is used by an <a href=\"%(triggers_url)s\">active trigger</a>. In order to delete it, first remove the trigger."
-#~ msgid_plural "This group is used by <a href=\"%(triggers_url)s\">%(counter)s triggers<a>. In order to delete it, first remove the triggers."
-#~ msgstr[0] "Эта группа используется <a href=\"%(triggers_url)s\">активным триггером</a>. Чтобы удалить ее, сначала удалите триггер."
-#~ msgstr[1] "Эта группа используется <a href=\"%(triggers_url)s\">%(counter)s триггерами<a>. Чтобы удалить ее, сначала удалите триггеры."
-#~ msgstr[2] "Эта группа используется <a href=\"%(triggers_url)s\">%(counter)s триггерами<a>. Чтобы удалить ее, сначала удалите триггеры."
-#~ msgstr[3] "Эта группа используется <a href=\"%(triggers_url)s\">%(counter)sтриггерами<a>. Чтобы удалить ее, сначала удалите триггеры."
-
-#, python-format
-#~ msgid "There is an active flow using this group. It cannot be deleted until it is removed from the"
-#~ msgid_plural "There are %(counter)s flows using this group. It cannot be deleted until it is removed from the"
-#~ msgstr[0] "Существует активный поток, использующий эту группу. Ее нельзя удалить, пока она не будет удалена из"
-#~ msgstr[1] "Существуют %(counter)s потоки, использующие эту группу. Ее нельзя удалить, пока она не будет удалена из"
-#~ msgstr[2] "Существуют %(counter)s потоки, использующие эту группу. Ее нельзя удалить, пока она не будет удалена из"
-#~ msgstr[3] "Существуют %(counter)s потоки, использующие эту группу. Ее нельзя удалить, пока она не будет удалена из"
-
-#~ msgid "flow."
-#~ msgid_plural "flows."
-#~ msgstr[0] "потока."
-#~ msgstr[1] "потоков."
-#~ msgstr[2] "потоков."
-#~ msgstr[3] "потоков."
-
-#, python-format
-#~ msgid "There is an active campaign using this group. It cannot be deleted until it is removed from the"
-#~ msgid_plural "There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the"
-#~ msgstr[0] "Существует активная кампания, использующая эту группу. Ее нельзя удалить, пока она не будет удалена из"
-#~ msgstr[1] "Существуют %(counter)s кампании, использующие эту группу. Ее нельзя удалить, пока она не будет удалена из"
-#~ msgstr[2] "Существуют %(counter)s кампании, использующие эту группу. Ее нельзя удалить, пока она не будет удалена из"
-#~ msgstr[3] "Существуют %(counter)s кампании, использующие эту группу. Ее нельзя удалить, пока она не будет удалена из"
-
-#~ msgid "campaign."
-#~ msgid_plural "campaigns."
-#~ msgstr[0] "кампании."
-#~ msgstr[1] "кампаний."
-#~ msgstr[2] "кампаний."
-#~ msgstr[3] "кампаний."
-
-#~ msgid "Create Folder"
-#~ msgstr "Создать папку"
-
-#~ msgid "Whoa, whoa, whoa!"
-#~ msgstr "Постойте!"

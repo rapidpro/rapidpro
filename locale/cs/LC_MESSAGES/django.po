@@ -11,7 +11,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-07-19 16:52+0000\n"
+"POT-Creation-Date: 2022-07-19 17:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: trendspotter <jirka.p@volny.cz>, 2022\n"
 "Language-Team: Czech (https://www.transifex.com/rapidpro/teams/226/cs/)\n"
@@ -1822,15 +1822,11 @@ msgstr "Šablony domény"
 msgid "Which domain to retrieve the message templates from"
 msgstr "Z které domény načíst šablony zpráv"
 
-#, fuzzy
-#| msgid "Templates Events"
 msgid "Templates API version"
-msgstr "Šablony Události"
+msgstr ""
 
-#, fuzzy
-#| msgid "Which domain to retrieve the message templates from"
 msgid "Which API version to retrieve the message templates with"
-msgstr "Z které domény načíst šablony zpráv"
+msgstr ""
 
 msgid "The Facebook waba-id that will be used for template syncing"
 msgstr "Waba-id Facebooku, které bude použito pro synchronizaci šablony"
@@ -1847,10 +1843,8 @@ msgstr "Nelze zkontrolovat podnikový účet WhatsApp, zkontrolujte prosím uži
 msgid "Unable to access Facebook templates, please check user id and access token and make sure the whatsapp_business_management permission is enabled"
 msgstr "Nelze přistupovat k šablonám Facebooku, zkontrolujte prosím ID uživatele a přístupový token a ujistěte se, že je povoleno oprávnění whatsapp_business_management."
 
-#, fuzzy
-#| msgid "Verify Email"
 msgid "Verify Number"
-msgstr "Ověřit e-mail"
+msgstr ""
 
 msgid "Unable to fetch credit line ID"
 msgstr ""
@@ -1878,15 +1872,11 @@ msgstr "Toto číslo je již připojeno k jinému účtu -%(org)s (%(user)s)"
 msgid "Unable to add system user to %s, please make sure you have business admin manager privileges on the Facebook business."
 msgstr ""
 
-#, fuzzy
-#| msgid "Notification Title"
 msgid "Verification Code"
-msgstr "Název oznámení"
+msgstr ""
 
-#, fuzzy
-#| msgid "Request Body"
 msgid "Request Code"
-msgstr "Tělo požadavku"
+msgstr ""
 
 msgid "Failed to request phone number verification code. Please remove the channel and add it again."
 msgstr ""
@@ -1973,10 +1963,9 @@ msgstr "Neplatný token. Zkontrolujte prosím nastavení svého účtu Zenvia."
 msgid "POST Required"
 msgstr "Vyžadováno POST"
 
-#, fuzzy, python-format
-#| msgid "This workspace has %d labels and the limit is %s. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d channels. You must delete existing ones before you can create new ones."
-msgstr "Tento pracovní prostor má %d štítky a limit je %s. Před vytvořením nových štítků musíte odstranit stávající."
+msgstr ""
 
 #, python-format
 msgid "Connect %(channel_type)s"
@@ -2187,10 +2176,8 @@ msgstr "Váš klasifikátor byl synchronizován."
 msgid "Unable to sync classifier. See the log for details."
 msgstr "Nelze synchronizovat klasifikátor. Podrobnosti naleznete v protokolu."
 
-#, fuzzy
-#| msgid "Phone number"
 msgid "Phone Number"
-msgstr "Telefonní číslo"
+msgstr ""
 
 msgid "Discord Identifier"
 msgstr "Discord Identifikátor"
@@ -2198,83 +2185,53 @@ msgstr "Discord Identifikátor"
 msgid "Email Address"
 msgstr "E-mailová adresa"
 
-#, fuzzy
-#| msgid "External identifier"
 msgid "External Identifier"
-msgstr "Externí identifikátor"
+msgstr ""
 
-#, fuzzy
-#| msgid "Facebook identifier"
 msgid "Facebook Identifier"
-msgstr "Identifikátor Facebooku"
+msgstr ""
 
-#, fuzzy
-#| msgid "Firebase Cloud Messaging identifier"
 msgid "Firebase Cloud Messaging Identifier"
-msgstr "Identifikátor Firebase Cloud Messaging"
+msgstr ""
 
-#, fuzzy
-#| msgid "Freshchat identifier"
 msgid "Freshchat Identifier"
-msgstr "Freshchat identifikátor"
+msgstr ""
 
-#, fuzzy
-#| msgid "Instagram identifier"
 msgid "Instagram Handle"
-msgstr "Identifikátor Instagram"
+msgstr ""
 
-#, fuzzy
-#| msgid "JioChat identifier"
 msgid "JioChat Identifier"
-msgstr "JioChat identifikátor"
+msgstr ""
 
-#, fuzzy
-#| msgid "LINE identifier"
 msgid "LINE Identifier"
-msgstr "Identifikátor LINE"
+msgstr ""
 
-#, fuzzy
-#| msgid "RocketChat identifier"
 msgid "RocketChat Identifier"
-msgstr "RocketChat identifikátor"
+msgstr ""
 
-#, fuzzy
-#| msgid "Telegram identifier"
 msgid "Telegram Identifier"
-msgstr "Identifikátor Telegram"
+msgstr ""
 
 msgid "Twitter ID"
 msgstr "Twitter ID"
 
-#, fuzzy
-#| msgid "Twitter handle"
 msgid "Twitter Handle"
-msgstr "Twitter handle"
+msgstr ""
 
-#, fuzzy
-#| msgid "Viber identifier"
 msgid "Viber Identifier"
-msgstr "Identifikátor Viber"
+msgstr ""
 
-#, fuzzy
-#| msgid "VK identifier"
 msgid "VK Identifier"
-msgstr "VK identifikátor"
+msgstr ""
 
-#, fuzzy
-#| msgid "WeChat identifier"
 msgid "WeChat Identifier"
-msgstr "WeChat identifikátor"
+msgstr ""
 
-#, fuzzy
-#| msgid "WeChat identifier"
 msgid "Webchat Identifier"
-msgstr "WeChat identifikátor"
+msgstr ""
 
-#, fuzzy
-#| msgid "WhatsApp identifier"
 msgid "WhatsApp Identifier"
-msgstr "WhatsApp identifikátor"
+msgstr ""
 
 msgid "Text"
 msgstr "Text"
@@ -2369,10 +2326,9 @@ msgstr "Nelze převést '%(value)s' na datum"
 msgid "'%(value)s' is not a valid language code"
 msgstr "'%(value)s' není platný kód jazyka"
 
-#, fuzzy, python-format
-#| msgid "'%(value)s' is not a valid group name"
+#, python-format
 msgid "'%(value)s' is not a valid flow name"
-msgstr "'%(value)s' není platný název skupiny"
+msgstr ""
 
 #, python-format
 msgid "'%(value)s' is not a valid group name"
@@ -2404,15 +2360,12 @@ msgstr "Nelze přeložit '%(property)s' na pole nebo schéma URN"
 msgid "Can't query on URNs in an anonymous workspace"
 msgstr "Nelze se dotazovat na URN v anonymním pracovním prostoru"
 
-#, fuzzy
-#| msgid "Name is used by another group"
 msgid "Already used by another group."
-msgstr "Název používá jiná skupina"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "This workspace has %d labels and the limit is %s. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d groups. You must delete existing ones before you can create new ones."
-msgstr "Tento pracovní prostor má %d štítky a limit je %s. Před vytvořením nových štítků musíte odstranit stávající."
+msgstr ""
 
 msgid "You cannot create a smart group based on \"id\" or \"group\"."
 msgstr "Inteligentní skupinu nelze vytvořit na základě \"id\" nebo \"group\"."
@@ -2497,11 +2450,6 @@ msgstr "Odeslat zprávu"
 msgid "Start Flow"
 msgstr "Spuštění toku"
 
-#, fuzzy
-#| msgid "Open Tickets"
-msgid "Open Ticket"
-msgstr "Otevřené tikety"
-
 msgid "Edit Contact"
 msgstr "Upravit kontakt"
 
@@ -2514,10 +2462,8 @@ msgstr "Aktivovat"
 msgid "Block"
 msgstr "Blokovat"
 
-#, fuzzy
-#| msgid "Archived Contacts"
 msgid "Active Contacts"
-msgstr "Archivované kontakty"
+msgstr ""
 
 msgid "Create Smart Group"
 msgstr "Vytvořit Smart skupinu"
@@ -2558,30 +2504,6 @@ msgstr "Při aktualizaci vašeho kontaktu došlo k chybě. Zkuste to prosím poz
 msgid "Select a field to update"
 msgstr "Vyberte pole, které chcete aktualizovat"
 
-#, fuzzy
-#| msgid "Ticketing Service"
-msgid "Ticket Service"
-msgstr "Tiketovací služba"
-
-msgid "Topic"
-msgstr ""
-
-#, fuzzy
-#| msgid "Post Body"
-msgid "Body"
-msgstr "Tělo příspěvku"
-
-#, fuzzy
-#| msgid "Unassigned"
-msgid "Assignee"
-msgstr "Nepřiřazeno"
-
-msgid "Unassigned"
-msgstr "Nepřiřazeno"
-
-msgid "Open"
-msgstr "Otevřené"
-
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Může obsahovat pouze písmena, číslice a pomlčky."
 
@@ -2609,10 +2531,9 @@ msgstr "Správa kontaktních polí"
 msgid "All"
 msgstr "Vše"
 
-#, fuzzy, python-format
-#| msgid "This workspace has %d labels and the limit is %s. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d fields. You must delete existing ones before you can create new ones."
-msgstr "Tento pracovní prostor má %d štítky a limit je %s. Před vytvořením nových štítků musíte odstranit stávající."
+msgstr ""
 
 msgid "Update"
 msgstr "Aktualizovat"
@@ -2642,10 +2563,9 @@ msgstr "Název pole pro '%(header)s' je neplatný, nebo se jedná o rezervované
 msgid "Field name '%(name)s' is repeated."
 msgstr "Název pole '%(name)s' se opakuje."
 
-#, fuzzy, python-format
-#| msgid "This workspace has reached the limit of %(count)d groups."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d groups."
-msgstr "Tento pracovní prostor dosáhl limitu %(count)d skupin."
+msgstr ""
 
 msgid "Required."
 msgstr "Vyžadované."
@@ -2752,33 +2672,26 @@ msgstr "Veškeré možnosti konfigurace pro tento export toku"
 msgid "Starting"
 msgstr "Začíná"
 
-#, fuzzy
-#| msgid "Name is used by another group"
 msgid "Already used by another flow."
-msgstr "Název používá jiná skupina"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "\"%(keyword)s\" must be a single word, less than %(limit)d characters, containing only letter and numbers"
+#, python-format
 msgid "Must be single words, less than %(limit)d characters, containing only letters and numbers."
-msgstr "\"%(keyword)s\" musí být jedno slovo, méně než %(limit)d znaků, obsahující pouze písmena a číslice."
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "The keywords \"%s\" are already used for another flow"
+#, python-format
 msgid "%(keywords)s are already used for another flow."
-msgstr "Klíčová slova \"%s\" jsou již použita pro jiný tok"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "The keyword \"%s\" is already used for another flow"
+#, python-format
 msgid "%(keyword)s is already used for another flow."
-msgstr "Klíčové slovo \"%s\" je již použito pro jiný tok"
+msgstr ""
 
 msgid "Labels"
 msgstr "Štítky"
 
-#, fuzzy
-#| msgid "Flow"
 msgid "New Flow"
-msgstr "Tok"
+msgstr ""
 
 msgid "New Label"
 msgstr "Nový štítek"
@@ -2814,10 +2727,8 @@ msgstr "Typ"
 msgid "Choose the method for your flow"
 msgstr "Zvolte metodu pro svůj tok"
 
-#, fuzzy
-#| msgid "Choose a name to describe this flow, e.g. Demographic Survey"
 msgid "Choose a unique name to describe this flow, e.g. Registration"
-msgstr "Zvolte název popisující tento tok, např. Demografický průzkum."
+msgstr ""
 
 msgid "Create a contact "
 msgstr "Vytvořit kontakt"
@@ -2850,15 +2761,11 @@ msgstr "Klíčová slova"
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr "Následující toky jsou stále používány v kampaních, takže nemohly být archivovány:  %(flows)s"
 
-#, fuzzy
-#| msgid "Archived"
 msgid "Archived Flows"
-msgstr "Archivované"
+msgstr ""
 
-#, fuzzy
-#| msgid "Active"
 msgid "Active Flows"
-msgstr "Aktivní"
+msgstr ""
 
 msgid "Edit Label"
 msgstr "Upravit štítek"
@@ -2966,15 +2873,13 @@ msgstr "Výsledky ke stažení"
 msgid "This flow is already being started - please wait until that process completes before starting more contacts."
 msgstr "Tento tok je již spuštěn - před spuštěním dalších kontaktů vyčkejte na dokončení tohoto procesu."
 
-#, fuzzy, python-format
-#| msgid "To get started you need to <a href=\"%(link)s\">add a channel</a> to your workspace which will allow you to send messages to your contacts."
+#, python-format
 msgid "To start this flow you need to <a href=\"%(link)s\">add a channel</a> to your workspace which will allow you to send messages to your contacts."
-msgstr "Chcete-li začít, musíte do pracovního prostoru <a href=\"%(link)s\">přidat kanál</a>, který vám umožní odesílat zprávy kontaktům."
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "To get started you need to <a href=\"%(link)s\">add a voice channel</a> to your workspace which will allow you to make and receive calls."
+#, python-format
 msgid "To start this flow you need to <a href=\"%(link)s\">add a voice channel</a> to your workspace which will allow you to make and receive calls."
-msgstr "Chcete-li začít, musíte do svého pracovního prostoru <a href=\"%(link)s\">přidat hlasový kanál</a>, který vám umožní uskutečňovat a přijímat hovory."
+msgstr ""
 
 msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr "Tento tok nezadává téma Facebooku. Tento tok můžete spustit, ale kontakty na Facebooku, které v posledních 24 hodinách neodeslaly žádnou příchozí zprávu, ji nemusí obdržet."
@@ -2982,10 +2887,8 @@ msgstr "Tento tok nezadává téma Facebooku. Tento tok můžete spustit, ale ko
 msgid "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr "Tento tok nepoužívá šablony zpráv. Tento tok můžete i nadále spustit, ale kontakty aplikace WhatsApp, které v posledních 24 hodinách neodeslaly žádnou příchozí zprávu, ji nemusí přijmout."
 
-#, fuzzy
-#| msgid "You've selected a lot of contacts to send this flow to. Depending on your channel it could take days to reach everybody. We recommend limiting your selection to contacts who are more likely to respond."
 msgid "You've selected a lot of contacts! Depending on your channel it could take days to reach everybody and could reduce response rates. Click on <b>Skip inactive contacts</b> below to limit your selection to contacts who are more likely to respond."
-msgstr "Vybrali jste mnoho kontaktů, kterým chcete tento tok odeslat. V závislosti na vašem kanálu může trvat několik dní, než se dostane ke všem. Doporučujeme omezit výběr na kontakty, u kterých je větší pravděpodobnost, že budou reagovat."
+msgstr ""
 
 msgid "The message template {ref['name']} does not exist on your account and cannot be sent."
 msgstr "Šablona zprávy {ref['name']} na vašem účtu neexistuje a nelze ji odeslat."
@@ -3021,10 +2924,9 @@ msgstr "Protokol o spuštění toku"
 msgid "Key"
 msgstr "Klíč"
 
-#, fuzzy, python-format
-#| msgid "This workspace has %d labels and the limit is %s. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d globals. You must delete existing ones before you can create new ones."
-msgstr "Tento pracovní prostor má %d štítky a limit je %s. Před vytvořením nových štítků musíte odstranit stávající."
+msgstr ""
 
 msgid "Isn't a valid name"
 msgstr "Není platný název"
@@ -3062,10 +2964,8 @@ msgstr "Chyba"
 msgid "Resent"
 msgstr "Znovu odeslat"
 
-#, fuzzy
-#| msgid "This workspace has been suspended"
 msgid "Workspace suspended"
-msgstr "Tento pracovní prostor byl pozastaven"
+msgstr ""
 
 msgid "Looping detected"
 msgstr ""
@@ -3076,10 +2976,8 @@ msgstr ""
 msgid "Too old to send"
 msgstr ""
 
-#, fuzzy
-#| msgid "on the channel"
 msgid "No suitable channel found"
-msgstr "na kanálu"
+msgstr ""
 
 msgid "The date for the oldest message to export"
 msgstr "Datum nejstarší zprávy, která se má exportovat"
@@ -3157,10 +3055,8 @@ msgstr "Pro poslední zprávu ponechte prázdné místo"
 msgid "End Date"
 msgstr "Datum ukončení"
 
-#, fuzzy
-#| msgid "Optional: Choose groups to show in your export"
 msgid "Optional: Choose groups to include in your export"
-msgstr "Volitelně: Vyberte skupiny, které se mají zobrazit v exportu"
+msgstr ""
 
 msgid "Start date can't be in the future."
 msgstr "Datum zahájení nesmí být v budoucnosti."
@@ -3189,10 +3085,9 @@ msgstr "Upravit složku"
 msgid "Delete Folder"
 msgstr "Odstranit složku"
 
-#, fuzzy, python-format
-#| msgid "This workspace has %d labels and the limit is %s. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d labels. You must delete existing ones before you can create new ones."
-msgstr "Tento pracovní prostor má %d štítky a limit je %s. Před vytvořením nových štítků musíte odstranit stávající."
+msgstr ""
 
 msgid "Folder"
 msgstr "Složka"
@@ -3473,18 +3368,14 @@ msgstr "Neplatný zálohovací token. Zkuste to prosím znovu."
 msgid "Password incorrect."
 msgstr "Nesprávné heslo."
 
-#, fuzzy
-#| msgid "Optional: Select contact groups"
 msgid "Optional: Select permissions groups."
-msgstr "Volitelně: Vyberte skupiny kontaktů"
+msgstr ""
 
 msgid "You can reset the user's password by entering a new password here"
 msgstr ""
 
-#, fuzzy
-#| msgid "Delete "
 msgid "Delete User"
-msgstr "Smazat"
+msgstr ""
 
 #, python-brace-format
 msgid "Deleted user {username}"
@@ -3658,10 +3549,8 @@ msgstr "Váš Vonage API klíč"
 msgid "Your Vonage API secret"
 msgstr "Vaše Vonage API secret"
 
-#, fuzzy
-#| msgid "Sorry your Facebook channel could not be connected. Please try again"
 msgid "Sorry account could not be connected. Please try again"
-msgstr "Je nám líto, ale váš kanál na Facebooku se nepodařilo připojit. Zkuste to prosím znovu"
+msgstr ""
 
 msgid "Your Plivo auth ID"
 msgstr "Vaše Plivo auth ID"
@@ -3832,10 +3721,8 @@ msgstr "Token účtu"
 msgid "Workspace Name"
 msgstr "Název pracovního prostoru"
 
-#, fuzzy
-#| msgid "Child Workspaces"
 msgid "No such child workspace"
-msgstr "Podřízené pracovní prostory"
+msgstr ""
 
 msgid "From Workspace"
 msgstr "Z pracovního prostoru"
@@ -4048,11 +3935,17 @@ msgstr "Vizuálně vytvářejte celostátně škálovatelné mobilní aplikace o
 msgid "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."
 msgstr "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."
 
+msgid "Open"
+msgstr "Otevřené"
+
 msgid "Closed"
 msgstr "Uzavřené"
 
 msgid "My Tickets"
 msgstr "Moje tickety"
+
+msgid "Unassigned"
+msgstr "Nepřiřazeno"
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr "Připojením e-mailové adresy se na ni budou přeposílat všechny nové tipy a odpovědi na ně. Budete na ně moci přímo reagovat a vaše odpovědi budou zasílány na daný kontakt."
@@ -4160,10 +4053,8 @@ msgstr "Jak přiřadit zprávu ke klíčovému slovu."
 msgid "The associated channel."
 msgstr "Přidružený kanál."
 
-#, fuzzy
-#| msgid "Triggers"
 msgid "Trigger"
-msgstr "Spouštěče"
+msgstr ""
 
 msgid "Keyword Triggers"
 msgstr "Spouštěče klíčových slov"
@@ -4549,15 +4440,13 @@ msgstr "Přidat kanál"
 msgid "To get started you need to add a channel to your workspace. A channel is a phone number or social network account which %(name)s can use to send and receive messages on your behalf. You can choose to use an Android phone and your own cell phone plan, or we can connect you with a service provider in your country directly."
 msgstr "Chcete-li začít, musíte do pracovního prostoru přidat kanál. Kanál je telefonní číslo nebo účet na sociální síti %(name)s, který lze použít k odesílání a přijímání zpráv vaším jménem. Můžete si vybrat, zda chcete použít telefon se systémem Android a vlastní mobilní tarif, nebo vás můžeme spojit přímo s poskytovatelem služeb ve vaší zemi."
 
-#, fuzzy, python-format
-#| msgid "You have reached the limit of %(limit)s fields per workspace. Please remove fields that you are no longer using."
+#, python-format
 msgid "You have reached the limit of %(limit)s channels per workspace. Please remove channels that you are no longer using."
-msgstr "Dosáhli jste limitu %(limit)s polí na pracovní plochu. Odstraňte prosím pole, která již nepoužíváte."
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "You are approaching the limit of %(limit)s fields per workspace. You should remove fields that you are no longer using."
+#, python-format
 msgid "You are approaching the limit of %(limit)s channels per workspace. You should remove channels that you are no longer using."
-msgstr "Blížíte se k limitu %(limit)s polí na pracovním prostoru. Měli byste odstranit pole, která již nepoužíváte."
+msgstr ""
 
 msgid "Recommendations"
 msgstr "Doporučení"
@@ -5489,18 +5378,14 @@ msgstr "Váš kanál WhatsApp je nyní připojen a měli byste být schopni norm
 msgid "In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh the contacts on the WhatsApp application. This may take a few minutes."
 msgstr "V případě nové instalace aplikace WhatsApp nebo nahrazení stávajícího kanálu WhatsApp může být nutné obnovit kontakty v aplikaci WhatsApp. To může trvat několik minut."
 
-#, fuzzy
-#| msgid "You can connect your BurstSMS number by entering the settings below."
 msgid "You can connect your WhatsApp number by clicking on it below."
-msgstr "Své číslo BurstSMS můžete připojit zadáním níže uvedených nastavení."
+msgstr ""
 
 msgid "One of the Facebook business manager you are trying to connect is not configured. If you do not see the WhatsApp business number you want to connect, please reach out for support."
 msgstr ""
 
-#, fuzzy
-#| msgid "Select the page you want to add as a channel:"
 msgid "Select the number you want to add as a channel:"
-msgstr "Vyberte stránku, kterou chcete přidat jako kanál:"
+msgstr ""
 
 msgid "Connect other Facebook Business numbers"
 msgstr ""
@@ -5514,10 +5399,8 @@ msgstr ""
 msgid "Resetting Verification Code in WhatsApp Manager"
 msgstr ""
 
-#, fuzzy
-#| msgid "Name already used"
 msgid "Number already verified"
-msgstr "Jméno je již použito"
+msgstr ""
 
 msgid "Fill the code you received on the phone for verification below."
 msgstr ""
@@ -5774,10 +5657,8 @@ msgstr "opakuje se denně"
 msgid "repeats weekly"
 msgstr "opakuje se týdně"
 
-#, fuzzy
-#| msgid "repeats daily"
 msgid "repeats monthly"
-msgstr "opakuje se denně"
+msgstr ""
 
 msgid "History"
 msgstr "Historie"
@@ -5788,10 +5669,8 @@ msgstr "Plný"
 msgid "Chat"
 msgstr ""
 
-#, fuzzy
-#| msgid "No fields"
 msgid "No Fields"
-msgstr "Žádné pole"
+msgstr ""
 
 msgid "Nothing to see here yet. Create a new field to save data to your contacts."
 msgstr ""
@@ -5799,18 +5678,14 @@ msgstr ""
 msgid "Next Up"
 msgstr ""
 
-#, fuzzy
-#| msgid "Upcoming Events"
 msgid "No Upcoming Events"
-msgstr "Nadcházející události"
+msgstr ""
 
 msgid "Nothing to see here yet. Any messages or flows scheduled to be sent to this contact in the future will be shown here."
 msgstr ""
 
-#, fuzzy
-#| msgid "Tickets"
 msgid "No Tickets"
-msgstr "Tikety"
+msgstr ""
 
 msgid "Nothing to see here yet. Use the Open Ticket action in one of your flows to open tickets."
 msgstr ""
@@ -6350,20 +6225,15 @@ msgstr "Výsledky  %(start)s - %(end)s z %(total)s"
 msgid "New Label..."
 msgstr "Nový štítek..."
 
-#, fuzzy
-#| msgid "Activate"
 msgid "Reactivate"
-msgstr "Aktivovat"
+msgstr ""
 
-#, fuzzy
-#| msgid "Removed from groups"
 msgid "Remove from group"
-msgstr "Odstraněno ze skupin"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Results %(start)s - %(end)s of %(total)s"
+#, python-format
 msgid "%(start)s - %(end)s of %(total)s"
-msgstr "Výsledky  %(start)s - %(end)s z %(total)s"
+msgstr ""
 
 #, python-format
 msgid "Aliases for %(name)s"
@@ -7292,25 +7162,18 @@ msgstr "Odpojením účtu Vonage se odstraní také všechny kanály Vonage, kte
 msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
 msgstr "Pro připojení účtu Vonage nám musíte poskytnout svůj klíč API a tajný klíč. Obě hodnoty najdete na stránce <a target=\"vonage\" href=\"%(settings_url)s\">nastavení služby Vonage</a> v části Nastavení API."
 
-#, fuzzy, python-format
-#| msgid "You can connect your Instagram business account to %(name)s in just a few simple steps."
+#, python-format
 msgid "You can connect your Facebook Business account to %(name)s in just a few simple steps."
-msgstr "Svůj firemní účet na Instagramu můžete připojit k %(name)s v několika jednoduchých krocích."
+msgstr ""
 
-#, fuzzy
-#| msgid "Select all the pages you want to grant us permissions for."
 msgid "Select all the Facebook Business accounts you want to grant us permissions for."
-msgstr "Vyberte všechny stránky, ke kterým nám chcete udělit oprávnění."
+msgstr ""
 
-#, fuzzy
-#| msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
 msgid "Approve the permissions, these are required for us to access the API on your behalf."
-msgstr "Schvalte oprávnění, která jsou nutná k tomu, abychom mohli vaším jménem odesílat a přijímat zprávy."
+msgstr ""
 
-#, fuzzy
-#| msgid "Add Facebook Page"
 msgid "Add Facebook Business"
-msgstr "Přidat stránku na Facebooku"
+msgstr ""
 
 msgid "Top Ups"
 msgstr "Nejvyšší položky"
@@ -7368,10 +7231,9 @@ msgstr ""
 msgid "Deleting this user will also delete the following workspaces owned by this user."
 msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
+#, python-format
 msgid "Are you sure you want to delete <b>%(username)s</b>?\""
-msgstr "Jste si jisti, že chcete odstranit <b>%(name)s</b>? To nelze vrátit zpět."
+msgstr ""
 
 msgid "Confirm your current password to save these changes"
 msgstr "Potvrzení aktuálního hesla pro uložení těchto změn"
@@ -7429,10 +7291,8 @@ msgstr "Regenerovat tokeny"
 msgid "Two-factor authentication is <b>enabled</b>."
 msgstr "Dvoufaktorové ověřování je <b>povoleno</b>."
 
-#, fuzzy
-#| msgid "Update Folder"
 msgid "Update User"
-msgstr "Aktualizovat složku"
+msgstr ""
 
 msgid "Policies"
 msgstr "Zásady"
@@ -8064,35 +7924,23 @@ msgstr "Zadejte dotaz"
 msgid "Found ${count} for ${query}"
 msgstr "Nalezeno ${count} pro ${query}"
 
-#, fuzzy
-#| msgid "Expire inactive contacts"
 msgid "Skip inactive contacts"
-msgstr "Vypršení neaktivních kontaktů"
+msgstr ""
 
-#, fuzzy
-#| msgid "Any contacts who have not sent a message in the last 90 days will not be started."
 msgid "Only include contacts who have sent a message in the last 90 days."
-msgstr "Kontakty, které v posledních 90 dnech neodeslaly žádnou zprávu, nebudou spuštěny."
+msgstr ""
 
-#, fuzzy
-#| msgid "Exclude contacts currently in a flow"
 msgid "Skip contacts currently in a flow"
-msgstr "Vyloučit kontakty, které jsou aktuálně v toku"
+msgstr ""
 
-#, fuzzy
-#| msgid "If the contact is already active in a flow"
 msgid "Avoid interrupting a contact who is already in a flow."
-msgstr "Pokud je kontakt již aktivní v toku"
+msgstr ""
 
-#, fuzzy
-#| msgid "Stopped Contacts"
 msgid "Skip repeat contacts"
-msgstr "Zastavené kontakty"
+msgstr ""
 
-#, fuzzy
-#| msgid "Any contacts who have gone through this flow in the last 90 days will not be started again."
 msgid "Avoid restarting a contact who has been in this flow in the last 90 days."
-msgstr "Kontakty, které prošly tímto tokem v posledních 90 dnech, nebudou znovu spuštěny."
+msgstr ""
 
 msgid "Templates Events"
 msgstr "Šablony Události"
@@ -8108,252 +7956,3 @@ msgstr "Šablony jsou z vašeho účtu synchronizovány každých 15 minut."
 
 msgid "No synced templates at this time."
 msgstr "V současné době nejsou k dispozici žádné synchronizované šablony."
-
-#~ msgid "Burkina Faso"
-#~ msgstr "Burkina Faso"
-
-#~ msgid "Côte d'Ivoire"
-#~ msgstr "Pobřeží slonoviny"
-
-#~ msgid "Ethiopia"
-#~ msgstr "Etiopie"
-
-#~ msgid "Kenya"
-#~ msgstr "Keňa"
-
-#~ msgid "Nigeria"
-#~ msgstr "Nigérie"
-
-#~ msgid "Rwanda"
-#~ msgstr "Rwanda"
-
-#~ msgid "Tanzania"
-#~ msgstr "Tanzánie"
-
-#~ msgid "South Africa"
-#~ msgstr "Jihoafrická republika"
-
-#~ msgid "Zambia"
-#~ msgstr "Zambie"
-
-#~ msgid "Email address"
-#~ msgstr "E-mailová adresa"
-
-#~ msgid "Group name must not be blank or begin with + or -"
-#~ msgstr "Název skupiny nesmí být prázdný nebo začínat znakem + nebo -."
-
-#, python-format
-#~ msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
-#~ msgstr "Tato organizace má %(count)d skupiny a limit je %(limit)d. Před vytvořením nových skupin musíte odstranit stávající."
-
-#~ msgid "Start In Flow"
-#~ msgstr "Začít v toku"
-
-#, python-format
-#~ msgid "Cannot create a new field as limit is %(limit)s."
-#~ msgstr "Nelze vytvořit nové pole, protože limit je %(limit)s."
-
-#~ msgid "The name for this flow"
-#~ msgstr "Název tohoto toku"
-
-#~ msgid "Exclude inactive contacts"
-#~ msgstr "Vyloučit neaktivní kontakty"
-
-#~ msgid "Any contacts currently in a flow will not be interrupted and not started in this flow."
-#~ msgstr "Kontakty, které jsou aktuálně v toku, nebudou přerušeny a nebudou v tomto toku spuštěny."
-
-#~ msgid "Exclude contacts previously in this flow"
-#~ msgstr "Vyloučit kontakty, které byly dříve v tomto toku"
-
-#, python-format
-#~ msgid "Cannot create a new global as limit is %(limit)s."
-#~ msgstr "Nelze vytvořit nový globální, protože limit je %(limit)s."
-
-#~ msgid "Export only messages from these contact groups. (Leave blank to export all messages)."
-#~ msgstr "Exportovat pouze zprávy z těchto skupin kontaktů. (Pro export všech zpráv ponechte prázdné pole)."
-
-#~ msgid "Send All"
-#~ msgstr "Odeslat vše"
-
-#~ msgid "Name must not be blank or begin with punctuation"
-#~ msgstr "Název nesmí být prázdný nebo začínat interpunkcí."
-
-#~ msgid "Name must be unique"
-#~ msgstr "Název musí být jedinečný"
-
-#~ msgid "The parent org that manages this org"
-#~ msgstr "Nadřízená organizace, která spravuje tuto organizaci"
-
-#, python-format
-#~ msgid "Sorry, <span class=\"named\">%(group_name)s</span> cannot be deleted yet."
-#~ msgstr "Omlouváme se, <span class=\"named\">%(group_name)s</span> zatím nelze smazat."
-
-#, python-format
-#~ msgid "This group is used by an <a href=\"%(triggers_url)s\">active trigger</a>. In order to delete it, first remove the trigger."
-#~ msgid_plural "This group is used by <a href=\"%(triggers_url)s\">%(counter)s triggers<a>. In order to delete it, first remove the triggers."
-#~ msgstr[0] "Tuto skupinu používá <a href=\"%(triggers_url)s\">aktivní spouštěč</a>. Chcete-li ji odstranit, nejprve odstraňte spouštěč."
-#~ msgstr[1] "Tuto skupinu používají <a href=\"%(triggers_url)s\">%(counter)s spouštěče <a>. Chcete-li ji odstranit, nejprve odstraňte spouštěče."
-#~ msgstr[2] "Tuto skupinu používá <a href=\"%(triggers_url)s\">%(counter)s spouštěčů <a>. Chcete-li ji odstranit, nejprve odstraňte spouštěče."
-#~ msgstr[3] "Tuto skupinu používá  <a href=\"%(triggers_url)s\">%(counter)s  spouštěčů <a>. Chcete-li ji odstranit, nejprve odstraňte spouštěče."
-
-#, python-format
-#~ msgid "There is an active flow using this group. It cannot be deleted until it is removed from the"
-#~ msgid_plural "There are %(counter)s flows using this group. It cannot be deleted until it is removed from the"
-#~ msgstr[0] "V této skupině je aktivní tok. Nelze ji odstranit, dokud není odstraněn z"
-#~ msgstr[1] "V této skupině jsou %(counter)s aktivní toky. Nelze ji odstranit, dokud nejsou odstraněny z "
-#~ msgstr[2] "V této skupině je %(counter)s aktivních toků. Nelze ji odstranit, dokud nejsou odstraněny z "
-#~ msgstr[3] "V této skupině je %(counter)s aktivních toků. Nelze ji odstranit, dokud nejsou odstraněny z "
-
-#~ msgid "flow."
-#~ msgid_plural "flows."
-#~ msgstr[0] "tok."
-#~ msgstr[1] "toky"
-#~ msgstr[2] "toků."
-#~ msgstr[3] "toků."
-
-#, python-format
-#~ msgid "There is an active campaign using this group. It cannot be deleted until it is removed from the"
-#~ msgid_plural "There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the"
-#~ msgstr[0] "Pomocí této skupiny probíhá aktivní kampaň. Nelze ji smazat, dokud nebude odstraněna z "
-#~ msgstr[1] "Tuto skupinu využívají %(counter)s kampaně. Nelze ji odstranit, dokud není odstraněna z "
-#~ msgstr[2] "Tuto skupinu využívá %(counter)s kampaní. Nelze ji odstranit, dokud není odstraněna z "
-#~ msgstr[3] "Tuto skupinu využívá %(counter)s kampaní. Nelze ji odstranit, dokud není odstraněna z "
-
-#~ msgid "campaign."
-#~ msgid_plural "campaigns."
-#~ msgstr[0] "kampaň."
-#~ msgstr[1] "kampaně."
-#~ msgstr[2] "kampaní."
-#~ msgstr[3] "kampaní."
-
-#, python-format
-#~ msgid "<div class='mb-2'> You are about to delete <span class='named'> %(object)s. </span> </div> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
-#~ msgstr " <div class='mb-2'> Chystáte se odstranit <span class='named'>%(object)s</span>. </div> Nebudou odstraněny žádné kontakty, ale bude odstraněna samotná skupina. Tento krok nelze vrátit zpět. Jste si jisti?"
-
-#~ msgid "Wow, that's a lot!"
-#~ msgstr "Páni, to je hodně!"
-
-#~ msgid "All Contacts"
-#~ msgstr "Všechny kontakty"
-
-#~ msgid "Selecting this option will negatively affect your response rate and reputation on some channels."
-#~ msgstr "Výběr této možnosti negativně ovlivní míru odezvy a reputaci na některých kanálech."
-
-#~ msgid "Responders"
-#~ msgstr "Respondenti"
-
-#~ msgid "Quickly reach contacts who have responded in the last 90 days. This will give you better response rates and reputation on some channels."
-#~ msgstr "Rychle oslovte kontakty, které reagovaly v posledních 90 dnech. Díky tomu získáte lepší míru odezvy a reputaci na některých kanálech."
-
-#~ msgid "Recommended"
-#~ msgstr "Doporučeno"
-
-#~ msgid "You can still test your flow using the simulator by clicking the phone icon on the right."
-#~ msgstr "Tok můžete stále testovat pomocí simulátoru kliknutím na ikonu telefonu vpravo."
-
-#~ msgid "We've identified potential issues you might run into starting this flow. Please review the following before continuing."
-#~ msgstr "Identifikovali jsme možné problémy, na které můžete narazit při spuštění tohoto toku. Než budete pokračovat, přečtěte si následující informace."
-
-#~ msgid "This option is no longer recommended and will be removed. Thankfully, there is a better way!"
-#~ msgstr "Tato možnost se již nedoporučuje a bude odstraněna. Naštěstí existuje lepší způsob!"
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "        There is an active flow using this flow. It cannot be deleted until it is removed from the\n"
-#~ "\n"
-#~ "      "
-#~ msgid_plural ""
-#~ "\n"
-#~ "        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
-#~ "\n"
-#~ "      "
-#~ msgstr[0] ""
-#~ "\n"
-#~ "Existuje aktivní tok používající tento tok. Nemůže být smazán, dokud není odstraněn z"
-#~ msgstr[1] ""
-#~ "\n"
-#~ "Existují %(counter)s aktivní toky používající tento tok. Nemůže být smazán, dokud není odstraněn z"
-#~ msgstr[2] ""
-#~ "\n"
-#~ "Existuje %(counter)s aktivních toků používajících tento tok. Nemůže být smazán, dokud není odstraněn z"
-#~ msgstr[3] ""
-#~ "\n"
-#~ "Existuje %(counter)s aktivních toků používajících tento tok. Nemůže být smazán, dokud není odstraněn z"
-
-#~ msgid ""
-#~ "\n"
-#~ "        flow.\n"
-#~ "      "
-#~ msgid_plural ""
-#~ "\n"
-#~ "        flows.\n"
-#~ "      "
-#~ msgstr[0] ""
-#~ "\n"
-#~ "        tok.\n"
-#~ "      "
-#~ msgstr[1] ""
-#~ "\n"
-#~ "        toky.\n"
-#~ "      "
-#~ msgstr[2] ""
-#~ "\n"
-#~ "        toků.\n"
-#~ "      "
-#~ msgstr[3] ""
-#~ "\n"
-#~ "        toků.\n"
-#~ "      "
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "        You are about to delete\n"
-#~ "        <span class='font-normal'>\n"
-#~ "          %(object)s.\n"
-#~ "        </span>\n"
-#~ "        There is no way to undo this. Are you sure?\n"
-#~ "\n"
-#~ "      "
-#~ msgstr ""
-#~ "\n"
-#~ " Chystáte se odstranit\n"
-#~ "<span class='font-normal'>\n"
-#~ ".%(object)s\n"
-#~ "</span>\n"
-#~ "Není možné to vrátit zpět. Jste si jisti?"
-
-#~ msgid "Create Folder"
-#~ msgstr "Vytvořit složku"
-
-#~ msgid "Delete Login"
-#~ msgstr "Odstranit přihlašovací údaje"
-
-#~ msgid "Whoa, whoa, whoa!"
-#~ msgstr "Hej, hej, hej!"
-
-#~ msgid "By deleting this login,"
-#~ msgstr "Odstraněním tohoto přihlášení,"
-
-#~ msgid ""
-#~ "\n"
-#~ "                  will also be deleted. All workspace data will be deleted and there is no\n"
-#~ "                  going back. This includes all flows, contacts, messages, etc.\n"
-#~ "                "
-#~ msgstr ""
-#~ "\n"
-#~ "                 budou rovněž smazány. Všechna data pracovního prostoru budou smazána a není možné se vrátit zpět. To zahrnuje všechny toky, kontakty, zprávy atd.\n"
-#~ "               "
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "              Are you sure you want to delete the login %(name)s?\n"
-#~ "\n"
-#~ "            "
-#~ msgstr ""
-#~ "\n"
-#~ "       Opravdu chcete odstranit přihlášení %(name)s?\n"
-#~ "\n"
-#~ "      "

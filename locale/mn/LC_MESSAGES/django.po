@@ -11,7 +11,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-07-19 16:52+0000\n"
+"POT-Creation-Date: 2022-07-19 17:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Amarbayan Altangerel <amarbayan.altangerel@gmail.com>, 2021\n"
 "Language-Team: Mongolian (https://www.transifex.com/rapidpro/teams/226/mn/)\n"
@@ -1806,15 +1806,11 @@ msgstr "Загвар домэйн"
 msgid "Which domain to retrieve the message templates from"
 msgstr "Мессежийн загварыг ямар домэйноос авах вэ"
 
-#, fuzzy
-#| msgid "Templates Events"
 msgid "Templates API version"
-msgstr "Загварын үйл ажиллагаанууд"
+msgstr ""
 
-#, fuzzy
-#| msgid "Which domain to retrieve the message templates from"
 msgid "Which API version to retrieve the message templates with"
-msgstr "Мессежийн загварыг ямар домэйноос авах вэ"
+msgstr ""
 
 msgid "The Facebook waba-id that will be used for template syncing"
 msgstr "Загвар холбоход хэрэглэгдэх Facebook waba-id"
@@ -1831,10 +1827,8 @@ msgstr "WhatsApp компанийн дансыг шалгах боломжгүй
 msgid "Unable to access Facebook templates, please check user id and access token and make sure the whatsapp_business_management permission is enabled"
 msgstr "Фэйсбүүкийн загвар руу нэвтрэх боломжгүй байгаа тул хэрэглэгчийн id болон хандалтын token-г шалгаж whatsapp_business_management зөвшөөрлийг идэвхжүүлсэн эсэхийг шалгана уу"
 
-#, fuzzy
-#| msgid "Verify Email"
 msgid "Verify Number"
-msgstr "И-мэйлээ баталгаажуул"
+msgstr ""
 
 msgid "Unable to fetch credit line ID"
 msgstr ""
@@ -1862,15 +1856,11 @@ msgstr "Энэ дугаар аль хэдийн өөр акаунтанд хол
 msgid "Unable to add system user to %s, please make sure you have business admin manager privileges on the Facebook business."
 msgstr ""
 
-#, fuzzy
-#| msgid "Notification Title"
 msgid "Verification Code"
-msgstr "Мэдэгдлийн гарчиг"
+msgstr ""
 
-#, fuzzy
-#| msgid "Request Body"
 msgid "Request Code"
-msgstr "Request Body"
+msgstr ""
 
 msgid "Failed to request phone number verification code. Please remove the channel and add it again."
 msgstr ""
@@ -1957,10 +1947,9 @@ msgstr "Буруу Token. Zenvia акаунтны тохиргоог шалга�
 msgid "POST Required"
 msgstr "POST хүсэлт шаардлагатай"
 
-#, fuzzy, python-format
-#| msgid "This workspace has %d labels and the limit is %s. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d channels. You must delete existing ones before you can create new ones."
-msgstr "Энэ ажлын талбар нь %d шошготой бөгөөд хязгаар нь %s байна. Та шинээр үүсгэхийн тулд одоо байгаагаа устгах ёстой."
+msgstr ""
 
 #, python-format
 msgid "Connect %(channel_type)s"
@@ -2171,10 +2160,8 @@ msgstr "Таны ангилагч холбогдсон байна."
 msgid "Unable to sync classifier. See the log for details."
 msgstr "Ангилагчийг холбох боломжгүй байна. Дэлгэрэнгүй мэдээллийг бүртгэлээс үзнэ үү."
 
-#, fuzzy
-#| msgid "Phone number"
 msgid "Phone Number"
-msgstr "Утасны дугаар"
+msgstr ""
 
 msgid "Discord Identifier"
 msgstr "Discord таних тэмдэг"
@@ -2182,81 +2169,53 @@ msgstr "Discord таних тэмдэг"
 msgid "Email Address"
 msgstr "Имэйл хаяг"
 
-#, fuzzy
-#| msgid "External identifier"
 msgid "External Identifier"
-msgstr "Гадаад таних тэмдэг"
+msgstr ""
 
-#, fuzzy
-#| msgid "Facebook identifier"
 msgid "Facebook Identifier"
-msgstr "Facebook таних тэмдэг"
+msgstr ""
 
-#, fuzzy
-#| msgid "Firebase Cloud Messaging identifier"
 msgid "Firebase Cloud Messaging Identifier"
-msgstr "Firebase Cloud Messaging"
+msgstr ""
 
-#, fuzzy
-#| msgid "Freshchat identifier"
 msgid "Freshchat Identifier"
-msgstr "Freshchat таних тэмдэг"
+msgstr ""
 
 msgid "Instagram Handle"
 msgstr ""
 
-#, fuzzy
-#| msgid "JioChat identifier"
 msgid "JioChat Identifier"
-msgstr "JioChat таних тэмдэг"
+msgstr ""
 
-#, fuzzy
-#| msgid "LINE identifier"
 msgid "LINE Identifier"
-msgstr "LINE таних тэмдэг"
+msgstr ""
 
-#, fuzzy
-#| msgid "RocketChat identifier"
 msgid "RocketChat Identifier"
-msgstr "RocketChat таних тэмдэг"
+msgstr ""
 
-#, fuzzy
-#| msgid "Telegram identifier"
 msgid "Telegram Identifier"
-msgstr "Telegram таних тэмдэг"
+msgstr ""
 
 msgid "Twitter ID"
 msgstr "Twitter ID"
 
-#, fuzzy
-#| msgid "Twitter handle"
 msgid "Twitter Handle"
-msgstr "Twitter handle"
+msgstr ""
 
-#, fuzzy
-#| msgid "Viber identifier"
 msgid "Viber Identifier"
-msgstr "Viber таних тэмдэг"
+msgstr ""
 
-#, fuzzy
-#| msgid "VK identifier"
 msgid "VK Identifier"
-msgstr "VK таних тэмдэг"
+msgstr ""
 
-#, fuzzy
-#| msgid "WeChat identifier"
 msgid "WeChat Identifier"
-msgstr "WeChat таних тэмдэг"
+msgstr ""
 
-#, fuzzy
-#| msgid "WeChat identifier"
 msgid "Webchat Identifier"
-msgstr "WeChat таних тэмдэг"
+msgstr ""
 
-#, fuzzy
-#| msgid "WhatsApp identifier"
 msgid "WhatsApp Identifier"
-msgstr "WhatsApp таних тэмдэг"
+msgstr ""
 
 msgid "Text"
 msgstr "Текст"
@@ -2351,10 +2310,9 @@ msgstr "'%(value)s' -г огноо болгон хөрвүүлэх боломж�
 msgid "'%(value)s' is not a valid language code"
 msgstr "'%(value)s'  нь буруу хэлний код байна"
 
-#, fuzzy, python-format
-#| msgid "'%(value)s' is not a valid group name"
+#, python-format
 msgid "'%(value)s' is not a valid flow name"
-msgstr "'%(value)s' нь буруу бүлгийн код байна"
+msgstr ""
 
 #, python-format
 msgid "'%(value)s' is not a valid group name"
@@ -2386,15 +2344,12 @@ msgstr "'%(property)s' -г талбар эсвэл URN схемд шийдвэр
 msgid "Can't query on URNs in an anonymous workspace"
 msgstr "Нэргүй ажлын талбарт URN -ийг асуух боломжгүй"
 
-#, fuzzy
-#| msgid "Name is used by another group"
 msgid "Already used by another group."
-msgstr "Нэрийг өөр бүлэг ашиглаж байна"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "This workspace has %d labels and the limit is %s. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d groups. You must delete existing ones before you can create new ones."
-msgstr "Энэ ажлын талбар нь %d шошготой бөгөөд хязгаар нь %s байна. Та шинээр үүсгэхийн тулд одоо байгаагаа устгах ёстой."
+msgstr ""
 
 msgid "You cannot create a smart group based on \"id\" or \"group\"."
 msgstr "Та \"id\" эсвэл \"group\" дээр суурилсан ухаалаг бүлэг үүсгэх боломжгүй."
@@ -2479,11 +2434,6 @@ msgstr "Мессеж илгээх"
 msgid "Start Flow"
 msgstr "Урсгалыг эхлүүлэх"
 
-#, fuzzy
-#| msgid "Open Tickets"
-msgid "Open Ticket"
-msgstr "Нээлттэй тасалбар"
-
 msgid "Edit Contact"
 msgstr "Харилцагчийг засах"
 
@@ -2496,10 +2446,8 @@ msgstr "Идэвхжүүлэх"
 msgid "Block"
 msgstr "Блоклох"
 
-#, fuzzy
-#| msgid "Archived Contacts"
 msgid "Active Contacts"
-msgstr "Архивлагдсан харилцагчид"
+msgstr ""
 
 msgid "Create Smart Group"
 msgstr "Ухаалаг бүлэг үүсгэх"
@@ -2540,30 +2488,6 @@ msgstr "Таны харилцагчийг шинэчлэхэд алдаа гар
 msgid "Select a field to update"
 msgstr "Шинэчлэх талбарыг сонгоно уу"
 
-#, fuzzy
-#| msgid "Ticketing Service"
-msgid "Ticket Service"
-msgstr "Тасалбарын үйлчилгээ"
-
-msgid "Topic"
-msgstr ""
-
-#, fuzzy
-#| msgid "Post Body"
-msgid "Body"
-msgstr "Post Body"
-
-#, fuzzy
-#| msgid "Unassigned"
-msgid "Assignee"
-msgstr "Оноогдоогүй"
-
-msgid "Unassigned"
-msgstr "Оноогдоогүй"
-
-msgid "Open"
-msgstr "Нээлттэй"
-
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Зөвхөн үсэг, тоо, зураас агуулсан байж болно."
 
@@ -2591,10 +2515,9 @@ msgstr "Холбоо барих талбаруудыг удирдах"
 msgid "All"
 msgstr "Бүгд"
 
-#, fuzzy, python-format
-#| msgid "This workspace has %d labels and the limit is %s. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d fields. You must delete existing ones before you can create new ones."
-msgstr "Энэ ажлын талбар нь %d шошготой бөгөөд хязгаар нь %s байна. Та шинээр үүсгэхийн тулд одоо байгаагаа устгах ёстой."
+msgstr ""
 
 msgid "Update"
 msgstr "Шинэчлэх"
@@ -2624,10 +2547,9 @@ msgstr "'%(header)s' талбарын нэр буруу эсвэл нөөцлө�
 msgid "Field name '%(name)s' is repeated."
 msgstr "'%(name) s' талбарын нэр давтагдсан байна."
 
-#, fuzzy, python-format
-#| msgid "This workspace has reached the limit of %(count)d groups."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d groups."
-msgstr "Энэ ажлын талбар %(count)d бүлгийн хязгаарт хүрсэн байна."
+msgstr ""
 
 msgid "Required."
 msgstr "Шаардлагатай."
@@ -2734,33 +2656,26 @@ msgstr "Энэ урсгалыг экспортлох тохиргооны сон
 msgid "Starting"
 msgstr "Эхэлж байна"
 
-#, fuzzy
-#| msgid "Name is used by another group"
 msgid "Already used by another flow."
-msgstr "Нэрийг өөр бүлэг ашиглаж байна"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "\"%(keyword)s\" must be a single word, less than %(limit)d characters, containing only letter and numbers"
+#, python-format
 msgid "Must be single words, less than %(limit)d characters, containing only letters and numbers."
-msgstr "\"%(keyword)s\" нь дан үсэг, тоо агуулсан %(limit)d тэмдэгтээс бага ганц үг байх ёстой"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "The keywords \"%s\" are already used for another flow"
+#, python-format
 msgid "%(keywords)s are already used for another flow."
-msgstr "\"%s\" түлхүүр үгсийг өөр урсгалд аль хэдийн ашигласан болно"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "The keyword \"%s\" is already used for another flow"
+#, python-format
 msgid "%(keyword)s is already used for another flow."
-msgstr "\"%s\" түлхүүр үгийг өөр урсгалд аль хэдийн ашигласан болно"
+msgstr ""
 
 msgid "Labels"
 msgstr "Шошгонууд"
 
-#, fuzzy
-#| msgid "Flow"
 msgid "New Flow"
-msgstr "Урсгал"
+msgstr ""
 
 msgid "New Label"
 msgstr "Шинэ Шошго"
@@ -2796,10 +2711,8 @@ msgstr "Төрөл"
 msgid "Choose the method for your flow"
 msgstr "Өөрийн урсгалын аргыг сонгоно уу"
 
-#, fuzzy
-#| msgid "Choose a name to describe this flow, e.g. Demographic Survey"
 msgid "Choose a unique name to describe this flow, e.g. Registration"
-msgstr "Энэ урсгалыг тайлбарлах нэр сонгох, жишээ нь. Хүн ам зүйн судалгаа"
+msgstr ""
 
 msgid "Create a contact "
 msgstr "Харилцагч үүсгэх "
@@ -2832,15 +2745,11 @@ msgstr "Түлхүүр үгс"
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr "Дараах урсгалыг ко.ажилд ашигладаг хэвээр байгаа тул архивлах боломжгүй байна: %(flows)s"
 
-#, fuzzy
-#| msgid "Archived"
 msgid "Archived Flows"
-msgstr "Архивлагдсан"
+msgstr ""
 
-#, fuzzy
-#| msgid "Active"
 msgid "Active Flows"
-msgstr "Идэвхтэй"
+msgstr ""
 
 msgid "Edit Label"
 msgstr "Шошгыг засах"
@@ -2948,15 +2857,13 @@ msgstr "Үр дүнг татаж авах"
 msgid "This flow is already being started - please wait until that process completes before starting more contacts."
 msgstr "Энэ урсгалыг аль хэдийн эхлүүлсэн байна. Бусад харилцагчдыг эхлүүлэхийн өмнө процесс дуусах хүртэл хүлээнэ үү."
 
-#, fuzzy, python-format
-#| msgid "To get started you need to <a href=\"%(link)s\">add a channel</a> to your workspace which will allow you to send messages to your contacts."
+#, python-format
 msgid "To start this flow you need to <a href=\"%(link)s\">add a channel</a> to your workspace which will allow you to send messages to your contacts."
-msgstr "Эхлэхийн тулд та ажлын талбарт <a href=\"%(link)s\"> суваг нэмэх </a>-г оруулах шаардлагатай бөгөөд ингэснээр харилцагчид руугаа мессеж илгээх боломжтой болно."
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "To get started you need to <a href=\"%(link)s\">add a voice channel</a> to your workspace which will allow you to make and receive calls."
+#, python-format
 msgid "To start this flow you need to <a href=\"%(link)s\">add a voice channel</a> to your workspace which will allow you to make and receive calls."
-msgstr "Эхлэхийн тулд та ажлын талбарт <a href=\"%(link)s\"> дуут суваг нэмэх </a>-г оруулах шаардлагатай бөгөөд ингэснээр дуудлага хийх, хүлээн авах боломжтой болно."
+msgstr ""
 
 msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr "Энэ урсгал нь Facebook-ийн ямар ч сэдэв заагаагүй болно. Та энэ урсгалыг эхлүүлж болно, гэхдээ сүүлийн 24 цагийн дотор мессеж илгээгээгүй фэйсбүүк харилцагчид үүнийг хүлээж авахгүй байж магадгүй юм."
@@ -3001,10 +2908,9 @@ msgstr "Урсгал эхэлсэн бүртгэл"
 msgid "Key"
 msgstr "Түлхүүр"
 
-#, fuzzy, python-format
-#| msgid "This workspace has %d labels and the limit is %s. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d globals. You must delete existing ones before you can create new ones."
-msgstr "Энэ ажлын талбар нь %d шошготой бөгөөд хязгаар нь %s байна. Та шинээр үүсгэхийн тулд одоо байгаагаа устгах ёстой."
+msgstr ""
 
 msgid "Isn't a valid name"
 msgstr "Хүчинтэй нэр биш байна"
@@ -3042,10 +2948,8 @@ msgstr "Алдаа"
 msgid "Resent"
 msgstr ""
 
-#, fuzzy
-#| msgid "This workspace has been suspended"
 msgid "Workspace suspended"
-msgstr "Энэ ажлын талбарыг түр зогсоосон"
+msgstr ""
 
 msgid "Looping detected"
 msgstr ""
@@ -3056,10 +2960,8 @@ msgstr ""
 msgid "Too old to send"
 msgstr ""
 
-#, fuzzy
-#| msgid "on the channel"
 msgid "No suitable channel found"
-msgstr "суваг дээрх"
+msgstr ""
 
 msgid "The date for the oldest message to export"
 msgstr "Экспортлох хамгийн эртний мессежийг оруулах огноо"
@@ -3137,10 +3039,8 @@ msgstr "Сүүлийн үеийн мессежийг хоосон орхино �
 msgid "End Date"
 msgstr "Дуусах огноо"
 
-#, fuzzy
-#| msgid "Optional: Choose groups to show in your export"
 msgid "Optional: Choose groups to include in your export"
-msgstr "Нэмэлт: Экспортдоо харуулах бүлгүүдийг сонгоно уу"
+msgstr ""
 
 msgid "Start date can't be in the future."
 msgstr "Эхлэх огноо ирээдүйд байж болохгүй."
@@ -3169,10 +3069,9 @@ msgstr "Фолдерыг засах"
 msgid "Delete Folder"
 msgstr "Фолдерыг устгах"
 
-#, fuzzy, python-format
-#| msgid "This workspace has %d labels and the limit is %s. You must delete existing ones before you can create new ones."
+#, python-format
 msgid "This workspace has reached its limit of %(limit)d labels. You must delete existing ones before you can create new ones."
-msgstr "Энэ ажлын талбар нь %d шошготой бөгөөд хязгаар нь %s байна. Та шинээр үүсгэхийн тулд одоо байгаагаа устгах ёстой."
+msgstr ""
 
 msgid "Folder"
 msgstr "Фолдер"
@@ -3453,18 +3352,14 @@ msgstr "Буруу нөөц token. Дахин оролдоно уу."
 msgid "Password incorrect."
 msgstr "Нууц үг буруу байна."
 
-#, fuzzy
-#| msgid "Optional: Select contact groups"
 msgid "Optional: Select permissions groups."
-msgstr "Нэмэлт: Холбоо барих бүлгүүдийг сонгох"
+msgstr ""
 
 msgid "You can reset the user's password by entering a new password here"
 msgstr ""
 
-#, fuzzy
-#| msgid "Delete "
 msgid "Delete User"
-msgstr "Устгах "
+msgstr ""
 
 #, python-brace-format
 msgid "Deleted user {username}"
@@ -3638,10 +3533,8 @@ msgstr "Таны Vonage API Key"
 msgid "Your Vonage API secret"
 msgstr "Таны Vonage API нууц"
 
-#, fuzzy
-#| msgid "Sorry your Facebook channel could not be connected. Please try again"
 msgid "Sorry account could not be connected. Please try again"
-msgstr "Уучлаарай, таны Facebook суваг холбогдох боломжгүй байна. Дахин оролдоно уу"
+msgstr ""
 
 msgid "Your Plivo auth ID"
 msgstr "Таны Plivo баталгаажуулалтын ID"
@@ -4026,11 +3919,17 @@ msgstr "Үндэсний хэмжээнд өргөтгөх боломжтой г
 msgid "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."
 msgstr "Зохиогчийн эрх ба хуулбар; 2012-2017 НҮБ-ын Хүүхдийн сан, Nyaruka. Бүх эрх хуулиар хамгаалагдсан."
 
+msgid "Open"
+msgstr "Нээлттэй"
+
 msgid "Closed"
 msgstr "Хаалттай"
 
 msgid "My Tickets"
 msgstr "Миний тасалбар"
+
+msgid "Unassigned"
+msgstr "Оноогдоогүй"
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr "Имэйл хаягийг холбосноор бүх шинэ тасалбар болон тэдний хариултыг тухайн имэйл хаягаар дамжуулах болно. Та тэдэнд шууд хариулах боломжтой бөгөөд таны хариултыг харилцагч руу илгээх болно."
@@ -4138,10 +4037,8 @@ msgstr "Мессежийг түлхүүр үгээр хэрхэн тохируу
 msgid "The associated channel."
 msgstr "Холбогдох суваг."
 
-#, fuzzy
-#| msgid "Triggers"
 msgid "Trigger"
-msgstr "Ажиллуулагчид"
+msgstr ""
 
 msgid "Keyword Triggers"
 msgstr "Түлхүүр үг ажиллуулагчид"
@@ -4507,15 +4404,13 @@ msgstr "Суваг нэмэх"
 msgid "To get started you need to add a channel to your workspace. A channel is a phone number or social network account which %(name)s can use to send and receive messages on your behalf. You can choose to use an Android phone and your own cell phone plan, or we can connect you with a service provider in your country directly."
 msgstr "Эхлэхийн тулд та ажлын талбарт суваг нэмэх хэрэгтэй. Суваг бол таны нэрийн өмнөөс %(name)s мессеж илгээх, хүлээн авах боломжтой утасны дугаар эсвэл нийгмийн сүлжээний акаунт юм. Та Андройд утас болон өөрийн гар утасны төлөвлөгөөг ашиглахаар сонгож болно, эсвэл бид танай улсын үйлчилгээ үзүүлэгчтэй шууд холбогдож болно."
 
-#, fuzzy, python-format
-#| msgid "You have reached the limit of %(limit)s fields per workspace. Please remove fields that you are no longer using."
+#, python-format
 msgid "You have reached the limit of %(limit)s channels per workspace. Please remove channels that you are no longer using."
-msgstr "Та ажлын талбар бүрийн %(limit)s талбарын хязгаарт хүрсэн байна. Ашиглахаа больсон талбаруудаа устгана уу."
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "You are approaching the limit of %(limit)s fields per workspace. You should remove fields that you are no longer using."
+#, python-format
 msgid "You are approaching the limit of %(limit)s channels per workspace. You should remove channels that you are no longer using."
-msgstr "Та нэг ажлын талбар дахь %(limit)s талбарын хязгаарт ойртож байна. Та ашиглахаа больсон талбаруудаа устгах хэрэгтэй."
+msgstr ""
 
 msgid "Recommendations"
 msgstr "Зөвлөмж"
@@ -5443,18 +5338,14 @@ msgstr "Таны WhatsApp суваг одоо холбогдсон тул та �
 msgid "In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh the contacts on the WhatsApp application. This may take a few minutes."
 msgstr "WhatsApp -ийг шинээр суулгах эсвэл одоо байгаа WhatsApp сувгийг солих тохиолдолд WhatsApp апп дээрх харилцагчдыг шинэчлэх шаардлагатай болж магадгүй юм. Үүнд хэдэн минут зарцуулагдаж магадгүй."
 
-#, fuzzy
-#| msgid "You can connect your BurstSMS number by entering the settings below."
 msgid "You can connect your WhatsApp number by clicking on it below."
-msgstr "Та доорх тохиргоог оруулаад Burst SMS дугаараа холбож болно."
+msgstr ""
 
 msgid "One of the Facebook business manager you are trying to connect is not configured. If you do not see the WhatsApp business number you want to connect, please reach out for support."
 msgstr ""
 
-#, fuzzy
-#| msgid "Select the page you want to add as a channel:"
 msgid "Select the number you want to add as a channel:"
-msgstr "Суваг болгон нэмэхийг хүсч буй хуудсыг сонгоно уу:"
+msgstr ""
 
 msgid "Connect other Facebook Business numbers"
 msgstr ""
@@ -5468,10 +5359,8 @@ msgstr ""
 msgid "Resetting Verification Code in WhatsApp Manager"
 msgstr ""
 
-#, fuzzy
-#| msgid "Name already used"
 msgid "Number already verified"
-msgstr "Нэрийг аль хэдийн ашигласан"
+msgstr ""
 
 msgid "Fill the code you received on the phone for verification below."
 msgstr ""
@@ -5711,10 +5600,8 @@ msgstr "өдөр бүр давтана"
 msgid "repeats weekly"
 msgstr "долоо хоног бүр давтана"
 
-#, fuzzy
-#| msgid "repeats daily"
 msgid "repeats monthly"
-msgstr "өдөр бүр давтана"
+msgstr ""
 
 msgid "History"
 msgstr "Түүх"
@@ -5725,10 +5612,8 @@ msgstr "Бүрэн"
 msgid "Chat"
 msgstr ""
 
-#, fuzzy
-#| msgid "No fields"
 msgid "No Fields"
-msgstr "Талбар байхгүй"
+msgstr ""
 
 msgid "Nothing to see here yet. Create a new field to save data to your contacts."
 msgstr ""
@@ -5736,18 +5621,14 @@ msgstr ""
 msgid "Next Up"
 msgstr ""
 
-#, fuzzy
-#| msgid "Upcoming Events"
 msgid "No Upcoming Events"
-msgstr "Удахгүй болох үйл ажиллагаанууд"
+msgstr ""
 
 msgid "Nothing to see here yet. Any messages or flows scheduled to be sent to this contact in the future will be shown here."
 msgstr ""
 
-#, fuzzy
-#| msgid "Tickets"
 msgid "No Tickets"
-msgstr "Тасалбар"
+msgstr ""
 
 msgid "Nothing to see here yet. Use the Open Ticket action in one of your flows to open tickets."
 msgstr ""
@@ -6233,20 +6114,15 @@ msgstr "Үр дүн %(total)s-н %(start)s - %(end)s"
 msgid "New Label..."
 msgstr "Шинэ Шошго..."
 
-#, fuzzy
-#| msgid "Activate"
 msgid "Reactivate"
-msgstr "Идэвхжүүлэх"
+msgstr ""
 
-#, fuzzy
-#| msgid "Removed from groups"
 msgid "Remove from group"
-msgstr "Бүлгүүдээс хассан"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Results %(start)s - %(end)s of %(total)s"
+#, python-format
 msgid "%(start)s - %(end)s of %(total)s"
-msgstr "Үр дүн %(total)s-н %(start)s - %(end)s"
+msgstr ""
 
 #, python-format
 msgid "Aliases for %(name)s"
@@ -7160,25 +7036,18 @@ msgstr "Vonage акаунтаа салгаснаар түүнтэй холбог
 msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
 msgstr "Vonage акаунтаа холбохын тулд та бидэнд Vonage акаунтныхаа API түлхүүр болон нууцыг өгөх шаардлагатай болно. Хоёр утгыг хоёуланг нь <a target=\"twilio\" href=\"%(settings_url)s\"> Vonage тохиргоо хуудас </a> дээрээс олж болно."
 
-#, fuzzy, python-format
-#| msgid "You can connect your Facebook page to %(name)s in just a few simple steps."
+#, python-format
 msgid "You can connect your Facebook Business account to %(name)s in just a few simple steps."
-msgstr "Та өөрийн фэйсбүүк хуудсыг %(name)s -тэй холбох хэдхэн энгийн алхамаар холбох боломжтой."
+msgstr ""
 
-#, fuzzy
-#| msgid "Select all the pages you want to grant us permissions for."
 msgid "Select all the Facebook Business accounts you want to grant us permissions for."
-msgstr "Бидэнд зөвшөөрөл өгөхийг хүсч буй бүх хуудсыг сонгоно уу."
+msgstr ""
 
-#, fuzzy
-#| msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
 msgid "Approve the permissions, these are required for us to access the API on your behalf."
-msgstr "Зөвшөөрлийг баталгаажуулаарай, эдгээр нь таны өмнөөс мессеж илгээх, хүлээн авахад шаардлагатай болно."
+msgstr ""
 
-#, fuzzy
-#| msgid "Add Facebook Page"
 msgid "Add Facebook Business"
-msgstr "Фэйсбүүк хуудас нэмэх"
+msgstr ""
 
 msgid "Top Ups"
 msgstr "Нэмэлт нэгжнүүд"
@@ -7232,10 +7101,9 @@ msgstr ""
 msgid "Deleting this user will also delete the following workspaces owned by this user."
 msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
+#, python-format
 msgid "Are you sure you want to delete <b>%(username)s</b>?\""
-msgstr "Та <b>%(name) s </b> -г устгахдаа итгэлтэй байна уу? Энэ буцаах боломжгүй."
+msgstr ""
 
 msgid "Confirm your current password to save these changes"
 msgstr "Эдгээр өөрчлөлтийг хадгалахын тулд одоогийн нууц үгээ баталгаажуулна уу"
@@ -7296,10 +7164,8 @@ msgstr "Токенуудыг сэргээх"
 msgid "Two-factor authentication is <b>enabled</b>."
 msgstr "Хоёр-алхамт баталгаажуулалтыг <b>идэвхжүүлсэн байна</b>."
 
-#, fuzzy
-#| msgid "Update Folder"
 msgid "Update User"
-msgstr "Фолдерыг шинэчлэх"
+msgstr ""
 
 msgid "Policies"
 msgstr "Бодлого"
@@ -7946,35 +7812,23 @@ msgstr "Асуулгыг оруулна уу"
 msgid "Found ${count} for ${query}"
 msgstr "${query}-д ${count} олдсон"
 
-#, fuzzy
-#| msgid "Expire inactive contacts"
 msgid "Skip inactive contacts"
-msgstr "Идэвхгүй харилцагчдын хугацааг дуусгах"
+msgstr ""
 
-#, fuzzy
-#| msgid "Only includes contacts in these groups."
 msgid "Only include contacts who have sent a message in the last 90 days."
-msgstr "Зөвхөн эдгээр бүлгүүдийн харилцагчдыг багтаасан болно."
+msgstr ""
 
-#, fuzzy
-#| msgid "Exclude contacts currently in a flow"
 msgid "Skip contacts currently in a flow"
-msgstr "Одоогоор урсгалд байгаа харилцагчдыг хасах"
+msgstr ""
 
-#, fuzzy
-#| msgid "If the contact is already active in a flow"
 msgid "Avoid interrupting a contact who is already in a flow."
-msgstr "Хэрэв харилцагч нь аль хэдийнээ урсгалд идэxтэй байгаа бол"
+msgstr ""
 
-#, fuzzy
-#| msgid "Stopped Contacts"
 msgid "Skip repeat contacts"
-msgstr "Зогсоогдсон харилцагчид"
+msgstr ""
 
-#, fuzzy
-#| msgid "Any contacts who have gone through this flow in the last 90 days will not be started again."
 msgid "Avoid restarting a contact who has been in this flow in the last 90 days."
-msgstr "Сүүлийн 90 хоногт энэ урсгалаар явсан харилцагчдыг дахин эхлүүлэхгүй."
+msgstr ""
 
 msgid "Templates Events"
 msgstr "Загварын үйл ажиллагаанууд"
@@ -7990,205 +7844,3 @@ msgstr "Загваруудыг 15 минут тутамд таны акаунт�
 
 msgid "No synced templates at this time."
 msgstr "Одоогоор холболт хийсэн загвар байхгүй байна."
-
-#~ msgid "Burkina Faso"
-#~ msgstr "Буркина Фасо"
-
-#~ msgid "Côte d'Ivoire"
-#~ msgstr "Кот д'Ивуар"
-
-#~ msgid "Ethiopia"
-#~ msgstr "Этиоп"
-
-#~ msgid "Kenya"
-#~ msgstr "Кени"
-
-#~ msgid "Nigeria"
-#~ msgstr "Нигери"
-
-#~ msgid "Rwanda"
-#~ msgstr "Руанда"
-
-#~ msgid "Tanzania"
-#~ msgstr "Танзани"
-
-#~ msgid "South Africa"
-#~ msgstr "Өмнөд Африк"
-
-#~ msgid "Zambia"
-#~ msgstr "Замби"
-
-#~ msgid "Email address"
-#~ msgstr "Имэйл хаяг"
-
-#~ msgid "Group name must not be blank or begin with + or -"
-#~ msgstr "Бүлгийн нэр хоосон байж болохгүй, + эсвэл -ээр эхлэх ёсгүй"
-
-#, python-format
-#~ msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
-#~ msgstr "Энэ байгууллага нь %(count)d бүлэгтэй бөгөөд хязгаар нь %(limit)d байна. Та шинээр үүсгэхийн тулд одоо байгаа зүйлийг устгах ёстой."
-
-#~ msgid "Start In Flow"
-#~ msgstr "Урсгалаар эхэл"
-
-#, python-format
-#~ msgid "Cannot create a new field as limit is %(limit)s."
-#~ msgstr "Хязгаар %(limit)s тул шинэ талбар үүсгэх боломжгүй."
-
-#~ msgid "The name for this flow"
-#~ msgstr "Энэ урсгалын нэр"
-
-#~ msgid "Any contacts currently in a flow will not be interrupted and not started in this flow."
-#~ msgstr "Одоогийн урсгалд байгаа ямар ч харилцагч завсардахгүй бөгөөд энэ урсгалаар эхлэхгүй."
-
-#~ msgid "Exclude contacts previously in this flow"
-#~ msgstr "Өмнө нь энэ урсгалд байсан харилцагчдыг хасах"
-
-#, python-format
-#~ msgid "Cannot create a new global as limit is %(limit)s."
-#~ msgstr "Хязгаар %(limit)s тул шинэ глобал үүсгэх боломжгүй."
-
-#~ msgid "Export only messages from these contact groups. (Leave blank to export all messages)."
-#~ msgstr "Зөвхөн эдгээр харилцагчдийн бүлгээс мессеж экспортлох. (Бүх мессежүүдийг экспортлохын тулд хоосон орхино уу)."
-
-#~ msgid "Send All"
-#~ msgstr "Бүгдийг илгээх"
-
-#~ msgid "Name must not be blank or begin with punctuation"
-#~ msgstr "Нэр хоосон эсвэл таслалаар эхэлж болохгүй"
-
-#~ msgid "Name must be unique"
-#~ msgstr "Нэр өвөрмөц байх ёстой"
-
-#~ msgid "The parent org that manages this org"
-#~ msgstr "Энэ байгууллагыг удирддаг толгой компани"
-
-#, python-format
-#~ msgid "Sorry, <span class=\"named\">%(group_name)s</span> cannot be deleted yet."
-#~ msgstr "Уучлаарай, <span class=\"named\">%(group_name)s </span> -г хараахан устгах боломжгүй байна."
-
-#, python-format
-#~ msgid "This group is used by an <a href=\"%(triggers_url)s\">active trigger</a>. In order to delete it, first remove the trigger."
-#~ msgid_plural "This group is used by <a href=\"%(triggers_url)s\">%(counter)s triggers<a>. In order to delete it, first remove the triggers."
-#~ msgstr[0] "Энэ бүлгийг <a href=\"%(triggers_url)s\"> идэвхтэй ажиллуулагч </a> ашигладаг. Үүнийг устгахын тулд эхлээд ажиллуулагыг устгана уу."
-#~ msgstr[1] "Энэ бүлгийг <a href=\"%(triggers_url)s\"> идэвхтэй %(counter)s ажиллуулагчид </a> ашигладаг. Үүнийг устгахын тулд эхлээд ажиллуулагчдыг устгана уу."
-
-#, python-format
-#~ msgid "There is an active flow using this group. It cannot be deleted until it is removed from the"
-#~ msgid_plural "There are %(counter)s flows using this group. It cannot be deleted until it is removed from the"
-#~ msgstr[0] "Энэ бүлгийг ашигладаг идэвхтэй урсгал байна. Үүнийг устгахаас нааш устгах боломжгүй"
-#~ msgstr[1] "Энэ бүлгийг ашигладаг идэвхтэй %(counter)s урсгал байна. Үүнийг устгахаас нааш устгах боломжгүй"
-
-#~ msgid "flow."
-#~ msgid_plural "flows."
-#~ msgstr[0] "урсгал."
-#~ msgstr[1] "урсгалууд."
-
-#, python-format
-#~ msgid "There is an active campaign using this group. It cannot be deleted until it is removed from the"
-#~ msgid_plural "There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the"
-#~ msgstr[0] "Энэ бүлгийг ашигладаг идэвхтэй ко.ажил байна. Үүнийг устгахаас нааш боломжгүй"
-#~ msgstr[1] "Энэ бүлгийг ашигладаг идэвхтэй %(counter)s ко.ажил байна. Үүнийг устгахаас нааш боломжгүй"
-
-#~ msgid "campaign."
-#~ msgid_plural "campaigns."
-#~ msgstr[0] "ко.ажил."
-#~ msgstr[1] "ко.ажлууд."
-
-#, python-format
-#~ msgid "<div class='mb-2'> You are about to delete <span class='named'> %(object)s. </span> </div> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
-#~ msgstr "<div class='mb-2'> Та <span class='named'> %(object) s устгах гэж байна. </span> </div> Ямар ч харилцагчийг устгахгүй боловч бүлэг өөрөө устгагдах болно. Үүнийг буцаах арга байхгүй. Итгэлтэй байна уу?"
-
-#~ msgid "You can still test your flow using the simulator by clicking the phone icon on the right."
-#~ msgstr "Та симулятор ашиглан баруун талын утасны дүрс дээр дарж урсгалаа туршиж үзэх боломжтой."
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "        There is an active flow using this flow. It cannot be deleted until it is removed from the\n"
-#~ "\n"
-#~ "      "
-#~ msgid_plural ""
-#~ "\n"
-#~ "        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
-#~ "\n"
-#~ "      "
-#~ msgstr[0] ""
-#~ "\n"
-#~ "        Энэ урсгалыг ашигладаг идэвхтэй урсгал байна. Үүнийг устгахаас нааш устгах боломжгүй\n"
-#~ "      "
-#~ msgstr[1] ""
-#~ "\n"
-#~ "        Энэ урсгалыг ашигладаг идэвхтэй %(counter)s урсгал байна. Үүнийг устгахаас нааш устгах боломжгүй\n"
-#~ "      "
-
-#~ msgid ""
-#~ "\n"
-#~ "        flow.\n"
-#~ "      "
-#~ msgid_plural ""
-#~ "\n"
-#~ "        flows.\n"
-#~ "      "
-#~ msgstr[0] ""
-#~ "\n"
-#~ "        урсгал.\n"
-#~ "      "
-#~ msgstr[1] ""
-#~ "\n"
-#~ "        урсгалууд.\n"
-#~ "      "
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "        You are about to delete\n"
-#~ "        <span class='font-normal'>\n"
-#~ "          %(object)s.\n"
-#~ "        </span>\n"
-#~ "        There is no way to undo this. Are you sure?\n"
-#~ "\n"
-#~ "      "
-#~ msgstr ""
-#~ "\n"
-#~ "        Та устгах гэж байна\n"
-#~ "        <span class = 'font-normal'>\n"
-#~ "           %(object)s.\n"
-#~ "         </span>\n"
-#~ "         Үүнийг буцаах арга байхгүй. Итгэлтэй байна уу?\n"
-#~ "\n"
-#~ "      "
-
-#~ msgid "Create Folder"
-#~ msgstr "Фолдер үүсгэх"
-
-#~ msgid "Delete Login"
-#~ msgstr "Нэвтрэлтийг устгах"
-
-#~ msgid "Whoa, whoa, whoa!"
-#~ msgstr "Whoa, whoa, whoa!"
-
-#~ msgid "By deleting this login,"
-#~ msgstr "Энэ нэвтрэлтийг устгаснаар,"
-
-#~ msgid ""
-#~ "\n"
-#~ "                  will also be deleted. All workspace data will be deleted and there is no\n"
-#~ "                  going back. This includes all flows, contacts, messages, etc.\n"
-#~ "                "
-#~ msgstr ""
-#~ "\n"
-#~ "                  мөн устгагдах болно. Ажлын талбар дээрх бүх өгөгдлийг устгаж буцаах аргагүй болно.\n"
-#~ "                  Үүнд бүх урсгал, харилцагчид, мессеж гэх мэт орно.\n"
-#~ "                "
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "              Are you sure you want to delete the login %(name)s?\n"
-#~ "\n"
-#~ "            "
-#~ msgstr ""
-#~ "\n"
-#~ "              Та %(name) s нэвтрэлтийг устгахдаа итгэлтэй байна уу?\n"
-#~ "            "
