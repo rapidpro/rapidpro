@@ -1,3 +1,7 @@
+v7.4.1
+----------
+ * Update locale files
+
 v7.4.0
 ----------
  * Remove superfulous Beta group perm
