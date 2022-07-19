@@ -6,15 +6,16 @@
 # Translators:
 # Mikhail Budnikov <mbudnikov@yahoo.com>, 2020
 # Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020
+# Rowan Seymour <rowanseymour@gmail.com>, 2022
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-07-19 17:07+0000\n"
+"POT-Creation-Date: 2022-07-19 18:45+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
-"Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
+"Last-Translator: Rowan Seymour <rowanseymour@gmail.com>, 2022\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
@@ -2181,37 +2182,37 @@ msgid "Phone Number"
 msgstr ""
 
 msgid "Discord Identifier"
-msgstr ""
+msgstr "Идентификатор Discord"
 
 msgid "Email Address"
 msgstr "Адрес электронной почты"
 
 msgid "External Identifier"
-msgstr ""
+msgstr "Внешний идентификатор "
 
 msgid "Facebook Identifier"
-msgstr ""
+msgstr "Идентификатор Facebook "
 
 msgid "Firebase Cloud Messaging Identifier"
-msgstr ""
+msgstr "Идентификатор Firebase Cloud Messaging"
 
 msgid "Freshchat Identifier"
-msgstr ""
+msgstr "Идентификатор Freshchat"
 
 msgid "Instagram Handle"
 msgstr ""
 
 msgid "JioChat Identifier"
-msgstr ""
+msgstr "Идентификатор JioChat "
 
 msgid "LINE Identifier"
-msgstr ""
+msgstr "Идентификатор LINE"
 
 msgid "RocketChat Identifier"
-msgstr ""
+msgstr "Идентификатор RocketChat "
 
 msgid "Telegram Identifier"
-msgstr ""
+msgstr "Идентификатор Telegram"
 
 msgid "Twitter ID"
 msgstr "Twitter ID"
@@ -2220,19 +2221,19 @@ msgid "Twitter Handle"
 msgstr ""
 
 msgid "Viber Identifier"
-msgstr ""
+msgstr "Идентификатор Viber"
 
 msgid "VK Identifier"
-msgstr ""
+msgstr "Идентификатор VK"
 
 msgid "WeChat Identifier"
-msgstr ""
+msgstr "Идентификатор WeChat"
 
 msgid "Webchat Identifier"
-msgstr ""
+msgstr "Идентификатор WeChat"
 
 msgid "WhatsApp Identifier"
-msgstr ""
+msgstr "Идентификатор WhatsApp"
 
 msgid "Text"
 msgstr "Текст"

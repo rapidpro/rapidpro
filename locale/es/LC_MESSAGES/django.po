@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-07-19 17:07+0000\n"
+"POT-Creation-Date: 2022-07-19 18:45+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Rowan Seymour <rowanseymour@gmail.com>, 2022\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -1867,10 +1867,10 @@ msgid "Unable to add system user to %s, please make sure you have business admin
 msgstr ""
 
 msgid "Verification Code"
-msgstr ""
+msgstr "Código de Verificación"
 
 msgid "Request Code"
-msgstr ""
+msgstr "Código de Solicitud"
 
 msgid "Failed to request phone number verification code. Please remove the channel and add it again."
 msgstr ""
@@ -2180,52 +2180,52 @@ msgid "Email Address"
 msgstr "Dirección de correo electrónico"
 
 msgid "External Identifier"
-msgstr ""
+msgstr "Identificador Externo"
 
 msgid "Facebook Identifier"
-msgstr ""
+msgstr "Identificador de Facebook"
 
 msgid "Firebase Cloud Messaging Identifier"
-msgstr ""
+msgstr "Identificador de Firebase Cloud Messaging"
 
 msgid "Freshchat Identifier"
-msgstr ""
+msgstr "Identificador de Freshchat"
 
 msgid "Instagram Handle"
-msgstr ""
+msgstr "Identificador de Instagram"
 
 msgid "JioChat Identifier"
-msgstr ""
+msgstr "Identificador de JioChat"
 
 msgid "LINE Identifier"
-msgstr ""
+msgstr "Identificador de LINE"
 
 msgid "RocketChat Identifier"
-msgstr ""
+msgstr "Identificador de RocketChat"
 
 msgid "Telegram Identifier"
-msgstr ""
+msgstr "Identificador de Telegram"
 
 msgid "Twitter ID"
 msgstr "ID de Twitter"
 
 msgid "Twitter Handle"
-msgstr ""
+msgstr "Identificador de Twitter"
 
 msgid "Viber Identifier"
-msgstr ""
+msgstr "Identificador de Viber"
 
 msgid "VK Identifier"
-msgstr ""
+msgstr "Identificador de VK"
 
 msgid "WeChat Identifier"
-msgstr ""
+msgstr "Identificador de WeChat"
 
 msgid "Webchat Identifier"
-msgstr ""
+msgstr "Identificador de Webchat"
 
 msgid "WhatsApp Identifier"
-msgstr ""
+msgstr "Identificador de WhatsApp"
 
 msgid "Text"
 msgstr "Texto"
@@ -2355,7 +2355,7 @@ msgid "Can't query on URNs in an anonymous workspace"
 msgstr "No se pueden consultar URN en un workspace anónimo"
 
 msgid "Already used by another group."
-msgstr ""
+msgstr "Ya usado por otro grupo."
 
 #, python-format
 msgid "This workspace has reached its limit of %(limit)d groups. You must delete existing ones before you can create new ones."
@@ -2442,7 +2442,7 @@ msgid "Send Message"
 msgstr "Enviar Mensaje"
 
 msgid "Start Flow"
-msgstr "Empezar flujo"
+msgstr "Empezar Flujo"
 
 msgid "Edit Contact"
 msgstr "Editar Contacto"
@@ -2667,7 +2667,7 @@ msgid "Starting"
 msgstr "Comenzando"
 
 msgid "Already used by another flow."
-msgstr ""
+msgstr "Ya usado por otro grupo."
 
 #, python-format
 msgid "Must be single words, less than %(limit)d characters, containing only letters and numbers."
@@ -2956,10 +2956,10 @@ msgid "Error"
 msgstr "Error"
 
 msgid "Resent"
-msgstr ""
+msgstr "Reenviado"
 
 msgid "Workspace suspended"
-msgstr ""
+msgstr "Workspace suspendido"
 
 msgid "Looping detected"
 msgstr ""
@@ -3059,7 +3059,7 @@ msgid "End date can't be before start date"
 msgstr "La fecha de finalización no puede ser anterior a la fecha de inicio"
 
 msgid "Scheduled"
-msgstr ""
+msgstr "Programado"
 
 msgid "Flow Messages"
 msgstr "Mensajes del Flujo"
@@ -3105,7 +3105,7 @@ msgid "Your label folder has been deleted."
 msgstr "Su etiqueta de carpeta ha sido eliminada."
 
 msgid "Incidents"
-msgstr ""
+msgstr "Incidentes"
 
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr "Su clave y API Secret de DT One parecen no válidos. Revíselos de nuevo y vuelva a intentarlo."
@@ -3369,7 +3369,7 @@ msgid "You can reset the user's password by entering a new password here"
 msgstr ""
 
 msgid "Delete User"
-msgstr ""
+msgstr "Eliminar Usuario"
 
 #, python-brace-format
 msgid "Deleted user {username}"
@@ -3457,31 +3457,31 @@ msgid "Two-factor authentication backup tokens changed."
 msgstr "Los tokens de la autenticación de dos factores cambiaron"
 
 msgid "Account"
-msgstr ""
+msgstr "Cuenta"
 
 msgid "Security"
-msgstr ""
+msgstr "Seguridad"
 
 msgid "Enable 2FA"
-msgstr ""
+msgstr "Habilitar 2FA"
 
 msgid "Logins"
 msgstr ""
 
 msgid "Classifiers"
-msgstr ""
+msgstr "Clasificadores"
 
 msgid "Zapier"
-msgstr ""
+msgstr "Zapier"
 
 msgid "Integrations"
 msgstr ""
 
 msgid "Flow Runs"
-msgstr ""
+msgstr "Ejecuciones de Flujos"
 
 msgid "Archives"
-msgstr ""
+msgstr "Archivos"
 
 msgid "Child Workspaces"
 msgstr ""
@@ -3637,7 +3637,7 @@ msgid "Manage Logins"
 msgstr "Administrar Logins"
 
 msgid "Edit Workspace"
-msgstr ""
+msgstr "Editar Workspace"
 
 msgid "Dashboard"
 msgstr "Panel"
@@ -4048,7 +4048,7 @@ msgid "The associated channel."
 msgstr "El canal asociado."
 
 msgid "Trigger"
-msgstr ""
+msgstr "Activador"
 
 msgid "Keyword Triggers"
 msgstr "Activadores de Palabras Claves"
@@ -4168,7 +4168,7 @@ msgid "Create Trigger"
 msgstr "Crear Activador"
 
 msgid "Active Triggers"
-msgstr ""
+msgstr "Activadores Activos"
 
 msgid "Archived Triggers"
 msgstr "Activadores Archivados"
@@ -4585,7 +4585,7 @@ msgid "No Matching calls"
 msgstr "Las llamadas no corresponden"
 
 msgid "No calls"
-msgstr ""
+msgstr "Sin llamadas"
 
 msgid "Contact"
 msgstr "Contacto"
@@ -5636,7 +5636,7 @@ msgid "Chat"
 msgstr ""
 
 msgid "No Fields"
-msgstr ""
+msgstr "Sin Campos"
 
 msgid "Nothing to see here yet. Create a new field to save data to your contacts."
 msgstr ""
@@ -5913,7 +5913,7 @@ msgid "Create Label"
 msgstr "Crear Etiqueta"
 
 msgid "Create Flow"
-msgstr "Crear Flujos"
+msgstr "Crear Flujo"
 
 msgid "Webhook Call Log"
 msgstr "Registro de Webhook"
@@ -6002,7 +6002,7 @@ msgid "No flow starts"
 msgstr "No comienzos del flujo"
 
 msgid "Privacy"
-msgstr ""
+msgstr "Privacidad"
 
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Estás seguro de que quieres continuar? Esto no se puede deshacer."
@@ -6150,10 +6150,10 @@ msgid "New Label..."
 msgstr "Nueva Etiqueta ..."
 
 msgid "Reactivate"
-msgstr ""
+msgstr "Reactivar"
 
 msgid "Remove from group"
-msgstr ""
+msgstr "Retirar de un grupo"
 
 #, python-format
 msgid "%(start)s - %(end)s of %(total)s"
@@ -6261,7 +6261,7 @@ msgid "No matching messages."
 msgstr "Ningún mensaje corresponde."
 
 msgid "Hi"
-msgstr ""
+msgstr "Hola"
 
 msgid "If you have any questions we are always here to help."
 msgstr ""
@@ -6283,13 +6283,13 @@ msgid "Your export of results for the following flows is ready."
 msgstr "Su exportación de resultados de los siguientes flujos está lista."
 
 msgid "Ongoing"
-msgstr ""
+msgstr "En curso"
 
 msgid "None"
 msgstr "Ninguno"
 
 msgid "Previous"
-msgstr ""
+msgstr "Anterior"
 
 msgid ""
 "\n"
@@ -6688,7 +6688,7 @@ msgstr ""
 "\n"
 
 msgid "Hi there"
-msgstr ""
+msgstr "Hola"
 
 msgid "Someone has requested that the password for this email address be reset."
 msgstr ""
@@ -7208,7 +7208,7 @@ msgid "Two-factor authentication is <b>enabled</b>."
 msgstr "La autenticación de dos factores está <b>habilitada</b>"
 
 msgid "Update User"
-msgstr ""
+msgstr "Actualizar Usuario"
 
 msgid "Policies"
 msgstr "Políticas"
@@ -7867,19 +7867,19 @@ msgid "Skip inactive contacts"
 msgstr "Omitir contactos inactivos"
 
 msgid "Only include contacts who have sent a message in the last 90 days."
-msgstr ""
+msgstr "Solo incluir contactos que hayan enviado un mensaje en los últimos 90 días."
 
 msgid "Skip contacts currently in a flow"
 msgstr "Omitir contactos actualmente en un flujo"
 
 msgid "Avoid interrupting a contact who is already in a flow."
-msgstr ""
+msgstr "Evitar interrumpir a un contacto que ya está en un flujo."
 
 msgid "Skip repeat contacts"
 msgstr "Omitir contactos repetidos"
 
 msgid "Avoid restarting a contact who has been in this flow in the last 90 days."
-msgstr ""
+msgstr "Evitar reiniciar un contacto que haya estado en este flujo en los últimos 90 días."
 
 msgid "Templates Events"
 msgstr "Eventos de Plantillas"
@@ -7895,9 +7895,3 @@ msgstr "Las plantillas se sincronizan desde su cuenta cada 15 minutos."
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
-
-#~ msgid "Open Ticket"
-#~ msgstr "Abrir Ticket"
-
-#~ msgid "Ticket Service"
-#~ msgstr "Servicio de Tickets"

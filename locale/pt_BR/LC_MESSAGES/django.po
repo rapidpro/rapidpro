@@ -10,15 +10,16 @@
 # Nyaruka <info@textit.in>, 2022
 # Paulo Bernardo <paulo.bernardo@ilhasoft.com.br>, 2022
 # Ilhasoft <contato@ilhasoft.com.br>, 2022
+# Rowan Seymour <rowanseymour@gmail.com>, 2022
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-07-19 17:07+0000\n"
+"POT-Creation-Date: 2022-07-19 18:45+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
-"Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2022\n"
+"Last-Translator: Rowan Seymour <rowanseymour@gmail.com>, 2022\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
 "Language: pt_BR\n"
 "MIME-Version: 1.0\n"
@@ -2179,37 +2180,37 @@ msgid "Phone Number"
 msgstr ""
 
 msgid "Discord Identifier"
-msgstr ""
+msgstr "Identificador do Discord"
 
 msgid "Email Address"
 msgstr "Endereço de e-mail"
 
 msgid "External Identifier"
-msgstr ""
+msgstr "Identificador Externo"
 
 msgid "Facebook Identifier"
-msgstr ""
+msgstr "Identificador do Facebook"
 
 msgid "Firebase Cloud Messaging Identifier"
-msgstr ""
+msgstr "Identificador do Firebase Cloud Messaging"
 
 msgid "Freshchat Identifier"
-msgstr ""
+msgstr "Identificador do Freshchat"
 
 msgid "Instagram Handle"
-msgstr ""
+msgstr "Identificador do Instagram"
 
 msgid "JioChat Identifier"
-msgstr ""
+msgstr "Identificador do JioChat"
 
 msgid "LINE Identifier"
-msgstr ""
+msgstr "Identificador do LINE"
 
 msgid "RocketChat Identifier"
-msgstr ""
+msgstr "Identificador do Rocket.Chat"
 
 msgid "Telegram Identifier"
-msgstr ""
+msgstr "Identificador do Telegram"
 
 msgid "Twitter ID"
 msgstr " ID do Twitter"
@@ -2218,19 +2219,19 @@ msgid "Twitter Handle"
 msgstr ""
 
 msgid "Viber Identifier"
-msgstr ""
+msgstr "Identificador do Viber"
 
 msgid "VK Identifier"
-msgstr ""
+msgstr "Identificador do VK"
 
 msgid "WeChat Identifier"
-msgstr ""
+msgstr "Identificador do WeChat"
 
 msgid "Webchat Identifier"
-msgstr ""
+msgstr "Identificador do Webchat"
 
 msgid "WhatsApp Identifier"
-msgstr ""
+msgstr "Identificador do WhatsApp"
 
 msgid "Text"
 msgstr "Texto"

@@ -5,15 +5,16 @@
 #
 # Translators:
 # Amarbayan Altangerel <amarbayan.altangerel@gmail.com>, 2021
+# Rowan Seymour <rowanseymour@gmail.com>, 2022
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-07-19 17:07+0000\n"
+"POT-Creation-Date: 2022-07-19 18:45+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
-"Last-Translator: Amarbayan Altangerel <amarbayan.altangerel@gmail.com>, 2021\n"
+"Last-Translator: Rowan Seymour <rowanseymour@gmail.com>, 2022\n"
 "Language-Team: Mongolian (https://www.transifex.com/rapidpro/teams/226/mn/)\n"
 "Language: mn\n"
 "MIME-Version: 1.0\n"
@@ -2170,31 +2171,31 @@ msgid "Email Address"
 msgstr "Имэйл хаяг"
 
 msgid "External Identifier"
-msgstr ""
+msgstr "Гадаад таних тэмдэг"
 
 msgid "Facebook Identifier"
-msgstr ""
+msgstr "Facebook таних тэмдэг"
 
 msgid "Firebase Cloud Messaging Identifier"
-msgstr ""
+msgstr "Firebase Cloud Messaging таних тэмдэг"
 
 msgid "Freshchat Identifier"
-msgstr ""
+msgstr "Freshchat таних тэмдэг"
 
 msgid "Instagram Handle"
 msgstr ""
 
 msgid "JioChat Identifier"
-msgstr ""
+msgstr "JioChat таних тэмдэг"
 
 msgid "LINE Identifier"
-msgstr ""
+msgstr "LINE таних тэмдэг"
 
 msgid "RocketChat Identifier"
-msgstr ""
+msgstr "RocketChat таних тэмдэг"
 
 msgid "Telegram Identifier"
-msgstr ""
+msgstr "Telegram таних тэмдэг"
 
 msgid "Twitter ID"
 msgstr "Twitter ID"
@@ -2203,19 +2204,19 @@ msgid "Twitter Handle"
 msgstr ""
 
 msgid "Viber Identifier"
-msgstr ""
+msgstr "Viber таних тэмдэг"
 
 msgid "VK Identifier"
-msgstr ""
+msgstr "VK таних тэмдэг"
 
 msgid "WeChat Identifier"
-msgstr ""
+msgstr "WeChat таних тэмдэг"
 
 msgid "Webchat Identifier"
-msgstr ""
+msgstr "Webchat таних тэмдэг"
 
 msgid "WhatsApp Identifier"
-msgstr ""
+msgstr "WhatsApp таних тэмдэг"
 
 msgid "Text"
 msgstr "Текст"
