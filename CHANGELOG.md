@@ -1,3 +1,12 @@
+v7.4.2
+----------
+ * Update copyright notice
+ * Update stable versions
+
+v7.4.1
+----------
+ * Update locale files
+
 v7.4.0
 ----------
  * Remove superfulous Beta group perm

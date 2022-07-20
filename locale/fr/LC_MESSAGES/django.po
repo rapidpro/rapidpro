@@ -6,15 +6,16 @@
 # Translators:
 # Nyaruka <info@textit.in>, 2020
 # Jesus EKIE <jesus@fehudigital.com>, 2022
+# Rowan Seymour <rowanseymour@gmail.com>, 2022
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-07-19 17:07+0000\n"
+"POT-Creation-Date: 2022-07-19 18:45+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
-"Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2022\n"
+"Last-Translator: Rowan Seymour <rowanseymour@gmail.com>, 2022\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
@@ -2179,31 +2180,31 @@ msgid "Email Address"
 msgstr "Adresse e-mail"
 
 msgid "External Identifier"
-msgstr ""
+msgstr "Identifiant Externe"
 
 msgid "Facebook Identifier"
-msgstr ""
+msgstr "Identifiant Facebook"
 
 msgid "Firebase Cloud Messaging Identifier"
-msgstr ""
+msgstr "Identifiant Firebase Cloud Messaging"
 
 msgid "Freshchat Identifier"
-msgstr ""
+msgstr "Identifiant Freshchat"
 
 msgid "Instagram Handle"
 msgstr ""
 
 msgid "JioChat Identifier"
-msgstr ""
+msgstr "Identifiant JioChat"
 
 msgid "LINE Identifier"
-msgstr ""
+msgstr "Identifiant LINE"
 
 msgid "RocketChat Identifier"
-msgstr ""
+msgstr "Identifiant RocketChat"
 
 msgid "Telegram Identifier"
-msgstr ""
+msgstr "Identifiant Telegram"
 
 msgid "Twitter ID"
 msgstr "Identifiant Twitter"
@@ -2212,19 +2213,19 @@ msgid "Twitter Handle"
 msgstr ""
 
 msgid "Viber Identifier"
-msgstr ""
+msgstr "Identifiant Viber"
 
 msgid "VK Identifier"
-msgstr ""
+msgstr "Identifiant VK"
 
 msgid "WeChat Identifier"
-msgstr ""
+msgstr "Identifiant WeChat"
 
 msgid "Webchat Identifier"
-msgstr ""
+msgstr "Identifiant Webchat"
 
 msgid "WhatsApp Identifier"
-msgstr ""
+msgstr "Identifiant WhatsApp"
 
 msgid "Text"
 msgstr "Texte"
