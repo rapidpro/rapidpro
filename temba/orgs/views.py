@@ -703,17 +703,16 @@ class UserCRUDL(SmartCRUDL):
     )
 
     class List(SmartListView):
-        fields = ("username", "orgs", "date_joined")
-        link_fields = ("username",)
+        fields = ("email", "name", "orgs", "date_joined")
         ordering = ("-date_joined",)
-        search_fields = ("username",)
+        search_fields = ("email", "first_name", "last_name")
         filters = (("all", _("All")), ("beta", _("Beta")), ("staff", _("Staff")))
 
         @csrf_exempt
         def dispatch(self, *args, **kwargs):
             return super().dispatch(*args, **kwargs)
 
-        def get_username(self, user):
+        def get_email(self, user):
             return mark_safe(f"<a href='{reverse('orgs.user_update', args=(user.id,))}'>{user.username}</a>")
 
         def get_orgs(self, user):
