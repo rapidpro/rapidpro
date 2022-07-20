@@ -13,7 +13,7 @@ class CountAndSeconds:
     seconds: int = 0
 
 
-def backfill_ticket_reply_timings(apps, schema_editor):
+def backfill_ticket_reply_timings(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
     TicketDailyTiming = apps.get_model("tickets", "TicketDailyTiming")
 
@@ -52,7 +52,7 @@ def backfill_ticket_reply_timings(apps, schema_editor):
             )
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

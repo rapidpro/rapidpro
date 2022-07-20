@@ -352,7 +352,7 @@ BRANDING = {
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         "title": _("Visually build nationally scalable mobile applications"),
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
-        "credits": _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."),
+        "credits": "Copyright &copy; 2012-2022 UNICEF, Nyaruka. All Rights Reserved.",
         "support_widget": False,
     }
 }

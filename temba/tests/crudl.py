@@ -216,6 +216,17 @@ class CRUDLTestMixin:
         as_user(org2_admin, allowed=False)
         return as_user(admin, allowed=True)
 
+    def assertStaffOnly(self, url):
+        viewer, editor, agent, admin, org2_admin = self.get_test_users()
+
+        self.requestView(url, None, checks=[LoginRedirect()])
+        self.requestView(url, viewer, checks=[LoginRedirect()])
+        self.requestView(url, editor, checks=[LoginRedirect()])
+        self.requestView(url, admin, checks=[LoginRedirect()])
+
+        self.requestView(url, self.superuser, checks=[StatusCode(200)])
+        self.requestView(url, self.customer_support, checks=[StatusCode(200)])
+
 
 class BaseCheck:
     def pre_check(self, test_cls, desc):

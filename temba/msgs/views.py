@@ -957,7 +957,7 @@ class LabelCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "messages")
-        success_url = "hide"
+        success_url = "uuid@msgs.msg_filter"
         form_class = LabelForm
         success_message = ""
         submit_button_name = _("Create")
