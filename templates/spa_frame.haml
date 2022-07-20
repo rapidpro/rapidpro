@@ -594,6 +594,13 @@
       document.title = spaTitle || "";
     }
 
+    function refreshMenu() {
+      var menu = document.querySelector("temba-menu");
+      if (menu) {
+        menu.refresh();
+      }
+    }
+
     function hideLoading() {
       var container = document.querySelector(".spa-container");
       if (container) {
@@ -713,13 +720,14 @@
     }
 
     function showModax(header, endpoint, onSubmit) {
-
       var modax = document.querySelector("temba-modax#shared-modax");
       if (onSubmit) {
         modax["-temba-submitted"] = Function(onSubmit);
       } else {
         modax["-temba-submitted"] = undefined;
       }
+
+      modax["-temba-redirected"] = refreshMenu;
 
       modax.header = header;
       modax.endpoint = endpoint;
