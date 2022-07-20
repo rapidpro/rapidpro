@@ -485,6 +485,12 @@
       }
 
       if (a && a.href) {
+        if (a.classList.contains("posterize")) {
+          evt.stopPropagation();
+          evt.preventDefault();
+          return;
+        }
+
         evt.stopPropagation();
         evt.preventDefault();
 
@@ -746,7 +752,6 @@
       
 -block page-container
   -include "includes/frame_top.html"
-
   %temba-modax#shared-modax
   .ajax-scripts
 

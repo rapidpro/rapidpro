@@ -1,12 +1,40 @@
 {% extends "smartmin/read.html" %}
 -load temba compress smartmin i18n
 
--block page-title
-  -trans "User Account"
+-block extra-script
+  {{block.super}}
+  :javascript
+    var currentOrg = {{user_org.id}};
+    function handleWorkspaceChanged(evt) {
+      var orgId = evt.target.value.value;
+      if (orgId != currentOrg) {
+        showLoading();
+        var store = document.querySelector("temba-store");
+        store.postUrl("/org/choose/", "organization=" + orgId, {}, 'application/x-www-form-urlencoded').then(function(response) {
+          var menu = document.querySelector("temba-menu");
+          menu.setSelectionPath("settings/account");
+          menu.refresh();
+        })
+      }
+    }
+
+-block page-header
+
+  -if user_orgs|length > 1
+    .text-xl.w-full.mb-4
+      %temba-select.w-full(onchange="handleWorkspaceChanged(event)")
+        -for org in user_orgs
+          -if org.id == user_org.id
+            %temba-option(name='{{ org.name|escapejs }}' value="{{org.id}}" selected="true")
+          -else
+            %temba-option(name='{{ org.name|escapejs }}' value="{{org.id}}")
+  - else
+    {{block.super}}
+
 
 -block content
   -if not two_factor_enabled
-    %temba-alert.mb-4(level="error")
+    %temba-alert.mb-4(level="info")
       {% url "orgs.user_two_factor_enable" as otp_url %}
       -blocktrans with brand=brand.name
         {{brand}} recommends that you enable <temba-anchor href="{{otp_url}}">two factor</temba-anchor> authentication.

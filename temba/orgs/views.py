@@ -1251,13 +1251,18 @@ class OrgCRUDL(SmartCRUDL):
 
                 if self.has_org_perm("orgs.org_account"):
                     menu.append(
-                        self.create_menu_item(name=_("Account"), icon="user", href=reverse("orgs.user_account"))
+                        self.create_menu_item(
+                            menu_id="account", name=_("Account"), icon="user", href=reverse("orgs.user_account")
+                        )
                     )
 
                 if self.request.user.settings.two_factor_enabled:
                     menu.append(
                         self.create_menu_item(
-                            name=_("Security"), icon="shield", href=reverse("orgs.user_two_factor_tokens")
+                            menu_id="security",
+                            name=_("Security"),
+                            icon="shield",
+                            href=reverse("orgs.user_two_factor_tokens"),
                         )
                     )
                 else:
@@ -2661,7 +2666,7 @@ class OrgCRUDL(SmartCRUDL):
             else:  # pragma: no cover
                 return self.render_modal_response()
 
-    class Choose(SmartFormView):
+    class Choose(SpaMixin, SmartFormView):
         class Form(forms.Form):
             organization = forms.ModelChoiceField(queryset=Org.objects.none(), empty_label=None)
 
