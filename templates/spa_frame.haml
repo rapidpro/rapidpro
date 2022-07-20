@@ -485,6 +485,12 @@
       }
 
       if (a && a.href) {
+        if (a.classList.contains("posterize")) {
+          evt.stopPropagation();
+          evt.preventDefault();
+          return;
+        }
+
         evt.stopPropagation();
         evt.preventDefault();
 
@@ -588,11 +594,22 @@
       document.title = spaTitle || "";
     }
 
+    function refreshMenu() {
+      var menu = document.querySelector("temba-menu");
+      if (menu) {
+        menu.refresh();
+      }
+    }
+
     function hideLoading() {
       var container = document.querySelector(".spa-container");
       if (container) {
         container.classList.remove("loading");
       }
+
+      // scroll our content to the top if needed
+      var content = document.querySelector(".spa-content");
+      content.scrollTo(0, 0);
       
       updatePageTitle();
       var menu = document.querySelector("temba-menu");
@@ -703,13 +720,14 @@
     }
 
     function showModax(header, endpoint, onSubmit) {
-
       var modax = document.querySelector("temba-modax#shared-modax");
       if (onSubmit) {
         modax["-temba-submitted"] = Function(onSubmit);
       } else {
         modax["-temba-submitted"] = undefined;
       }
+
+      modax["-temba-redirected"] = refreshMenu;
 
       modax.header = header;
       modax.endpoint = endpoint;
@@ -742,7 +760,6 @@
       
 -block page-container
   -include "includes/frame_top.html"
-
   %temba-modax#shared-modax
   .ajax-scripts
 

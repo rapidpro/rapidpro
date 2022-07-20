@@ -54,12 +54,15 @@ class CampaignCRUDL(SmartCRUDL):
     class Menu(MenuMixin, SmartTemplateView):
         def derive_menu(self):
 
+            org = self.request.user.get_org()
+
             menu = []
             menu.append(
                 self.create_menu_item(
                     menu_id="active",
                     name=_("Active"),
                     icon="campaign",
+                    count=org.campaigns.filter(is_active=True, is_archived=False).count(),
                     href="campaigns.campaign_list",
                 )
             )
@@ -69,6 +72,7 @@ class CampaignCRUDL(SmartCRUDL):
                     menu_id="archived",
                     name=_("Archived"),
                     icon="archive",
+                    count=org.campaigns.filter(is_active=True, is_archived=True).count(),
                     href="campaigns.campaign_archived",
                 )
             )
@@ -216,7 +220,8 @@ class CampaignCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["org_has_campaigns"] = Campaign.objects.filter(org=self.request.user.get_org()).count()
-            context["folders"] = self.get_folders()
+            if not self.is_spa():
+                context["folders"] = self.get_folders()
             context["request_url"] = self.request.path
             return context
 

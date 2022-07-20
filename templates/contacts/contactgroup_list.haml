@@ -10,7 +10,7 @@
       deleteConfirmation.open = true;
       deleteConfirmation.addEventListener("temba-button-clicked", function(event){
         if (!event.detail.button.secondary) {
-          runActionOnObjectRows("delete");
+          runActionOnObjectRows("delete", wireTableListeners);
         }
         deleteConfirmation.open = false;
       });
