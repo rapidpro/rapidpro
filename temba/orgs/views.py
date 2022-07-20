@@ -61,7 +61,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
+from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address, send_template_email
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
@@ -703,12 +703,16 @@ class UserCRUDL(SmartCRUDL):
     )
 
     class List(SmartListView):
-        fields = ("username", "orgs", "date_joined")
-        link_fields = ("username",)
+        fields = ("email", "name", "orgs", "date_joined")
         ordering = ("-date_joined",)
-        search_fields = ("username",)
+        search_fields = ("email", "first_name", "last_name")
+        filters = (("all", _("All")), ("beta", _("Beta")), ("staff", _("Staff")))
 
-        def get_username(self, user):
+        @csrf_exempt
+        def dispatch(self, *args, **kwargs):
+            return super().dispatch(*args, **kwargs)
+
+        def get_email(self, user):
             return mark_safe(f"<a href='{reverse('orgs.user_update', args=(user.id,))}'>{user.username}</a>")
 
         def get_orgs(self, user):
@@ -724,7 +728,21 @@ class UserCRUDL(SmartCRUDL):
             return mark_safe(f"{org_links}{more}")
 
         def derive_queryset(self, **kwargs):
-            return super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
+            qs = super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
+
+            obj_filter = self.request.GET.get("filter")
+            if obj_filter == "beta":
+                qs = qs.filter(groups__name="Beta")
+            elif obj_filter == "staff":
+                qs = qs.filter(is_staff=True)
+
+            return qs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["filter"] = self.request.GET.get("filter", "all")
+            context["filters"] = self.filters
+            return context
 
     class Update(ComponentFormMixin, SmartUpdateView):
         class Form(UserUpdateForm):
@@ -1953,7 +1971,17 @@ class OrgCRUDL(SmartCRUDL):
         default_order = ("-credits", "-created_on")
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
         link_fields = ("name", "owner")
-        title = _("Workspaces")
+        filters = (
+            ("all", _("All")),
+            ("anon", _("Anonymous")),
+            ("flagged", _("Flagged")),
+            ("suspended", _("Suspended")),
+            ("nyaruka", "Nyaruka"),
+        )
+
+        @csrf_exempt
+        def dispatch(self, *args, **kwargs):
+            return super().dispatch(*args, **kwargs)
 
         def get_used(self, obj):
             if not obj.credits:  # pragma: needs cover
@@ -2007,36 +2035,28 @@ class OrgCRUDL(SmartCRUDL):
             )
 
         def derive_queryset(self, **kwargs):
-            queryset = super().derive_queryset(**kwargs)
-            queryset = queryset.filter(is_active=True)
+            qs = super().derive_queryset(**kwargs).filter(is_active=True)
 
             brands = self.request.branding.get("keys")
             if brands:
-                queryset = queryset.filter(brand__in=brands)
+                qs = qs.filter(brand__in=brands)
 
-            anon = self.request.GET.get("anon")
-            if anon:
-                queryset = queryset.filter(is_anon=str_to_bool(anon))
+            obj_filter = self.request.GET.get("filter")
+            if obj_filter == "anon":
+                qs = qs.filter(is_anon=True)
+            elif obj_filter == "flagged":
+                qs = qs.filter(is_flagged=True)
+            elif obj_filter == "suspended":
+                qs = qs.filter(is_suspended=True)
+            elif obj_filter and obj_filter != "all":
+                qs = qs.filter(name__icontains=obj_filter)
 
-            suspended = self.request.GET.get("suspended")
-            if suspended:
-                queryset = queryset.filter(is_suspended=str_to_bool(suspended))
-
-            flagged = self.request.GET.get("flagged")
-            if flagged:
-                queryset = queryset.filter(is_flagged=str_to_bool(flagged))
-
-            queryset = queryset.annotate(credits=Sum("topups__credits"))
-            queryset = queryset.annotate(paid=Sum("topups__price"))
-
-            return queryset
+            return qs.annotate(credits=Sum("topups__credits")).annotate(paid=Sum("topups__price"))
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["searches"] = ["Nyaruka"]
-            context["anon_query"] = str_to_bool(self.request.GET.get("anon"))
-            context["flagged_query"] = str_to_bool(self.request.GET.get("flagged"))
-            context["suspended_query"] = str_to_bool(self.request.GET.get("suspended"))
+            context["filter"] = self.request.GET.get("filter", "all")
+            context["filters"] = self.filters
             return context
 
         def lookup_field_link(self, context, field, obj):
