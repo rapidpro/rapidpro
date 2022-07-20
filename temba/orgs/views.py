@@ -709,6 +709,10 @@ class UserCRUDL(SmartCRUDL):
         search_fields = ("username",)
         filters = (("all", _("All")), ("beta", _("Beta")), ("staff", _("Staff")))
 
+        @csrf_exempt
+        def dispatch(self, *args, **kwargs):
+            return super().dispatch(*args, **kwargs)
+
         def get_username(self, user):
             return mark_safe(f"<a href='{reverse('orgs.user_update', args=(user.id,))}'>{user.username}</a>")
 
@@ -1975,7 +1979,10 @@ class OrgCRUDL(SmartCRUDL):
             ("suspended", _("Suspended")),
             ("nyaruka", "Nyaruka"),
         )
-        name_filters = {"nyaruka"}
+
+        @csrf_exempt
+        def dispatch(self, *args, **kwargs):
+            return super().dispatch(*args, **kwargs)
 
         def get_used(self, obj):
             if not obj.credits:  # pragma: needs cover
@@ -2042,7 +2049,7 @@ class OrgCRUDL(SmartCRUDL):
                 qs = qs.filter(is_flagged=True)
             elif obj_filter == "suspended":
                 qs = qs.filter(is_suspended=True)
-            elif obj_filter in self.name_filters:
+            elif obj_filter and obj_filter != "all":
                 qs = qs.filter(name__icontains=obj_filter)
 
             return qs.annotate(credits=Sum("topups__credits")).annotate(paid=Sum("topups__price"))

@@ -19,6 +19,5 @@
 
     .search-box.flex-grow
       %form#search-form(method='get')
-        {% csrf_token %}
         %input(type="hidden" name="filter" value='{{ filter }}')
         %temba-textinput(name='search' value='{{ search }}')
