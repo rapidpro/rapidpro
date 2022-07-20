@@ -1157,7 +1157,7 @@ class MenuMixin(OrgPermsMixin):
         if icon:
             menu_item["icon"] = icon
 
-        if count:  # pragma: no cover
+        if count is not None:
             menu_item["count"] = count
 
         if endpoint:
