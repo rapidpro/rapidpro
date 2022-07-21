@@ -564,6 +564,7 @@ class ContactCRUDL(SmartCRUDL):
         "update_fields",
         "update_fields_input",
         "export",
+        "interrupt",
         "block",
         "restore",
         "archive",
@@ -894,6 +895,14 @@ class ContactCRUDL(SmartCRUDL):
                             title=_("Open Ticket"),
                             href=reverse("contacts.contact_open_ticket", args=[self.object.id]),
                             modax=_("Open Ticket"),
+                        )
+                    )
+                if self.has_org_perm("contacts.contact_interrupt"):
+                    links.append(
+                        dict(
+                            title=_("Interrupt"),
+                            js_class="posterize",
+                            href=reverse("contacts.contact_interrupt", args=(self.object.id,)),
                         )
                     )
 
@@ -1523,6 +1532,19 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_success_url(self):
             return f"{reverse('tickets.ticket_list')}all/open/{self.ticket.uuid}/"
+
+    class Interrupt(OrgObjPermsMixin, SmartUpdateView):
+        """
+        Interrupt this contact
+        """
+
+        fields = ()
+        success_url = "uuid@contacts.contact_read"
+        success_message = ""
+
+        def save(self, obj):
+            obj.interrupt()
+            return obj
 
     class Block(OrgObjPermsMixin, SmartUpdateView):
         """

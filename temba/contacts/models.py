@@ -1066,6 +1066,13 @@ class Contact(LegacyUUIDMixin, SmartModel):
         self.modify(user, [mod], refresh=False)
         return self.tickets.order_by("id").last()
 
+    def interrupt(self):
+        """
+        Interrupts this contact's current flow
+        """
+        if self.current_flow:
+            mailroom.queue_interrupt(self.org, contacts=[self])
+
     def block(self, user):
         """
         Blocks this contact removing it from all non-smart groups

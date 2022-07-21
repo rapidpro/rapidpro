@@ -1617,6 +1617,31 @@ class ContactTest(TembaTest):
         self.assertEqual("Looks sus", ticket.body)
 
     @mock_mailroom
+    def test_interrupt(self, mr_mocks):
+        # noop when contact not in a flow
+        self.joe.interrupt()
+
+        self.assertEqual([], mr_mocks.queued_batch_tasks)
+
+        flow = self.create_flow("Test")
+        self.joe.current_flow = flow
+        self.joe.save(update_fields=("current_flow",))
+
+        self.joe.interrupt()
+
+        self.assertEqual(
+            [
+                {
+                    "type": "interrupt_sessions",
+                    "org_id": self.org.id,
+                    "task": {"contact_ids": [self.joe.id]},
+                    "queued_on": matchers.Datetime(),
+                },
+            ],
+            mr_mocks.queued_batch_tasks,
+        )
+
+    @mock_mailroom
     def test_release(self, mr_mocks):
         # create a contact with a message
         old_contact = self.create_contact("Jose", phone="+12065552000")
