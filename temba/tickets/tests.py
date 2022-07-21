@@ -730,6 +730,23 @@ class TopicTest(TembaTest):
         self.assertIsNone(topic15)
         self.assertEqual(Topic.ImportResult.IGNORED_LIMIT_REACHED, result)
 
+    def test_release(self):
+        topic1 = Topic.create(self.org, self.admin, "Sales")
+        flow = self.create_flow("Test")
+        flow.topic_dependencies.add(topic1)
+
+        topic1.release(self.admin)
+
+        self.assertFalse(topic1.is_active)
+        self.assertTrue(topic1.name.startswith("deleted-"))
+
+        flow.refresh_from_db()
+        self.assertTrue(flow.has_issues)
+
+        # can't release default topic
+        with self.assertRaises(AssertionError):
+            self.org.default_ticket_topic.release(self.admin)
+
 
 class TeamTest(TembaTest):
     def test_create(self):
