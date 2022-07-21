@@ -679,6 +679,10 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         internal = self.org.ticketers.get()
         general = self.org.default_ticket_topic
 
+        # create deleted ticketer
+        deleted_ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Deleted", config={})
+        deleted_ticketer.release(self.admin)
+
         open_url = reverse("contacts.contact_open_ticket", args=[contact.id])
 
         self.assertUpdateFetch(

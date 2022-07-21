@@ -1495,8 +1495,8 @@ class ContactCRUDL(SmartCRUDL):
             def __init__(self, instance, org, **kwargs):
                 super().__init__(**kwargs)
 
-                self.fields["ticketer"].queryset = org.ticketers.order_by("id")
-                self.fields["topic"].queryset = org.topics.order_by("name")
+                self.fields["ticketer"].queryset = org.ticketers.filter(is_active=True).order_by("id")
+                self.fields["topic"].queryset = org.topics.filter(is_active=True).order_by("name")
                 self.fields["assignee"].queryset = Ticket.get_allowed_assignees(org).order_by("email")
 
         form_class = Form
@@ -1510,12 +1510,12 @@ class ContactCRUDL(SmartCRUDL):
 
         def derive_exclude(self):
             # don't show ticketer select if they don't have external ticketers
-            return ["ticketer"] if self.request.org.ticketers.count() == 1 else []
+            return ["ticketer"] if self.request.org.ticketers.filter(is_active=True).count() == 1 else []
 
         def save(self, obj):
             self.ticket = obj.open_ticket(
                 self.request.user,
-                self.form.cleaned_data.get("ticketer") or self.request.org.ticketers.first(),
+                self.form.cleaned_data.get("ticketer") or self.request.org.ticketers.filter(is_active=True).first(),
                 self.form.cleaned_data["topic"],
                 self.form.cleaned_data["body"],
                 assignee=self.form.cleaned_data.get("assignee"),
