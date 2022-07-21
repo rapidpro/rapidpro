@@ -271,3 +271,40 @@ class CourierURLHandler(ExternalURLHandler):
 
 class MailroomURLHandler(ExternalURLHandler):
     service = "Mailroom"
+
+
+class DropdownMenu:
+    """
+    Utility for building dropdown menus
+    """
+
+    def __init__(self):
+        self.items = []
+
+    def add_url_post(self, label: str, url: str):
+        self.items.append({"title": label, "href": url, "js_class": "posterize"})
+
+    def add_modax(self, label: str, modal_id: str, url: str, *, title: str = None, on_submit: str = None):
+        self.items.append(
+            {
+                "id": modal_id,
+                "title": label,
+                "modax": title or label,
+                "href": url,
+                "on_submit": on_submit,
+            }
+        )
+
+
+class DropdownMenuMixin:
+    """
+    Mixin for views that have a dropdown menu
+    """
+
+    def get_gear_links(self):
+        menu = DropdownMenu()
+        self.build_dropdown_menu(menu)
+        return menu.items
+
+    def build_dropdown_menu(self, menu: DropdownMenu):  # pragma: no cover
+        pass

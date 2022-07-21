@@ -59,7 +59,7 @@ from temba.utils.fields import (
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.models.es import IDSliceQuerySet
-from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin, SpaMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin, DropdownMenuMixin, NonAtomicMixin, SpaMixin
 
 from .models import (
     URN,
@@ -774,7 +774,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return HttpResponse(json.dumps(json_result), content_type="application/json")
 
-    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, DropdownMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         fields = ("name",)
         select_related = ("current_flow",)
@@ -862,104 +862,50 @@ class ContactCRUDL(SmartCRUDL):
 
             return HttpResponse("unknown action", status=400)  # pragma: no cover
 
-        def get_gear_links(self):
-            links = []
-
+        def build_dropdown_menu(self, menu):
             if self.object.status == Contact.STATUS_ACTIVE:
-
                 if not self.is_spa() and self.has_org_perm("msgs.broadcast_send"):
-                    links.append(
-                        dict(
-                            id="send-message",
-                            title=_("Send Message"),
-                            style="button-primary",
-                            href=f"{reverse('msgs.broadcast_send')}?c={self.object.uuid}",
-                            modax=_("Send Message"),
-                        )
+                    menu.add_modax(
+                        _("Send Message"), "send-message", f"{reverse('msgs.broadcast_send')}?c={self.object.uuid}"
                     )
-
                 if self.has_org_perm("flows.flow_broadcast"):
-                    links.append(
-                        dict(
-                            id="start-flow",
-                            title=_("Start Flow"),
-                            href=f"{reverse('flows.flow_broadcast', args=[])}?c={self.object.uuid}",
-                            modax=_("Start Flow"),
-                        )
+                    menu.add_modax(
+                        _("Start Flow"), "start-flow", f"{reverse('flows.flow_broadcast')}?c={self.object.uuid}"
                     )
                 if self.has_org_perm("contacts.contact_open_ticket"):
-                    links.append(
-                        dict(
-                            id="open-ticket",
-                            title=_("Open Ticket"),
-                            href=reverse("contacts.contact_open_ticket", args=[self.object.id]),
-                            modax=_("Open Ticket"),
-                        )
+                    menu.add_modax(
+                        _("Open Ticket"), "open-ticket", reverse("contacts.contact_open_ticket", args=[self.object.id])
                     )
 
             if self.has_org_perm("contacts.contact_update"):
-                links.append(
-                    dict(
-                        id="edit-contact",
-                        title=_("Edit"),
-                        modax=_("Edit Contact"),
-                        on_submit="contactUpdated()",
-                        href=f"{reverse('contacts.contact_update', args=[self.object.pk])}",
-                    )
+                menu.add_modax(
+                    _("Edit"),
+                    "edit-contact",
+                    f"{reverse('contacts.contact_update', args=[self.object.id])}",
+                    title=_("Edit Contact"),
+                    on_submit="contactUpdated()",
                 )
 
                 if not self.is_spa():
-                    links.append(
-                        dict(
-                            id="update-custom-fields",
-                            title=_("Custom Fields"),
-                            modax=_("Custom Fields"),
-                            on_submit="contactUpdated()",
-                            href=f"{reverse('contacts.contact_update_fields', args=[self.object.pk])}",
-                        )
+                    menu.add_modax(
+                        _("Custom Fields"),
+                        "update-custom-fields",
+                        f"{reverse('contacts.contact_update_fields', args=[self.object.id])}",
+                        on_submit="contactUpdated()",
                     )
 
                 if self.object.status != Contact.STATUS_ACTIVE and self.has_org_perm("contacts.contact_restore"):
-                    links.append(
-                        dict(
-                            title=_("Activate"),
-                            style="button-primary",
-                            js_class="posterize",
-                            href=reverse("contacts.contact_restore", args=(self.object.pk,)),
-                        )
-                    )
-
+                    menu.add_url_post(_("Activate"), reverse("contacts.contact_restore", args=(self.object.id,)))
                 if self.object.status != Contact.STATUS_BLOCKED and self.has_org_perm("contacts.contact_block"):
-                    links.append(
-                        dict(
-                            title=_("Block"),
-                            style="button-primary",
-                            js_class="posterize",
-                            href=reverse("contacts.contact_block", args=(self.object.pk,)),
-                        )
-                    )
-
+                    menu.add_url_post(_("Block"), reverse("contacts.contact_block", args=(self.object.id,)))
                 if self.object.status != Contact.STATUS_ARCHIVED and self.has_org_perm("contacts.contact_archive"):
-                    links.append(
-                        dict(
-                            title=_("Archive"),
-                            style="btn-primary",
-                            js_class="posterize",
-                            href=reverse("contacts.contact_archive", args=(self.object.pk,)),
-                        )
-                    )
+                    menu.add_url_post(_("Archive"), reverse("contacts.contact_archive", args=(self.object.id,)))
 
-            user = self.get_user()
-            if user.is_superuser or user.is_staff:
-                links.append(
-                    dict(
-                        title=_("Service"),
-                        posterize=True,
-                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("contacts.contact_read", args=[self.get_object().uuid])}',
-                    )
+            if self.request.user.is_superuser or self.request.user.is_staff:
+                menu.add_url_post(
+                    _("Service"),
+                    f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("contacts.contact_read", args=[self.object.uuid])}',
                 )
-
-            return links
 
     class Scheduled(OrgObjPermsMixin, SmartReadView):
         """
