@@ -54,17 +54,17 @@
                     -if sort_direction == 'desc'
                       %a(href="{{request.path}}?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
                         %div
-                          {{ field.label }}
+                          {{ field.name }}
                           %span.sort.icon.icon-arrow-down-2.sort-asc.visible
                     -else
                       %a(href="{{request.path}}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
                         %div
-                          {{ field.label }}
+                          {{ field.name }}
                           %span.sort.icon.icon-arrow-up51.sort-desc.visible
                   -else
                     %a(href="{{request.path}}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
                       %div
-                        {{ field.label }}
+                        {{ field.name }}
                         %span.sort.icon.icon-arrow-down-2.sort-desc
             %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
               - if object_list

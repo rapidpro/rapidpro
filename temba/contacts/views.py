@@ -37,6 +37,7 @@ from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
+from temba.orgs.models import User
 from temba.orgs.views import (
     DependencyDeleteModal,
     DependencyUsagesModal,
@@ -45,7 +46,7 @@ from temba.orgs.views import (
     OrgObjPermsMixin,
     OrgPermsMixin,
 )
-from temba.tickets.models import Ticket
+from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import (
@@ -559,6 +560,7 @@ class ContactCRUDL(SmartCRUDL):
         "filter",
         "blocked",
         "omnibox",
+        "open_ticket",
         "update_fields",
         "update_fields_input",
         "export",
@@ -883,6 +885,15 @@ class ContactCRUDL(SmartCRUDL):
                             title=_("Start Flow"),
                             href=f"{reverse('flows.flow_broadcast', args=[])}?c={self.object.uuid}",
                             modax=_("Start Flow"),
+                        )
+                    )
+                if self.has_org_perm("contacts.contact_open_ticket"):
+                    links.append(
+                        dict(
+                            id="open-ticket",
+                            title=_("Open Ticket"),
+                            href=reverse("contacts.contact_open_ticket", args=[self.object.id]),
+                            modax=_("Open Ticket"),
                         )
                     )
 
@@ -1461,6 +1472,57 @@ class ContactCRUDL(SmartCRUDL):
                 if contact_field:
                     context["value"] = self.get_object().get_field_display(contact_field)
             return context
+
+    class OpenTicket(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+        """
+        Opens a new ticket for this contact.
+        """
+
+        class Form(forms.Form):
+            ticketer = forms.ModelChoiceField(
+                queryset=Ticketer.objects.none(), label=_("Ticket Service"), required=True
+            )
+            topic = forms.ModelChoiceField(queryset=Topic.objects.none(), label=_("Topic"), required=True)
+            body = forms.CharField(label=_("Body"), widget=forms.Textarea, required=True)
+            assignee = forms.ModelChoiceField(
+                queryset=User.objects.none(),
+                label=_("Assignee"),
+                widget=SelectWidget(),
+                required=False,
+                empty_label=_("Unassigned"),
+            )
+
+            def __init__(self, instance, org, **kwargs):
+                super().__init__(**kwargs)
+
+                self.fields["ticketer"].queryset = org.ticketers.filter(is_active=True).order_by("id")
+                self.fields["topic"].queryset = org.topics.filter(is_active=True).order_by("name")
+                self.fields["assignee"].queryset = Ticket.get_allowed_assignees(org).order_by("email")
+
+        form_class = Form
+        submit_button_name = _("Open")
+        success_message = ""
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
+            return kwargs
+
+        def derive_exclude(self):
+            # don't show ticketer select if they don't have external ticketers
+            return ["ticketer"] if self.request.org.ticketers.filter(is_active=True).count() == 1 else []
+
+        def save(self, obj):
+            self.ticket = obj.open_ticket(
+                self.request.user,
+                self.form.cleaned_data.get("ticketer") or self.request.org.ticketers.filter(is_active=True).first(),
+                self.form.cleaned_data["topic"],
+                self.form.cleaned_data["body"],
+                assignee=self.form.cleaned_data.get("assignee"),
+            )
+
+        def get_success_url(self):
+            return f"{reverse('tickets.ticket_list')}all/open/{self.ticket.uuid}/"
 
     class Block(OrgObjPermsMixin, SmartUpdateView):
         """

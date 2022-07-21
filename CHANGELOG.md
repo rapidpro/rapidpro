@@ -1,3 +1,29 @@
+v7.5.1
+----------
+ * Allow claiming WAC test numbers
+ * Move black setting into pyproject.toml
+ * Add Open Ticket modal view to contact read page
+
+v7.5.0
+----------
+ * Improve user list page
+ * Add new fields to Ticket record who or what flow opened a ticket
+ * Refresh menu on modax redircts, omit excess listeners from legacy lists
+ * Fix field label vs name in new UI
+ * Add start flow bulk action in new UI
+ * Show zeros in menu items in new UI
+ * Add workspace selection to account page in new UI
+ * Scroll main content pane up on page replacement in new UI
+
+v7.4.2
+----------
+ * Update copyright notice
+ * Update stable versions
+
+v7.4.1
+----------
+ * Update locale files
+
 v7.4.0
 ----------
  * Remove superfulous Beta group perm

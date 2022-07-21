@@ -32,7 +32,7 @@
                 %temba-icon(name="tag" clickable="true")
               .label-menu.px-6.py-4(slot="dropdown")
                 -for label in labels_flat
-                  .lbl-menu(onclick='labelObjectRows({{label.id}})' data-id='{{label.id}}')
+                  .lbl-menu(onclick='labelObjectRows({{label.id}}, false, refreshMenu)' data-id='{{label.id}}')
                     .flex.items-center.py-1.hover-linked
                       .glyph.message-label.label-checkbox
                       .name.px-1
@@ -47,12 +47,12 @@
                       
 
           -if 'restore' in actions
-            .linked.ml-4(onclick='runActionOnObjectRows("restore")')
+            .linked.ml-4(onclick='runActionOnObjectRows("restore", refreshMenu)')
               %temba-tip(position="top" text='{{_("Reactivate")|escapejs}}')
                 %temba-icon.show-loading(name="publish" size="1.2" clickable="true")
   
           -if 'archive' in actions
-            .linked.ml-4(onclick='runActionOnObjectRows("archive")')
+            .linked.ml-4(onclick='runActionOnObjectRows("archive", refreshMenu)')
               %temba-tip(position="top" text='{{_("Archive")|escapejs}}')
                 %temba-icon.show-loading(name="archive" clickable="true")
 
@@ -69,15 +69,20 @@
                 %temba-icon(name="trash-2" clickable="true")
 
           -if 'unlabel' in actions
-            .linked.ml-4(onclick="unlabelObjectRows({{current_group.pk}});")
+            .linked.ml-4(onclick="unlabelObjectRows({{current_group.pk}}, false, refreshMenu);")
               %temba-tip(position="top" text='{{_("Remove from group")|escapejs}}')
                 %temba-icon.show-loading(name="x" clickable="true")
 
           -if 'block' in actions
-            .linked.ml-4(onclick='runActionOnObjectRows("block")')
+            .linked.ml-4(onclick='runActionOnObjectRows("block", refreshMenu)')
               %temba-tip(position="top" text='{{_("Block")|escapejs}}')
                 %temba-icon.show-loading(name="slash" clickable="true")
-        
+
+          -if org_perms.flows.flow_broadcast
+            .linked.ml-4(onclick='handleStartFlowClicked(event)')
+              %temba-tip(position="top" text='{{_("Start Flow")|escapejs}}')
+                %temba-icon.show-loading(name="flow" clickable="true")
+
   .paging-range.mr-4
     -blocktrans trimmed with start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma total=paginator.count|intcomma
         {{ start }} - {{ end }} of {{ total }}

@@ -369,6 +369,20 @@ def apply_modifiers(org, user, contacts, modifiers: list):
             for contact in contacts:
                 update_groups_locally(contact, [g.uuid for g in mod.groups], add=add)
 
+        elif mod.type == "ticket":
+            ticketer = org.ticketers.get(uuid=mod.ticketer.uuid, is_active=True)
+            topic = org.topics.get(uuid=mod.topic.uuid, is_active=True)
+            assignee = org.users.get(email=mod.assignee.email, is_active=True) if mod.assignee else None
+            for contact in contacts:
+                contact.tickets.create(
+                    org=org,
+                    ticketer=ticketer,
+                    topic=topic,
+                    status=Ticket.STATUS_OPEN,
+                    body=mod.body,
+                    assignee=assignee,
+                )
+
         elif mod.type == "urns":
             assert len(contacts) == 1, "should never be trying to bulk update contact URNs"
             assert mod.modification == "set", "should only be setting URNs from here"

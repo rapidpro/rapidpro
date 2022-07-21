@@ -4112,40 +4112,26 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_administration(self):
         self.setUpLocations()
 
-        def assert_superuser_only(mgmt_url):
-            # no access to anon
-            self.client.logout()
-            self.assertLoginRedirect(self.client.get(mgmt_url))
-
-            # or editors
-            self.login(self.editor)
-            self.assertLoginRedirect(self.client.get(mgmt_url))
-
-            # or even admins
-            self.login(self.admin)
-            self.assertLoginRedirect(self.client.get(mgmt_url))
-
-            # only superusers or staff
-            self.login(self.superuser)
-            response = self.client.get(mgmt_url)
-            self.assertEqual(200, response.status_code)
-
         manage_url = reverse("orgs.org_manage")
         update_url = reverse("orgs.org_update", args=[self.org.id])
         delete_url = reverse("orgs.org_delete", args=[self.org.id])
 
-        assert_superuser_only(manage_url)
-        assert_superuser_only(update_url)
-        assert_superuser_only(delete_url)
+        self.assertStaffOnly(manage_url)
+        self.assertStaffOnly(update_url)
+        self.assertStaffOnly(delete_url)
 
-        response = self.client.get(manage_url + "?flagged=1")
-        self.assertFalse(self.org in response.context["object_list"])
+        response = self.client.get(manage_url + "?filter=flagged")
+        self.assertNotIn(self.org, response.context["object_list"])
 
-        response = self.client.get(manage_url + "?anon=1")
-        self.assertFalse(self.org in response.context["object_list"])
+        response = self.client.get(manage_url + "?filter=anon")
+        self.assertNotIn(self.org, response.context["object_list"])
 
-        response = self.client.get(manage_url + "?suspended=1")
-        self.assertFalse(self.org in response.context["object_list"])
+        response = self.client.get(manage_url + "?filter=suspended")
+        self.assertNotIn(self.org, response.context["object_list"])
+
+        response = self.client.get(manage_url + "?filter=nyaruka")
+        self.assertIn(self.org, response.context["object_list"])
+        self.assertNotIn(self.org2, response.context["object_list"])
 
         response = self.client.get(manage_url)
         self.assertEqual(200, response.status_code)
@@ -4158,7 +4144,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # should contain our test org
         self.assertContains(response, "Temba")
 
-        response = self.client.get(manage_url + "?flagged=1")
+        response = self.client.get(manage_url + "?filter=flagged")
         self.assertTrue(self.org in response.context["object_list"])
 
         # and can go to that org
@@ -4489,12 +4475,34 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class UserCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_list(self):
+        list_url = reverse("orgs.user_list")
+
+        self.assertStaffOnly(list_url)
+
+        response = self.requestView(list_url, self.customer_support)
+        self.assertEqual(9, len(response.context["object_list"]))
+
+        response = self.requestView(list_url + "?filter=beta", self.customer_support)
+        self.assertEqual(set(), set(response.context["object_list"]))
+
+        response = self.requestView(list_url + "?filter=staff", self.customer_support)
+        self.assertEqual({self.customer_support, self.superuser}, set(response.context["object_list"]))
+
+        response = self.requestView(list_url + "?search=admin@nyaruka.com", self.customer_support)
+        self.assertEqual({self.admin}, set(response.context["object_list"]))
+
+        response = self.requestView(list_url + "?search=admin@nyaruka.com", self.customer_support)
+        self.assertEqual({self.admin}, set(response.context["object_list"]))
+
+        response = self.requestView(list_url + "?search=Andy", self.customer_support)
+        self.assertEqual({self.admin}, set(response.context["object_list"]))
+
     def test_update(self):
         update_url = reverse("orgs.user_update", args=[self.editor.id])
 
         # this is a customer support only view
-        self.assertLoginRedirect(self.requestView(update_url, self.editor))
-        self.assertLoginRedirect(self.requestView(update_url, self.admin))
+        self.assertStaffOnly(update_url)
 
         response = self.requestView(update_url, self.customer_support)
         self.assertEqual(200, response.status_code)
@@ -4550,8 +4558,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         delete_url = reverse("orgs.user_delete", args=[self.editor.id])
 
         # this is a customer support only view
-        self.assertLoginRedirect(self.requestView(delete_url, self.editor))
-        self.assertLoginRedirect(self.requestView(delete_url, self.admin))
+        self.assertStaffOnly(delete_url)
 
         response = self.requestView(delete_url, self.customer_support)
         self.assertEqual(200, response.status_code)
