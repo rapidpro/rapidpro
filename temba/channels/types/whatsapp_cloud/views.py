@@ -123,7 +123,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                             display_phone_number=target_phone["display_phone_number"],
                             phone_number_id=target_phone["id"],
                             waba_id=target_waba_details["id"],
-                            currency=target_waba_details["currency"],
+                            currency=target_waba_details.get("currency", "USD"),
                             business_id=business_id,
                             message_template_namespace=target_waba_details["message_template_namespace"],
                         )

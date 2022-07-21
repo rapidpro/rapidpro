@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "7.5.0"
+version = "7.5.1"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 license = "AGPL-3"
@@ -67,6 +67,9 @@ isort = "^5.10.1"
 codecov = "^2.1.11"
 responses = "^0.12.1"
 beautifulsoup4 = "^4.9.3"
+
+[tool.black]
+line-length = 119
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -40,7 +40,7 @@ if __name__ == "__main__":
     cmd("isort temba")
 
     status("Running black")
-    cmd("black --line-length=119 temba")
+    cmd("black temba")
 
     if not args.skip_flake:
         status("Running flake8")
