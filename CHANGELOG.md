@@ -1,3 +1,9 @@
+v7.5.1
+----------
+ * Allow claiming WAC test numbers
+ * Move black setting into pyproject.toml
+ * Add Open Ticket modal view to contact read page
+
 v7.5.0
 ----------
  * Improve user list page
