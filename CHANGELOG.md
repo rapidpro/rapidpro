@@ -1,3 +1,9 @@
+v7.5.2
+----------
+ * Fix typo on archive button
+ * Only show active ticketers and topics on Open Ticket modal
+ * Add data migration to fix non-waiting sessions with no ended_on
+
 v7.5.1
 ----------
  * Allow claiming WAC test numbers
