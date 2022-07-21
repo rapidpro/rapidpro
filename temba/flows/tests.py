@@ -5636,61 +5636,55 @@ class FlowRevisionTest(TembaTest):
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
 
 
-class FailGhostRunsMigrationTest(MigrationTest):
+class EnsureSessionEndedOnMigrationTest(MigrationTest):
     app = "flows"
-    migrate_from = "0288_flowlabel_is_system"
-    migrate_to = "0289_fail_ghost_runs"
+    migrate_from = "0291_flowrun_flows_run_active_or_waiting_has_session"
+    migrate_to = "0292_ensure_session_ended_on"
 
     def setUpBeforeMigration(self, apps):
         contact = self.create_contact("Bob", phone="+1234567890")
-        flow = self.create_flow("Flow")
 
-        def create_session(status: str):
+        def create_session(status: str, ended_on):
+            uuid = uuid4()
             return FlowSession.objects.create(
-                uuid=uuid4(),
+                uuid=uuid,
                 org=self.org,
                 contact=contact,
                 status=status,
                 created_on=timezone.now(),
+                ended_on=ended_on,
                 wait_started_on=timezone.now(),
                 wait_expires_on=timezone.now() + timedelta(days=7),
                 wait_resume_on_expire=False,
+                output={"uuid": str(uuid)},
             )
 
-        def create_run(session, status: str):
-            return FlowRun.objects.create(
-                uuid=uuid4(),
-                org=self.org,
-                session=session,
-                flow=flow,
-                contact=contact,
-                status=status,
-                created_on=timezone.now(),
-                modified_on=timezone.now(),
-            )
+        self.session1 = create_session(status=FlowSession.STATUS_WAITING, ended_on=None)
+        self.session2 = create_session(status=FlowSession.STATUS_COMPLETED, ended_on=None)
+        self.session3 = create_session(status=FlowSession.STATUS_INTERRUPTED, ended_on=None)
+        self.session4 = create_session(status=FlowSession.STATUS_EXPIRED, ended_on=None)
+        self.session5 = create_session(status=FlowSession.STATUS_FAILED, ended_on=None)
 
-        self.run1 = create_run(create_session(FlowSession.STATUS_WAITING), FlowRun.STATUS_WAITING)
-        self.run2 = create_run(create_session(FlowSession.STATUS_WAITING), FlowRun.STATUS_ACTIVE)
-        self.run3 = create_run(None, FlowRun.STATUS_ACTIVE)
-        self.run4 = create_run(None, FlowRun.STATUS_WAITING)
-        self.run5 = create_run(None, FlowRun.STATUS_COMPLETED)
+        # a non-waiting session with an ended_on shouldn't be changed
+        self.session6 = create_session(
+            status=FlowSession.STATUS_FAILED, ended_on=datetime(2022, 7, 12, 11, 0, 0, 0, timezone.utc)
+        )
 
     def test_migration(self):
-        self.run1.refresh_from_db()
-        self.assertEqual(FlowRun.STATUS_WAITING, self.run1.status)  # unchanged
-        self.assertIsNone(self.run1.exited_on)
+        self.session1.refresh_from_db()
+        self.assertIsNone(self.session1.ended_on)
 
-        self.run2.refresh_from_db()
-        self.assertEqual(FlowRun.STATUS_ACTIVE, self.run2.status)  # unchanged
-        self.assertIsNone(self.run2.exited_on)
+        self.session2.refresh_from_db()
+        self.assertIsNotNone(self.session2.ended_on)
 
-        self.run3.refresh_from_db()
-        self.assertEqual(FlowRun.STATUS_FAILED, self.run3.status)
-        self.assertIsNotNone(self.run3.exited_on)
+        self.session3.refresh_from_db()
+        self.assertIsNotNone(self.session3.ended_on)
 
-        self.run4.refresh_from_db()
-        self.assertEqual(FlowRun.STATUS_FAILED, self.run4.status)
-        self.assertIsNotNone(self.run4.exited_on)
+        self.session4.refresh_from_db()
+        self.assertIsNotNone(self.session4.ended_on)
 
-        self.run5.refresh_from_db()
-        self.assertEqual(FlowRun.STATUS_COMPLETED, self.run5.status)  # unchanged
+        self.session5.refresh_from_db()
+        self.assertIsNotNone(self.session5.ended_on)
+
+        self.session6.refresh_from_db()
+        self.assertEqual(datetime(2022, 7, 12, 11, 0, 0, 0, timezone.utc), self.session6.ended_on)  # unchanged
