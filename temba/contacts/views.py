@@ -1543,7 +1543,7 @@ class ContactCRUDL(SmartCRUDL):
         success_message = ""
 
         def save(self, obj):
-            obj.interrupt()
+            obj.interrupt(self.request.user)
             return obj
 
     class Block(OrgObjPermsMixin, SmartUpdateView):

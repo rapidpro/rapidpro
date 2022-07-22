@@ -1619,27 +1619,12 @@ class ContactTest(TembaTest):
     @mock_mailroom
     def test_interrupt(self, mr_mocks):
         # noop when contact not in a flow
-        self.joe.interrupt()
-
-        self.assertEqual([], mr_mocks.queued_batch_tasks)
+        self.assertFalse(self.joe.interrupt(self.admin))
 
         flow = self.create_flow("Test")
-        self.joe.current_flow = flow
-        self.joe.save(update_fields=("current_flow",))
+        MockSessionWriter(self.joe, flow).wait().save()
 
-        self.joe.interrupt()
-
-        self.assertEqual(
-            [
-                {
-                    "type": "interrupt_sessions",
-                    "org_id": self.org.id,
-                    "task": {"contact_ids": [self.joe.id]},
-                    "queued_on": matchers.Datetime(),
-                },
-            ],
-            mr_mocks.queued_batch_tasks,
-        )
+        self.assertTrue(self.joe.interrupt(self.admin))
 
     @mock_mailroom
     def test_release(self, mr_mocks):
