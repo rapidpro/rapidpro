@@ -638,6 +638,7 @@ class TembaTestMixin:
         assignee=None,
         opened_on=None,
         opened_by=None,
+        opened_in=None,
         closed_on=None,
         closed_by=None,
     ):
@@ -653,6 +654,8 @@ class TembaTestMixin:
             status=Ticket.STATUS_CLOSED if closed_on else Ticket.STATUS_OPEN,
             assignee=assignee,
             opened_on=opened_on,
+            opened_by=opened_by,
+            opened_in=opened_in,
             closed_on=closed_on,
         )
         TicketEvent.objects.create(

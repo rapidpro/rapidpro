@@ -1442,6 +1442,8 @@ class TicketReadSerializer(ReadSerializer):
     topic = fields.TopicField()
     assignee = fields.UserField()
     opened_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    opened_by = fields.UserField()
+    opened_in = fields.FlowField()
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     closed_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
@@ -1459,6 +1461,8 @@ class TicketReadSerializer(ReadSerializer):
             "body",
             "assignee",
             "opened_on",
+            "opened_by",
+            "opened_in",
             "modified_on",
             "closed_on",
         )
