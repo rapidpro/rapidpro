@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("flows", "0292_ensure_session_ended_on"),
+        ("flows", "0293_alter_flow_topic_dependencies_and_more"),
     ]
 
     operations = [
