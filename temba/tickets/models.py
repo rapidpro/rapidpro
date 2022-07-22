@@ -178,6 +178,16 @@ class Topic(TembaModel, DependencyMixin):
     def create_from_import_def(cls, org, user, definition: dict):
         return cls.create(org, user, definition["name"])
 
+    def release(self, user):
+        assert not (self.is_system and self.org.is_active), "can't release system topics"
+
+        super().release(user)
+
+        self.is_active = False
+        self.name = self._deleted_name()
+        self.modified_by = user
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
+
     class Meta:
         constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_topic_names")]
 
