@@ -4549,10 +4549,12 @@ class APITest(TembaTest):
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
         ann = self.create_contact("Ann", urns=["twitter:annie"])
         bob = self.create_contact("Bob", urns=["twitter:bobby"])
+        flow = self.create_flow("Support")
+
         ticket1 = self.create_ticket(
-            mailgun, ann, "Help", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
+            mailgun, ann, "Help", opened_by=self.admin, closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
         )
-        ticket2 = self.create_ticket(mailgun, bob, "Really")
+        ticket2 = self.create_ticket(mailgun, bob, "Really", opened_in=flow)
         ticket3 = self.create_ticket(mailgun, bob, "Pleeeease help", assignee=self.agent)
 
         # on another org
@@ -4560,7 +4562,7 @@ class APITest(TembaTest):
         self.create_ticket(zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Stuff")
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
             response = self.fetchJSON(url, readonly_models={Ticket})
 
         resp_json = response.json()
@@ -4578,6 +4580,8 @@ class APITest(TembaTest):
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Pleeeease help",
                     "opened_on": format_datetime(ticket3.opened_on),
+                    "opened_by": None,
+                    "opened_in": None,
                     "modified_on": format_datetime(ticket3.modified_on),
                     "closed_on": None,
                 },
@@ -4590,6 +4594,8 @@ class APITest(TembaTest):
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Really",
                     "opened_on": format_datetime(ticket2.opened_on),
+                    "opened_by": None,
+                    "opened_in": {"uuid": str(flow.uuid), "name": "Support"},
                     "modified_on": format_datetime(ticket2.modified_on),
                     "closed_on": None,
                 },
@@ -4602,6 +4608,8 @@ class APITest(TembaTest):
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Help",
                     "opened_on": format_datetime(ticket1.opened_on),
+                    "opened_by": {"email": "admin@nyaruka.com", "name": "Andy"},
+                    "opened_in": None,
                     "modified_on": format_datetime(ticket1.modified_on),
                     "closed_on": "2021-01-01T12:30:45.123456Z",
                 },

@@ -194,8 +194,8 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
     template_dependencies = models.ManyToManyField(Template, related_name="dependent_flows")
     ticketer_dependencies = models.ManyToManyField(Ticketer, related_name="dependent_flows")
-    topic_dependencies = models.ManyToManyField(Topic, related_name="dependent_topics")
-    user_dependencies = models.ManyToManyField(User, related_name="dependent_users")
+    topic_dependencies = models.ManyToManyField(Topic, related_name="dependent_flows")
+    user_dependencies = models.ManyToManyField(User, related_name="dependent_flows")
 
     soft_dependent_types = {"flow", "campaign_event", "trigger"}  # it's all soft for flows
 

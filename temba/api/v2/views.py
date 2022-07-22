@@ -11,7 +11,6 @@ from smartmin.views import SmartFormView, SmartTemplateView
 
 from django import forms
 from django.contrib.auth import authenticate, login
-from django.contrib.auth.models import User
 from django.db.models import Prefetch, Q
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import gettext_lazy as _
@@ -37,7 +36,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
-from temba.orgs.models import OrgMembership, OrgRole
+from temba.orgs.models import OrgMembership, OrgRole, User
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import splitting_getlist, str_to_bool
@@ -3481,8 +3480,11 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **status** - the status of the ticket, e.g. 'open' or 'closed'.
      * **topic** - the topic of the ticket (object).
+     * **assignee** - the user assigned to the ticket (object).
      * **body** - the body of the ticket (string).
      * **opened_on** - when this ticket was opened (datetime).
+     * **opened_by** - the user who opened the ticket (object).
+     * **opened_in** - the flow which opened the ticket (object).
      * **modified_on** - when this ticket was last modified (datetime).
      * **closed_on** - when this ticket was closed (datetime).
 
@@ -3502,8 +3504,11 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                 "contact": {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Jim"},
                 "status": "open",
                 "topic": {"uuid": "040edbfe-be55-48f3-864d-a4a7147c447b", "name": "Support"},
+                "assignee": {"email": "bob@flow.com", "name": "Bob McFlow"},
                 "body": "Where did I leave my shorts?",
                 "opened_on": "2013-02-27T09:06:15.456",
+                "opened_by": null,
+                "opened_in": {"uuid": "54cd8e2c-6334-49a4-abf9-f0fa8d0971da", "name": "Support Flow"},
                 "modified_on": "2013-02-27T09:07:18.234",
                 "closed_on": null
             },
@@ -3538,7 +3543,9 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             Prefetch("ticketer", queryset=Ticketer.objects.only("uuid", "name")),
             Prefetch("topic", queryset=Topic.objects.only("uuid", "name")),
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
-            "assignee",
+            Prefetch("assignee", queryset=User.objects.only("email", "first_name", "last_name")),
+            Prefetch("opened_by", queryset=User.objects.only("email", "first_name", "last_name")),
+            Prefetch("opened_in", queryset=Flow.objects.only("uuid", "name")),
         )
 
         return queryset
