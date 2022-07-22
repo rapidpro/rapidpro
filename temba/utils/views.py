@@ -281,6 +281,12 @@ class DropdownMenu:
     def __init__(self):
         self.items = []
 
+    def add_link(self, label: str, url: str):
+        self.items.append({"title": label, "href": url})
+
+    def add_js(self, label: str, on_click: str, link_class: str):
+        self.items.append({"title": label, "on_click": on_click, "js_class": link_class, "href": "#"})
+
     def add_url_post(self, label: str, url: str):
         self.items.append({"title": label, "href": url, "js_class": "posterize"})
 

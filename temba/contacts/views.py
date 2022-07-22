@@ -1047,16 +1047,14 @@ class ContactCRUDL(SmartCRUDL):
             }
             return JsonResponse(summary)
 
-    class List(ContactListView):
+    class List(DropdownMenuMixin, ContactListView):
         title = _("Active Contacts")
         system_group = ContactGroup.TYPE_DB_ACTIVE
 
         def get_bulk_actions(self):
             return ("block", "archive", "send") if self.has_org_perm("contacts.contact_update") else ()
 
-        def get_gear_links(self):
-            links = []
-
+        def build_dropdown_menu(self, menu):
             is_spa = "HTTP_TEMBA_SPA" in self.request.META
             search = self.request.GET.get("search")
 
@@ -1068,31 +1066,19 @@ class ContactCRUDL(SmartCRUDL):
                 try:
                     parsed = parse_query(self.org, search)
                     if parsed.metadata.allow_as_group:
-                        links.append(
-                            dict(
-                                id="create-smartgroup",
-                                title=_("Create Smart Group"),
-                                modax=_("Create Smart Group"),
-                                href=f"{reverse('contacts.contactgroup_create')}?search={quote_plus(search)}",
-                            )
+                        menu.add_modax(
+                            _("Create Smart Group"),
+                            "create-smartgroup",
+                            f"{reverse('contacts.contactgroup_create')}?search={quote_plus(search)}",
                         )
                 except SearchException:  # pragma: no cover
                     pass
 
             if self.has_org_perm("contacts.contactfield_list") and not is_spa:
-                links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
+                menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
 
             if self.has_org_perm("contacts.contact_export"):
-                links.append(
-                    dict(
-                        id="export-contacts",
-                        title=_("Export"),
-                        modax=_("Export Contacts"),
-                        href=self.derive_export_url(),
-                    )
-                )
-
-            return links
+                menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1128,7 +1114,7 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-    class Archived(ContactListView):
+    class Archived(DropdownMenuMixin, ContactListView):
         title = _("Archived Contacts")
         template_name = "contacts/contact_archived.haml"
         system_group = ContactGroup.TYPE_DB_ARCHIVED
@@ -1147,70 +1133,35 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-        def get_gear_links(self):
-            links = []
+        def build_dropdown_menu(self, menu):
             if self.has_org_perm("contacts.contact_delete"):
-                links.append(
-                    dict(
-                        title=_("Delete All"),
-                        style="btn-default",
-                        on_click="handleDeleteAllContacts(event)",
-                        js_class="contacts-btn-delete-all",
-                        href="#",
-                    )
-                )
-            return links
+                menu.add_js(_("Delete All"), "handleDeleteAllContacts(event)", "contacts-btn-delete-all")
 
-    class Filter(ContactListView, OrgObjPermsMixin):
+    class Filter(OrgObjPermsMixin, DropdownMenuMixin, ContactListView):
         template_name = "contacts/contact_filter.haml"
 
-        def get_gear_links(self):
-            links = []
-
+        def build_dropdown_menu(self, menu):
             is_spa = "HTTP_TEMBA_SPA" in self.request.META
 
             if self.has_org_perm("contacts.contactfield_list") and not is_spa:
-                links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
+                menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
 
             if not self.group.is_system and self.has_org_perm("contacts.contactgroup_update"):
-                links.append(
-                    dict(
-                        id="edit-group",
-                        title=_("Edit Group"),
-                        modax=_("Edit Group"),
-                        href=reverse("contacts.contactgroup_update", args=[self.group.id]),
-                    )
+                menu.add_modax(
+                    _("Edit Group"), "edit-group", reverse("contacts.contactgroup_update", args=[self.group.id])
                 )
 
             if self.has_org_perm("contacts.contact_export"):
-                links.append(
-                    dict(
-                        id="export-contacts",
-                        title=_("Export"),
-                        modax=_("Export Contacts"),
-                        href=self.derive_export_url(),
-                    )
-                )
+                menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
 
-            links.append(
-                dict(
-                    id="group-usages",
-                    title=_("Usages"),
-                    modax=_("Usages"),
-                    href=reverse("contacts.contactgroup_usages", args=[self.group.uuid]),
-                )
+            menu.add_modax(
+                _("Usages"), "group-usages", reverse("contacts.contactgroup_usages", args=[self.group.uuid])
             )
 
             if not self.group.is_system and self.has_org_perm("contacts.contactgroup_delete"):
-                links.append(
-                    dict(
-                        id="delete-group",
-                        title=_("Delete Group"),
-                        modax=_("Delete Group"),
-                        href=reverse("contacts.contactgroup_delete", args=[self.group.uuid]),
-                    )
+                menu.add_modax(
+                    _("Delete Group"), "delete-group", reverse("contacts.contactgroup_delete", args=[self.group.uuid])
                 )
-            return links
 
         def get_bulk_actions(self):
             return ("block", "archive") if self.group.is_smart else ("block", "unlabel")
@@ -1549,27 +1500,17 @@ class ContactGroupCRUDL(SmartCRUDL):
                 )
             return menu
 
-    class List(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+    class List(SpaMixin, OrgPermsMixin, BulkActionMixin, DropdownMenuMixin, SmartListView):
         fields = ("name", "query", "count", "created_on")
         search_fields = ("name__icontains", "query")
         default_order = ("name",)
         paginate_by = 250
 
-        def get_gear_links(self):
-            links = []
+        def build_dropdown_menu(self, menu):
             group_type = self.request.GET.get("type", "")
-            if group_type != "smart" and self.has_org_perm("contacts.contactgroup_create"):
-                links.append(
-                    {
-                        "id": "new-group",
-                        "title": _("New Group"),
-                        "style": "button-primary",
-                        "href": f"{reverse('contacts.contactgroup_create')}",
-                        "modax": _("New Group"),
-                    }
-                )
 
-            return links
+            if group_type != "smart" and self.has_org_perm("contacts.contactgroup_create"):
+                menu.add_modax(_("New Group"), "new-group", f"{reverse('contacts.contactgroup_create')}")
 
         def get_bulk_actions(self):
             return ("delete",) if self.has_org_perm("contacts.contactgroup_delete") else ()
