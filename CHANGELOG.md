@@ -1,3 +1,7 @@
+v7.5.3
+----------
+ * Fix id for custom fields modal
+
 v7.5.2
 ----------
  * Fix typo on archive button
