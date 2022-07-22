@@ -801,6 +801,43 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         other_org_contact.refresh_from_db()
         self.assertEqual(Contact.STATUS_STOPPED, other_org_contact.status)
 
+    @mock_mailroom
+    def test_interrupt(self, mr_mocks):
+        contact = self.create_contact("Joe", phone="+593979000111")
+        other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
+
+        MockSessionWriter(contact, self.create_flow("Test")).wait().save()
+        MockSessionWriter(other_org_contact, self.create_flow("Test", org=self.org2)).wait().save()
+
+        interrupt_url = reverse("contacts.contact_interrupt", args=[contact.id])
+
+        # can't interrupt if not logged in
+        response = self.client.post(interrupt_url, {"id": contact.id})
+        self.assertLoginRedirect(response)
+
+        self.login(self.user)
+
+        # can't interrupt if just regular user
+        response = self.client.post(interrupt_url, {"id": contact.id})
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.post(interrupt_url, {"id": contact.id})
+        self.assertEqual(302, response.status_code)
+
+        contact.refresh_from_db()
+        self.assertIsNone(contact.current_flow)
+
+        # can't interrupt contact in other org
+        restore_url = reverse("contacts.contact_interrupt", args=[other_org_contact.id])
+        response = self.client.post(restore_url, {"id": other_org_contact.id})
+        self.assertLoginRedirect(response)
+
+        # contact should be unchanged
+        other_org_contact.refresh_from_db()
+        self.assertIsNotNone(other_org_contact.current_flow)
+
     def test_delete(self):
         contact = self.create_contact("Joe", phone="+593979000111")
         other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
