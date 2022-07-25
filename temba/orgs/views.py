@@ -3306,10 +3306,7 @@ class OrgCRUDL(SmartCRUDL):
             return links
 
         def derive_formax_sections(self, formax, context):
-
-            # add the channel option if we have one
-            user = self.request.user
-            org = user.get_org()
+            org = self.request.org
 
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
@@ -3321,7 +3318,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
 
-            if self.has_org_perm("orgs.org_country") and org.get_branding().get("location_support"):
+            if self.has_org_perm("orgs.org_country") and "locations" in org.get_branding().get("features", []):
                 formax.add_section("country", reverse("orgs.org_country"), icon="icon-location2")
 
             if self.has_org_perm("orgs.org_smtp_server"):
@@ -3343,6 +3340,7 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Your Account")
 
         def get_gear_links(self):
+            org = self.request.org
             links = []
 
             if self.has_org_perm("channels.channel_claim"):
@@ -3351,7 +3349,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("classifiers.classifier_connect"):
                 links.append(dict(title=_("Add Classifier"), href=reverse("classifiers.classifier_connect")))
 
-            if self.has_org_perm("tickets.ticketer_connect"):
+            if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in org.get_branding().get("features", []):
                 links.append(dict(title=_("Add Ticketing Service"), href=reverse("tickets.ticketer_connect")))
 
             if len(links) > 0:
@@ -3468,7 +3466,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
 
-            if self.has_org_perm("orgs.org_country") and org.get_branding().get("location_support"):
+            if self.has_org_perm("orgs.org_country") and "locations" in org.get_branding().get("features", []):
                 formax.add_section("country", reverse("orgs.org_country"), icon="icon-location2")
 
             if self.has_org_perm("orgs.org_smtp_server"):
