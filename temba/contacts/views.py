@@ -59,7 +59,7 @@ from temba.utils.fields import (
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.models.es import IDSliceQuerySet
-from temba.utils.views import BulkActionMixin, ComponentFormMixin, DropdownMenuMixin, NonAtomicMixin, SpaMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, NonAtomicMixin, SpaMixin
 
 from .models import (
     URN,
@@ -774,7 +774,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return HttpResponse(json.dumps(json_result), content_type="application/json")
 
-    class Read(SpaMixin, OrgObjPermsMixin, DropdownMenuMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         fields = ("name",)
         select_related = ("current_flow",)
@@ -862,7 +862,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return HttpResponse("unknown action", status=400)  # pragma: no cover
 
-        def build_dropdown_menu(self, menu):
+        def build_content_menu(self, menu):
             if self.object.status == Contact.STATUS_ACTIVE:
                 if not self.is_spa() and self.has_org_perm("msgs.broadcast_send"):
                     menu.add_modax(
@@ -1050,14 +1050,14 @@ class ContactCRUDL(SmartCRUDL):
             }
             return JsonResponse(summary)
 
-    class List(DropdownMenuMixin, ContactListView):
+    class List(ContentMenuMixin, ContactListView):
         title = _("Active Contacts")
         system_group = ContactGroup.TYPE_DB_ACTIVE
 
         def get_bulk_actions(self):
             return ("block", "archive", "send") if self.has_org_perm("contacts.contact_update") else ()
 
-        def build_dropdown_menu(self, menu):
+        def build_content_menu(self, menu):
             is_spa = "HTTP_TEMBA_SPA" in self.request.META
             search = self.request.GET.get("search")
 
@@ -1117,7 +1117,7 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-    class Archived(DropdownMenuMixin, ContactListView):
+    class Archived(ContentMenuMixin, ContactListView):
         title = _("Archived Contacts")
         template_name = "contacts/contact_archived.haml"
         system_group = ContactGroup.TYPE_DB_ARCHIVED
@@ -1136,14 +1136,14 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-        def build_dropdown_menu(self, menu):
+        def build_content_menu(self, menu):
             if self.has_org_perm("contacts.contact_delete"):
                 menu.add_js(_("Delete All"), "handleDeleteAllContacts(event)", "contacts-btn-delete-all")
 
-    class Filter(OrgObjPermsMixin, DropdownMenuMixin, ContactListView):
+    class Filter(OrgObjPermsMixin, ContentMenuMixin, ContactListView):
         template_name = "contacts/contact_filter.haml"
 
-        def build_dropdown_menu(self, menu):
+        def build_content_menu(self, menu):
             is_spa = "HTTP_TEMBA_SPA" in self.request.META
 
             if self.has_org_perm("contacts.contactfield_list") and not is_spa:
@@ -1503,13 +1503,13 @@ class ContactGroupCRUDL(SmartCRUDL):
                 )
             return menu
 
-    class List(SpaMixin, OrgPermsMixin, BulkActionMixin, DropdownMenuMixin, SmartListView):
+    class List(SpaMixin, OrgPermsMixin, BulkActionMixin, ContentMenuMixin, SmartListView):
         fields = ("name", "query", "count", "created_on")
         search_fields = ("name__icontains", "query")
         default_order = ("name",)
         paginate_by = 250
 
-        def build_dropdown_menu(self, menu):
+        def build_content_menu(self, menu):
             group_type = self.request.GET.get("type", "")
 
             if group_type != "smart" and self.has_org_perm("contacts.contactgroup_create"):

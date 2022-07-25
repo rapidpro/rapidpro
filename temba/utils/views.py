@@ -273,9 +273,9 @@ class MailroomURLHandler(ExternalURLHandler):
     service = "Mailroom"
 
 
-class DropdownMenu:
+class ContentMenu:
     """
-    Utility for building dropdown menus
+    Utility for building content menus
     """
 
     def __init__(self):
@@ -305,15 +305,15 @@ class DropdownMenu:
         )
 
 
-class DropdownMenuMixin:
+class ContentMenuMixin:
     """
-    Mixin for views that have a dropdown menu
+    Mixin for views that have a content menu (hamburger icon with dropdown items)
     """
 
     def get_gear_links(self):
-        menu = DropdownMenu()
-        self.build_dropdown_menu(menu)
+        menu = ContentMenu()
+        self.build_content_menu(menu)
         return menu.items
 
-    def build_dropdown_menu(self, menu: DropdownMenu):  # pragma: no cover
+    def build_content_menu(self, menu: ContentMenu):  # pragma: no cover
         pass
