@@ -866,7 +866,10 @@ class ContactCRUDL(SmartCRUDL):
             if self.object.status == Contact.STATUS_ACTIVE:
                 if not self.is_spa() and self.has_org_perm("msgs.broadcast_send"):
                     menu.add_modax(
-                        _("Send Message"), "send-message", f"{reverse('msgs.broadcast_send')}?c={self.object.uuid}"
+                        _("Send Message"),
+                        "send-message",
+                        f"{reverse('msgs.broadcast_send')}?c={self.object.uuid}",
+                        primary=True,
                     )
                 if self.has_org_perm("flows.flow_broadcast"):
                     menu.add_modax(
@@ -1510,7 +1513,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             group_type = self.request.GET.get("type", "")
 
             if group_type != "smart" and self.has_org_perm("contacts.contactgroup_create"):
-                menu.add_modax(_("New Group"), "new-group", f"{reverse('contacts.contactgroup_create')}")
+                menu.add_modax(_("New Group"), "new-group", f"{reverse('contacts.contactgroup_create')}", primary=True)
 
         def get_bulk_actions(self):
             return ("delete",) if self.has_org_perm("contacts.contactgroup_delete") else ()

@@ -290,7 +290,9 @@ class DropdownMenu:
     def add_url_post(self, label: str, url: str):
         self.items.append({"title": label, "href": url, "js_class": "posterize"})
 
-    def add_modax(self, label: str, modal_id: str, url: str, *, title: str = None, on_submit: str = None):
+    def add_modax(
+        self, label: str, modal_id: str, url: str, *, title: str = None, on_submit: str = None, primary: bool = False
+    ):
         self.items.append(
             {
                 "id": modal_id,
@@ -298,6 +300,7 @@ class DropdownMenu:
                 "modax": title or label,
                 "href": url,
                 "on_submit": on_submit,
+                "style": "button-primary" if primary else "",
             }
         )
 
