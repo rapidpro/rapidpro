@@ -40,6 +40,23 @@ class UnreachableException(Exception):
     pass
 
 
+class Media(models.Model):
+    """
+    An uploaded media file that can be used as an attachment on messages.
+    """
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    content_type = models.CharField(max_length=64)
+    url = models.URLField(max_length=2048, db_index=True)
+    alternates = models.JSONField()
+
+    duration = models.IntegerField(default=0)
+    thumbnail = models.ForeignKey("msgs.Media", null=True, on_delete=models.PROTECT)
+
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    created_on = models.DateTimeField(default=timezone.now)
+
+
 class Broadcast(models.Model):
     """
     A broadcast is a message that is sent out to more than one recipient, such
