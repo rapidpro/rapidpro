@@ -56,7 +56,7 @@ class SlackTypeTest(TembaTest):
             response.context["form"].errors["bot_token"][0],
         ),
 
-        # test to claim a channel with a bot token that already exists for another organization
+        # test to claim a channel with a bot token that already exists for another workspace.
         auth_test = {
             "ok": True,
             "url": "https://12345-team-group.slack.com/",
@@ -80,7 +80,7 @@ class SlackTypeTest(TembaTest):
             },
         )
         self.assertEqual(
-            "A slack channel for this bot already exists in another organization.",
+            "A slack channel for this bot already exists in another workspace.",
             response.context["form"].errors["bot_token"][0],
         )
 
@@ -125,7 +125,7 @@ class SlackTypeTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEqual(response.status_code, 200)
 
-        # test to claim a channel with a bot token that already exists in this organization
+        # test to claim a channel with a bot token that already exists in this workspace
         response = self.client.post(
             url,
             {
@@ -135,7 +135,7 @@ class SlackTypeTest(TembaTest):
             },
         )
         self.assertEqual(
-            "A slack channel for this bot already exists in this organization.",
+            "A slack channel for this bot already exists in this workspace.",
             response.context["form"].errors["bot_token"][0],
         )
 

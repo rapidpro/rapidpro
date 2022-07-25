@@ -14,20 +14,18 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         user_token = forms.CharField(
             label=_("User OAuth Token"),
             help_text=_(
-                "In https://api.slack.com/apps select your bot app and go to Features / OAuth & Permissions to see this information."
+                "In Slack select your bot app and go to Features / OAuth & Permissions to see this information."
             ),
         )
         bot_token = forms.CharField(
             label=_("Bot User OAuth Token"),
             help_text=_(
-                "In https://api.slack.com/apps select your bot app and go to Features / OAuth & Permissions to see this information."
+                "In Slack select your bot app and go to Features / OAuth & Permissions to see this information."
             ),
         )
         verification_token = forms.CharField(
             label=_("Verification Token"),
-            help_text=_(
-                "In https://api.slack.com/apps go to Settings / Basic information, find in App Credentials and paste here."
-            ),
+            help_text=_("In Slack go to Settings / Basic information, find in App Credentials and paste here."),
         )
 
         def clean_user_token(self):
@@ -56,8 +54,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
             if existing:
                 if existing.org_id == self.request.user.get_org().id:
-                    raise ValidationError(_("A slack channel for this bot already exists in this organization."))
-                raise ValidationError(_("A slack channel for this bot already exists in another organization."))
+                    raise ValidationError(_("A slack channel for this bot already exists in this workspace."))
+                raise ValidationError(_("A slack channel for this bot already exists in another workspace."))
 
             return value
 
