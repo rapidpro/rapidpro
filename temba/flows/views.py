@@ -62,7 +62,6 @@ from temba.utils.fields import (
     SelectWidget,
     TembaChoiceField,
 )
-from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.views import BulkActionMixin, SpaMixin
 
@@ -200,7 +199,6 @@ class FlowCRUDL(SmartCRUDL):
         "download_translation",
         "import_translation",
         "export_results",
-        "upload_action_recording",
         "editor",
         "results",
         "run_table",
@@ -214,7 +212,8 @@ class FlowCRUDL(SmartCRUDL):
         "revisions",
         "recent_contacts",
         "assets",
-        "upload_media_action",
+        "upload_media",
+        "upload_media_action",  # deprecated
     )
 
     model = Flow
@@ -703,27 +702,23 @@ class FlowCRUDL(SmartCRUDL):
 
             return obj
 
-    class UploadActionRecording(OrgObjPermsMixin, SmartUpdateView):
-        def post(self, request, *args, **kwargs):  # pragma: needs cover
-            path = self.save_recording_upload(
-                self.request.FILES["file"], self.request.POST.get("actionset"), self.request.POST.get("action")
-            )
-            return JsonResponse(dict(path=path))
-
-        def save_recording_upload(self, file, actionset_id, action_uuid):  # pragma: needs cover
-            flow = self.get_object()
-            return public_file_storage.save(
-                "recordings/%d/%d/steps/%s.wav" % (flow.org.pk, flow.id, action_uuid), file
-            )
-
-    class UploadMediaAction(OrgObjPermsMixin, SmartUpdateView):
+    class UploadMediaAction(OrgObjPermsMixin, SmartUpdateView):  # pragma: no cover
+        permission = "flows.flow_upload_media"
         slug_url_kwarg = "uuid"
 
         def post(self, request, *args, **kwargs):
             media = Media.from_upload(
                 self.request.org, self.request.user, self.request.FILES["file"], flow=self.get_object()
             )
+            return JsonResponse(media.as_json())
 
+    class UploadMedia(OrgObjPermsMixin, SmartUpdateView):
+        slug_url_kwarg = "uuid"
+
+        def post(self, request, *args, **kwargs):
+            media = Media.from_upload(
+                self.request.org, self.request.user, self.request.FILES["file"], flow=self.get_object()
+            )
             return JsonResponse(media.as_json())
 
     class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):

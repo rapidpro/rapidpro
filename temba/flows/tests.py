@@ -2975,20 +2975,20 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual('name ~ "frank"', start.query)
 
     @patch("temba.msgs.models.uuid4")
-    def test_upload_media_action(self, mock_uuid):
+    def test_upload_media(self, mock_uuid):
         flow = self.create_flow("Test")
         other_org_flow = self.create_flow("Test", org=self.org2)
 
-        action_url = reverse("flows.flow_upload_media_action", args=[flow.uuid])
+        upload_url = reverse("flows.flow_upload_media", args=[flow.uuid])
 
-        def assert_upload(filename, expected_json):
+        def assert_upload(user, filename, expected_json):
+            self.login(user)
+
             with open(filename, "rb") as data:
-                response = self.client.post(action_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+                response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
 
             self.assertEqual(response.status_code, 200)
             self.assertEqual(expected_json, response.json())
-
-        self.login(self.admin)
 
         mock_uuid.side_effect = [
             UUID("6a65f14f-b762-4485-b860-96a322292775"),
@@ -2998,6 +2998,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         ]
 
         assert_upload(
+            self.admin,
             f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg",
             {
                 "uuid": "6a65f14f-b762-4485-b860-96a322292775",
@@ -3007,6 +3008,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
         assert_upload(
+            self.editor,
             f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
             {
                 "uuid": "2f42e913-6a19-44c5-90ee-cdf7b14ad5c0",
@@ -3016,18 +3018,19 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
         assert_upload(
+            self.editor,
             f"{settings.MEDIA_ROOT}/test_media/snow.m4a",
             {
                 "uuid": "f661c405-524e-4bd7-83e2-c93ffe35aa60",
                 "content_type": "audio/mp4",
-                "type": "audio/mp4",
+                "type": "video/mp4",
                 "url": f"/media/attachments/{self.org.id}/{flow.id}/steps/f661c405-524e-4bd7-83e2-c93ffe35aa60/snow.m4a",
             },
         )
 
         # can't upload for flow in other org
         with open(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "rb") as data:
-            upload_url = reverse("flows.flow_upload_media_action", args=[other_org_flow.uuid])
+            upload_url = reverse("flows.flow_upload_media", args=[other_org_flow.uuid])
             response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
             self.assertLoginRedirect(response)
 
