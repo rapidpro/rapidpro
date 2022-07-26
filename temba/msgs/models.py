@@ -46,16 +46,22 @@ class Media(models.Model):
     An uploaded media file that can be used as an attachment on messages.
     """
 
+    RELATIONSHIP_THUMBNAIL = "T"
+    RELATIONSHIP_ALTERNATE = "A"
+    RELATIONSHIP_CHOICES = ((RELATIONSHIP_THUMBNAIL, "Thumbnail"), (RELATIONSHIP_ALTERNATE, "Alternate"))
+
     uuid = models.UUIDField(default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
     content_type = models.CharField(max_length=64)
+    path = models.CharField(max_length=2048)
     url = models.URLField(max_length=2048, db_index=True)
 
     # fields that will be set after upload by a processing task
     is_ready = models.BooleanField(default=False)
-    alternates = models.JSONField(default=dict)
     duration = models.IntegerField(default=0)
-    thumbnail = models.ForeignKey("msgs.Media", null=True, on_delete=models.PROTECT)
+
+    original = models.ForeignKey("msgs.Media", null=True, on_delete=models.PROTECT, related_name="children")
+    relationship = models.CharField(max_length=1, choices=RELATIONSHIP_CHOICES, null=True)
 
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
     created_on = models.DateTimeField(default=timezone.now)
@@ -78,6 +84,7 @@ class Media(models.Model):
             uuid=uuid,
             org=org,
             content_type=file.content_type,
+            path=path,
             url=public_file_storage.url(path),
             created_by=user,
         )
