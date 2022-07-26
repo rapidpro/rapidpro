@@ -80,7 +80,7 @@
   :javascript
 
     function resetWarnings() {
-      var modax = document.querySelector("#start-flow, #shared-modax");
+      var modax = getModax("#start-flow");
       var modalBody = modax.shadowRoot;
   
       var warnings = modalBody.querySelector(".warnings");
@@ -111,7 +111,7 @@
       return operands.join(" OR ");
     }
 
-    var modax = document.querySelector("#start-flow, #shared-modax");
+    var modax = getModax("#start-flow");
     var modalBody = modax.shadowRoot;
     var queryField = modalBody.querySelector('.query');
     var flowSelect = modalBody.querySelector("temba-select[name='flow']");
@@ -177,7 +177,7 @@
 
     var handleDialogButton = function(event){
 
-      var modax = document.querySelector("#start-flow, #shared-modax");
+      var modax = getModax("#start-flow");
       var modalBody = modax.shadowRoot;
 
       if (modax.suspendSubmit) {
