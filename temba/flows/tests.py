@@ -3023,7 +3023,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             {
                 "uuid": "f661c405-524e-4bd7-83e2-c93ffe35aa60",
                 "content_type": "audio/mp4",
-                "type": "video/mp4",
+                "type": "audio/mp4",
                 "url": f"/media/attachments/{self.org.id}/{flow.id}/steps/f661c405-524e-4bd7-83e2-c93ffe35aa60/snow.m4a",
             },
         )
