@@ -271,3 +271,49 @@ class CourierURLHandler(ExternalURLHandler):
 
 class MailroomURLHandler(ExternalURLHandler):
     service = "Mailroom"
+
+
+class ContentMenu:
+    """
+    Utility for building content menus
+    """
+
+    def __init__(self):
+        self.items = []
+
+    def add_link(self, label: str, url: str):
+        self.items.append({"title": label, "href": url})
+
+    def add_js(self, label: str, on_click: str, link_class: str):
+        self.items.append({"title": label, "on_click": on_click, "js_class": link_class, "href": "#"})
+
+    def add_url_post(self, label: str, url: str):
+        self.items.append({"title": label, "href": url, "js_class": "posterize"})
+
+    def add_modax(
+        self, label: str, modal_id: str, url: str, *, title: str = None, on_submit: str = None, primary: bool = False
+    ):
+        self.items.append(
+            {
+                "id": modal_id,
+                "title": label,
+                "modax": title or label,
+                "href": url,
+                "on_submit": on_submit,
+                "style": "button-primary" if primary else "",
+            }
+        )
+
+
+class ContentMenuMixin:
+    """
+    Mixin for views that have a content menu (hamburger icon with dropdown items)
+    """
+
+    def get_gear_links(self):
+        menu = ContentMenu()
+        self.build_content_menu(menu)
+        return menu.items
+
+    def build_content_menu(self, menu: ContentMenu):  # pragma: no cover
+        pass
