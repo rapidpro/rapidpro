@@ -745,6 +745,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_export",
         "contacts.contact_filter",
         "contacts.contact_history",
+        "contacts.contact_interrupt",
         "contacts.contact_list",
         "contacts.contact_menu",
         "contacts.contact_omnibox",
