@@ -1,3 +1,9 @@
+v7.5.5
+----------
+ * Remaining fallback modax references
+ * Add util for easier gear menu creation
+ * Add option to interrupt a contact from read page
+
 v7.5.4
 ----------
  * Fix scripts on contact page start modal
