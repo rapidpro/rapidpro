@@ -230,13 +230,14 @@ class MailroomClient:
         return self._request("contact/modify", payload)
 
     def contact_resolve(self, org_id: int, channel_id: int, urn: str):
-        payload = {
-            "org_id": org_id,
-            "channel_id": channel_id,
-            "urn": urn,
-        }
+        payload = {"org_id": org_id, "channel_id": channel_id, "urn": urn}
 
         return self._request("contact/resolve", payload)
+
+    def contact_interrupt(self, org_id: int, user_id: int, contact_id: int):
+        payload = {"org_id": org_id, "user_id": user_id, "contact_id": contact_id}
+
+        return self._request("contact/interrupt", payload)
 
     def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()) -> SearchResults:
         payload = {
