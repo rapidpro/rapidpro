@@ -46,14 +46,6 @@ MANAGERS = ADMINS
 USE_DEPRECATED_PYTZ = True
 
 # -----------------------------------------------------------------------------------
-# Location support
-# -----------------------------------------------------------------------------------
-LOCATION_SUPPORT = True
-
-# hardcode the postgis version so we can do reset db's from a blank database
-POSTGIS_VERSION = (2, 1)
-
-# -----------------------------------------------------------------------------------
 # set the mail settings, override these in your settings.py
 # if your site was at http://temba.io, it might look like this:
 # -----------------------------------------------------------------------------------
@@ -346,7 +338,7 @@ BRANDING = {
         "logo": "brands/rapidpro/logo.png",
         "allow_signups": True,
         "flow_types": ["M", "V", "B", "S"],  # see Flow.FLOW_TYPES
-        "location_support": True,
+        "features": ["locations", "ticketers"],
         "tiers": dict(multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],

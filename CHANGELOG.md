@@ -1,3 +1,12 @@
+v7.5.4
+----------
+ * Fix scripts on contact page start modal
+ * Add logging for IG channel claim failures
+ * Add features to BRANDING which determines whether brands have access to features
+ * Sort permissions a-z
+ * Fix related names on Flow.topics and Flow.users and add Topic.release
+ * Expose opened_by and opened_in over ticket API
+
 v7.5.3
 ----------
  * Fix id for custom fields modal

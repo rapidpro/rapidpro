@@ -1,3 +1,5 @@
+import logging
+
 import requests
 from smartmin.views import SmartFormView, SmartModelActionView
 
@@ -10,6 +12,8 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin
 
 from ...models import Channel
 from ...views import ClaimViewMixin
+
+logger = logging.getLogger(__name__)
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
@@ -115,7 +119,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 response_json = response.json()
                 self.cleaned_data["ig_user_id"] = response_json.get("instagram_business_account").get("id")
 
-            except Exception:
+            except Exception as e:
+                logger.error(f"Unable to connect Instagram channel with error: {str(e)}", exc_info=True)
                 raise forms.ValidationError(_("Sorry your Instagram channel could not be connected. Please try again"))
 
             return self.cleaned_data

@@ -3,6 +3,14 @@ if (typeof console == 'undefined') {
     this.console = { log: function (msg) {} };
 }
 
+function getModax(id) {
+    var modax = document.querySelector(id);
+    if (!modax) {
+        modax = document.querySelector("#shared-modax")
+    }
+    return modax
+}
+
 function checkInner(event) {
     if (event.target) {
         var checkbox = event.target.querySelector("temba-checkbox");
