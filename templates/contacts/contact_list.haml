@@ -294,7 +294,7 @@
       function handleStartFlowClicked(evt) {
 
         var sendEndpoint = "{% url 'flows.flow_broadcast' %}";
-        var startModal = document.querySelector("#shared-modax, #start-modal");
+        var startModal = getModax("#start-modal");
 
         startModal.header = '{{_("Start Flow")|escapejs}}';
         var ids = getCheckedUuids();
