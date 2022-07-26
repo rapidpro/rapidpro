@@ -26,6 +26,7 @@ from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, TranslatableField
+from temba.utils.s3 import public_file_storage
 from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
 
@@ -45,16 +46,47 @@ class Media(models.Model):
     An uploaded media file that can be used as an attachment on messages.
     """
 
+    uuid = models.UUIDField(default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
     content_type = models.CharField(max_length=64)
     url = models.URLField(max_length=2048, db_index=True)
-    alternates = models.JSONField()
 
+    # fields that will be set after upload by a processing task
+    is_ready = models.BooleanField(default=False)
+    alternates = models.JSONField(default=dict)
     duration = models.IntegerField(default=0)
     thumbnail = models.ForeignKey("msgs.Media", null=True, on_delete=models.PROTECT)
 
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
     created_on = models.DateTimeField(default=timezone.now)
+
+    @classmethod
+    def from_upload(cls, org, user, file, flow):
+        uuid = uuid4()
+
+        # browsers might send m4a files but correct MIME type is audio/mp4
+        extension = file.name.split(".")[-1]
+        if extension == "m4a":
+            file.content_type = "audio/mp4"
+
+        path = f"attachments/{org.id}/{flow.id}/steps/{uuid}/{file.name}"
+        path = public_file_storage.save(path, file)  # storage classes can rewrite saved paths
+
+        return cls.objects.create(
+            uuid=uuid,
+            org=org,
+            content_type=file.content_type,
+            url=public_file_storage.url(path),
+            created_by=user,
+        )
+
+    def as_json(self) -> dict:
+        return {
+            "uuid": str(self.uuid),
+            "content_type": self.content_type,
+            "type": self.content_type,  # deprecated
+            "url": self.url,
+        }
 
 
 class Broadcast(models.Model):
