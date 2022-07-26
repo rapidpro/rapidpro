@@ -806,12 +806,24 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         contact = self.create_contact("Joe", phone="+593979000111")
         other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
 
+        read_url = reverse("contacts.contact_read", args=[contact.uuid])
+        interrupt_url = reverse("contacts.contact_interrupt", args=[contact.id])
+
+        self.login(self.admin)
+
+        # no interrupt option if not in a flow
+        response = self.client.get(read_url)
+        self.assertNotContains(response, interrupt_url)
+
         MockSessionWriter(contact, self.create_flow("Test")).wait().save()
         MockSessionWriter(other_org_contact, self.create_flow("Test", org=self.org2)).wait().save()
 
-        interrupt_url = reverse("contacts.contact_interrupt", args=[contact.id])
+        # now it's an option
+        response = self.client.get(read_url)
+        self.assertContains(response, interrupt_url)
 
         # can't interrupt if not logged in
+        self.client.logout()
         response = self.client.post(interrupt_url, {"id": contact.id})
         self.assertLoginRedirect(response)
 

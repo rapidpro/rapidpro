@@ -880,14 +880,8 @@ class ContactCRUDL(SmartCRUDL):
                     menu.add_modax(
                         _("Open Ticket"), "open-ticket", reverse("contacts.contact_open_ticket", args=[self.object.id])
                     )
-                if self.has_org_perm("contacts.contact_interrupt"):
-                    links.append(
-                        dict(
-                            title=_("Interrupt"),
-                            js_class="posterize",
-                            href=reverse("contacts.contact_interrupt", args=(self.object.id,)),
-                        )
-                    )
+                if self.has_org_perm("contacts.contact_interrupt") and self.object.current_flow:
+                    menu.add_url_post(_("Interrupt"), reverse("contacts.contact_interrupt", args=(self.object.id,)))
 
             if self.has_org_perm("contacts.contact_update"):
                 menu.add_modax(
