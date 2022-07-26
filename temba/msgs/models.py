@@ -62,6 +62,8 @@ class Media(models.Model):
 
     @classmethod
     def from_upload(cls, org, user, file, flow):
+        from .tasks import process_media_upload
+
         uuid = uuid4()
 
         # browsers might send m4a files but correct MIME type is audio/mp4
@@ -72,13 +74,24 @@ class Media(models.Model):
         path = f"attachments/{org.id}/{flow.id}/steps/{uuid}/{file.name}"
         path = public_file_storage.save(path, file)  # storage classes can rewrite saved paths
 
-        return cls.objects.create(
+        media = cls.objects.create(
             uuid=uuid,
             org=org,
             content_type=file.content_type,
             url=public_file_storage.url(path),
             created_by=user,
         )
+
+        on_transaction_commit(lambda: process_media_upload.delay(media.id))
+
+        return media
+
+    def process_upload(self):
+        # TODO process using ffmpeg wrapper
+
+        # self.is_ready = True
+        # self.save(update_fields=("is_ready",))
+        pass
 
     def as_json(self) -> dict:
         return {
