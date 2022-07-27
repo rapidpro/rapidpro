@@ -1,3 +1,8 @@
+v7.5.6
+----------
+ * Remove unused upload_recording endpoint
+ * Add Media model
+
 v7.5.5
 ----------
  * Remaining fallback modax references
