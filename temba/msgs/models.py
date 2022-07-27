@@ -30,6 +30,8 @@ from temba.utils.s3 import public_file_storage
 from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
 
+from .media import process_upload
+
 logger = logging.getLogger(__name__)
 
 
@@ -87,11 +89,10 @@ class Media(models.Model):
         return media
 
     def process_upload(self):
-        # TODO process using ffmpeg wrapper
+        process_upload(self)
 
-        # self.is_ready = True
-        # self.save(update_fields=("is_ready",))
-        pass
+        self.is_ready = True
+        self.save(update_fields=("paths", "is_ready", "duration"))
 
 
 class Broadcast(models.Model):
