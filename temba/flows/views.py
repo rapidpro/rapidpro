@@ -710,7 +710,7 @@ class FlowCRUDL(SmartCRUDL):
             media = Media.from_upload(
                 self.request.org, self.request.user, self.request.FILES["file"], flow=self.get_object()
             )
-            return JsonResponse(media.as_json())
+            return JsonResponse({"type": list(media.paths.keys())[0], "url": media.url})
 
     class UploadMedia(OrgObjPermsMixin, SmartUpdateView):
         slug_url_kwarg = "uuid"
@@ -719,7 +719,7 @@ class FlowCRUDL(SmartCRUDL):
             media = Media.from_upload(
                 self.request.org, self.request.user, self.request.FILES["file"], flow=self.get_object()
             )
-            return JsonResponse(media.as_json())
+            return JsonResponse({"type": list(media.paths.keys())[0], "url": media.url})
 
     class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         title = _("Flows")

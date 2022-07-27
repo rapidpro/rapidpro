@@ -48,15 +48,15 @@ class MediaTest(TembaTest):
 
         self.assertEqual("6a65f14f-b762-4485-b860-96a322292775", str(media.uuid))
         self.assertEqual(self.org, media.org)
-        self.assertEqual("image/jpeg", media.content_type)
-        self.assertEqual(
-            f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/steve marten.jpg",
-            media.path,
-        )
         self.assertEqual(
             f"/media/attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/steve%20marten.jpg",
             media.url,
         )
+        self.assertEqual(
+            {"image/jpeg": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/steve marten.jpg"},
+            media.paths,
+        )
+        self.assertEqual("steve marten.jpg", media.name)
         self.assertEqual(self.admin, media.created_by)
         self.assertFalse(media.is_ready)
 

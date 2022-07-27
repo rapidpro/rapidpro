@@ -46,22 +46,15 @@ class Media(models.Model):
     An uploaded media file that can be used as an attachment on messages.
     """
 
-    RELATIONSHIP_THUMBNAIL = "T"
-    RELATIONSHIP_ALTERNATE = "A"
-    RELATIONSHIP_CHOICES = ((RELATIONSHIP_THUMBNAIL, "Thumbnail"), (RELATIONSHIP_ALTERNATE, "Alternate"))
-
     uuid = models.UUIDField(default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
-    content_type = models.CharField(max_length=64)
-    path = models.CharField(max_length=2048)
     url = models.URLField(max_length=2048, db_index=True)
+    name = models.CharField(max_length=255)  # original filename
+    paths = models.JSONField(default=dict)  # dict of {content_type1: path1, content_type2: path2, ...}
 
     # fields that will be set after upload by a processing task
     is_ready = models.BooleanField(default=False)
     duration = models.IntegerField(default=0)
-
-    original = models.ForeignKey("msgs.Media", null=True, on_delete=models.PROTECT, related_name="children")
-    relationship = models.CharField(max_length=1, choices=RELATIONSHIP_CHOICES, null=True)
 
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
     created_on = models.DateTimeField(default=timezone.now)
@@ -83,9 +76,9 @@ class Media(models.Model):
         media = cls.objects.create(
             uuid=uuid,
             org=org,
-            content_type=file.content_type,
-            path=path,
             url=public_file_storage.url(path),
+            name=file.name,
+            paths={file.content_type: path},
             created_by=user,
         )
 
@@ -99,14 +92,6 @@ class Media(models.Model):
         # self.is_ready = True
         # self.save(update_fields=("is_ready",))
         pass
-
-    def as_json(self) -> dict:
-        return {
-            "uuid": str(self.uuid),
-            "content_type": self.content_type,
-            "type": self.content_type,  # deprecated
-            "url": self.url,
-        }
 
 
 class Broadcast(models.Model):
