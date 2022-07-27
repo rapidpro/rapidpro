@@ -30,6 +30,41 @@
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
   :javascript
 
+    {% if use_weni_layout %}
+
+      $( document ).ready(function() {
+        let searchParams = new URLSearchParams(window.location.search)
+        let sectionToHide = searchParams.get('flows_config_hide');
+
+        if (sectionToHide === 'configs') {
+          $("div[class^='action-']div[id!='id-channel']div[id!='id-tickets']").each(function() {
+            $(this).addClass("hide-configs");
+          });
+
+          $("ul[class^='dropdown-menu'] > li:nth-child(1),\
+             ul[class^='dropdown-menu'] > li:nth-last-child(-n+3),\
+             div[class^='weni-navigation-control__back']").each(function() {
+            $(this).addClass("hide-buttons");
+          });
+
+          $("div[class$='items-start'] > div:nth-child(1)").each(function() {
+            $(this).addClass("hide-title");
+          });
+        }
+
+        if (sectionToHide === 'channels') {
+          $("div[id|='id-channel'],div[id|='id-tickets']").each(function() {
+            $(this).addClass("hide-channels");
+          });
+
+          $("div[href$='/channels/channel/claim/'],\
+             ul[class^='dropdown-menu'] > li:nth-child(-n+3)").each(function() {
+            $(this).addClass("hide-buttons");
+          });
+        }
+      });
+    {% endif %}
+
     $(function() {
       // initialize our glyph checkboxes
       var boxes = $("td.check");
@@ -74,6 +109,13 @@
 
         #unnnic-content {
           margin-left: inherit;
+
+          .hide-channels,
+          .hide-configs,
+          .hide-buttons,
+          .hide-title {
+            display: none;
+          }
         }
 
         #id-channel {
