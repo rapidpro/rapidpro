@@ -61,40 +61,65 @@ class MediaTest(TembaTest):
         self.assertFalse(media.is_ready)
 
     def test_process_audio_wav(self):
+        flow = self.create_flow("Color")
         media = Media.from_upload(
             self.org,
             self.admin,
             self.upload(f"{settings.MEDIA_ROOT}/test_media/allo.wav", "audio/wav"),
-            flow=self.create_flow("Color"),
+            flow=flow,
         )
         media.process_upload()
 
         self.assertTrue(media.is_ready)
         self.assertEqual(5110, media.duration)
+        self.assertEqual(
+            {
+                "audio/wav": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/allo.wav",
+                "audio/mp3": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/allo.mp3",
+                "audio/mp4": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/allo.m4a",
+            },
+            media.paths,
+        )
 
     def test_process_audio_m4a(self):
+        flow = self.create_flow("Color")
         media = Media.from_upload(
             self.org,
             self.admin,
             self.upload(f"{settings.MEDIA_ROOT}/test_media/snow.m4a", "audio/mp4"),
-            flow=self.create_flow("Color"),
+            flow=flow,
         )
         media.process_upload()
 
         self.assertTrue(media.is_ready)
         self.assertEqual(3809, media.duration)
+        self.assertEqual(
+            {
+                "audio/mp4": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/snow.m4a",
+                "audio/mp3": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/snow.mp3",
+            },
+            media.paths,
+        )
 
     def test_process_video_mp4(self):
+        flow = self.create_flow("Color")
         media = Media.from_upload(
             self.org,
             self.admin,
             self.upload(f"{settings.MEDIA_ROOT}/test_media/snow.mp4", "video/mp4"),
-            flow=self.create_flow("Color"),
+            flow=flow,
         )
         media.process_upload()
 
         self.assertTrue(media.is_ready)
         self.assertEqual(3809, media.duration)
+        self.assertEqual(
+            {
+                "video/mp4": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/snow.mp4",
+                "image/jpg": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/snow.jpg",
+            },
+            media.paths,
+        )
 
 
 class MsgTest(TembaTest):
