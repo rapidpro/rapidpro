@@ -60,17 +60,41 @@ class MediaTest(TembaTest):
         self.assertEqual(self.admin, media.created_by)
         self.assertFalse(media.is_ready)
 
-    def test_process(self):
-        flow = self.create_flow("Color")
-        audio = Media.from_upload(
+    def test_process_audio_wav(self):
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/allo.wav", "audio/wav"),
+            flow=self.create_flow("Color"),
+        )
+        media.process_upload()
+
+        self.assertTrue(media.is_ready)
+        self.assertEqual(5110, media.duration)
+
+    def test_process_audio_m4a(self):
+        media = Media.from_upload(
             self.org,
             self.admin,
             self.upload(f"{settings.MEDIA_ROOT}/test_media/snow.m4a", "audio/mp4"),
-            flow=flow,
+            flow=self.create_flow("Color"),
         )
-        audio.process_upload()
+        media.process_upload()
 
-        self.assertEqual(3809, audio.duration)
+        self.assertTrue(media.is_ready)
+        self.assertEqual(3809, media.duration)
+
+    def test_process_video_mp4(self):
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/snow.mp4", "video/mp4"),
+            flow=self.create_flow("Color"),
+        )
+        media.process_upload()
+
+        self.assertTrue(media.is_ready)
+        self.assertEqual(3809, media.duration)
 
 
 class MsgTest(TembaTest):
