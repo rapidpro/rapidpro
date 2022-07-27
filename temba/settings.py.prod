@@ -133,7 +133,6 @@ MIDDLEWARE = tuple(m for m in MIDDLEWARE if "XFrameOptionsMiddleware" not in m)
 MIDDLEWARE += (
     "elasticapm.contrib.django.middleware.TracingMiddleware",
     "elasticapm.contrib.django.middleware.Catch404Middleware",
-    "mozilla_django_oidc.middleware.SessionRefresh",
     "csp.middleware.CSPMiddleware",
 )
 
@@ -422,10 +421,6 @@ if DISABLE_OIDC:
     REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].remove(
         "mozilla_django_oidc.contrib.drf.OIDCAuthentication"
     )
-
-    middleware_list = list(MIDDLEWARE)
-    middleware_list.remove("mozilla_django_oidc.middleware.SessionRefresh")
-    MIDDLEWARE = tuple(middleware_list)
 
     installed_apps_list = list(INSTALLED_APPS)
     installed_apps_list.remove("mozilla_django_oidc")
