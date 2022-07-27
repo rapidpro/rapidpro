@@ -1,3 +1,9 @@
+1.5.0-rapidpro-7.1.27
+----------
+* Feat: Hide org config fields
+* Remove mozilla_django_oidc SessionRefresh middleware
+* RocketChat Ticketer out of beta
+
 1.4.0-rapidpro-7.1.27
 ----------
 * Integration support with Microsoft Teams
