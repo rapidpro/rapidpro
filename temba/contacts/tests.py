@@ -11,7 +11,6 @@ import pytz
 from openpyxl import load_workbook
 
 from django.conf import settings
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.validators import ValidationError
 from django.db import connection
 from django.db.models import Value as DbValue
@@ -6226,16 +6225,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(create_url, {})
         self.assertFormError(response, "form", "file", "This field is required.")
 
-        def upload(path):
-            with open(path, "rb") as f:
-                return SimpleUploadedFile(path, content=f.read())
-
         # try uploading an empty CSV file
-        response = self.client.post(create_url, {"file": upload("media/test_imports/empty.csv")})
+        response = self.client.post(create_url, {"file": self.upload("media/test_imports/empty.csv")})
         self.assertFormError(response, "form", "file", "Import file doesn't contain any records.")
 
         # try uploading a valid XLSX file
-        response = self.client.post(create_url, {"file": upload("media/test_imports/simple.xlsx")})
+        response = self.client.post(create_url, {"file": self.upload("media/test_imports/simple.xlsx")})
         self.assertEqual(302, response.status_code)
 
         imp = ContactImport.objects.get()

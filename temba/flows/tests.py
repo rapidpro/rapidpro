@@ -34,7 +34,7 @@ from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.utils.uuid import uuid4
+from temba.utils.uuid import UUID, uuid4
 
 from .checks import mailroom_url
 from .models import (
@@ -2974,46 +2974,57 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(start.include_active)
         self.assertEqual('name ~ "frank"', start.query)
 
-    @patch("temba.flows.views.uuid4")
-    def test_upload_media_action(self, mock_uuid):
+    @patch("temba.msgs.models.uuid4")
+    def test_upload_media(self, mock_uuid):
         flow = self.create_flow("Test")
         other_org_flow = self.create_flow("Test", org=self.org2)
 
-        action_url = reverse("flows.flow_upload_media_action", args=[flow.uuid])
+        upload_url = reverse("flows.flow_upload_media", args=[flow.uuid])
 
-        def assert_upload(filename, expected_type, expected_url):
+        def assert_upload(user, filename, expected_json):
+            self.login(user)
+
             with open(filename, "rb") as data:
-                response = self.client.post(action_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+                response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
 
-                self.assertEqual(response.status_code, 200)
-                actual_type = response.json()["type"]
-                actual_url = response.json()["url"]
-                self.assertEqual(expected_type, actual_type)
-                self.assertEqual(expected_url, actual_url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(expected_json, response.json())
 
-        self.login(self.admin)
-
-        mock_uuid.side_effect = ["11111-111-11", "22222-222-22", "33333-333-33", "44444-444-44"]
+        mock_uuid.side_effect = [
+            UUID("6a65f14f-b762-4485-b860-96a322292775"),
+            UUID("2f42e913-6a19-44c5-90ee-cdf7b14ad5c0"),
+            UUID("f661c405-524e-4bd7-83e2-c93ffe35aa60"),
+            UUID("67ec31c7-a85f-4834-9da2-dee2c7b56576"),
+        ]
 
         assert_upload(
+            self.admin,
             f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg",
-            "image/jpeg",
-            f"/media/attachments/{self.org.id}/{flow.id}/steps/11111-111-11/steve%20marten.jpg",
+            {
+                "type": "image/jpeg",
+                "url": f"/media/attachments/{self.org.id}/{flow.id}/steps/6a65f14f-b762-4485-b860-96a322292775/steve%20marten.jpg",
+            },
         )
         assert_upload(
+            self.editor,
             f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
-            "video/mp4",
-            f"/media/attachments/{self.org.id}/{flow.id}/steps/22222-222-22/snow.mp4",
+            {
+                "type": "video/mp4",
+                "url": f"/media/attachments/{self.org.id}/{flow.id}/steps/2f42e913-6a19-44c5-90ee-cdf7b14ad5c0/snow.mp4",
+            },
         )
         assert_upload(
+            self.editor,
             f"{settings.MEDIA_ROOT}/test_media/snow.m4a",
-            "audio/mp4",
-            f"/media/attachments/{self.org.id}/{flow.id}/steps/33333-333-33/snow.m4a",
+            {
+                "type": "audio/mp4",
+                "url": f"/media/attachments/{self.org.id}/{flow.id}/steps/f661c405-524e-4bd7-83e2-c93ffe35aa60/snow.m4a",
+            },
         )
 
         # can't upload for flow in other org
         with open(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "rb") as data:
-            upload_url = reverse("flows.flow_upload_media_action", args=[other_org_flow.uuid])
+            upload_url = reverse("flows.flow_upload_media", args=[other_org_flow.uuid])
             response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
             self.assertLoginRedirect(response)
 

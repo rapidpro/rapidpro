@@ -26,6 +26,7 @@ from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, TranslatableField
+from temba.utils.s3 import public_file_storage
 from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
 
@@ -38,6 +39,59 @@ class UnreachableException(Exception):
     """
 
     pass
+
+
+class Media(models.Model):
+    """
+    An uploaded media file that can be used as an attachment on messages.
+    """
+
+    uuid = models.UUIDField(default=uuid4)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    url = models.URLField(max_length=2048, db_index=True)
+    name = models.CharField(max_length=255)  # original filename
+    paths = models.JSONField(default=dict)  # dict of {content_type1: path1, content_type2: path2, ...}
+
+    # fields that will be set after upload by a processing task
+    is_ready = models.BooleanField(default=False)
+    duration = models.IntegerField(default=0)
+
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    created_on = models.DateTimeField(default=timezone.now)
+
+    @classmethod
+    def from_upload(cls, org, user, file, flow):
+        from .tasks import process_media_upload
+
+        uuid = uuid4()
+
+        # browsers might send m4a files but correct MIME type is audio/mp4
+        extension = file.name.split(".")[-1]
+        if extension == "m4a":
+            file.content_type = "audio/mp4"
+
+        path = f"attachments/{org.id}/{flow.id}/steps/{uuid}/{file.name}"
+        path = public_file_storage.save(path, file)  # storage classes can rewrite saved paths
+
+        media = cls.objects.create(
+            uuid=uuid,
+            org=org,
+            url=public_file_storage.url(path),
+            name=file.name,
+            paths={file.content_type: path},
+            created_by=user,
+        )
+
+        on_transaction_commit(lambda: process_media_upload.delay(media.id))
+
+        return media
+
+    def process_upload(self):
+        # TODO process using ffmpeg wrapper
+
+        # self.is_ready = True
+        # self.save(update_fields=("is_ready",))
+        pass
 
 
 class Broadcast(models.Model):
