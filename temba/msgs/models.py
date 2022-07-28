@@ -50,16 +50,24 @@ class Media(models.Model):
 
     uuid = models.UUIDField(default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
-    url = models.URLField(max_length=2048, db_index=True)
-    name = models.CharField(max_length=255)  # original filename
-    paths = models.JSONField(default=dict)  # dict of {content_type1: path1, content_type2: path2, ...}
+    url = models.URLField(max_length=2048, db_index=True, unique=True)
+    name = models.CharField(max_length=255)  # filename including extension
+    content_type = models.CharField(max_length=255)
+    path = models.CharField(max_length=2048)
+    original = models.ForeignKey("self", null=True, on_delete=models.CASCADE, related_name="alternates")
 
     # fields that will be set after upload by a processing task
+    size = models.IntegerField(default=0)  # bytes
+    duration = models.IntegerField(default=0)  # milliseconds
+    width = models.IntegerField(default=0)  # pixels
+    height = models.IntegerField(default=0)  # pixels
     is_ready = models.BooleanField(default=False)
-    duration = models.IntegerField(default=0)
 
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
     created_on = models.DateTimeField(default=timezone.now)
+
+    # TODO remove
+    paths = models.JSONField(default=dict)
 
     @classmethod
     def from_upload(cls, org, user, file, flow):
@@ -80,7 +88,8 @@ class Media(models.Model):
             org=org,
             url=public_file_storage.url(path),
             name=file.name,
-            paths={file.content_type: path},
+            content_type=file.content_type,
+            path=path,
             created_by=user,
         )
 
