@@ -61,6 +61,26 @@ class MediaTest(TembaTest):
         self.assertFalse(media.is_ready)
 
     @patch("temba.msgs.models.uuid4")
+    def test_process_image_png(self, mock_uuid):
+        mock_uuid.side_effect = [
+            UUID("6a65f14f-b762-4485-b860-96a322292775"),
+            UUID("23184249-7c8f-437b-8123-e12c190abf7e"),
+        ]
+
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/klab.png", "image/png"),
+        )
+        media.refresh_from_db()
+
+        self.assertEqual(371425, media.size)
+        self.assertEqual(0, media.duration)
+        self.assertEqual(480, media.width)
+        self.assertEqual(360, media.height)
+        self.assertTrue(media.is_ready)
+
+    @patch("temba.msgs.models.uuid4")
     def test_process_audio_wav(self, mock_uuid):
         mock_uuid.side_effect = [
             UUID("6a65f14f-b762-4485-b860-96a322292775"),
@@ -69,9 +89,8 @@ class MediaTest(TembaTest):
         ]
 
         media = Media.from_upload(
-            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_media/allo.wav", "audio/wav"), process=False
+            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_media/allo.wav", "audio/wav")
         )
-        media.process_upload()
         media.refresh_from_db()
 
         self.assertEqual(81818, media.size)
@@ -120,12 +139,9 @@ class MediaTest(TembaTest):
         ]
 
         media = Media.from_upload(
-            self.org,
-            self.admin,
-            self.upload(f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a", "audio/mp4"),
-            process=False,
+            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a", "audio/mp4")
         )
-        media.process_upload()
+        media.refresh_from_db()
 
         self.assertEqual(46468, media.size)
         self.assertEqual(10216, media.duration)
@@ -158,9 +174,9 @@ class MediaTest(TembaTest):
         ]
 
         media = Media.from_upload(
-            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_media/snow.mp4", "video/mp4"), process=False
+            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_media/snow.mp4", "video/mp4")
         )
-        media.process_upload()
+        media.refresh_from_db()
 
         self.assertEqual(684558, media.size)
         self.assertEqual(3536, media.duration)

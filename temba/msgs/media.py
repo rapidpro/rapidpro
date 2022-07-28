@@ -33,7 +33,9 @@ def process_upload(media: Media):
 
 
 def _process_image_upload(media: Media, sub_type: str, file):
-    pass
+    probe = ffmpeg.probe(file.name, select_streams="v:0")
+    media.width = probe["streams"][0]["width"]
+    media.height = probe["streams"][0]["height"]
 
 
 def _process_audio_upload(media: Media, sub_type: str, file):
