@@ -213,7 +213,6 @@ class FlowCRUDL(SmartCRUDL):
         "recent_contacts",
         "assets",
         "upload_media",
-        "upload_media_action",  # deprecated
     )
 
     model = Flow
@@ -702,16 +701,6 @@ class FlowCRUDL(SmartCRUDL):
 
             return obj
 
-    class UploadMediaAction(OrgObjPermsMixin, SmartUpdateView):  # pragma: no cover
-        permission = "flows.flow_upload_media"
-        slug_url_kwarg = "uuid"
-
-        def post(self, request, *args, **kwargs):
-            media = Media.from_upload(
-                self.request.org, self.request.user, self.request.FILES["file"], flow=self.get_object()
-            )
-            return JsonResponse({"type": list(media.paths.keys())[0], "url": media.url})
-
     class UploadMedia(OrgObjPermsMixin, SmartUpdateView):
         slug_url_kwarg = "uuid"
 
@@ -719,7 +708,7 @@ class FlowCRUDL(SmartCRUDL):
             media = Media.from_upload(
                 self.request.org, self.request.user, self.request.FILES["file"], flow=self.get_object()
             )
-            return JsonResponse({"type": list(media.paths.keys())[0], "url": media.url})
+            return JsonResponse({"type": media.content_type, "url": media.url})
 
     class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         title = _("Flows")
