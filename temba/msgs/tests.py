@@ -19,6 +19,7 @@ from temba.msgs.models import (
     ExportMessagesTask,
     Label,
     LabelCount,
+    Media,
     Msg,
     SystemLabel,
     SystemLabelCount,
@@ -27,9 +28,37 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
+from temba.utils.uuid import UUID
 
 from .tasks import squash_msgcounts
 from .templatetags.sms import as_icon
+
+
+class MediaTest(TembaTest):
+    @patch("temba.msgs.models.uuid4")
+    def test_model(self, mock_uuid):
+        flow = self.create_flow("Color")
+        mock_uuid.side_effect = [UUID("6a65f14f-b762-4485-b860-96a322292775")]
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+            flow=flow,
+        )
+
+        self.assertEqual("6a65f14f-b762-4485-b860-96a322292775", str(media.uuid))
+        self.assertEqual(self.org, media.org)
+        self.assertEqual(
+            f"/media/attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/steve%20marten.jpg",
+            media.url,
+        )
+        self.assertEqual(
+            {"image/jpeg": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/steve marten.jpg"},
+            media.paths,
+        )
+        self.assertEqual("steve marten.jpg", media.name)
+        self.assertEqual(self.admin, media.created_by)
+        self.assertFalse(media.is_ready)
 
 
 class MsgTest(TembaTest):

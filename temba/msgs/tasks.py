@@ -5,7 +5,7 @@ from celery import shared_task
 from temba.utils import analytics
 from temba.utils.celery import nonoverlapping_task
 
-from .models import Broadcast, BroadcastMsgCount, ExportMessagesTask, LabelCount, Msg, SystemLabelCount
+from .models import Broadcast, BroadcastMsgCount, ExportMessagesTask, LabelCount, Media, Msg, SystemLabelCount
 
 logger = logging.getLogger(__name__)
 
@@ -57,3 +57,8 @@ def squash_msgcounts():
     SystemLabelCount.squash()
     LabelCount.squash()
     BroadcastMsgCount.squash()
+
+
+@shared_task
+def process_media_upload(media_id):
+    Media.objects.get(id=media_id).process_upload()
