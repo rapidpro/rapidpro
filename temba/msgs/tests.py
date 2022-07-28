@@ -36,12 +36,14 @@ from .templatetags.sms import as_icon
 
 class MediaTest(TembaTest):
     @patch("temba.msgs.models.uuid4")
-    def test_model(self, mock_uuid):
+    def test_from_upload(self, mock_uuid):
         mock_uuid.side_effect = [UUID("6a65f14f-b762-4485-b860-96a322292775")]
+
         media = Media.from_upload(
             self.org,
             self.admin,
             self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+            process=False,
         )
 
         self.assertEqual("6a65f14f-b762-4485-b860-96a322292775", str(media.uuid))
@@ -58,66 +60,128 @@ class MediaTest(TembaTest):
         self.assertEqual(self.admin, media.created_by)
         self.assertFalse(media.is_ready)
 
-    def test_process_audio_wav(self):
-        flow = self.create_flow("Color")
+    @patch("temba.msgs.models.uuid4")
+    def test_process_audio_wav(self, mock_uuid):
+        mock_uuid.side_effect = [
+            UUID("6a65f14f-b762-4485-b860-96a322292775"),
+            UUID("23184249-7c8f-437b-8123-e12c190abf7e"),
+            UUID("fe6cb59a-0a79-4b01-babf-dc97fe70d3e7"),
+        ]
+
         media = Media.from_upload(
-            self.org,
-            self.admin,
-            self.upload(f"{settings.MEDIA_ROOT}/test_media/allo.wav", "audio/wav"),
-            flow=flow,
+            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_media/allo.wav", "audio/wav"), process=False
         )
         media.process_upload()
+        media.refresh_from_db()
 
-        self.assertTrue(media.is_ready)
+        self.assertEqual(81818, media.size)
         self.assertEqual(5110, media.duration)
-        self.assertEqual(
-            {
-                "audio/wav": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/allo.wav",
-                "audio/mp3": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/allo.mp3",
-                "audio/mp4": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/allo.m4a",
-            },
-            media.paths,
-        )
+        self.assertEqual(0, media.width)
+        self.assertEqual(0, media.height)
+        self.assertTrue(media.is_ready)
 
-    def test_process_audio_m4a(self):
-        flow = self.create_flow("Color")
+        alt1, alt2 = list(media.alternates.order_by("id"))
+
+        self.assertEqual(self.org, alt1.org)
+        self.assertEqual(
+            f"/media/test_orgs/{self.org.id}/media/2318/23184249-7c8f-437b-8123-e12c190abf7e/allo.mp3", alt1.url
+        )
+        self.assertEqual("allo.mp3", alt1.name)
+        self.assertEqual("audio/mp3", alt1.content_type)
+        self.assertEqual(
+            f"test_orgs/{self.org.id}/media/2318/23184249-7c8f-437b-8123-e12c190abf7e/allo.mp3", alt1.path
+        )
+        self.assertEqual(5517, alt1.size)
+        self.assertEqual(5110, alt1.duration)
+        self.assertEqual(0, alt1.width)
+        self.assertEqual(0, alt2.height)
+        self.assertTrue(alt1.is_ready)
+
+        self.assertEqual(self.org, alt2.org)
+        self.assertEqual(
+            f"/media/test_orgs/{self.org.id}/media/fe6c/fe6cb59a-0a79-4b01-babf-dc97fe70d3e7/allo.m4a", alt2.url
+        )
+        self.assertEqual("allo.m4a", alt2.name)
+        self.assertEqual("audio/mp4", alt2.content_type)
+        self.assertEqual(
+            f"test_orgs/{self.org.id}/media/fe6c/fe6cb59a-0a79-4b01-babf-dc97fe70d3e7/allo.m4a", alt2.path
+        )
+        self.assertEqual(20552, alt2.size)
+        self.assertEqual(5110, alt2.duration)
+        self.assertEqual(0, alt2.width)
+        self.assertEqual(0, alt2.height)
+        self.assertTrue(alt2.is_ready)
+
+    @patch("temba.msgs.models.uuid4")
+    def test_process_audio_m4a(self, mock_uuid):
+        mock_uuid.side_effect = [
+            UUID("6a65f14f-b762-4485-b860-96a322292775"),
+            UUID("23184249-7c8f-437b-8123-e12c190abf7e"),
+        ]
+
         media = Media.from_upload(
             self.org,
             self.admin,
-            self.upload(f"{settings.MEDIA_ROOT}/test_media/snow.m4a", "audio/mp4"),
-            flow=flow,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a", "audio/mp4"),
+            process=False,
         )
         media.process_upload()
 
+        self.assertEqual(46468, media.size)
+        self.assertEqual(10216, media.duration)
+        self.assertEqual(0, media.width)
+        self.assertEqual(0, media.height)
         self.assertTrue(media.is_ready)
-        self.assertEqual(3809, media.duration)
-        self.assertEqual(
-            {
-                "audio/mp4": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/snow.m4a",
-                "audio/mp3": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/snow.mp3",
-            },
-            media.paths,
-        )
 
-    def test_process_video_mp4(self):
-        flow = self.create_flow("Color")
+        alt = media.alternates.get()
+
+        self.assertEqual(self.org, alt.org)
+        self.assertEqual(
+            f"/media/test_orgs/{self.org.id}/media/2318/23184249-7c8f-437b-8123-e12c190abf7e/bubbles.mp3", alt.url
+        )
+        self.assertEqual("bubbles.mp3", alt.name)
+        self.assertEqual("audio/mp3", alt.content_type)
+        self.assertEqual(
+            f"test_orgs/{self.org.id}/media/2318/23184249-7c8f-437b-8123-e12c190abf7e/bubbles.mp3", alt.path
+        )
+        self.assertEqual(41493, alt.size)
+        self.assertEqual(10216, alt.duration)
+        self.assertEqual(0, alt.width)
+        self.assertEqual(0, alt.height)
+        self.assertTrue(alt.is_ready)
+
+    @patch("temba.msgs.models.uuid4")
+    def test_process_video_mp4(self, mock_uuid):
+        mock_uuid.side_effect = [
+            UUID("6a65f14f-b762-4485-b860-96a322292775"),
+            UUID("23184249-7c8f-437b-8123-e12c190abf7e"),
+        ]
+
         media = Media.from_upload(
-            self.org,
-            self.admin,
-            self.upload(f"{settings.MEDIA_ROOT}/test_media/snow.mp4", "video/mp4"),
-            flow=flow,
+            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_media/snow.mp4", "video/mp4"), process=False
         )
         media.process_upload()
 
+        self.assertEqual(684558, media.size)
+        self.assertEqual(3536, media.duration)
+        self.assertEqual(640, media.width)
+        self.assertEqual(480, media.height)
         self.assertTrue(media.is_ready)
-        self.assertEqual(3809, media.duration)
+
+        alt = media.alternates.get()
+
+        self.assertEqual(self.org, alt.org)
         self.assertEqual(
-            {
-                "video/mp4": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/snow.mp4",
-                "image/jpg": f"attachments/{self.org.id}/{flow.id}/steps/{media.uuid}/snow.jpg",
-            },
-            media.paths,
+            f"/media/test_orgs/{self.org.id}/media/2318/23184249-7c8f-437b-8123-e12c190abf7e/snow.jpg", alt.url
         )
+        self.assertEqual("snow.jpg", alt.name)
+        self.assertEqual("image/jpeg", alt.content_type)
+        self.assertEqual(f"test_orgs/{self.org.id}/media/2318/23184249-7c8f-437b-8123-e12c190abf7e/snow.jpg", alt.path)
+        self.assertEqual(37613, alt.size)
+        self.assertEqual(0, alt.duration)
+        self.assertEqual(640, alt.width)
+        self.assertEqual(480, alt.height)
+        self.assertTrue(alt.is_ready)
 
 
 class MsgTest(TembaTest):

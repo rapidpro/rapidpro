@@ -4,7 +4,6 @@ from tempfile import NamedTemporaryFile
 import ffmpeg
 
 from temba.utils.s3 import public_file_storage
-from temba.utils.uuid import uuid4
 
 from .models import Media
 
@@ -38,74 +37,59 @@ def _process_image_upload(media: Media, sub_type: str, file):
 
 
 def _process_audio_upload(media: Media, sub_type: str, file):
+    probe = ffmpeg.probe(file.name, select_streams="a:0")
+    media.duration = int(float(probe["streams"][0]["duration"]) * 1000)
+
     if sub_type != "mp3":
         _create_alternate_audio(media, file, "audio/mp3", "mp3", codec="libmp3lame")
     if sub_type != "mp4":
         _create_alternate_audio(media, file, "audio/mp4", "m4a", codec="aac")
 
-    media.duration = _get_duration(file)
-
 
 def _process_video_upload(media: Media, sub_type: str, file):
-    # media.paths["image/jpg"] = _create_new_video_thumbnail(media.path, file)
+    probe = ffmpeg.probe(file.name, select_streams="v:0")
+    media.duration = int(float(probe["streams"][0]["duration"]) * 1000)
+    media.width = probe["streams"][0]["width"]
+    media.height = probe["streams"][0]["height"]
 
-    media.duration = _get_duration(file)
+    _create_video_thumbnail(media, file)
 
 
 def _create_alternate_audio(original: Media, file, new_content_type: str, new_extension: str, codec: str) -> str:
     """
-    Creates a new audio version of the given media file
+    Creates a new audio version of the given audio media
     """
 
     def transform(in_name, out_name):
         ffmpeg.input(in_name).output(out_name, acodec=codec).overwrite_output().run()
 
-    return _create_new_media(original, file, transform, new_extension)
+    return _create_alternate(original, file, transform, new_content_type, new_extension, duration=original.duration)
 
 
-def _create_new_video_thumbnail(media: str, file) -> str:
+def _create_video_thumbnail(original: Media, file) -> str:
     """
-    Creates a new thumbnail for the given video file
+    Creates a new thumbnail for the given video media
     """
 
     def transform(in_name, out_name):
-        ffmpeg.input(in_name, ss="00:00:00").filter("scale", "640", -1).output(
-            out_name, vframes=1
-        ).overwrite_output().run()
+        ffmpeg.input(in_name, ss="00:00:00").output(out_name, vframes=1).overwrite_output().run()
 
-    return _create_new_media(media, file, transform, "jpg")
+    return _create_alternate(
+        original, file, transform, "image/jpeg", "jpg", width=original.width, height=original.height
+    )
 
 
-def _create_new_media(original: Media, file, transform, new_content_type: str, new_extension: str) -> Media:
+def _create_alternate(original: Media, file, transform, new_content_type: str, new_extension: str, **kwargs) -> Media:
     """
     Creates a new media instance by transforming an original with an ffmpeg pipeline
     """
 
-    new_path = _change_extension(original.path, new_extension)
+    new_name = _change_extension(original.name, new_extension)
 
     with NamedTemporaryFile(suffix="." + new_extension, delete=True) as temp:
         transform(file.name, temp.name)
 
-        public_file_storage.save(new_path, temp)
-
-    return Media.objects.create(
-        uuid=uuid4(),
-        org=original.org,
-        url=public_file_storage.url(new_path),
-        name=file.name,
-        content_type=new_content_type,
-        path=new_path,
-        original=original,
-        created_by=original.created_by,
-    )
-
-
-def _get_duration(file) -> int:
-    """
-    Uses ffprobe to get the duration of the audio or video file
-    """
-    output = ffmpeg.probe(file.name)
-    return int(float(output["format"]["duration"]) * 1000)
+        return Media.create_alternate(original, new_name, new_content_type, temp, **kwargs)
 
 
 def _change_extension(filename: str, extension: str) -> str:

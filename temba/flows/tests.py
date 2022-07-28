@@ -2994,6 +2994,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             UUID("2f42e913-6a19-44c5-90ee-cdf7b14ad5c0"),
             UUID("f661c405-524e-4bd7-83e2-c93ffe35aa60"),
             UUID("67ec31c7-a85f-4834-9da2-dee2c7b56576"),
+            UUID("8568061a-6a58-49bf-b64c-f8be583962a8"),
         ]
 
         assert_upload(
@@ -3014,10 +3015,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         assert_upload(
             self.editor,
-            f"{settings.MEDIA_ROOT}/test_media/snow.m4a",
+            f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a",
             {
                 "type": "audio/mp4",
-                "url": f"/media/test_orgs/{self.org.id}/media/f661/f661c405-524e-4bd7-83e2-c93ffe35aa60/snow.m4a",
+                "url": f"/media/test_orgs/{self.org.id}/media/67ec/67ec31c7-a85f-4834-9da2-dee2c7b56576/bubbles.m4a",
             },
         )
 

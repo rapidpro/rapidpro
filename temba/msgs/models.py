@@ -52,10 +52,10 @@ class Media(models.Model):
     name = models.CharField(max_length=255)  # filename including extension
     content_type = models.CharField(max_length=255)
     path = models.CharField(max_length=2048)
+    size = models.IntegerField(default=0)  # bytes
     original = models.ForeignKey("self", null=True, on_delete=models.CASCADE, related_name="alternates")
 
     # fields that will be set after upload by a processing task
-    size = models.IntegerField(default=0)  # bytes
     duration = models.IntegerField(default=0)  # milliseconds
     width = models.IntegerField(default=0)  # pixels
     height = models.IntegerField(default=0)  # pixels
@@ -76,32 +76,60 @@ class Media(models.Model):
         return f"{settings.STORAGE_ROOT_DIR}/{org.id}/media/{str(uuid)[0:4]}/{uuid}/{filename}"
 
     @classmethod
-    def from_upload(cls, org, user, file):
-        from .tasks import process_media_upload
+    def from_upload(cls, org, user, file, process=True):
+        """
+        Creates a new media instance from a file upload.
+        """
 
-        uuid = uuid4()
+        from .tasks import process_media_upload
 
         # browsers might send m4a files but correct MIME type is audio/mp4
         extension = file.name.split(".")[-1]
         if extension == "m4a":
             file.content_type = "audio/mp4"
 
-        path = cls.get_storage_path(org, uuid, file.name)
-        path = public_file_storage.save(path, file)  # storage classes can rewrite saved paths
+        media = cls._create(org, user, file.name, file.content_type, file)
 
-        media = cls.objects.create(
+        if process:
+            on_transaction_commit(lambda: process_media_upload.delay(media.id))
+
+        return media
+
+    @classmethod
+    def create_alternate(cls, original, name: str, content_type: str, file, **kwargs):
+        """
+        Creates a new alternate media instance for the given original.
+        """
+
+        return cls._create(
+            original.org,
+            original.created_by,
+            name,
+            content_type,
+            file,
+            original=original,
+            is_ready=True,
+            **kwargs,
+        )
+
+    @classmethod
+    def _create(cls, org, user, name: str, content_type: str, file, **kwargs):
+        uuid = uuid4()
+        path = cls.get_storage_path(org, uuid, name)
+        path = public_file_storage.save(path, file)
+        size = public_file_storage.size(path)
+
+        return cls.objects.create(
             uuid=uuid,
             org=org,
             url=public_file_storage.url(path),
-            name=file.name,
-            content_type=file.content_type,
+            name=name,
+            content_type=content_type,
             path=path,
+            size=size,
             created_by=user,
+            **kwargs,
         )
-
-        on_transaction_commit(lambda: process_media_upload.delay(media.id))
-
-        return media
 
     def process_upload(self):
         from .media import process_upload
