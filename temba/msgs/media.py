@@ -33,14 +33,14 @@ def process_upload(media: Media):
 
 
 def _process_image_upload(media: Media, sub_type: str, file):
-    probe = ffmpeg.probe(file.name, select_streams="v:0")
-    media.width = probe["streams"][0]["width"]
-    media.height = probe["streams"][0]["height"]
+    stream_info = _get_stream_info(file.name, "v:0")
+    media.width = stream_info.get("width", 0)
+    media.height = stream_info.get("height", 0)
 
 
 def _process_audio_upload(media: Media, sub_type: str, file):
-    probe = ffmpeg.probe(file.name, select_streams="a:0")
-    media.duration = int(float(probe["streams"][0]["duration"]) * 1000)
+    stream_info = _get_stream_info(file.name, "a:0")
+    media.duration = int(float(stream_info.get("duration", 0)) * 1000)
 
     if sub_type != "mp3":
         _create_alternate_audio(media, file, "audio/mp3", "mp3", codec="libmp3lame")
@@ -49,10 +49,10 @@ def _process_audio_upload(media: Media, sub_type: str, file):
 
 
 def _process_video_upload(media: Media, sub_type: str, file):
-    probe = ffmpeg.probe(file.name, select_streams="v:0")
-    media.duration = int(float(probe["streams"][0]["duration"]) * 1000)
-    media.width = probe["streams"][0]["width"]
-    media.height = probe["streams"][0]["height"]
+    stream_info = _get_stream_info(file.name, "v:0")
+    media.duration = int(float(stream_info.get("duration", 0)) * 1000)
+    media.width = stream_info.get("width", 0)
+    media.height = stream_info.get("height", 0)
 
     _create_video_thumbnail(media, file)
 
@@ -92,6 +92,14 @@ def _create_alternate(original: Media, file, transform, new_content_type: str, n
         transform(file.name, temp.name)
 
         return Media.create_alternate(original, new_name, new_content_type, temp, **kwargs)
+
+
+def _get_stream_info(filename: str, stream_id: str) -> dict:
+    """
+    Probes a file for a given stream type
+    """
+    probe = ffmpeg.probe(filename, select_streams=stream_id)
+    return probe["streams"][0] if probe["streams"] else {}
 
 
 def _change_extension(filename: str, extension: str) -> str:

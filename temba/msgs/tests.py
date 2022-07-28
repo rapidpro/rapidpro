@@ -35,9 +35,17 @@ from .templatetags.sms import as_icon
 
 
 class MediaTest(TembaTest):
+    def tearDown(self):
+        self.clear_storage()
+
+        return super().tearDown()
+
     @patch("temba.msgs.models.uuid4")
     def test_from_upload(self, mock_uuid):
-        mock_uuid.side_effect = [UUID("6a65f14f-b762-4485-b860-96a322292775")]
+        mock_uuid.side_effect = [
+            UUID("6a65f14f-b762-4485-b860-96a322292775"),
+            UUID("23184249-7c8f-437b-8123-e12c190abf7e"),
+        ]
 
         media = Media.from_upload(
             self.org,
@@ -59,6 +67,19 @@ class MediaTest(TembaTest):
         )
         self.assertEqual(self.admin, media.created_by)
         self.assertFalse(media.is_ready)
+
+        # check that our filename is cleaned
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/klab.png", "image/png", name="../../../etc/passwd"),
+            process=False,
+        )
+
+        self.assertEqual("passwd.png", media.name)
+        self.assertEqual(
+            f"test_orgs/{self.org.id}/media/2318/23184249-7c8f-437b-8123-e12c190abf7e/passwd.png", media.path
+        )
 
     @patch("temba.msgs.models.uuid4")
     def test_process_image_png(self, mock_uuid):

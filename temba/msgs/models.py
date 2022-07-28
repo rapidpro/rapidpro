@@ -1,4 +1,7 @@
 import logging
+import mimetypes
+import os
+import re
 import time
 from array import array
 from datetime import datetime, timedelta
@@ -83,12 +86,19 @@ class Media(models.Model):
 
         from .tasks import process_media_upload
 
+        base_name, extension = os.path.splitext(file.name)
+
+        # cleanup file name
+        base_name = re.sub(r"[^a-zA-Z0-9_ ]", "", base_name).strip() or "file"
+
+        if not extension:
+            extension = mimetypes.guess_extension(file.content_type) or ".bin"
+
         # browsers might send m4a files but correct MIME type is audio/mp4
-        extension = file.name.split(".")[-1]
-        if extension == "m4a":
+        if extension == ".m4a":
             file.content_type = "audio/mp4"
 
-        media = cls._create(org, user, file.name, file.content_type, file)
+        media = cls._create(org, user, base_name + extension, file.content_type, file)
 
         if process:
             on_transaction_commit(lambda: process_media_upload.delay(media.id))
