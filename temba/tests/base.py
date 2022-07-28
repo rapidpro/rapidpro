@@ -512,9 +512,15 @@ class TembaTestMixin:
             output_url="http://sessions.com/123.json",
             connection=call,
             wait_resume_on_expire=False,
+            ended_on=timezone.now(),
         )
         FlowRun.objects.create(
-            org=self.org, flow=flow, contact=contact, status=FlowRun.STATUS_COMPLETED, session=session
+            org=self.org,
+            flow=flow,
+            contact=contact,
+            status=FlowRun.STATUS_COMPLETED,
+            session=session,
+            exited_on=timezone.now(),
         )
         Msg.objects.create(
             org=self.org,

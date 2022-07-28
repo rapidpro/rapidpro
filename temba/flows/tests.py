@@ -1080,24 +1080,22 @@ class FlowTest(TembaTest):
         FlowCategoryCount.objects.get(category_name="Blue", result_name="Color", result_key="color", count=-1)
 
     def test_flow_start_counts(self):
-        flow = self.get_flow("color")
-
         # create start for 10 contacts
+        flow = self.create_flow("Test")
         start = FlowStart.objects.create(org=self.org, flow=flow, created_by=self.admin)
         for i in range(10):
-            contact = self.create_contact("Bob", urns=[f"twitter:bobby{i}"])
-            start.contacts.add(contact)
+            start.contacts.add(self.create_contact("Bob", urns=[f"twitter:bobby{i}"]))
 
         # create runs for first 5
-        for contact in start.contacts.order_by("id")[:5]:
-            FlowRun.objects.create(org=self.org, flow=flow, contact=contact, start=start)
+        for c in start.contacts.order_by("id")[:5]:
+            MockSessionWriter(contact=c, flow=flow, start=start).wait().save()
 
         # check our count
         self.assertEqual(FlowStartCount.get_count(start), 5)
 
         # create runs for last 5
-        for contact in start.contacts.order_by("id")[5:]:
-            FlowRun.objects.create(org=self.org, flow=flow, contact=contact, start=start)
+        for c in start.contacts.order_by("id")[5:]:
+            MockSessionWriter(contact=c, flow=flow, start=start).wait().save()
 
         # check our count
         self.assertEqual(FlowStartCount.get_count(start), 10)
@@ -1690,6 +1688,7 @@ class FlowTest(TembaTest):
             wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
             wait_expires_on=None,
             wait_resume_on_expire=False,
+            ended_on=timezone.now(),
         )
 
         # create waiting session for flow 2
@@ -3269,7 +3268,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         with patch("temba.flows.views.FlowCRUDL.RunTable.paginate_by", 1):
             # create one empty run
-            FlowRun.objects.create(org=self.org, flow=flow, contact=pete, responded=True)
+            FlowRun.objects.create(
+                org=self.org,
+                flow=flow,
+                contact=pete,
+                responded=True,
+                status=FlowRun.STATUS_COMPLETED,
+                exited_on=timezone.now(),
+            )
 
             # fetch our intercooler rows for the run table
             response = self.client.get(reverse("flows.flow_run_table", args=[flow.id]))
@@ -3278,7 +3284,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         with patch("temba.flows.views.FlowCRUDL.RunTable.paginate_by", 1):
             # create one empty run
-            FlowRun.objects.create(org=self.org, flow=flow, contact=pete, responded=False)
+            FlowRun.objects.create(
+                org=self.org,
+                flow=flow,
+                contact=pete,
+                responded=False,
+                status=FlowRun.STATUS_COMPLETED,
+                exited_on=timezone.now(),
+            )
 
             # fetch our intercooler rows for the run table
             response = self.client.get("%s?responded=bla" % reverse("flows.flow_run_table", args=[flow.id]))
@@ -3872,6 +3885,9 @@ class FlowSessionTest(TembaTest):
             org=self.org,
             contact=contact,
             output_url="http://sessions.com/123.json",
+            status=FlowSession.STATUS_WAITING,
+            wait_started_on=timezone.now(),
+            wait_expires_on=timezone.now() + timedelta(days=7),
             wait_resume_on_expire=False,
         )
         session2 = FlowSession.objects.create(
@@ -3879,6 +3895,9 @@ class FlowSessionTest(TembaTest):
             org=self.org,
             contact=contact,
             output_url="http://sessions.com/234.json",
+            status=FlowSession.STATUS_WAITING,
+            wait_started_on=timezone.now(),
+            wait_expires_on=timezone.now() + timedelta(days=7),
             wait_resume_on_expire=False,
         )
         session3 = FlowSession.objects.create(
@@ -3886,11 +3905,20 @@ class FlowSessionTest(TembaTest):
             org=self.org,
             contact=contact,
             output_url="http://sessions.com/345.json",
+            status=FlowSession.STATUS_WAITING,
+            wait_started_on=timezone.now(),
+            wait_expires_on=timezone.now() + timedelta(days=7),
             wait_resume_on_expire=False,
         )
-        run1 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session1)
-        run2 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session2)
-        run3 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session3)
+        run1 = FlowRun.objects.create(
+            org=self.org, flow=flow, contact=contact, session=session1, status=FlowRun.STATUS_WAITING
+        )
+        run2 = FlowRun.objects.create(
+            org=self.org, flow=flow, contact=contact, session=session2, status=FlowRun.STATUS_WAITING
+        )
+        run3 = FlowRun.objects.create(
+            org=self.org, flow=flow, contact=contact, session=session3, status=FlowRun.STATUS_WAITING
+        )
 
         # create an IVR call with session
         call = self.create_incoming_call(flow, contact)
@@ -3902,14 +3930,27 @@ class FlowSessionTest(TembaTest):
         self.assertIsNotNone(run4.session)
 
         # end run1 and run4's sessions in the past
+        run1.status = FlowRun.STATUS_COMPLETED
+        run1.exited_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run1.save(update_fields=("status", "exited_on"))
+        run1.session.status = FlowSession.STATUS_COMPLETED
         run1.session.ended_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
-        run1.session.save(update_fields=("ended_on",))
+        run1.session.save(update_fields=("status", "ended_on"))
+
+        run4.status = FlowRun.STATUS_INTERRUPTED
+        run4.exited_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run4.save(update_fields=("status", "exited_on"))
+        run4.session.status = FlowSession.STATUS_INTERRUPTED
         run4.session.ended_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
-        run4.session.save(update_fields=("ended_on",))
+        run4.session.save(update_fields=("status", "ended_on"))
 
         # end run2's session now
+        run2.status = FlowRun.STATUS_EXPIRED
+        run2.exited_on = timezone.now()
+        run2.save(update_fields=("status", "exited_on"))
+        run4.session.status = FlowSession.STATUS_EXPIRED
         run2.session.ended_on = timezone.now()
-        run2.session.save(update_fields=("ended_on",))
+        run2.session.save(update_fields=("status", "ended_on"))
 
         trim_flow_sessions_and_starts()
 
@@ -3941,9 +3982,14 @@ class FlowStartTest(TembaTest):
                 org=self.org,
                 contact=contact,
                 output_url="http://sessions.com/123.json",
+                status=FlowSession.STATUS_WAITING,
+                wait_started_on=timezone.now(),
+                wait_expires_on=timezone.now() + timedelta(days=7),
                 wait_resume_on_expire=False,
             )
-            FlowRun.objects.create(org=self.org, contact=contact, flow=flow, session=session, start=start)
+            FlowRun.objects.create(
+                org=self.org, contact=contact, flow=flow, session=session, start=start, status=FlowRun.STATUS_WAITING
+            )
 
             FlowStartCount.objects.create(start=start, count=1, is_squashed=False)
 
