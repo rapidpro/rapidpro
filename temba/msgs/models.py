@@ -89,7 +89,7 @@ class Media(models.Model):
         base_name, extension = os.path.splitext(file.name)
 
         # cleanup file name
-        base_name = re.sub(r"[^a-zA-Z0-9_ ]", "", base_name).strip() or "file"
+        base_name = re.sub(r"[^a-zA-Z0-9_ ]", "", base_name).strip()[:255] or "file"
 
         if not extension:
             extension = mimetypes.guess_extension(file.content_type) or ".bin"

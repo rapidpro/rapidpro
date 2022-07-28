@@ -131,7 +131,7 @@ class MediaTest(TembaTest):
         self.assertEqual(
             f"test_orgs/{self.org.id}/media/2318/23184249-7c8f-437b-8123-e12c190abf7e/allo.mp3", alt1.path
         )
-        self.assertEqual(5517, alt1.size)
+        self.assertAlmostEqual(5517, alt1.size, delta=1000)
         self.assertEqual(5110, alt1.duration)
         self.assertEqual(0, alt1.width)
         self.assertEqual(0, alt2.height)
@@ -146,7 +146,7 @@ class MediaTest(TembaTest):
         self.assertEqual(
             f"test_orgs/{self.org.id}/media/fe6c/fe6cb59a-0a79-4b01-babf-dc97fe70d3e7/allo.m4a", alt2.path
         )
-        self.assertEqual(20552, alt2.size)
+        self.assertAlmostEqual(20552, alt2.size, delta=7500)
         self.assertEqual(5110, alt2.duration)
         self.assertEqual(0, alt2.width)
         self.assertEqual(0, alt2.height)
@@ -181,7 +181,7 @@ class MediaTest(TembaTest):
         self.assertEqual(
             f"test_orgs/{self.org.id}/media/2318/23184249-7c8f-437b-8123-e12c190abf7e/bubbles.mp3", alt.path
         )
-        self.assertEqual(41493, alt.size)
+        self.assertAlmostEqual(41493, alt.size, delta=1000)
         self.assertEqual(10216, alt.duration)
         self.assertEqual(0, alt.width)
         self.assertEqual(0, alt.height)
@@ -214,7 +214,7 @@ class MediaTest(TembaTest):
         self.assertEqual("snow.jpg", alt.name)
         self.assertEqual("image/jpeg", alt.content_type)
         self.assertEqual(f"test_orgs/{self.org.id}/media/2318/23184249-7c8f-437b-8123-e12c190abf7e/snow.jpg", alt.path)
-        self.assertEqual(37613, alt.size)
+        self.assertAlmostEqual(37613, alt.size, delta=1000)
         self.assertEqual(0, alt.duration)
         self.assertEqual(640, alt.width)
         self.assertEqual(480, alt.height)
