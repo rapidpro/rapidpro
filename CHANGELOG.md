@@ -1,3 +1,8 @@
+v7.5.7
+----------
+ * Add constraint to ensure non-waiting/active runs have exited_on set
+ * Add constraint to ensure non-waiting sessions have an ended_on
+
 v7.5.6
 ----------
  * Remove unused upload_recording endpoint

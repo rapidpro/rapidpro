@@ -705,9 +705,7 @@ class FlowCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
         def post(self, request, *args, **kwargs):
-            media = Media.from_upload(
-                self.request.org, self.request.user, self.request.FILES["file"], flow=self.get_object()
-            )
+            media = Media.from_upload(self.request.org, self.request.user, self.request.FILES["file"])
             return JsonResponse({"type": media.content_type, "url": media.url})
 
     class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):

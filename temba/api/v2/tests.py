@@ -543,7 +543,10 @@ class APITest(TembaTest):
 
         # create 1255 test runs (5 full pages of 250 items + 1 partial with 5 items)
         flow = self.create_flow("Test")
-        FlowRun.objects.bulk_create([FlowRun(org=self.org, flow=flow, contact=self.joe) for r in range(1255)])
+        runs = []
+        for r in range(1255):
+            runs.append(FlowRun(org=self.org, flow=flow, contact=self.joe, status="C", exited_on=timezone.now()))
+        FlowRun.objects.bulk_create(runs)
         actual_ids = list(FlowRun.objects.order_by("-pk").values_list("pk", flat=True))
 
         # give them all the same modified_on
@@ -2277,11 +2280,11 @@ class APITest(TembaTest):
         self.create_group("Developers", query="isdeveloper = YES")
         other_org_group = self.create_group("Testers", org=self.org2)
 
-        # create some "active" runs for some of the contacts
-        flow = self.get_flow("favorites_v13")
-        FlowRun.objects.create(org=self.org, flow=flow, contact=contact1)
-        FlowRun.objects.create(org=self.org, flow=flow, contact=contact2)
-        FlowRun.objects.create(org=self.org, flow=flow, contact=contact3)
+        # create some waiting runs for some of the contacts
+        flow = self.create_flow("Favorites")
+        MockSessionWriter(contact1, flow).wait().save()
+        MockSessionWriter(contact2, flow).wait().save()
+        MockSessionWriter(contact3, flow).wait().save()
 
         self.create_incoming_msg(contact1, "Hello")
         self.create_incoming_msg(contact2, "Hello")
@@ -2643,10 +2646,9 @@ class APITest(TembaTest):
         color.labels.add(reporting)
 
         # make it look like joe completed the color flow
-        run = FlowRun.objects.create(org=self.org, flow=color, contact=self.joe)
-        run.status = FlowRun.STATUS_COMPLETED
-        run.exited_on = timezone.now()
-        run.save(update_fields=("status", "exited_on", "modified_on"))
+        FlowRun.objects.create(
+            org=self.org, flow=color, contact=self.joe, status=FlowRun.STATUS_COMPLETED, exited_on=timezone.now()
+        )
 
         # flow belong to other org
         self.create_flow("Other", org=self.org2)
@@ -3759,18 +3761,22 @@ class APITest(TembaTest):
         url = reverse("api.v2.runs")
         self.assertEndpointAccess(url)
 
-        flow = self.get_flow("color")
-        run = FlowRun.objects.create(org=self.org, flow=flow, contact=self.frank)
-        run.results = {
-            "manual": {
-                "created_on": "2019-06-28T06:37:02.628152471Z",
-                "name": "Manual",
-                "node_uuid": "6edeb849-1f65-4038-95dc-4d99d7dde6b8",
-                "value": "",
-            }
-        }
-        run.save(update_fields=("results",))
-
+        flow = self.create_flow("Test")
+        FlowRun.objects.create(
+            org=self.org,
+            flow=flow,
+            contact=self.frank,
+            status=FlowRun.STATUS_COMPLETED,
+            exited_on=timezone.now(),
+            results={
+                "manual": {
+                    "created_on": "2019-06-28T06:37:02.628152471Z",
+                    "name": "Manual",
+                    "node_uuid": "6edeb849-1f65-4038-95dc-4d99d7dde6b8",
+                    "value": "",
+                }
+            },
+        )
         response = self.fetchJSON(url)
 
         resp_json = response.json()

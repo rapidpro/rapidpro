@@ -68,7 +68,7 @@ class Media(models.Model):
     paths = models.JSONField(default=dict)
 
     @classmethod
-    def get_storage_path(org, uuid, filename):
+    def get_storage_path(cls, org, uuid, filename):
         """
         Returns the storage path for the given filename. Differs slightly from that used by the media endpoint because
         it preserves the original filename which courier still needs if there's no media record for an attachment URL.
