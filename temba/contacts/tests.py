@@ -2959,12 +2959,15 @@ class ContactTest(TembaTest):
         self.login(self.customer_support)
 
         response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Service"])
         self.assertEqual(
-            gear_links[-1]["href"],
-            f"/org/service/?organization={self.joe.org_id}&redirect_url=/contact/read/{self.joe.uuid}/",
+            [
+                {
+                    "type": "url_post",
+                    "label": "Service",
+                    "url": f"/org/service/?organization={self.org.id}&redirect_url=/contact/read/{self.joe.uuid}/",
+                }
+            ],
+            response.context["content_menu"],
         )
 
     def test_read_language(self):
