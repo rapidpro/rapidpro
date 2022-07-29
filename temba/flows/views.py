@@ -63,7 +63,7 @@ from temba.utils.fields import (
     TembaChoiceField,
 )
 from temba.utils.text import slugify_with
-from temba.utils.views import BulkActionMixin, SpaMixin
+from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin
 
 from .models import (
     ExportFlowResultsTask,
@@ -708,7 +708,7 @@ class FlowCRUDL(SmartCRUDL):
             media = Media.from_upload(self.request.org, self.request.user, self.request.FILES["file"])
             return JsonResponse({"type": media.content_type, "url": media.url})
 
-    class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+    class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, ContentMenuMixin, SmartListView):
         title = _("Flows")
         refresh = 10000
         fields = ("name", "modified_on")
@@ -816,16 +816,11 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             ]
 
-        def get_gear_links(self):
-            links = []
-
+        def build_content_menu(self, menu):
             if self.has_org_perm("orgs.org_import"):
-                links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
-
+                menu.add_link(_("Import"), reverse("orgs.org_import"))
             if self.has_org_perm("orgs.org_export"):
-                links.append(dict(title=_("Export"), href=reverse("orgs.org_export")))
-
-            return links
+                menu.add_link(_("Export"), reverse("orgs.org_export"))
 
     class Archived(BaseList):
         title = _("Archived Flows")
@@ -888,35 +883,22 @@ class FlowCRUDL(SmartCRUDL):
         bulk_actions = ("label",)
         slug_url_kwarg = "uuid"
 
-        def get_gear_links(self):
-            links = []
-
+        def build_content_menu(self, menu):
             label = FlowLabel.objects.get(uuid=self.kwargs["uuid"])
 
             if self.has_org_perm("flows.flow_update"):
-                # links.append(dict(title=_("Edit"), href="#", js_class="label-update-btn"))
-
-                links.append(
-                    dict(
-                        id="update-label",
-                        title=_("Edit"),
-                        style="button-primary",
-                        href=f"{reverse('flows.flowlabel_update', args=[label.pk])}",
-                        modax=_("Edit Label"),
-                    )
+                menu.add_modax(
+                    _("Edit"),
+                    "update-label",
+                    f"{reverse('flows.flowlabel_update', args=[label.pk])}",
+                    title=_("Edit Label"),
+                    primary=True,
                 )
 
             if self.has_org_perm("flows.flow_delete"):
-                links.append(
-                    dict(
-                        id="delete-label",
-                        title=_("Delete Label"),
-                        href=f"{reverse('flows.flowlabel_delete', args=[label.pk])}",
-                        modax=_("Delete Label"),
-                    )
+                menu.add_modax(
+                    _("Delete Label"), "delete-label", f"{reverse('flows.flowlabel_delete', args=[label.pk])}"
                 )
-
-            return links
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -951,7 +933,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return qs
 
-    class Editor(SpaMixin, OrgObjPermsMixin, SmartReadView):
+    class Editor(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def derive_title(self):
@@ -1034,94 +1016,67 @@ class FlowCRUDL(SmartCRUDL):
 
             return features
 
-        def get_gear_links(self):
-            links = []
+        def build_content_menu(self, menu):
             flow = self.object
             if (
                 flow.flow_type != Flow.TYPE_SURVEY
                 and self.has_org_perm("flows.flow_broadcast")
                 and not flow.is_archived
             ):
-                links.append(
-                    dict(
-                        id="start-flow",
-                        title=_("Start Flow"),
-                        style="button-primary",
-                        href=f"{reverse('flows.flow_broadcast', args=[])}?flow={self.object.id}",
-                        modax=_("Start Flow"),
-                    )
+                menu.add_modax(
+                    _("Start Flow"),
+                    "start-flow",
+                    f"{reverse('flows.flow_broadcast', args=[])}?flow={self.object.id}",
+                    primary=True,
                 )
 
             if self.has_org_perm("flows.flow_results"):
-                links.append(
-                    dict(
-                        title=_("Results"),
-                        style="button-primary",
-                        href=reverse("flows.flow_results", args=[flow.uuid]),
-                    )
-                )
-            if len(links) > 1:
-                links.append(dict(divider=True))
+                menu.add_link(_("Results"), reverse("flows.flow_results", args=[flow.uuid]))
+
+            menu.new_group()
 
             if self.has_org_perm("flows.flow_update") and not flow.is_archived:
-                links.append(
-                    dict(
-                        id="edit-flow",
-                        title=_("Edit"),
-                        href=f"{reverse('flows.flow_update', args=[self.object.pk])}",
-                        modax=_("Edit Flow"),
-                    )
+                menu.add_modax(
+                    _("Edit"),
+                    "edit-flow",
+                    f"{reverse('flows.flow_update', args=[self.object.pk])}",
+                    title=_("Edit Flow"),
                 )
 
             if self.has_org_perm("flows.flow_copy"):
-                links.append(dict(title=_("Copy"), posterize=True, href=reverse("flows.flow_copy", args=[flow.id])))
+                menu.add_url_post(_("Copy"), reverse("flows.flow_copy", args=[flow.id]))
 
             if self.has_org_perm("flows.flow_delete"):
-                links.append(
-                    dict(
-                        id="delete-flow",
-                        title=_("Delete"),
-                        href=f"{reverse('flows.flow_delete', args=[self.object.uuid])}",
-                        modax=_("Delete Flow"),
-                    )
+                menu.add_modax(
+                    _("Delete"),
+                    "delete-flow",
+                    reverse("flows.flow_delete", args=[self.object.uuid]),
+                    title=_("Delete Flow"),
                 )
 
-            links.append(dict(divider=True)),
+            menu.new_group()
 
             if self.has_org_perm("orgs.org_export"):
-                links.append(dict(title=_("Export Definition"), href=f"{reverse('orgs.org_export')}?flow={flow.id}"))
+                menu.add_link(_("Export Definition"), f"{reverse('orgs.org_export')}?flow={flow.id}")
 
             # limit PO export/import to non-archived flows since mailroom doesn't know about archived flows
             if not self.object.is_archived:
                 if self.has_org_perm("flows.flow_export_translation"):
-                    links.append(
-                        dict(
-                            id="export-translation",
-                            title=_("Export Translation"),
-                            href=f"{reverse('flows.flow_export_translation', args=[self.object.pk])}",
-                            modax=_("Export Translation"),
-                        )
+                    menu.add_modax(
+                        _("Export Translation"),
+                        "export-translation",
+                        reverse("flows.flow_export_translation", args=[self.object.pk]),
                     )
 
                 if self.has_org_perm("flows.flow_import_translation"):
-                    links.append(
-                        dict(
-                            title=_("Import Translation"),
-                            href=reverse("flows.flow_import_translation", args=[flow.id]),
-                        )
-                    )
+                    menu.add_link(_("Import Translation"), reverse("flows.flow_import_translation", args=[flow.id]))
 
             user = self.get_user()
             if user.is_superuser or user.is_staff:
-                links.append(
-                    dict(
-                        title=_("Service"),
-                        posterize=True,
-                        href=f'{reverse("orgs.org_service")}?organization={flow.org_id}&redirect_url={reverse("flows.flow_editor", args=[flow.uuid])}',
-                    )
+                menu.add_url_post(
+                    _("Service"),
+                    f'{reverse("orgs.org_service")}?organization={flow.org_id}&redirect_url={reverse("flows.flow_editor", args=[flow.uuid])}',
                 )
-
-            return links
 
     class ChangeLanguage(OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.Form):
@@ -1647,32 +1602,20 @@ class FlowCRUDL(SmartCRUDL):
         def render_to_response(self, context, **response_kwargs):
             return JsonResponse(self.get_object().get_category_counts())
 
-    class Results(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+    class Results(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
-        def get_gear_links(self):
-            links = []
-
+        def build_content_menu(self, menu):
             if self.has_org_perm("flows.flow_update"):
-                links.append(
-                    dict(
-                        id="download-results",
-                        title=_("Download"),
-                        modax=_("Download Results"),
-                        href=f"{reverse('flows.flow_export_results')}?ids={self.get_object().pk}",
-                    )
+                menu.add_modax(
+                    _("Download"),
+                    "download-results",
+                    f"{reverse('flows.flow_export_results')}?ids={self.get_object().pk}",
+                    title=_("Download Results"),
                 )
 
             if self.has_org_perm("flows.flow_editor"):
-                links.append(
-                    dict(
-                        title=_("Edit Flow"),
-                        style="button-primary",
-                        href=reverse("flows.flow_editor", args=[self.get_object().uuid]),
-                    )
-                )
-
-            return links
+                menu.add_link(_("Edit Flow"), reverse("flows.flow_editor", args=[self.get_object().uuid]))
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -2182,14 +2125,14 @@ class FlowStartCRUDL(SmartCRUDL):
     model = FlowStart
     actions = ("list",)
 
-    class List(OrgFilterMixin, OrgPermsMixin, SmartListView):
+    class List(OrgFilterMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
         title = _("Flow Start Log")
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")
         paginate_by = 25
 
-        def get_gear_links(self):
-            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"))]
+        def build_content_menu(self, menu):
+            menu.add_link(_("Flows"), reverse("flows.flow_list"))
 
         def derive_queryset(self, *args, **kwargs):
             qs = super().derive_queryset(*args, **kwargs)
