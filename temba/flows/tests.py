@@ -28,13 +28,22 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import (
+    AnonymousOrg,
+    CRUDLTestMixin,
+    MigrationTest,
+    MockResponse,
+    TembaTest,
+    matchers,
+    mock_mailroom,
+    mock_uuids,
+)
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.utils.uuid import UUID, uuid4
+from temba.utils.uuid import uuid4
 
 from .checks import mailroom_url
 from .models import (
@@ -2973,8 +2982,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(start.include_active)
         self.assertEqual('name ~ "frank"', start.query)
 
-    @patch("temba.msgs.models.uuid4")
-    def test_upload_media(self, mock_uuid):
+    @mock_uuids
+    def test_upload_media(self):
         flow = self.create_flow("Test")
         other_org_flow = self.create_flow("Test", org=self.org2)
 
@@ -2989,20 +2998,12 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(expected_json, response.json())
 
-        mock_uuid.side_effect = [
-            UUID("6a65f14f-b762-4485-b860-96a322292775"),
-            UUID("2f42e913-6a19-44c5-90ee-cdf7b14ad5c0"),
-            UUID("f661c405-524e-4bd7-83e2-c93ffe35aa60"),
-            UUID("67ec31c7-a85f-4834-9da2-dee2c7b56576"),
-            UUID("8568061a-6a58-49bf-b64c-f8be583962a8"),
-        ]
-
         assert_upload(
             self.admin,
             f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg",
             {
                 "type": "image/jpeg",
-                "url": f"/media/test_orgs/{self.org.id}/media/6a65/6a65f14f-b762-4485-b860-96a322292775/steve%20marten.jpg",
+                "url": f"/media/test_orgs/{self.org.id}/media/3618/361838c4-2866-495a-8990-9f3c222a7604/steve%20marten.jpg",
             },
         )
         assert_upload(
@@ -3010,7 +3011,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
             {
                 "type": "video/mp4",
-                "url": f"/media/test_orgs/{self.org.id}/media/2f42/2f42e913-6a19-44c5-90ee-cdf7b14ad5c0/snow.mp4",
+                "url": f"/media/test_orgs/{self.org.id}/media/606d/606de307-a799-47fc-8802-edc9301e0e04/snow.mp4",
             },
         )
         assert_upload(
@@ -3018,7 +3019,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a",
             {
                 "type": "audio/mp4",
-                "url": f"/media/test_orgs/{self.org.id}/media/67ec/67ec31c7-a85f-4834-9da2-dee2c7b56576/bubbles.m4a",
+                "url": f"/media/test_orgs/{self.org.id}/media/fd18/fd18a69d-7514-4b76-9fad-072641995e17/bubbles.m4a",
             },
         )
 

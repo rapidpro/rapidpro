@@ -1,5 +1,6 @@
 import shutil
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
 from unittest.mock import patch
 
@@ -861,3 +862,28 @@ class MigrationTest(TembaTest):
 
     def setUpBeforeMigration(self, apps):
         pass
+
+
+def mock_uuids(method=None, *, seed=1234):
+    """
+    Convenience decorator to override UUID generation in a test.
+    """
+
+    from temba.utils import uuid
+
+    def _wrap_test_method(f, instance, *args, **kwargs):
+        try:
+            uuid.default_generator = uuid.seeded_generator(seed)
+
+            return f(instance, *args, **kwargs)
+        finally:
+            uuid.default_generator = uuid.real_uuid4
+
+    def actual_decorator(f):
+        @wraps(f)
+        def wrapper(instance, *args, **kwargs):
+            _wrap_test_method(f, instance, *args, **kwargs)
+
+        return wrapper
+
+    return actual_decorator(method) if method else actual_decorator
