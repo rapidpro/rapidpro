@@ -20,8 +20,8 @@ class WhatsAppCloudType(ChannelType):
     """
 
     extra_links = [
-        dict(name=_("Message Templates"), link="channels.types.whatsapp_cloud.templates"),
-        dict(name=_("Verify Number"), link="channels.types.whatsapp_cloud.request_code"),
+        dict(label=_("Message Templates"), view_name="channels.types.whatsapp_cloud.templates"),
+        dict(label=_("Verify Number"), view_name="channels.types.whatsapp_cloud.request_code"),
     ]
 
     code = "WAC"

@@ -16,8 +16,8 @@ class InstagramType(ChannelType):
 
     extra_links = [
         dict(
-            name=_("Reconnect Instagram Business Account"),
-            link="channels.types.instagram.refresh_token",
+            label=_("Reconnect Instagram Business Account"),
+            view_name="channels.types.instagram.refresh_token",
         )
     ]
 
