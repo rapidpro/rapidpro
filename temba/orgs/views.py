@@ -73,7 +73,7 @@ from temba.utils.fields import (
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
-from temba.utils.views import ComponentFormMixin, NonAtomicMixin, RequireRecentAuthMixin, SpaMixin
+from temba.utils.views import ComponentFormMixin, ContentMenuMixin, NonAtomicMixin, RequireRecentAuthMixin, SpaMixin
 
 from .models import (
     BackupToken,
@@ -744,7 +744,7 @@ class UserCRUDL(SmartCRUDL):
             context["filters"] = self.filters
             return context
 
-    class Update(ComponentFormMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, ContentMenuMixin, SmartUpdateView):
         class Form(UserUpdateForm):
             groups = forms.ModelMultipleChoiceField(
                 widget=SelectMultipleWidget(
@@ -763,15 +763,10 @@ class UserCRUDL(SmartCRUDL):
         success_message = "User updated successfully."
         title = "Update"
 
-        def get_gear_links(self):
-            return [
-                dict(
-                    id="user-delete",
-                    title=_("Delete"),
-                    modax=_("Delete User"),
-                    href=reverse("orgs.user_delete", args=[self.object.id]),
-                )
-            ]
+        def build_content_menu(self, menu):
+            menu.add_modax(
+                _("Delete"), "user-delete", reverse("orgs.user_delete", args=[self.object.id]), title=_("Delete User")
+            )
 
         def pre_save(self, obj):
             obj.username = obj.email
@@ -1052,7 +1047,9 @@ class UserCRUDL(SmartCRUDL):
 
             return super().form_valid(form)
 
-    class TwoFactorTokens(SpaMixin, RequireRecentAuthMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+    class TwoFactorTokens(
+        SpaMixin, RequireRecentAuthMixin, InferOrgMixin, ContentMenuMixin, OrgPermsMixin, SmartTemplateView
+    ):
         permission = "orgs.org_two_factor"
         title = _("Two-factor Authentication")
 
@@ -1069,10 +1066,9 @@ class UserCRUDL(SmartCRUDL):
 
             return super().get(request, *args, **kwargs)
 
-        def get_gear_links(self):
-            if self.is_spa():
-                return []
-            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"))]
+        def build_content_menu(self, menu):
+            if not self.is_spa():
+                menu.add_link(_("Home"), reverse("orgs.org_home"))
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -2073,7 +2069,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class Update(ComponentFormMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, ContentMenuMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             parent = forms.IntegerField(required=False)
             plan_end = forms.DateTimeField(required=False)
@@ -2135,67 +2131,31 @@ class OrgCRUDL(SmartCRUDL):
         def get_success_url(self):
             return reverse("orgs.org_update", args=[self.get_object().pk])
 
-        def get_gear_links(self):
-            links = []
+        def build_content_menu(self, menu):
+            if not self.object.is_active:
+                return
 
-            org = self.get_object()
+            menu.add_url_post(
+                _("Service"),
+                f'{reverse("orgs.org_service")}?organization={self.object.id}&redirect_url={reverse("msgs.msg_inbox", args=[])}',
+            )
+            menu.add_link(_("Topups"), f"{reverse('orgs.topup_manage')}?org={self.object.id}")
 
-            if org.is_active:
-                links.append(
-                    dict(
-                        title=_("Service"),
-                        posterize=True,
-                        href=f'{reverse("orgs.org_service")}?organization={org.pk}&redirect_url={reverse("msgs.msg_inbox", args=[])}',
-                    )
+            if self.object.is_flagged:
+                menu.add_url_post(_("Unflag"), f"{reverse('orgs.org_update', args=[self.object.id])}?action=unflag")
+            else:  # pragma: needs cover
+                menu.add_url_post(_("Flag"), f"{reverse('orgs.org_update', args=[self.object.id])}?action=flag")
+
+            if not self.object.is_verified():
+                menu.add_url_post(_("Verify"), f"{reverse('orgs.org_update', args=[self.object.id])}?action=verify")
+
+            if self.request.user.has_perm("orgs.org_delete"):
+                menu.add_modax(
+                    _("Delete"),
+                    "delete-org",
+                    reverse("orgs.org_delete", args=[self.object.id]),
+                    title=_("Delete Workspace"),
                 )
-
-                links.append(
-                    dict(
-                        title=_("Topups"),
-                        style="button-primary",
-                        href="%s?org=%d" % (reverse("orgs.topup_manage"), org.pk),
-                    )
-                )
-
-                if org.is_flagged:
-                    links.append(
-                        dict(
-                            title=_("Unflag"),
-                            style="button-secondary",
-                            posterize=True,
-                            href="%s?action=unflag" % reverse("orgs.org_update", args=[org.pk]),
-                        )
-                    )
-                else:  # pragma: needs cover
-                    links.append(
-                        dict(
-                            title=_("Flag"),
-                            style="button-secondary",
-                            posterize=True,
-                            href="%s?action=flag" % reverse("orgs.org_update", args=[org.pk]),
-                        )
-                    )
-
-                if not org.is_verified():
-                    links.append(
-                        dict(
-                            title=_("Verify"),
-                            style="button-secondary",
-                            posterize=True,
-                            href="%s?action=verify" % reverse("orgs.org_update", args=[org.pk]),
-                        )
-                    )
-
-                if self.request.user.has_perm("orgs.org_delete"):
-                    links.append(
-                        dict(
-                            id="delete-org",
-                            title=_("Delete"),
-                            href=reverse("orgs.org_delete", args=[org.id]),
-                            modax=_("Delete Workspace"),
-                        )
-                    )
-            return links
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -2288,7 +2248,7 @@ class OrgCRUDL(SmartCRUDL):
             context["role_summary"] = role_summary
             return context
 
-    class ManageAccounts(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class ManageAccounts(SpaMixin, ContentMenuMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
             invite_emails = forms.CharField(
                 required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")})
@@ -2430,23 +2390,22 @@ class OrgCRUDL(SmartCRUDL):
         submit_button_name = _("Save Changes")
         title = _("Manage Logins")
 
-        def get_gear_links(self):
-            links = []
-            if self.is_spa():
-                if self.request.user.get_org().id != self.get_object().id:
-                    links.append(
-                        dict(
-                            title=_("Edit"),
-                            modax=_("Edit Workspace"),
-                            href=f"{reverse('orgs.org_edit_sub_org')}?org={self.object.pk}",
-                        )
-                    )
+        def build_content_menu(self, menu):
+            other_org = self.request.org.id != self.get_object().id
 
+            if self.is_spa():
+                if other_org:
+                    menu.add_modax(
+                        _("Edit"),
+                        "edit-workspace",
+                        f"{reverse('orgs.org_edit_sub_org')}?org={self.object.id}",
+                        title=_("Edit Workspace"),
+                    )
             else:
-                if self.request.user.get_org().id != self.get_object().id:
-                    links.append(dict(title=_("Workspaces"), style="button-light", href=reverse("orgs.org_sub_orgs")))
-                links.append(dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home")))
-            return links
+                if other_org:
+                    menu.add_link(_("Workspaces"), reverse("orgs.org_sub_orgs"))
+
+                menu.add_link(_("Home"), reverse("orgs.org_home"))
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -2539,7 +2498,7 @@ class OrgCRUDL(SmartCRUDL):
             self.request.session["org_id"] = None
             return HttpResponseRedirect(reverse("orgs.org_manage"))
 
-    class SubOrgs(SpaMixin, MultiOrgMixin, InferOrgMixin, SmartListView):
+    class SubOrgs(SpaMixin, ContentMenuMixin, MultiOrgMixin, InferOrgMixin, SmartListView):
         link_fields = ()
         title = _("Workspaces")
 
@@ -2549,33 +2508,15 @@ class OrgCRUDL(SmartCRUDL):
             else:
                 return "name", "contacts", "manage", "created_on"
 
-        def get_gear_links(self):
-            links = []
-
+        def build_content_menu(self, menu):
             if self.has_org_perm("orgs.org_dashboard"):
-                links.append(dict(title=_("Dashboard"), href=reverse("dashboard.dashboard_home")))
+                menu.add_link(_("Dashboard"), reverse("dashboard.dashboard_home"))
 
             if self.has_org_perm("orgs.org_create_sub_org"):
-                links.append(
-                    dict(
-                        title=_("New Workspace"),
-                        href=reverse("orgs.org_create_sub_org"),
-                        modax=_("New Workspace"),
-                        id="new-workspace",
-                    )
-                )
+                menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_sub_org"))
 
             if self.has_org_perm("orgs.org_transfer_credits") and self.get_object().uses_topups:
-                links.append(
-                    dict(
-                        title=_("Transfer Credits"),
-                        href=reverse("orgs.org_transfer_credits"),
-                        modax=_("Transfer Credits"),
-                        id="transfer-credits",
-                    )
-                )
-
-            return links
+                menu.add_modax(_("Transfer Credits"), "transfer-credits", reverse("orgs.org_transfer_credits"))
 
         def get_manage(self, obj):  # pragma: needs cover
             if obj == self.get_object():
@@ -3283,11 +3224,10 @@ class OrgCRUDL(SmartCRUDL):
         def get_token(self, org):
             return APIToken.objects.filter(is_active=True, org=org, role=Group.objects.get(name="Prometheus")).first()
 
-    class Workspace(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
+    class Workspace(SpaMixin, FormaxMixin, ContentMenuMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Workspace")
 
-        def get_gear_links(self):
-            links = []
+        def build_content_menu(self, menu):
             org = self.get_object()
 
             if (
@@ -3295,15 +3235,7 @@ class OrgCRUDL(SmartCRUDL):
                 and org.uses_topups
                 and Org.objects.filter(parent=org, is_active=True).exists()
             ):
-                links.append(
-                    dict(
-                        title=_("Transfer Credits"),
-                        href=reverse("orgs.org_transfer_credits"),
-                        modax=_("Transfer Credits"),
-                        id="transfer-credits",
-                    )
-                )
-            return links
+                menu.add_modax(_("Transfer Credits"), "transfer-credits", reverse("orgs.org_transfer_credits"))
 
         def derive_formax_sections(self, formax, context):
             org = self.request.org
@@ -3336,49 +3268,33 @@ class OrgCRUDL(SmartCRUDL):
                 if self.has_org_perm("orgs.org_plan"):  # pragma: needs cover
                     formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 
-    class Home(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
+    class Home(SpaMixin, FormaxMixin, ContentMenuMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
 
-        def get_gear_links(self):
+        def build_content_menu(self, menu):
             org = self.request.org
-            links = []
 
             if self.has_org_perm("channels.channel_claim"):
-                links.append(dict(title=_("Add Channel"), href=reverse("channels.channel_claim")))
-
+                menu.add_link(_("Add Channel"), reverse("channels.channel_claim"))
             if self.has_org_perm("classifiers.classifier_connect"):
-                links.append(dict(title=_("Add Classifier"), href=reverse("classifiers.classifier_connect")))
-
+                menu.add_link(_("Add Classifier"), reverse("classifiers.classifier_connect"))
             if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in org.get_branding().get("features", []):
-                links.append(dict(title=_("Add Ticketing Service"), href=reverse("tickets.ticketer_connect")))
+                menu.add_link(_("Add Ticketing Service"), reverse("tickets.ticketer_connect"))
 
-            if len(links) > 0:
-                links.append(dict(divider=True))
+            menu.new_group()
 
             if self.has_org_perm("orgs.org_export"):
-                links.append(dict(title=_("Export"), href=reverse("orgs.org_export")))
+                menu.add_link(_("Export"), reverse("orgs.org_export"))
 
             if self.has_org_perm("orgs.org_import"):
-                links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
+                menu.add_link(_("Import"), reverse("orgs.org_import"))
 
             if settings.HELP_URL:  # pragma: needs cover
-                if len(links) > 1:
-                    links.append(dict(divider=True))
+                menu.new_group()
+                menu.add_link(_("Help"), settings.HELP_URL)
 
-                links.append(dict(title=_("Help"), href=settings.HELP_URL))
-
-            if len(links) > 1:
-                links.append(dict(divider=True))
-
-            links.append(
-                dict(
-                    title=_("Sign Out"),
-                    style="button-light",
-                    href=f"{reverse('users.user_logout')}?next={reverse('users.user_login')}",
-                )
-            )
-
-            return links
+            menu.new_group()
+            menu.add_link(_("Sign Out"), f"{reverse('users.user_logout')}?next={reverse('users.user_login')}")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)

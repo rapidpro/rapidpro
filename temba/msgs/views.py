@@ -50,7 +50,7 @@ from temba.utils.fields import (
     TembaChoiceField,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import BulkActionMixin, ComponentFormMixin, SpaMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
@@ -106,7 +106,7 @@ class SendMessageForm(Form):
         return cleaned
 
 
-class InboxView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+class InboxView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     """
     Base class for inbox views with message folders and labels listed by the side
     """
@@ -210,18 +210,9 @@ class InboxView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
 
         return context
 
-    def get_gear_links(self):
-        links = []
+    def build_content_menu(self, menu):
         if self.allow_export and self.has_org_perm("msgs.msg_export"):
-            links.append(
-                dict(
-                    id="export-messages",
-                    title=_("Download"),
-                    href=self.derive_export_url(),
-                    modax=_("Download Messages"),
-                )
-            )
-        return links
+            menu.add_modax(_("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages"))
 
 
 class BroadcastForm(forms.ModelForm):
@@ -804,71 +795,30 @@ class MsgCRUDL(SmartCRUDL):
         def derive_title(self, *args, **kwargs):
             return self.derive_label().name
 
-        def get_gear_links(self):
-            links = []
-
+        def build_content_menu(self, menu):
             label = self.derive_label()
+
             if self.has_org_perm("msgs.msg_update"):
                 if label.is_folder():
-                    links.append(
-                        dict(
-                            id="update-label",
-                            title=_("Edit Folder"),
-                            href=reverse("msgs.label_update", args=[label.pk]),
-                            modax=_("Edit Folder"),
-                        )
-                    )
+                    menu.add_modax(_("Edit Folder"), "update-folder", reverse("msgs.label_update", args=[label.id]))
                 else:
-                    links.append(
-                        dict(
-                            id="update-label",
-                            title=_("Edit Label"),
-                            href=reverse("msgs.label_update", args=[label.pk]),
-                            modax=_("Edit Label"),
-                        )
-                    )
+                    menu.add_modax(_("Edit Label"), "update-label", reverse("msgs.label_update", args=[label.id]))
 
             if self.has_org_perm("msgs.msg_export"):
-                links.append(
-                    dict(
-                        id="export-messages",
-                        title=_("Download"),
-                        href=self.derive_export_url(),
-                        modax=_("Download Messages"),
-                    )
+                menu.add_modax(
+                    _("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages")
                 )
 
-            links.append(
-                dict(
-                    id="label-usages",
-                    title=_("Usages"),
-                    modax=_("Usages"),
-                    href=reverse("msgs.label_usages", args=[label.uuid]),
-                )
-            )
+            menu.add_modax(_("Usages"), "label-usages", reverse("msgs.label_usages", args=[label.uuid]))
 
             if label.is_folder():
                 if self.has_org_perm("msgs.label_delete_folder"):
-                    links.append(
-                        dict(
-                            id="delete-folder",
-                            title=_("Delete Folder"),
-                            href=reverse("msgs.label_delete_folder", args=[label.id]),
-                            modax=_("Delete Folder"),
-                        )
+                    menu.add_modax(
+                        _("Delete Folder"), "delete-folder", reverse("msgs.label_delete_folder", args=[label.id])
                     )
             else:
                 if self.has_org_perm("msgs.label_delete"):
-                    links.append(
-                        dict(
-                            id="delete-label",
-                            title=_("Delete Label"),
-                            href=reverse("msgs.label_delete", args=[label.uuid]),
-                            modax=_("Delete Label"),
-                        )
-                    )
-
-            return links
+                    menu.add_modax(_("Delete Label"), "delete-label", reverse("msgs.label_delete", args=[label.uuid]))
 
         @classmethod
         def derive_url_pattern(cls, path, action):
