@@ -25,35 +25,33 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
+from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
-from temba.utils.uuid import UUID
 
 from .tasks import squash_msgcounts
 from .templatetags.sms import as_icon
 
 
 class MediaTest(TembaTest):
-    @patch("temba.msgs.models.uuid4")
-    def test_model(self, mock_uuid):
-        mock_uuid.side_effect = [UUID("6a65f14f-b762-4485-b860-96a322292775")]
+    @mock_uuids
+    def test_model(self):
         media = Media.from_upload(
             self.org,
             self.admin,
             self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
         )
 
-        self.assertEqual("6a65f14f-b762-4485-b860-96a322292775", str(media.uuid))
+        self.assertEqual("b97f69f7-5edf-45c7-9fda-d37066eae91d", str(media.uuid))
         self.assertEqual(self.org, media.org)
         self.assertEqual(
-            f"/media/test_orgs/{self.org.id}/media/6a65/6a65f14f-b762-4485-b860-96a322292775/steve%20marten.jpg",
+            f"/media/test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve%20marten.jpg",
             media.url,
         )
         self.assertEqual("steve marten.jpg", media.name)
         self.assertEqual("image/jpeg", media.content_type)
         self.assertEqual(
-            f"test_orgs/{self.org.id}/media/6a65/6a65f14f-b762-4485-b860-96a322292775/steve marten.jpg", media.path
+            f"test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve marten.jpg", media.path
         )
         self.assertEqual(self.admin, media.created_by)
         self.assertFalse(media.is_ready)
