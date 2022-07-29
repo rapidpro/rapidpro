@@ -44,7 +44,7 @@ from temba.orgs.views import AnonMixin, DependencyDeleteModal, MenuMixin, ModalM
 from temba.utils import analytics, countries, json
 from temba.utils.fields import SelectWidget
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import ComponentFormMixin, SpaMixin
+from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import (
     Alert,
@@ -781,138 +781,91 @@ class ChannelCRUDL(SmartCRUDL):
 
             return menu
 
-    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
         def get_queryset(self):
             return Channel.objects.filter(is_active=True)
 
-        def get_gear_links(self):
-            links = []
-
-            extra_links = self.object.type.extra_links
-            if extra_links:
-                for extra in extra_links:
-                    links.append(dict(title=extra["name"], href=reverse(extra["link"], args=[self.object.uuid])))
+        def build_content_menu(self, menu):
+            for extra in self.object.type.extra_links or ():
+                menu.add_link(extra["label"], reverse(extra["view_name"], args=[self.object.uuid]))
 
             if self.object.parent:
-                links.append(
-                    dict(
-                        title=_("Android Channel"),
-                        style="button-primary",
-                        href=reverse("channels.channel_read", args=[self.object.parent.uuid]),
-                    )
-                )
+                menu.add_link(_("Android Channel"), reverse("channels.channel_read", args=[self.object.parent.uuid]))
 
             if self.object.type.show_config_page:
-                links.append(
-                    dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[self.object.uuid]))
-                )
+                menu.add_link(_("Settings"), reverse("channels.channel_configuration", args=[self.object.uuid]))
 
             if not self.object.is_android():
                 sender = self.object.get_sender()
                 caller = self.object.get_caller()
 
                 if sender:
-                    links.append(
-                        dict(title=_("Channel Log"), href=reverse("channels.channellog_list", args=[sender.uuid]))
-                    )
+                    menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[sender.uuid]))
                 elif Channel.ROLE_RECEIVE in self.object.role:
-                    links.append(
-                        dict(title=_("Channel Log"), href=reverse("channels.channellog_list", args=[self.object.uuid]))
-                    )
+                    menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[self.object.uuid]))
 
                 if caller and caller != sender:
-                    links.append(
-                        dict(
-                            title=_("Call Log"),
-                            href=f"{reverse('channels.channellog_list', args=[caller.uuid])}?sessions=1",
-                        )
+                    menu.add_link(
+                        _("Call Log"), f"{reverse('channels.channellog_list', args=[caller.uuid])}?sessions=1"
                     )
 
             if self.has_org_perm("channels.channel_update"):
-                links.append(
-                    dict(
-                        id="update-channel",
-                        title=_("Edit"),
-                        href=reverse("channels.channel_update", args=[self.object.id]),
-                        modax=_("Edit Channel"),
-                    )
+                menu.add_modax(
+                    _("Edit"),
+                    "update-channel",
+                    reverse("channels.channel_update", args=[self.object.id]),
+                    title=_("Edit Channel"),
                 )
 
                 if self.object.is_android() or (self.object.parent and self.object.parent.is_android()):
-
                     sender = self.object.get_sender()
+
                     if sender and sender.is_delegate_sender():
-                        links.append(
-                            dict(
-                                id="disable-sender",
-                                title=_("Disable Bulk Sending"),
-                                modax=_("Disable Bulk Sending"),
-                                href=reverse("channels.channel_delete", args=[sender.uuid]),
-                            )
+                        menu.add_modax(
+                            _("Disable Bulk Sending"),
+                            "disable-sender",
+                            reverse("channels.channel_delete", args=[sender.uuid]),
                         )
                     elif self.object.is_android():
-                        links.append(
-                            dict(
-                                title=_("Enable Bulk Sending"),
-                                href="%s?channel=%d"
-                                % (reverse("channels.channel_bulk_sender_options"), self.object.id),
-                            )
+                        menu.add_link(
+                            _("Enable Bulk Sending"),
+                            f"{reverse('channels.channel_bulk_sender_options')}?channel={self.object.id}",
                         )
 
                     caller = self.object.get_caller()
+
                     if caller and caller.is_delegate_caller():
-                        links.append(
-                            dict(
-                                id="disable-voice",
-                                title=_("Disable Voice Calling"),
-                                modax=_("Disable Voice Calling"),
-                                href=reverse("channels.channel_delete", args=[caller.uuid]),
-                            )
+                        menu.add_modax(
+                            _("Disable Voice Calling"),
+                            "disable-voice",
+                            reverse("channels.channel_delete", args=[caller.uuid]),
                         )
                     elif self.object.org.is_connected_to_twilio():
-                        links.append(
-                            dict(
-                                id="enable-voice",
-                                title=_("Enable Voice Calling"),
-                                js_class="posterize",
-                                href=f"{reverse('channels.channel_create_caller')}?channel={self.object.id}",
-                            )
+                        menu.add_url_post(
+                            _("Enable Voice Calling"),
+                            f"{reverse('channels.channel_create_caller')}?channel={self.object.id}",
                         )
 
             if self.has_org_perm("channels.channel_delete"):
-                links.append(
-                    dict(
-                        id="delete-channel",
-                        title=_("Delete Channel"),
-                        modax=_("Delete Channel"),
-                        href=reverse("channels.channel_delete", args=[self.object.uuid]),
-                    )
+                menu.add_modax(
+                    _("Delete Channel"), "delete-channel", reverse("channels.channel_delete", args=[self.object.uuid])
                 )
 
             if self.object.channel_type == "FB" and self.has_org_perm("channels.channel_facebook_whitelist"):
-                links.append(
-                    dict(
-                        id="fb-whitelist",
-                        title=_("Whitelist Domain"),
-                        modax=_("Whitelist Domain"),
-                        href=reverse("channels.channel_facebook_whitelist", args=[self.object.uuid]),
-                    )
+                menu.add_modax(
+                    _("Whitelist Domain"),
+                    "fb-whitelist",
+                    reverse("channels.channel_facebook_whitelist", args=[self.object.uuid]),
                 )
 
-            user = self.get_user()
-            if user.is_superuser or user.is_staff:
-                links.append(
-                    dict(
-                        title=_("Service"),
-                        posterize=True,
-                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("channels.channel_read", args=[self.object.uuid])}',
-                    )
+            if self.request.user.is_staff:
+                menu.add_url_post(
+                    _("Service"),
+                    f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("channels.channel_read", args=[self.object.uuid])}',
                 )
-
-            return links
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1483,7 +1436,7 @@ class ChannelLogCRUDL(SmartCRUDL):
     model = ChannelLog
     actions = ("list", "read", "connection")
 
-    class List(SpaMixin, OrgPermsMixin, SmartListView):
+    class List(SpaMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
         fields = ("channel", "description", "created_on")
         link_fields = ("channel", "description", "created_on")
         paginate_by = 50
@@ -1504,20 +1457,17 @@ class ChannelLogCRUDL(SmartCRUDL):
             else:
                 return self.FOLDER_MESSAGES
 
-        def get_gear_links(self):
+        def build_content_menu(self, menu):
             list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
-            links = []
 
             if self.folder != self.FOLDER_MESSAGES:
-                links.append(dict(title=_("Messages"), href=list_url))
+                menu.add_link(_("Messages"), list_url)
             if self.folder != self.FOLDER_CALLS and self.channel.supports_ivr():
-                links.append(dict(title=_("Calls"), href=f"{list_url}?calls=1"))
+                menu.add_link(_("Calls"), f"{list_url}?calls=1")
             if self.folder != self.FOLDER_OTHERS:
-                links.append(dict(title=_("Other Interactions"), href=f"{list_url}?others=1"))
+                menu.add_link(_("Other Interactions"), f"{list_url}?others=1")
             if self.folder != self.FOLDER_ERRORS:
-                links.append(dict(title=_("Errors"), href=f"{list_url}?errors=1"))
-
-            return links
+                menu.add_link(_("Errors"), f"{list_url}?errors=1")
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -1566,19 +1516,16 @@ class ChannelLogCRUDL(SmartCRUDL):
             context["channel"] = self.channel
             return context
 
-    class Connection(AnonMixin, SmartReadView):
+    class Connection(AnonMixin, ContentMenuMixin, SmartReadView):
         model = ChannelConnection
 
-        def get_gear_links(self):
-            return [
-                dict(
-                    title=_("More Calls"),
-                    style="button-light",
-                    href=reverse("channels.channellog_list", args=[self.get_object().channel.uuid]) + "?connections=1",
-                )
-            ]
+        def build_content_menu(self, menu):
+            menu.add_link(
+                _("More Calls"),
+                reverse("channels.channellog_list", args=[self.get_object().channel.uuid]) + "?connections=1",
+            )
 
-    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         fields = ("description", "created_on")
         slug_url_kwarg = "pk"
 
@@ -1586,14 +1533,8 @@ class ChannelLogCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<channel_uuid>[0-9a-f-]+)/(?P<pk>\d+)/$" % (path, action)
 
-        def get_gear_links(self):
-            return [
-                dict(
-                    title=_("Channel Log"),
-                    style="button-light",
-                    href=reverse("channels.channellog_list", args=[self.get_object().channel.uuid]),
-                )
-            ]
+        def build_content_menu(self, menu):
+            menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[self.get_object().channel.uuid]))
 
         def get_object_org(self):
             return self.get_object().channel.org

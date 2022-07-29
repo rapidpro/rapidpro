@@ -200,9 +200,8 @@
                             {{current_group.name}}
                           -else
                             {{title}}
-                  -if view.get_gear_links
-                    .gear-links
-                      -include "gear_links_include.haml"
+                  .gear-links
+                    -include "gear_links_include.haml"
                 .subtitle.ml-1.w-full
                   -block subtitle
 

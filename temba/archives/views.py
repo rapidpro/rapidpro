@@ -7,7 +7,7 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 
 from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.views import SpaMixin
+from temba.utils.views import ContentMenuMixin, SpaMixin
 
 from .models import Archive
 
@@ -18,27 +18,18 @@ class ArchiveCRUDL(SmartCRUDL):
     actions = ("read", "run", "message")
     permissions = True
 
-    class BaseList(SpaMixin, OrgPermsMixin, SmartListView):
+    class BaseList(SpaMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
         title = _("Archive")
         fields = ("url", "start_date", "period", "record_count", "size")
         default_order = ("-start_date", "-period", "archive_type")
         paginate_by = 250
 
-        def get_gear_links(self):
-            links = []
-
+        def build_content_menu(self, menu):
             if not self.is_spa():
                 archive_type = self.get_archive_type()
                 for choice in Archive.TYPE_CHOICES:
                     if archive_type != choice[0]:
-                        links.append(
-                            dict(
-                                title=f"{choice[1]} {_('Archives')}",
-                                style="button-light",
-                                href=f"{reverse(f'archives.archive_{choice[0]}')}",
-                            )
-                        )
-            return links
+                        menu.add_link(f"{choice[1]} {_('Archives')}", reverse(f"archives.archive_{choice[0]}"))
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)

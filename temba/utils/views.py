@@ -279,21 +279,24 @@ class ContentMenu:
     """
 
     def __init__(self):
-        self.items = []
+        self.groups = [[]]
+
+    def new_group(self):
+        self.groups.append([])
 
     def add_link(self, label: str, url: str):
-        self.items.append({"title": label, "href": url})
+        self.groups[-1].append({"title": label, "href": url})
 
     def add_js(self, label: str, on_click: str, link_class: str):
-        self.items.append({"title": label, "on_click": on_click, "js_class": link_class, "href": "#"})
+        self.groups[-1].append({"title": label, "on_click": on_click, "js_class": link_class, "href": "#"})
 
     def add_url_post(self, label: str, url: str):
-        self.items.append({"title": label, "href": url, "js_class": "posterize"})
+        self.groups[-1].append({"title": label, "href": url, "js_class": "posterize"})
 
     def add_modax(
         self, label: str, modal_id: str, url: str, *, title: str = None, on_submit: str = None, primary: bool = False
     ):
-        self.items.append(
+        self.groups[-1].append(
             {
                 "id": modal_id,
                 "title": label,
@@ -304,6 +307,21 @@ class ContentMenu:
             }
         )
 
+    def as_items(self):
+        """
+        Reduce groups to a flat list of items separated by a divider.
+        """
+        items = []
+        for group in self.groups:
+            if not group:
+                continue
+            if items:
+                items.append({"divider": True})
+
+            items.extend(group)
+
+        return items
+
 
 class ContentMenuMixin:
     """
@@ -313,7 +331,7 @@ class ContentMenuMixin:
     def get_gear_links(self):
         menu = ContentMenu()
         self.build_content_menu(menu)
-        return menu.items
+        return menu.as_items()
 
     def build_content_menu(self, menu: ContentMenu):  # pragma: no cover
         pass
