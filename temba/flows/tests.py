@@ -3001,7 +3001,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg",
             {
                 "type": "image/jpeg",
-                "url": f"/media/attachments/{self.org.id}/{flow.id}/steps/6a65f14f-b762-4485-b860-96a322292775/steve%20marten.jpg",
+                "url": f"/media/test_orgs/{self.org.id}/media/6a65/6a65f14f-b762-4485-b860-96a322292775/steve%20marten.jpg",
             },
         )
         assert_upload(
@@ -3009,7 +3009,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
             {
                 "type": "video/mp4",
-                "url": f"/media/attachments/{self.org.id}/{flow.id}/steps/2f42e913-6a19-44c5-90ee-cdf7b14ad5c0/snow.mp4",
+                "url": f"/media/test_orgs/{self.org.id}/media/2f42/2f42e913-6a19-44c5-90ee-cdf7b14ad5c0/snow.mp4",
             },
         )
         assert_upload(
@@ -3017,7 +3017,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             f"{settings.MEDIA_ROOT}/test_media/snow.m4a",
             {
                 "type": "audio/mp4",
-                "url": f"/media/attachments/{self.org.id}/{flow.id}/steps/f661c405-524e-4bd7-83e2-c93ffe35aa60/snow.m4a",
+                "url": f"/media/test_orgs/{self.org.id}/media/f661/f661c405-524e-4bd7-83e2-c93ffe35aa60/snow.m4a",
             },
         )
 

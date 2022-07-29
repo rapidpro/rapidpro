@@ -68,7 +68,15 @@ class Media(models.Model):
     paths = models.JSONField(default=dict)
 
     @classmethod
-    def from_upload(cls, org, user, file, flow):
+    def get_storage_path(cls, org, uuid, filename):
+        """
+        Returns the storage path for the given filename. Differs slightly from that used by the media endpoint because
+        it preserves the original filename which courier still needs if there's no media record for an attachment URL.
+        """
+        return f"{settings.STORAGE_ROOT_DIR}/{org.id}/media/{str(uuid)[0:4]}/{uuid}/{filename}"
+
+    @classmethod
+    def from_upload(cls, org, user, file):
         from .tasks import process_media_upload
 
         uuid = uuid4()
@@ -78,7 +86,7 @@ class Media(models.Model):
         if extension == "m4a":
             file.content_type = "audio/mp4"
 
-        path = f"attachments/{org.id}/{flow.id}/steps/{uuid}/{file.name}"
+        path = cls.get_storage_path(org, uuid, file.name)
         path = public_file_storage.save(path, file)  # storage classes can rewrite saved paths
 
         media = cls.objects.create(
