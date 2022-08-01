@@ -1,3 +1,7 @@
+v7.5.9
+----------
+ * Add status field to Media, move primary index to UUID field
+
 v7.5.8
 ----------
  * Update floweditor
