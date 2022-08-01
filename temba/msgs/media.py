@@ -1,3 +1,4 @@
+import logging
 import os
 from tempfile import NamedTemporaryFile
 
@@ -7,28 +8,35 @@ from temba.utils.s3 import public_file_storage
 
 from .models import Media
 
+logger = logging.getLogger(__name__)
+
 
 def process_upload(media: Media):
     media_type, sub_type = media.content_type.split("/")
 
-    with public_file_storage.open(media.path, mode="rb") as stream:
-        # download the media from storage to a local temp file
-        with NamedTemporaryFile(suffix=media.name, delete=True) as temp:
-            data = stream.read()
-            temp.write(data)
-            temp.flush()
-            temp.seek(0)
+    try:
+        with public_file_storage.open(media.path, mode="rb") as stream:
+            # download the media from storage to a local temp file
+            with NamedTemporaryFile(suffix=media.name, delete=True) as temp:
+                data = stream.read()
+                temp.write(data)
+                temp.flush()
+                temp.seek(0)
 
-            media.size = len(data)
+                media.size = len(data)
 
-            if media_type == "image":
-                _process_image_upload(media, sub_type, temp)
-            elif media_type == "audio":
-                _process_audio_upload(media, sub_type, temp)
-            elif media_type == "video":
-                _process_video_upload(media, sub_type, temp)
+                if media_type == "image":
+                    _process_image_upload(media, sub_type, temp)
+                elif media_type == "audio":
+                    _process_audio_upload(media, sub_type, temp)
+                elif media_type == "video":
+                    _process_video_upload(media, sub_type, temp)
 
-    media.is_ready = True
+        media.status = Media.STATUS_READY
+    except Exception as e:
+        media.status = Media.STATUS_FAILED
+        logger.error("Error processing media upload: %s", e, exc_info=True)
+
     media.save()
 
 

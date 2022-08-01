@@ -60,7 +60,7 @@ class MediaTest(TembaTest):
             f"test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve marten.jpg", media.path
         )
         self.assertEqual(self.admin, media.created_by)
-        self.assertFalse(media.is_ready)
+        self.assertEqual(Media.STATUS_PENDING, media.status)
 
         # check that our filename is cleaned
         media = Media.from_upload(
@@ -88,7 +88,7 @@ class MediaTest(TembaTest):
         self.assertEqual(0, media.duration)
         self.assertEqual(480, media.width)
         self.assertEqual(360, media.height)
-        self.assertTrue(media.is_ready)
+        self.assertEqual(Media.STATUS_READY, media.status)
 
     @mock_uuids
     def test_process_audio_wav(self):
@@ -101,7 +101,7 @@ class MediaTest(TembaTest):
         self.assertEqual(5110, media.duration)
         self.assertEqual(0, media.width)
         self.assertEqual(0, media.height)
-        self.assertTrue(media.is_ready)
+        self.assertEqual(Media.STATUS_READY, media.status)
 
         alt1, alt2 = list(media.alternates.order_by("id"))
 
@@ -118,7 +118,7 @@ class MediaTest(TembaTest):
         self.assertEqual(5110, alt1.duration)
         self.assertEqual(0, alt1.width)
         self.assertEqual(0, alt2.height)
-        self.assertTrue(alt1.is_ready)
+        self.assertEqual(Media.STATUS_READY, media.status)
 
         self.assertEqual(self.org, alt2.org)
         self.assertEqual(
@@ -133,7 +133,7 @@ class MediaTest(TembaTest):
         self.assertEqual(5110, alt2.duration)
         self.assertEqual(0, alt2.width)
         self.assertEqual(0, alt2.height)
-        self.assertTrue(alt2.is_ready)
+        self.assertEqual(Media.STATUS_READY, media.status)
 
     @mock_uuids
     def test_process_audio_m4a(self):
@@ -146,7 +146,7 @@ class MediaTest(TembaTest):
         self.assertEqual(10216, media.duration)
         self.assertEqual(0, media.width)
         self.assertEqual(0, media.height)
-        self.assertTrue(media.is_ready)
+        self.assertEqual(Media.STATUS_READY, media.status)
 
         alt = media.alternates.get()
 
@@ -163,7 +163,7 @@ class MediaTest(TembaTest):
         self.assertEqual(10216, alt.duration)
         self.assertEqual(0, alt.width)
         self.assertEqual(0, alt.height)
-        self.assertTrue(alt.is_ready)
+        self.assertEqual(Media.STATUS_READY, media.status)
 
     @mock_uuids
     def test_process_video_mp4(self):
@@ -176,7 +176,7 @@ class MediaTest(TembaTest):
         self.assertEqual(3536, media.duration)
         self.assertEqual(640, media.width)
         self.assertEqual(480, media.height)
-        self.assertTrue(media.is_ready)
+        self.assertEqual(Media.STATUS_READY, media.status)
 
         alt = media.alternates.get()
 
@@ -191,7 +191,17 @@ class MediaTest(TembaTest):
         self.assertEqual(0, alt.duration)
         self.assertEqual(640, alt.width)
         self.assertEqual(480, alt.height)
-        self.assertTrue(alt.is_ready)
+        self.assertEqual(Media.STATUS_READY, media.status)
+
+    @mock_uuids
+    def test_process_unsupported(self):
+        media = Media.from_upload(
+            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_imports/simple.xls", "audio/m4a")
+        )
+        media.refresh_from_db()
+
+        self.assertEqual(19968, media.size)
+        self.assertEqual(Media.STATUS_FAILED, media.status)
 
 
 class MsgTest(TembaTest):
