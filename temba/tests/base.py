@@ -772,9 +772,9 @@ class TembaTest(TembaTestMixin, SmartminTest):
     def mockReadOnly(self, assert_models: set = None):
         return MockReadOnly(self, assert_models=assert_models)
 
-    def upload(self, path: str, content_type="text/plain"):
+    def upload(self, path: str, content_type="text/plain", name=None):
         with open(path, "rb") as f:
-            return SimpleUploadedFile(path, content=f.read(), content_type=content_type)
+            return SimpleUploadedFile(name or path, content=f.read(), content_type=content_type)
 
 
 class TembaNonAtomicTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):

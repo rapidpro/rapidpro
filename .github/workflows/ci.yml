@@ -33,7 +33,7 @@ jobs:
       - name: Install Linux packages
         run: |
           sudo apt update
-          sudo apt install -y --no-install-recommends libgdal-dev gettext
+          sudo apt install -y --no-install-recommends libgdal-dev gettext ffmpeg
 
       - name: Install Python
         uses: actions/setup-python@v1

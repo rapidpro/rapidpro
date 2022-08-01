@@ -1,4 +1,7 @@
 import logging
+import mimetypes
+import os
+import re
 import time
 from array import array
 from datetime import datetime, timedelta
@@ -52,10 +55,10 @@ class Media(models.Model):
     name = models.CharField(max_length=255)  # filename including extension
     content_type = models.CharField(max_length=255)
     path = models.CharField(max_length=2048)
+    size = models.IntegerField(default=0)  # bytes
     original = models.ForeignKey("self", null=True, on_delete=models.CASCADE, related_name="alternates")
 
     # fields that will be set after upload by a processing task
-    size = models.IntegerField(default=0)  # bytes
     duration = models.IntegerField(default=0)  # milliseconds
     width = models.IntegerField(default=0)  # pixels
     height = models.IntegerField(default=0)  # pixels
@@ -76,39 +79,75 @@ class Media(models.Model):
         return f"{settings.STORAGE_ROOT_DIR}/{org.id}/media/{str(uuid)[0:4]}/{uuid}/{filename}"
 
     @classmethod
-    def from_upload(cls, org, user, file):
+    def from_upload(cls, org, user, file, process=True):
+        """
+        Creates a new media instance from a file upload.
+        """
+
         from .tasks import process_media_upload
 
-        uuid = uuid4()
+        base_name, extension = os.path.splitext(file.name)
+
+        # cleanup file name
+        base_name = re.sub(r"[^a-zA-Z0-9_ ]", "", base_name).strip()[:255] or "file"
+
+        if not extension:
+            extension = mimetypes.guess_extension(file.content_type) or ".bin"
 
         # browsers might send m4a files but correct MIME type is audio/mp4
-        extension = file.name.split(".")[-1]
-        if extension == "m4a":
+        if extension == ".m4a":
             file.content_type = "audio/mp4"
 
-        path = cls.get_storage_path(org, uuid, file.name)
-        path = public_file_storage.save(path, file)  # storage classes can rewrite saved paths
+        media = cls._create(org, user, base_name + extension, file.content_type, file)
 
-        media = cls.objects.create(
-            uuid=uuid,
-            org=org,
-            url=public_file_storage.url(path),
-            name=file.name,
-            content_type=file.content_type,
-            path=path,
-            created_by=user,
-        )
-
-        on_transaction_commit(lambda: process_media_upload.delay(media.id))
+        if process:
+            on_transaction_commit(lambda: process_media_upload.delay(media.id))
 
         return media
 
-    def process_upload(self):
-        # TODO process using ffmpeg wrapper
+    @classmethod
+    def create_alternate(cls, original, name: str, content_type: str, file, **kwargs):
+        """
+        Creates a new alternate media instance for the given original.
+        """
 
-        # self.is_ready = True
-        # self.save(update_fields=("is_ready",))
-        pass
+        return cls._create(
+            original.org,
+            original.created_by,
+            name,
+            content_type,
+            file,
+            original=original,
+            is_ready=True,
+            **kwargs,
+        )
+
+    @classmethod
+    def _create(cls, org, user, name: str, content_type: str, file, **kwargs):
+        uuid = uuid4()
+        path = cls.get_storage_path(org, uuid, name)
+        path = public_file_storage.save(path, file)
+        size = public_file_storage.size(path)
+
+        return cls.objects.create(
+            uuid=uuid,
+            org=org,
+            url=public_file_storage.url(path),
+            name=name,
+            content_type=content_type,
+            path=path,
+            size=size,
+            created_by=user,
+            **kwargs,
+        )
+
+    def process_upload(self):
+        from .media import process_upload
+
+        assert not self.is_ready, "media file is already processed"
+        assert not self.original, "only original uploads can be processed"
+
+        process_upload(self)
 
 
 class Broadcast(models.Model):

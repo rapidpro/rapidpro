@@ -3016,10 +3016,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         assert_upload(
             self.editor,
-            f"{settings.MEDIA_ROOT}/test_media/snow.m4a",
+            f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a",
             {
                 "type": "audio/mp4",
-                "url": f"/media/test_orgs/{self.org.id}/media/5349/53499958-0a0a-48a5-bb5f-8f9f4d8af77b/snow.m4a",
+                "url": f"/media/test_orgs/{self.org.id}/media/fd18/fd18a69d-7514-4b76-9fad-072641995e17/bubbles.m4a",
             },
         )
 
