@@ -49,26 +49,31 @@ class Media(models.Model):
     An uploaded media file that can be used as an attachment on messages.
     """
 
-    uuid = models.UUIDField(default=uuid4)
+    STATUS_PENDING = "P"
+    STATUS_READY = "R"
+    STATUS_FAILED = "F"
+    STATUS_CHOICES = ((STATUS_PENDING, "Pending"), (STATUS_READY, "Ready"), (STATUS_FAILED, "Failed"))
+
+    uuid = models.UUIDField(default=uuid4, db_index=True, unique=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
-    url = models.URLField(max_length=2048, db_index=True, unique=True)
+    url = models.URLField(max_length=2048)
     name = models.CharField(max_length=255)  # filename including extension
     content_type = models.CharField(max_length=255)
     path = models.CharField(max_length=2048)
     size = models.IntegerField(default=0)  # bytes
     original = models.ForeignKey("self", null=True, on_delete=models.CASCADE, related_name="alternates")
+    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
     # fields that will be set after upload by a processing task
     duration = models.IntegerField(default=0)  # milliseconds
     width = models.IntegerField(default=0)  # pixels
     height = models.IntegerField(default=0)  # pixels
-    is_ready = models.BooleanField(default=False)
 
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
     created_on = models.DateTimeField(default=timezone.now)
 
     # TODO remove
-    paths = models.JSONField(default=dict)
+    is_ready = models.BooleanField(default=False, null=True)
 
     @classmethod
     def get_storage_path(cls, org, uuid, filename):
