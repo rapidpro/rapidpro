@@ -1,3 +1,10 @@
+v7.5.8
+----------
+ * Update floweditor
+ * Convert all views to use ContentMenuMixin instead of get_gear_links
+ * Add decorator to mock uuid generation in tests
+ * Process media uploads with ffmpeg in celery task
+
 v7.5.7
 ----------
  * Add constraint to ensure non-waiting/active runs have exited_on set
