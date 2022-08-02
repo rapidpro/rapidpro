@@ -285,53 +285,75 @@ class ContentMenu:
         self.groups.append([])
 
     def add_link(self, label: str, url: str):
-        self.groups[-1].append({"title": label, "href": url})
+        self.groups[-1].append({"type": "link", "label": label, "url": url})
 
     def add_js(self, label: str, on_click: str, link_class: str):
-        self.groups[-1].append({"title": label, "on_click": on_click, "js_class": link_class, "href": "#"})
+        self.groups[-1].append({"type": "js", "label": label, "on_click": on_click, "link_class": link_class})
 
     def add_url_post(self, label: str, url: str):
-        self.groups[-1].append({"title": label, "href": url, "js_class": "posterize"})
+        self.groups[-1].append({"type": "url_post", "label": label, "url": url})
 
     def add_modax(
         self, label: str, modal_id: str, url: str, *, title: str = None, on_submit: str = None, primary: bool = False
     ):
         self.groups[-1].append(
             {
-                "id": modal_id,
-                "title": label,
-                "modax": title or label,
-                "href": url,
+                "type": "modax",
+                "label": label,
+                "url": url,
+                "modal_id": modal_id,
+                "title": title or label,
                 "on_submit": on_submit,
-                "style": "button-primary" if primary else "",
+                "primary": primary,
             }
         )
 
     def as_items(self):
         """
-        Reduce groups to a flat list of items separated by a divider.
+        Reduce groups to a flat list of items separated by dividers.
         """
         items = []
         for group in self.groups:
             if not group:
                 continue
             if items:
-                items.append({"divider": True})
-
+                items.append({"type": "divider"})
             items.extend(group)
-
         return items
 
 
 class ContentMenuMixin:
     """
     Mixin for views that have a content menu (hamburger icon with dropdown items)
+
+    TODO: rework legacy gear-link templates to use `content_menu` instead of `gear_links`
     """
 
-    def get_gear_links(self):
+    # renderers to convert menu items to the legacy "gear-links" format
+    gear_link_renderers = {
+        "link": lambda i: {"title": i["label"], "href": i["url"]},
+        "js": lambda i: {"title": i["label"], "on_click": i["on_click"], "js_class": i["link_class"], "href": "#"},
+        "url_post": lambda i: {"title": i["label"], "href": i["url"], "js_class": "posterize"},
+        "modax": lambda i: {
+            "id": i["modal_id"],
+            "title": i["label"],
+            "modax": i["title"],
+            "href": i["url"],
+            "on_submit": i["on_submit"],
+            "style": "button-primary" if i["primary"] else "",
+        },
+        "divider": lambda i: {"divider": True},
+    }
+
+    def get_context_data(self, **kwargs):
         menu = ContentMenu()
         self.build_content_menu(menu)
-        return menu.as_items()
+        menu_items = menu.as_items()
+
+        context = super().get_context_data(**kwargs)
+        context["content_menu"] = menu_items
+        context["gear_links"] = [self.gear_link_renderers[i["type"]](i) for i in menu_items]
+        return context
 
     def build_content_menu(self, menu: ContentMenu):  # pragma: no cover
         pass

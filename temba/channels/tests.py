@@ -113,12 +113,15 @@ class ChannelTest(TembaTest):
         self.login(self.customer_support)
 
         response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
-
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Service"])
         self.assertEqual(
-            gear_links[-1]["href"],
-            f"/org/service/?organization={self.tel_channel.org_id}&redirect_url=/channels/channel/read/{self.tel_channel.uuid}/",
+            [
+                {
+                    "type": "url_post",
+                    "label": "Service",
+                    "url": f"/org/service/?organization={self.tel_channel.org_id}&redirect_url=/channels/channel/read/{self.tel_channel.uuid}/",
+                }
+            ],
+            response.context["content_menu"],
         )
 
     def test_deactivate(self):

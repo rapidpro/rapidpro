@@ -104,22 +104,20 @@
     }
   }
 
--with gear_links=view.get_gear_links
+-if gear_links
+  .flex.h-full.spa-gear-buttons
+    -with link=gear_links|first
+      %temba-button.ml-4(name="{{link.title|escapejs}}" onclick="handleMenuClicked(event)" class='{{ link|gear_link_classes }}' data-success-url='{{ link.success_url }}' data-href='{{link.href}}' data-modax='{{link.modax|escapejs}}' data-on-submit='{{link.on_submit|escapejs}}')
 
-  -if gear_links
-    .flex.h-full.spa-gear-buttons
-      -with link=gear_links|first
-        %temba-button.ml-4(name="{{link.title|escapejs}}" onclick="handleMenuClicked(event)" class='{{ link|gear_link_classes }}' data-success-url='{{ link.success_url }}' data-href='{{link.href}}' data-modax='{{link.modax|escapejs}}' data-on-submit='{{link.on_submit|escapejs}}')
- 
-      -if gear_links|length > 1
-        %temba-dropdown.items-stretch.flex.flex-column(arrowoffset="-12" offsetx="24" offsety="6" arrowsize="8")
-          .menu-button.items-center.flex.flex-column.py-2.px-2.ml-2(slot="toggle")
-            %temba-icon( name="menu" size="1.5")
-          .dropdown.px-6.py-4.text-gray-800.z-50(slot="dropdown" style="min-width:200px")
-            -for link in gear_links
-              -if not forloop.first
-                .whitespace-nowrap.menu-item.hover-linked.font-normal{onclick:'handleMenuClicked(event)', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}', data-on-submit:'{{link.on_submit|escapejs}}'}
-                  {{link.title}}
-                  %span{class:'gear-flag'}
-                    {{link.flag}}
+    -if gear_links|length > 1
+      %temba-dropdown.items-stretch.flex.flex-column(arrowoffset="-12" offsetx="24" offsety="6" arrowsize="8")
+        .menu-button.items-center.flex.flex-column.py-2.px-2.ml-2(slot="toggle")
+          %temba-icon( name="menu" size="1.5")
+        .dropdown.px-6.py-4.text-gray-800.z-50(slot="dropdown" style="min-width:200px")
+          -for link in gear_links
+            -if not forloop.first
+              .whitespace-nowrap.menu-item.hover-linked.font-normal{onclick:'handleMenuClicked(event)', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}', data-on-submit:'{{link.on_submit|escapejs}}'}
+                {{link.title}}
+                %span{class:'gear-flag'}
+                  {{link.flag}}
 
