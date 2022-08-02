@@ -23,22 +23,30 @@
   .flex.flex-wrap.mt-1
 
     -if contact.status == 'B'
-      .lbl-group.mt-2.mr-2.bg-secondary.linked.inverted.cursor-pointer{onclick:"goto(event)", href:"{% url 'contacts.contact_blocked' %}"}
+      .lbl-group.linked.inverted.bg-secondary.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_blocked' %}")
+        %temba-icon(name="slash")
         -trans "Blocked"
   
     -elif contact.status == 'S'
-      .lbl-group.inverted.linked.mt-2.mr-2.bg-secondary.font-normal{onclick:"goto(event)", href:"{% url 'contacts.contact_stopped' %}"}
+      .lbl-group.linked.inverted.bg-secondary.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_stopped' %}")
+        %temba-icon(name="alert-octagon")
         -trans "Stopped"
 
     -elif contact.status == 'V'
-      .lbl-group.mt-2.mr-2.linked.bg-secondary.inverted.font-normal{onclick:"goto(event)", href:"{% url 'contacts.contact_archived' %}"}
+      .lbl-group.linked.inverted.bg-secondary.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_archived' %}")
+        %temba-icon(name="archive")
         -trans "Archived"
 
+    -if contact.current_flow
+      .lbl-group.linked.inverted.bg-tertiary.mr-2.mb-2(onclick="goto(event)" href="{% url 'flows.flow_editor' contact.current_flow.uuid %}")
+        %temba-icon(name="flow")
+        {{ contact.current_flow.name }}
+
     -for group in contact_groups
-      -if group.is_dynamic
+      -if group.is_smart
         -include "includes/recipients_group.haml" with group=group
     -for group in contact_groups
-      -if not group.is_dynamic
+      -if not group.is_smart
         -include "includes/recipients_group.haml" with group=group
 
 -block read-buttons
@@ -52,7 +60,6 @@
   </style>
   <![endif]-->
 
-
   -if all_contact_fields.0.show_in_table
     .bg-gray-100.rounded-lg.p-3.mb-6
       .flex.flex-wrap
@@ -61,10 +68,10 @@
             .flex.flex-col.p-2
               .contact-field{data-id:'{{field.id}}'}
                 .contact-field-value.editable.cursor-pointer.hover-linked.font-bold.text-gray-600
-                  {{field.value|truncatechars:20}}      
-              .whitespace-no-wrap.pr-12.contact-field{data-id:'{{field.id}}'}
+                  {{ field.value|truncatechars:20 }}
+              .whitespace-nowrap.pr-12.contact-field{data-id:'{{field.id}}'}
                 .contact-field-value.tracking-wider.font-normal.text-xs
-                  {{field.label|title}}
+                  {{ field.name|title }}
         
       
 
@@ -75,7 +82,7 @@
     %tbody
       %tr
         %td
-          .whitespace-no-wrap.pr-24.contact-field
+          .whitespace-nowrap.pr-24.contact-field
             .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
               -trans "Created On"
         %td.w-full
@@ -83,7 +90,7 @@
             {% format_datetime contact.created_on %}
       %tr
         %td
-          .whitespace-no-wrap.pr-24.contact-field
+          .whitespace-nowrap.pr-24.contact-field
             .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
               -trans "Last Seen On"
         %td.w-full
@@ -96,7 +103,7 @@
       -if contact_language
         %tr
           %td
-            .whitespace-no-wrap.pr-12.contact-field
+            .whitespace-nowrap.pr-12.contact-field
               .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
                 -trans "Language"
           %td.w-full
@@ -108,7 +115,7 @@
       -if user_org.is_anon
         %tr
           %td
-            .whitespace-no-wrap.pr-12.contact-field
+            .whitespace-nowrap.pr-12.contact-field
               .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
                 -trans "Contact Id"
           %td.w-full
@@ -120,19 +127,19 @@
       -for field in all_contact_fields
         %tr
           %td
-            .whitespace-no-wrap.pr-12.contact-field{data-id:'{{field.id}}'}
+            .whitespace-nowrap.pr-12.contact-field{data-id:'{{field.id}}'}
               .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
-                {{field.label|title}}
+                {{ field.name|title }}
           %td.w-full
             .contact-field{data-id:'{{field.id}}'}
               .contact-field-value.editable.cursor-pointer.hover-linked
-                {{field.value}}
+                {{ field.value }}
       
       -for urn in contact_urns
         -if not user_org.is_anon
           %tr
             %td
-              .whitespace-no-wrap.pr-12.contact-field
+              .whitespace-nowrap.pr-12.contact-field
                 .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
                   .mr-1.leading-none.text-gray-500{class:"glyph {{urn|urn_icon}}", style:"margin-top: -1px; font-size:14px"}
                   -if urn.scheme == 'mailto'
@@ -162,16 +169,14 @@
       -for ticket in open_tickets
         %tr.item
           %td.icon
-            %span.glyph.icon-ticket
-          %td.details
-            %a(href="{% url 'tickets.ticket_filter' ticket.ticketer.uuid %}")
-              {{ ticket.ticketer.name }}
-          %td.details
-            {{ ticket.subject }}
-          %td.details
-            {{ ticket.body }}
+            .pl-2
+              %span.glyph.icon-ticket
+          %td.details.w-full
+            %a(href="{% url 'tickets.ticket_list' %}all/open/{{ticket.uuid}}/")
+              {{ ticket.body|default:"empty"|truncatechars:64 }}
           %td.created_on
-            {% short_datetime ticket.opened_on %}
+            .pr-6
+              {% short_datetime ticket.opened_on %}
 
   -if upcoming_events
     -if upcoming_events|length > 3
@@ -188,34 +193,34 @@
         -if forloop.counter0 == upcoming_events|length|add:-3
           %tbody.next_three
 
-        %tr.item{class:"{% if evt.event_type == 'M' %}msg{%else%}non-msg{%endif%}"}
+        %tr.item(class="{% if evt.message %}msg{%else%}non-msg{%endif%}")
           %td.icon
-            -if evt.event_type == 'M'
+            -if evt.message
               %span.glyph.icon-bubble-right
-            -elif evt.event_type == 'F'
+            -elif evt.flow
               %span.glyph.icon-flow
             -else
               %span.glyph.icon-clock
 
           %td.details.w-full
-
             .activity-scheduled
-              -if evt.event_type == 'M'
+              -if evt.message
                 .activity-body
-                  {{evt.message}}
+                  {{ evt.message }}
 
-              -elif evt.event_type == 'F'
+              -elif evt.flow
                 -trans "Start"
-                %a.href{ href: "{% url 'flows.flow_editor' evt.flow_uuid %}" }= evt.flow_name
-          %td.whitespace-no-wrap.text-right
+                %a.href(href="{% url 'flows.flow_editor' evt.flow.uuid %}")
+                  {{ evt.flow.name }}
+          %td.whitespace-nowrap.text-right
             .pr-6
-              {{ evt.scheduled|naturaltime }}
-
-              .repeats
-                -if evt.repeat_period == 'D'
-                  -trans 'repeats daily'
-                -elif evt.repeat_period == 'W'
-                  -trans 'repeats weekly'
+              {{ evt.scheduled|parse_isodate|naturaltime }}{% if evt.repeat_period %}, {% endif %}
+              -if evt.repeat_period == 'D'
+                -trans 'repeats daily'
+              -elif evt.repeat_period == 'W'
+                -trans 'repeats weekly'
+              -elif evt.repeat_period == 'M'
+                -trans 'repeats monthly'
 
     -if upcoming_events|length > 3
       %a.pull-right.show-all.upcoming
@@ -563,7 +568,7 @@
     $('.contact-field-value.editable').live('click', function(evt) {
       var endpoint = '{% url "contacts.contact_update_fields" object.pk %}';
       var field_id = $(this).parent().data('id');
-      var modax = document.querySelector("#update-custom-fields");
+      var modax = getModax("#update-custom-fields");
       modax.endpoint = endpoint + '?field=' + field_id;
       modax.open = true;
 

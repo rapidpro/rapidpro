@@ -10,18 +10,18 @@
       %td
         .font-normal.inline.mr-1
           %span.method= log.method
-        {% channellog_url log %}
+        .break-all(style="min-width:200px")
+          {% channellog_url log %}
 
       %td
-        .text-right.whitespace-no-wrap
+        .text-right.whitespace-nowrap
           -if log.request_time
             -trans "Took"
             %span.request-time-value
               {{ log.request_time|default:"0"|intcomma }}ms
       %td
-        .text-right.whitespace-no-wrap
-          {{log.created_on|date:"M j, Y g:i:s a"}}
-
+        .text-right.whitespace-nowrap
+          {% format_datetime log.created_on seconds=True %}
 
     %tr
       %td(colspan="4" style="padding:0;")

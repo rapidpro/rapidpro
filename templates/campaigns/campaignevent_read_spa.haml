@@ -1,0 +1,214 @@
+-extends "smartmin/read.html"
+-load smartmin sms temba compress humanize contacts i18n
+
+-block page-title
+  {{ object.offset_display }} {{ object.relative_to.name }}
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-campaign
+
+-block subtitle
+
+  .event-details.p-4.bg-gray-200.rounded-lg.mb-6
+    {{ object.offset_display }} {{ object.relative_to.name }}
+
+
+-block content
+  
+  .event-details.p-4.bg-gray-200.rounded-lg.mb-6
+    -if object.event_type == 'M'
+      .cap-label
+        -trans "Send Message"
+      .text-gray-600
+        {{object.get_message}}
+    -else
+      .start-flow
+        -trans "Start"
+        %span.linked(onclick="goto(event)" href="{% url 'flows.flow_editor' object.flow.uuid %}")
+          {{object.flow.name}}
+
+
+  -if not scheduled_event_fires
+    %table.list
+      %thead
+        %tr
+          %th{colspan:"99"}
+            -trans "Upcoming Events"
+
+      %body
+        %tr.empty_list
+          %td
+            .ml-3
+              -trans "No events scheduled"
+  -else
+
+    %table.list
+      %thead
+        %tr
+          %th{colspan:"99"}
+            Next {{scheduled_event_fires|length|intcomma}} Event{{scheduled_event_fires|length|pluralize}}
+      %body
+        -for fire in scheduled_event_fires
+          %tr.event_fire
+            %td
+              .name.linked(onclick="goto(event)" href="{% url 'contacts.contact_read' fire.contact.uuid %}")
+                {{fire.contact|name_or_urn:user_org}}
+
+              .relative-to
+                {{object.relative_to}} - {{fire.get_relative_to_value|date:"M d, Y \a\t h:ia"|slice:"-3"}}
+
+            %td.event_date
+              -if fire.is_firing_soon
+                soon
+              -else
+                {{fire.scheduled|naturaltime}}
+
+        -if scheduled_event_fires_count
+          %tr
+            %td{colspan: 2}
+              .total
+                {{scheduled_event_fires_count}} more
+
+
+  .mt-6
+
+  -if not fired_event_fires
+    %table.list
+      %thead
+        %tr
+          %th{colspan:"99"}
+            -trans "Recent Events"
+      %tbody
+        %tr.empty_list
+          %td
+            .ml-3
+              No events yet
+  -else
+      
+    %table.list
+      %thead
+        %tr
+          %th{colspan:"99"}
+            -trans "Recent Events"
+
+      %tbody
+        -for fire in fired_event_fires
+          %tr.event_fire
+            %td
+              .name.linked(onclick="goto(event)" href="{% url 'contacts.contact_read' fire.contact.uuid %}")
+                {{fire.contact.name}}
+
+              .relative-to
+                {{object.relative_to}}
+
+            %td.event_date
+              {{fire.fired|naturaltime}}
+
+        -if fired_event_fires_count
+          %tr
+            %td{colspan: 2}
+              .total
+                {{fired_event_fires_count}} more
+
+  -if org_perms.campaigns.campaignevent_delete
+    .deletion.hide
+      .title
+        Remove
+
+      .body
+        %p Are you sure you want to remove this event? Once the event is removed, it will be gone forever. This cannot be undone.
+      %a#delete-form.posterize{}
+
+-block extra-less
+  -compress css
+    {% lessblock %}
+      :plain
+
+        h2 a {
+          text-decoration: none;
+          color: inherit;
+
+          &:hover {
+            text-decoration: none;
+            color: inherit;
+          }
+        }
+
+        h4 {
+          margin-bottom:6px;
+        }
+
+        .title-icon {
+          // margin-bottom: -30px;
+        }
+
+        .title-text {
+          // margin-top:20px;
+        }
+
+        .total {
+          color: #999;
+          font-size:12px;
+          text-align:right;
+          margin-top:-5px;
+        }
+
+        .name {
+          display: inline-block;
+          width:150px;
+        }
+
+        .relative-to {
+          display:inline-block;
+          color: #999;
+          margin-left:10px;
+        }
+        .message {
+          font-size:15px;
+          line-height:17px;
+          border: 0px solid green;
+          color: #999;
+          margin-left:-13px;
+
+          .text {
+            position:relative;
+            z-index:1;
+            letter-spacing:.1em;
+            top:-10px;
+            left:14px;
+            right:-14px;
+            margin-right:25px;
+          }
+
+          .icon-left-quote {
+            position:relative;
+            z-index:0;
+            top:-5px;
+            font-size:28px;
+            color: #eee;
+            margin-right:4px;
+          }
+        }
+
+    {% endlessblock %}
+
+-block extra-style
+  :css
+    span.strong {
+      font-weight:400;
+    }
+    
+    tr.event-fire td {
+      margin-bottom: 5px;
+    }
+
+    tr.empty_list td {
+      border-bottom: 0px solid #ccc;
+      padding:10px;
+    }    
+
+    table .event_date {
+      text-align: right;
+    
+    }

@@ -1,17 +1,35 @@
-from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartTemplateView
+from datetime import timedelta
+
+from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
 from django import forms
-from django.contrib import messages
-from django.http import HttpResponse
+from django.contrib.auth.models import User
+from django.db.models.aggregates import Max
+from django.http import JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.html import mark_safe
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.views import BulkActionMixin, ComponentFormMixin
+from temba.msgs.models import Msg
+from temba.notifications.views import NotificationTargetMixin
+from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
+from temba.utils.export import response_from_workbook
+from temba.utils.fields import InputWidget, SelectWidget
+from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
-from .models import Ticket, Ticketer
+from .models import (
+    AllFolder,
+    MineFolder,
+    Ticket,
+    TicketCount,
+    Ticketer,
+    TicketFolder,
+    UnassignedFolder,
+    export_ticket_stats,
+)
 
 
 class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
@@ -26,6 +44,7 @@ class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
     permission = "tickets.ticketer_connect"
     ticketer_type = None
     form_blurb = ""
+    success_url = "@tickets.ticket_list"
 
     def __init__(self, ticketer_type):
         self.ticketer_type = ticketer_type
@@ -44,9 +63,6 @@ class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
     def derive_title(self):
         return _("Connect %(ticketer)s") % {"ticketer": self.ticketer_type.name}
 
-    def get_success_url(self):
-        return reverse("tickets.ticket_filter", args=[self.object.uuid])
-
     def get_form_blurb(self):
         return self.form_blurb
 
@@ -56,129 +72,346 @@ class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
         return context
 
 
-class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
-    folder = None
-    fields = ("contact", "subject", "body", "opened_on")
-    select_related = ("ticketer", "contact")
-    default_order = ("-opened_on",)
-    bulk_actions = ()
+class NoteForm(forms.ModelForm):
+    note = forms.CharField(
+        max_length=2048,
+        required=True,
+        widget=InputWidget({"hide_label": True, "textarea": True}),
+        help_text=_("Notes can only be seen by the support team"),
+    )
 
-    def get_context_data(self, **kwargs):
-        user = self.get_user()
-        org = user.get_org()
-
-        context = super().get_context_data(**kwargs)
-        context["folder"] = self.folder
-        context["ticketers"] = org.ticketers.filter(is_active=True).order_by("created_on")
-        return context
+    class Meta:
+        model = Ticket
+        fields = ("note",)
 
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("open", "closed", "filter")
+    actions = ("list", "folder", "note", "assign", "menu", "export_stats")
 
-    class Open(TicketListView):
-        title = _("Open Tickets")
-        folder = "open"
-        bulk_actions = ("close",)
-
-        def get_queryset(self, **kwargs):
-            org = self.get_user().get_org()
-            return super().get_queryset(**kwargs).filter(org=org, status=Ticket.STATUS_OPEN)
-
-    class Closed(TicketListView):
-        title = _("Closed Tickets")
-        folder = "closed"
-        bulk_actions = ("reopen",)
-
-        def get_queryset(self, **kwargs):
-            org = self.get_user().get_org()
-            return super().get_queryset(**kwargs).filter(org=org, status=Ticket.STATUS_CLOSED)
-
-    class Filter(OrgObjPermsMixin, TicketListView):
-        bulk_actions = ("close", "reopen")
+    class List(SpaMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
+        """
+        A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
+        """
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<ticketer>[^/]+)/$" % (path, action)
+            folders = "|".join(TicketFolder.all().keys())
+            return rf"^ticket/((?P<folder>{folders})/((?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+)/)?)?)?$"
 
-        def derive_title(self, *args, **kwargs):
-            return self.ticketer.name
+        def get_notification_scope(self) -> tuple:
+            folder, status, _, _ = self.tickets_path
+            if folder == UnassignedFolder.slug and status == "open":
+                return "tickets:opened", ""
+            elif folder == MineFolder.slug and status == "open":
+                return "tickets:activity", ""
+            return "", ""
 
-        def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).filter(ticketer=self.ticketer)
+        @cached_property
+        def tickets_path(self) -> tuple:
+            """
+            Returns tuple of folder, status, ticket uuid, and whether that ticket exists in first page of tickets
+            """
+            folder = self.kwargs.get("folder")
+            status = self.kwargs.get("status")
+            uuid = self.kwargs.get("uuid")
+            in_page = False
 
-        def get_gear_links(self):
-            from .types.internal import InternalType
+            path = self.spa_referrer_path
+            if path and len(path) > 1 and path[0] == "tickets":
+                if not folder and len(path) > 1:
+                    folder = path[1]
+                if not status and len(path) > 2:
+                    status = path[2]
+                if not uuid and len(path) > 3:
+                    uuid = path[3]
 
-            links = []
-
-            if self.has_org_perm("tickets.ticketer_delete") and self.ticketer.ticketer_type != InternalType.slug:
-                links.append(
-                    dict(
-                        id="ticketer-delete",
-                        title=_("Delete"),
-                        modax=_("Delete Ticket Service"),
-                        href=reverse("tickets.ticketer_delete", args=[self.ticketer.uuid]),
-                    )
+            # if we have a uuid make sure it is in our first page of tickets
+            if uuid:
+                status_code = Ticket.STATUS_OPEN if status == "open" else Ticket.STATUS_CLOSED
+                org = self.request.org
+                user = self.request.user
+                tickets = list(
+                    TicketFolder.from_slug(folder).get_queryset(org, user, True).filter(status=status_code)[:25]
                 )
 
-            if self.has_org_perm("request_logs.httplog_ticketer"):
-                links.append(
-                    dict(title=_("HTTP Log"), href=reverse("request_logs.httplog_ticketer", args=[self.ticketer.uuid]))
-                )
+                found = list(filter(lambda t: str(t.uuid) == uuid, tickets))
+                if found:
+                    in_page = True
+                else:
+                    # if it's not, switch our folder to everything with that ticket's state
+                    ticket = org.tickets.filter(uuid=uuid).first()
+                    if ticket:
+                        folder = AllFolder.slug
+                        status = "open" if ticket.status == Ticket.STATUS_OPEN else "closed"
 
-            return links
-
-        def get_object_org(self):
-            return self.ticketer.org
+            return folder or MineFolder.slug, status or "open", uuid, in_page
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["ticketer"] = self.ticketer
-            context["used_by_flows"] = self.ticketer.dependent_flows.all()[:5]
+
+            folder, status, uuid, in_page = self.tickets_path
+            context["folder"] = folder
+            context["status"] = status
+            context["has_tickets"] = self.request.org.tickets.exists()
+            if uuid:
+                context["nextUUID" if in_page else "uuid"] = uuid
+
             return context
 
+        def get_queryset(self, **kwargs):
+            return super().get_queryset(**kwargs).none()
+
+    class Menu(OrgPermsMixin, SmartTemplateView):
+        def render_to_response(self, context, **response_kwargs):
+            user = self.request.user
+            count_by_assignee = TicketCount.get_by_assignees(user.get_org(), [None, user], Ticket.STATUS_OPEN)
+            counts = {
+                MineFolder.slug: count_by_assignee[user],
+                UnassignedFolder.slug: count_by_assignee[None],
+                AllFolder.slug: TicketCount.get_all(user.get_org(), Ticket.STATUS_OPEN),
+            }
+
+            menu = []
+            for folder in TicketFolder.all().values():
+                menu.append(
+                    {
+                        "id": folder.slug,
+                        "name": folder.name,
+                        "icon": folder.icon,
+                        "count": counts[folder.slug],
+                    }
+                )
+            return JsonResponse({"results": menu})
+
+    class Folder(OrgPermsMixin, SmartTemplateView):
+        permission = "tickets.ticket_list"
+        paginate_by = 25
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            folders = "|".join(TicketFolder.all().keys())
+            return rf"^{path}/{action}/(?P<folder>{folders})/(?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+))?$"
+
         @cached_property
-        def ticketer(self):
-            return Ticketer.objects.get(uuid=self.kwargs["ticketer"], is_active=True)
+        def folder(self):
+            return TicketFolder.from_slug(self.kwargs["folder"])
+
+        def get_queryset(self, **kwargs):
+
+            user = self.request.user
+            status = Ticket.STATUS_OPEN if self.kwargs["status"] == "open" else Ticket.STATUS_CLOSED
+            uuid = self.kwargs.get("uuid", None)
+            after = int(self.request.GET.get("after", 0))
+            before = int(self.request.GET.get("before", 0))
+
+            # fetching new activity gets a different order later
+            ordered = False if after else True
+            qs = self.folder.get_queryset(user.get_org(), user, ordered).filter(status=status)
+
+            # all new activity
+            after = int(self.request.GET.get("after", 0))
+            if after:
+                after = timestamp_to_datetime(after)
+                qs = qs.filter(last_activity_on__gt=after).order_by("last_activity_on", "id")
+
+            # historical page
+            if before:
+                before = timestamp_to_datetime(before)
+                qs = qs.filter(last_activity_on__lt=before)
+
+            # if we have exactly one historical page, redo our query for anything including the date
+            # of our last ticket to make sure we don't lose items in our paging
+            if not after and not uuid:
+                qs = qs[: self.paginate_by]
+                count = len(qs)
+
+                if count == self.paginate_by:
+                    last_ticket = qs[len(qs) - 1]
+                    qs = self.folder.get_queryset(user.get_org(), user, ordered).filter(
+                        status=status, last_activity_on__gte=last_ticket.last_activity_on
+                    )
+
+                    # now reapply our before if we have one
+                    if before:
+                        qs = qs.filter(last_activity_on__lt=before)  # pragma: needs cover
+
+            if uuid:
+                qs = qs.filter(uuid=uuid)
+
+            return qs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            # convert queryset to list so it can't change later
+            tickets = self.get_queryset()
+            context["tickets"] = tickets
+
+            # get the last message for each contact that these tickets belong to
+            contact_ids = {t.contact_id for t in tickets}
+            last_msg_ids = (
+                Msg.objects.filter(contact_id__in=contact_ids).values("contact").annotate(last_msg=Max("id"))
+            )
+            last_msgs = Msg.objects.filter(id__in=[m["last_msg"] for m in last_msg_ids]).select_related(
+                "broadcast__created_by"
+            )
+
+            context["last_msgs"] = {m.contact: m for m in last_msgs}
+            return context
+
+        def render_to_response(self, context, **response_kwargs):
+            def topic_as_json(t):
+                return {"uuid": str(t.uuid), "name": t.name}
+
+            def user_as_json(u):
+                return {
+                    "id": u.id,
+                    "first_name": u.first_name,
+                    "last_name": u.last_name,
+                    "email": u.email,
+                }
+
+            def msg_as_json(m):
+                sender = None
+                if m.broadcast and m.broadcast.created_by:
+                    sender = {"id": m.broadcast.created_by.id, "email": m.broadcast.created_by.email}
+
+                return {
+                    "text": m.text,
+                    "direction": m.direction,
+                    "type": m.msg_type,
+                    "created_on": m.created_on,
+                    "sender": sender,
+                    "attachments": m.attachments,
+                }
+
+            def as_json(t):
+                """
+                Converts a ticket to the contact-centric format expected by our frontend components
+                """
+                last_msg = context["last_msgs"].get(t.contact)
+                return {
+                    "uuid": str(t.contact.uuid),
+                    "name": t.contact.get_display(),
+                    "last_seen_on": t.contact.last_seen_on,
+                    "last_msg": msg_as_json(last_msg) if last_msg else None,
+                    "ticket": {
+                        "uuid": str(t.uuid),
+                        "assignee": user_as_json(t.assignee) if t.assignee else None,
+                        "topic": topic_as_json(t.topic) if t.topic else None,
+                        "body": t.body,
+                        "last_activity_on": t.last_activity_on,
+                        "closed_on": t.closed_on,
+                    },
+                }
+
+            results = {"results": [as_json(t) for t in context["tickets"]]}
+
+            # build up our next link if we have more
+            if len(context["tickets"]) >= self.paginate_by:
+                folder_url = reverse(
+                    "tickets.ticket_folder", kwargs={"folder": self.folder.slug, "status": self.kwargs["status"]}
+                )
+                last_time = results["results"][-1]["ticket"]["last_activity_on"]
+                results["next"] = f"{folder_url}?before={datetime_to_timestamp(last_time)}"
+
+            return JsonResponse(results)
+
+    class Note(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
+        """
+        Creates a note for this contact
+        """
+
+        form_class = NoteForm
+        fields = ("note",)
+        success_url = "hide"
+        slug_url_kwarg = "uuid"
+        success_message = ""
+        submit_button_name = _("Save")
+
+        def form_valid(self, form):
+            self.get_object().add_note(self.request.user, note=form.cleaned_data["note"])
+            return self.render_modal_response(form)
+
+    class Assign(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
+        class Form(NoteForm):
+            assignee = forms.ModelChoiceField(
+                queryset=User.objects.none(),
+                widget=SelectWidget(attrs={"searchable": True, "widget_only": True}),
+                required=False,
+                empty_label=_("Unassigned"),
+            )
+
+            def __init__(self, org, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.org = org
+                self.fields["assignee"].queryset = Ticket.get_allowed_assignees(self.org).order_by("email")
+                self.fields["note"].required = False
+
+        slug_url_kwarg = "uuid"
+        form_class = Form
+        fields = ("assignee", "note")
+        success_url = "hide"
+        success_message = ""
+        submit_button_name = _("Save")
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.user.get_org()
+            return kwargs
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+            ticket = self.get_object()
+            if ticket.assignee:
+                initial["assignee"] = ticket.assignee.id
+            return initial
+
+        def form_valid(self, form):
+            ticket = self.get_object()
+            assignee = form.cleaned_data["assignee"]
+            note = form.cleaned_data["note"]
+
+            # if our assignee is new
+            if ticket.assignee != assignee:
+                ticket.assign(self.request.user, assignee=assignee, note=note)
+
+            # otherwise just add the note if we have one
+            elif note:
+                ticket.add_note(self.request.user, note=form.cleaned_data["note"])
+
+            return self.render_modal_response(form)
+
+    class ExportStats(OrgPermsMixin, SmartTemplateView):
+        def render_to_response(self, context, **response_kwargs):
+            num_days = self.request.GET.get("days", 90)
+            today = timezone.now().date()
+            workbook = export_ticket_stats(
+                self.request.org, today - timedelta(days=num_days), today + timedelta(days=1)
+            )
+
+            return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
 
 
 class TicketerCRUDL(SmartCRUDL):
     model = Ticketer
-    actions = ("connect", "delete")
+    actions = ("connect", "read", "delete")
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        slug_url_kwarg = "uuid"
-        cancel_url = "uuid@tickets.ticket_filter"
-        title = _("Delete Ticketing Service")
-        success_message = ""
-        submit_button_name = _("Delete")
-        fields = ("uuid",)
-
-        def get_context_data(self, **kwargs):  # pragma: needs cover
-            context = super().get_context_data(**kwargs)
-            ticketer = self.get_object()
-            context["used_by_flows"] = ticketer.dependent_flows.all()[:5]
-            return context
-
-        def get_success_url(self):
-            return reverse("orgs.org_home")
-
-        def post(self, request, *args, **kwargs):
-            service = self.get_object()
-            service.release()
-
-            messages.info(request, _("Your ticketing service has been deleted."))
-            response = HttpResponse()
-            response["Temba-Success"] = self.get_success_url()
-            return response
-
-    class Connect(OrgPermsMixin, SmartTemplateView):
-        def get_gear_links(self):
-            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"))]
+    class Connect(ContentMenuMixin, OrgPermsMixin, SmartTemplateView):
+        def build_content_menu(self, menu):
+            menu.add_link(_("Home"), reverse("orgs.org_home"))
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["ticketer_types"] = [tt for tt in Ticketer.get_types() if tt.is_available_to(self.get_user())]
             return context
+
+    class Read(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = "uuid"
+
+    class Delete(DependencyDeleteModal):
+        cancel_url = "@orgs.org_home"
+        success_url = "@orgs.org_home"
+        success_message = _("Your ticketing service has been deleted.")

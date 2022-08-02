@@ -1,0 +1,36 @@
+-extends "msgs/broadcast_schedule_read.haml"
+-load smartmin sms temba i18n humanize
+
+-block title
+  {{ title }}
+
+-block content
+  -include "formax.haml"
+
+  -if object_list
+    
+    .shadow-lg.bg-white.rounded-t-lg.px-4.py-3.border-b.bg-gray-100
+      -trans "Send History"
+    
+    .shadow-lg.overflow-y-auto.rounded-b-lg
+      %table.list.bg-white(style='border-radius: 0;{% if not org_perms.msgs.broadcast_send %}margin-top:10px{% endif %}')
+        %tbody
+          -for object in object_list
+            %tr
+              %td
+                -with recipient_count=object.get_message_count
+                  -blocktrans trimmed count counter=recipient_count with count_comma=recipient_count|intcomma
+                    {{ count_comma }} recipient
+                  -plural
+                    {{ count_comma }} recipients
+              %td
+                {{ object.get_text }}
+              %td
+                .text-right
+                  %nobr
+                    {% short_datetime object.created_on %}
+
+
+    .mx-4
+      -block paginator
+        {{ block.super }}

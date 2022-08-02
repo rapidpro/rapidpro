@@ -2,14 +2,13 @@
 -load i18n
 
 -block summary
-  -if object.primary_language
-    -blocktrans trimmed with lang=object.primary_language.name
-      The primary language is <b>{{ lang }}</b>.
-    -if languages
-      -blocktrans trimmed with lang=languages
-        Translations are provided in <b>{{lang}}</b>.
+  -if primary_lang
+    -blocktrans trimmed with lang=primary_lang
+      The default flow language is <b>{{ lang }}</b>.
+    -if other_langs
+      -trans "Translations are provided in"
+      -for lang in other_langs
+        <b>{{ lang }}</b>{{ forloop|oxford }}
+      \.
   -else
     -trans "Your workspace is configured to use a single language."
-
-
-    

@@ -2,23 +2,29 @@ import functools
 import re
 from collections import defaultdict
 from datetime import timedelta
+from decimal import Decimal
 from functools import wraps
-from typing import Dict, List
 from unittest.mock import call, patch
+
+from django_redis import get_redis_connection
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import connection
 from django.utils import timezone
 
+from temba import mailroom
 from temba.campaigns.models import CampaignEvent, EventFire
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
+from temba.flows.models import FlowRun, FlowSession
 from temba.locations.models import AdminBoundary
 from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
-from temba.tickets.models import Ticket
-from temba.utils import format_number, get_anonymous_user, json
+from temba.tests.dates import parse_datetime
+from temba.tickets.models import Ticket, TicketEvent, Topic
+from temba.utils import get_anonymous_user, json
+from temba.utils.cache import incrby_existing
 
 event_units = {
     CampaignEvent.UNIT_MINUTES: "minutes",
@@ -28,59 +34,67 @@ event_units = {
 }
 
 
+def mock_inspect_query(org, query: str, fields=None) -> mailroom.QueryMetadata:
+    def field_ref(f):
+        return {"key": f.key, "name": f.name} if isinstance(f, ContactField) else {"key": f}
+
+    tokens = [t.lower() for t in re.split(r"\W+", query) if t]
+    attributes = list(sorted({"id", "uuid", "flow", "group", "created_on"}.intersection(tokens)))
+    fields = fields if fields is not None else org.fields.filter(is_system=False, key__in=tokens)
+    schemes = list(sorted(URN.VALID_SCHEMES.intersection(tokens)))
+
+    return mailroom.QueryMetadata(
+        attributes=attributes,
+        fields=[field_ref(f) for f in fields],
+        groups=[],
+        schemes=schemes,
+        allow_as_group=not {"id", "flow", "group", "history", "status"}.intersection(tokens),
+    )
+
+
 class Mocks:
     def __init__(self):
         self.calls = defaultdict(list)
         self._parse_query = {}
         self._contact_search = {}
+        self._flow_preview_start = []
         self._errors = []
 
         self.queued_batch_tasks = []
 
-    @staticmethod
-    def _parse_query_response(query: str, elastic: Dict, fields: List, allow_as_group: bool):
-        def field_ref(f):
-            return {"key": f.key, "name": f.label} if isinstance(f, ContactField) else {"key": f}
-
-        return {
-            "query": query,
-            "elastic_query": elastic,
-            "metadata": {
-                "attributes": [],
-                "schemes": [],
-                "fields": [field_ref(f) for f in fields],
-                "groups": [],
-                "allow_as_group": allow_as_group,
-            },
-        }
-
-    def parse_query(self, query, *, cleaned=None, fields=(), allow_as_group=True, elastic_query=None):
-        def mock():
-            elastic = elastic_query or {"term": {"is_active": True}}
-            return self._parse_query_response(cleaned or query, elastic, fields, allow_as_group)
+    def parse_query(self, query, *, cleaned=None, elastic_query=None, fields=None):
+        def mock(org):
+            return mailroom.ParsedQuery(
+                query=cleaned or query,
+                elastic_query=elastic_query or {"term": {"is_active": True}},
+                metadata=mock_inspect_query(org, cleaned or query, fields),
+            )
 
         self._parse_query[query] = mock
 
-    def contact_search(self, query, *, cleaned=None, contacts=(), total=0, fields=(), allow_as_group=True):
-        def mock(offset, sort):
-            return {
-                "query": cleaned or query,
-                "contact_ids": [c.id for c in contacts],
-                "total": total or len(contacts),
-                "offset": offset,
-                "sort": sort,
-                "metadata": {
-                    "attributes": [],
-                    "schemes": [],
-                    "fields": [{"key": f.key, "name": f.label} for f in fields],
-                    "groups": [],
-                    "allow_as_group": allow_as_group,
-                },
-            }
+    def contact_search(self, query, *, cleaned=None, contacts=(), total=0, fields=()):
+        def mock(org, offset, sort):
+            return mailroom.SearchResults(
+                query=cleaned or query,
+                total=total or len(contacts),
+                contact_ids=[c.id for c in contacts],
+                metadata=mock_inspect_query(org, cleaned or query, fields),
+            )
 
         self._contact_search[query] = mock
 
-    def error(self, msg: str, code: str = None, extra: Dict = None):
+    def flow_preview_start(self, query, total, sample):
+        def mock(org):
+            return mailroom.StartPreview(
+                query=query,
+                total=total,
+                sample_ids=[c.id for c in sample],
+                metadata=mock_inspect_query(org, query),
+            )
+
+        self._flow_preview_start.append(mock)
+
+    def error(self, msg: str, code: str = None, extra: dict = None):
         """
         Queues an error which will become a mailroom exception at the next client call
         """
@@ -126,7 +140,7 @@ class TestClient(MailroomClient):
         return {"contact": {"id": obj.id, "uuid": str(obj.uuid), "name": obj.name}}
 
     @_client_method
-    def contact_modify(self, org_id, user_id, contact_ids, modifiers: List[Modifier]):
+    def contact_modify(self, org_id, user_id, contact_ids, modifiers: list[Modifier]):
         org = Org.objects.get(id=org_id)
         user = User.objects.get(id=user_id)
         contacts = org.contacts.filter(id__in=contact_ids)
@@ -139,6 +153,13 @@ class TestClient(MailroomClient):
     def contact_resolve(self, org_id: int, channel_id: int, urn: str):
         org = Org.objects.get(id=org_id)
         user = get_anonymous_user()
+
+        try:
+            urn = URN.normalize(urn, org.default_country_code)
+            if not URN.validate(urn, org.default_country_code):
+                raise ValueError()
+        except ValueError:
+            raise MailroomException("contact/resolve", None, {"error": "invalid URN"})
 
         contact_urn = ContactURN.lookup(org, urn)
         if contact_urn:
@@ -153,18 +174,30 @@ class TestClient(MailroomClient):
         }
 
     @_client_method
-    def parse_query(self, org_id, query, group_uuid=""):
+    def contact_interrupt(self, org_id: int, user_id: int, contact_id: int):
+        contact = Contact.objects.get(id=contact_id)
+
+        # get the waiting session IDs
+        session_ids = list(contact.sessions.filter(status=FlowSession.STATUS_WAITING).values_list("id", flat=True))
+
+        exit_sessions(session_ids, FlowSession.STATUS_INTERRUPTED)
+
+        return {"sessions": len(session_ids)}
+
+    @_client_method
+    def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = ""):
+        org = Org.objects.get(id=org_id)
+
         # if there's a mock for this query we use that
         mock = self.mocks._parse_query.get(query)
         if mock:
-            return mock()
+            return mock(org)
 
-        # otherwise just approximate what mailroom would do
-        tokens = [t.lower() for t in re.split(r"\W+", query) if t]
-        fields = ContactField.all_fields.filter(org_id=org_id, key__in=tokens)
-        allow_as_group = "id" not in tokens and "group" not in tokens
-
-        return Mocks._parse_query_response(query, {"term": {"is_active": True}}, fields, allow_as_group)
+        return mailroom.ParsedQuery(
+            query=query,
+            elastic_query={"term": {"is_active": True}},
+            metadata=mock_inspect_query(org, query),
+        )
 
     @_client_method
     def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()):
@@ -172,19 +205,95 @@ class TestClient(MailroomClient):
 
         assert mock, f"missing contact_search mock for query '{query}'"
 
-        return mock(offset, sort)
+        org = Org.objects.get(id=org_id)
+        return mock(org, offset, sort)
 
     @_client_method
-    def ticket_close(self, org_id, ticket_ids):
-        tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_OPEN, id__in=ticket_ids)
-        tickets.update(status=Ticket.STATUS_CLOSED)
+    def flow_preview_start(self, org_id: int, flow_id: int, include, exclude, sample_size: int):
+        assert self.mocks._flow_preview_start, "missing flow_preview_start mock"
+
+        mock = self.mocks._flow_preview_start.pop(0)
+        org = Org.objects.get(id=org_id)
+
+        return mock(org)
+
+    @_client_method
+    def ticket_assign(self, org_id, user_id, ticket_ids, assignee_id, note):
+        now = timezone.now()
+        tickets = Ticket.objects.filter(org_id=org_id, id__in=ticket_ids).exclude(assignee_id=assignee_id)
+
+        for ticket in tickets:
+            ticket.events.create(
+                org_id=org_id,
+                contact=ticket.contact,
+                event_type=TicketEvent.TYPE_ASSIGNED,
+                assignee_id=assignee_id,
+                note=note,
+                created_by_id=user_id,
+            )
+
+        tickets.update(assignee_id=assignee_id, modified_on=now, last_activity_on=now)
 
         return {"changed_ids": [t.id for t in tickets]}
 
     @_client_method
-    def ticket_reopen(self, org_id, ticket_ids):
+    def ticket_add_note(self, org_id, user_id, ticket_ids, note):
+        now = timezone.now()
+        tickets = Ticket.objects.filter(org_id=org_id, id__in=ticket_ids)
+        tickets.update(modified_on=now, last_activity_on=now)
+
+        for ticket in tickets:
+            ticket.events.create(
+                org_id=org_id,
+                contact=ticket.contact,
+                event_type=TicketEvent.TYPE_NOTE_ADDED,
+                note=note,
+                created_by_id=user_id,
+            )
+
+        return {"changed_ids": [t.id for t in tickets]}
+
+    @_client_method
+    def ticket_change_topic(self, org_id, user_id, ticket_ids, topic_id):
+        now = timezone.now()
+        topic = Topic.objects.get(id=topic_id)
+        tickets = Ticket.objects.filter(org_id=org_id, id__in=ticket_ids)
+        tickets.update(topic=topic, modified_on=now, last_activity_on=now)
+
+        for ticket in tickets:
+            ticket.events.create(
+                org_id=org_id,
+                contact=ticket.contact,
+                event_type=TicketEvent.TYPE_TOPIC_CHANGED,
+                topic=topic,
+                created_by_id=user_id,
+            )
+
+        return {"changed_ids": [t.id for t in tickets]}
+
+    @_client_method
+    def ticket_close(self, org_id: int, user_id: int, ticket_ids: list, force: bool):
+        tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_OPEN, id__in=ticket_ids)
+
+        for ticket in tickets:
+            ticket.events.create(
+                org_id=org_id, contact=ticket.contact, event_type=TicketEvent.TYPE_CLOSED, created_by_id=user_id
+            )
+
+        tickets.update(status=Ticket.STATUS_CLOSED, closed_on=timezone.now())
+
+        return {"changed_ids": [t.id for t in tickets]}
+
+    @_client_method
+    def ticket_reopen(self, org_id, user_id, ticket_ids):
         tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_CLOSED, id__in=ticket_ids)
-        tickets.update(status=Ticket.STATUS_OPEN)
+
+        for ticket in tickets:
+            ticket.events.create(
+                org_id=org_id, contact=ticket.contact, event_type=TicketEvent.TYPE_REOPENED, created_by_id=user_id
+            )
+
+        tickets.update(status=Ticket.STATUS_OPEN, closed_on=None)
 
         return {"changed_ids": [t.id for t in tickets]}
 
@@ -235,7 +344,7 @@ def _wrap_test_method(f, mock_client: bool, mock_queue: bool, instance, *args, *
             patch_queue_batch_task.stop()
 
 
-def apply_modifiers(org, user, contacts, modifiers: List):
+def apply_modifiers(org, user, contacts, modifiers: list):
     """
     Approximates mailroom applying modifiers but doesn't do dynamic group re-evaluation.
     """
@@ -252,7 +361,7 @@ def apply_modifiers(org, user, contacts, modifiers: List):
 
         if mod.type == "field":
             for c in contacts:
-                update_field_locally(user, c, mod.field.key, mod.value, label=mod.field.name)
+                update_field_locally(user, c, mod.field.key, mod.value, name=mod.field.name)
 
         elif mod.type == "status":
             if mod.status == "blocked":
@@ -272,6 +381,20 @@ def apply_modifiers(org, user, contacts, modifiers: List):
             for contact in contacts:
                 update_groups_locally(contact, [g.uuid for g in mod.groups], add=add)
 
+        elif mod.type == "ticket":
+            ticketer = org.ticketers.get(uuid=mod.ticketer.uuid, is_active=True)
+            topic = org.topics.get(uuid=mod.topic.uuid, is_active=True)
+            assignee = org.users.get(email=mod.assignee.email, is_active=True) if mod.assignee else None
+            for contact in contacts:
+                contact.tickets.create(
+                    org=org,
+                    ticketer=ticketer,
+                    topic=topic,
+                    status=Ticket.STATUS_OPEN,
+                    body=mod.body,
+                    assignee=assignee,
+                )
+
         elif mod.type == "urns":
             assert len(contacts) == 1, "should never be trying to bulk update contact URNs"
             assert mod.modification == "set", "should only be setting URNs from here"
@@ -281,11 +404,13 @@ def apply_modifiers(org, user, contacts, modifiers: List):
         contacts.update(modified_by=user, modified_on=timezone.now(), **fields)
         if clear_groups:
             for c in contacts:
-                for g in c.user_groups.all():
+                for g in c.get_groups():
                     g.contacts.remove(c)
 
 
-def create_contact_locally(org, user, name, language, urns, fields, group_uuids, last_seen_on=None):
+def create_contact_locally(
+    org, user, name, language, urns, fields, group_uuids, status=Contact.STATUS_ACTIVE, last_seen_on=None
+):
     orphaned_urns = {}
 
     for urn in urns:
@@ -303,6 +428,7 @@ def create_contact_locally(org, user, name, language, urns, fields, group_uuids,
         created_by=user,
         modified_by=user,
         created_on=timezone.now(),
+        status=status,
         last_seen_on=last_seen_on,
     )
     update_urns_locally(contact, urns)
@@ -316,9 +442,9 @@ def update_fields_locally(user, contact, fields):
         update_field_locally(user, contact, key, val)
 
 
-def update_field_locally(user, contact, key, value, label=None):
+def update_field_locally(user, contact, key, value, name=None):
     org = contact.org
-    field = ContactField.get_or_create(contact.org, user, key, label=label)
+    field = ContactField.get_or_create(contact.org, user, key, name=name)
 
     field_uuid = str(field.uuid)
     if contact.fields is None:
@@ -348,17 +474,17 @@ def update_field_locally(user, contact, key, value, label=None):
             )
 
     # very simplified version of mailroom's campaign event scheduling
-    events = CampaignEvent.objects.filter(relative_to=field, campaign__group__in=contact.user_groups.all())
+    events = CampaignEvent.objects.filter(relative_to=field, campaign__group__in=contact.groups.all())
     for event in events:
         EventFire.objects.filter(contact=contact, event=event).delete()
-        date_value = org.parse_datetime(value)
+        date_value = parse_datetime(org, value)
         if date_value:
             scheduled = date_value + timedelta(**{event_units[event.unit]: event.offset})
             if scheduled > timezone.now():
                 EventFire.objects.create(contact=contact, event=event, scheduled=scheduled)
 
 
-def update_urns_locally(contact, urns: List[str]):
+def update_urns_locally(contact, urns: list[str]):
     country = contact.org.default_country_code
     priority = ContactURN.PRIORITY_HIGHEST
 
@@ -397,9 +523,9 @@ def update_urns_locally(contact, urns: List[str]):
 
 
 def update_groups_locally(contact, group_uuids, add: bool):
-    groups = ContactGroup.user_groups.filter(uuid__in=group_uuids)
+    groups = ContactGroup.objects.filter(uuid__in=group_uuids)
     for group in groups:
-        assert not group.is_dynamic, "can't add/remove contacts from smart groups"
+        assert group.group_type == ContactGroup.TYPE_MANUAL, "can only add/remove contacts to/from manual groups"
         if add:
             group.contacts.add(contact)
         else:
@@ -411,31 +537,31 @@ def serialize_field_value(contact, field, value):
 
     # parse as all value data types
     str_value = str(value)[:640]
-    dt_value = org.parse_datetime(value)
-    num_value = org.parse_number(value)
+    dt_value = parse_datetime(org, value)
+    num_value = parse_number(value)
     loc_value = None
 
     # for locations, if it has a '>' then it is explicit, look it up that way
     if AdminBoundary.PATH_SEPARATOR in str_value:
-        loc_value = contact.org.parse_location_path(str_value)
+        loc_value = parse_location_path(contact.org, str_value)
 
     # otherwise, try to parse it as a name at the appropriate level
     else:
         if field.value_type == ContactField.TYPE_WARD:
-            district_field = ContactField.get_location_field(org, ContactField.TYPE_DISTRICT)
+            district_field = org.fields.filter(value_type=ContactField.TYPE_DISTRICT).first()
             district_value = contact.get_field_value(district_field)
             if district_value:
-                loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value)
+                loc_value = parse_location(org, str_value, AdminBoundary.LEVEL_WARD, district_value)
 
         elif field.value_type == ContactField.TYPE_DISTRICT:
-            state_field = ContactField.get_location_field(org, ContactField.TYPE_STATE)
+            state_field = org.fields.filter(value_type=ContactField.TYPE_STATE).first()
             if state_field:
                 state_value = contact.get_field_value(state_field)
                 if state_value:
-                    loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
+                    loc_value = parse_location(org, str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
 
         elif field.value_type == ContactField.TYPE_STATE:
-            loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_STATE)
+            loc_value = parse_location(org, str_value, AdminBoundary.LEVEL_STATE)
 
         if loc_value is not None and len(loc_value) > 0:
             loc_value = loc_value[0]
@@ -450,7 +576,8 @@ def serialize_field_value(contact, field, value):
         field_dict["datetime"] = timezone.localtime(dt_value, org.timezone).isoformat()
 
     if num_value is not None:
-        field_dict["number"] = format_number(num_value)
+        num_as_int = num_value.to_integral_value()
+        field_dict["number"] = int(num_as_int) if num_value == num_as_int else num_value
 
     if loc_value:
         if loc_value.level == AdminBoundary.LEVEL_STATE:
@@ -464,3 +591,112 @@ def serialize_field_value(contact, field, value):
             field_dict["state"] = AdminBoundary.strip_last_path(field_dict["district"])
 
     return field_dict
+
+
+def parse_number(s):
+    parsed = None
+    try:
+        parsed = Decimal(s)
+
+        if not parsed.is_finite() or parsed > Decimal("999999999999999999999999"):
+            parsed = None
+    except Exception:
+        pass
+    return parsed
+
+
+def parse_location(org, location_string, level, parent=None):
+    """
+    Simplified version of mailroom's location parsing
+    """
+    # no country? bail
+    if not org.country_id or not isinstance(location_string, str):
+        return []
+
+    boundary = None
+
+    # try it as a path first if it looks possible
+    if level == AdminBoundary.LEVEL_COUNTRY or AdminBoundary.PATH_SEPARATOR in location_string:
+        boundary = parse_location_path(org, location_string)
+        if boundary:
+            boundary = [boundary]
+
+    # try to look up it by full name
+    if not boundary:
+        boundary = find_boundary_by_name(org, location_string, level, parent)
+
+    # try removing punctuation and try that
+    if not boundary:
+        bare_name = re.sub(r"\W+", " ", location_string, flags=re.UNICODE).strip()
+        boundary = find_boundary_by_name(org, bare_name, level, parent)
+
+    return boundary
+
+
+def parse_location_path(org, location_string):
+    """
+    Parses a location path into a single location, returning None if not found
+    """
+    return (
+        AdminBoundary.objects.filter(path__iexact=location_string.strip()).first()
+        if org.country_id and isinstance(location_string, str)
+        else None
+    )
+
+
+def find_boundary_by_name(org, name, level, parent):
+    # first check if we have a direct name match
+    if parent:
+        boundary = parent.children.filter(name__iexact=name, level=level)
+    else:
+        query = dict(name__iexact=name, level=level)
+        query["__".join(["parent"] * level)] = org.country
+        boundary = AdminBoundary.objects.filter(**query)
+
+    return boundary
+
+
+def decrement_credit(org):
+    r = get_redis_connection()
+
+    # we always consider this a credit 'used' since un-applied msgs are pending
+    # credit expenses for the next purchased topup
+    incrby_existing(f"org:{org.id}:cache:credits_used", 1)
+
+    # if we have an active topup cache, we need to decrement the amount remaining
+    active_topup_id = org.get_active_topup_id()
+    if active_topup_id:
+        remaining = r.decr(f"org:{org.id}:cache:credits_remaining:{active_topup_id}", 1)
+
+        # near the edge, clear out our cache and calculate from the db
+        if not remaining or int(remaining) < 100:
+            active_topup_id = None
+            org.clear_credit_cache()
+
+    # calculate our active topup if we need to
+    if not active_topup_id:
+        active_topup = org.get_active_topup(force_dirty=True)
+        if active_topup:
+            active_topup_id = active_topup.id
+            r.decr(f"org:{org.id}:cache:credits_remaining:{active_topup_id}", 1)
+
+    return active_topup_id or None
+
+
+def exit_sessions(session_ids: list, status: str):
+    FlowRun.objects.filter(session_id__in=session_ids).update(
+        status=status, exited_on=timezone.now(), modified_on=timezone.now()
+    )
+    FlowSession.objects.filter(id__in=session_ids).update(
+        status=status,
+        ended_on=timezone.now(),
+        wait_started_on=None,
+        wait_expires_on=None,
+        timeout_on=None,
+        current_flow_id=None,
+    )
+
+    for session in FlowSession.objects.filter(id__in=session_ids):
+        session.contact.current_flow = None
+        session.contact.modified_on = timezone.now()
+        session.contact.save(update_fields=("current_flow", "modified_on"))

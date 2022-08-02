@@ -3,7 +3,7 @@ from smartmin.views import SmartFormView
 
 from django import forms
 from django.core.exceptions import ValidationError
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from ...models import Channel
 from ...views import ClaimViewMixin, UpdateChannelForm
@@ -58,9 +58,9 @@ class UpdateForm(UpdateChannelForm):
                     "seconds to take effect"
                 ),
             ),
-            "",
+            default="",
         )
 
     class Meta(UpdateChannelForm.Meta):
-        fields = "name", "address", "alert_email"
+        fields = ("name", "address", "alert_email")
         readonly = ("address",)

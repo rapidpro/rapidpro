@@ -1,5 +1,6 @@
 from rest_framework import relations, serializers
 
+from django.contrib.auth.models import User
 from django.db.models import Q
 
 from temba.campaigns.models import Campaign, CampaignEvent
@@ -7,6 +8,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField as ContactFieldModel, ContactGroup, ContactURN
 from temba.flows.models import Flow
 from temba.msgs.models import Label, Msg
+from temba.tickets.models import Ticket, Ticketer, Topic
 
 # default maximum number of items in a posted list or dict
 DEFAULT_MAX_LIST_ITEMS = 100
@@ -58,7 +60,7 @@ class TranslatableField(serializers.Field):
 
     def to_internal_value(self, data):
         org = self.context["org"]
-        base_language = org.primary_language.iso_code if org.primary_language else "base"
+        base_language = org.flow_languages[0] if org.flow_languages else "base"
 
         if isinstance(data, str):
             if len(data) > self.max_length:
@@ -146,7 +148,10 @@ class TembaModelField(serializers.RelatedField):
 
     def get_queryset(self):
         manager = getattr(self.model, self.model_manager)
-        return manager.filter(org=self.context["org"], is_active=True)
+        kwargs = {"org": self.context["org"]}
+        if hasattr(self.model, "is_active"):
+            kwargs["is_active"] = True
+        return manager.filter(**kwargs)
 
     def get_object(self, value):
         query = Q()
@@ -158,7 +163,7 @@ class TembaModelField(serializers.RelatedField):
         return self.get_queryset().filter(query).first()
 
     def to_representation(self, obj):
-        return {"uuid": obj.uuid, "name": obj.name}
+        return {"uuid": str(obj.uuid), "name": obj.name}
 
     def to_internal_value(self, data):
         if not (isinstance(data, str) or isinstance(data, int)):
@@ -226,30 +231,28 @@ class ContactFieldField(TembaModelField):
     lookup_fields = ("key",)
 
     def to_representation(self, obj):
-        return {"key": obj.key, "label": obj.label}
-
-    def get_queryset(self):
-        manager = getattr(self.model, "all_fields")
-        return manager.filter(org=self.context["org"], is_active=True)
+        return {"key": obj.key, "label": obj.name}
 
 
 class ContactGroupField(TembaModelField):
     model = ContactGroup
-    model_manager = "user_groups"
     lookup_fields = ("uuid", "name")
     ignore_case_for_fields = ("name",)
 
-    def __init__(self, **kwargs):
-        self.allow_dynamic = kwargs.pop("allow_dynamic", True)
+    def __init__(self, allow_dynamic=True, **kwargs):
+        self.allow_dynamic = allow_dynamic
         super().__init__(**kwargs)
 
     def to_internal_value(self, data):
         obj = super().to_internal_value(data)
 
-        if not self.allow_dynamic and obj.is_dynamic:
-            raise serializers.ValidationError("Contact group must not be dynamic: %s" % data)
+        if not self.allow_dynamic and obj.is_smart:
+            raise serializers.ValidationError("Contact group must not be query based: %s" % data)
 
         return obj
+
+    def get_queryset(self):
+        return ContactGroup.get_groups(org=self.context["org"])
 
 
 class FlowField(TembaModelField):
@@ -258,7 +261,6 @@ class FlowField(TembaModelField):
 
 class LabelField(TembaModelField):
     model = Label
-    model_manager = "label_objects"
     lookup_fields = ("uuid", "name")
     ignore_case_for_fields = ("name",)
 
@@ -271,4 +273,40 @@ class MessageField(TembaModelField):
     require_exists = False
 
     def get_queryset(self):
-        return self.model.objects.filter(org=self.context["org"]).exclude(visibility=Msg.VISIBILITY_DELETED)
+        return self.model.objects.filter(
+            org=self.context["org"], visibility__in=(Msg.VISIBILITY_VISIBLE, Msg.VISIBILITY_ARCHIVED)
+        )
+
+
+class TicketerField(TembaModelField):
+    model = Ticketer
+
+
+class TicketField(TembaModelField):
+    model = Ticket
+
+
+class TopicField(TembaModelField):
+    model = Topic
+
+
+class UserField(TembaModelField):
+    model = User
+    lookup_fields = ("email",)
+    ignore_case_for_fields = ("email",)
+
+    def __init__(self, assignable_only=False, **kwargs):
+        self.assignable_only = assignable_only
+        super().__init__(**kwargs)
+
+    def to_representation(self, obj):
+        return {"email": obj.email, "name": obj.name}
+
+    def get_queryset(self):
+        org = self.context["org"]
+        if self.assignable_only:
+            qs = org.get_users(with_perm=Ticket.ASSIGNEE_PERMISSION)
+        else:
+            qs = org.get_users()
+
+        return qs

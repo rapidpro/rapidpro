@@ -1,0 +1,128 @@
+-extends "smartmin/list.html"
+-load smartmin sms temba compress i18n humanize
+
+-block page-title
+  -trans "Flows"
+
+-block page-top
+
+-block content
+  .page-title
+
+  -if org_perms.flows.flow_update
+    %temba-modax#export-results{ header:'{% trans "Download Results" %}' }
+    %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'flows.flowlabel_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
+
+  -if org_has_flows
+    -if view.search_fields
+      %form#search-form.mb-4(method="get")
+        %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+        -if request.REQUEST.status
+          %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
+
+    .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
+      -include "includes/short_pagination.haml"
+                
+    .flex-grow.overflow-y-auto.shadow
+      %table.relative.list.object-list.lined.selectable.scrolled
+        -if object_list
+          %thead
+            %tr
+              -if org_perms.flows.flow_update
+                %th
+              %th
+              %th
+              %th.whitespace-nowrap
+                Runs / Completion
+
+        %tbody
+          -for object in object_list
+            %tr.object-row.select-row(onclick='handleRowClicked(event)' data-uuid="{{object.uuid}}" data-object-id="{{object.id}}")
+
+              -if org_perms.flows.flow_update
+                %td.checkbox.object-row-checkbox(onclick="checkInner(event);")
+                  %temba-checkbox{onclick:"handleRowSelection(this)"}
+
+              %td.w-full
+                .flex.flex-wrap.flex-end
+                  .flex.inline.whitespace-nowrap
+                    -if object.flow_type == 'V'
+                      .icon-phone.mr-2.leading-snug
+                    -elif object.flow_type == 'S'
+                      .icon-mobile.mr-2.leading-snug
+                    .name.whitespace-normal
+                      {{ object.name }}
+
+              %td
+                .whitespace-no-break.flex.items-center.ml-2.justify-end
+                  -for label in object.labels.all
+                    .lbl.linked.ml-2{ onclick:"goto(event)", data-id: '{{label.id}}', data-uuid: '{{label.uuid}}', href:"{% url 'flows.flow_filter' label.uuid%}"}
+                      {{label.name}}
+
+              %td
+                -if not object.is_archived
+                  .whitespace-no-break.flex.items-center.justify-end
+                    -if object.has_issues
+                      .icon-warning.mr-2(title='{{ _("Has issues")|escapejs }}')
+
+                    -if object.run_stats.total
+                      .linked.mr-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
+                        {{ object.run_stats.total|intcomma }}
+
+                      \/
+                      .text-center.linked.mx-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
+                        {{ object.run_stats.completion }}%
+
+          -empty
+            %tr.empty_list
+              %td(colspan='99')
+                -trans "No matching flows."
+
+    -else
+      -include "flows/empty_include.html"
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+
+    function handleRowClicked(event) {
+
+      if (event.target.tagName == "TEMBA-CHECKBOX") {
+        return;
+      }
+
+      var row = event.target.closest("tr");
+      var uuid = row.getAttribute("data-uuid");
+      fetchURL("/flow/editor/" + uuid + "/");
+    }
+
+    {% if org_perms.flows.flow_update %}
+      function handleAddLabelClicked() {
+        document.getElementById("create-label-modal").open = true;
+      }
+
+      function handleCreateLabelModalLoaded(event) {
+        window.lastChecked = getCheckedIds();
+        var body = event.detail.body;
+        body.querySelector("#id_flows").value = lastChecked.join();
+      }
+
+      function handleCreateLabelModalSubmitted(event) {
+        refresh(function() { recheckIds(); }, true);
+        var menu = document.querySelector("temba-menu");
+        if (menu) {
+          window.setTimeout(function(){ menu.refresh()}, 2000);
+        }
+      }
+
+      function exportFlows(){
+        var endpoint = '{% url "flows.flow_export_results" %}';
+        var modal = document.querySelector("#export-results");
+        var ids = getCheckedIds();
+        if (ids.length > 0) {
+          modal.setAttribute("endpoint", endpoint + '?ids=' + ids);
+        }
+        modal.open = true;
+      }
+    {% endif %}

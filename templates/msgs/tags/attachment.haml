@@ -1,11 +1,11 @@
 .attachment
   -if category == 'image'
-    %a.attachment-preview.button-light.rounded-r-none(href="#" data-featherlight='<img class="image-full" src="{{url}}"/>' data-featherlight-after-open="stopEvent(event)")
+    %a.attachment-preview.button-light.rounded-r-none(href="#" data-featherlight='<img class="image-full" src="{{url}}"/>' data-featherlight-before-open="stopEvent(event)")
       .attachment-icon.icon-photo
       {{preview}}
 
   -elif category == 'audio' and is_playable
-    %a.attachment-preview.button-light.rounded-r-none(href="#" data-featherlight='<audio style="width: 360px" controls><source type="{{content_type}}" src="{{url}}" /></audio>' data-featherlight-after-open="stopEvent(event)")
+    %a.attachment-preview.button-light.rounded-r-none(href="#" data-featherlight='<audio style="width: 360px" controls><source type="{{content_type}}" src="{{url}}" /></audio>' data-featherlight-before-open="stopEvent(event)")
       .attachment-icon.icon-volume-medium
       {{preview}}
 

@@ -1,5 +1,6 @@
-from django.conf.urls import include, url
+from django.conf.urls import include
+from django.urls import re_path
 
 from .views import HTTPLogCRUDL
 
-urlpatterns = [url(r"^", include(HTTPLogCRUDL().as_urlpatterns()))]
+urlpatterns = [re_path(r"^", include(HTTPLogCRUDL().as_urlpatterns()))]

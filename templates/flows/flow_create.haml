@@ -13,7 +13,7 @@
   .keywords(class="{% if form.flow_type.value == 'B' or form.flow_type.value == 'S' %}hidden{%endif%}")
     -render_field 'keyword_triggers'
   
-  -if form.base_language
+  -if form.fields.base_language
     .flex.flex-col
       -render_field 'base_language'
 
@@ -26,11 +26,13 @@
     var modalBody = document.querySelector("#create-flow-modal").shadowRoot;
     var typeSelect = modalBody.querySelector("temba-select[name='flow_type']");
     var keywords = modalBody.querySelector(".keywords");
+    var keywordsSelect = modalBody.querySelector("temba-select[name='keyword_triggers']");
     
     typeSelect.addEventListener("change", function(evt) {
         var selected = evt.target.values[0];
         if (selected.value === "B" || selected.value === "S") {
           keywords.classList.add("hidden");
+          keywordsSelect.clear();
         } else {
           keywords.classList.remove("hidden");
         }

@@ -6,7 +6,7 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.contrib import messages
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.utils.fields import ExternalURLField
 from temba.utils.text import random_string, truncate
@@ -72,7 +72,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 raise forms.ValidationError(_("Invalid URL %(base_url)s") % self.cleaned_data)
 
             base_url_exists = org.channels.filter(
-                is_active=True, channel_type=RocketChatType.code, **{f"config__contains": base_url}
+                is_active=True, channel_type=RocketChatType.code, **{"config__contains": base_url}
             ).exists()
             if base_url_exists:
                 raise forms.ValidationError(_("There is already a channel configured for this URL."))

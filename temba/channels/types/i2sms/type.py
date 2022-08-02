@@ -1,4 +1,4 @@
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.types.i2sms.views import ClaimView
 from temba.contacts.models import URN
@@ -19,9 +19,9 @@ class I2SMSType(ChannelType):
     name = "I2SMS"
     icon = "icon-channel-external"
 
-    claim_blurb = _("If you have a long number or shortcode with %(link)s you can connect it in a few easy steps.") % {
-        "link": '<a href="https://www.i2sms.com/">I2SMS</a>'
-    }
+    claim_blurb = _(
+        "If you have a long number or short code with %(link)s you can connect it in a few easy steps."
+    ) % {"link": '<a href="https://www.i2sms.com/">I2SMS</a>'}
     claim_view = ClaimView
 
     schemes = [URN.TEL_SCHEME]

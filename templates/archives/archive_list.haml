@@ -1,20 +1,11 @@
 -extends "smartmin/list.html"
 -load smartmin sms temba compress i18n humanize
 
-
 -block title
-  {{selected|title}}
-
-  -trans "Archives"
-
--block subtitle
+  {{ title }}
 
 -block page-title
-  -trans "Archives"
-
--block title-icon
-  .title-icon
-    %span.glyph.icon-box
+  {{ title }}
 
 -block summary
   -if archive_count
@@ -49,7 +40,7 @@
       -for archive in object_list
         %tr.archive-row
           %td
-            .hover-linked(onclick="goto(event)" href="{% url 'archives.archive_read' archive.id %}")
+            .hover-linked.break-all(onclick="goto(event)" href="{% url 'archives.archive_read' archive.id %}")
               {{archive.filename}}
           %td.archive-record-count.cell
             {{archive.record_count|intcomma}}

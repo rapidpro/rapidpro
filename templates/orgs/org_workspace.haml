@@ -1,0 +1,161 @@
+{% extends "smartmin/read.html" %}
+
+-load temba compress smartmin i18n
+
+-block page-title
+  {{user_org.name|capfirst}}
+  
+-block title
+  {{user_org.name|capfirst}}
+
+-block subtitle
+  -trans "Workspace Settings"
+
+-block above-bar
+  .pull-right
+    -block buttons-right
+      -block gear-menu
+        -include "gear_links_include.haml"
+
+-block content
+  -for channel in channels
+    .mt-2
+      {{channel.name}}
+
+  -include "formax.haml"
+
+-block extra-script
+  {{ block.super }}
+  // make sure that this view have djangojs gettext view to process translations in js
+  <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
+  :javascript
+
+    $(function() {
+      // initialize our glyph checkboxes
+      var boxes = $("td.check");
+      boxes.each(function() {
+        var list_input = $(this).children().children("input[type='checkbox']");
+        if (list_input[0].checked) {
+          $(this).addClass("checked");
+        } else {
+          $(this).removeClass("checked");
+        }
+      });
+    });
+
+    $(function() {
+      var section = $("#id-" + "{{request.GET.open}}");
+      section.data('fixed', 'true');
+    });
+
+    $(function() {
+      // update the glyph checkbox on click
+
+      $("td.check .glyph").on('click', function(){
+        var cell = $(this).parent("td.check");
+        var ipt = cell.children().children("input[type='checkbox']");
+
+        if (!cell.hasClass("checked")) {
+
+          cell.parent().children('td.check').removeClass('checked');
+          cell.parent().children('td.check').children().children("input[type='checkbox']").attr('checked', false);
+
+          cell.addClass("checked");
+          //ipt.attr('checked', true);
+        }
+
+      });
+    });
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+
+        #id-channel {
+          a {
+            text-decoration:none;
+            &:hover {
+              text-decoration:none;
+            }
+          }
+        }
+
+        tr.invite td {
+          color: #ddd;
+        }
+
+        .glyph.level-checkbox:before {
+          content: "\e004";
+        }
+
+        td.check.checked .glyph.level-checkbox:before {
+          content: "\e05a";
+        }
+
+        .glyph.level-checkbox.checked:before {
+          content: "\e05a";
+        }
+
+        .glyph.level-checkbox {
+          font-family: 'temba';
+          speak: none;
+          font-style: normal;
+          font-weight: normal;
+          line-height: 1;
+          -webkit-font-smoothing: antialiased;
+          margin-top: 6px;
+          margin-right: 5px;
+          margin-top:2px;
+        }
+
+        .formax-form .table th, .table td {
+          border: 0px;
+        }
+
+        td.permission, th.permission {
+          text-align:center;
+        }
+
+        th.permission {
+          width:80px;
+        }
+
+        td.form {
+          border-top: 1px solid #eee;
+        }
+
+        #plan-form ul.errorlist li {
+          color: #fff;
+        }
+    {% endlessblock %}
+
+-block extra-style
+  {{ block.super }}
+  :css
+
+    /* The icon we are using for channels is not the same size */
+    .formax .formax-icon.icon-everywhere {
+      font-size: 60px !important;
+      margin-left:14px !important;
+      margin-top:-12px !important;
+      padding-bottom:10px;
+    }
+
+    li#id-plan .formax-summary {
+      padding-top: 0px;
+    }
+
+    li#id-channel .formax-summary {
+      padding-top: 0px;
+    }
+
+
+    li#id-webhook.has-webhook .formax-summary {
+      padding-top: 0px;
+      margin-top: -2px;
+    }
+
+    .formax-vertical ul.errorlist {
+      margin-left: 0px !important;
+    }

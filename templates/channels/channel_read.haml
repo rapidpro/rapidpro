@@ -157,7 +157,7 @@
           .sync-summary.mb-4
             .flex.text-gray-600
               .i-status.w-12.py-1.px-2
-                -ifequal last_sync.network_type "WIFI"
+                -if last_sync.network_type == "WIFI"
                   .icon-connection.-mt-1{style:"font-size: 16px"}
                 -else
                   .icon-radio{style:"font-size: 16px"}
@@ -223,7 +223,7 @@
                 %td
                   {{ channel.get_error_log_count|intcomma }}
 
-      .card.pt-8
+      .card.pt-8.flex-shrink-0
         %div#channel-chart
 
       -if ivr_count
@@ -315,7 +315,7 @@
 -block extra-script
   {{ block.super }}
 
-  -if start_date
+  -if start_date and not is_spa
     <script src="{{ STATIC_URL }}bower/highcharts/highcharts.js"></script>
 
   :javascript

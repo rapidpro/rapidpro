@@ -24,10 +24,14 @@
         
         .flex.flex-col.mx-20.relative
           .title
-            {{ ticketer_type.name }}
+            -if ticketer_type.slug == 'internal'
+              -blocktrans with brand=brand.name trimmed
+                {{brand}} Tickets
+            -else
+              {{ ticketer_type.name }}
 
           .mt-2
-            {% include ticketer_type.get_connect_blurb %}
+            {% include ticketer_type.get_connect_blurb with brand=brand %}
 
     -empty
       .alert-warning

@@ -14,7 +14,7 @@
     -csrf_token
 
     .mt-4
-      %temba-textinput(name='otp' maxlength=6 placeholder='{{_("6-digit code")|escape}}')
+      %input.input(name='otp' maxlength=6 placeholder='{{_("6-digit code")|escape}}')
 
     -if form.otp.errors
       .alert-error.mt-4

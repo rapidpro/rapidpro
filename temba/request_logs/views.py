@@ -3,17 +3,23 @@ from smartmin.views import SmartCRUDL, SmartListView, SmartReadView, smart_url
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.classifiers.models import Classifier
-from temba.orgs.views import OrgObjPermsMixin
+from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticketer
+from temba.utils.views import ContentMenuMixin
 
 from .models import HTTPLog
 
 
-class LogListView(OrgObjPermsMixin, SmartListView):
+class BaseObjLogsView(OrgObjPermsMixin, SmartListView):
+    """
+    Base list view for logs associated with an object (e.g. ticketer, classifier)
+    """
+
     paginate_by = 50
+    permission = "request_logs.httplog_list"
     default_order = ("-created_on",)
     template_name = "request_logs/httplog_list.html"
     source_field = None
@@ -48,9 +54,21 @@ class LogListView(OrgObjPermsMixin, SmartListView):
 
 class HTTPLogCRUDL(SmartCRUDL):
     model = HTTPLog
-    actions = ("classifier", "ticketer", "read")
+    actions = ("webhooks", "classifier", "ticketer", "read")
 
-    class Classifier(LogListView):
+    class Webhooks(ContentMenuMixin, OrgPermsMixin, SmartListView):
+        title = _("Webhook Calls")
+        default_order = ("-created_on",)
+        select_related = ("flow",)
+        fields = ("flow", "url", "status_code", "request_time", "created_on")
+
+        def build_content_menu(self, menu):
+            menu.add_link(_("Flows"), reverse("flows.flow_list"))
+
+        def get_queryset(self, **kwargs):
+            return super().get_queryset(**kwargs).filter(org=self.request.org, flow__isnull=False)
+
+    class Classifier(BaseObjLogsView):
         source_field = "classifier"
         source_url = "uuid@classifiers.classifier_read"
         title = _("Recent Classifier Events")
@@ -58,35 +76,23 @@ class HTTPLogCRUDL(SmartCRUDL):
         def get_source(self, uuid):
             return Classifier.objects.filter(uuid=uuid, is_active=True)
 
-    class Ticketer(LogListView):
+    class Ticketer(BaseObjLogsView):
         source_field = "ticketer"
-        source_url = "uuid@tickets.ticket_filter"
+        source_url = "@tickets.ticket_list"
         title = _("Recent Ticketing Service Events")
 
         def get_source(self, uuid):
             return Ticketer.objects.filter(uuid=uuid, is_active=True)
 
-    class Read(OrgObjPermsMixin, SmartReadView):
+    class Read(ContentMenuMixin, OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
-
-        def get_gear_links(self):
-            links = []
-            if self.get_object().classifier:
-                links.append(
-                    dict(
-                        title=_("Classifier Log"),
-                        style="button-light",
-                        href=reverse("request_logs.httplog_classifier", args=[self.get_object().classifier.uuid]),
-                    )
-                )
-            return links
 
         @property
         def permission(self):
-            obj = self.get_object()
-            if obj.classifier_id:
-                return "request_logs.httplog_classifier"
-            elif obj.ticketer_id:
-                return "request_logs.httplog_ticketer"
+            return "request_logs.httplog_webhooks" if self.get_object().flow else "request_logs.httplog_read"
 
-            return "request_logs.httplog_read"
+        def build_content_menu(self, menu):
+            if self.object.classifier:
+                menu.add_link(
+                    _("Classifier Log"), reverse("request_logs.httplog_classifier", args=[self.object.classifier.uuid])
+                )

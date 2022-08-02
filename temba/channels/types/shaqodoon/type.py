@@ -1,4 +1,4 @@
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.types.shaqodoon.views import ClaimView
 from temba.contacts.models import URN
@@ -19,7 +19,7 @@ class ShaqodoonType(ChannelType):
     name = "Shaqodoon"
 
     claim_blurb = _(
-        "If you are based in Somalia, you can integrate with Shaqodoon to send and receive messages on your shortcode."
+        "If you are based in Somalia, you can integrate with Shaqodoon to send and receive messages on your short code."
     )
     claim_view = ClaimView
 

@@ -1,1 +1,6 @@
 -extends "msgs/message_box.html"
+-load temba
+
+-block message_time
+  -if object.sent_on
+    -short_datetime object.sent_on

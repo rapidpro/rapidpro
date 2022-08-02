@@ -21,13 +21,13 @@
           %table
             -for column in form.columns
               %tr.mapping.w-full.items-center
-                %td.mapping-include.p-1
+                %td.mapping-include.pt-2.pr-2
                   -if column.controls
                     {% render_field column.controls.0 %}
                   -elif column.mapping.type == "ignore"
-                    %fa-icon.far.fa-square.disabled-checkbox(size="16px" path-prefix="/sitestatic")
+                    %temba-checkbox(disabled="true")
                   -else
-                    %fa-icon.far.fa-check-square.disabled-checkbox(size="16px" path-prefix="/sitestatic")
+                    %temba-checkbox(checked="true" disabled="true")
                 %td.mapping-header.p-1.pr-4
                   <b>{{ column.header }}</b>
                 %td.mapping-as.p-1
@@ -52,11 +52,73 @@
                     -else
                       %strong
                         {{ column.mapping.name }}
+        %hr.m-5
+        %fieldset.mb-5
+          .inline-flex
+            .flex-none.pl-1.pt-2
+              -render_field 'add_to_group'
+            .flex-none.pr-2.pt-2
+              -trans "Add contacts to"
+            .flex-none
+              .inline-flex
+                .flex-none
+                  -render_field 'group_mode'
+                .flex-none
+                  .inline-flex.new-group-controls
+                    .flex-none.p-2
+                      -trans "called"
+                    .flex-none
+                      -render_field 'new_group_name'
+                .flex-none.existing-group-controls.pl-2.hide
+                  -render_field 'existing_group'
 
       .flex.mt-4
         %input.button-primary(type="submit" value='{% trans "Import" %}')
         .ml-4.button-light(onclick="javascript:history.go(-1)")
           -trans "Cancel"
+
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    function updateGroupMode(groupMode) {
+      if (groupMode === "N") {
+        $(".new-group-controls").show();
+        $(".existing-group-controls").hide();
+      } else {
+        $(".new-group-controls").hide();
+        $(".existing-group-controls").show();
+      }
+    }
+
+    function updateAddToGroup(enabled) {
+      if (enabled) {
+        document.querySelector("temba-select[name='group_mode']").disabled = false;
+        document.querySelector("temba-select[name='existing_group']").disabled = false;
+        document.querySelector("temba-textinput[name='new_group_name']").disabled = false;
+      } else {
+        document.querySelector("temba-select[name='group_mode']").disabled = true;
+        document.querySelector("temba-select[name='existing_group']").disabled = true;
+        document.querySelector("temba-textinput[name='new_group_name']").disabled = true;
+      }
+    }
+
+    $(function() {
+      var groupMode = document.querySelector("temba-select[name='group_mode']");
+      groupMode.addEventListener('change', function(event) {
+        updateGroupMode(event.target.values[0].value);
+      });
+
+      updateGroupMode("{{ form.group_mode.value }}");
+
+      var addToGroup = document.querySelector("temba-checkbox[name='add_to_group']");
+      addToGroup.addEventListener('change', function(event) {
+        updateAddToGroup(event.target.checked)
+      });
+
+      updateAddToGroup({{ form.add_to_group.value|lower }});
+    });
 
 
 -block extra-style
@@ -65,9 +127,6 @@
     .page-content {
       align-self: auto;
       max-width: 1024px;
-    }
-    .mapping .disabled-checkbox {
-      --fa-icon-fill-color: #CCC;
     }
     .mapping .checkbox-label {
       display: none;
@@ -87,4 +146,14 @@
       display: inline-block;
       width: 120px;
       margin: 0 3px;
+    }
+    .field_group_mode {
+      width: 160px;
+    }
+    .field_new_group_name {
+      width: 200px;
+      margin-top: -4px;
+    }
+    .field_existing_group {
+      width: 200px;
     }

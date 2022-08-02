@@ -10,7 +10,7 @@ from temba.tests.s3 import MockS3Client
 
 
 class SearchArchivesTest(TembaTest):
-    @patch("temba.archives.models.Archive.s3_client")
+    @patch("temba.utils.s3.client")
     def test_command(self, mock_s3_client):
         mock_s3 = MockS3Client()
         mock_s3_client.return_value = mock_s3
@@ -24,7 +24,7 @@ class SearchArchivesTest(TembaTest):
         )
 
         out = StringIO()
-        call_command("search_archives", self.org.id, "run", expression="", limit=10, stdout=out)
+        call_command("search_archives", self.org.id, "run", where="", limit=10, stdout=out)
 
         self.assertIn('"id": 1', out.getvalue())
         self.assertIn("Fetched 2 records in", out.getvalue())

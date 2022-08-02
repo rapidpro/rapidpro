@@ -8,7 +8,7 @@
 
     %td.details.wrapped.w-full
       -if event.type == 'airtime_transferred'
-        -if transfer.actual_amount > 0
+        -if event.actual_amount > 0
           -blocktrans trimmed with amount=event.actual_amount currency=event.currency
             Transferred <b>{{ amount }}</b> <b>{{ currency }}</b> of airtime
         -else
@@ -21,7 +21,7 @@
           {{ event.status_display }}
 
       -elif event.type == 'campaign_fired'
-        %a(href='{%url "campaigns.campaign_read" event.campaign.id %}')><
+        %a(href='{%url "campaigns.campaign_read" event.campaign.uuid %}')><
           {{ event.campaign.name }}
 
         -if event.fired_result == 'S'
@@ -29,8 +29,8 @@
         -else
           &nbsp;triggered
 
-        %a(href='{%url "campaigns.campaignevent_read" event.campaign_event.id %}')
-          {{ eventfire.campaign_event.offset_display }} {{ eventfire.campaign_event.relative_to.name }}
+        %a(href='{%url "campaigns.campaignevent_read" event.campaign.uuid event.campaign_event.id %}')
+          {{ event.campaign_event.offset_display }} {{ event.campaign_event.relative_to.name }}
 
       -elif event.type == 'channel_event'
         -if event.channel_event_type == 'mt_miss'
@@ -144,20 +144,32 @@
       -elif event.type == 'msg_created' or event.type == 'msg_received' or event.type == "ivr_created"
         .activity-message
           .activity-body
-            -if event.msg.text
-              .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
-                {{ event.msg.text }}
-            -for attachment in event.msg.attachments
-              {% attachment_button attachment %}
+            -if event.visibility == 'D'
+              .italic.opacity-50
+                -trans "Message deleted by user"
+            -elif event.visibility == 'X'
+              .italic.opacity-50
+                -trans "Message deleted by sender"
+            -else
+              -if event.msg.text
+                .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
+                  {{ event.msg.text }}
+              -for attachment in event.msg.attachments
+                {% attachment_button attachment %}
 
       -elif event.type == 'run_result_changed'
         -blocktrans trimmed with name=event.name category=event.category value=event.value
           Run result <b>{{ name }}</b> updated to <b>{{ value }}</b> with category <b>{{ category }}</b>
 
       -elif event.type == 'ticket_opened'
-        -url 'tickets.ticket_filter' event.ticket.ticketer.uuid as ticketer_url
-        -blocktrans trimmed with subject=event.ticket.subject ticketer=event.ticket.ticketer.name
-          Opened ticket on <a href="{{ ticketer_url }}">{{ ticketer }}</a> with subject <b>{{ subject }}</b>
+        -blocktrans trimmed with subject=event.ticket.subject
+          Opened ticket <b>{{ subject }}</b>
+      -elif event.type == 'ticket_reopened'
+        -blocktrans trimmed with subject=event.ticket.subject
+          Reopened ticket <b>{{ subject }}</b>
+      -elif event.type == 'ticket_closed'
+        -blocktrans trimmed with subject=event.ticket.subject
+          Closed ticket <b>{{ subject }}</b>
 
       -elif event.type == 'webhook_called'
         -if event.status == "success"
@@ -174,10 +186,9 @@
           {% format_datetime event.created_on|parse_isodate %}
 
     %td.text-center{style:"padding-left:0px"}
-      .log-icon.ml-2.text-dark-alpha-200
-        -if event.logs_url
-          .hover-linked(onclick="goto(event)" href="{{ event.logs_url }}")
-            .icon-docs-2.pointer-events-none
+      -if event.logs_url
+        .text-gray-400.hover-linked(onclick="goto(event)" href="{{ event.logs_url }}")
+          .icon-docs-2.pointer-events-none
 
 -if has_older and not recent_only
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{ next_after }}&before={{ next_before }}",

@@ -1,0 +1,71 @@
+-extends "smartmin/list.html"
+-load smartmin sms temba compress i18n humanize
+
+-block extra-style
+  {{block.super}}
+  :css
+    temba-button {
+      display: block;
+    }
+
+-block extra-script
+  {{block.super}}
+
+  :javascript
+    function handleRowClicked(event) {
+
+      if (event.target.tagName == "TEMBA-CHECKBOX") {
+        return;
+      }
+      var row = event.target.closest("tr");
+      var id = row.getAttribute("data-uuid");
+      fetchURL("/campaign/read/" + id + "/");
+    }
+
+-block page-title
+  -trans "Campaigns"
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-campaign
+
+-block page-top
+
+-block content
+
+  .page-title
+
+  .flex
+    .flex-grow.self-end.items-end
+      .flex.flex-col
+        %form#search-form(method="get")
+          %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+          %input.hide(type="submit")
+
+  .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
+    -include "includes/short_pagination.haml"
+
+  .flex-grow.overflow-y-auto.shadow          
+    %table.list.lined.selectable.scrolled
+      %tbody
+        -for obj in object_list
+          %tr.campaign.object-row.select-row(data-object-id="{{ obj.id }}" data-uuid="{{ obj.uuid }}" onclick='handleRowClicked(event)')
+            - if org_perms.campaigns.campaign_update
+              %td.campaign.checkbox.object-row-checkbox
+                %temba-checkbox{onclick:"handleRowSelection(this)"}
+            %td.w-full
+              {{obj.name}}
+
+            %td.whitespace-nowrap
+              .recipients.inline-block
+                -include "includes/recipients_group.haml" with group=obj.group
+
+            %td.whitespace-nowrap
+              {{ obj.get_events|length }} event{{ obj.get_events|length|pluralize }}
+
+        -empty
+          %tr.empty_list
+            %td{ colspan:'99' }
+              -trans "No matching campaigns"
+
+        -block extra-rows

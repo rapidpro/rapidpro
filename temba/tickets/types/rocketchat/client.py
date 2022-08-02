@@ -20,7 +20,7 @@ class Client:
 
     def headers(self, **kwargs):
         kwargs["Authorization"] = f"Token {self.secret}"
-        kwargs["Content-Type"] = f"application/json"
+        kwargs["Content-Type"] = "application/json"
         return kwargs
 
     def _request(self, method, url, **kwargs):

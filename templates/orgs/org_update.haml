@@ -24,39 +24,11 @@
   {{ block.super }}
 
 -block pre-form
-  .mb-4.flex
-    -if org.administrators.all
+  .mb-4.grid.grid-cols-3.gap-4
+    -for user_role in users_roles
       .mb-2
         .cap-label
-          Administrators
-
-        -for user in org.administrators.all
-          %a{href:'{% url "users.user_update" user.id %}'}
-            {{user.email}}
-
-    -if org.editors.all
-      .mb-2
-        .cap-label
-          Editors
-
-        -for user in org.editors.all
-          %a{href:'{% url "users.user_update" user.id %}'}
-            {{user.email}}
-
-    -if org.viewers.all
-      .mb-2
-        .cap-label
-          Viewers
-
-        -for user in org.viewers.all
-          %a{href:'{% url "users.user_update" user.id %}'}
-            {{user.email}}
-
-    -if org.surveyors.all
-      .mb-2
-        .cap-label
-          Surveyors
-
-        -for user in org.surveyors.all
-          %a{href:'{% url "users.user_update" user.id %}'}
+          {{user_role.role_display}}
+        -for user in user_role.users
+          %a{href:'{% url "orgs.user_update" user.id %}'}
             {{user.email}}

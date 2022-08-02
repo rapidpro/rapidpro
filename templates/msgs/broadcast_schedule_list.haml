@@ -18,7 +18,7 @@
               -include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all urns=object.raw_urns
 
             %td.value-text.field_text
-              {{ object.get_default_text }}
+              {{ object.get_text }}
             %td.value-next
               -if object.schedule.next_fire
                 .glyph.icon-clock
@@ -29,10 +29,10 @@
               %td{colspan:3}
                 -trans "No Matching schedules"
 
-  - block paginator
-    -if object_list.count
-      .paginator
-        -include "smartmin/sidebar_pagination.haml"
+- block paginator
+  -if object_list.count
+    .paginator
+      -include "smartmin/sidebar_pagination.haml"
 
 
 -block extra-less

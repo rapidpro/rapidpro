@@ -1,4 +1,4 @@
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.tickets.models import TicketerType
 from temba.tickets.types.rocketchat.views import ConnectView
@@ -25,4 +25,4 @@ class RocketChatType(TicketerType):
     ) % {"link": '<a href="https://rocket.chat/">Rocket.Chat</a>'}
 
     def is_available_to(self, user):
-        return user.is_beta()
+        return user.is_beta

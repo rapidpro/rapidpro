@@ -7,9 +7,10 @@ from smartmin.models import SmartModel
 
 from django.contrib.humanize.templatetags.humanize import ordinal
 from django.db import models
+from django.db.models import Index, Q
 from django.utils import timezone
 from django.utils.timesince import timeuntil
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,8 @@ class Schedule(SmartModel):
 
     @classmethod
     def create_schedule(cls, org, user, start_time, repeat_period, repeat_days_of_week=None, now=None):
+        assert not repeat_days_of_week or set(repeat_days_of_week).issubset(cls.DAYS_OF_WEEK_OFFSET)
+
         schedule = Schedule(repeat_period=repeat_period, created_by=user, modified_by=user, org=org)
         schedule.update_schedule(start_time, repeat_period, repeat_days_of_week, now=now)
         return schedule
@@ -123,18 +126,18 @@ class Schedule(SmartModel):
 
             self.repeat_hour_of_day = start_time.hour
             self.repeat_minute_of_hour = start_time.minute
+            self.repeat_days_of_week = None
+            self.repeat_day_of_month = None
 
             if repeat_period == Schedule.REPEAT_WEEKLY:
                 self.repeat_days_of_week = repeat_days_of_week
-                self.repeat_day_of_month = None
 
             elif repeat_period == Schedule.REPEAT_MONTHLY:
-                self.repeat_days_of_week = None
                 self.repeat_day_of_month = start_time.day
 
             # for recurring schedules if the start time is in the past, calculate our next fire and set that
             if start_time < now:
-                self.next_fire = Schedule.get_next_fire(self, now)
+                self.next_fire = self.calculate_next_fire(now)
             else:
                 self.next_fire = start_time
 
@@ -144,29 +147,27 @@ class Schedule(SmartModel):
         if hasattr(self, "broadcast"):
             return self.broadcast
 
-    @classmethod
-    def get_next_fire(cls, schedule, now):
+    def calculate_next_fire(self, now):
         """
         Get the next point in the future when our schedule should fire again. Note this should only be called to find
         the next scheduled event as it will force the next date to meet the criteria in day_of_month, days_of_week etc..
         """
-        if schedule.repeat_period == Schedule.REPEAT_NEVER:
+        if self.repeat_period == Schedule.REPEAT_NEVER:
             return None
 
-        tz = schedule.org.timezone
-
-        hour = schedule.repeat_hour_of_day
-        minute = schedule.repeat_minute_of_hour
+        tz = self.org.timezone
+        hour = self.repeat_hour_of_day
+        minute = self.repeat_minute_of_hour
 
         # start from the trigger date
         next_fire = now.astimezone(tz)
         next_fire = tz.normalize(next_fire.replace(hour=hour, minute=minute, second=0, microsecond=0))
 
         # if monthly, set to the day of the month scheduled and move forward until we are in the future
-        if schedule.repeat_period == Schedule.REPEAT_MONTHLY:
+        if self.repeat_period == Schedule.REPEAT_MONTHLY:
             while True:
                 (weekday, days) = calendar.monthrange(next_fire.year, next_fire.month)
-                day_of_month = min(days, schedule.repeat_day_of_month)
+                day_of_month = min(days, self.repeat_day_of_month)
                 next_fire = tz.normalize(next_fire.replace(day=day_of_month, hour=hour, minute=minute))
                 if next_fire > now:
                     break
@@ -176,15 +177,15 @@ class Schedule(SmartModel):
             return next_fire
 
         # if weekly, move forward until we're in the future and on an appropriate day of the week
-        elif schedule.repeat_period == Schedule.REPEAT_WEEKLY:
-            assert schedule.repeat_days_of_week != "" and schedule.repeat_days_of_week is not None
+        elif self.repeat_period == Schedule.REPEAT_WEEKLY:
+            assert self.repeat_days_of_week != "" and self.repeat_days_of_week is not None
 
-            while next_fire <= now or cls._day_of_week(next_fire) not in schedule.repeat_days_of_week:
+            while next_fire <= now or self._day_of_week(next_fire) not in self.repeat_days_of_week:
                 next_fire = tz.normalize(tz.normalize(next_fire + timedelta(days=1)).replace(hour=hour, minute=minute))
 
             return next_fire
 
-        elif schedule.repeat_period == Schedule.REPEAT_DAILY:
+        elif self.repeat_period == Schedule.REPEAT_DAILY:
             while next_fire <= now:
                 next_fire = tz.normalize(tz.normalize(next_fire + timedelta(days=1)).replace(hour=hour, minute=minute))
 
@@ -212,5 +213,20 @@ class Schedule(SmartModel):
         """
         return Schedule.DAYS_OF_WEEK_OFFSET[d.weekday()]
 
+    def release(self, user):
+        self.is_active = False
+        self.modified_by = user
+        self.save(update_fields=("is_active", "modified_by", "modified_on"))
+
     def __str__(self):
         return f'Schedule[id={self.id} repeat="{self.get_display()}" next={str(self.next_fire)}]'
+
+    class Meta:
+        indexes = [
+            # used by mailroom for fetching schedules that need to be fired
+            Index(
+                name="schedules_next_fire_active",
+                fields=["next_fire"],
+                condition=Q(is_active=True, next_fire__isnull=False),
+            )
+        ]

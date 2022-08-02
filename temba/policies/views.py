@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import analytics
-from temba.utils.views import ComponentFormMixin
+from temba.utils.views import ComponentFormMixin, ContentMenuMixin
 
 from .models import Consent, Policy
 
@@ -20,15 +20,14 @@ class PolicyCRUDL(SmartCRUDL):
     model = Policy
     permissions = True
 
-    class Admin(SmartListView):
+    class Admin(ContentMenuMixin, SmartListView):
         ordering = ("-created_on",)
         link_fields = ("policy_type",)
         title = "Policies"
         paginate_by = 500
 
-        def get_gear_links(self):
-            links = [dict(title=_("New Policy"), href=reverse("policies.policy_create"))]
-            return links
+        def build_content_menu(self, menu):
+            menu.add_link(_("New Policy"), reverse("policies.policy_create"))
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
@@ -37,7 +36,6 @@ class PolicyCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["active_policies"] = Policy.objects.filter(is_active=True).order_by(*self.ordering)
-            context["gear_links"] = self.get_gear_links()
             return context
 
     class Update(ComponentFormMixin, SmartUpdateView):
@@ -115,7 +113,7 @@ class PolicyCRUDL(SmartCRUDL):
         def form_valid(self, form):
             if form.cleaned_data["consent"]:
 
-                analytics.change_consent(self.request.user.email, True)
+                analytics.change_consent(self.request.user, True)
 
                 for policy in Policy.get_policies_needing_consent(self.request.user):
                     Consent.objects.create(policy=policy, user=self.request.user)
@@ -130,7 +128,7 @@ class PolicyCRUDL(SmartCRUDL):
                 )
                 consents.update(revoked_on=timezone.now())
                 # forget we were ever friends
-                analytics.change_consent(self.request.user.email, False)
+                analytics.change_consent(self.request.user, False)
 
             redirect = self.request.POST.get("next")
             if not redirect:

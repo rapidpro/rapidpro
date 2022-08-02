@@ -6,9 +6,11 @@
 
       #menu {
         display: flex;
-        position: absolute;
-        top: 40px;
-        right: 20px;
+        flex-direction: row;
+        align-items: flex-end;
+        margin-top:-80px;
+        min-height:81px;
+        padding-bottom:15px;
 
         .submenu {
           display: flex;
@@ -52,7 +54,8 @@
           .icon-menu-4 {
             width: 15px;
             margin-left: 0px;
-            margin-right: 20px;
+            margin-right: 30px;
+            margin-top:-60px;
             font-size: 36px;
             color: var(--color-nav-unselected);
           }
@@ -129,6 +132,7 @@
   {% endlessblock %}
 
 #menu
+  .flex-grow
   -if org_perms.msgs.msg_inbox and not request.user.is_superuser
     %a{href:"{% url 'msgs.msg_inbox' %}", class:"{% active request 'inbox|outbox|broadcast|call|msg/filter|msg/flow|msg/archived|failed' %}"}
       .circle
@@ -164,8 +168,8 @@
       .title
         -trans "triggers"
 
-  -if org_perms.tickets.ticket_open and not request.user.is_superuser and user_org and user_org.has_ticketer
-    %a{href:"{% url 'tickets.ticket_open' %}", class:"{% active request 'ticket' %}"}
+  -if org_perms.tickets.ticket_list and not request.user.is_superuser
+    %a{href:"{% url 'tickets.ticket_list' %}", class:"{% active request 'ticket' %}"}
       .circle
         .icon-ticket
       .title
@@ -179,7 +183,7 @@
         .title
           -trans "channels"
 
-  -if request.user.is_superuser or perms.auth.user_list
+  -if request.user.is_superuser or perms.orgs.user_list
     -if not user_org
       %a{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
         .circle
@@ -217,7 +221,7 @@
 
           -block loggedin-submenu
 
-          -if request.user.is_superuser or perms.auth.user_list
+          -if request.user.is_superuser or perms.orgs.user_list
             -if user_org
               %a{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
                 .circle
@@ -243,7 +247,7 @@
             %a(href="{% url 'users.user_logout' %}?next=/users/login")
               .circle
                 .icon-exit
-              .title.whitespace-no-wrap
+              .title.whitespace-nowrap
                 -trans "sign out"
   -else
     -block temba-login

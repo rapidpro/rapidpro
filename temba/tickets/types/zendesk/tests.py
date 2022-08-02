@@ -106,7 +106,7 @@ class ZendeskTypeTest(TembaTest):
             response = self.client.get(connect_url + "?code=please&state=temba")
 
             ticketer = Ticketer.objects.filter(ticketer_type="zendesk", is_active=True).order_by("id").last()
-            self.assertEqual("Zendesk (temba)", ticketer.name)
+            self.assertEqual("temba", ticketer.name)
             self.assertEqual({"oauth_token": "236272", "secret": "RAND346", "subdomain": "temba"}, ticketer.config)
             self.assertRedirect(response, reverse("tickets.types.zendesk.configure", args=[ticketer.uuid]))
 
@@ -143,9 +143,9 @@ class ZendeskTypeTest(TembaTest):
                 "channelback_files": True,
                 "push_client_id": "temba",
                 "urls": {
-                    "admin_ui": f"https://app.rapidpro.io/tickets/types/zendesk/admin_ui",
-                    "channelback_url": f"https://app.rapidpro.io/mr/tickets/types/zendesk/channelback",
-                    "event_callback_url": f"https://app.rapidpro.io/mr/tickets/types/zendesk/event_callback",
+                    "admin_ui": "https://app.rapidpro.io/tickets/types/zendesk/admin_ui",
+                    "channelback_url": "https://app.rapidpro.io/mr/tickets/types/zendesk/channelback",
+                    "event_callback_url": "https://app.rapidpro.io/mr/tickets/types/zendesk/event_callback",
                 },
             },
             response.json(),

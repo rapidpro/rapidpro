@@ -2,7 +2,7 @@
 
 # Script to squash RapidPro migrations in two steps.
 #
-# Usage: `./squash_migrations.py <step>`
+# Usage: `./tools/squash_migrations.py <step>`
 #
 # Steps:
 #
@@ -28,7 +28,7 @@ from typing import Callable, List
 import colorama
 
 MIGRATION_FILENAME_REGEX = re.compile(r"\d{4}_\w+\.py")
-EMPTY_MIGRATION = """# This is a dummy migration which will be implemented in 6.1
+EMPTY_MIGRATION = """# This is a dummy migration which will be implemented in 7.3
 
 {{IMPORTS}}
 
@@ -46,9 +46,9 @@ def get_app_names(exclude: List[str]) -> List[str]:
     Gets names of all apps using migrations
     """
     names = []
-    for app_dir in os.scandir("../temba"):
+    for app_dir in os.scandir("temba"):
         if app_dir.is_dir() and app_dir.name not in exclude:
-            mig_dir = os.path.join("../temba", app_dir.name, "migrations")
+            mig_dir = os.path.join("temba", app_dir.name, "migrations")
             if os.path.exists(mig_dir):
                 names.append(app_dir.name)
     return sorted(names)
@@ -59,7 +59,7 @@ def get_app_migration_modules(app_name: str) -> List[str]:
     Gets module names of all migration files for the given app
     """
     mods = []
-    mig_dir = os.path.join("../temba", app_name, "migrations")
+    mig_dir = os.path.join("temba", app_name, "migrations")
     for mig_file in os.scandir(mig_dir):
         if MIGRATION_FILENAME_REGEX.match(mig_file.name):
             mods.append(mig_file.name[:-3])
@@ -185,9 +185,9 @@ def squash_migrations(step: int):
         last_mig = get_app_migration_modules("sql")[-1]
         mig_path = f"temba/sql/migrations/{last_mig}.py"
         mig_num = last_mig[:4]
-        shutil.copy2("../temba/sql/current_functions.sql", f"temba/sql/migrations/{mig_num}_functions.sql")
-        shutil.copy2("../temba/sql/current_indexes.sql", f"temba/sql/migrations/{mig_num}_indexes.sql")
-        shutil.copy2("../temba/sql/current_triggers.sql", f"temba/sql/migrations/{mig_num}_triggers.sql")
+        shutil.copy2("temba/sql/current_functions.sql", f"temba/sql/migrations/{mig_num}_functions.sql")
+        shutil.copy2("temba/sql/current_indexes.sql", f"temba/sql/migrations/{mig_num}_indexes.sql")
+        shutil.copy2("temba/sql/current_triggers.sql", f"temba/sql/migrations/{mig_num}_triggers.sql")
         ops = f'InstallSQL("{mig_num}_functions"), InstallSQL("{mig_num}_indexes"), InstallSQL("{mig_num}_triggers")'
 
         def transform(data):

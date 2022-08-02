@@ -9,8 +9,8 @@
       to flow events you create and trigger any number of Zapier integrations when they occur in your flows.
 
   -if brand.guided_zaps|length > 0
-    .mb-4
-      <script type="text/javascript" src="https://zapier.com/zapbook/embed/widget.js?container=true&inlinecss=true&guided_zaps={{ brand.guided_zaps|join:"," }}"></script>
+    <script type="module" src="https://zapier.com/partner/embed/app-directory/wrapper.js?id=zapier-app-directory&app=textit&theme=light&hide=salesforce-legacy%2Czendesk&zapstyle=row&introcopy=hide"></script>
+
 
 -block fields
     -if current_resthooks
@@ -26,12 +26,15 @@
               %tr
                 %td= resthook.resthook.slug
                 %td.resthook-check.permission
-                  .hidden-input.hide
-                    {{form|field:resthook.field}}
-                  .glyph.level-checkbox
+                  {{form|field:resthook.field}}
 
     .my-4
       {% render_field 'new_slug' %}
+
+-block post-form
+  {{block.super}}
+  .mt-8
+    #zapier-app-directory
 
 -block summary
   -with org.get_resthooks as resthooks
@@ -44,24 +47,6 @@
       -plural
         You have <b>{{ counter }} flow events</b> configured.
 
--block extra-script
-  {{block.super}}
-  :javascript
-    $(function() {
-      $("td.resthook-check .glyph").on('click', function(){
-        var cell = $(this).parent("td.resthook-check");
-        var ipt = cell.find("input[type='checkbox']");
-
-        if (!cell.hasClass("checked")) {
-          cell.addClass('checked');
-          ipt.prop('checked', true);
-        } else {
-          cell.removeClass('checked');
-          ipt.prop('checked', false);
-        }
-      })
-    });
-
 -block extra-style
   :css
 
@@ -71,6 +56,13 @@
 
     td.resthook-check.checked .glyph.level-checkbox:before {
       content: "\e05a";
+    }
+
+    table.list tr td temba-checkbox {
+      --icon-color: #333;
+      width: inherit;
+      height: inherit;
+      margin-right: 0px;
     }
 
     .zap-services {

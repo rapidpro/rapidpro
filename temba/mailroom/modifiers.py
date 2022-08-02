@@ -1,77 +1,90 @@
-from typing import Dict, List, NamedTuple
+from dataclasses import dataclass, field
+from typing import Optional
 
 
-class FieldRef(NamedTuple):
+@dataclass(frozen=True)
+class FieldRef:
     key: str
     name: str
 
 
-class GroupRef(NamedTuple):
+@dataclass(frozen=True)
+class GroupRef:
     uuid: str
     name: str
 
 
+@dataclass(frozen=True)
+class TicketerRef:
+    uuid: str
+    name: str
+
+
+@dataclass(frozen=True)
+class TopicRef:
+    uuid: str
+    name: str
+
+
+@dataclass(frozen=True)
+class UserRef:
+    email: str
+    name: str
+
+
+@dataclass(frozen=True)
 class Modifier:
     type: str
 
-    def as_def(self) -> Dict:
-        return {"type": self.type, **self.__dict__}
 
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
-
-
+@dataclass(frozen=True)
 class Name(Modifier):
-    type = "name"
-
-    def __init__(self, name: str):
-        self.name = name
+    type: str = field(default="name", init=False)
+    name: str
 
 
+@dataclass(frozen=True)
 class Language(Modifier):
-    type = "language"
-
-    def __init__(self, language: str):
-        self.language = language
+    type: str = field(default="language", init=False)
+    language: str
 
 
+@dataclass(frozen=True)
 class Field(Modifier):
-    type = "field"
-
-    def __init__(self, field: FieldRef, value: str):
-        self.field = field
-        self.value = value
-
-    def as_def(self) -> Dict:
-        return {"type": self.type, "field": self.field._asdict(), "value": self.value}
+    type: str = field(default="field", init=False)
+    field: FieldRef
+    value: str
 
 
+@dataclass(frozen=True)
 class Status(Modifier):
     ACTIVE = "active"
     BLOCKED = "blocked"
     STOPPED = "stopped"
     ARCHIVED = "archived"
 
-    type = "status"
-
-    def __init__(self, status: str):
-        self.status = status
+    type: str = field(default="status", init=False)
+    status: str
 
 
+@dataclass(frozen=True)
 class Groups(Modifier):
-    type = "groups"
-
-    def __init__(self, groups: List[GroupRef], modification: str):
-        self.groups = groups
-        self.modification = modification
-
-    def as_def(self) -> Dict:
-        return {"type": self.type, "groups": [g._asdict() for g in self.groups], "modification": self.modification}
+    type: str = field(default="groups", init=False)
+    groups: list[GroupRef]
+    modification: str
 
 
+@dataclass(frozen=True)
+class Ticket(Modifier):
+    type: str = field(default="ticket", init=False)
+    ticketer: TicketerRef
+    topic: TopicRef
+    body: str
+    assignee: Optional[UserRef]
+
+
+@dataclass(frozen=True)
 class URNs(Modifier):
-    type = "urns"
-
-    def __init__(self, urns: List[str], modification: str):
-        self.urns = urns
-        self.modification = modification
+    type: str = field(default="urns", init=False)
+    urns: list[str]
+    modification: str

@@ -46,7 +46,7 @@ class MessageHistory(OrgPermsMixin, SmartTemplateView):
 
         daily_counts = daily_counts.filter(day__gt="2013-02-01").filter(day__lte=timezone.now())
 
-        if orgs or not self.request.user.is_support():
+        if orgs or not self.request.user.is_support:
             daily_counts = daily_counts.filter(channel__org__in=orgs)
 
         daily_counts = list(
@@ -155,8 +155,8 @@ class RangeDetails(OrgPermsMixin, SmartTemplateView):
 
             context["orgs"] = list(
                 daily_counts.values("channel__org", "channel__org__name")
-                .order_by("-count_sum")
-                .annotate(count_sum=Sum("count"))[:12]
+                .annotate(count_sum=Sum("count"))
+                .order_by("-count_sum")[:12]
             )
 
             channel_types = (
@@ -166,11 +166,11 @@ class RangeDetails(OrgPermsMixin, SmartTemplateView):
                 .exclude(channel__org=None)
             )
 
-            if orgs or not self.request.user.is_support():
+            if orgs or not self.request.user.is_support:
                 channel_types = channel_types.filter(channel__org__in=orgs)
 
             channel_types = list(
-                channel_types.values("channel__channel_type").order_by("-count_sum").annotate(count_sum=Sum("count"))
+                channel_types.values("channel__channel_type").annotate(count_sum=Sum("count")).order_by("-count_sum")
             )
 
             # populate the channel names

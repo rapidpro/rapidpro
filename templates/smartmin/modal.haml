@@ -1,4 +1,4 @@
--if success_url
+-if success_url and success_url != 'hide'
   .success-script
     -block success-script
       -if success_script
@@ -8,15 +8,12 @@
           document.location.href = '{{ success_url }}';
 
 -else
-  -block modal
+  .animate(style="--transition-speed: 150ms")
+    -block modal
 
   -block modal-script
 
   -block modal-extra-style
-    :css
-      .select2-container {
-        width: 300px;
-      }
 
   -if form
     {{ form.media }}

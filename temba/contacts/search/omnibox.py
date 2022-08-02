@@ -7,8 +7,7 @@ from django.db.models.functions import Upper
 
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, ContactURN
-from temba.msgs.models import Label
-from temba.utils.models import IDSliceQuerySet
+from temba.utils.models.es import IDSliceQuerySet
 
 from . import SearchException, search_contacts
 
@@ -24,37 +23,25 @@ def omnibox_query(org, **kwargs):
     """
     # determine what type of group/contact/URN lookup is being requested
     contact_uuids = kwargs.get("c", None)  # contacts with ids
-    message_ids = kwargs.get("m", None)  # contacts with message ids
-    label_id = kwargs.get("l", None)  # contacts in flow step with UUID
     group_uuids = kwargs.get("g", None)  # groups with ids
     urn_ids = kwargs.get("u", None)  # URNs with ids
     search = kwargs.get("search", None)  # search of groups, contacts and URNs
     types = list(kwargs.get("types", ""))  # limit search to types (g | s | c | u)
 
-    # these lookups return a Contact queryset
-    if contact_uuids or message_ids or label_id:
-        qs = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True)
+    if contact_uuids:
+        return (
+            Contact.objects.filter(
+                org=org, status=Contact.STATUS_ACTIVE, is_active=True, uuid__in=contact_uuids.split(",")
+            )
+            .distinct()
+            .order_by("name")
+        )
 
-        if contact_uuids:
-            qs = qs.filter(uuid__in=contact_uuids.split(","))
-
-        elif message_ids:
-            qs = qs.filter(msgs__in=message_ids.split(","))
-
-        elif label_id:
-            label = Label.label_objects.get(pk=label_id)
-            qs = qs.filter(msgs__in=label.get_messages())
-
-        return qs.distinct().order_by("name")
-
-    # this lookup returns a ContactGroup queryset
     elif group_uuids:
-        return ContactGroup.user_groups.filter(org=org, uuid__in=group_uuids.split(",")).order_by("name")
+        return ContactGroup.get_groups(org).filter(uuid__in=group_uuids.split(",")).order_by("name")
 
-    # this lookup returns a ContactURN queryset
     elif urn_ids:
-        qs = ContactURN.objects.filter(org=org, id__in=urn_ids.split(",")).select_related("contact")
-        return qs.order_by("path")
+        return ContactURN.objects.filter(org=org, id__in=urn_ids.split(",")).select_related("contact").order_by("path")
 
     # searching returns something which acts enough like a queryset to be paged
     return omnibox_mixed_search(org, search, types)
@@ -81,7 +68,7 @@ def omnibox_mixed_search(org, query, types):
     results = []
 
     if SEARCH_ALL_GROUPS in search_types or SEARCH_STATIC_GROUPS in search_types:
-        groups = ContactGroup.get_user_groups(org, ready_only=True)
+        groups = ContactGroup.get_groups(org, ready_only=True)
 
         # exclude dynamic groups if not searching all groups
         if SEARCH_ALL_GROUPS not in search_types:
@@ -94,10 +81,18 @@ def omnibox_mixed_search(org, query, types):
 
     if SEARCH_CONTACTS in search_types:
         try:
-            search_results = search_contacts(org, query, group=org.cached_active_contacts_group, sort="name")
-            contacts = IDSliceQuerySet(Contact, search_results.contact_ids, 0, len(search_results.contact_ids))
+            # query elastic search for contact ids, then fetch contacts from db
+            search_results = search_contacts(org, query, group=org.active_contacts_group, sort="name")
+            contacts = IDSliceQuerySet(
+                Contact,
+                search_results.contact_ids,
+                offset=0,
+                total=len(search_results.contact_ids),
+                only=("id", "uuid", "name", "org_id"),
+            ).prefetch_related("org")
+
             results += list(contacts[:per_type_limit])
-            Contact.bulk_cache_initialize(org, contacts=results)
+            Contact.bulk_urn_cache_initialize(contacts=results)
 
         except SearchException:
             pass
@@ -108,9 +103,7 @@ def omnibox_mixed_search(org, query, types):
                 # build an OR'ed query of all sendable schemes
                 sendable_schemes = org.get_schemes(Channel.ROLE_SEND)
                 scheme_query = " OR ".join(f"{s} ~ {json.dumps(query)}" for s in sendable_schemes)
-                search_results = search_contacts(
-                    org, scheme_query, group=org.cached_active_contacts_group, sort="name"
-                )
+                search_results = search_contacts(org, scheme_query, group=org.active_contacts_group, sort="name")
                 urns = ContactURN.objects.filter(
                     contact_id__in=search_results.contact_ids, scheme__in=sendable_schemes
                 )
@@ -121,11 +114,13 @@ def omnibox_mixed_search(org, query, types):
     return results
 
 
-def omnibox_serialize(org, groups, contacts, json_encode=False):
+def omnibox_serialize(org, groups, contacts, *, urns=(), raw_urns=(), json_encode=False):
     """
     Shortcut for proper way to serialize a queryset of groups and contacts for omnibox component
     """
-    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts), version="2")
+    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts) + list(urns), version="2")
+
+    serialized += [{"type": "urn", "id": u} for u in raw_urns]
 
     if json_encode:
         return [json.dumps(_) for _ in serialized]
@@ -139,7 +134,7 @@ def omnibox_deserialize(org, omnibox):
     urns = [item["id"] for item in omnibox if item["type"] == "urn"] if not org.is_anon else []
 
     return {
-        "groups": ContactGroup.all_groups.filter(uuid__in=group_ids, org=org, is_active=True),
+        "groups": org.groups.filter(uuid__in=group_ids, is_active=True),
         "contacts": Contact.objects.filter(uuid__in=contact_ids, org=org, is_active=True),
         "urns": urns,
     }

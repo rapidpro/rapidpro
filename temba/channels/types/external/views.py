@@ -3,7 +3,7 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.forms import ValidationError
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 from temba.utils.fields import ExternalURLField, SelectMultipleWidget, SelectWidget

@@ -72,40 +72,6 @@ class WitTypeTest(TembaTest):
             self.assertEqual("book_car", car.name)
             self.assertEqual("754569408690533", car.external_id)
 
-    def test_delete(self):
-        c = Classifier.create(
-            self.org,
-            self.user,
-            WitType.slug,
-            "Booker",
-            {WitType.CONFIG_APP_ID: "12345", WitType.CONFIG_ACCESS_TOKEN: "sesame"},
-        )
-
-        # delete the classifier
-        url = reverse("classifiers.classifier_delete", args=[c.uuid])
-        response = self.client.post(url)
-        self.assertRedirect(response, "/users/login/")
-
-        self.login(self.admin)
-        response = self.client.post(url)
-
-        c.refresh_from_db()
-        self.assertFalse(c.is_active)
-
-        # reactivate
-        c.is_active = True
-        c.save()
-
-        # add a dependency and try again
-        flow = self.create_flow()
-        flow.classifier_dependencies.add(c)
-
-        with self.assertRaises(AssertionError):
-            self.client.post(url)
-
-        c.refresh_from_db()
-        self.assertTrue(c.is_active)
-
     def test_connect(self):
         url = reverse("classifiers.classifier_connect")
         response = self.client.get(url)

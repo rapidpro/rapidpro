@@ -165,6 +165,31 @@ class PlivoTypeTest(TembaTest):
                 )
 
         with patch("requests.delete") as mock_delete:
-            response_body = MockResponse(200, json.dumps({"status": "ok"}))
-            channel.get_type().deactivate(channel)
+            channel.type.deactivate(channel)
             mock_delete.assert_called_once()
+
+    @patch("requests.get")
+    def test_search(self, mock_get):
+        self.login(self.admin)
+
+        search_url = reverse("channels.types.plivo.search")
+
+        mock_get.return_value = MockResponse(
+            200, json.dumps({"objects": [{"number": "16331111111"}, {"number": "16332222222"}]})
+        )
+
+        response = self.client.post(search_url, {"country": "US", "pattern": ""})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(["+1 633-111-1111", "+1 633-222-2222"], response.json())
+
+        # missing key to throw exception
+        mock_get.return_value = MockResponse(200, json.dumps({}))
+        response = self.client.post(search_url, {"country": "US", "pattern": ""})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "error")
+
+        mock_get.return_value = MockResponse(400, "Bad request")
+        response = self.client.post(search_url, {"country": "US", "pattern": ""})
+
+        self.assertContains(response, "Bad request")

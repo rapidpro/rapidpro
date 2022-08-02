@@ -1,4 +1,8 @@
-from typing import Dict, Iterable
+from typing import Iterable
+from urllib.parse import urlparse
+
+import boto3
+from botocore.client import Config
 
 from django.core.files.storage import DefaultStorage
 
@@ -11,6 +15,46 @@ class PublicFileStorage(DefaultStorage):
 
 public_file_storage = PublicFileStorage()
 public_file_storage.default_acl = "public-read"
+public_file_storage.querystring_auth = False  # don't include access token in attachment URLs
+
+_s3_client = None
+
+
+def client():  # pragma: no cover
+    """
+    Returns our shared S3 client
+    """
+    from django.conf import settings
+
+    global _s3_client
+    if not _s3_client:
+        session = boto3.Session(
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
+        _s3_client = session.client("s3", config=Config(retries={"max_attempts": 3}))
+
+    return _s3_client
+
+
+def split_url(url):
+    """
+    Given an S3 URL parses it and returns a tuple of the bucket and key suitable for S3 boto calls
+    """
+    parsed = urlparse(url)
+    bucket = parsed.netloc.split(".")[0]
+    path = parsed.path.lstrip("/")
+
+    return bucket, path
+
+
+def get_body(url):
+    """
+    Given an S3 URL, downloads the object and returns the read body
+    """
+    bucket, key = split_url(url)
+
+    obj = client().get_object(Bucket=bucket, Key=key)
+    return obj["Body"].read()
 
 
 class EventStreamReader:
@@ -22,7 +66,7 @@ class EventStreamReader:
         self.event_stream = event_stream
         self.buffer = bytearray()
 
-    def __iter__(self) -> Iterable[Dict]:
+    def __iter__(self) -> Iterable[dict]:
         for event in self.event_stream:
             if "Records" in event:
                 self.buffer.extend(event["Records"]["Payload"])

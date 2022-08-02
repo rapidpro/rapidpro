@@ -15,6 +15,43 @@
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
+    -if user.is_staff
+      %script{src:"{{ STATIC_URL }}js/urls.js"}
+
+      :javascript
+
+        window.STATIC_URL = "{{STATIC_URL}}";
+        function loadNewInterface(force) {
+          var newUrl = mapUrl(window.location.pathname);
+          if (newUrl != window.location.pathname) {
+            window.location = newUrl;
+          } else { 
+            if (force) {
+              window.location = "/messages/";
+            }
+          }
+        }
+        
+        function getCookie(name) {
+          var value = `; ${document.cookie}`;
+          var parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        function switchToNewInterface() {
+          document.cookie = "nav=2; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
+          loadNewInterface(true);
+        }
+
+      -block auto-route
+        :javascript
+          (function(){
+            var nav = getCookie("nav");
+            if (nav == "2") {
+              loadNewInterface(false);
+            }
+          })();
+
     :javascript
 
       window.supportEmail = '{{brand.support_email}}';
@@ -31,19 +68,17 @@
         (function() { document.write(unescape('%3Cscript src="' + src + '"%3E%3C/script%3E')); })();
       }
 
-
     // ==== JQUERY ====
-    :javascript
-      conditionalLoad('bower/jquery/jquery.js', '//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.js');
-      conditionalLoad('bower/jquery-migrate/jquery-migrate.min.js', null);
+    <script type="text/javascript" src="{{ STATIC_URL }}bower/jquery/jquery.js"></script>
+    <script type="text/javascript" src="{{ STATIC_URL }}bower/jquery-migrate/jquery-migrate.min.js"></script>
 
     -# this view make it possible to process translations from javascript land
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
-
     -compress js
       :javascript
         var static_url = '{{STATIC_URL}}';
 
+      %script{src:"{{ STATIC_URL }}js/libs/jquery.url.js"}
       %script{src:"{{ STATIC_URL }}bower/toastr/toastr.js"}
       %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-modal.js"}
       %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-dropdown.js"}
@@ -70,10 +105,12 @@
     -compress js
       %script{src:"{{ STATIC_URL }}js/temba.js"}
       %script{src:"{{ STATIC_URL }}js/labels.js"}
-      %script{src:"{{ STATIC_URL }}js/formax.js"}
+      
     
-    -include "components-head.html"
     -include "includes/frame_top.html"
+
+    -if not COMPONENTS_DEV_MODE
+      -include "components-head.html"
 
     -if brand.favico
       %link{type:"image/ico", rel:"shortcut icon", href:"{{ STATIC_URL }}{{ brand.favico }}"}
@@ -93,7 +130,6 @@
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/videojs-vjsdownload/dist/videojs-vjsdownload.css", media:'all'}
 
       -compress css
-        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/icons/style.css", media:'all'}
         %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/print.less', media:'print'}
         %link{type:"text/css", rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css"}
@@ -134,44 +170,61 @@
 {% block body %}
 
 %body#pageBody.bg-gradient
-  -include "components-body.html"
 
+  -if COMPONENTS_DEV_MODE
+    <script type="module">
+      import '../out-tsc/temba-modules.js';
+    </script>
+  -else 
+    -include "components-body.html"
+  
   -block temba-store
     
     -if user.is_authenticated
       %temba-store(
-        completions="/mr/docs/{{ LANGUAGE_CODE }}/completion.json"
-        functions="/mr/docs/{{ LANGUAGE_CODE }}/functions.json"
+        completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
         fields="/api/v2/fields.json"
         globals="/api/v2/globals.json")
 
   .flex.flex-col.h-full
-    <!-- Header -->
-    #header
-      &nbsp;
 
-    %a#big-logo.logo.icon-logo{href:"{% if user.is_authenticated %}{% url 'msgs.msg_inbox' %}{% else %}/{% endif %}", title:"{{brand.name}}", class:"hover:no-underline"}
-      .name
-        {{brand.name}}
+    -block header
+      <!-- Header -->
+      -if user_org
+        .org-header.self-end
+          -if user_orgs|length > 1
+            .pull-right.toggle
+              .icon-menu-2
 
-    -block nav
-      -include 'includes/nav.html'
+          .org
+            {{ user_org.name }}
 
-    -if user_org
-      .org-header
-        -if user_orgs|length > 1
-          .pull-right.toggle
-            .icon-menu-2
+          .other-orgs.hide
+            -for org in user_orgs
+              -if org != user_org
+                .org.text-primary
+                  %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
+                    {{ org.name }}
 
-        .org
-          {{ user_org.name|truncatechars:30 }}
 
-        .other-orgs.hide
-          -for org in user_orgs
-            -if org != user_org
-              .org
-                %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
-                  {{ org.name }}
+
+      #header
+        &nbsp;
+
+
+      %a#big-logo.logo.icon-logo{href:"{% if user.is_authenticated %}{% url 'msgs.msg_inbox' %}{% else %}/{% endif %}", title:"{{brand.name}}", class:"hover:no-underline"}
+        .name
+          {{brand.name}}
+
+      -block nav
+        -include 'includes/nav.html'
+
+    -block interface-option
+      -if user.is_staff
+        #preview.text-center.px-3.text-sm.py-1(style='background:rgba(0,0,0,.75);z-index:10000;position:fixed;bottom:0px;width:100%;color:#fff')
+          Preview the
+          %span.linked(onclick="switchToNewInterface()")<
+            new interface
 
     -if messages
       -block messages
@@ -184,6 +237,7 @@
     -block post-header
     <!-- Content -->
     -block page-container
+      %temba-modax#shared-modax
       .flex-grow
         .page-content
           -block suspension
@@ -215,11 +269,16 @@
             
             -block post-content
 
-    .footer.text-center.py-12.bg-gray-200.text-gray-500
-      {{ request.branding.credits|safe }}
+    -block footer
+      .footer.text-center.py-12.bg-gray-200.text-gray-500
+        {{ request.branding.credits|safe }}
+        %div
+          %a.p-1.text-gray-500.underline(href="/policy/")
+            -trans "Privacy"
+
 
   -trans 'Delete' as title
-  %temba-dialog#general-delete-confirmation{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}
+  %temba-dialog#general-delete-confirmation.hidden{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}
     .p-6.confirmation-body
       -trans "Are you sure you want to continue? This cannot be undone."
 
@@ -256,6 +315,7 @@
       function removalConfirmation(removal, buttonName) {
   
         var modal = document.querySelector("#general-delete-confirmation");
+        modal.classList.remove("hidden");
 
         // set modal deets
         var title = document.querySelector('.' + removal + ' > .title').innerHTML;
@@ -299,6 +359,55 @@
 
     -block extra-script
 
+    -block refresh-fn
+      :javascript
+        function refresh(onSuccess, forceReload){  
+          var url = params;
+          {% if page_obj %}
+            url += "page={{page_obj.number}}";
+          {% endif %}
+
+          if (url == '') {
+            url = '?';
+          }
+
+          url += '&ts=' + new Date().getTime() + "&refresh=" + refreshTimeout;
+
+          document.dispatchEvent(new Event("temba-refresh-begin"));  
+          fetchPJAXContent(url, '#pjax', {
+              onSuccess: function() {
+                if (onSuccess) {
+                  onSuccess();
+                }
+                document.dispatchEvent(new Event("temba-refresh-complete"));
+                refreshTimeout = Math.floor(refreshTimeout * 1.1)
+                scheduleRefresh();
+              },
+              shouldIgnore: function() {
+                if (forceReload) {
+                  return false;
+                }
+                var pjax = document.querySelector("#pjax");
+                if (pjax) {
+                  return eval(document.querySelector("#pjax").dataset.noPjax);
+                }
+                return true;
+              },
+              onIgnore: function() {
+                var pjax = document.querySelector("#pjax");
+                if (pjax) {
+                  scheduleRefresh();
+                }
+              }
+          });
+        }
+
+    -block full-page-script
+      :javascript
+        document.addEventListener("temba-redirected", function(event){
+          document.location.href = event.detail.url;
+        });
+
     <script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
 
     <form id="posterizer" method="post">
@@ -306,6 +415,14 @@
     </form>
 
     :javascript
+
+      var params = '{{url_params|safe}}';
+      $(document).ready(function(){
+        if (window.scheduleRefresh) {
+          scheduleRefresh();
+        }
+      });
+
       $(document).ready(function() {
         if (navigator.appVersion.indexOf("Win")!=-1) {
           $("html").addClass("windows");

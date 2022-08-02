@@ -1,71 +1,73 @@
-{% extends "smartmin/read.html" %}
+-extends "smartmin/read.html"
 -load i18n compress humanize
 
 -block page-title
   HTTP Log - {{ object.get_log_type_display }}
 
 -block title
-  -if object.classifier
+  -if object.flow
+    -trans "Flow Event"
+  -elif object.classifier
     -trans "Classifier Event"
-  -if object.channel
+  -elif object.channel
     -trans "Channel Event"
 -block subtitle
-  {{object.get_log_type_display}}
-
+  {{ object.get_log_type_display }}
 
 -block content
-
   .card.flex.mt-0
     .inline-flex.mr-8
-      .font-normal.mr-2
-        -if object.classifier
-          Classifier
-      -if object.classifier
-        %a{href:'{% url "classifiers.classifier_read" object.classifier.uuid %}'}
-          {{object.classifier.name}}
-      -if object.channel
-        %a{href:'{% url "channels.channel_read" object.channel.uuid %}'}
-          {{object.channel.name}}
+      -if object.flow
+        .font-normal.mr-2
+          -trans "Flow"
+        %a(href='{% url "flows.flow_editor" object.flow.uuid %}')
+          {{ object.flow.name }}
+      -elif object.classifier
+        .font-normal.mr-2
+          -trans "Classifier"
+        %a(href='{% url "classifiers.classifier_read" object.classifier.uuid %}')
+          {{ object.classifier.name }}
+      -elif object.channel
+        .font-normal.mr-2
+          -trans "Channel"
+        %a(href='{% url "channels.channel_read" object.channel.uuid %}')
+          {{ object.channel.name }}
 
     .inline-flex.mr-8
       .font-normal.mr-2
         -trans "Date"
-      {{object.created_on|date:"M j, Y g:i:s a"}}
+      {% format_datetime object.created_on seconds=True %}
 
   %table.list
     %tbody
-      %tr.border-b
-        -if object.status_code
-          %td(style="width: 30px;")
-            .font-normal.text-2xl
-              {{ object.status_code }}
-
+      %tr.border-b(class="{% if object.is_error or not object.is_healthy %}warning{% endif %}")
+        %td(style="width: 30px;")
+          .font-normal.text-2xl
+            {{ object.status_code|default:"--" }}
         %td
           .font-normal.inline.mr-1
-            %span.method= object.method
-          {{ object.url }}
-
+            %span.method
+              {{ object.method }}
+          {{ object.get_url_display }}
         %td
-          .text-right.whitespace-no-wrap
-            {{log.created_on|date:"M j, Y g:i:s a"}}
-
-        %td
-          .text-right.whitespace-no-wrap.mr-3
+          .text-right.whitespace-nowrap.mr-3
             -trans "Took"
             {{ object.request_time|default:"0"|intcomma }}ms
 
+            -if object.num_retries
+              ({{ object.num_retries }} retries)
       %tr
         %td(colspan="99" style="padding:0;")
           %pre.prettyprint.request<
             :plain
-              {{ object.request.strip }}
+              {{ object.get_request_display }}
 
       -if object.response
         %tr
           %td(colspan="4" style="padding:0;")
             %pre.prettyprint.response<
               :plain
-                {{ object.response }}
+                {{ object.get_response_display }}
       -elif object.is_error
         %tr
           %td(colspan="4" style="padding:0;")

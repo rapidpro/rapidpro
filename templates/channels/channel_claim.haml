@@ -11,6 +11,18 @@
     Android phone and your own cell phone plan, or we can connect you with a service provider in your country
     directly.
 
+  -if total_count >= total_limit
+    .mb-4
+      %temba-alert(level="warning")
+        -blocktrans trimmed with limit=total_limit
+          You have reached the limit of {{ limit }} channels per workspace. Please remove channels that you are no longer using.
+  -elif total_count >= total_limit|add:-1
+    .mb-4
+      %temba-alert(level="warning")
+        -blocktrans trimmed with limit=total_limit
+          You are approaching the limit of {{ limit }} channels per workspace. You should remove channels that you are no longer using.
+
+
   .channel-options.mt-8
     .title
       -trans "Recommendations"
@@ -44,7 +56,7 @@
               will send and receive messages for you. You will only need one phone per country depending on
               message volume. Don't worry! The people you are texting with can still use basic phones.
 
-    .bg-gray-200.-mx-128.px-128.py-12.mt-16
+    .bg-gray-200.-mx-6.px-6.py-12.mt-16.overflow-hidden
       .title.mb-4
         -trans "Social Network Channels"
 

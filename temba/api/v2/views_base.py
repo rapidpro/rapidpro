@@ -11,6 +11,8 @@ from django.db import transaction
 from temba.api.models import APIPermission, SSLPermission
 from temba.api.support import InvalidQueryError
 from temba.contacts.models import URN
+from temba.utils import str_to_bool
+from temba.utils.models import TembaModel
 from temba.utils.views import NonAtomicMixin
 
 from .serializers import BulkActionFailure
@@ -34,9 +36,18 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
         """
         return self.http_method_not_allowed(request, *args, **kwargs)
 
-    def get_queryset(self):
+    def derive_queryset(self):
         org = self.request.user.get_org()
         return getattr(self.model, self.model_manager).filter(org=org)
+
+    def get_queryset(self):
+        qs = self.derive_queryset()
+
+        # if this is a get request, fetch from readonly database
+        if self.request.method == "GET":
+            qs = qs.using("readonly")
+
+        return qs
 
     def get_lookup_values(self):
         """
@@ -147,11 +158,11 @@ class ListAPIMixin(mixins.ListModelMixin):
         page = super().paginate_queryset(queryset)
 
         # give views a chance to prepare objects for serialization
-        self.prepare_for_serialization(page)
+        self.prepare_for_serialization(page, using=queryset.db)
 
         return page
 
-    def prepare_for_serialization(self, page):
+    def prepare_for_serialization(self, page, using: str):
         """
         Views can override this to do things like bulk cache initialization of result objects
         """
@@ -180,8 +191,18 @@ class WriteAPIMixin:
         # determine if this is an update of an existing object or a create of a new object
         if self.lookup_values:
             instance = self.get_object()
+            if self.is_system_instance(instance):
+                return Response({"detail": "Cannot modify system object."}, status=status.HTTP_403_FORBIDDEN)
         else:
             instance = None
+
+            if issubclass(self.model, TembaModel):
+                org_count, org_limit = self.model.get_org_limit_progress(request.user.get_org())
+                if org_limit is not None and org_count >= org_limit:
+                    return Response(
+                        {"detail": f"Cannot create object because workspace has reached limit of {org_limit}."},
+                        status=status.HTTP_409_CONFLICT,
+                    )
 
         context = self.get_serializer_context()
         context["lookup_values"] = self.lookup_values
@@ -197,6 +218,9 @@ class WriteAPIMixin:
                 return self.render_write_response(output, context)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def is_system_instance(self, obj):
+        return obj.is_system if isinstance(obj, TembaModel) else False
 
     def render_write_response(self, write_output, context):
         response_serializer = self.serializer_class(instance=write_output, context=context)
@@ -239,11 +263,14 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
             )
 
         instance = self.get_object()
+        if self.is_system_instance(instance):
+            return Response({"detail": "Cannot delete system object."}, status=status.HTTP_403_FORBIDDEN)
+
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def perform_destroy(self, instance):
-        instance.release()
+        instance.release(self.request.user)
 
 
 class CreatedOnCursorPagination(CursorPagination):
@@ -252,5 +279,15 @@ class CreatedOnCursorPagination(CursorPagination):
 
 
 class ModifiedOnCursorPagination(CursorPagination):
-    ordering = ("-modified_on", "-id")
+    def get_ordering(self, request, queryset, view):
+        if str_to_bool(request.GET.get("reverse")):
+            return "modified_on", "id"
+        else:
+            return "-modified_on", "-id"
+
+    offset_cutoff = 1000000
+
+
+class DateJoinedCursorPagination(CursorPagination):
+    ordering = ("-date_joined", "-id")
     offset_cutoff = 1000000

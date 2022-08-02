@@ -1,2 +1,9 @@
-.lbl-group.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_filter' group.uuid %}" class="{% if group.is_dynamic%}lbl-group-dynamic{%endif%}")
-  {{ group.name }}
+-if group.is_active
+  .lbl-group.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_filter' group.uuid %}")
+    %temba-icon(name="{{ group.icon }}")
+    {{ group.name }}
+-else
+  .lbl-group.mr-2.mb-2
+    %temba-icon(name="{{ group.icon }}")
+    .line-through
+      {{ group.name }}

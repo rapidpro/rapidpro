@@ -1,17 +1,16 @@
 import regex
-from smartmin.models import SmartModel
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Count, Q
-from django.utils.translation import ugettext_lazy as _
+from django.db.models import Count
+from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.models import Org
+from temba.orgs.models import DependencyMixin, Org
+from temba.utils.models import TembaModel
 from temba.utils.text import unsnakify
-from temba.utils.uuid import uuid4
 
 
-class Global(SmartModel):
+class Global(TembaModel, DependencyMixin):
     """
     A global is a constant value that can be used in templates in flows and messages.
     """
@@ -20,15 +19,12 @@ class Global(SmartModel):
     MAX_NAME_LEN = 36
     MAX_VALUE_LEN = settings.GLOBAL_VALUE_SIZE
 
-    uuid = models.UUIDField(default=uuid4)
-
     org = models.ForeignKey(Org, related_name="globals", on_delete=models.PROTECT)
-
     key = models.CharField(verbose_name=_("Key"), max_length=MAX_KEY_LEN)
-
     name = models.CharField(verbose_name=_("Name"), max_length=MAX_NAME_LEN)
-
     value = models.TextField(max_length=MAX_VALUE_LEN)
+
+    org_limit_key = Org.LIMIT_GLOBALS
 
     @classmethod
     def get_or_create(cls, org, user, key, name, value):
@@ -63,18 +59,12 @@ class Global(SmartModel):
 
     @classmethod
     def annotate_usage(cls, queryset):
-        return queryset.annotate(
-            usage_count=Count("dependent_flows", distinct=True, filter=Q(dependent_flows__is_active=True))
-        )
+        return queryset.annotate(usage_count=Count("dependent_flows", distinct=True))
 
-    def get_usage_count(self):
-        if hasattr(self, "usage_count"):
-            return self.usage_count
+    def release(self, user):
+        super().release(user)
 
-        return self.dependent_flows.filter(is_active=True).count()
-
-    def release(self):
-        self.delete()
-
-    def __str__(self):
-        return f"global[key={self.key},name={self.name}]"
+        self.is_active = False
+        self.name = self._deleted_name()
+        self.modified_by = user
+        self.save(update_fields=("is_active", "name", "modified_by", "modified_on"))

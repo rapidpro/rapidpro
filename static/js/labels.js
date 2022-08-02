@@ -43,23 +43,21 @@ function getObjectRowLabels(objectId) {
     return labelIds.sort(numericComparator);
 }
 
-function runActionOnObjectRows(action) {
+function runActionOnObjectRows(action, onSuccess) {
     var objectIds = getCheckedIds();
     jQuery.ajaxSettings.traditional = true;
-    fetchPJAXContent('', '#pjax', {
+    fetchPJAXContent(window.lastFetch || '', '#pjax', {
         postData: { objects: objectIds, action: action, pjax: 'true' },
-        onSuccess: function (data, textStatus) {
-            wireTableListeners();
-        },
+        onSuccess: onSuccess,
     });
 }
 
-function unlabelObjectRows(labelId) {
+function unlabelObjectRows(labelId, onSuccess) {
     var objectsIds = getCheckedIds();
     var addLabel = false;
 
     jQuery.ajaxSettings.traditional = true;
-    fetchPJAXContent('', '#pjax', {
+    fetchPJAXContent(window.lastFetch || '', '#pjax', {
         postData: {
             objects: objectsIds,
             label: labelId,
@@ -67,12 +65,12 @@ function unlabelObjectRows(labelId) {
             action: 'unlabel',
             pjax: 'true',
         },
-        onSuccess: wireTableListeners
+        onSuccess: onSuccess,
     });
 }
 
-function postLabelChanges(smsIds, labelId, addLabel, number, onError) {
-    fetchPJAXContent('', '#pjax', {
+function postLabelChanges(smsIds, labelId, addLabel, number, onError, onSuccess) {
+    fetchPJAXContent(window.lastFetch || '', '#pjax', {
         postData: {
             objects: smsIds,
             label: labelId,
@@ -83,17 +81,16 @@ function postLabelChanges(smsIds, labelId, addLabel, number, onError) {
         },
         onSuccess: function (data, textStatus) {
             recheckIds();
-            wireTableListeners();
+            if (onSuccess) {
+                onSuccess();
+            }
         },
         onError: onError,
     });
 }
 
-function labelObjectRows(labelId) {
-    labelObjectRows(labelId, false);
-}
+function labelObjectRows(labelId, forceRemove, onSuccess) {
 
-function labelObjectRows(labelId, forceRemove) {
     var objectRowsIds = getCheckedIds();
     var labeledIds = getLabeledIds(labelId);
 
@@ -127,7 +124,7 @@ function labelObjectRows(labelId, forceRemove) {
     }
 
     jQuery.ajaxSettings.traditional = true;
-    lastChecked = getCheckedIds();
+    window.lastChecked = getCheckedIds();
 
     if (objectRowsIds.length == 0) {
         showWarning(
@@ -137,16 +134,16 @@ function labelObjectRows(labelId, forceRemove) {
         return;
     }
 
-    postLabelChanges(objectRowsIds, labelId, addLabel);
+    postLabelChanges(objectRowsIds, labelId, addLabel, null, null, onSuccess);
 }
 
 /**
  * When we refresh the object list via pjax, we need to re-select the object rows that were previously selected
  */
 function recheckIds() {
-    if (lastChecked && lastChecked.length > 0) {
-        for (var i = 0; i < lastChecked.length; i++) {
-            var row = $(".object-row[data-object-id='" + lastChecked[i] + "']");
+    if (window.lastChecked && window.lastChecked.length > 0) {
+        for (var i = 0; i < window.lastChecked.length; i++) {
+            var row = $(".object-row[data-object-id='" + window.lastChecked[i] + "']");
             row.addClass('checked');
             row.find('temba-checkbox').attr('checked', true);
         }
@@ -229,8 +226,9 @@ function updateLabelMenu() {
 
 function handleRowSelection(checkbox) {
     var row = checkbox.parentElement.parentElement.classList;
-    var listButtons = document.querySelector('.list-buttons-container')
-        .classList;
+    var listButtons = document.querySelector(
+        '.list-buttons-container'
+    ).classList;
     var pageTitle = document.querySelector('.page-title').classList;
 
     if (checkbox.checked) {
@@ -279,39 +277,39 @@ function handleRowSelections(row) {
 
 function wireActionHandlers() {
     $('.page-content').on('click', '.object-btn-label', function () {
-        labelObjectRows($(this).data('id'));
+        labelObjectRows($(this).data('id'), false, wireTableListeners);
     });
 
     if ($('.object-btn-unlabel').length > 0) {
         if (current_label_id) {
             $('.page-content').on('click', '.object-btn-unlabel', function () {
-                labelObjectRows(current_label_id, true);
+                labelObjectRows(current_label_id, true, wireTableListeners);
             });
         }
     }
 
     $('.page-content').on('click', '.object-btn-restore', function () {
-        runActionOnObjectRows('restore');
+        runActionOnObjectRows('restore', wireTableListeners);
     });
 
     $('.page-content').on('click', '.object-btn-archive', function () {
-        runActionOnObjectRows('archive');
+        runActionOnObjectRows('archive', wireTableListeners);
     });
 
     $('.page-content').on('click', '.object-btn-delete', function () {
-        runActionOnObjectRows('delete');
+        runActionOnObjectRows('delete', wireTableListeners);
     });
 
     $('.page-content').on('click', '.object-btn-resend', function () {
-        runActionOnObjectRows('resend');
+        runActionOnObjectRows('resend', wireTableListeners);
     });
 
     $('.page-content').on('click', '.object-btn-close', function () {
-        runActionOnObjectRows('close');
+        runActionOnObjectRows('close', wireTableListeners);
     });
 
     $('.page-content').on('click', '.object-btn-reopen', function () {
-        runActionOnObjectRows('reopen');
+        runActionOnObjectRows('reopen', wireTableListeners);
     });
 }
 

@@ -67,7 +67,7 @@ class MailgunTypeTest(TembaTest):
 
         ticketer = Ticketer.objects.get(ticketer_type="mailgun")
 
-        self.assertRedirect(response, f"/ticket/filter/{ticketer.uuid}/")
+        self.assertRedirect(response, "/ticket/")
         self.assertEqual(
             {
                 "domain": "tickets.rapidpro.io",

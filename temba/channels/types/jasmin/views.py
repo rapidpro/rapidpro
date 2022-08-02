@@ -1,7 +1,7 @@
 import phonenumbers
 
 from django import forms
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.views import ALL_COUNTRIES, AuthenticatedExternalCallbackClaimView, ClaimViewMixin
 from temba.utils.fields import ExternalURLField, SelectWidget
@@ -17,7 +17,7 @@ class ClaimView(AuthenticatedExternalCallbackClaimView):
         )
         number = forms.CharField(
             max_length=14,
-            min_length=4,
+            min_length=3,
             label=_("Number"),
             help_text=_("The short code or phone number you are connecting."),
         )

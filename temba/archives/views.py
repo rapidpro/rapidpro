@@ -7,6 +7,7 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 
 from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.views import ContentMenuMixin, SpaMixin
 
 from .models import Archive
 
@@ -17,38 +18,24 @@ class ArchiveCRUDL(SmartCRUDL):
     actions = ("read", "run", "message")
     permissions = True
 
-    class List(OrgPermsMixin, SmartListView):
+    class BaseList(SpaMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
         title = _("Archive")
         fields = ("url", "start_date", "period", "record_count", "size")
         default_order = ("-start_date", "-period", "archive_type")
         paginate_by = 250
 
-        def get_gear_links(self):
-            links = []
-
-            archive_type = self.get_archive_type()
-            for choice in Archive.TYPE_CHOICES:
-                if archive_type != choice[0]:
-                    links.append(
-                        dict(
-                            title=f"{choice[1]} {_('Archives')}",
-                            style="button-light",
-                            href=f"{reverse(f'archives.archive_{choice[0]}')}",
-                        )
-                    )
-            return links
+        def build_content_menu(self, menu):
+            if not self.is_spa():
+                archive_type = self.get_archive_type()
+                for choice in Archive.TYPE_CHOICES:
+                    if archive_type != choice[0]:
+                        menu.add_link(f"{choice[1]} {_('Archives')}", reverse(f"archives.archive_{choice[0]}"))
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
 
             # filter by our archive type
             return queryset.filter(org=self.org, archive_type=self.get_archive_type()).exclude(rollup_id__isnull=False)
-
-        def derive_title(self):
-            archive_type = self.get_archive_type()
-            for choice in Archive.TYPE_CHOICES:
-                if archive_type == choice[0]:
-                    return f"{choice[1]} {self.title}"
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -67,18 +54,24 @@ class ArchiveCRUDL(SmartCRUDL):
 
             return context
 
-    class Run(List):
+    class Run(BaseList):
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/$" % (path, Archive.TYPE_FLOWRUN)
 
+        def derive_title(self):
+            return _("Run Archives")
+
         def get_archive_type(self):
             return Archive.TYPE_FLOWRUN
 
-    class Message(List):
+    class Message(BaseList):
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/$" % (path, Archive.TYPE_MSG)
+
+        def derive_title(self):
+            return _("Message Archives")
 
         def get_archive_type(self):
             return Archive.TYPE_MSG

@@ -19,7 +19,7 @@
     {{configuration_blurb}}
 
   -for url in configuration_urls
-    .card.mt-6
+    .card.mt-6.flex-shrink-0
       .title
         {{url.label}}
       .code.inline-block.mt-3
@@ -29,7 +29,7 @@
         {{url.description}}
 
   -if show_public_addresses
-    .mt-6.card
+    .mt-6.card.flex-shrink-0
       .title
         -trans "IP Addresses"
       .mt-2

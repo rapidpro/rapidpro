@@ -19,7 +19,7 @@
   {{block.super}}
   :javascript
     var input_url = '/contact/update_fields_input/{{contact.id}}/?field=';
-    var body = document.querySelector("#update-custom-fields").shadowRoot.querySelector(".modax-body");
+    var body = document.querySelector("#update-custom-fields, #gear-modax").shadowRoot.querySelector(".modax-body");
     var fieldSelect = body.querySelector("temba-select[name='contact_field']");
     fieldSelect.addEventListener('change', function(event) {
       var selectedField = event.target.values[0].value;

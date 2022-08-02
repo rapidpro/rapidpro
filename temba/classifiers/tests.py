@@ -102,8 +102,14 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         # on another org
         self.other_org = Classifier.create(self.org2, self.admin, LuisType.slug, "Org2 Booker", {}, sync=False)
 
-        self.flow = self.get_flow("color")
+        self.flow = self.create_flow("Color Flow")
         self.flow.classifier_dependencies.add(self.c1)
+
+    def test_menu(self):
+        menu_url = reverse("classifiers.classifier_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+        self.assertEqual(3, len(menu))
 
     def test_views(self):
         # fetch org home page
@@ -169,24 +175,25 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_delete(self):
         delete_url = reverse("classifiers.classifier_delete", args=[self.c2.uuid])
 
+        # fetch delete modal
         response = self.assertDeleteFetch(delete_url)
         self.assertContains(response, "You are about to delete")
 
-        self.assertDeleteSubmit(delete_url, object_deactivated=self.c2, success_status=200)
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.c2, success_status=200)
+        self.assertEqual("/org/home/", response["Temba-Success"])
 
-        # can't delete if global is being used
+        # should see warning if global is being used
         delete_url = reverse("classifiers.classifier_delete", args=[self.c1.uuid])
 
-        response = self.assertDeleteFetch(delete_url)
-        self.assertContains(response, "Unable to delete classifier still being used by")
-
-        with self.assertRaises(AssertionError):
-            self.client.post(delete_url)
-
-        self.assertTrue(Classifier.objects.filter(id=self.c1.id, is_active=True).exists())
-
-        # a deleted dependency shouldn't prevent deletion
-        self.flow.release()
+        self.assertFalse(self.flow.has_issues)
 
         response = self.assertDeleteFetch(delete_url)
-        self.assertContains(response, "You are about to delete")
+        self.assertContains(response, "is used by the following items but can still be deleted:")
+        self.assertContains(response, "Color Flow")
+
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.c1, success_status=200)
+        self.assertEqual("/org/home/", response["Temba-Success"])
+
+        self.flow.refresh_from_db()
+        self.assertTrue(self.flow.has_issues)
+        self.assertNotIn(self.c1, self.flow.classifier_dependencies.all())

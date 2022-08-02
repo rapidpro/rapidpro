@@ -7,10 +7,14 @@ from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Label
 from temba.utils import json
-from temba.utils.languages import iso6392_to_iso6393
 from temba.utils.uuid import uuid4
 
 from .expressions import migrate_v7_template
+from .languages import iso6391_to_iso6393
+
+
+def label_to_slug(label):
+    return regex.sub(r"[^a-z0-9]+", "_", label.lower() if label else "", regex.V0)
 
 
 def migrate_to_version_11_12(json_flow, flow=None):
@@ -113,7 +117,7 @@ def migrate_to_version_11_11(json_flow, flow=None):
         if type(label) is dict:
             # we haven't been mapped yet (also, non-uuid labels can't be mapped)
             if ("uuid" not in label or label["uuid"] not in uuid_map) and Label.is_valid_name(label["name"]):
-                label_instance = Label.get_or_create(flow.org, flow.created_by, label["name"])
+                label_instance, _ = Label.import_def(flow.org, flow.created_by, {"name": label["name"]})
 
                 # map label references that started with a uuid
                 if "uuid" in label:
@@ -157,7 +161,7 @@ def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
     """
 
     # some "join group" flows are missing type
-    if not json_flow.get("flow_type"):  # pragma: needs cover
+    if not json_flow.get("flow_type"):  # pragma: no cover
         json_flow["flow_type"] = Flow.TYPE_MESSAGE
 
     # cache of flow uuid to type
@@ -469,7 +473,7 @@ def migrate_to_version_11_6(json_flow, flow=None):
 
             # we haven't been mapped yet (also, non-uuid groups can't be mapped)
             if "uuid" not in group or group["uuid"] not in uuid_map and group.get("name"):
-                group_instance = ContactGroup.get_user_group_by_name(flow.org, group["name"])
+                group_instance = ContactGroup.get_group_by_name(flow.org, group["name"])
                 if group_instance:
                     # map group references that started with a uuid
                     if "uuid" in group:
@@ -503,7 +507,7 @@ def migrate_to_version_11_5(json_flow, flow=None):
     webhook_rulesets = set()
     non_webhook_rulesets = set()
     for r in rule_sets:
-        slug = Flow.label_to_slug(r["label"])
+        slug = label_to_slug(r["label"])
         if not slug:  # pragma: no cover
             continue
         if r["ruleset_type"] in ("webhook", "resthook"):
@@ -533,7 +537,7 @@ def migrate_to_version_11_4(json_flow, flow=None):
     """
     # figure out which rulesets aren't waits
     rule_sets = json_flow.get("rule_sets", [])
-    non_waiting = {Flow.label_to_slug(r["label"]) for r in rule_sets if not r["ruleset_type"].startswith("wait_")}
+    non_waiting = {label_to_slug(r["label"]) for r in rule_sets if not r["ruleset_type"].startswith("wait_")}
 
     # make a regex that matches a context reference to the .text on any result from these
     replace_pattern = r"flow\.(" + "|".join(non_waiting) + r")\.text"
@@ -575,7 +579,7 @@ def migrate_to_version_11_3(json_flow, flow=None):
 def _base_migrate_to_version_11_2(json_flow, country_code):
     if "base_language" in json_flow and json_flow["base_language"] != "base":
         iso_code = json_flow["base_language"]
-        new_iso_code = iso6392_to_iso6393(iso_code, country_code)
+        new_iso_code = iso6391_to_iso6393(iso_code, country_code)
         json_flow["base_language"] = new_iso_code
 
     return json_flow
@@ -631,13 +635,13 @@ def _base_migrate_to_version_11_1(json_flow, country_code):
                     if key == "base":
                         new_obj.update({key: val})
                     else:
-                        new_key = iso6392_to_iso6393(key, country_code)
+                        new_key = iso6391_to_iso6393(key, country_code)
                         new_obj.update({new_key: val})
 
                 value = new_obj
             elif "lang" in obj and obj["lang"] != "base":
                 iso_code = obj["lang"]
-                new_iso_code = iso6392_to_iso6393(iso_code, country_code)
+                new_iso_code = iso6391_to_iso6393(iso_code, country_code)
                 obj["lang"] = new_iso_code
                 value = obj
             else:
@@ -710,9 +714,9 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
         # figure out which rulesets are date or location
         for rs in flow.get("rule_sets", []):
             rs_type = None
-            for rule in rs.get("rules", []):
+            for rule in rs.get("rules", []):  # pragma: no cover
                 test = rule.get("test", {}).get("type")
-                if not test:  # pragma: no cover
+                if not test:
                     continue
                 elif test == "true":
                     continue
@@ -724,7 +728,7 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
             if rs["label"] is None:
                 continue
 
-            key = Flow.label_to_slug(rs["label"])
+            key = label_to_slug(rs["label"])
 
             # any reference to this result value's time property needs wrapped in format_date
             replacements.append([r"@flow\.%s\.time" % key, r"@(format_date(flow.%s.time))" % key])
@@ -839,7 +843,7 @@ def migrate_to_version_10(json_flow, flow):
             ruleset.pop("webhook", None)
             return ruleset
 
-        if "config" not in ruleset:  # pragma: needs cover
+        if "config" not in ruleset:  # pragma: no cover
             ruleset["config"] = dict()
 
         # webhook_action and webhook now live in config
@@ -974,7 +978,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     def remap_group(ele):
         from temba.contacts.models import ContactGroup
 
-        return replace_with_uuid(ele, ContactGroup.user_groups, group_id_map, create_dict=True)
+        return replace_with_uuid(ele, ContactGroup.objects, group_id_map, create_dict=True)
 
     def remap_campaign(ele):
         from temba.campaigns.models import Campaign
@@ -998,7 +1002,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
         from temba.channels.models import Channel
 
         channel_id = ele.get("channel")
-        if channel_id:  # pragma: needs cover
+        if channel_id:  # pragma: no cover
             channel = Channel.objects.filter(pk=channel_id).first()
             if channel:
                 ele["channel"] = channel.uuid
@@ -1006,7 +1010,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     def remap_label(ele):
         from temba.msgs.models import Label
 
-        replace_with_uuid(ele, Label.label_objects, label_id_map)
+        replace_with_uuid(ele, Label.objects, label_id_map)
 
     for flow in exported_json.get("flows", []):
         flow = map_actions(flow, cleanse_group_names)
@@ -1130,7 +1134,7 @@ def migrate_to_version_7(json_flow, flow=None):
             definition.pop("rulesets")
         return definition
 
-    return json_flow  # pragma: needs cover
+    return json_flow  # pragma: no cover
 
 
 def migrate_to_version_6(json_flow, flow=None):
@@ -1146,7 +1150,7 @@ def migrate_to_version_6(json_flow, flow=None):
     base_language = "base"
 
     def convert_to_dict(d, key):
-        if key not in d:  # pragma: needs cover
+        if key not in d:  # pragma: no cover
             raise ValueError("Missing '%s' in dict: %s" % (key, d))
 
         if not isinstance(d[key], dict):
@@ -1226,7 +1230,7 @@ def migrate_to_version_5(json_flow, flow=None):
             # all previous ruleset that require step should be wait_message
             if requires_step(operand):
                 # if we have an empty operand, go ahead and update it
-                if not operand:  # pragma: needs cover
+                if not operand:  # pragma: no cover
                     ruleset["operand"] = "@step.value"
 
                 if response_type == "K":  # pragma: no cover
@@ -1256,7 +1260,7 @@ def migrate_to_version_5(json_flow, flow=None):
                 # if there's no reference to step, figure out our type
                 ruleset["ruleset_type"] = "expression"
                 # special case contact and flow fields
-                if " " not in operand and "|" not in operand:  # pragma: needs cover
+                if " " not in operand and "|" not in operand:  # pragma: no cover
                     if operand == "@contact.groups":
                         ruleset["ruleset_type"] = "expression"
                     elif operand.find("@contact.") == 0:
@@ -1289,7 +1293,12 @@ def migrate_to_version_5(json_flow, flow=None):
 
 
 def cleanse_group_names(action):
-    from temba.contacts.models import ContactGroup
+    def is_valid_name(name):  # pragma: no cover
+        if not name or name.strip() != name:
+            return False
+        if len(name) > 64:
+            return False
+        return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
     if action["type"] == "add_group" or action["type"] == "del_group":
         if "group" in action and "groups" not in action:
@@ -1298,7 +1307,7 @@ def cleanse_group_names(action):
             if isinstance(group, dict):
                 if "name" not in group:
                     group["name"] = "Unknown"
-                if not ContactGroup.is_valid_name(group["name"]):
+                if not is_valid_name(group["name"]):
                     group["name"] = "%s %s" % ("Contacts", group["name"])
     return action
 
@@ -1368,7 +1377,7 @@ def map_actions(json_flow, fixer_method):
 
 
 def remove_extra_rules(json_flow, ruleset):
-    """ Remove all rules but the all responses rule """
+    """Remove all rules but the all responses rule"""
     rules = []
     old_rules = ruleset.get("rules")
     for rule in old_rules:
@@ -1376,17 +1385,17 @@ def remove_extra_rules(json_flow, ruleset):
             if "base_language" in json_flow:
                 rule["category"][json_flow["base_language"]] = "All Responses"
             else:
-                rule["category"] = "All Responses"  # pragma: needs cover
+                rule["category"] = "All Responses"  # pragma: no cover
             rules.append(rule)
 
     ruleset["rules"] = rules
 
 
 def insert_node(flow, node, _next):
-    """ Inserts a node right before _next """
+    """Inserts a node right before _next"""
 
     def update_destination(node_to_update, uuid):
-        if node_to_update.get("actions", []):  # pragma: needs cover
+        if node_to_update.get("actions", []):  # pragma: no cover
             node_to_update["destination"] = uuid
         else:
             for rule in node_to_update.get("rules", []):
@@ -1401,7 +1410,7 @@ def insert_node(flow, node, _next):
     move_nodes_down(flow, node.get("y"))
 
     # we are an actionset
-    if node.get("actions", []):  # pragma: needs cover
+    if node.get("actions", []):  # pragma: no cover
         node.destination = _next["uuid"]
         flow["action_sets"].append(node)
 

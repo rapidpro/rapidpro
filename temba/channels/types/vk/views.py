@@ -1,7 +1,7 @@
 from smartmin.views import SmartFormView
 
 from django import forms
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -19,7 +19,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = Form
 
     def form_valid(self, form):
-        from .type import CONFIG_COMMUNITY_NAME, CONFIG_CALLBACK_VERIFICATION_STRING
+        from .type import CONFIG_CALLBACK_VERIFICATION_STRING, CONFIG_COMMUNITY_NAME
 
         org = self.request.user.get_org()
         community_access_token = form.cleaned_data["community_access_token"]

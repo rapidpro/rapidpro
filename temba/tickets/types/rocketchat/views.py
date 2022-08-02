@@ -3,12 +3,12 @@ from urllib.parse import urlparse
 
 from django import forms
 from django.contrib import messages
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.tickets.models import Ticketer
 from temba.tickets.views import BaseConnectView
 from temba.utils.fields import ExternalURLField
-from temba.utils.text import random_string, truncate
+from temba.utils.text import random_string
 from temba.utils.uuid import uuid4
 
 from .client import Client, ClientError
@@ -111,7 +111,7 @@ class ConnectView(BaseConnectView):
             org=self.org,
             ticketer_type=RocketChatType.slug,
             config=config,
-            name=truncate(f"{RocketChatType.name}: {rc_host}", Ticketer._meta.get_field("name").max_length),
+            name=rc_host,
             created_by=self.request.user,
             modified_by=self.request.user,
         )

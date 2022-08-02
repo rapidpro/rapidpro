@@ -2,7 +2,7 @@ import phonenumbers
 from smartmin.views import SmartFormView
 
 from django import forms
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.utils.fields import ExternalURLField, SelectWidget
 from temba.utils.uuid import uuid4

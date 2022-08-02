@@ -2,24 +2,25 @@
 -load smartmin sms temba compress humanize contacts i18n
 
 -block page-title
-  {{ object.offset_display }} {{ object.relative_to.label }}
+  {{ object.offset_display }} {{ object.relative_to.name }}
 
 -block title-icon
   .title-icon
     %span.glyph.icon-campaign
 
 -block title
-  %a{href:"{% url 'campaigns.campaign_read' object.campaign.pk %}"}
+  %a{href:"{% url 'campaigns.campaign_read' object.campaign.uuid %}"}
     {{object.campaign.name}}
     -if object.campaign.is_archived
       -trans "(Archived)"
 
 -block subtitle
-  {{ object.offset_display }} {{ object.relative_to.label }}
+  {{ object.offset_display }} {{ object.relative_to.name }}
 
   .mt-2
     -if object.campaign.group.is_active
-      -include "includes/recipients_group.haml" with group=object.campaign.group
+      .inline-block
+        -include "includes/recipients_group.haml" with group=object.campaign.group
 
 -block content
   .event-details.p-4.bg-gray-100.rounded-lg.mb-6

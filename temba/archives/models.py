@@ -1,10 +1,12 @@
+import base64
 import gzip
+import hashlib
+import re
+import tempfile
 from datetime import date, datetime
 from gettext import gettext as _
 from urllib.parse import urlparse
 
-import boto3
-import iso8601
 from dateutil.relativedelta import relativedelta
 
 from django.conf import settings
@@ -12,8 +14,12 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
-from temba.utils import json, sizeof_fmt
+from temba.utils import json, s3, sizeof_fmt
 from temba.utils.s3 import EventStreamReader
+
+KEY_PATTERN = re.compile(
+    r"^(?P<org>\d+)/(?P<type>run|message)_(?P<period>(D|M)\d+)_(?P<hash>[0-9a-f]{32})\.jsonl\.gz$"
+)
 
 
 class Archive(models.Model):
@@ -66,9 +72,12 @@ class Archive(models.Model):
     def size_display(self):
         return sizeof_fmt(self.size)
 
-    def s3_location(self):
+    def get_storage_location(self) -> tuple:
+        """
+        Returns a tuple of the storage bucket and key
+        """
         url_parts = urlparse(self.url)
-        return dict(Bucket=url_parts.netloc.split(".")[0], Key=url_parts.path[1:])
+        return url_parts.netloc.split(".")[0], url_parts.path[1:]
 
     def get_end_date(self):
         """
@@ -78,13 +87,6 @@ class Archive(models.Model):
             return self.start_date + relativedelta(days=1)
         else:
             return self.start_date + relativedelta(months=1)
-
-    @classmethod
-    def s3_client(cls):
-        session = boto3.Session(
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-        )
-        return session.client("s3")
 
     @classmethod
     def release_org_archives(cls, org):
@@ -97,10 +99,12 @@ class Archive(models.Model):
             archive.release()
 
         # find any remaining S3 files and remove them for this org
-        s3 = cls.s3_client()
-        archive_files = s3.list_objects_v2(Bucket=settings.ARCHIVE_BUCKET, Prefix=f"{org.id}/").get("Contents", [])
+        s3_client = s3.client()
+        archive_files = s3_client.list_objects_v2(Bucket=settings.ARCHIVE_BUCKET, Prefix=f"{org.id}/").get(
+            "Contents", []
+        )
         for archive_file in archive_files:
-            s3.delete_object(Bucket=settings.ARCHIVE_BUCKET, Key=archive_file["Key"])
+            s3_client.delete_object(Bucket=settings.ARCHIVE_BUCKET, Key=archive_file["Key"])
 
     def filename(self):
         url_parts = urlparse(self.url)
@@ -108,16 +112,18 @@ class Archive(models.Model):
 
     def get_download_link(self):
         if self.url:
-            s3 = self.s3_client()
+            s3_client = s3.client()
+            bucket, key = self.get_storage_location()
             s3_params = {
-                **self.s3_location(),
+                "Bucket": bucket,
+                "Key": key,
                 # force browser to download and not uncompress our gzipped files
                 "ResponseContentDisposition": "attachment;",
                 "ResponseContentType": "application/octet",
                 "ResponseContentEncoding": "none",
             }
 
-            return s3.generate_presigned_url("get_object", Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
+            return s3_client.generate_presigned_url("get_object", Params=s3_params, ExpiresIn=Archive.DOWNLOAD_EXPIRES)
         else:
             return ""
 
@@ -150,66 +156,159 @@ class Archive(models.Model):
 
     @classmethod
     def iter_all_records(
-        cls, org, archive_type: str, after: datetime = None, before: datetime = None, expression: str = None
+        cls, org, archive_type: str, after: datetime = None, before: datetime = None, where: dict = None
     ):
         """
         Creates a record iterator across archives of the given type for records which match the given criteria
-
-        Expression should be SQL with s prefix for fields, e.g. s.direction = 'in' AND s.type = 'flow'
         """
+
+        if not where:
+            where = {}
+        if after:
+            where["created_on__gte"] = after
+        if before:
+            where["created_on__lte"] = before
+
         archives = cls._get_covering_period(org, archive_type, after, before)
-        for archive in archives:
-            for record in archive.iter_records(expression):
 
-                # TODO could do this in S3 select
-                created_on = iso8601.parse_date(record["created_on"])
-                if after and created_on < after:
-                    continue
-                if before and created_on > before:
-                    continue
+        def generator():
+            for archive in archives:
+                for record in archive.iter_records(where=where):
+                    yield record
 
-                yield record
+        return generator()
 
-    def iter_records(self, expression: str = None):
+    def iter_records(self, *, where: dict = None):
         """
         Creates an iterator for the records in this archive, streaming and decompressing on the fly
         """
-        s3 = self.s3_client()
 
-        if expression:
-            response = s3.select_object_content(
-                **self.s3_location(),
+        s3_client = s3.client()
+
+        if where:
+            bucket, key = self.get_storage_location()
+            response = s3_client.select_object_content(
+                Bucket=bucket,
+                Key=key,
                 ExpressionType="SQL",
-                Expression=f"SELECT * FROM s3object s WHERE {expression}",
+                Expression=s3.compile_select(where=where),
                 InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
                 OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
             )
 
-            for record in EventStreamReader(response["Payload"]):
-                yield record
+            def generator():
+                for record in EventStreamReader(response["Payload"]):
+                    yield record
+
+            return generator()
+
         else:
-            s3_obj = s3.get_object(**self.s3_location())
-            stream = gzip.GzipFile(fileobj=s3_obj["Body"])
+            bucket, key = self.get_storage_location()
+            s3_obj = s3_client.get_object(Bucket=bucket, Key=key)
+            return jsonlgz_iterate(s3_obj["Body"])
 
-            while True:
-                line = stream.readline()
-                if not line:
-                    break
+    def rewrite(self, transform, delete_old=False):
+        s3_client = s3.client()
+        bucket, key = self.get_storage_location()
 
-                yield json.loads(line.decode("utf-8"))
+        s3_obj = s3_client.get_object(Bucket=bucket, Key=key)
+        old_file = s3_obj["Body"]
+
+        new_file = tempfile.TemporaryFile()
+        new_hash, new_size = jsonlgz_rewrite(old_file, new_file, transform)
+
+        new_file.seek(0)
+
+        match = KEY_PATTERN.match(key)
+        new_key = f"{self.org.id}/{match.group('type')}_{match.group('period')}_{new_hash.hexdigest()}.jsonl.gz"
+        new_url = f"https://{bucket}.s3.amazonaws.com/{new_key}"
+        new_hash_base64 = base64.standard_b64encode(new_hash.digest()).decode()
+
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=new_key,
+            Body=new_file,
+            ContentType="application/json",
+            ContentEncoding="gzip",
+            ACL="private",
+            ContentMD5=new_hash_base64,
+            Metadata={"md5chksum": new_hash_base64},
+        )
+
+        self.url = new_url
+        self.hash = new_hash.hexdigest()
+        self.size = new_size
+        self.save(update_fields=("url", "hash", "size"))
+
+        if delete_old:
+            s3_client.delete_object(Bucket=bucket, Key=key)
 
     def release(self):
 
         # detach us from our rollups
         Archive.objects.filter(rollup=self).update(rollup=None)
 
-        # delete our archive file from s3
+        # delete our archive file from storage
         if self.url:
-            s3 = self.s3_client()
-            s3.delete_object(**self.s3_location())
+            bucket, key = self.get_storage_location()
+            s3.client().delete_object(Bucket=bucket, Key=key)
 
         # and lastly delete ourselves
         self.delete()
 
     class Meta:
         unique_together = ("org", "archive_type", "start_date", "period")
+
+
+def jsonlgz_iterate(in_file):
+    """
+    Iterates over a records in a gzipped JSONL stream
+    """
+    in_stream = gzip.GzipFile(fileobj=in_file, mode="r")
+
+    def generator():
+        for line in in_stream:
+            record = json.loads(line.decode("utf-8"))
+            yield record
+
+    return generator()
+
+
+def jsonlgz_rewrite(in_file, out_file, transform) -> tuple:
+    """
+    Rewrites a stream of gzipped JSONL using a transformation function and returns the new MD5 hash and size
+    """
+    out_wrapped = FileAndHash(out_file)
+    out_stream = gzip.GzipFile(fileobj=out_wrapped, mode="w")
+
+    for record in jsonlgz_iterate(in_file):
+        record = transform(record)
+        if record is not None:
+            new_line = (json.dumps(record) + "\n").encode("utf-8")
+            out_stream.write(new_line)
+
+    out_stream.close()
+
+    return out_wrapped.hash, out_wrapped.size
+
+
+class FileAndHash:
+    """
+    Stream which writes to both a child stream and a MD5 hash
+    """
+
+    def __init__(self, f):
+        self.f = f
+        self.hash = hashlib.md5()
+        self.size = 0
+
+    def write(self, data):
+        self.f.write(data)
+        self.hash.update(data)
+        self.size += len(data)
+
+    def flush(self):  # pragma: no cover
+        self.f.flush()
+
+    def close(self):  # pragma: no cover
+        self.f.close()

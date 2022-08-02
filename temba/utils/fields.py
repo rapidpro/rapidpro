@@ -6,7 +6,8 @@ from urllib import parse
 from django import forms
 from django.core.validators import URLValidator
 from django.forms import ValidationError
-from django.utils.translation import ugettext_lazy as _
+from django.utils.deconstruct import deconstructible
+from django.utils.translation import gettext_lazy as _
 
 
 class JSONField(forms.Field):
@@ -25,6 +26,34 @@ class InputWidget(forms.TextInput):
         if attrs.get("hide_label", False) and context.get("label", None):  # pragma: needs cover
             del context["label"]
         return context
+
+
+@deconstructible
+class NameValidator:
+    """
+    Validator for names of flows and their dependencies.
+    """
+
+    def __init__(self, max_length: int):
+        self.max_length = max_length
+
+    def __call__(self, value):
+        # model forms will add their own validator based on max_length but we need this for validating for imports etc
+        if len(value) > self.max_length:
+            raise ValidationError(_("Cannot be longer than %(limit)d characters."), params={"limit": self.max_length})
+
+        if value != value.strip():
+            raise ValidationError(_("Cannot begin or end with whitespace."))
+
+        for ch in '"\\':
+            if ch in value:
+                raise ValidationError(_("Cannot contain the character: %(char)s"), params={"char": ch})
+
+        if "\0" in value:
+            raise ValidationError(_("Cannot contain null characters."))
+
+    def __eq__(self, other):
+        return isinstance(other, NameValidator) and self.max_length == other.max_length
 
 
 def validate_external_url(value):
@@ -65,6 +94,15 @@ class CheckboxWidget(forms.CheckboxInput):
 class SelectWidget(forms.Select):
     template_name = "utils/forms/select.haml"
     is_annotated = True
+    option_inherits_attrs = True
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+
+        if hasattr(self.choices, "option_attrs_by_value"):
+            attrs = self.choices.option_attrs_by_value.get(value)
+        attrs = attrs if attrs else {}
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        return option
 
     def format_value(self, value):
         def format_single(v):
@@ -131,6 +169,48 @@ class OmniboxChoice(forms.Widget):
         return selected
 
 
+class OmniboxField(JSONField):
+    widget = OmniboxChoice()
+    default_country = None
+
+    def validate(self, value):
+        from temba.contacts.models import URN
+
+        assert isinstance(value, list)
+
+        for item in value:
+            assert isinstance(item, dict) and "id" in item and "type" in item
+
+            if item["type"] == "urn":
+                if not URN.validate(item["id"], self.default_country):
+                    raise ValidationError(_("'%s' is not a valid URN.") % item["id"])
+
+
+class TembaChoiceIterator(forms.models.ModelChoiceIterator):
+    def __init__(self, field):
+        super().__init__(field)
+        self.option_attrs_by_value = dict()
+
+    def choice(self, obj):
+        value = self.field.prepare_value(obj)
+        option = (value, self.field.label_from_instance(obj))
+
+        if hasattr(obj, "get_attrs"):
+            self.option_attrs_by_value[value] = obj.get_attrs()
+
+        return option
+
+
+class TembaChoiceField(forms.ModelChoiceField):
+    iterator = TembaChoiceIterator
+    widget = SelectWidget()
+
+
+class TembaMultipleChoiceField(forms.ModelMultipleChoiceField):
+    iterator = TembaChoiceIterator
+    widget = SelectMultipleWidget()
+
+
 class ArbitraryChoiceField(forms.ChoiceField):  # pragma: needs cover
     def valid_value(self, value):
         return True
@@ -146,10 +226,9 @@ class ArbitraryJsonChoiceField(forms.ChoiceField):  # pragma: needs cover
         return {"jsonValue": True}
 
     def clean(self, value):
-        if value is None:
-            value = ""
+        super().validate(value)
 
-        if isinstance(value, (str)):
+        if isinstance(value, str):
             return json.loads(value)
 
         if isinstance(value, (tuple, list)):
@@ -161,12 +240,12 @@ class ArbitraryJsonChoiceField(forms.ChoiceField):  # pragma: needs cover
         if value is None:
             return value
 
-        if isinstance(value, (str)):
+        if isinstance(value, str):
             return json.loads(value)
 
         if isinstance(value, (tuple, list)):
             if len(value) > 0:
-                if isinstance(value[0], (dict)):
+                if isinstance(value[0], dict):
                     return value
                 else:
                     return [json.loads(_) for _ in value]

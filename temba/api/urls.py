@@ -1,13 +1,11 @@
-from django.conf.urls import include, url
+from django.conf.urls import include
+from django.urls import re_path
 from django.views.generic import RedirectView
 
-from .views import RefreshAPITokenView, ResthookList, WebHookResultCRUDL
+from .views import RefreshAPITokenView
 
 urlpatterns = [
-    url(r"^api/$", RedirectView.as_view(pattern_name="api.v2", permanent=False), name="api"),
-    url(r"^api/v2/", include("temba.api.v2.urls")),
-    url(r"^api/apitoken/refresh/$", RefreshAPITokenView.as_view(), name="api.apitoken_refresh"),
-    url(r"^api/resthooks/", include([url(r"^$", ResthookList.as_view(), name="api.resthook_list")])),
+    re_path(r"^api/$", RedirectView.as_view(pattern_name="api.v2", permanent=False), name="api"),
+    re_path(r"^api/v2/", include("temba.api.v2.urls")),
+    re_path(r"^api/apitoken/refresh/$", RefreshAPITokenView.as_view(), name="api.apitoken_refresh"),
 ]
-
-urlpatterns += WebHookResultCRUDL().as_urlpatterns()

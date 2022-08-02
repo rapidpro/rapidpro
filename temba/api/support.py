@@ -84,21 +84,41 @@ class APISessionAuthentication(SessionAuthentication):
 
 class OrgUserRateThrottle(ScopedRateThrottle):
     """
-    Throttle class which rate limits a user in an org
+    Throttle class which rate limits at an org level or user level for staff users
     """
+
+    def get_org_rate(self, request):
+        default_rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
+        org_rates = {}
+        if request.user.is_authenticated and request.user.using_token:
+            org = request.user.get_org()
+            org_rates = org.api_rates
+        return {**default_rates, **org_rates}.get(self.scope)
 
     def allow_request(self, request, view):
         # any request not using a token (e.g. editor, explorer) isn't subject to throttling
         if request.user.is_authenticated and not request.user.using_token:
             return True
 
-        return super().allow_request(request, view)
+        self.scope = getattr(view, self.scope_attr, None)
+
+        # Determine the allowed request rate considering the org config
+        self.rate = self.get_org_rate(request)
+        self.num_requests, self.duration = self.parse_rate(self.rate)
+
+        return super(ScopedRateThrottle, self).allow_request(request, view)
 
     def get_cache_key(self, request, view):
+        user = request.user
         ident = None
-        if request.user.is_authenticated:
-            org = request.user.get_org()
-            ident = f"{org.id if org else 0}-{request.user.id}"
+
+        if user.is_authenticated:
+            org = user.get_org()
+            ident = f"{org.id if org else 0}"  # scope to org
+
+            # but staff users get their own scope within the org
+            if user.is_staff:
+                ident += f"-{user.id}"
 
         return self.cache_format % {"scope": self.scope, "ident": ident or self.get_ident(request)}
 

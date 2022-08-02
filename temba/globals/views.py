@@ -1,13 +1,11 @@
 from gettext import gettext as _
 
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartUpdateView
 
 from django import forms
-from django.http import HttpResponse
 from django.urls import reverse
 
-from temba.orgs.models import Org
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 
 from .models import Global
@@ -23,10 +21,14 @@ class CreateGlobalForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
-        org_active_globals_limit = self.org.get_limit(Org.LIMIT_GLOBALS)
-        if self.org.globals.filter(is_active=True).count() >= org_active_globals_limit:
+        count, limit = Global.get_org_limit_progress(self.org)
+        if limit is not None and count >= limit:
             raise forms.ValidationError(
-                _("Cannot create a new global as limit is %(limit)s."), params={"limit": org_active_globals_limit}
+                _(
+                    "This workspace has reached its limit of %(limit)d globals. "
+                    "You must delete existing ones before you can create new ones."
+                ),
+                params={"limit": limit},
             )
 
         return cleaned_data
@@ -73,7 +75,7 @@ class UpdateGlobalForm(forms.ModelForm):
 
 class GlobalCRUDL(SmartCRUDL):
     model = Global
-    actions = ("create", "update", "delete", "list", "unused", "detail")
+    actions = ("create", "update", "delete", "list", "unused", "usages")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = CreateGlobalForm
@@ -94,13 +96,7 @@ class GlobalCRUDL(SmartCRUDL):
                 value=form.cleaned_data["value"],
             )
 
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response(form)
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateGlobalForm
@@ -112,26 +108,10 @@ class GlobalCRUDL(SmartCRUDL):
             kwargs["org"] = self.derive_org()
             return kwargs
 
-    class Delete(OrgObjPermsMixin, SmartDeleteView):
+    class Delete(DependencyDeleteModal):
         cancel_url = "@globals.global_list"
-        redirect_url = "@globals.global_list"
+        success_url = "@globals.global_list"
         success_message = ""
-        http_method_names = ("get", "post")
-
-        def post(self, request, *args, **kwargs):
-            self.object = self.get_object()
-            self.pre_delete(self.object)
-            redirect_url = self.get_redirect_url()
-
-            # did it maybe change underneath us ???
-            if self.object.get_usage_count():
-                raise ValueError(f"Cannot remove a global {self.object.name} which is in use")
-
-            self.object.release()
-
-            response = HttpResponse()
-            response["Temba-Success"] = redirect_url
-            return response
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Manage Globals")
@@ -166,10 +146,5 @@ class GlobalCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).filter(usage_count=0)
 
-    class Detail(OrgObjPermsMixin, SmartReadView):
-        template_name = "globals/global_detail.haml"
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["dep_flows"] = list(self.object.dependent_flows.filter(is_active=True))
-            return context
+    class Usages(DependencyUsagesModal):
+        permission = "globals.global_read"

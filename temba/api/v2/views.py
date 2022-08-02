@@ -13,7 +13,7 @@ from django import forms
 from django.contrib.auth import authenticate, login
 from django.db.models import Prefetch, Q
 from django.http import HttpResponse, JsonResponse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEvent
@@ -21,6 +21,7 @@ from temba.api.v2.views_base import (
     BaseAPIView,
     BulkWriteAPIMixin,
     CreatedOnCursorPagination,
+    DateJoinedCursorPagination,
     DeleteAPIMixin,
     ListAPIMixin,
     ModifiedOnCursorPagination,
@@ -31,14 +32,15 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
-from temba.contacts.tasks import release_group_task
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
+from temba.orgs.models import OrgMembership, OrgRole, User
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticketer
-from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
+from temba.tickets.models import Ticket, Ticketer, Topic
+from temba.utils import splitting_getlist, str_to_bool
+from temba.utils.uuid import is_uuid
 
 from ..models import SSLPermission
 from ..support import InvalidQueryError
@@ -75,8 +77,14 @@ from .serializers import (
     ResthookSubscriberReadSerializer,
     ResthookSubscriberWriteSerializer,
     TemplateReadSerializer,
+    TicketBulkActionSerializer,
     TicketerReadSerializer,
+    TicketReadSerializer,
+    TopicReadSerializer,
+    TopicWriteSerializer,
+    UserReadSerializer,
     WebHookEventReadSerializer,
+    WorkspaceReadSerializer,
 )
 
 
@@ -85,7 +93,7 @@ class RootView(views.APIView):
     We provide a RESTful JSON API for you to interact with your data from outside applications. The following endpoints
     are available:
 
-     * [/api/v2/archives](/api/v2/archives) - to list archives
+     * [/api/v2/archives](/api/v2/archives) - to list archives of messages and runs
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
      * [/api/v2/campaigns](/api/v2/campaigns) - to list, create, or update campaigns
@@ -110,6 +118,10 @@ class RootView(views.APIView):
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
      * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
      * [/api/v2/ticketers](/api/v2/ticketers) - to list ticketing services
+     * [/api/v2/tickets](/api/v2/tickets) - to list tickets
+     * [/api/v2/ticket_actions](/api/v2/ticket_actions) - to perform bulk ticket actions
+     * [/api/v2/topics](/api/v2/topics) - to list and create topics
+     * [/api/v2/users](/api/v2/users) - to list user logins
      * [/api/v2/workspace](/api/v2/workspace) - to view your workspace
 
     To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
@@ -190,6 +202,7 @@ class RootView(views.APIView):
     def get(self, request, *args, **kwargs):
         return Response(
             {
+                "archives": reverse("api.v2.archives", request=request),
                 "boundaries": reverse("api.v2.boundaries", request=request),
                 "broadcasts": reverse("api.v2.broadcasts", request=request),
                 "campaigns": reverse("api.v2.campaigns", request=request),
@@ -214,6 +227,10 @@ class RootView(views.APIView):
                 "runs": reverse("api.v2.runs", request=request),
                 "templates": reverse("api.v2.templates", request=request),
                 "ticketers": reverse("api.v2.ticketers", request=request),
+                "tickets": reverse("api.v2.tickets", request=request),
+                "ticket_actions": reverse("api.v2.ticket_actions", request=request),
+                "topics": reverse("api.v2.topics", request=request),
+                "users": reverse("api.v2.users", request=request),
                 "workspace": reverse("api.v2.workspace", request=request),
             }
         )
@@ -269,6 +286,11 @@ class ExplorerView(SmartTemplateView):
             RunsEndpoint.get_read_explorer(),
             TemplatesEndpoint.get_read_explorer(),
             TicketersEndpoint.get_read_explorer(),
+            TicketsEndpoint.get_read_explorer(),
+            TicketActionsEndpoint.get_write_explorer(),
+            TopicsEndpoint.get_read_explorer(),
+            TopicsEndpoint.get_write_explorer(),
+            UsersEndpoint.get_read_explorer(),
             WorkspaceEndpoint.get_read_explorer(),
         ]
         return context
@@ -302,13 +324,13 @@ class AuthenticateView(SmartFormView):
         if user and user.is_active:
             login(self.request, user)
 
-            role = APIToken.get_role_from_code(role_code)
+            role = OrgRole.from_code(role_code)
             tokens = []
 
             if role:
                 valid_orgs = APIToken.get_orgs_for_role(user, role)
                 for org in valid_orgs:
-                    token = APIToken.get_or_create(org, user, role)
+                    token = APIToken.get_or_create(org, user, role=role)
                     serialized = {"uuid": str(org.uuid), "name": org.name, "id": org.id}  # for backward compatibility
                     tokens.append({"org": serialized, "token": token.key})
             else:  # pragma: needs cover
@@ -469,7 +491,7 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = AdminBoundaryReadSerializer
     pagination_class = Pagination
 
-    def get_queryset(self):
+    def derive_queryset(self):
         org = self.request.user.get_org()
         if not org.country:
             return AdminBoundary.objects.none()
@@ -574,21 +596,19 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     def filter_queryset(self, queryset):
         org = self.request.user.get_org()
 
-        queryset = queryset.filter(is_active=True)
-
         # filter by id (optional)
         broadcast_id = self.get_int_param("id")
         if broadcast_id:
             queryset = queryset.filter(id=broadcast_id)
 
         queryset = queryset.prefetch_related(
-            Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("pk")),
-            Prefetch("groups", queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk")),
+            Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("id")),
+            Prefetch("groups", queryset=ContactGroup.objects.only("uuid", "name").order_by("id")),
         )
 
         if not org.is_anon:
             queryset = queryset.prefetch_related(
-                Prefetch("urns", queryset=ContactURN.objects.only("scheme", "path", "display").order_by("pk"))
+                Prefetch("urns", queryset=ContactURN.objects.only("scheme", "path", "display").order_by("id"))
             )
 
         return self.filter_before_after(queryset, "created_on")
@@ -724,7 +744,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
-        queryset = queryset.prefetch_related(Prefetch("group", queryset=ContactGroup.user_groups.only("uuid", "name")))
+        queryset = queryset.prefetch_related(Prefetch("group", queryset=ContactGroup.objects.only("uuid", "name")))
 
         return queryset
 
@@ -871,7 +891,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
     write_serializer_class = CampaignEventWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
-    def get_queryset(self):
+    def derive_queryset(self):
         return self.model.objects.filter(campaign__org=self.request.user.get_org(), is_active=True)
 
     def filter_queryset(self, queryset):
@@ -887,7 +907,10 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
         # filter by campaign name/uuid (optional)
         campaign_ref = params.get("campaign")
         if campaign_ref:
-            campaign = Campaign.objects.filter(org=org).filter(Q(uuid=campaign_ref) | Q(name=campaign_ref)).first()
+            campaign_filter = Q(name=campaign_ref)
+            if is_uuid(campaign_ref):
+                campaign_filter |= Q(uuid=campaign_ref)
+            campaign = org.campaigns.filter(campaign_filter).first()
             if campaign:
                 queryset = queryset.filter(campaign=campaign)
             else:
@@ -896,7 +919,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
         queryset = queryset.prefetch_related(
             Prefetch("campaign", queryset=Campaign.objects.only("uuid", "name")),
             Prefetch("flow", queryset=Flow.objects.only("uuid", "name")),
-            Prefetch("relative_to", queryset=ContactField.all_fields.filter(is_active=True).only("key", "label")),
+            Prefetch("relative_to", queryset=ContactField.objects.filter(is_active=True).only("key", "name")),
         )
 
         return queryset
@@ -1087,7 +1110,7 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
             "results": [
             {
                 "id": 4,
-                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Nexmo"},
+                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Vonage"},
                 "type": "call-in"
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
                 "extra": { "duration": 606 },
@@ -1247,12 +1270,12 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
      * **uuid** - the UUID of the contact (string), filterable as `uuid`.
      * **name** - the name of the contact (string).
+     * **status** - the status of the contact (one of "active", "blocked", "stopped" or "archived").
      * **language** - the preferred language of the contact (string).
      * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
      * **groups** - the UUIDs of any groups the contact is part of (array of objects), filterable as `group` with group name or UUID.
-     * **fields** - any contact fields on this contact (dictionary).
-     * **blocked** - whether the contact is blocked (boolean).
-     * **stopped** - whether the contact is stopped, i.e. has opted out (boolean).
+     * **fields** - any contact fields on this contact (object).
+     * **flow** - the flow that the contact is currently in, if any (object).
      * **created_on** - when this contact was created (datetime).
      * **modified_on** - when this contact was last modified (datetime), filterable as `before` and `after`.
      * **last_seen_on** - when this contact last communicated with us (datetime).
@@ -1270,15 +1293,15 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             {
                 "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "name": "Ben Haggerty",
+                "status": "active",
                 "language": null,
                 "urns": ["tel:+250788123123"],
                 "groups": [{"name": "Customers", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                 "fields": {
                   "nickname": "Macklemore",
                   "side_kick": "Ryan Lewis"
-                }
-                "blocked": false,
-                "stopped": false,
+                },
+                "flow": {"uuid": "c1bc5fcf-3e27-4265-97bf-f6c3a385c2d6", "name": "Registration"},
                 "created_on": "2015-11-11T13:05:57.457742Z",
                 "modified_on": "2020-08-11T13:05:57.576056Z",
                 "last_seen_on": "2020-07-11T13:05:57.576056Z"
@@ -1314,15 +1337,15 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         {
             "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
             "name": "Ben Haggerty",
+            "status": "active",
             "language": "eng",
             "urns": ["tel:+250788123123", "twitter:ben"],
             "groups": [{"name": "Devs", "uuid": "6685e933-26e1-4363-a468-8f7268ab63a9"}],
             "fields": {
               "nickname": "Macklemore",
               "side_kick": "Ryan Lewis"
-            }
-            "blocked": false,
-            "stopped": false,
+            },
+            "flow": null,
             "created_on": "2015-11-11T13:05:57.457742Z",
             "modified_on": "2015-11-11T13:05:57.576056Z",
             "last_seen_on": null
@@ -1395,27 +1418,27 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         # filter by group name/uuid (optional)
         group_ref = params.get("group")
         if group_ref:
-            group = ContactGroup.user_groups.filter(org=org).filter(Q(uuid=group_ref) | Q(name=group_ref)).first()
+            group = ContactGroup.get_groups(org).filter(Q(uuid=group_ref) | Q(name=group_ref)).first()
             if group:
-                queryset = queryset.filter(all_groups=group)
+                queryset = queryset.filter(groups=group)
             else:
                 queryset = queryset.filter(pk=-1)
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
+            Prefetch("org"),
             Prefetch(
-                "all_groups",
-                queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk"),
-                to_attr="prefetched_user_groups",
-            )
+                "groups",
+                queryset=ContactGroup.get_groups(org).only("uuid", "name", "org").order_by("id"),
+                to_attr="prefetched_groups",
+            ),
+            Prefetch("current_flow"),
         )
 
         return self.filter_before_after(queryset, "modified_on")
 
-    def prepare_for_serialization(self, object_list):
-        # initialize caches of all contact fields and URNs
-        org = self.request.user.get_org()
-        Contact.bulk_cache_initialize(org, object_list)
+    def prepare_for_serialization(self, object_list, using: str):
+        Contact.bulk_urn_cache_initialize(object_list, using=using)
 
     def get_serializer_context(self):
         """
@@ -1433,9 +1456,6 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             return queryset.first()
         else:
             return generics.get_object_or_404(queryset)
-
-    def perform_destroy(self, instance):
-        instance.release(self.request.user)
 
     @classmethod
     def get_read_explorer(cls):
@@ -1768,7 +1788,7 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     pagination_class = CreatedOnCursorPagination
     lookup_params = {"key": "key"}
 
-    def get_queryset(self):
+    def derive_queryset(self):
         org = self.request.user.get_org()
         return self.model.user_fields.filter(org=org, is_active=True)
 
@@ -2074,6 +2094,9 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
      * **uuid** - the UUID of the group (string), filterable as `uuid`
      * **name** - the name of the group (string), filterable as `name`
+     * **query** - the query if a smart group (string)
+     * **status** - the status (one of "initializing", "evaluating" or "ready")
+     * **system** - whether this is a system group that can't be edited (bool)
      * **count** - the number of contacts in the group (int)
 
     Example:
@@ -2089,8 +2112,10 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
                 {
                     "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
                     "name": "Reporters",
-                    "count": 315,
-                    "query": null
+                    "query": null,
+                    "status": "ready",
+                    "system": false,
+                    "count": 315
                 },
                 ...
             ]
@@ -2143,7 +2168,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     A **DELETE** can be used to delete a contact group if you specify its UUID in the URL.
 
     Notes:
-        - cannot delete groups with associated active campaigns, flows or triggers. You first need to delete related
+        - cannot delete groups with associated active campaigns or triggers. You first need to delete related
           objects through the web interface
 
     Example:
@@ -2155,11 +2180,13 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     permission = "contacts.contactgroup_api"
     model = ContactGroup
-    model_manager = "user_groups"
     serializer_class = ContactGroupReadSerializer
     write_serializer_class = ContactGroupWriteSerializer
     pagination_class = CreatedOnCursorPagination
     exclusive_params = ("uuid", "name")
+
+    def derive_queryset(self):
+        return ContactGroup.get_groups(self.request.user.get_org())
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -2176,49 +2203,22 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True).exclude(status=ContactGroup.STATUS_INITIALIZING)
 
-    def prepare_for_serialization(self, object_list):
+    def prepare_for_serialization(self, object_list, using: str):
         group_counts = ContactGroupCount.get_totals(object_list)
         for group in object_list:
             group.count = group_counts[group]
 
-    def delete(self, request, *args, **kwargs):
-        self.lookup_values = self.get_lookup_values()
-        if not self.lookup_values:
-            raise InvalidQueryError(
-                "URL must contain one of the following parameters: " + ", ".join(sorted(self.lookup_params.keys()))
-            )
-
-        instance = self.get_object()
-
+    def perform_destroy(self, instance):
         # if there are still dependencies, give up
-        triggers = instance.trigger_set.filter(is_archived=False)
+        triggers = instance.triggers.filter(is_archived=False)
         if triggers:
-            deps = ", ".join([str(t.id) for t in triggers])
-            raise InvalidQueryError(
-                f"Group is being used by the following triggers which must be archived first: {deps}"
-            )
-
-        flows = Flow.objects.filter(org=instance.org, group_dependencies__in=[instance])
-        if flows:
-            deps = ", ".join([f.uuid for f in flows])
-            raise InvalidQueryError(f"Group is being used by the following flows which must be archived first: {deps}")
+            raise InvalidQueryError("Group is being used by triggers which must be archived first.")
 
         campaigns = instance.campaigns.filter(is_archived=False)
         if campaigns:
-            deps = ", ".join([c.uuid for c in campaigns])
-            raise InvalidQueryError(
-                f"Group is being used by the following campaigns which must be archived first: {deps}"
-            )
+            raise InvalidQueryError("Group is being used by campaigns which must be archived first.")
 
-        self.perform_destroy(instance)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def perform_destroy(self, instance):
-        instance.is_active = False
-        instance.save(update_fields=("is_active",))
-
-        # release the group in a background task
-        on_transaction_commit(lambda: release_group_task.delay(instance.id))
+        instance.release(self.request.user)
 
     @classmethod
     def get_read_explorer(cls):
@@ -2337,13 +2337,16 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     You will receive either a 204 response if a label was deleted, or a 404 response if no matching label was found.
     """
 
-    permission = "contacts.label_api"
+    permission = "msgs.label_api"
     model = Label
-    model_manager = "label_objects"
     serializer_class = LabelReadSerializer
     write_serializer_class = LabelWriteSerializer
     pagination_class = CreatedOnCursorPagination
     exclusive_params = ("uuid", "name")
+
+    def derive_queryset(self):
+        org = self.request.user.get_org()
+        return self.model.objects.filter(org=org, is_active=True).exclude(label_type=Label.TYPE_FOLDER)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -2360,13 +2363,10 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True)
 
-    def prepare_for_serialization(self, object_list):
+    def prepare_for_serialization(self, object_list, using: str):
         label_counts = LabelCount.get_totals(object_list)
         for label in object_list:
             label.count = label_counts[label]
-
-    def perform_destroy(self, instance):
-        instance.release(self.request.user)
 
     @classmethod
     def get_read_explorer(cls):
@@ -2445,9 +2445,9 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **direction** - the direction of the message (one of "incoming" or "outgoing").
      * **type** - the type of the message (one of "inbox", "flow", "ivr").
      * **status** - the status of the message (one of "initializing", "queued", "wired", "sent", "delivered", "handled", "errored", "failed", "resent").
-     * **media** - the media if set for a message (ie, the recording played for IVR messages, audio-xwav:http://domain.com/recording.wav)
      * **visibility** - the visibility of the message (one of "visible", "archived" or "deleted")
      * **text** - the text of the message received (string). Note this is the logical view and the message may have been received as multiple physical messages.
+     * **attachments** - the attachments on the message (array of objects).
      * **labels** - any labels set on this message (array of objects), filterable as `label` with label name or UUID.
      * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`).
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
@@ -2477,13 +2477,13 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "broadcast": 2690007,
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
                 "urn": "twitter:textitin",
-                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Nexmo"},
+                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Vonage"},
                 "direction": "out",
                 "type": "inbox",
                 "status": "wired",
                 "visibility": "visible",
                 "text": "How are you?",
-                "media": "wav:http://domain.com/recording.wav",
+                "attachments": [{"content_type": "audio/wav" "url": "http://domain.com/recording.wav"}],
                 "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                 "created_on": "2016-01-06T15:33:00.813162Z",
                 "sent_on": "2016-01-06T15:35:03.675716Z",
@@ -2501,7 +2501,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
 
         def get_ordering(self, request, queryset, view=None):
             if request.query_params.get("folder", "").lower() == "incoming":
-                return ModifiedOnCursorPagination.ordering
+                return "-modified_on", "-id"
             else:
                 return CreatedOnCursorPagination.ordering
 
@@ -2521,7 +2521,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         "sent": SystemLabel.TYPE_SENT,
     }
 
-    def get_queryset(self):
+    def derive_queryset(self):
         org = self.request.user.get_org()
         folder = self.request.query_params.get("folder")
 
@@ -2534,7 +2534,9 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             else:
                 return self.model.objects.filter(pk=-1)
         else:
-            return self.model.objects.filter(org=org).exclude(visibility=Msg.VISIBILITY_DELETED).exclude(msg_type=None)
+            return self.model.objects.filter(
+                org=org, visibility__in=(Msg.VISIBILITY_VISIBLE, Msg.VISIBILITY_ARCHIVED)
+            ).exclude(msg_type=None)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -2562,7 +2564,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         # filter by label name/uuid (optional)
         label_ref = params.get("label")
         if label_ref:
-            label = Label.label_objects.filter(org=org).filter(Q(name=label_ref) | Q(uuid=label_ref)).first()
+            label = Label.get_active_for_org(org).filter(Q(name=label_ref) | Q(uuid=label_ref)).first()
             if label:
                 queryset = queryset.filter(labels=label, visibility=Msg.VISIBILITY_VISIBLE)
             else:
@@ -2573,7 +2575,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
             Prefetch("contact_urn", queryset=ContactURN.objects.only("scheme", "path", "display")),
             Prefetch("channel", queryset=Channel.objects.only("uuid", "name")),
-            Prefetch("labels", queryset=Label.label_objects.only("uuid", "name").order_by("pk")),
+            Prefetch("labels", queryset=Label.objects.only("uuid", "name").order_by("pk")),
         )
 
         # incoming folder gets sorted by 'modified_on'
@@ -2830,9 +2832,6 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
 
         return queryset.select_related("resthook")
 
-    def perform_destroy(self, instance):
-        instance.release(self.request.user)
-
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -2988,7 +2987,6 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **start** - the UUID of the flow start (object)
      * **responded** - whether the contact responded (boolean), filterable as `responded`.
-     * **path** - the contact's path through the flow nodes (array of objects)
      * **values** - values generated by rulesets in the flow (array of objects).
      * **created_on** - the datetime when this run was started (datetime).
      * **modified_on** - when this run was last modified (datetime), filterable as `before` and `after`.
@@ -3016,12 +3014,6 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                     "name": "Bob McFlow"
                 },
                 "responded": true,
-                "path": [
-                    {"node": "27a86a1b-6cc4-4ae3-b73d-89650966a82f", "time": "2015-11-11T13:05:50.457742Z"},
-                    {"node": "fc32aeb0-ac3e-42a8-9ea7-10248fdf52a1", "time": "2015-11-11T13:03:51.635662Z"},
-                    {"node": "93a624ad-5440-415e-b49f-17bf42754acb", "time": "2015-11-11T13:03:52.532151Z"},
-                    {"node": "4c9cb68d-474f-4b9a-b65e-c2aa593a3466", "time": "2015-11-11T13:05:57.576056Z"}
-                ],
                 "values": {
                     "color": {
                         "value": "blue",
@@ -3101,6 +3093,11 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         )
 
         return self.filter_before_after(queryset, "modified_on")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["include_paths"] = str_to_bool(self.request.query_params.get("paths", "true"))
+        return context
 
     @classmethod
     def get_read_explorer(cls):
@@ -3221,10 +3218,10 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
             "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Thrift Shop"},
             "groups": [
-                 {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Ryan & Macklemore"}
+                 {"uuid": "c24813d2-3bc7-4467-8916-255b6525c6be", "name": "Ryan & Macklemore"}
             ],
             "contacts": [
-                 {"uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553", "name": "Wanz"}
+                 {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Wanz"}
             ],
             "restart_participants": true,
             "status": "complete",
@@ -3238,7 +3235,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     """
 
-    permission = "api.flowstart_api"
+    permission = "flows.flowstart_api"
     model = FlowStart
     serializer_class = FlowStartReadSerializer
     write_serializer_class = FlowStartWriteSerializer
@@ -3261,7 +3258,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
             Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("id")),
-            Prefetch("groups", queryset=ContactGroup.user_groups.only("uuid", "name").order_by("id")),
+            Prefetch("groups", queryset=ContactGroup.objects.only("uuid", "name").order_by("id")),
         )
 
         return self.filter_before_after(queryset, "modified_on")
@@ -3402,9 +3399,9 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
     A **GET** returns the ticketers for your organization, most recent first.
 
      * **uuid** - the UUID of the ticketer, filterable as `uuid`.
-     * **name** - the name of the ticketer
-     * **type** - the type of the ticketer, e.g. 'mailgun' or 'zendesk'
-     * **created_on** - when this ticketer was created
+     * **name** - the name of the ticketer.
+     * **type** - the type of the ticketer, e.g. 'mailgun' or 'zendesk'.
+     * **created_on** - when this ticketer was created.
 
     Example:
 
@@ -3470,6 +3467,281 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
+class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the tickets opened on your account.
+
+    ## Listing Tickets
+
+    A **GET** returns the tickets for your organization, most recent first.
+
+     * **uuid** - the UUID of the ticket, filterable as `uuid`.
+     * **ticketer** - the UUID and name of the ticketer (object).
+     * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
+     * **status** - the status of the ticket, e.g. 'open' or 'closed'.
+     * **topic** - the topic of the ticket (object).
+     * **assignee** - the user assigned to the ticket (object).
+     * **body** - the body of the ticket (string).
+     * **opened_on** - when this ticket was opened (datetime).
+     * **opened_by** - the user who opened the ticket (object).
+     * **opened_in** - the flow which opened the ticket (object).
+     * **modified_on** - when this ticket was last modified (datetime).
+     * **closed_on** - when this ticket was closed (datetime).
+
+    Example:
+
+        GET /api/v2/tickets.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
+                "ticketer": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Email (bob@acme.com)"},
+                "contact": {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Jim"},
+                "status": "open",
+                "topic": {"uuid": "040edbfe-be55-48f3-864d-a4a7147c447b", "name": "Support"},
+                "assignee": {"email": "bob@flow.com", "name": "Bob McFlow"},
+                "body": "Where did I leave my shorts?",
+                "opened_on": "2013-02-27T09:06:15.456",
+                "opened_by": null,
+                "opened_in": {"uuid": "54cd8e2c-6334-49a4-abf9-f0fa8d0971da", "name": "Support Flow"},
+                "modified_on": "2013-02-27T09:07:18.234",
+                "closed_on": null
+            },
+            ...
+    """
+
+    permission = "tickets.ticket_api"
+    model = Ticket
+    serializer_class = TicketReadSerializer
+    pagination_class = ModifiedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+        org = self.request.user.get_org()
+
+        queryset = queryset.filter(org=org)
+
+        # filter by contact (optional)
+        contact_uuid = params.get("contact")
+        if contact_uuid:
+            contact = org.contacts.filter(is_active=True, uuid=contact_uuid).first()
+            if contact:
+                queryset = queryset.filter(contact=contact)
+            else:
+                queryset = queryset.filter(id=-1)
+
+        uuid = params.get("uuid") or params.get("ticket")
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
+
+        queryset = queryset.prefetch_related(
+            Prefetch("ticketer", queryset=Ticketer.objects.only("uuid", "name")),
+            Prefetch("topic", queryset=Topic.objects.only("uuid", "name")),
+            Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
+            Prefetch("assignee", queryset=User.objects.only("email", "first_name", "last_name")),
+            Prefetch("opened_by", queryset=User.objects.only("email", "first_name", "last_name")),
+            Prefetch("opened_in", queryset=Flow.objects.only("uuid", "name")),
+        )
+
+        return queryset
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Tickets",
+            "url": reverse("api.v2.tickets"),
+            "slug": "ticket-list",
+            "params": [
+                {
+                    "name": "contact",
+                    "required": False,
+                    "help": "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+                },
+            ],
+        }
+
+
+class TicketActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
+    """
+    ## Bulk Ticket Updating
+
+    A **POST** can be used to perform an action on a set of tickets in bulk.
+
+    * **tickets** - the ticket UUIDs (array of up to 100 strings)
+    * **action** - the action to perform, a string one of:
+
+        * _assign_ - Assign the tickets to the given user
+        * _note_ - Add the given note to the tickets
+        * _close_ - Close the tickets
+        * _reopen_ - Re-open the tickets
+
+    * **assignee** - the email of a user (string, optional)
+    * **note** - the note to add to the tickets (string, optional)
+
+    Example:
+
+        POST /api/v2/ticket_actions.json
+        {
+            "tickets": ["55b6606d-9e89-45d1-a3e2-dc11f19f78df", "bef96b71-865d-480a-a660-33db466a210a"],
+            "action": "assign",
+            "assignee": "jim@nyaruka.com"
+        }
+
+    You will receive an empty response with status code 204 if successful.
+    """
+
+    permission = "tickets.ticket_api"
+    serializer_class = TicketBulkActionSerializer
+
+    @classmethod
+    def get_write_explorer(cls):
+        actions = cls.serializer_class.ACTION_CHOICES
+        return {
+            "method": "POST",
+            "title": "Update Multiple Tickets",
+            "url": reverse("api.v2.ticket_actions"),
+            "slug": "ticket-actions",
+            "fields": [
+                {"name": "tickets", "required": True, "help": "The UUIDs of the tickets to update"},
+                {"name": "action", "required": True, "help": "One of the following strings: " + ", ".join(actions)},
+                {"name": "assignee", "required": False, "help": "The email address of a user"},
+                {"name": "note", "required": False, "help": "The note text"},
+            ],
+        }
+
+
+class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the topics in your workspace.
+
+    ## Listing Topics
+
+    A **GET** returns the tickets for your organization, most recent first.
+
+     * **uuid** - the UUID of the topic (string).
+     * **name** - the name of the topic (string).
+     * **created_on** - when this topic was created (datetime).
+
+    Example:
+
+        GET /api/v2/topics.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
+                "name": "Support",
+                "created_on": "2013-02-27T09:06:15.456"
+            },
+            ...
+    """
+
+    permission = "tickets.topic_api"
+    model = Topic
+    serializer_class = TopicReadSerializer
+    write_serializer_class = TopicWriteSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {"method": "GET", "title": "List Topics", "url": reverse("api.v2.topics"), "slug": "topic-list"}
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            "method": "POST",
+            "title": "Add or Update Topics",
+            "url": reverse("api.v2.topics"),
+            "slug": "topic-write",
+            "params": [{"name": "uuid", "required": False, "help": "The UUID of the topic to update"}],
+            "fields": [{"name": "name", "required": True, "help": "The name of the topic"}],
+        }
+
+
+class UsersEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the user logins in your workspace.
+
+    ## Listing Users
+
+    A **GET** returns the users in your workspace, ordered by newest created first.
+
+     * **email** - the email address of the user (string).
+     * **first_name** - the first name of the user (string).
+     * **last_name** - the last name of the user (string).
+     * **role** - the role of the user (string), filterable as `role` which can be repeated.
+     * **created_on** - when this user was created (datetime).
+
+    Example:
+
+        GET /api/v2/users.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "email": "bob@flow.com",
+                "first_name": "Bob",
+                "last_name": "McFlow",
+                "role": "agent",
+                "created_on": "2013-03-02T17:28:12.123456Z"
+            },
+            ...
+    """
+
+    permission = "orgs.org_api"
+    model = User
+    serializer_class = UserReadSerializer
+    pagination_class = DateJoinedCursorPagination
+
+    def derive_queryset(self):
+        org = self.request.user.get_org()
+
+        # limit to roles if specified
+        roles = self.request.query_params.getlist("role")
+        if roles:
+            role_by_name = {name: role for role, name in UserReadSerializer.ROLES.items()}
+            roles = [role_by_name.get(r) for r in roles if r in role_by_name]
+        else:
+            roles = None
+
+        return org.get_users(roles=roles)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+
+        # build a map of users to roles
+        user_roles = {}
+        for m in OrgMembership.objects.filter(org=self.request.user.get_org()).select_related("user"):
+            user_roles[m.user] = m.role
+
+        context["user_roles"] = user_roles
+        return context
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Users",
+            "url": reverse("api.v2.users"),
+            "slug": "user-list",
+            "params": [],
+        }
+
+
 class WorkspaceEndpoint(BaseAPIView):
     """
     This endpoint allows you to view details about your workspace.
@@ -3501,20 +3773,8 @@ class WorkspaceEndpoint(BaseAPIView):
 
     def get(self, request, *args, **kwargs):
         org = request.user.get_org()
-
-        data = {
-            "uuid": str(org.uuid),
-            "name": org.name,
-            "country": org.default_country_code,
-            "languages": [l.iso_code for l in org.languages.order_by("iso_code")],
-            "primary_language": org.primary_language.iso_code if org.primary_language else None,
-            "timezone": str(org.timezone),
-            "date_style": ("day_first" if org.get_dayfirst() else "month_first"),
-            "credits": {"used": org.get_credits_used(), "remaining": org.get_credits_remaining()},
-            "anon": org.is_anon,
-        }
-
-        return Response(data, status=status.HTTP_200_OK)
+        serializer = WorkspaceReadSerializer(org)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @classmethod
     def get_read_explorer(cls):

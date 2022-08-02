@@ -1,7 +1,7 @@
 from smartmin.views import SmartFormView
 
 from django import forms
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.utils.fields import SelectWidget
 
@@ -14,17 +14,27 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         shortcode = forms.CharField(max_length=6, min_length=1, help_text=_("Your short code on Africa's Talking"))
         country = forms.ChoiceField(
             choices=(
-                ("BF", _("Burkina Faso")),
-                ("CI", _("Côte d'Ivoire")),
-                ("ET", _("Ethiopia")),
-                ("KE", _("Kenya")),
-                ("MW", _("Malawi")),
-                ("NG", _("Nigeria")),
-                ("RW", _("Rwanda")),
-                ("TZ", _("Tanzania")),
-                ("UG", _("Uganda")),
-                ("ZA", _("South Africa")),
-                ("ZM", _("Zambia")),
+                ("BJ", ("Benin")),
+                ("BW", ("Botswana")),
+                ("CM", ("Cameroon")),
+                ("CI", ("Côte d'Ivoire")),
+                ("SZ", ("Eswatini")),
+                ("ET", ("Ethiopia")),
+                ("GH", ("Ghana")),
+                ("KE", ("Kenya")),
+                ("LS", ("Lesotho")),
+                ("MW", ("Malawi")),
+                ("ML", ("Mali")),
+                ("NA", ("Namibia")),
+                ("NG", ("Nigeria")),
+                ("RW", ("Rwanda")),
+                ("SN", ("Senegal")),
+                ("ZA", ("South Africa")),
+                ("TZ", ("Tanzania")),
+                ("UG", ("Uganda")),
+                ("ZM", ("Zambia")),
+                ("ZW", ("Zimbabwe")),
+                ("BF", ("Burkina Faso")),
             ),
             widget=SelectWidget(attrs={"searchable": True}),
         )

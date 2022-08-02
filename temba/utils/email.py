@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives, get_connection as get_smtp_connection, send_mail
 from django.core.validators import EmailValidator
 from django.template import loader
+from django.utils import timezone
 
 
 class TembaEmailValidator(EmailValidator):
@@ -36,15 +37,6 @@ def is_valid_address(address):
         return False
 
     return True
-
-
-def link_components(request=None, user=None):
-    """
-    Context provider for email templates
-    """
-    protocol = "https" if request.is_secure() else "http"
-    hostname = request.branding["domain"]
-    return {"protocol": protocol, "hostname": hostname}
 
 
 def send_simple_email(recipients, subject, body, from_email=None):
@@ -117,6 +109,7 @@ def send_template_email(recipients, subject, template, context, branding):
 
     context["subject"] = subject
     context["branding"] = branding
+    context["now"] = timezone.now()
 
     html = html_template.render(context)
     text = text_template.render(context)

@@ -1,11 +1,11 @@
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
-from temba.channels.types.twilio_messaging_service.views import ClaimView
-from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES_CONFIG
+from temba.channels.types.twilio.views import SUPPORTED_COUNTRIES
 from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
 from ...models import ChannelType
+from .views import ClaimView
 
 
 class TwilioMessagingServiceType(ChannelType):
@@ -50,4 +50,4 @@ class TwilioMessagingServiceType(ChannelType):
     def is_recommended_to(self, user):
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
-        return countrycode in TWILIO_SUPPORTED_COUNTRIES_CONFIG
+        return countrycode in SUPPORTED_COUNTRIES

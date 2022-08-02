@@ -1,6 +1,5 @@
-{% extends "smartmin/list.html" %}
--load smartmin sms temba compress contacts
--load i18n humanize
+-extends "smartmin/list.html"
+-load smartmin sms temba compress contacts i18n humanize
 
 -block extra-style
   {{block.super}}
@@ -29,6 +28,11 @@
 
   #pjax
     -block pjax
+      -if org_perms.msgs.msg_update
+        %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Messages")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+          .p-6
+            -trans "Are you sure you want to delete the selected messages? This cannot be undone."
+
       .lp-frame
         .left
           .flex.flex-col
@@ -81,14 +85,9 @@
 
             .flex-grow
               -if org_perms.msgs.label_create
-                %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", onloaded: "handleCreateLabelModalLoaded", onsubmitted: "handleCreateLabelModalSubmitted"}
+                %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
                   .button-light.block.mt-3
-                    - trans "Create Label"
-                  
-              -if org_perms.msgs.label_create_folder
-                %temba-modax{ header:'{% trans "Create Folder" %}', endpoint:"{% url 'msgs.label_create_folder' %}"}
-                  .button-light.block.mt-3
-                    -trans "Create Folder"
+                    -trans "Create Label"
 
         -if has_messages
           .right
@@ -103,22 +102,22 @@
                           -trans "Remove Label"
 
                       - if 'archive' in actions
-                        .button-action.object-btn-archive
+                        .button-action(onclick='runActionOnObjectRows("archive", wireTableListeners)')
                           .-mt-1.mr-2.glyph.icon-box
                           -trans "Archive"
 
                       - if 'restore' in actions
-                        .button-action.object-btn-restore
+                        .button-action(onclick='runActionOnObjectRows("restore", wireTableListeners)')
                           .-mt-1.mr-2.glyph.icon-download
                           -trans "Restore"
 
                       - if 'delete' in actions
-                        .button-action.object-btn-delete
+                        .button-action(onclick='onDeleteClicked()')
                           .-mt-1.mr-2.glyph.icon-remove
                           -trans "Delete"
 
                       - if 'resend' in actions
-                        .button-action.object-btn-resend
+                        .button-action(onclick='runActionOnObjectRows("resend", wireTableListeners)')
                           .mt-1.mr-2.glyph.icon-loop.text-sm
                           -trans "Resend"
 
@@ -132,7 +131,7 @@
                             -for node in labels
                               -if node.obj.is_folder and node.children
                                 %li.dropdown-submenu
-                                  .lbl-menu.object-btn-label.cursor-pointer{data-id:'{{node.obj.id}}'}
+                                  .lbl-menu.cursor-pointer(href='#' onclick='labelObjectRows({{node.obj.id}}, false, wireTableListeners)' data-id='{{node.obj.id}}')
                                     .flex.items-center.py-1.hover-linked
                                       .icon-arrow-right-8.text-2xl.-ml-1.-mt-1.mr-1
                                       .name.px-2
@@ -140,7 +139,7 @@
                                   %ul.dropdown-menu.label-menu.border-none
                                     - for child in node.children
                                       %li
-                                        .lbl-menu.object-btn-label.px-4{data-id:'{{child.obj.id}}'}
+                                        .lbl-menu.object-btn-label.px-4(href='#' onclick='labelObjectRows({{child.obj.id}}, false, wireTableListeners)' data-id='{{child.obj.id}}')
                                           .flex.items-center.py-1.hover-linked
                                             .glyph.message-label.label-checkbox
                                             .name.px-1
@@ -148,7 +147,7 @@
                             -for node in labels
                               -if not node.obj.is_folder
                                 %li
-                                  .lbl-menu.object-btn-label{data-id:'{{node.obj.id}}'}
+                                  .lbl-menu(href='#' onclick='labelObjectRows({{node.obj.id}}, false, wireTableListeners)' data-id='{{node.obj.id}}')
                                     .flex.items-center.py-1.hover-linked
                                       .glyph.message-label.label-checkbox
                                       .name.px-1
@@ -175,13 +174,13 @@
                 %tbody
                   -for object in object_list
                     %tr.sms.object-row{id: 'id-row-{{object.id}}', data-object-id:'{{ object.id }}',
-                                  data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', onrowclick:'handleRowClick("{{object.contact.uuid}}")'}
+                                  data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', onclick:'handleRowClicked(event)'}
                       -if actions
                         - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
                           %td.checkbox.sms.object-row-check
                             %temba-checkbox{onclick:"handleRowSelection(this)"}
-                      %td.whitespace-no-wrap
-                          {{ object.contact|short_name:user_org }}
+                      %td.whitespace-nowrap
+                        {{ object.contact|name_or_urn:user_org|truncatechars:20 }}
                       %td.w-full
                         .flex.flex-wrap.flex-end.items-center.justify-end
                           .flex-grow.inline
@@ -199,11 +198,12 @@
 
                       %td
                         .flex.w-full.items-end.justify-end.pr-4
-                          .time.whitespace-no-wrap
-                            {% short_datetime object.created_on %}
+                          .time.whitespace-nowrap
+                            -block message_time
+                              {% short_datetime object.created_on %}
 
                           -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
-                            .log-icon.ml-3.text-gray-400.linked
+                            .inline-block.text-gray-400.linked.ml-3
                               {% channel_log_link object %}
 
                   -if not object_list
@@ -211,40 +211,40 @@
                       %td{ colspan:'99' }
                         -trans "No messages"
 
-              - block paginator
-                -if object_list.count
-                  -block search-details
-                    .flex.mx-4.mt-3.mb-16
-                      .text-gray-700
-                        -if not paginator or paginator.num_pages <= 1                        
-                          -if search
+            - block paginator
+              -if object_list.count
+                -block search-details
+                  .flex.m-4
+                    .text-gray-700
+                      -if not paginator or paginator.num_pages <= 1                        
+                        -if search
+                          -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
+                            Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
+                            -plural
+                              Found {{ results_count }} messages in last 90 days matching <i>{{search}}</i>.
+                        -else
+                          -if start_date
                             -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
-                              Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
+                              {{ results_count }} message since {{ start_date}}.
                               -plural
-                                Found {{ results_count }} messages in last 90 days matching <i>{{search}}</i>.
-                          -else
-                            -if start_date
-                              -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
-                                {{ results_count }} message since {{ start_date}}.
-                                -plural
-                                  {{ results_count }} messages since {{ start_date}}.
+                                {{ results_count }} messages since {{ start_date}}.
 
-                        - else
+                      - else
 
-                          -if search
+                        -if search
+                          -blocktrans trimmed with results_count=paginator.count|intcomma start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma count cc=paginator.count 
+                            Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
+                            -plural
+                              {{ start }} - {{ end }} of {{ results_count }} results for <i>{{search}}</i> since {{start_date}}.
+                        -else
+                          -if start_date
                             -blocktrans trimmed with results_count=paginator.count|intcomma start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma count cc=paginator.count 
-                              Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
+                              {{ results_count }} message since {{ start_date}}.
                               -plural
-                                {{ start }} - {{ end }} of {{ results_count }} results for <i>{{search}}</i> since {{start_date}}.
-                          -else
-                            -if start_date
-                              -blocktrans trimmed with results_count=paginator.count|intcomma start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma count cc=paginator.count 
-                                {{ results_count }} message since {{ start_date}}.
-                                -plural
-                                  {{ start }} - {{ end }} of {{ results_count }} messages since {{ start_date}}.
-                                    
-                      .flex-grow
-                        -include "includes/pages.html"
+                                {{ start }} - {{ end }} of {{ results_count }} messages since {{ start_date}}.
+                                  
+                    .flex-grow
+                      -include "includes/pages.html"
         -else
           -include "msgs/empty_include.html"
 
@@ -252,20 +252,48 @@
   {{ block.super }}
   :javascript
 
-    function handleRowClick(uuid) {
+    function handleRowClicked(event) {
+
+      if (event.target.tagName == "TEMBA-CHECKBOX") {
+        return;
+      }
+
+      var row = event.target.closest("tr");
+      var uuid = row.getAttribute("data-sender-uuid");
+
+      {% if is_spa %}
+      fetchURL("/contact/read/" + uuid + "/");
+      {% else %}
       gotoLink("/contact/read/" + uuid + "/");
+      {% endif %}
     }
 
     {% if org_perms.msgs.msg_update %}
 
+    function onDeleteClicked(){
+        var deleteConfirmation = document.querySelector("#delete-confirmation");
+        deleteConfirmation.classList.remove("hide");
+        deleteConfirmation.open = true;
+
+        deleteConfirmation.addEventListener("temba-button-clicked", function(event){
+          if (!event.detail.button.secondary) {
+            runActionOnObjectRows("delete", wireTableListeners);
+          }
+          deleteConfirmation.open = false;
+        });
+      }
+
     function handleCreateLabelModalLoaded(event) {
-      lastChecked = getCheckedIds();
+      window.lastChecked = getCheckedIds();
       var body = event.detail.body;
-      body.querySelector("#id_messages").value = lastChecked.join();
+      body.querySelector("#id_messages").value = window.lastChecked.join();
     }
 
     function handleCreateLabelModalSubmitted(event) {
       refresh(function() { recheckIds(); }, true);
+      if (refreshMenu) {
+        refreshMenu();
+      }
     }
 
     function handleSendMessageClicked() {

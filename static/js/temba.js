@@ -3,6 +3,25 @@ if (typeof console == 'undefined') {
     this.console = { log: function (msg) {} };
 }
 
+function getModax(id) {
+    var modax = document.querySelector(id);
+    if (!modax) {
+        modax = document.querySelector("#shared-modax")
+    }
+    return modax
+}
+
+function checkInner(event) {
+    if (event.target) {
+        var checkbox = event.target.querySelector("temba-checkbox");
+        if (checkbox) {
+            checkbox.click();
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }
+}
+
 function goto(event, ele) {
     if (!ele) {
         ele = event.target;
@@ -68,18 +87,6 @@ $.ajaxSetup({
 });
 
 $(document).ready(function () {
-    $('iframe').each(function () {
-        /*fix youtube z-index*/
-        var url = $(this).attr('src');
-        if (url.indexOf('youtube.com') >= 0) {
-            if (url.indexOf('?') >= 0) {
-                $(this).attr('src', url + '&wmode=transparent');
-            } else {
-                $(this).attr('src', url + '?wmode=transparent');
-            }
-        }
-    });
-
     $('ul.nav li.dropdown').hover(
         function () {
             $(this).find('.dropdown-menu').stop(true, true).delay(200).fadeIn();

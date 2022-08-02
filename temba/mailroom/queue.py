@@ -93,6 +93,8 @@ def queue_broadcast(broadcast):
         "group_ids": list(broadcast.groups.values_list("id", flat=True)),
         "broadcast_id": broadcast.id,
         "org_id": broadcast.org_id,
+        "ticket_id": broadcast.ticket_id,
+        "created_by_id": broadcast.created_by_id,
     }
 
     _queue_batch_task(broadcast.org_id, BatchTask.SEND_BROADCAST, task, HIGH_PRIORITY)
@@ -129,7 +131,7 @@ def queue_flow_start(start):
         "start_id": start.id,
         "start_type": start.start_type,
         "org_id": org_id,
-        "created_by": start.created_by.username,
+        "created_by_id": start.created_by_id,
         "flow_id": start.flow_id,
         "flow_type": start.flow.flow_type,
         "contact_ids": list(start.contacts.values_list("id", flat=True)),

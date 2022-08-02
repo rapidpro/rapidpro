@@ -1,19 +1,12 @@
-from smartmin.views import (
-    SmartCRUDL,
-    SmartDeleteView,
-    SmartFormView,
-    SmartReadView,
-    SmartTemplateView,
-    SmartUpdateView,
-)
+from smartmin.views import SmartCRUDL, SmartFormView, SmartReadView, SmartTemplateView, SmartUpdateView
 
 from django.contrib import messages
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.views import ComponentFormMixin
+from temba.orgs.views import DependencyDeleteModal, MenuMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import Classifier
 
@@ -46,60 +39,57 @@ class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
 
 class ClassifierCRUDL(SmartCRUDL):
     model = Classifier
-    actions = ("read", "connect", "delete", "sync")
+    actions = ("read", "connect", "delete", "sync", "menu")
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        slug_url_kwarg = "uuid"
+    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
+        def derive_menu(self):
+            org = self.request.user.get_org()
+
+            menu = []
+            if self.has_org_perm("classifiers.classifier_read"):
+                classifiers = Classifier.objects.filter(org=org, is_active=True).order_by("-created_on")
+                for classifier in classifiers:
+                    menu.append(
+                        self.create_menu_item(
+                            menu_id=classifier.uuid,
+                            name=classifier.name,
+                            href=reverse("classifiers.classifier_read", args=[classifier.uuid]),
+                            icon=classifier.get_type().icon.replace("icon-", ""),
+                        )
+                    )
+
+            menu.append(
+                {
+                    "id": "connect",
+                    "href": reverse("classifiers.classifier_connect"),
+                    "name": _("Add Classifier"),
+                }
+            )
+
+            return menu
+
+    class Delete(DependencyDeleteModal):
         cancel_url = "uuid@classifiers.classifier_read"
-        title = _("Delete Classifier")
-        success_message = ""
-        submit_button_name = _("Delete")
-        fields = ("uuid",)
+        success_url = "@orgs.org_home"
+        success_message = _("Your classifier has been deleted.")
 
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["used_by_flows"] = self.get_object().dependent_flows.all()[:5]
-            return context
-
-        def get_success_url(self):
-            return reverse("orgs.org_home")
-
-        def post(self, request, *args, **kwargs):
-            classifier = self.get_object()
-            classifier.release()
-
-            messages.info(request, _("Your classifier has been deleted."))
-            response = HttpResponse()
-            response["Temba-Success"] = self.get_success_url()
-            return response
-
-    class Read(OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
-        def get_gear_links(self):
-            links = [dict(title=_("Log"), href=reverse("request_logs.httplog_classifier", args=[self.object.uuid]))]
+        def build_content_menu(self, menu):
+            menu.add_link(_("Log"), reverse("request_logs.httplog_classifier", args=[self.object.uuid]))
 
             if self.has_org_perm("classifiers.classifier_sync"):
-                links.append(
-                    dict(
-                        title=_("Sync"),
-                        style="btn-secondary",
-                        posterize=True,
-                        href=reverse("classifiers.classifier_sync", args=[self.object.id]),
-                    )
-                )
-            if self.has_org_perm("classifiers.classifier_delete"):
-                links.append(
-                    dict(
-                        id="ticketer-delete",
-                        title=_("Delete"),
-                        modax=_("Delete Classifier"),
-                        href=reverse("classifiers.classifier_delete", args=[self.object.uuid]),
-                    )
-                )
+                menu.add_url_post(_("Sync"), reverse("classifiers.classifier_sync", args=[self.object.id]))
 
-            return links
+            if self.has_org_perm("classifiers.classifier_delete"):
+                menu.add_modax(
+                    _("Delete"),
+                    "classifier-delete",
+                    reverse("classifiers.classifier_delete", args=[self.object.uuid]),
+                    title=_("Delete Classifier"),
+                )
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
@@ -121,7 +111,7 @@ class ClassifierCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class Connect(OrgPermsMixin, SmartTemplateView):
+    class Connect(SpaMixin, OrgPermsMixin, SmartTemplateView):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["classifier_types"] = Classifier.get_types()

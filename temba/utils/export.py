@@ -4,19 +4,20 @@ import os
 import time
 from datetime import datetime, timedelta
 
+from smartmin.models import SmartModel
 from xlsxlite.writer import XLSXBook
 
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
+from django.http import HttpResponse
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.assets.models import BaseAssetStore, get_asset_store
 
 from . import analytics
-from .email import send_template_email
-from .models import TembaModel
+from .models import LegacyUUIDMixin
 from .text import clean_string
 
 logger = logging.getLogger(__name__)
@@ -27,13 +28,14 @@ class BaseExportAssetStore(BaseAssetStore):
         return asset.status == BaseExportTask.STATUS_COMPLETE
 
 
-class BaseExportTask(TembaModel):
+class BaseExportTask(LegacyUUIDMixin, SmartModel):
     """
     Base class for export task models, i.e. contacts, messages and flow results
     """
 
     analytics_key = None
     asset_type = None
+    notification_export_type = None
 
     MAX_EXCEL_ROWS = 1_048_576
     MAX_EXCEL_COLS = 16384
@@ -67,8 +69,11 @@ class BaseExportTask(TembaModel):
         Performs the actual export. If export generation throws an exception it's caught here and the task is marked
         as failed.
         """
+        from temba.notifications.models import Notification
+
         try:
             self.update_status(self.STATUS_PROCESSING)
+
             print(f"Started perfoming {self.analytics_key} with ID {self.id}")
 
             start = time.time()
@@ -76,17 +81,6 @@ class BaseExportTask(TembaModel):
             temp_file, extension = self.write_export()
 
             get_asset_store(model=self.__class__).save(self.id, File(temp_file), extension)
-
-            branding = self.org.get_branding()
-
-            # notify user who requested this export
-            send_template_email(
-                self.created_by.username,
-                self.email_subject % self.org.name,
-                self.email_template,
-                self.get_email_context(branding),
-                branding,
-            )
 
             # remove temporary file
             if hasattr(temp_file, "delete"):
@@ -105,9 +99,9 @@ class BaseExportTask(TembaModel):
             self.update_status(self.STATUS_COMPLETE)
             elapsed = time.time() - start
             print(f"Completed {self.analytics_key} with ID {self.id} in {elapsed:.1f} seconds")
-            analytics.track(
-                self.created_by.username, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed)
-            )
+            analytics.track(self.created_by, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed))
+
+            Notification.export_finished(self)
         finally:
             gc.collect()  # force garbage collection
 
@@ -155,16 +149,18 @@ class BaseExportTask(TembaModel):
         else:
             return clean_string(str(value))
 
-    def get_email_context(self, branding):
+    def get_download_url(self) -> str:
         asset_store = get_asset_store(model=self.__class__)
+        return asset_store.get_asset_url(self.id)
 
-        return {"link": branding["link"] + asset_store.get_asset_url(self.id)}
+    def get_notification_scope(self) -> str:
+        return f"{self.notification_export_type}:{self.id}"
 
     class Meta:
         abstract = True
 
 
-class TableExporter(object):
+class TableExporter:
     """
     Class that abstracts out writing a table of data to a CSV or Excel file. This only works for exports that
     have a single sheet (as CSV's don't have sheets) but takes care of writing to a CSV in the case
@@ -219,3 +215,20 @@ class TableExporter(object):
         temp_file.flush()
 
         return temp_file, "xlsx"
+
+
+def response_from_workbook(workbook, filename: str) -> HttpResponse:
+    """
+    Creates an HTTP response from an openpyxl workbook
+    """
+    with NamedTemporaryFile() as tmp:
+        workbook.save(tmp.name)
+        tmp.seek(0)
+        stream = tmp.read()
+
+    response = HttpResponse(
+        content=stream,
+        content_type="application/ms-excel",
+    )
+    response["Content-Disposition"] = f"attachment; filename={filename}"
+    return response

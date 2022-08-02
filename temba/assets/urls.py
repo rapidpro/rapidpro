@@ -1,8 +1,8 @@
-from django.conf.urls import url
+from django.urls import re_path
 
 from .views import AssetDownloadView, AssetStreamView
 
 urlpatterns = [
-    url(r"download/(?P<type>\w+)/(?P<pk>\d+)/$", AssetDownloadView.as_view(), name="assets.download"),
-    url(r"stream/(?P<type>\w+)/(?P<pk>\d+)/$", AssetStreamView.as_view(), name="assets.stream"),
+    re_path(r"download/(?P<type>\w+)/(?P<pk>\d+)/$", AssetDownloadView.as_view(), name="assets.download"),
+    re_path(r"stream/(?P<type>\w+)/(?P<pk>\d+)/$", AssetStreamView.as_view(), name="assets.stream"),
 ]

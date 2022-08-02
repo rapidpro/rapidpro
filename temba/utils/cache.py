@@ -1,6 +1,6 @@
 from django_redis import get_redis_connection
 
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 
 from temba.utils import json
 
@@ -15,7 +15,7 @@ def get_cacheable(cache_key, callable, r=None, force_dirty=False):
     if not force_dirty:
         cached = r.get(cache_key)
         if cached is not None:
-            return json.loads(force_text(cached))
+            return json.loads(force_str(cached))
 
     (calculated, cache_ttl) = callable()
     r.set(cache_key, json.dumps(calculated), ex=cache_ttl or None)
@@ -28,20 +28,6 @@ def get_cacheable_result(cache_key, callable, r=None, force_dirty=False):
     Gets a cache-able integer calculation result
     """
     return int(get_cacheable(cache_key, callable, r=r, force_dirty=force_dirty))
-
-
-def get_cacheable_attr(obj, attr_name, calculate):
-    """
-    Gets the result of a method call, using the given object and attribute name
-    as a cache
-    """
-    if hasattr(obj, attr_name):
-        return getattr(obj, attr_name)
-
-    calculated = calculate()
-    setattr(obj, attr_name, calculated)
-
-    return calculated
 
 
 def incrby_existing(key, delta, r=None):

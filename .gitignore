@@ -30,7 +30,6 @@ temba/settings.py
 temba/smartmin
 temba.db
 smartmin
-mailroom_test.dump
 docs/
 
 # Exclude media folder except files used for import testing
@@ -66,6 +65,7 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
 build/
 develop-eggs/
 dist/

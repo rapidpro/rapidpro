@@ -6,25 +6,49 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.http import urlencode
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
-from temba.channels.views import (
-    PLIVO_SUPPORTED_COUNTRIES,
-    PLIVO_SUPPORTED_COUNTRY_CODES,
-    BaseClaimNumberMixin,
-    ClaimViewMixin,
-)
+from temba.channels.views import BaseClaimNumberMixin, ClaimViewMixin
+from temba.orgs.views import OrgPermsMixin
+from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.http import http_headers
 from temba.utils.models import generate_uuid
 
+SUPPORTED_COUNTRIES = {
+    "AU",  # Australia
+    "BE",  # Belgium
+    "CA",  # Canada
+    "CZ",  # Czech Republic
+    "EE",  # Estonia
+    "FI",  # Finland
+    "DE",  # Germany
+    "HK",  # Hong Kong
+    "HU",  # Hungary
+    "IL",  # Israel
+    "LT",  # Lithuania
+    "MX",  # Mexico
+    "NO",  # Norway
+    "PK",  # Pakistan
+    "PL",  # Poland
+    "ZA",  # South Africa
+    "SE",  # Sweden
+    "CH",  # Switzerland
+    "GB",  # United Kingdom
+    "US",  # United States
+}
+
+COUNTRY_CHOICES = countries.choices(SUPPORTED_COUNTRIES)
+CALLING_CODES = countries.calling_codes(SUPPORTED_COUNTRIES)
+
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES, widget=SelectWidget(attrs={"searchable": True}))
+        country = forms.ChoiceField(choices=COUNTRY_CHOICES, widget=SelectWidget(attrs={"searchable": True}))
         phone_number = forms.CharField(help_text=_("The phone number being added"))
 
         def clean_phone_number(self):
@@ -52,23 +76,23 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         else:
             return HttpResponseRedirect(reverse("orgs.org_plivo_connect"))
 
-    def is_valid_country(self, country_code):
-        return country_code in PLIVO_SUPPORTED_COUNTRY_CODES
+    def is_valid_country(self, calling_code: int) -> bool:
+        return calling_code in CALLING_CODES
 
-    def is_messaging_country(self, country):
-        return country in [c[0] for c in PLIVO_SUPPORTED_COUNTRIES]
+    def is_messaging_country(self, country_code: str) -> bool:
+        return country_code in SUPPORTED_COUNTRIES
 
     def get_search_url(self):
-        return reverse("channels.channel_search_plivo")
+        return reverse("channels.types.plivo.search")
 
     def get_claim_url(self):
         return reverse("channels.types.plivo.claim")
 
     def get_supported_countries_tuple(self):
-        return PLIVO_SUPPORTED_COUNTRIES
+        return COUNTRY_CHOICES
 
     def get_search_countries_tuple(self):
-        return PLIVO_SUPPORTED_COUNTRIES
+        return COUNTRY_CHOICES
 
     def get_existing_numbers(self, org):
         auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
@@ -104,7 +128,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         plivo_uuid = generate_uuid()
         callback_domain = org.get_brand_domain()
-        app_name = "%s/%s" % (callback_domain.lower(), plivo_uuid)
+        app_name = "%s_%s" % (callback_domain.lower().replace(".", "_"), plivo_uuid)
 
         message_url = f"https://{callback_domain}{reverse('courier.pl', args=[plivo_uuid, 'receive'])}"
         answer_url = f"{settings.STORAGE_URL}/plivo_voice_unavailable.xml"
@@ -183,3 +207,42 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             del self.request.session[Channel.CONFIG_PLIVO_AUTH_ID]
         if Channel.CONFIG_PLIVO_AUTH_TOKEN in self.request.session:
             del self.request.session[Channel.CONFIG_PLIVO_AUTH_TOKEN]
+
+
+class SearchView(OrgPermsMixin, SmartFormView):
+    class Form(forms.Form):
+        country = forms.ChoiceField(choices=COUNTRY_CHOICES)
+        pattern = forms.CharField(max_length=7, required=False)
+
+    form_class = Form
+    permission = "channels.channel_claim"
+
+    def form_valid(self, form, *args, **kwargs):
+        data = form.cleaned_data
+        auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
+        auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
+
+        try:
+            params = dict(country_iso=data["country"], pattern=data.get("pattern"))
+            url = f"https://api.plivo.com/v1/Account/{auth_id}/PhoneNumber/?{urlencode(params)}"
+
+            headers = http_headers(extra={"Content-Type": "application/json"})
+            response = requests.get(url, headers=headers, auth=(auth_id, auth_token))
+
+            if response.status_code == 200:
+                response_data = response.json()
+                results_numbers = ["+" + number_dict["number"] for number_dict in response_data["objects"]]
+            else:
+                return JsonResponse({"error": response.text})
+
+            numbers = []
+            for number in results_numbers:
+                numbers.append(
+                    phonenumbers.format_number(
+                        phonenumbers.parse(number, None), phonenumbers.PhoneNumberFormat.INTERNATIONAL
+                    )
+                )
+
+            return JsonResponse(numbers, safe=False)
+        except Exception as e:
+            return JsonResponse({"error": str(e)})

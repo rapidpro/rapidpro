@@ -1,11 +1,10 @@
 -extends "contacts/contact_list.html"
--load smartmin
--load i18n
+-load smartmin i18n
 
 -block title
   {{current_group.name}}
 
 -block subtitle
-  -if current_group.is_dynamic
+  -if current_group.is_smart
     .font-mono.text-sm
       {{ current_group.query }}

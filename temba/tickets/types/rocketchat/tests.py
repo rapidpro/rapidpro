@@ -22,6 +22,7 @@ class RocketChatTypeTest(TembaTest):
         self.assertFalse(RocketChatType().is_available_to(self.admin))
 
         Group.objects.get(name="Beta").user_set.add(self.admin)
+        del self.admin.is_beta  # clear cached_property
 
         self.assertTrue(RocketChatType().is_available_to(self.admin))
 
@@ -144,7 +145,6 @@ class RocketChatViewTest(RocketChatMixin):
 
         self.client.force_login(self.admin)
 
-        max_length = Ticketer._meta.get_field("name").max_length
         for path in [f"/{self.app_id}", f"/{self.app_id}/", f"/{self.app_id}/path", f"/path/{self.app_id}/"]:
             choices = (c for c in self.secret)
             data = {
@@ -159,13 +159,10 @@ class RocketChatViewTest(RocketChatMixin):
 
             ticketer = Ticketer.objects.order_by("id").last()
 
-            self.assertRedirect(response, reverse("tickets.ticket_filter", args=[ticketer.uuid]))
+            self.assertRedirect(response, reverse("tickets.ticket_list"))
 
             domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
-            expected = f"{RocketChatType.name}: {domain}"
-            if len(expected) > max_length:
-                expected = f"{expected[:max_length - 3]}..."
-            self.assertEqual(ticketer.name, expected)
+            self.assertEqual(domain, ticketer.name)
             self.assertFalse(ticketer.config[RocketChatType.CONFIG_BASE_URL].endswith("/"))
 
     @patch("temba.tickets.types.rocketchat.client.Client.settings")
@@ -205,9 +202,9 @@ class RocketChatViewTest(RocketChatMixin):
 
         choices = (c for c in self.secret)
         response = self.client.post(self.connect_url, data={**base, "secret": self.secret, "base_url": "domain.com"})
-        self.assertFormError(response, "form", "base_url", f"Invalid URL: http://domain.com")
+        self.assertFormError(response, "form", "base_url", "Invalid URL: http://domain.com")
 
-        for path in [f"", f"/", f"/path", f"/path{self.app_id}/"]:
+        for path in ["", "/", "/path", f"/path{self.app_id}/"]:
             for scheme in ["", "http", "https"]:
                 choices = (c for c in self.secret)
                 data = {

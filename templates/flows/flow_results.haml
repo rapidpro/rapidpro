@@ -295,7 +295,7 @@
       dialog.open = true;
     }
 
-    function updateCols() {      
+    function updateCols() {
       var hidden = false;
       for (var idx=0; idx < columns.length; idx++) {
         var col = columns[idx];
@@ -338,13 +338,6 @@
         },
       {% endfor %}
     ];
-
-    // alpha sort our result names
-    columns.sort(function(a, b){
-      a = a.text.toLowerCase();
-      b = b.text.toLowerCase();
-      return (a < b) ? -1 : a > b ? 1 : 0;
-    });
 
     $(document).ready(function() {
       Highcharts.setOptions({
@@ -433,7 +426,7 @@
       var dialog = document.getElementById("confirm-run-delete");
       dialog.addEventListener("temba-button-clicked", function(event){
         var id = dialog.run;
-        $("#run_" + id).fadeOut();        
+        $("#run_" + id).fadeOut();
         if (!event.detail.button.secondary) {
           $.post('/flowrun/delete/' + id + '/').fail(function() {
             $("#run_" + id).fadeIn();
@@ -607,26 +600,26 @@
   %temba-dialog#confirm-run-delete(header='{{ _("Delete Run")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
     .p-6
       -trans "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
-    
+
   .bg-white.p-4.rounded-lg
     %ul.nav.nav-tabs.mb-0
       %li.active
-        %a{href: '#overview', data-toggle:'tab'}
+        %a(href="#overview" data-toggle="tab")
           -trans "Overview"
 
       %li
-        %a{href: '#analytics', data-toggle:'tab'}
+        %a(href="#analytics" data-toggle="tab")
           -trans "Analytics"
 
       %li
-        %a{href: '#runs', data-toggle:'tab', onclick:"updateColumnSelect();"}
+        %a(href="#runs" data-toggle="tab" onclick="updateColumnSelect();")
           -trans "Runs"
 
     .tab-content
       #overview.tab-pane.active.py-4
         .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
           %i.fa.fa-spinner.fa-spin.fa-2x
-      
+
       #analytics.tab-pane
         #category-charts
 
@@ -678,8 +671,8 @@
                       {{result_field.name}}
                     .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
 
-            %tbody{id:"results_run_table"}
-              %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+            %tbody(id="results_run_table")
+              %tr(ic-append-from="/flow/run_table/{{object.id}}/" ic-trigger-on="load" ic-target="#results_run_table" ic-indicator="#indicator")
 
   #indicator{style:"display:none"}
     .loader

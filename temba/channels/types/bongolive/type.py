@@ -1,4 +1,4 @@
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
@@ -28,7 +28,7 @@ class BongoLiveType(ChannelType):
     }
 
     configuration_blurb = _(
-        "To finish connecting your channel, you need to have Bongo Live configure the URLs below for your shortcode."
+        "To finish connecting your channel, you need to have Bongo Live configure the URLs below for your short code."
     )
 
     configuration_urls = (

@@ -4,27 +4,28 @@ from django.contrib import messages
 from django.db.models import Prefetch
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import json
+from temba.utils.views import ContentMenuMixin
 
 
 class BoundaryCRUDL(SmartCRUDL):
     actions = ("alias", "geometry", "boundaries")
     model = AdminBoundary
 
-    class Alias(OrgPermsMixin, SmartReadView):
+    class Alias(OrgPermsMixin, ContentMenuMixin, SmartReadView):
         @classmethod
         def derive_url_pattern(cls, path, action):
             # though we are a read view, we don't actually need an id passed
             # in, that is derived
             return r"^%s/%s/$" % (path, action)
 
-        def get_gear_links(self):
-            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"))]
+        def build_content_menu(self, menu):
+            menu.add_link(_("Home"), reverse("orgs.org_home"))
 
         def pre_process(self, request, *args, **kwargs):
             response = super().pre_process(self, request, *args, **kwargs)

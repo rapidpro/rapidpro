@@ -47,12 +47,19 @@
   
     window.fetchData = function(section) {
       var url;
+
+      const headers = {
+        "X-FORMAX": true
+      }
+      
+      if (section.closest(".spa-container")) {
+        headers["TEMBA-SPA"] = 1;
+      }
+
       if (section.data("href")) {
         url = section.data('href');
         return fetchPJAXContent(url, "#" + section.attr("id") + " > .formax-container", {
-          headers: {
-            "X-FORMAX": true
-          },
+          headers: headers,
           onSuccess: function() {
             section.data("loaded", true);
             _initializeForm(section);
@@ -61,6 +68,7 @@
             } else {
               _bindToggle(section.find(".formax-icon"));
             }
+            document.dispatchEvent(new CustomEvent("temba-formax-ready", {bubbles: true}));
             return section.show();
           }
         });
@@ -109,11 +117,19 @@
       form = $(this);
       section = form.parents(".formax-section");
       followRedirects = section.data("action") === 'redirect';
+
+      const headers = {
+        "X-FORMAX": true
+      }
+      
+      if (section.closest(".spa-container")) {
+        headers["TEMBA-SPA"] = 1;
+      }
+
+      var formData = new FormData(this);
       return fetchPJAXContent(section.data("href"), "#" + section.attr("id") + " > .formax-container", {
-        postData: form.serialize(),
-        headers: {
-          "X-FORMAX": true
-        },
+        formData: formData,
+        headers: headers,
         followRedirects: followRedirects,
         onSuccess: function() {
           var dependents, formax_form;
@@ -124,20 +140,22 @@
             formax_form.show();
           } else {
             if (section.data("action") !== 'fixed') {
-              hideSection(section);
+              hideSection(section);              
             }
           }
           dependents = section.data("dependents");
           if (dependents) {
-            return $("#id-" + dependents).each(function() {
+            $("#id-" + dependents).each(function() {
               return fetchData($(this));
             });
           }
+          document.dispatchEvent(new CustomEvent("temba-formax-ready", {bubbles: true}));
         }
       });
     };
   
     _bindToggle = function(bindTo) {
+
       var action, section;
       section = bindTo.parents(".formax-section");
       action = section.data('action');

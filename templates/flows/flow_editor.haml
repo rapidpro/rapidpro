@@ -24,8 +24,7 @@
     }
 
     #rp-flow-editor #simulator {
-      top: -180px;
-      margin-left: 20px;
+      top: 20px;
     }
 
     #header *, #top-menu *, .org-header * {
@@ -43,7 +42,6 @@
       --curvature-widget: 4px;
     }
 
-    /* case_list_case is the dnd portal under body */
     #rp-flow-editor, .case_list_case {
       --curvature: 4px;
       --curvature-widget: 4px; 
@@ -127,6 +125,19 @@
     }
 
     #grid {
+      overflow: auto;
+      z-index: 5;
+    }
+
+    #shadow {
+      box-shadow: inset 0 7px 9px -10px rgba(0,0,0,0.4);
+      z-index: 10;
+    }
+
+
+    #preview {
+      margin-bottom: 14px;
+      margin-left: -14px;
     }
 
     #rp-flow-editor {
@@ -139,22 +150,9 @@
       font-family: 'Roboto'
     }
 
-    #rp-flow-editor #canvas-container > div {
-      box-shadow: inset 0 7px 9px -10px rgba(0,0,0,0.4);
-    }
-
-    #rp-flow-editor #canvas-container #canvas:after {
-      box-shadow: inset 0 7px 9px -10px rgba(0,0,0,0.4);
-      
-    }
-
     #rp-flow-editor > div {
       opacity: 0;
       transition: opacity 150ms linear;
-    }
-
-    #rp-flow-editor .language-selector {
-      /* top: 14px; */
     }
 
     temba-loading {
@@ -203,7 +201,7 @@
     });
 
     function handleEditorLoaded() {
-      $('temba-loading').hide();
+      $('.editor-loader').hide();
       $('#rp-flow-editor > div').css('opacity', '1');
     }
 
@@ -234,11 +232,12 @@
       onChangeLanguage: handleChangeLanguage,
       mutable: {{mutable|lower}},
       filters: {{feature_filters|to_json}},
+      brand: '{{brand.name|escapejs}}',
 
       help: {
-        legacy_extra: 'https://help.nyaruka.com/en/articles/3747485-migrating-away-from-legacy_extra',
-        missing_dependency: 'http://help.nyaruka.com/en/articles/3747650-fixing-missing-dependencies',
-        invalid_regex: 'http://help.nyaruka.com/en/articles/3747654-invalid-regular-expressions'
+        legacy_extra: 'https://help.nyaruka.com/',
+        missing_dependency: 'https://help.nyaruka.com/en/article/fixing-missing-dependencies-1toe127/',
+        invalid_regex: 'https://help.nyaruka.com/en/article/invalid-regular-expressions-814k8d/'
       },
 
       endpoints: {
@@ -253,19 +252,19 @@
         templates: api + 'templates.json',
         flows: api + 'flows.json?archived=false',
         globals: api + 'globals.json',
+        users: api + 'users.json',
+        topics: api + 'topics.json',
         editor: '/flow/editor',
 
         // TODO: migrate to API?
         revisions: '/flow/revisions/{{object.uuid}}/',
-        recents: '/flow/recent_messages/{{object.uuid}}/',
-        attachments: '/flow/upload_media_action/{{object.uuid}}/',
+        recents: '/flow/recent_contacts/{{object.uuid}}/',
+        attachments: '/flow/upload_media/{{object.uuid}}/',
         languages: base + 'language',
         environment: base + 'environment',
         activity: '/flow/activity/{{object.uuid}}/',
         recipients: '/contact/omnibox?v=2&types=gc',
-
-        completion: '/mr/docs/{{ LANGUAGE_CODE }}/completion.json',
-        functions: '/mr/docs/{{ LANGUAGE_CODE }}/functions.json',
+        contact: '/contact/read/',
 
         {% if can_simulate %}
         simulateStart: '/flow/simulate/{{object.id}}/',
@@ -307,7 +306,8 @@
         in this flow and no translation exists for their language or the default language of the workspace,
         communication with that contact will default to <b>{{ language }}</b>.
 
+  #shadow.pb-5.-mb-5
   #grid.h-full
-    <temba-loading units="10" size="8"></temba-loading>
+    <temba-loading class="editor-loader" units="10" size="8"></temba-loading>
     #rp-flow-editor
 

@@ -2,7 +2,7 @@ import requests
 
 from django.forms import ValidationError
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
@@ -69,18 +69,18 @@ class ZenviaWhatsAppType(ChannelType):
             "Content-Type": "application/json",
         }
 
-        subscriptionIds = [
+        subscription_ids = [
             channel.config.get(ZENVIA_MESSAGE_SUBSCRIPTION_ID),
             channel.config.get(ZENVIA_STATUS_SUBSCRIPTION_ID),
         ]
 
         errored = False
 
-        for subscriptionId in subscriptionIds:
-            if not subscriptionId:
+        for subscription_id in subscription_ids:
+            if not subscription_id:  # pragma: needs cover
                 continue
 
-            conf_url = f"https://api.zenvia.com/v2/subscriptions/{subscriptionId}"
+            conf_url = f"https://api.zenvia.com/v2/subscriptions/{subscription_id}"
             resp = requests.delete(conf_url, headers=headers)
 
             if resp.status_code != 204:

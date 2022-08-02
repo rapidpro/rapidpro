@@ -1,6 +1,6 @@
 from django.conf import settings
-from django.conf.urls import url
-from django.utils.translation import ugettext_lazy as _
+from django.urls import re_path
+from django.utils.translation import gettext_lazy as _
 
 from ...models import TicketerType
 from .views import AdminUIView, ConfigureView, ConnectView, FileCallbackView, ManifestView
@@ -36,8 +36,8 @@ class ZendeskType(TicketerType):
         """
         return [
             self.get_connect_url(),
-            url(r"^manifest\.json", ManifestView.as_view(), name="manifest"),
-            url(r"^admin_ui", AdminUIView.as_view(), name="admin_ui"),
-            url(r"^configure/(?P<uuid>[a-z0-9\-]+)/$", ConfigureView.as_view(), name="configure"),
-            url(r"^file/(?P<path>[\w\-./]+)$", FileCallbackView.as_view(), name="file_callback"),
+            re_path(r"^manifest\.json", ManifestView.as_view(), name="manifest"),
+            re_path(r"^admin_ui", AdminUIView.as_view(), name="admin_ui"),
+            re_path(r"^configure/(?P<uuid>[a-z0-9\-]+)/$", ConfigureView.as_view(), name="configure"),
+            re_path(r"^file/(?P<path>[\w\-./]+)$", FileCallbackView.as_view(), name="file_callback"),
         ]

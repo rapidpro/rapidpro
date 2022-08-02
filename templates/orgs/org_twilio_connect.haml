@@ -1,15 +1,14 @@
 -extends "smartmin/form.html"
-
--load compress temba
+-load i18n
 
 -block title
-  Connect Twilio
+  -trans "Connect Twilio"
 
 -block pre-form
   .mb-4
-    To connect your Twilio Account you will need to provide us your Twilio account SID and auth token.
-    .mt-1
-      Both values can be found on your <a target="twilio" href="https://www.twilio.com/user/account/settings">Twilio account page</a>.
+    -blocktrans trimmed with settings_url='https://www.twilio.com/user/account/settings'
+      To connect your Twilio Account you will need to provide us your Twilio account SID and auth token. Both values can
+      be found on your <a target="twilio" href="{{ settings_url }}">Twilio account page</a>.
 
 -block extra-script
   {{block.super}}

@@ -16,10 +16,10 @@ class Command(BaseCommand):  # pragma: no cover
             "archive_type", choices=[Archive.TYPE_MSG, Archive.TYPE_FLOWRUN], help="The type of archives to search"
         )
         parser.add_argument(
-            "--expression",
+            "--where",
             type=str,
             action="store",
-            dest="expression",
+            dest="where",
             default="",
             help="An optional S3 Select SQL expression",
         )
@@ -33,13 +33,13 @@ class Command(BaseCommand):  # pragma: no cover
         )
         parser.add_argument("--raw", action="store_true", help="Output unformatted JSONL")
 
-    def handle(self, org_id, archive_type, expression, limit, raw, **options):
+    def handle(self, org_id, archive_type, where, limit, raw, **options):
         org = Org.objects.filter(id=org_id).first()
         if not org:
             raise CommandError(f"No such org with id {org_id}")
 
         start = time.perf_counter()
-        records = Archive.iter_all_records(org, archive_type, expression=expression)
+        records = Archive.iter_all_records(org, archive_type, where={"__raw__": where} if where else None)
 
         num_records = 0
         for record in records:

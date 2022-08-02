@@ -96,9 +96,8 @@ MIDDLEWARE = ("temba.middleware.ExceptionMiddleware",) + MIDDLEWARE
 # -----------------------------------------------------------------------------------
 # In development, perform background tasks in the web thread (synchronously)
 # -----------------------------------------------------------------------------------
-CELERY_ALWAYS_EAGER = True
-CELERY_EAGER_PROPAGATES_EXCEPTIONS = True
-BROKER_BACKEND = "memory"
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # -----------------------------------------------------------------------------------
 # This setting throws an exception if a naive datetime is used anywhere. (they should

@@ -1,7 +1,5 @@
-from typing import NamedTuple
-
-from django.utils.encoding import force_text
-from django.utils.translation import ugettext_lazy as _
+from django.utils.encoding import force_str
+from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 
@@ -16,6 +14,7 @@ class SearchException(Exception):
         "invalid_number": _("Unable to convert '%(value)s' to a number"),
         "invalid_date": _("Unable to convert '%(value)s' to a date"),
         "invalid_language": _("'%(value)s' is not a valid language code"),
+        "invalid_flow": _("'%(value)s' is not a valid flow name"),
         "invalid_group": _("'%(value)s' is not a valid group name"),
         "invalid_partial_name": _("Using ~ with name requires token of at least %(min_token_length)s characters"),
         "invalid_partial_urn": _("Using ~ with URN requires value of at least %(min_value_length)s characters"),
@@ -39,56 +38,44 @@ class SearchException(Exception):
         if self.code and self.code in self.messages:
             return self.messages[self.code] % self.extra
 
-        return force_text(self.message)
+        return force_str(self.message)
 
 
-class Metadata(NamedTuple):
-    attributes: list = []
-    schemes: list = []
-    fields: list = []
-    groups: list = []
-    allow_as_group: bool = False
-
-
-class ParsedQuery(NamedTuple):
-    query: str
-    elastic_query: dict
-    metadata: Metadata = Metadata()
-
-
-def parse_query(org, query: str, *, group=None) -> ParsedQuery:
+def parse_query(org, query: str, *, parse_only: bool = False, group=None) -> mailroom.ParsedQuery:
     """
     Parses the passed in query in the context of the org
     """
     try:
         group_uuid = group.uuid if group else None
 
-        response = mailroom.get_client().parse_query(org.id, query, group_uuid=str(group_uuid))
-        return ParsedQuery(response["query"], response["elastic_query"], Metadata(**response.get("metadata", {})))
-
+        return mailroom.get_client().parse_query(org.id, query, parse_only=parse_only, group_uuid=str(group_uuid))
     except mailroom.MailroomException as e:
         raise SearchException.from_mailroom_exception(e)
 
 
-class SearchResults(NamedTuple):
-    total: int
-    query: str
-    contact_ids: list
-    metadata: Metadata = Metadata()
-
-
 def search_contacts(
     org, query: str, *, group=None, sort: str = None, offset: int = None, exclude_ids=()
-) -> SearchResults:
+) -> mailroom.SearchResults:
     try:
         group_uuid = group.uuid if group else None
 
-        response = mailroom.get_client().contact_search(
+        return mailroom.get_client().contact_search(
             org.id, group_uuid=str(group_uuid), query=query, sort=sort, offset=offset, exclude_ids=exclude_ids
         )
-        return SearchResults(
-            response["total"], response["query"], response["contact_ids"], Metadata(**response.get("metadata", {}))
-        )
+    except mailroom.MailroomException as e:
+        raise SearchException.from_mailroom_exception(e)
 
+
+def preview_start(
+    org, flow, include: mailroom.QueryInclusions, exclude: mailroom.QueryExclusions, sample_size: int
+) -> mailroom.StartPreview:
+    try:
+        return mailroom.get_client().flow_preview_start(
+            org.id,
+            flow.id,
+            include=include,
+            exclude=exclude,
+            sample_size=sample_size,
+        )
     except mailroom.MailroomException as e:
         raise SearchException.from_mailroom_exception(e)

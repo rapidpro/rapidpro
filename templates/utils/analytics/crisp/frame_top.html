@@ -1,0 +1,12 @@
+{% if brand.support_widget %}
+<script type="text/javascript">
+    window.CRISP_WEBSITE_ID = "{{ crisp_website_id }}";
+    {% if crisp_token_id %}window.CRISP_TOKEN_ID = "{{ crisp_token_id }}";{% endif %}
+    window.$crisp = [];
+
+    (function(){d=document;s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();
+
+    window.$crisp.push(["set", "user:email", ["{{request.user.email|escapejs}}", "{{request.user.get_settings.verification_token|escapejs}}"]]);
+    window.$crisp.push(["set", "user:nickname", ["{{request.user.first_name|escapejs}} {{request.user.last_name|escapejs}}"]]);
+</script>
+{% endif %}

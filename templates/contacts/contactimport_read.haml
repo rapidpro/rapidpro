@@ -30,7 +30,7 @@
             -plural
               Updated {{ count }} existing contacts
 
-        -if is_finished
+        -if is_finished and object.group
           .import-result.text-lg.mt-2
             .icon.icon-checkmark.text-success.mr-2
 

@@ -1,9 +1,9 @@
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
-from temba.channels.types.twilio_whatsapp.views import ClaimView
 from temba.contacts.models import URN
 
 from ...models import ChannelType
+from .views import ClaimView
 
 
 class TwilioWhatsappType(ChannelType):
@@ -44,7 +44,7 @@ class TwilioWhatsappType(ChannelType):
         ),
     )
 
-    redact_request_keys = {
+    redact_request_keys = (
         "FromCity",
         "FromState",
         "FromZip",
@@ -54,4 +54,4 @@ class TwilioWhatsappType(ChannelType):
         "CalledCity",
         "CalledState",
         "CalledZip",
-    }
+    )

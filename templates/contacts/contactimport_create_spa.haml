@@ -1,0 +1,61 @@
+-extends "contacts/contactimport_create.html"
+-load smartmin i18n humanize sms
+
+-block extra-style
+  {{block.super}}
+  
+  :css
+    input {
+      padding: 9px;
+      cursor: pointer;
+      box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 3px 20px 0px, rgba(0, 0, 0, 0.02) 0px 1px 2px 0px;
+    }
+
+    table.list tr th {
+      text-transform: none;
+      font-size: 0.85rem;
+    }
+
+    #file-upload {
+      position: relative;
+    }
+
+    #file_errors {
+      font-size: 20px;
+    }
+
+    #real-button {
+      position: relative;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    #file-field {
+      width: 300px;
+      height: 35px;
+      font-size: 16px;
+      margin-bottom: 0px;
+      border-radius: 5px;
+    }
+
+    #import-file {
+      position: absolute;
+      width: 450px;
+      height: 35px;
+      top: 0;
+      left: 0;
+      text-align: right;
+      -moz-opacity:0 ;
+      filter: alpha(opacity: 0);
+      opacity: 0;
+      z-index: 2;
+    }
+
+-block content
+  .title
+    -trans "Importing Contacts"
+  {{block.super}}
+
+
+

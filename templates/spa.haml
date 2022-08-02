@@ -1,0 +1,54 @@
+
+:css
+  .spa-title {
+
+  }
+
+  .text-container {
+    min-height:2.5em;
+  }
+
+  .no-menu .text-container {
+    min-height: inherit;
+  }
+
+  .modax-body .text-container {
+    min-height: 0em;
+  }
+
+  .modax-body temba-alert {
+    display: none;
+  }
+
+
+-block extra-style
+-block extra-less
+-block extra-script
+
+
+-block page-header
+  -if title or gear_links
+    .spa-title.no-menu.flex.items-center.mb-4
+      .text-container.text-2xl.text-gray-700
+        .flex.flex-row
+          -block spa-title
+            #title-text
+              {{title}}
+      .line.flex-grow.mr-2.ml-6
+        .h-0.border.border-gray-200
+      
+      -if gear_links
+        -include "spa_page_menu.haml"
+
+  -block subtitle
+
+-block alert-messages
+  -if user_org.is_suspended
+    -include "org_suspended_include.haml"
+  -if messages
+    -for msg in messages
+      %temba-alert.mb-3
+        {{ msg }}
+
+-block page-container
+  -block content

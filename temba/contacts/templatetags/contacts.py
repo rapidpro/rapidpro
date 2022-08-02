@@ -3,11 +3,11 @@ from django.utils.safestring import mark_safe
 
 from temba.campaigns.models import EventFire
 from temba.channels.models import ChannelEvent
-from temba.contacts.models import URN, ContactField, ContactURN
+from temba.contacts.models import URN, ContactURN
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.mailroom.events import Event
-from temba.msgs.models import DELIVERED, ERRORED, FAILED, IVR
+from temba.msgs.models import Msg
 
 register = template.Library()
 
@@ -15,7 +15,6 @@ URN_SCHEME_ICONS = {
     URN.TEL_SCHEME: "icon-phone",
     URN.TWITTER_SCHEME: "icon-twitter",
     URN.TWITTERID_SCHEME: "icon-twitter",
-    URN.TWILIO_SCHEME: "icon-twilio_original",
     URN.EMAIL_SCHEME: "icon-envelop",
     URN.FACEBOOK_SCHEME: "icon-facebook",
     URN.TELEGRAM_SCHEME: "icon-telegram",
@@ -54,7 +53,11 @@ ACTIVITY_ICONS = {
     Event.TYPE_MSG_RECEIVED: "icon-bubble-user",
     Event.TYPE_MSG_RECEIVED + ":voice": "icon-call-incoming",
     Event.TYPE_RUN_RESULT_CHANGED: "icon-bars",
+    Event.TYPE_TICKET_ASSIGNED: "icon-ticket",
+    Event.TYPE_TICKET_REOPENED: "icon-ticket",
     Event.TYPE_TICKET_OPENED: "icon-ticket",
+    Event.TYPE_TICKET_CLOSED: "icon-ticket",
+    Event.TYPE_TICKET_NOTE_ADDED: "icon-pencil",
     Event.TYPE_WEBHOOK_CALLED: "icon-cloud-upload",
 }
 
@@ -77,17 +80,12 @@ MISSING_VALUE = "--"
 
 @register.filter
 def contact_field(contact, arg):
-    field = ContactField.get_by_key(contact.org, arg.lower())
+    field = contact.org.fields.filter(is_active=True, key=arg).first()
     if field is None:
         return MISSING_VALUE
 
     value = contact.get_field_display(field)
     return value or MISSING_VALUE
-
-
-@register.filter
-def short_name(contact, org):
-    return contact.get_display(org, short=True)
 
 
 @register.filter
@@ -141,13 +139,13 @@ def history_icon(event: dict) -> str:
     variant = None
 
     if event_type == Event.TYPE_MSG_CREATED:
-        if event["status"] in (ERRORED, FAILED):
+        if event["status"] in (Msg.STATUS_ERRORED, Msg.STATUS_FAILED):
             variant = "failed"
-        elif event["status"] == DELIVERED:
+        elif event["status"] == Msg.STATUS_DELIVERED:
             variant = "delivered"
 
     elif event_type == Event.TYPE_MSG_RECEIVED:
-        if event["msg_type"] == IVR:
+        if event["msg_type"] == Msg.TYPE_IVR:
             variant = "voice"
 
     elif event_type == Event.TYPE_FLOW_EXITED:
@@ -165,9 +163,9 @@ def history_icon(event: dict) -> str:
             variant = "missed_outgoing"
 
     if variant:
-        glyph_name = ACTIVITY_ICONS[event_type + ":" + variant]
+        glyph_name = ACTIVITY_ICONS.get(event_type + ":" + variant)
     else:
-        glyph_name = ACTIVITY_ICONS[event_type]
+        glyph_name = ACTIVITY_ICONS.get(event_type)
 
     return mark_safe(f'<span class="glyph {glyph_name}"></span>')
 
@@ -180,7 +178,7 @@ def history_class(event: dict) -> str:
     if event_type in MSG_EVENTS:
         classes.append("msg")
 
-        if event.get("status") in (ERRORED, FAILED):
+        if event.get("status") in (Msg.STATUS_ERRORED, Msg.STATUS_FAILED):
             classes.append("warning")
     else:
         classes.append("non-msg")
@@ -189,7 +187,7 @@ def history_class(event: dict) -> str:
             classes.append("warning")
         elif event_type == Event.TYPE_WEBHOOK_CALLED and event["status"] != "success":
             classes.append("warning")
-        elif event_type == Event.TYPE_CALL_STARTED and event["status"] == IVRCall.FAILED:
+        elif event_type == Event.TYPE_CALL_STARTED and event["status"] == IVRCall.STATUS_FAILED:
             classes.append("warning")
         elif event_type == Event.TYPE_CAMPAIGN_FIRED and event["fired_result"] == EventFire.RESULT_SKIPPED:
             classes.append("skipped")
@@ -198,3 +196,11 @@ def history_class(event: dict) -> str:
         classes.append("detail-event")
 
     return " ".join(classes)
+
+
+@register.filter
+def inactive_count(objs) -> int:
+    """
+    Returns the number of items in a queryset or list where is_active=False
+    """
+    return len([o for o in list(objs) if not o.is_active])

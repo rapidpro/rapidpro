@@ -1,5 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+{% load temba %}
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
@@ -44,7 +44,7 @@
       <td align="center" valign="top" style="border-collapse: collapse;">
 	{% block alert-settings %}{% endblock alert-settings %}
 
-        <div style="color: #FFFFFF">This email was generated at {{ now }}</div>
+        <div style="color: #FFFFFF">This email was generated at {% format_datetime now %}</div>
       </td>
 
     </tr>

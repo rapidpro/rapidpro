@@ -9,17 +9,6 @@
 -block content
   #pjax
     -block pjax
-      -if total_count >= total_limit
-        .mb-4
-          %temba-alert(level="warning")
-            -blocktrans trimmed with limit=total_limit
-              You have reached the limit of {{ limit }} fields per workspace. Please remove fields that you are no longer using.
-      -elif total_count >= total_limit|add:-10
-        .mb-4
-          %temba-alert(level="warning")
-            -blocktrans trimmed with limit=total_limit
-              You are approaching the limit of {{ limit }} fields per workspace. You should remove fields that you are no longer using.
-
       .lp-frame.mt-0
         .left
           .flex.flex-col
@@ -46,9 +35,22 @@
                     {{category.count|intcomma}}
 
         .right
+
+          -if total_count >= total_limit
+            .mb-4
+              %temba-alert(level="warning")
+                -blocktrans trimmed with limit=total_limit
+                  You have reached the limit of {{ limit }} fields per workspace. Please remove fields that you are no longer using.
+          -elif total_count >= total_limit|add:-10
+            .mb-4
+              %temba-alert(level="warning")
+                -blocktrans trimmed with limit=total_limit
+                  You are approaching the limit of {{ limit }} fields per workspace. You should remove fields that you are no longer using.
+
           -if view.search_fields
             %form#search-form.mb-4(method="get")
               %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+              %input(type="submit" class="hide")
           -else
             .title
               -trans "Featured Fields"
@@ -57,9 +59,9 @@
                 Featured fields are shown prominently on contact pages. Drag to reorder the fields that you would most like to see at glance.
 
           -block pre-table
-            %temba-modax{ id:'update-field', header:'{% trans "Update Field" %}'}
-            %temba-modax{ id:'delete-field', header:'{% trans "Delete Field" %}'}
-            %temba-modax{ id:'uses-modal', header:'{% trans "Field Details" %}'}
+            %temba-modax(id='update-field' header='{{_("Update Field")|escapejs}}')
+            %temba-modax(id='delete-modal' header='{{_("Delete Field")|escapejs}}')
+            %temba-modax(id='usages-modal' header='{{_("Usages")|escapejs}}')
           
           - block table
             %table.list.lined{ class:'{% get_list_class object_list %}', cellspacing:'0'}
@@ -68,32 +70,33 @@
                   - for obj in object_list
                     %tr{ data-cfid:'{{ obj.id }}', data-priority:'{{ obj.priority }}', class:'{% if org_perms.contacts.contactfield_update_priority and is_featured_category%}draggable-row{%endif%}'}
                       - if org_perms.contacts.contactfield_update_priority and is_featured_category
-                        %td.drag-icon.pl-2(style="padding:0px;padding-left:5px;")
+                        %td.drag-icon.pl-2(style="padding:0px;padding-left:5px;padding-right:5px")
                           .drag-handle.icon.icon-menu
 
-                      %td(style="{%if org_perms.contacts.contactfield_update_priority and is_featured_category%}padding-left:0px;{%endif%}")
-                        .w-full
-                          -if org_perms.contacts.contactfield_update
-                            .hover-linked.update{onclick:"showUpdateContactFieldModal({{obj.id}})"}
-                              {{ obj.label }}                          
-                              .key{ style:"font-family: monospace; font-size: 12px;" }
-                                @fields.{{ obj.key }}
-                              -if obj.show_in_table
-                                .inline.text-xs.py-1.px-2.font-medium.tracking-wide.p-1.bg-gray-200.rounded-lg
-                                  -trans "Featured"
-                          -else
-                            {{ obj.label }}                          
+                      %td.w-full(style="{%if org_perms.contacts.contactfield_update_priority and is_featured_category%}padding-left:0px;{%endif%}")
+                        -if org_perms.contacts.contactfield_update
+                          .hover-linked.update(onclick="showUpdateContactFieldModal({{obj.id}})")
+                            {{ obj.name }}
                             .key{ style:"font-family: monospace; font-size: 12px;" }
                               @fields.{{ obj.key }}
-
                             -if obj.show_in_table
                               .inline.text-xs.py-1.px-2.font-medium.tracking-wide.p-1.bg-gray-200.rounded-lg
                                 -trans "Featured"
+                        -else
+                          {{ obj.name }}
+                            {{ obj.name }}
+                          {{ obj.name }}
+                          .key{ style:"font-family: monospace; font-size: 12px;" }
+                            @fields.{{ obj.key }}
+
+                          -if obj.show_in_table
+                            .inline.text-xs.py-1.px-2.font-medium.tracking-wide.p-1.bg-gray-200.rounded-lg
+                              -trans "Featured"
 
                       %td.w-12
                         .flex.text-center
                           -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
-                            .uses{onclick:"event.stopPropagation(); showDetailContactFieldModal({{ obj.id }}, \"{{ obj.label }}\");"}
+                            .uses(onclick='event.stopPropagation(); showFieldUsagesModal("{{ obj.uuid }}");')
                               .lbl.linked
                                 {% blocktrans trimmed count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
                                   {{counter}} Use
@@ -106,8 +109,9 @@
                       
                       %td.w-10
                         -if org_perms.contacts.contactfield_delete
-                          .pl-2.pt-1.delete-link.linked.text-gray-400{style:"visibility:hidden", onclick:"showDeleteContactFieldModal({{obj.id}})"}
-                            %span.icon-close
+                          .pl-2.pt-1.delete-link.linked.text-gray-400(style="visibility:hidden" onclick='showFieldDeleteModal("{{ obj.uuid }}")')
+                            %temba-icon(name="x")
+                            
 
                             
                   - empty
@@ -124,131 +128,125 @@
 
 {% block extra-script %}
 {{ block.super }}
-:javascript
+  <script>
+    $(document).ready(function(){
 
-<script>
+      -if is_featured_category
+        -if org_perms.contacts.contactfield_update_priority
+          var sortable = new Sortable(document.getElementById('draggable-tbody'), {
+            // handle: '.drag-handle',  // make this row draggable only by the handle
+            dataIdAttr: 'data-cfid',
+            direction: 'vertical',
+            animation: 200,
+            ghostClass: "sortable-ghost",  // Class name for the drop placeholder
+            dragClass: "sortable-drag",  // Class name for the dragging item
+            forceFallback: true,
+            onEnd: function (event) {
 
-  $(document).ready(function(){
+              var priorityMapping = {};
+              $('#draggable-tbody > tr').each(function(idx, elem) {
+                // rewrite priority of every element based on the current order of elements
+                var new_idx = 1000 - idx;
+                priorityMapping[$(elem).data('cfid')] = new_idx;
+              });
 
-    - if is_featured_category
-      - if org_perms.contacts.contactfield_update_priority
-        var sortable = new Sortable(document.getElementById('draggable-tbody'), {
-          // handle: '.drag-handle',  // make this row draggable only by the handle
-          dataIdAttr: 'data-cfid',
-          direction: 'vertical',
-          animation: 100,
+              var priorityUpdateUrl = '{% url "contacts.contactfield_update_priority" %}';
 
-          // uncomment next line of code to toggle fallback behaviour, might help if you are having issues with older browsers
-          //   once toggled the width of the dragged row will be smaller then expected (known problem with widths - https://github.com/nyaruka/rapidpro/pull/2328#issuecomment-479912074)
+              $.ajax({
+                type: 'POST',
+                url: priorityUpdateUrl,
+                data: JSON.stringify(priorityMapping),
+                success: function (data, status, jqXHR) {
+                  // do nothing
+                },
+                error: function (jqXHR, status, error) {
+                  console.error(jqXHR, status, error);
+                }
+              });
+            }
+          });
 
-          // forceFallback: true,
+      }); // document.ready
 
-          ghostClass: "sortable-ghost",  // Class name for the drop placeholder
-          dragClass: "sortable-drag",  // Class name for the dragging item
 
-          onEnd: function (event) {
+      function showUpdateContactFieldModal(id) {
+        var modax = document.querySelector('#update-field');
+        modax.endpoint = `/contactfield/update/${id}/`;
+        modax.open = true;
+      }
 
-            var priorityMapping = {};
-            $('#draggable-tbody > tr').each(function(idx, elem) {
-              // rewrite priority of every element based on the current order of elements
-              var new_idx = 1000 - idx;
+      function showFieldDeleteModal(uuid) {
+        var modax = document.querySelector('#delete-modal');
+        modax.endpoint = `/contactfield/delete/${uuid}/`;
+        modax.open = true;
+      }
 
-              priorityMapping[$(elem).data('cfid')] = new_idx;
-
-            });
-
-            var priorityUpdateUrl = '{% url "contacts.contactfield_update_priority" %}';
-
-            $.ajax({
-              type: 'POST',
-              url: priorityUpdateUrl,
-              data: JSON.stringify(priorityMapping),
-              success: function (data, status, jqXHR) {
-                // do nothing
-              },
-              error: function (jqXHR, status, error) {
-                console.error(jqXHR, status, error);
-              }
-            });
-          }
-        });
-
-  }); // document.ready
-
-  function showUpdateContactFieldModal(id) {
-    var modax = document.querySelector('#update-field');
-    modax.endpoint = `/contactfield/update/${id}/`;
-    modax.open = true;
-  }
-
-  function showDeleteContactFieldModal(id) {
-    var modax = document.querySelector('#delete-field');
-    modax.endpoint = `/contactfield/delete/${id}/`;
-    modax.open = true;
-  }
-
-  function showDetailContactFieldModal(id, label) {
-    var modax = document.querySelector('#uses-modal');
-    modax.endpoint = "/contactfield/detail/" + id;
-    modax.open = true;
-  }
-
-</script>
-<script type="text/javascript" src="{{ STATIC_URL }}bower/Sortable/Sortable.min.js"></script>
+      function showFieldUsagesModal(uuid) {
+        var modax = document.querySelector('#usages-modal');
+        modax.endpoint = `/contactfield/usages/${uuid}/`;
+        modax.open = true;
+      }
+  </script>
+  <script type="text/javascript" src="{{ STATIC_URL }}bower/Sortable/Sortable.min.js"></script>
 
 {% endblock %}
 
-
-
 -block extra-style
   {{block.super}}
-  :css
-   .page-content {
-      align-self: auto;
-      max-width: 100%;
-    }
+  -block spa-style
+    :css
+      .page-content {
+        align-self: auto;
+        max-width: 100%;
+      }
 
-    .drag-handle {
-      cursor: move;
-      display: block;
-    }
+      .drag-handle {
+        cursor: move;
+        display: block;
+      }
 
-    .drag-icon {
-      width: 15px;
-    }
+      .drag-icon {
+        width: 15px;
+      }
 
-    .drag-icon:before {
-      content: '';
-      display: block;
-      width: 15px;
-    }
+      .drag-icon:before {
+        content: '';
+        display: block;
+        width: 15px;
+      }
 
-    .sortable-drag {
-      background-color: #f5f9fa;;
-    }
+      .sortable-drag {
+        background-color: #f5f9fa;;
+      }
 
-    .sortable-ghost {
-      background-color: #f5f9ff;
-    }
+      .sortable-ghost {
+        background-color: #f5f9ff;
+      }
 
-    .draggable-row .icon {
-      display: none;
-    }
+      .draggable-row .icon {
+        display: none;
+      }
 
-    .draggable-row > td {
-      cursor: move;
-    }
+      .draggable-row > td {
+        cursor: move;
+      }
 
-    .draggable-row > td:nth-child(2) > div {
-      padding-left: 0rem;
-      cursor: move !important;
-    }
+      .draggable-row > td * {
+        user-select: none;
+        -webkit-user-select: none;
+        pointer-events: none;
+      }
 
-    .draggable-row:hover .icon {
-      display: inline-block;
-      color: #cccccc;
-    }
+      .draggable-row > td:nth-child(2) > div {
+        padding-left: 0rem;
+        cursor: move !important;
+      }
 
-    tr:hover .delete-link {
-      visibility: visible !important;
-    }
+      .draggable-row:hover .icon {
+        display: inline-block;
+        color: #cccccc;
+      }
+
+      tr:hover .delete-link {
+        visibility: visible !important;
+      }

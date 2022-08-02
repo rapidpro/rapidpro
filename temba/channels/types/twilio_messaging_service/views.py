@@ -4,20 +4,19 @@ from twilio.base.exceptions import TwilioRestException
 from django import forms
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
+from temba.channels.types.twilio.views import COUNTRY_CHOICES
 from temba.orgs.models import Org
 from temba.utils.fields import SelectWidget
 
 from ...models import Channel
-from ...views import TWILIO_SUPPORTED_COUNTRIES, ClaimViewMixin
+from ...views import ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class TwilioMessagingServiceForm(ClaimViewMixin.Form):
-        country = forms.ChoiceField(
-            choices=TWILIO_SUPPORTED_COUNTRIES, widget=SelectWidget(attrs={"searchable": True})
-        )
+        country = forms.ChoiceField(choices=COUNTRY_CHOICES, widget=SelectWidget(attrs={"searchable": True}))
         messaging_service_sid = forms.CharField(
             label=_("Messaging Service SID"), help_text=_("The Twilio Messaging Service SID")
         )

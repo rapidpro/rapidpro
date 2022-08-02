@@ -1,27 +1,77 @@
 import phonenumbers
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartFormView
-from twilio.base.exceptions import TwilioRestException
+from twilio.base.exceptions import TwilioException, TwilioRestException
 
 from django import forms
 from django.conf import settings
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import Org
+from temba.orgs.views import OrgPermsMixin
+from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
 
 from ...models import Channel
-from ...views import (
-    ALL_COUNTRIES,
-    TWILIO_SEARCH_COUNTRIES,
-    TWILIO_SUPPORTED_COUNTRIES,
-    BaseClaimNumberMixin,
-    ClaimViewMixin,
-)
+from ...views import ALL_COUNTRIES, BaseClaimNumberMixin, ClaimViewMixin
+
+SUPPORTED_COUNTRIES = {
+    "AU",  # Australia
+    "AT",  # Austria
+    "BE",  # Belgium
+    "CA",  # Canada
+    "CL",  # Chile
+    "CZ",  # Czech Republic
+    "DK",  # Denmark  # Beta
+    "EE",  # Estonia
+    "FI",  # Finland
+    "FR",  # France  # Beta
+    "DE",  # Germany
+    "EE",  # Estonia
+    "HK",  # Hong Kong
+    "HU",  # Hungary  # Beta
+    "IE",  # Ireland,
+    "IL",  # Israel  # Beta
+    "IT",  # Italy  # Beta
+    "LT",  # Lithuania
+    "MY",  # Malaysia
+    "MX",  # Mexico  # Beta
+    "NL",  # Netherlands
+    "NO",  # Norway
+    "PH",  # Philippines  # Beta
+    "PL",  # Poland
+    "PR",  # Puerto Rico
+    "PT",  # Portugal
+    "ES",  # Spain
+    "SE",  # Sweden
+    "SG",  # Singapore  # Beta
+    "CH",  # Switzerland
+    "GB",  # United Kingdom
+    "US",  # United States
+    "VI",  # Virgin Islands
+    "VN",  # Vietnam  # Beta
+    "ZA",  # South Africa  # Beta
+}
+
+SEARCH_COUNTRIES = {
+    "BE",  # Belgium
+    "CA",  # Canada
+    "FI",  # Finland
+    "NO",  # Norway
+    "PL",  # Poland
+    "ES",  # Spain
+    "SE",  # Sweden
+    "GB",  # United Kingdom
+    "US",  # United States
+}
+
+COUNTRY_CHOICES = countries.choices(SUPPORTED_COUNTRIES)
+CALLING_CODES = countries.calling_codes(SUPPORTED_COUNTRIES)
+SEARCH_COUNTRY_CHOICES = countries.choices(SEARCH_COUNTRIES)
 
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
@@ -59,13 +109,13 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             return HttpResponseRedirect(f'{reverse("orgs.org_twilio_connect")}?claim_type={self.channel_type.slug}')
 
     def get_search_countries_tuple(self):
-        return TWILIO_SEARCH_COUNTRIES
+        return SEARCH_COUNTRY_CHOICES
 
     def get_supported_countries_tuple(self):
         return ALL_COUNTRIES
 
     def get_search_url(self):
-        return reverse("channels.channel_search_numbers")
+        return reverse("channels.types.twilio.search")
 
     def get_claim_url(self):
         return reverse("channels.types.twilio.claim")
@@ -97,11 +147,11 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         return numbers
 
-    def is_valid_country(self, country_code):
+    def is_valid_country(self, calling_code: int) -> bool:
         return True
 
-    def is_messaging_country(self, country):
-        return country in [c[0] for c in TWILIO_SUPPORTED_COUNTRIES]
+    def is_messaging_country(self, country_code: str) -> bool:
+        return country_code in SUPPORTED_COUNTRIES
 
     def claim_number(self, user, phone_number, country, role):
         org = user.get_org()
@@ -202,3 +252,66 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         )
 
         return channel
+
+
+class SearchView(OrgPermsMixin, SmartFormView):
+    class Form(forms.Form):
+        country = forms.ChoiceField(choices=SEARCH_COUNTRY_CHOICES)
+        pattern = forms.CharField(max_length=3, min_length=3, required=False)
+
+    form_class = Form
+    permission = "channels.channel_claim"
+
+    def form_invalid(self, *args, **kwargs):
+        return JsonResponse([], safe=False)
+
+    def search_available(self, client, country: str, **kwargs):
+        available_numbers = []
+
+        try:
+            available_numbers += client.api.available_phone_numbers(country).local.list(**kwargs)
+        except TwilioException:  # pragma: no cover
+            pass
+
+        try:
+            available_numbers += client.api.available_phone_numbers(country).mobile.list(**kwargs)
+        except TwilioException:  # pragma: no cover
+            pass
+
+        try:
+            available_numbers += client.api.available_phone_numbers(country).toll_free.list(**kwargs)
+        except TwilioException:  # pragma: no cover
+            pass
+
+        return available_numbers
+
+    def form_valid(self, form, *args, **kwargs):
+        org = self.request.user.get_org()
+        client = org.get_twilio_client()
+        data = form.cleaned_data
+
+        # if the country is not US or CANADA list using contains instead of area code
+        if not data["pattern"]:
+            available_numbers = self.search_available(client, data["country"])
+        elif data["country"] in ["CA", "US"]:
+            available_numbers = self.search_available(client, data["country"], area_code=data["pattern"])
+        else:
+            available_numbers = self.search_available(client, data["country"], contains=data["pattern"])
+
+        numbers = []
+
+        for number in available_numbers:
+            numbers.append(
+                phonenumbers.format_number(
+                    phonenumbers.parse(number.phone_number, None), phonenumbers.PhoneNumberFormat.INTERNATIONAL
+                )
+            )
+
+        if not numbers:
+            if data["country"] in ["CA", "US"]:
+                msg = _("Sorry, no numbers found, please enter another area code and try again.")
+            else:
+                msg = _("Sorry, no numbers found, please enter another pattern and try again.")
+            return JsonResponse({"error": str(msg)})
+
+        return JsonResponse(numbers, safe=False)

@@ -1,0 +1,64 @@
+-extends "msgs/message_box.haml"
+-load smartmin sms temba compress contacts i18n humanize
+
+-block content
+
+  %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
+
+  .page-title
+
+  .flex
+    .flex-grow.self-end.items-end
+      .flex.flex-col
+        %form#search-form(method="get")
+          %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+          %input.hide(type="submit")
+
+
+  .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
+    -include "includes/short_pagination.haml"          
+  
+  .flex-grow.overflow-y-auto.shadow.rounded-b-lg
+    -if has_messages
+      %table.list.object-list.lined.scrolled{class: '{% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send %}selectable{% endif %}'}
+        %tbody
+          -for object in object_list
+            %tr.sms.object-row{id: 'id-row-{{object.id}}', data-object-id:'{{ object.id }}',
+                          data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', onclick:'handleRowClicked(event)'}
+              -if actions
+                - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
+                  %td.checkbox.sms.object-row-check(onclick="checkInner(event);")
+                    %temba-checkbox{onclick:"handleRowSelection(this)"}
+              %td.whitespace-nowrap
+                {{ object.contact|name_or_urn:user_org|truncatechars:20 }}
+              %td.w-full
+                .flex.flex-wrap.flex-end.items-center.justify-end
+                  .flex-grow.inline
+                    {% get_value object 'text' %}
+                  .labels.flex.items-center.flex-wrap
+                    -if 'label' in actions
+                      -for label in object.labels.all
+                        .lbl.linked.ml-2{onclick:"goto(event, this)", href:"{% url 'msgs.msg_filter' label.uuid %}", data-id: '{{label.id}}'}                                
+                          {{label.name}}
+
+                -if object.attachments
+                  .value-attachments{ style:"margin-top: 5px" }
+                    - for attachment in object.attachments
+                      {% attachment_button attachment %}
+
+              %td
+                .flex.w-full.items-end.justify-end.pr-4
+                  .time.whitespace-nowrap
+                    -block message_time
+                      {% short_datetime object.created_on %}
+
+                  -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
+                    .inline-block.text-gray-400.linked.ml-3
+                      {% channel_log_link object %}
+
+          -if not object_list
+            %tr.empty_list
+              %td{ colspan:'99' }
+                -trans "No messages"
+    -else
+      -include "msgs/empty_include.html"

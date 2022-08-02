@@ -2,7 +2,7 @@ import logging
 
 from django.forms import ValidationError
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
@@ -41,8 +41,10 @@ class TwitterType(ChannelType):
     async_activation = False
     attachment_support = True
 
-    redact_response_keys = {"urn"}
-    redact_request_keys = {"sender_id", "name", "screen_name", "profile_image_url", "profile_image_url_https"}
+    redact_response_keys = ("urn",)
+    redact_request_keys = ("sender_id", "name", "screen_name", "profile_image_url", "profile_image_url_https")
+
+    beta_only = True
 
     def activate(self, channel):
         config = channel.config

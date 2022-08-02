@@ -1,10 +1,19 @@
 -extends "channels/channellog_read.html"
+-load i18n
 
--load i18n humanize compress
+-block title
+  -trans "Call Log"
 
--block titles
-  %h2
-    -trans "Call Log"
+-block log-recipient
+  %a(href='{% url "contacts.contact_read" object.contact.uuid %}')
+    {{ object.contact_urn.path }}
 
--block above-bar
-  %a.btn.btn-secondary{ href: '{% url "channels.channellog_list" object.channel.uuid %}?connections=1' } More Calls
+-block log-direction
+  {{ object.get_direction_display }}
+
+-block log-status
+  {{ object.status_display }}
+
+-block log-entries
+  -for log in object.channel_logs.all
+    -include "channels/channellog_log.haml"

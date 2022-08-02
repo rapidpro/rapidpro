@@ -11,7 +11,7 @@ def http_headers(extra=None):
     return headers
 
 
-class HttpEvent(object):
+class HttpEvent:
     def __init__(self, method, url, request_body=None, status_code=None, response_body=None):
         self.method = method
         self.url = url

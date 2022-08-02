@@ -3,25 +3,19 @@ from collections import defaultdict
 from .models import get_stripe_credentials
 
 
-class GroupPermWrapper:
+class RolePermsWrapper:
     """
-    Provides access in templates to the permissions granted to an auth group.
+    Provides access in templates to the permissions granted to an org role.
     """
 
-    def __init__(self, group):
-        self.group = group
+    def __init__(self, role):
         self.empty = defaultdict(lambda: False)
-        self.apps = dict()
+        self.apps = defaultdict(lambda: defaultdict(lambda: False))
 
-        for perm in self.group.permissions.all().select_related("content_type"):
-            app_name = perm.content_type.app_label
-            app_perms = self.apps.get(app_name, None)
+        for perm in role.permissions:
+            (app_label, codename) = perm.split(".")
 
-            if not app_perms:
-                app_perms = defaultdict(lambda: False)
-                self.apps[app_name] = app_perms
-
-            app_perms[perm.codename] = True
+            self.apps[app_label][codename] = True
 
     def __getitem__(self, module_name):
         return self.apps.get(module_name, self.empty)
@@ -31,34 +25,28 @@ class GroupPermWrapper:
 
 
 def user_orgs_for_brand(request):
-    if hasattr(request, "user"):
-        if not request.user.is_anonymous:
-            user_orgs = request.user.get_user_orgs(request.branding.get("keys", []))
-            return dict(user_orgs=user_orgs)
+    if request.user.is_authenticated:
+        user_orgs = request.user.get_orgs(brands=request.branding.get("keys", []))
+        return {"user_orgs": user_orgs}
     return {}
 
 
 def user_group_perms_processor(request):
     """
-    Sets org_org in the context, and org_perms if user belongs to an auth group.
+    Sets user_org in the context, and org_perms if user belongs to an auth group.
     """
-    org = None
-    group = None
+    context = {}
 
-    if hasattr(request, "user"):
-        if request.user.is_anonymous:
-            group = None
-        else:
-            group = request.user.get_org_group()
-            org = request.user.get_org()
-
-    if group:
-        context = dict(org_perms=GroupPermWrapper(group))
+    if request.user.is_anonymous:
+        org = None
+        role = None
     else:
-        context = dict()
+        org = request.org
+        role = org.get_user_role(request.user) if org else None
 
-    # make sure user_org is set on our request based on their session
     context["user_org"] = org
+    if role:
+        context["org_perms"] = RolePermsWrapper(role)
 
     return context
 

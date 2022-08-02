@@ -4,7 +4,7 @@
 FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -e '\.py$')
 
 if [ -n "$FILES" ]; then
-    if [ $(isort -c $FILES | wc -l) -ne 0 ]; then
+    if [ $(isort $FILES | wc -l) -ne 0 ]; then
         isort -q $FILES
         touch .commit
     fi

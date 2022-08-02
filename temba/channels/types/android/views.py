@@ -3,11 +3,11 @@ from smartmin.views import SmartFormView
 
 from django import forms
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.apks.models import Apk
-from temba.contacts.models import ContactURN
 from temba.orgs.models import Org
+from temba.utils import countries
 
 from ...models import Channel
 from ...views import ClaimViewMixin, UpdateTelChannelForm
@@ -84,9 +84,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         self.object = Channel.objects.filter(claim_code=self.form.cleaned_data["claim_code"]).first()
 
         country = self.object.country
-        phone_country = ContactURN.derive_country_from_tel(
-            self.form.cleaned_data["phone_number"], str(self.object.country)
-        )
+        phone_country = countries.from_tel(self.form.cleaned_data["phone_number"]) or str(self.object.country)
 
         # always prefer the country of the phone number they are entering if we have one
         if phone_country and phone_country != country:  # pragma: needs cover

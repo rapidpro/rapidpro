@@ -1,5 +1,5 @@
 from django import forms
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.channels.views import ALL_COUNTRIES, AuthenticatedExternalClaimView, ClaimViewMixin
@@ -18,7 +18,7 @@ class ClaimView(AuthenticatedExternalClaimView):
             max_length=14,
             min_length=4,
             label=_("Number"),
-            help_text=("The shortcode or phone number you are connecting."),
+            help_text=("The short code or phone number you are connecting."),
         )
         url = ExternalURLField(
             label=_("URL"),

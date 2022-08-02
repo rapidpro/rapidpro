@@ -1,0 +1,10 @@
+-extends "contacts/contact_list_spa.html"
+-load smartmin i18n
+
+-block title
+  {{current_group.name}}
+
+-block subtitle
+  -if current_group.is_smart
+    .font-mono.text-sm.mb-4.bg-gray-200.text-gray-700.p-3.rounded-lg
+      {{ current_group.query }}

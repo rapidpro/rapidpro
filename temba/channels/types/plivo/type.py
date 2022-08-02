@@ -1,11 +1,13 @@
 import requests
 
-from django.utils.translation import ugettext_lazy as _
+from django.urls import re_path
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel, ChannelType
-from temba.channels.types.plivo.views import ClaimView
 from temba.contacts.models import URN
 from temba.utils.http import http_headers
+
+from .views import ClaimView, SearchView
 
 
 class PlivoType(ChannelType):
@@ -39,3 +41,6 @@ class PlivoType(ChannelType):
             auth=(config[Channel.CONFIG_PLIVO_AUTH_ID], config[Channel.CONFIG_PLIVO_AUTH_TOKEN]),
             headers=http_headers(extra={"Content-Type": "application/json"}),
         )
+
+    def get_urls(self):
+        return [self.get_claim_url(), re_path(r"^search$", SearchView.as_view(), name="search")]

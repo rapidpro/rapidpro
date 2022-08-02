@@ -1,0 +1,10 @@
+-extends "tickets/ticket_list.html"
+
+-block extra-style
+  {{block.super}}
+  :css
+    temba-select[name='ticket-status'] {
+      margin-top: 0em !important;
+    }
+
+-block page-header

@@ -1,4 +1,4 @@
-from django.conf.urls import url
+from django.urls import re_path
 
 from .views import FlowCRUDL, FlowLabelCRUDL, FlowRunCRUDL, FlowSessionCRUDL, FlowStartCRUDL, PartialTemplate
 
@@ -8,5 +8,5 @@ urlpatterns += FlowRunCRUDL().as_urlpatterns()
 urlpatterns += FlowSessionCRUDL().as_urlpatterns()
 urlpatterns += FlowStartCRUDL().as_urlpatterns()
 urlpatterns += [
-    url(r"^partials/(?P<template>[a-z0-9\-_]+)$", PartialTemplate.as_view(), name="flows.partial_template")
+    re_path(r"^partials/(?P<template>[a-z0-9\-_]+)$", PartialTemplate.as_view(), name="flows.partial_template")
 ]

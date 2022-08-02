@@ -72,7 +72,7 @@ a {
   color: inherit;
 
   &.active {
-    @apply: text-primary no-underline;
+    @apply text-primary no-underline;
   }
 
   &:hover {
@@ -95,14 +95,13 @@ a {
 }
 
 .button {
-  @apply px-6 py-3 leading-none text-lg shadow transition duration-300 text-center rounded-lg select-none whitespace-no-wrap font-normal inline-block;
+  @apply px-6 py-3 leading-none text-lg shadow transition duration-200 text-center rounded-lg select-none whitespace-nowrap font-normal inline-block;
   margin-top: 1px;
 
   &:active {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
   }
 
   &:hover {
@@ -111,7 +110,7 @@ a {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .1);
+      
   }
 
 }
@@ -124,7 +123,6 @@ a {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(255, 255, 255, .6);
   }
 }
 
@@ -145,7 +143,8 @@ a {
 }
 
 .button-primary {
-  @apply button text-white bg-primary;
+  @apply button text-white;
+  background: var(--color-primary-dark) !important;
 }
 
 .button-white {
@@ -180,7 +179,7 @@ a {
 }
 
 .lbl {
-  @apply shadow leading-tight no-underline cursor-default px-2 py-1 inline-block text-xs font-normal rounded-full bg-dark-alpha-50 text-dark-alpha-500 tracking-wide whitespace-no-wrap text-center;
+  @apply shadow leading-tight no-underline cursor px-2 py-1 inline-block text-xs font-normal rounded-full bg-dark-alpha-50 text-dark-alpha-500 tracking-wide whitespace-nowrap text-center;
 
   &.linked:hover {
     @apply no-underline cursor-pointer text-dark-alpha-500;
@@ -222,12 +221,11 @@ a {
 
 .lbl-group {
   @apply lbl;
-
-  &::before {
-    @apply lbl-icon;
-    content: "\e03c";
-    margin-bottom: 1px;
-    display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  temba-icon {
+    --icon-color: rgba(0,0,0,.5);
+    margin-right: 3px;
   }
 }
 
@@ -243,22 +241,13 @@ a {
 .lbl-group.inverted {
   @apply text-light-alpha-900;
 
-  &::before {
-    @apply text-light-alpha-900;
-    content: "\e03c";
-  }
-
   &.linked:hover {
     @apply no-underline cursor-pointer text-light-alpha-900;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
   }
-}
 
-.lbl-group-dynamic {
-  @apply lbl-group;
-
-  &::before {
-    content: "\ebeb";
+  temba-icon {
+    --icon-color: rgba(255, 255, 255, .9);
   }
 }
 
@@ -324,7 +313,8 @@ a {
 }
 
 .page-title {
-  @apply text-3xl text-gray-700
+  @apply text-3xl text-gray-700;
+  --icon-color: rgb(77,77,77);
 }
 
 .page-subtitle {
@@ -345,14 +335,33 @@ table.padded {
   }
 }
 
-table.list {
-  @apply w-full shadow rounded-lg overflow-hidden bg-white;
+table.list{ 
+  @apply w-full shadow rounded-lg bg-white overflow-hidden;
+
+  &.sticky {
+    th {
+      position: sticky;
+      top: 0;
+    }
+  }
+
+  &.scrolled {
+    @apply rounded-none !important;
+    @apply shadow-none !important;
+    @apply overflow-scroll !important;
+  }
+
+  tr:first-child {
+    td {
+      border-top:none;
+    }
+  }
 
   tr {
     &.checked {
-      td {
+      td, td:hover {
         temba-checkbox {
-          --color-text: #999;
+          --icon-color: #444 !important;
         }
 
       }
@@ -360,11 +369,10 @@ table.list {
 
     td {
       temba-checkbox {
-        margin-top: -7px;
         display: block;
-        --color-text: #ddd;
-        width: 14px;
-        height: 14px;
+        --icon-color: #ddd;
+        width: 18px;
+        height: 18px;
       }
     }
   }
@@ -419,7 +427,7 @@ table.list {
   &.expanded {
 
     &.lined {
-      @apply border-solid border-gray-300 border-l-0 border-r-0 border-b-0;
+      @apply border-solid border-gray-300 border-l-0 border-r-0;
     }
 
     thead tr th {
@@ -437,15 +445,16 @@ table.list {
     tbody tr td>* {
       max-height: 500px;
     }
+
   }
 
   th {
-    @apply table-header whitespace-no-wrap text-gray-600 p-3;
+    @apply table-header whitespace-nowrap text-gray-600 p-3;
   }
 
   &.lined {
     td {
-      @apply border-t border-gray-200;
+      @apply border-b border-gray-200;
     }
   }
 
@@ -540,7 +549,7 @@ table.list {
 
       td:hover {
         temba-checkbox {
-          --color-text: #999;
+          --icon-color: #999;
         }
       }
 
@@ -572,7 +581,6 @@ table.list {
 }
 
 .gear-links {
-  @apply ml-4;
   min-height: 34.5px;
 }
 
@@ -629,7 +637,7 @@ code {
 }
 
 .code {
-  @apply bg-dark-alpha-30 rounded-lg px-1 py-1 leading-tight text-base font-mono inline-block mx-1 whitespace-no-wrap;
+  @apply bg-dark-alpha-30 rounded-lg px-1 py-1 leading-tight text-base font-mono inline-block mx-1 whitespace-nowrap;
   color: #2980b9;
 
 }
@@ -688,23 +696,46 @@ code {
   }
 }
 
+.safari-scroll-clip {
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+}
+
 .formax {
   .formax-section {
+    transition: all 200ms ease-in-out;
+    margin-left: 0px;
+    margin-right: 0px;
+
     @apply border-0 rounded-lg shadow bg-white mb-4 p-0 overflow-hidden flex items-stretch;
 
     &:hover {
       box-shadow: var(--widget-box-shadow-focused);
     }
 
-    &.action-summary:hover {
-      @apply shadow;
+    &.action-summary, &.action-link {
+      @apply border border-gray-400 shadow-none bg-transparent;
+
+      background-color: rgba(0,0,0,.015);
+
+      .formax-summary {
+        @apply py-6 !important;
+        @apply bg-transparent;
+      }
 
       .formax-icon {
-        @apply cursor-default;
+        @apply bg-transparent;
+      }
+    }
+
+    &.action-summary:hover {
+      @apply shadow-none;
+
+      .formax-icon {
+        @apply cursor;
       }
 
       .formax-summary {
-        @apply cursor-default;
+        @apply cursor;
       }
     }
 
@@ -747,7 +778,27 @@ code {
       }
     }
 
+
+    &.wide.open {
+      margin-left: -115px;
+      margin-right: -115px;
+
+      .formax-icon {
+        font-size: 50px;
+        padding-top: 0px;
+        flex-basis: 0px;
+
+        .i-container {
+          width: 0px;
+          margin-top: 20px;
+          margin-left:-25px;
+        }
+      }
+    }
+
     &.open {
+      margin-left: -30px;
+      margin-right: -30px;
       @apply shadow-lg;
 
       &:hover {
@@ -783,6 +834,10 @@ code {
       }
     }
   }
+}
+
+.control-group {
+  margin-bottom: var(--control-margin-bottom);
 }
 
 @responsive {
@@ -885,6 +940,12 @@ code {
   100% {
     transform: scale(1);
   }
+}
+
+.disabled {
+  @apply text-gray-300;
+  --icon-color: #ccc;
+
 }
 
 @tailwind utilities;

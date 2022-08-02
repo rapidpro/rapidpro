@@ -1,10 +1,14 @@
+from datetime import timedelta
+
+import iso8601
+
 from django.utils import timezone
 
-from temba.api.models import WebHookResult
 from temba.channels.models import Channel
-from temba.contacts.models import URN
+from temba.contacts.models import URN, Contact, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.msgs.models import Msg
+from temba.request_logs.models import HTTPLog
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
 
@@ -31,6 +35,14 @@ EXIT_TYPES = {
     "interrupted": FlowRun.EXIT_TYPE_INTERRUPTED,
     "expired": FlowRun.EXIT_TYPE_EXPIRED,
     "failed": FlowRun.EXIT_TYPE_FAILED,
+}
+
+# engine contact statuses to db statuses
+CONTACT_STATUSES = {
+    "active": Contact.STATUS_ACTIVE,
+    "blocked": Contact.STATUS_BLOCKED,
+    "stopped": Contact.STATUS_STOPPED,
+    "archived": Contact.STATUS_ARCHIVED,
 }
 
 PERSIST_EVENTS = {"msg_created", "msg_received"}
@@ -124,11 +136,25 @@ class MockSessionWriter:
         self._log_event("contact_urns_changed", urns=urns)
         return self
 
+    def add_contact_groups(self, groups):
+        self._log_event("contact_groups_changed", groups_added=[{"uuid": str(g.uuid), "name": g.name} for g in groups])
+        return self
+
+    def remove_contact_groups(self, groups):
+        self._log_event(
+            "contact_groups_changed", groups_removed=[{"uuid": str(g.uuid), "name": g.name} for g in groups]
+        )
+        return self
+
+    def set_contact_status(self, status: str):
+        self._log_event("contact_status_changed", status=status)
+        return self
+
     def error(self, text):
         self._log_event("error", text=text)
         return self
 
-    def send_msg(self, text, channel=None, attachments=[]):
+    def send_msg(self, text, channel=None, attachments=()):
         msg = {
             "uuid": str(uuid4()),
             "urn": self.contact.get_urn().urn,
@@ -187,11 +213,15 @@ class MockSessionWriter:
         return self
 
     def wait(self):
-        self.output["wait"] = {"type": "msg"}
         self.output["status"] = "waiting"
         self.current_run["status"] = "waiting"
         self.current_run["modified_on"] = self._now()
-        self._log_event("msg_wait")
+
+        expires_on = None
+        if self.output["type"] in ("messaging", "voice"):
+            expires_on = (timezone.now() + timedelta(days=7)).isoformat()
+
+        self._log_event("msg_wait", expires_on=expires_on)
         return self
 
     def resume(self, msg):
@@ -234,19 +264,36 @@ class MockSessionWriter:
             self.contact.sessions.filter(status=FlowSession.STATUS_WAITING).update(
                 status=FlowSession.STATUS_INTERRUPTED, ended_on=timezone.now()
             )
-            self.contact.runs.filter(is_active=True).update(
+            self.contact.runs.filter(status__in=(FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING)).update(
                 status=FlowRun.STATUS_INTERRUPTED,
-                exit_type=FlowRun.EXIT_TYPE_INTERRUPTED,
-                is_active=False,
                 modified_on=interrupted_on,
                 exited_on=interrupted_on,
             )
+
+        if self.output["status"] == "waiting":
+            wait_event = None
+            for evt in self.events:
+                if evt["type"].endswith("_wait"):
+                    wait_event = evt
+
+            wait_started_on = timezone.now()
+            wait_expires_on = iso8601.parse_date(wait_event["expires_on"]) if wait_event["expires_on"] else None
+            wait_resume_on_expire = False  # this doesn't support sub-flows
+            ended_on = None
+        else:
+            wait_started_on = None
+            wait_expires_on = None
+            wait_resume_on_expire = False
+            ended_on = timezone.now()
 
         # create or update session object itself
         if self.session:
             self.session.output = self.output
             self.session.status = SESSION_STATUSES[self.output["status"]]
-            self.session.save(update_fields=("output", "status"))
+            self.session.wait_started_on = wait_started_on
+            self.session.wait_expires_on = wait_expires_on
+            self.session.ended_on = ended_on
+            self.session.save(update_fields=("output", "status", "wait_started_on", "wait_expires_on", "ended_on"))
         else:
             self.session = FlowSession.objects.create(
                 uuid=self.output["uuid"],
@@ -255,12 +302,31 @@ class MockSessionWriter:
                 session_type=db_flow_types[self.output["type"]],
                 output=self.output,
                 status=SESSION_STATUSES[self.output["status"]],
+                wait_started_on=wait_started_on,
+                wait_expires_on=wait_expires_on,
+                wait_resume_on_expire=wait_resume_on_expire,
+                ended_on=ended_on,
             )
 
+        current_flow = None
+
         for i, run in enumerate(self.output["runs"]):
+            if run["status"] == "waiting":
+                current_flow = Flow.objects.get(uuid=run["flow"]["uuid"])
+
+            db_state = dict(
+                path=run["path"],
+                results=run["results"],
+                status=RUN_STATUSES[run["status"]],
+                current_node_uuid=run["path"][-1]["node_uuid"] if run["path"] else None,
+                modified_on=run["modified_on"],
+                exited_on=run["exited_on"],
+                responded=bool([e for e in run["events"] if e["type"] == "msg_received"]),
+            )
+
             run_obj = FlowRun.objects.filter(uuid=run["uuid"]).first()
             if not run_obj:
-                run_obj = FlowRun.objects.create(
+                FlowRun.objects.create(
                     uuid=run["uuid"],
                     org=self.org,
                     start=self.start if i == 0 else None,
@@ -268,20 +334,14 @@ class MockSessionWriter:
                     contact=self.contact,
                     session=self.session,
                     created_on=run["created_on"],
+                    **db_state,
                 )
+            else:
+                FlowRun.objects.filter(id=run_obj.id).update(**db_state)
 
-            FlowRun.objects.filter(id=run_obj.id).update(
-                path=run["path"],
-                events=[e for e in run["events"] if e["type"] in PERSIST_EVENTS],
-                results=run["results"],
-                exit_type=EXIT_TYPES.get(run["status"]),
-                is_active=run["status"] in ("waiting", "active"),
-                status=RUN_STATUSES[run["status"]],
-                current_node_uuid=run["path"][-1]["node_uuid"] if run["path"] else None,
-                modified_on=run["modified_on"],
-                exited_on=run["exited_on"],
-                responded=bool([e for e in run["events"] if e["type"] == "msg_received"]),
-            )
+        self.contact.current_flow = current_flow
+        self.contact.modified_on = timezone.now()
+        self.contact.save(update_fields=("current_flow", "modified_on"))
 
         self._handle_events()
         return self
@@ -309,17 +369,32 @@ class MockSessionWriter:
             created_on=event["created_on"],
             msg_type="F",
             status="S",
+            sent_on=event["created_on"],
         )
 
+    def _handle_contact_groups_changed(self, event):
+        for group in event.get("groups_added", []):
+            ContactGroup.objects.get(uuid=group["uuid"]).contacts.add(self.contact)
+
+        for group in event.get("groups_removed", []):
+            ContactGroup.objects.get(uuid=group["uuid"]).contacts.remove(self.contact)
+
+    def _handle_contact_status_changed(self, event):
+        self.contact.status = CONTACT_STATUSES[event["status"]]
+        self.contact.modified_on = timezone.now()
+        self.contact.save(update_fields=("status", "modified_on"))
+
     def _handle_webhook_called(self, event):
-        WebHookResult.objects.create(
+        HTTPLog.objects.create(
             org=self.org,
-            contact=self.contact,
+            log_type=HTTPLog.WEBHOOK_CALLED,
             url=event["url"],
             status_code=event["status_code"],
+            is_error=event["status"] != "success",
             request=event["request"],
             response=event["response"],
             request_time=event["elapsed_ms"],
+            num_retries=0,
         )
 
     @staticmethod

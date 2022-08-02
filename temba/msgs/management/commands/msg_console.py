@@ -75,7 +75,7 @@ class Command(BaseCommand):  # pragma: no cover
 
         try:
             self.channel = TestChannel.create(
-                org, org.administrators.first(), COURIER_URL, callback=self.response_callback, scheme=scheme
+                org, org.get_admins().first(), COURIER_URL, callback=self.response_callback, scheme=scheme
             )
             print(f"✅ Testing channel started at️ {Fore.CYAN}{self.channel.server.base_url}{Fore.RESET}")
         except Exception as e:

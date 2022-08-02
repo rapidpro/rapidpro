@@ -3,9 +3,9 @@
 
 -block fields
   .mb-4
-    -trans "You are about to delete"
-    %span.font-normal
-      {{object}}.
+    -blocktrans trimmed with org=object.name date=delete_on
+      This will schedule deletion of <b>{{ org }}</b> on <b>{{ date }}</b>.
 
   -blocktrans trimmed
-    Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted.
+    Are you sure you want to delete everything belonging to this workspace? This cannot be undone. Any logins which
+    belong only to this workspace will also be deleted.

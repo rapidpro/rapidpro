@@ -1,9 +1,6 @@
-from unittest.mock import patch
-
 from django.test.utils import override_settings
 from django.urls import reverse
 
-from temba.orgs.models import Org
 from temba.tests import CRUDLTestMixin, TembaTest
 
 from .models import Global
@@ -17,7 +14,7 @@ class GlobalTest(TembaTest):
         self.assertEqual("org_name", global1.key)
         self.assertEqual("Org Name", global1.name)
         self.assertEqual("Acme Ltd", global1.value)
-        self.assertEqual("global[key=org_name,name=Org Name]", str(global1))
+        self.assertEqual("Org Name", str(global1))
 
         # update value if provided
         g1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Holdings")
@@ -38,20 +35,17 @@ class GlobalTest(TembaTest):
         flow1.global_dependencies.add(global1, global2)
         flow2.global_dependencies.add(global1)
 
-        self.assertEqual(2, global1.get_usage_count())
-        self.assertEqual(1, global2.get_usage_count())
-
         with self.assertNumQueries(1):
             g1, g2, g3 = Global.annotate_usage(self.org.globals.order_by("id"))
-            self.assertEqual(2, g1.get_usage_count())
-            self.assertEqual(1, g2.get_usage_count())
-            self.assertEqual(0, g3.get_usage_count())
+            self.assertEqual(2, g1.usage_count)
+            self.assertEqual(1, g2.usage_count)
+            self.assertEqual(0, g3.usage_count)
 
-        global1.release()
-        global2.release()
-        global3.release()
+        global1.release(self.admin)
+        global2.release(self.admin)
+        global3.release(self.admin)
 
-        self.assertEqual(0, Global.objects.count())
+        self.assertEqual(0, Global.objects.filter(is_active=True).count())
 
     def test_make_key(self):
         self.assertEqual("org_name", Global.make_key("Org Name"))
@@ -88,7 +82,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.global2 = Global.get_or_create(self.org, self.admin, "access_token", "Access Token", "23464373")
         self.other_org_global = Global.get_or_create(self.org2, self.admin, "access_token", "Access Token", "653732")
 
-        self.flow = self.get_flow("color")
+        self.flow = self.create_flow("Color Flow")
         self.flow.global_dependencies.add(self.global1)
 
     def test_list_views(self):
@@ -108,8 +102,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(unused_url, allow_viewers=False, allow_editors=False, context_objects=[self.global2])
 
-    @override_settings(MAX_ACTIVE_GLOBALS_PER_ORG=4)
-    @patch.object(Org, "LIMIT_DEFAULTS", dict(globals=4))
+    @override_settings(ORG_LIMIT_DEFAULTS={"globals": 4})
     def test_create(self):
         create_url = reverse("globals.global_create")
 
@@ -123,7 +116,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # try to submit with name that would become invalid key
-        self.assertCreateSubmit(create_url, {"name": "-"}, form_errors={"name": "Isn't a valid name"})
+        self.assertCreateSubmit(create_url, {"name": "-", "value": "123"}, form_errors={"name": "Isn't a valid name"})
 
         # submit with valid values
         self.assertCreateSubmit(
@@ -150,7 +143,9 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"name": "Secret3", "value": "[abc]"},
-            form_errors={"__all__": "Cannot create a new global as limit is 4."},
+            form_errors={
+                "__all__": "This workspace has reached its limit of 4 globals. You must delete existing ones before you can create new ones."
+            },
         )
 
     def test_update(self):
@@ -182,36 +177,37 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.other_org_global.refresh_from_db()
         self.assertEqual("653732", self.other_org_global.value)
 
-    def test_detail(self):
-        detail_url = reverse("globals.global_detail", args=[self.global1.id])
+    def test_usages(self):
+        detail_url = reverse("globals.global_usages", args=[self.global1.uuid])
 
         response = self.assertReadFetch(
             detail_url, allow_viewers=False, allow_editors=False, context_object=self.global1
         )
 
-        self.assertEqual([self.flow], list(response.context["dep_flows"]))
+        self.assertEqual({"flow": [self.flow]}, {t: list(qs) for t, qs in response.context["dependents"].items()})
 
     def test_delete(self):
-        delete_url = reverse("globals.global_delete", args=[self.global2.id])
+        delete_url = reverse("globals.global_delete", args=[self.global2.uuid])
+
+        # fetch delete modal
+        response = self.assertDeleteFetch(delete_url)
+        self.assertContains(response, "You are about to delete")
+
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.global2, success_status=200)
+        self.assertEqual("/global/", response["Temba-Success"])
+
+        # should see warning if global is being used
+        delete_url = reverse("globals.global_delete", args=[self.global1.uuid])
+
+        self.assertFalse(self.flow.has_issues)
 
         response = self.assertDeleteFetch(delete_url)
-        self.assertContains(response, "Are you sure you want to delete")
+        self.assertContains(response, "is used by the following items but can still be deleted:")
+        self.assertContains(response, "Color Flow")
 
-        self.assertDeleteSubmit(delete_url, object_deleted=self.global2, success_status=200)
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.global1, success_status=200)
+        self.assertEqual("/global/", response["Temba-Success"])
 
-        # can't delete if global is being used
-        delete_url = reverse("globals.global_delete", args=[self.global1.id])
-
-        response = self.assertDeleteFetch(delete_url)
-        self.assertContains(response, "cannot be deleted since it is currently in use")
-
-        with self.assertRaises(ValueError):
-            self.client.post(delete_url)
-
-        self.assertEqual(1, Global.objects.filter(id=self.global1.id).count())
-
-        # a deleted dependency shouldn't prevent deletion
-        self.flow.release()
-
-        response = self.assertDeleteFetch(delete_url)
-        self.assertContains(response, "Are you sure you want to delete")
+        self.flow.refresh_from_db()
+        self.assertTrue(self.flow.has_issues)
+        self.assertNotIn(self.global1, self.flow.global_dependencies.all())
