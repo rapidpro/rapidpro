@@ -15,7 +15,9 @@ class PublicFileStorage(DefaultStorage):
 
 public_file_storage = PublicFileStorage()
 public_file_storage.default_acl = "public-read"
-public_file_storage.querystring_auth = False  # don't include access token in attachment URLs
+public_file_storage.querystring_auth = (
+    False  # don't include access token in attachment URLs
+)
 
 _s3_client = None
 
@@ -28,10 +30,16 @@ def client():  # pragma: no cover
 
     global _s3_client
     if not _s3_client:
-        session = boto3.Session(
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
+            session = boto3.Session(
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            )
+        else:
+            session = boto3.Session()
+        _s3_client = session.client(
+            "s3", config=Config(retries={"max_attempts": 3})
         )
-        _s3_client = session.client("s3", config=Config(retries={"max_attempts": 3}))
 
     return _s3_client
 
