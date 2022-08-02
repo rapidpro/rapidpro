@@ -117,8 +117,8 @@ class MediaTest(TembaTest):
         self.assertAlmostEqual(5517, alt1.size, delta=1000)
         self.assertEqual(5110, alt1.duration)
         self.assertEqual(0, alt1.width)
-        self.assertEqual(0, alt2.height)
-        self.assertEqual(Media.STATUS_READY, media.status)
+        self.assertEqual(0, alt1.height)
+        self.assertEqual(Media.STATUS_READY, alt1.status)
 
         self.assertEqual(self.org, alt2.org)
         self.assertEqual(
@@ -133,7 +133,7 @@ class MediaTest(TembaTest):
         self.assertEqual(5110, alt2.duration)
         self.assertEqual(0, alt2.width)
         self.assertEqual(0, alt2.height)
-        self.assertEqual(Media.STATUS_READY, media.status)
+        self.assertEqual(Media.STATUS_READY, alt2.status)
 
     @mock_uuids
     def test_process_audio_m4a(self):
@@ -163,7 +163,7 @@ class MediaTest(TembaTest):
         self.assertEqual(10216, alt.duration)
         self.assertEqual(0, alt.width)
         self.assertEqual(0, alt.height)
-        self.assertEqual(Media.STATUS_READY, media.status)
+        self.assertEqual(Media.STATUS_READY, alt.status)
 
     @mock_uuids
     def test_process_video_mp4(self):
@@ -191,7 +191,7 @@ class MediaTest(TembaTest):
         self.assertEqual(0, alt.duration)
         self.assertEqual(640, alt.width)
         self.assertEqual(480, alt.height)
-        self.assertEqual(Media.STATUS_READY, media.status)
+        self.assertEqual(Media.STATUS_READY, alt.status)
 
     @mock_uuids
     def test_process_unsupported(self):

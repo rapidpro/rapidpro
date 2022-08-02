@@ -5,6 +5,7 @@ import re
 import time
 from array import array
 from datetime import datetime, timedelta
+from fnmatch import fnmatch
 
 import iso8601
 import pytz
@@ -49,6 +50,9 @@ class Media(models.Model):
     An uploaded media file that can be used as an attachment on messages.
     """
 
+    ALLOWED_CONTENT_TYPES = ("image/*", "audio/*", "video/*", "application/pdf")
+    MAX_UPLOAD_SIZE = 1024 * 1024 * 25  # 25MB
+
     STATUS_PENDING = "P"
     STATUS_READY = "R"
     STATUS_FAILED = "F"
@@ -72,8 +76,12 @@ class Media(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
     created_on = models.DateTimeField(default=timezone.now)
 
-    # TODO remove
-    is_ready = models.BooleanField(default=False, null=True)
+    @classmethod
+    def is_allowed_type(cls, content_type: str) -> bool:
+        for allowed_type in cls.ALLOWED_CONTENT_TYPES:
+            if fnmatch(content_type, allowed_type):
+                return True
+        return False
 
     @classmethod
     def get_storage_path(cls, org, uuid, filename):
@@ -90,6 +98,8 @@ class Media(models.Model):
         """
 
         from .tasks import process_media_upload
+
+        assert cls.is_allowed_type(file.content_type), "unsupported content type"
 
         base_name, extension = os.path.splitext(file.name)
 
@@ -123,7 +133,7 @@ class Media(models.Model):
             content_type,
             file,
             original=original,
-            is_ready=True,
+            status=cls.STATUS_READY,
             **kwargs,
         )
 
@@ -149,7 +159,7 @@ class Media(models.Model):
     def process_upload(self):
         from .media import process_upload
 
-        assert not self.is_ready, "media file is already processed"
+        assert self.status == self.STATUS_PENDING, "media file is already processed"
         assert not self.original, "only original uploads can be processed"
 
         process_upload(self)
