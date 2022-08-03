@@ -2896,3 +2896,73 @@ class TagsTest(TembaTest):
         # exception if tag not used correctly
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render with bob %}{% endrender %}")
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render as %}{% endrender %}")
+
+
+class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
+    @mock_uuids
+    def test_upload(self):
+        upload_url = reverse("msgs.media_upload")
+
+        def assert_upload(user, filename, expected_json):
+            self.login(user)
+
+            with open(filename, "rb") as data:
+                response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(expected_json, response.json())
+
+        assert_upload(
+            self.admin,
+            f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg",
+            {
+                "uuid": "b97f69f7-5edf-45c7-9fda-d37066eae91d",
+                "content_type": "image/jpeg",
+                "type": "image/jpeg",
+                "url": f"/media/test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve%20marten.jpg",
+                "name": "steve marten.jpg",
+                "size": 7461,
+            },
+        )
+        assert_upload(
+            self.editor,
+            f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
+            {
+                "uuid": "14f6ea01-456b-4417-b0b8-35e942f549f1",
+                "content_type": "video/mp4",
+                "type": "video/mp4",
+                "url": f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/snow.mp4",
+                "name": "snow.mp4",
+                "size": 684558,
+            },
+        )
+        assert_upload(
+            self.editor,
+            f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a",
+            {
+                "uuid": "9295ebab-5c2d-4eb1-86f9-7c15ed2f3219",
+                "content_type": "audio/mp4",
+                "type": "audio/mp4",
+                "url": f"/media/test_orgs/{self.org.id}/media/9295/9295ebab-5c2d-4eb1-86f9-7c15ed2f3219/bubbles.m4a",
+                "name": "bubbles.m4a",
+                "size": 46468,
+            },
+        )
+
+        # error message if you upload something unsupported
+        with open(f"{settings.MEDIA_ROOT}/test_imports/simple.xls", "rb") as data:
+            response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+            self.assertEqual({"error": "Unsupported file type"}, response.json())
+
+        # error message if upload is too big
+        with patch("temba.msgs.models.Media.MAX_UPLOAD_SIZE", 1024):
+            with open(f"{settings.MEDIA_ROOT}/test_media/snow.mp4", "rb") as data:
+                response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+                self.assertEqual({"error": "Limit for file uploads is 0.0009765625 MB"}, response.json())
+
+        self.clear_storage()
+
+    def test_list(self):
+        list_url = reverse("msgs.media_list")
+
+        self.assertStaffOnly(list_url)

@@ -17,7 +17,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.db.models.functions.text import Lower
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -52,7 +52,7 @@ from temba.utils.fields import (
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin
 
-from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Msg, Schedule, SystemLabel
+from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -981,3 +981,34 @@ class LabelCRUDL(SmartCRUDL):
             response = HttpResponse()
             response["Temba-Success"] = self.get_success_url()
             return response
+
+
+class MediaCRUDL(SmartCRUDL):
+    model = Media
+    actions = ("upload", "list")
+
+    class Upload(OrgPermsMixin, SmartCreateView):
+        def post(self, request, *args, **kwargs):
+            file = request.FILES["file"]
+
+            if not Media.is_allowed_type(file.content_type):
+                return JsonResponse({"error": _("Unsupported file type")})
+            if file.size > Media.MAX_UPLOAD_SIZE:
+                limit_MB = Media.MAX_UPLOAD_SIZE / (1024 * 1024)
+                return JsonResponse({"error": _("Limit for file uploads is %s MB") % limit_MB})
+
+            media = Media.from_upload(request.org, request.user, file)
+
+            return JsonResponse(
+                {
+                    "uuid": str(media.uuid),
+                    "content_type": media.content_type,
+                    "type": media.content_type,  # deprecated
+                    "url": media.url,
+                    "name": media.name,
+                    "size": media.size,
+                }
+            )
+
+    class List(OrgPermsMixin, SmartListView):
+        fields = ("name", "content_type", "size", "created_by", "created_on")

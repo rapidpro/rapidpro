@@ -701,7 +701,12 @@ class FlowCRUDL(SmartCRUDL):
 
             return obj
 
-    class UploadMedia(OrgObjPermsMixin, SmartUpdateView):
+    class UploadMedia(OrgObjPermsMixin, SmartUpdateView):  # pragma: no cover
+        """
+        TODO replace with MediaCRUDL.Upload
+        """
+
+        permission = "msgs.media_upload"
         slug_url_kwarg = "uuid"
 
         def post(self, request, *args, **kwargs):

@@ -15,7 +15,6 @@ import stripe
 import stripe.error
 from django_redis import get_redis_connection
 from packaging.version import Version
-from requests import Session
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
 from twilio.rest import Client as TwilioClient
@@ -24,8 +23,6 @@ from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User as AuthUser
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
-from django.core.files import File
-from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Count, F, Prefetch, Q, Sum
 from django.utils import timezone
@@ -42,7 +39,6 @@ from temba.utils.cache import get_cacheable_result
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, JSONField, SquashableModel
-from temba.utils.s3 import public_file_storage
 from temba.utils.text import generate_token, random_string
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
@@ -1767,36 +1763,6 @@ class Org(SmartModel):
         if sample_flows:
             self.create_sample_flows(branding.get("api_link", ""))
 
-    def download_and_save_media(self, request, extension=None):  # pragma: needs cover
-        """
-        Given an HTTP Request object, downloads the file then saves it as media for the current org. If no extension
-        is passed it we attempt to extract it from the filename
-        """
-        s = Session()
-        prepped = s.prepare_request(request)
-        response = s.send(prepped)
-
-        if response.status_code == 200:
-            # download the content to a temp file
-            temp = NamedTemporaryFile(delete=True)
-            temp.write(response.content)
-            temp.flush()
-
-            # try to derive our extension from the filename if it wasn't passed in
-            if not extension:
-                url_parts = urlparse(request.url)
-                if url_parts.path:
-                    path_pieces = url_parts.path.rsplit(".")
-                    if len(path_pieces) > 1:
-                        extension = path_pieces[-1]
-
-        else:
-            raise Exception(
-                "Received non-200 response (%s) for request: %s" % (response.status_code, response.content)
-            )
-
-        return self.save_media(File(temp), extension)
-
     def get_delete_date(self, *, archive_type=Archive.TYPE_MSG):
         """
         Gets the most recent date for which data hasn't been deleted yet or None if no deletion has been done
@@ -1805,22 +1771,6 @@ class Org(SmartModel):
         archive = self.archives.filter(needs_deletion=False, archive_type=archive_type).order_by("-start_date").first()
         if archive:
             return archive.get_end_date()
-
-    def save_media(self, file, extension):
-        """
-        Saves the given file data with the extension and returns an absolute url to the result
-        """
-        random_file = str(uuid4())
-        random_dir = random_file[0:4]
-
-        filename = "%s/%s" % (random_dir, random_file)
-        if extension:
-            filename = "%s.%s" % (filename, extension)
-
-        path = "%s/%d/media/%s" % (settings.STORAGE_ROOT_DIR, self.pk, filename)
-        location = public_file_storage.save(path, file)
-
-        return f"{settings.STORAGE_URL}/{location}"
 
     def release(self, user, *, release_users=True):
         """
