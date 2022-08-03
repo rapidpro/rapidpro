@@ -2564,7 +2564,11 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         # filter by label name/uuid (optional)
         label_ref = params.get("label")
         if label_ref:
-            label = Label.get_active_for_org(org).filter(Q(name=label_ref) | Q(uuid=label_ref)).first()
+            label_filter = Q(name=label_ref)
+            if is_uuid(label_ref):
+                label_filter |= Q(uuid=label_ref)
+
+            label = Label.get_active_for_org(org).filter(label_filter).first()
             if label:
                 queryset = queryset.filter(labels=label, visibility=Msg.VISIBILITY_VISIBLE)
             else:

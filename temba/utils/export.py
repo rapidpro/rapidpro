@@ -17,7 +17,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.assets.models import BaseAssetStore, get_asset_store
 
 from . import analytics
-from .models import LegacyUUIDMixin
+from .models import TembaUUIDMixin
 from .text import clean_string
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class BaseExportAssetStore(BaseAssetStore):
         return asset.status == BaseExportTask.STATUS_COMPLETE
 
 
-class BaseExportTask(LegacyUUIDMixin, SmartModel):
+class BaseExportTask(TembaUUIDMixin, SmartModel):
     """
     Base class for export task models, i.e. contacts, messages and flow results
     """

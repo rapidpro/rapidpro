@@ -2700,7 +2700,7 @@ class APITest(TembaTest):
                     "name": "Color Flow",
                     "type": "message",
                     "archived": False,
-                    "labels": [{"uuid": reporting.uuid, "name": "Reporting"}],
+                    "labels": [{"uuid": str(reporting.uuid), "name": "Reporting"}],
                     "expires": 10080,
                     "runs": {"active": 0, "completed": 1, "interrupted": 0, "expired": 0},
                     "results": [
@@ -3165,21 +3165,21 @@ class APITest(TembaTest):
         self.assertEqual(
             resp_json["results"],
             [
-                {"uuid": feedback.uuid, "name": "Feedback", "count": 0},
-                {"uuid": important.uuid, "name": "Important", "count": 1},
+                {"uuid": str(feedback.uuid), "name": "Feedback", "count": 0},
+                {"uuid": str(important.uuid), "name": "Important", "count": 1},
             ],
         )
 
         # filter by UUID
-        response = self.fetchJSON(url, "uuid=%s" % feedback.uuid)
-        self.assertEqual(response.json()["results"], [{"uuid": feedback.uuid, "name": "Feedback", "count": 0}])
+        response = self.fetchJSON(url, f"uuid={feedback.uuid}")
+        self.assertEqual(response.json()["results"], [{"uuid": str(feedback.uuid), "name": "Feedback", "count": 0}])
 
         # filter by name
         response = self.fetchJSON(url, "name=important")
         self.assertResultsByUUID(response, [important])
 
         # try to filter by both
-        response = self.fetchJSON(url, "uuid=%s&name=important" % important.uuid)
+        response = self.fetchJSON(url, f"uuid={important.uuid}&name=important")
         self.assertResponseError(response, None, "You may only specify one of the uuid, name parameters")
 
         # try to create empty label
@@ -3191,7 +3191,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         interesting = Label.objects.get(name="Interesting")
-        self.assertEqual(response.json(), {"uuid": interesting.uuid, "name": "Interesting", "count": 0})
+        self.assertEqual(response.json(), {"uuid": str(interesting.uuid), "name": "Interesting", "count": 0})
 
         # try to create another label with same name
         response = self.postJSON(url, None, {"name": "interesting"})
@@ -3210,14 +3210,14 @@ class APITest(TembaTest):
         self.assertResponseError(response, "name", "Ensure this field has no more than 64 characters.")
 
         # update label by UUID
-        response = self.postJSON(url, "uuid=%s" % interesting.uuid, {"name": "More Interesting"})
+        response = self.postJSON(url, f"uuid={interesting.uuid}", {"name": "More Interesting"})
         self.assertEqual(response.status_code, 200)
 
         interesting.refresh_from_db()
         self.assertEqual(interesting.name, "More Interesting")
 
         # can't update label from other org
-        response = self.postJSON(url, "uuid=%s" % spam.uuid, {"name": "Won't work"})
+        response = self.postJSON(url, f"uuid={spam.uuid}", {"name": "Won't work"})
         self.assert404(response)
 
         # try an empty delete request
@@ -3225,7 +3225,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, None, "URL must contain one of the following parameters: uuid")
 
         # delete a label by UUID
-        response = self.deleteJSON(url, "uuid=%s" % interesting.uuid)
+        response = self.deleteJSON(url, f"uuid={interesting.uuid}")
         self.assertEqual(response.status_code, 204)
 
         interesting.refresh_from_db()
@@ -3233,7 +3233,7 @@ class APITest(TembaTest):
         self.assertFalse(interesting.is_active)
 
         # try to delete a label in another org
-        response = self.deleteJSON(url, "uuid=%s" % spam.uuid)
+        response = self.deleteJSON(url, f"uuid={spam.uuid}")
         self.assert404(response)
 
         # try creating a new label after reaching the limit on labels
@@ -3259,7 +3259,7 @@ class APITest(TembaTest):
                 "archived": msg.visibility == "A",
                 "visibility": msg_visibility,
                 "text": msg.text,
-                "labels": [{"name": lb.name, "uuid": lb.uuid} for lb in msg.labels.all()],
+                "labels": [{"uuid": str(lb.uuid), "name": lb.name} for lb in msg.labels.all()],
                 "attachments": [{"content_type": a.content_type, "url": a.url} for a in msg.get_attachments()],
                 "created_on": format_datetime(msg.created_on),
                 "sent_on": format_datetime(msg.sent_on),
@@ -3810,7 +3810,7 @@ class APITest(TembaTest):
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         # add label by its UUID to message 3
-        response = self.postJSON(url, None, {"messages": [msg3.id], "action": "label", "label": label.uuid})
+        response = self.postJSON(url, None, {"messages": [msg3.id], "action": "label", "label": str(label.uuid)})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(label.get_messages()), {msg1, msg2, msg3})
 
@@ -3824,7 +3824,9 @@ class APITest(TembaTest):
         self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
         # and remove from messages 1 and 3 by UUID
-        response = self.postJSON(url, None, {"messages": [msg1.id, msg3.id], "action": "unlabel", "label": label.uuid})
+        response = self.postJSON(
+            url, None, {"messages": [msg1.id, msg3.id], "action": "unlabel", "label": str(label.uuid)}
+        )
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(label.get_messages()), set())
 
