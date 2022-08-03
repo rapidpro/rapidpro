@@ -34,7 +34,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole, User
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.tickets.types.mailgun import MailgunType
@@ -3460,33 +3460,6 @@ class APITest(TembaTest):
             },
         )
 
-    def test_media(self):
-        url = reverse("api.v2.media") + ".json"
-
-        self.login(self.admin)
-
-        def assert_media_upload(filename, ext):
-            with open(filename, "rb") as data:
-
-                post_data = dict(media_file=data, extension=ext, HTTP_X_FORWARDED_HTTPS="https")
-                response = self.client.post(url, post_data)
-
-                self.assertEqual(response.status_code, 201)
-                location = response.json().get("location", None)
-                self.assertIsNotNone(location)
-
-                starts_with = f"{settings.STORAGE_URL}/{settings.STORAGE_ROOT_DIR}/{self.org.id}/media/"
-                self.assertEqual(starts_with, location[0 : len(starts_with)])
-                self.assertEqual(".%s" % ext, location[-4:])
-
-        assert_media_upload("%s/test_media/steve marten.jpg" % settings.MEDIA_ROOT, "jpg")
-        assert_media_upload("%s/test_media/snow.mp4" % settings.MEDIA_ROOT, "mp4")
-
-        # missing file
-        response = self.client.post(url, dict(), HTTP_X_FORWARDED_HTTPS="https")
-        self.assertEqual(response.status_code, 400)
-        self.clear_storage()
-
     def test_runs(self):
         url = reverse("api.v2.runs")
 
@@ -4433,6 +4406,38 @@ class APITest(TembaTest):
                 }
             ],
         )
+
+    @mock_uuids
+    def test_surveyor_attachments(self):
+        endpoint = reverse("api.v2.surveyor_attachments") + ".json"
+
+        self.login(self.admin)
+
+        def assert_media_upload(filename: str, ext: str, location: str):
+            with open(filename, "rb") as data:
+                response = self.client.post(
+                    endpoint, {"media_file": data, "extension": ext}, HTTP_X_FORWARDED_HTTPS="https"
+                )
+
+                self.assertEqual(response.status_code, 201)
+                self.assertEqual(location, response.json().get("location", None))
+
+        assert_media_upload(
+            f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg",
+            "jpg",
+            f"/media/test_orgs/{self.org.id}/surveyor_attachments/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d.jpg",
+        )
+        assert_media_upload(
+            f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
+            "mp4",
+            f"/media/test_orgs/{self.org.id}/surveyor_attachments/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1.mp4",
+        )
+
+        # missing file
+        response = self.client.post(endpoint, dict(), HTTP_X_FORWARDED_HTTPS="https")
+        self.assertEqual(response.status_code, 400)
+
+        self.clear_storage()
 
     def test_classifiers(self):
         url = reverse("api.v2.classifiers")

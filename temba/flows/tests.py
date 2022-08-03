@@ -28,16 +28,7 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import (
-    AnonymousOrg,
-    CRUDLTestMixin,
-    MigrationTest,
-    MockResponse,
-    TembaTest,
-    matchers,
-    mock_mailroom,
-    mock_uuids,
-)
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
@@ -2981,66 +2972,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(start.restart_participants)  # should default to true
         self.assertTrue(start.include_active)
         self.assertEqual('name ~ "frank"', start.query)
-
-    @mock_uuids
-    def test_upload_media(self):
-        flow = self.create_flow("Test")
-        other_org_flow = self.create_flow("Test", org=self.org2)
-
-        upload_url = reverse("flows.flow_upload_media", args=[flow.uuid])
-
-        def assert_upload(user, filename, expected_json):
-            self.login(user)
-
-            with open(filename, "rb") as data:
-                response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
-
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(expected_json, response.json())
-
-        assert_upload(
-            self.admin,
-            f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg",
-            {
-                "type": "image/jpeg",
-                "url": f"/media/test_orgs/{self.org.id}/media/3618/361838c4-2866-495a-8990-9f3c222a7604/steve%20marten.jpg",
-            },
-        )
-        assert_upload(
-            self.editor,
-            f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
-            {
-                "type": "video/mp4",
-                "url": f"/media/test_orgs/{self.org.id}/media/606d/606de307-a799-47fc-8802-edc9301e0e04/snow.mp4",
-            },
-        )
-        assert_upload(
-            self.editor,
-            f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a",
-            {
-                "type": "audio/mp4",
-                "url": f"/media/test_orgs/{self.org.id}/media/fd18/fd18a69d-7514-4b76-9fad-072641995e17/bubbles.m4a",
-            },
-        )
-
-        # error message if you upload something unsupported
-        with open(f"{settings.MEDIA_ROOT}/test_imports/simple.xls", "rb") as data:
-            response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
-            self.assertEqual({"error": "Unsupported file type"}, response.json())
-
-        # error message if upload is too big
-        with patch("temba.msgs.models.Media.MAX_UPLOAD_SIZE", 1024):
-            with open(f"{settings.MEDIA_ROOT}/test_media/snow.mp4", "rb") as data:
-                response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
-                self.assertEqual({"error": "Limit for file uploads is 0.0009765625 MB"}, response.json())
-
-        # can't upload for flow in other org
-        with open(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "rb") as data:
-            upload_url = reverse("flows.flow_upload_media", args=[other_org_flow.uuid])
-            response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
-            self.assertLoginRedirect(response)
-
-        self.clear_storage()
 
     def test_copy_view(self):
         flow = self.get_flow("color")
