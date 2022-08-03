@@ -84,6 +84,7 @@ class URN:
         (JIOCHAT_SCHEME, _("JioChat Identifier")),
         (LINE_SCHEME, _("LINE Identifier")),
         (ROCKETCHAT_SCHEME, _("RocketChat Identifier")),
+        (SLACK_SCHEME, _("Slack Identifier")),
         (TELEGRAM_SCHEME, _("Telegram Identifier")),
         (TWITTERID_SCHEME, _("Twitter ID")),
         (TWITTER_SCHEME, _("Twitter Handle")),
@@ -92,7 +93,6 @@ class URN:
         (WECHAT_SCHEME, _("WeChat Identifier")),
         (WEBCHAT_SCHEME, _("Webchat Identifier")),
         (WHATSAPP_SCHEME, _("WhatsApp Identifier")),
-        (SLACK_SCHEME, _("Slack Identifier")),
     )
 
     VALID_SCHEMES = {s[0] for s in SCHEME_CHOICES}
