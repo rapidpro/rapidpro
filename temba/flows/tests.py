@@ -3023,6 +3023,17 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
 
+        # error message if you upload something unsupported
+        with open(f"{settings.MEDIA_ROOT}/test_imports/simple.xls", "rb") as data:
+            response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+            self.assertEqual({"error": "Unsupported file type"}, response.json())
+
+        # error message if upload is too big
+        with patch("temba.msgs.models.Media.MAX_UPLOAD_SIZE", 1024):
+            with open(f"{settings.MEDIA_ROOT}/test_media/snow.mp4", "rb") as data:
+                response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+                self.assertEqual({"error": "Limit for file uploads is 0.0009765625 MB"}, response.json())
+
         # can't upload for flow in other org
         with open(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "rb") as data:
             upload_url = reverse("flows.flow_upload_media", args=[other_org_flow.uuid])

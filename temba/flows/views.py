@@ -705,7 +705,16 @@ class FlowCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
         def post(self, request, *args, **kwargs):
-            media = Media.from_upload(self.request.org, self.request.user, self.request.FILES["file"])
+            file = self.request.FILES["file"]
+
+            if not Media.is_allowed_type(file.content_type):
+                return JsonResponse({"error": _("Unsupported file type")})
+            if file.size > Media.MAX_UPLOAD_SIZE:
+                limit_MB = Media.MAX_UPLOAD_SIZE / (1024 * 1024)
+                return JsonResponse({"error": _("Limit for file uploads is %s MB") % limit_MB})
+
+            media = Media.from_upload(self.request.org, self.request.user, file)
+
             return JsonResponse({"type": media.content_type, "url": media.url})
 
     class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, ContentMenuMixin, SmartListView):
