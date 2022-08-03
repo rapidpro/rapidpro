@@ -1,3 +1,10 @@
+v7.5.11
+----------
+ * Don't allow creating of labels with parents or editing labels to have a parent
+ * Rework the undocumented media API endpoint to be more specific to surveyor attachments
+ * Add MediaCRUDL with upload and list endpoints
+ * Remove requiring instagram_basic permission
+
 v7.5.10
 ----------
  * Remove Media.is_ready, fix setting .status on alternates, add limit for upload size
