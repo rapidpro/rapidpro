@@ -1,3 +1,8 @@
+v7.5.10
+----------
+ * Remove Media.is_ready, fix setting .status on alternates, add limit for upload size
+ * Rework ContentMenuMixin to put the menu in the context, and include new and legacy formats
+
 v7.5.9
 ----------
  * Add status field to Media, move primary index to UUID field
