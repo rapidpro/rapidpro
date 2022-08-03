@@ -40,7 +40,6 @@ from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSe
 from temba.flows.tasks import export_flow_results_task, update_session_wait_expires
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
-from temba.msgs.models import Media
 from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import (
     DependencyDeleteModal,
@@ -212,7 +211,6 @@ class FlowCRUDL(SmartCRUDL):
         "revisions",
         "recent_contacts",
         "assets",
-        "upload_media",
     )
 
     model = Flow
@@ -700,27 +698,6 @@ class FlowCRUDL(SmartCRUDL):
             on_transaction_commit(lambda: update_session_wait_expires.delay(obj.pk))
 
             return obj
-
-    class UploadMedia(OrgObjPermsMixin, SmartUpdateView):  # pragma: no cover
-        """
-        TODO replace with MediaCRUDL.Upload
-        """
-
-        permission = "msgs.media_upload"
-        slug_url_kwarg = "uuid"
-
-        def post(self, request, *args, **kwargs):
-            file = self.request.FILES["file"]
-
-            if not Media.is_allowed_type(file.content_type):
-                return JsonResponse({"error": _("Unsupported file type")})
-            if file.size > Media.MAX_UPLOAD_SIZE:
-                limit_MB = Media.MAX_UPLOAD_SIZE / (1024 * 1024)
-                return JsonResponse({"error": _("Limit for file uploads is %s MB") % limit_MB})
-
-            media = Media.from_upload(self.request.org, self.request.user, file)
-
-            return JsonResponse({"type": media.content_type, "url": media.url})
 
     class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, ContentMenuMixin, SmartListView):
         title = _("Flows")
