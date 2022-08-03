@@ -5309,9 +5309,7 @@ class FlowLabelCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("flows.flowlabel_create")
 
-        self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=("name", "parent", "flows")
-        )
+        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("name", "flows"))
 
         # try to submit without a name
         self.assertCreateSubmit(create_url, {}, form_errors={"name": "This field is required."})
@@ -5326,17 +5324,9 @@ class FlowLabelCRUDLTest(TembaTest, CRUDLTestMixin):
             {"name": "Cool Flows"},
             new_obj_query=FlowLabel.objects.filter(org=self.org, name="Cool Flows", parent=None),
         )
-        label1 = FlowLabel.objects.get(name="Cool Flows")
 
         # try to create with a name that's already used
         self.assertCreateSubmit(create_url, {"name": "Cool Flows"}, form_errors={"name": "Must be unique."})
-
-        # create a label with a parent
-        self.assertCreateSubmit(
-            create_url,
-            {"name": "Very Cool Flows", "parent": label1.id},
-            new_obj_query=FlowLabel.objects.filter(org=self.org, name="Very Cool Flows", parent=label1),
-        )
 
     def test_update(self):
         parent = FlowLabel.create(self.org, self.admin, "Cool Flows")

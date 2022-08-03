@@ -2093,13 +2093,14 @@ class FlowLabelCRUDL(SmartCRUDL):
             return kwargs
 
         def derive_fields(self):
-            if FlowLabel.objects.filter(parent=self.get_object()):  # pragma: needs cover
+            # can't edit parent if this label is already a parent.. or didn't previously have a parent
+            if self.object.children.exists() or not self.object.parent:
                 return ("name",)
             else:
                 return ("name", "parent")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
-        fields = ("name", "parent", "flows")
+        fields = ("name", "flows")
         success_url = "hide"
         form_class = FlowLabelForm
         success_message = ""
@@ -2107,13 +2108,11 @@ class FlowLabelCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.user.get_org()
+            kwargs["org"] = self.request.org
             return kwargs
 
-        def pre_save(self, obj, *args, **kwargs):
-            obj = super().pre_save(obj, *args, **kwargs)
-            obj.org = self.request.user.get_org()
-            return obj
+        def save(self, obj):
+            self.object = FlowLabel.create(self.request.org, self.request.user, obj.name)
 
         def post_save(self, obj, *args, **kwargs):
             obj = super().post_save(obj, *args, **kwargs)
@@ -2122,8 +2121,7 @@ class FlowLabelCRUDL(SmartCRUDL):
             if self.form.cleaned_data["flows"]:  # pragma: needs cover
                 flow_ids = [int(f) for f in self.form.cleaned_data["flows"].split(",") if f.isdigit()]
 
-            flows = Flow.objects.filter(org=obj.org, is_active=True, pk__in=flow_ids)
-
+            flows = obj.org.flows.filter(is_active=True, id__in=flow_ids)
             if flows:  # pragma: needs cover
                 obj.toggle_label(flows, add=True)
 
