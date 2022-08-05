@@ -1005,7 +1005,7 @@ class MediaCRUDL(SmartCRUDL):
                     "content_type": media.content_type,
                     "type": media.content_type,  # deprecated
                     "url": media.url,
-                    "name": media.name,
+                    "name": media.filename,
                     "size": media.size,
                 }
             )

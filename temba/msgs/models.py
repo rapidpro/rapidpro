@@ -61,7 +61,6 @@ class Media(models.Model):
     uuid = models.UUIDField(default=uuid4, db_index=True, unique=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
     url = models.URLField(max_length=2048)
-    name = models.CharField(max_length=255)  # filename including extension
     content_type = models.CharField(max_length=255)
     path = models.CharField(max_length=2048)
     size = models.IntegerField(default=0)  # bytes
@@ -75,6 +74,9 @@ class Media(models.Model):
 
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
     created_on = models.DateTimeField(default=timezone.now)
+
+    # TODO remove
+    name = models.CharField(max_length=255, null=True)
 
     @classmethod
     def is_allowed_type(cls, content_type: str) -> bool:
@@ -96,7 +98,7 @@ class Media(models.Model):
         base_name, extension = os.path.splitext(filename)
         base_name = re.sub(r"[^\w\-\[\]\(\) ]", "", base_name).strip()[:255] or "file"
 
-        if not extension or not extension.isalnum():
+        if not extension or len(extension) < 2 or not extension[1:].isalnum():
             extension = mimetypes.guess_extension(content_type) or ".bin"
 
         return base_name + extension
@@ -159,6 +161,10 @@ class Media(models.Model):
             created_by=user,
             **kwargs,
         )
+
+    @property
+    def filename(self) -> str:
+        return os.path.basename(self.path)
 
     def process_upload(self):
         from .media import process_upload

@@ -41,6 +41,9 @@ class MediaTest(TembaTest):
 
     def test_clean_name(self):
         self.assertEqual("file.jpg", Media.clean_name("", "image/jpeg"))
+        self.assertEqual("foo.jpg", Media.clean_name("foo", "image/jpeg"))
+        self.assertEqual("file.png", Media.clean_name("*.png", "image/png"))
+        self.assertEqual("passwd.jpg", Media.clean_name(".passwd", "image/jpeg"))
         self.assertEqual("tést[0].jpg", Media.clean_name("tést[0]/^..\\", "image/jpeg"))
 
     @mock_uuids
