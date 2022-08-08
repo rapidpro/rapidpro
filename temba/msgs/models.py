@@ -29,7 +29,7 @@ from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, TranslatableField
+from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
@@ -590,7 +590,7 @@ class Msg(models.Model):
             "visibility": MsgReadSerializer.VISIBILITIES.get(self.visibility),
             "text": self.text,
             "attachments": [attachment.as_json() for attachment in Attachment.parse_all(self.attachments)],
-            "labels": [{"uuid": lb.uuid, "name": lb.name} for lb in self.labels.all()],
+            "labels": [{"uuid": str(lb.uuid), "name": lb.name} for lb in self.labels.all()],
             "created_on": self.created_on.isoformat(),
             "sent_on": self.sent_on.isoformat() if self.sent_on else None,
         }
@@ -1009,7 +1009,7 @@ class SystemLabelCount(SquashableModel):
         index_together = ("org", "label_type")
 
 
-class Label(LegacyUUIDMixin, TembaModel, DependencyMixin):
+class Label(TembaModel, DependencyMixin):
     """
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.

@@ -902,7 +902,7 @@ class LabelCRUDL(SmartCRUDL):
             return Label.get_active_for_org(self.request.org).exclude(label_type=Label.TYPE_FOLDER)
 
         def render_to_response(self, context, **response_kwargs):
-            results = [{"id": lb.uuid, "text": lb.name} for lb in context["object_list"]]
+            results = [{"id": str(lb.uuid), "text": lb.name} for lb in context["object_list"]]
             return HttpResponse(json.dumps(results), content_type="application/json")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
