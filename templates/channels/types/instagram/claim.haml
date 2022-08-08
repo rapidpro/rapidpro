@@ -76,7 +76,7 @@
   :javascript
     $(document).ready(function(){
       $(".connect-facebook").click(function(evt){
-        location.replace("https://www.facebook.com/v12.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&scope=instagram_manage_messages,pages_manage_metadata,pages_messaging,pages_read_engagement,pages_show_list&response_type=token")
+        location.replace("https://www.facebook.com/v12.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&scope=instagram_basic,instagram_manage_messages,pages_manage_metadata,pages_messaging,pages_read_engagement,pages_show_list&response_type=token")
       });
 
       var hash = window.location.hash.substring(1)
