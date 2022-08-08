@@ -1,3 +1,7 @@
+v7.5.15
+----------
+ * Fix URL for media uploads which was previously conflicting with media directory
+
 v7.5.14
 ----------
  * Deprecate Media.name which can always be inferred from .path
