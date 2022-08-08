@@ -61,7 +61,6 @@ class Media(models.Model):
     uuid = models.UUIDField(default=uuid4, db_index=True, unique=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
     url = models.URLField(max_length=2048)
-    name = models.CharField(max_length=255)  # filename including extension
     content_type = models.CharField(max_length=255)
     path = models.CharField(max_length=2048)
     size = models.IntegerField(default=0)  # bytes
@@ -75,6 +74,9 @@ class Media(models.Model):
 
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
     created_on = models.DateTimeField(default=timezone.now)
+
+    # TODO remove
+    name = models.CharField(max_length=255, null=True)
 
     @classmethod
     def is_allowed_type(cls, content_type: str) -> bool:
@@ -92,6 +94,16 @@ class Media(models.Model):
         return f"{settings.STORAGE_ROOT_DIR}/{org.id}/media/{str(uuid)[0:4]}/{uuid}/{filename}"
 
     @classmethod
+    def clean_name(cls, filename: str, content_type: str) -> str:
+        base_name, extension = os.path.splitext(filename)
+        base_name = re.sub(r"[^\w\-\[\]\(\) ]", "", base_name).strip()[:255] or "file"
+
+        if not extension or len(extension) < 2 or not extension[1:].isalnum():
+            extension = mimetypes.guess_extension(content_type) or ".bin"
+
+        return base_name + extension
+
+    @classmethod
     def from_upload(cls, org, user, file, process=True):
         """
         Creates a new media instance from a file upload.
@@ -101,19 +113,13 @@ class Media(models.Model):
 
         assert cls.is_allowed_type(file.content_type), "unsupported content type"
 
-        base_name, extension = os.path.splitext(file.name)
-
-        # cleanup file name
-        base_name = re.sub(r"[^a-zA-Z0-9_ ]", "", base_name).strip()[:255] or "file"
-
-        if not extension:
-            extension = mimetypes.guess_extension(file.content_type) or ".bin"
+        filename = cls.clean_name(file.name, file.content_type)
 
         # browsers might send m4a files but correct MIME type is audio/mp4
-        if extension == ".m4a":
+        if filename.endswith(".m4a"):
             file.content_type = "audio/mp4"
 
-        media = cls._create(org, user, base_name + extension, file.content_type, file)
+        media = cls._create(org, user, filename, file.content_type, file)
 
         if process:
             on_transaction_commit(lambda: process_media_upload.delay(media.id))
@@ -121,7 +127,7 @@ class Media(models.Model):
         return media
 
     @classmethod
-    def create_alternate(cls, original, name: str, content_type: str, file, **kwargs):
+    def create_alternate(cls, original, filename: str, content_type: str, file, **kwargs):
         """
         Creates a new alternate media instance for the given original.
         """
@@ -129,7 +135,7 @@ class Media(models.Model):
         return cls._create(
             original.org,
             original.created_by,
-            name,
+            filename,
             content_type,
             file,
             original=original,
@@ -138,9 +144,9 @@ class Media(models.Model):
         )
 
     @classmethod
-    def _create(cls, org, user, name: str, content_type: str, file, **kwargs):
+    def _create(cls, org, user, filename: str, content_type: str, file, **kwargs):
         uuid = uuid4()
-        path = cls.get_storage_path(org, uuid, name)
+        path = cls.get_storage_path(org, uuid, filename)
         path = public_file_storage.save(path, file)
         size = public_file_storage.size(path)
 
@@ -148,13 +154,17 @@ class Media(models.Model):
             uuid=uuid,
             org=org,
             url=public_file_storage.url(path),
-            name=name,
+            name=filename,
             content_type=content_type,
             path=path,
             size=size,
             created_by=user,
             **kwargs,
         )
+
+    @property
+    def filename(self) -> str:
+        return os.path.basename(self.path)
 
     def process_upload(self):
         from .media import process_upload
