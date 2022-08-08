@@ -1,3 +1,10 @@
+v7.5.14
+----------
+ * Deprecate Media.name which can always be inferred from .path
+ * Improve cleaning of media filenames
+ * Convert legacy UUID fields on exports and labels
+ * Request instagram_basic permission for IG channels
+
 v7.5.11
 ----------
  * Don't allow creating of labels with parents or editing labels to have a parent
