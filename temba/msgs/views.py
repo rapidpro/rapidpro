@@ -985,6 +985,7 @@ class LabelCRUDL(SmartCRUDL):
 
 class MediaCRUDL(SmartCRUDL):
     model = Media
+    path = "msgmedia"  # so we don't conflict with the /media directory
     actions = ("upload", "list")
 
     class Upload(OrgPermsMixin, SmartCreateView):
