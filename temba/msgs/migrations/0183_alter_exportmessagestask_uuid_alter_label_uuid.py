@@ -8,7 +8,7 @@ import temba.utils.uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("msgs", "0181_remove_media_is_ready"),
+        ("msgs", "0182_alter_media_name"),
     ]
 
     operations = [
