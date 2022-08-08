@@ -116,7 +116,7 @@ class InstagramTypeTest(TembaTest):
         mock_get.assert_any_call(
             "https://graph.facebook.com/123456?fields=instagram_business_account",
             params={
-                "access_token": self.long_life_page_token,
+                "access_token": f"long-life-user-{self.token}",
             },
         )
 

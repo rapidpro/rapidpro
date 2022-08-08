@@ -2172,7 +2172,7 @@ class FlowStartCount(SquashableModel):
             start.run_count = counts_by_start.get(start.id, 0)
 
 
-class FlowLabel(LegacyUUIDMixin, TembaModel):
+class FlowLabel(TembaModel):
     """
     A label applied to a flow rather than a message
     """
