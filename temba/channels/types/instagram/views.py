@@ -111,7 +111,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 # requires instagram_basic permission
                 # https://developers.facebook.com/docs/instagram-api/reference/page#read
                 url = f"https://graph.facebook.com/{page_id}?fields=instagram_business_account"
-                params = {"access_token": page_access_token}
+                params = {"access_token": auth_token}
 
                 response = requests.get(url, params=params)
 
