@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin
+from temba.utils.text import truncate
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -20,7 +21,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
 
         user_access_token = forms.CharField(min_length=32, required=True, help_text=_("The User Access Token"))
-        page_name = forms.CharField(required=True, max_length=64, help_text=_("The name of the Facebook page"))
+        page_name = forms.CharField(required=True, help_text=_("The name of the Facebook page"))
         page_id = forms.IntegerField(required=True, help_text="The Facebook Page ID")
 
         def clean(self):
@@ -106,7 +107,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     raise Exception("Failed to subscribe to app for webhook events")
 
                 self.cleaned_data["page_access_token"] = page_access_token
-                self.cleaned_data["name"] = name
+                self.cleaned_data["name"] = truncate(name, Channel._meta.get_field("name").max_length)
 
                 # requires instagram_basic permission
                 # https://developers.facebook.com/docs/instagram-api/reference/page#read
