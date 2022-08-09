@@ -30,6 +30,11 @@ class LineTypeTest(TembaTest):
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertContains(response, url)
 
+        payload = {"access_token": "abcdef123456", "secret": "123456", "channel_id": "123456789", "name": "Temba" * 20}
+
+        response = self.client.post(url, payload, follow=True)
+        self.assertFormError(response, "form", "name", "Ensure this value has at most 64 characters (it has 100).")
+
         payload = {"access_token": "abcdef123456", "secret": "123456", "channel_id": "123456789", "name": "Temba"}
 
         response = self.client.post(url, payload, follow=True)

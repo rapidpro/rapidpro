@@ -15,7 +15,7 @@ from ...views import ClaimViewMixin
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         user_access_token = forms.CharField(min_length=32, required=True, help_text=_("The User Access Token"))
-        page_name = forms.CharField(required=True, help_text=_("The name of the Facebook page"))
+        page_name = forms.CharField(required=True, max_length=64, help_text=_("The name of the Facebook page"))
         page_id = forms.IntegerField(required=True, help_text="The Facebook Page ID")
 
         def clean(self):

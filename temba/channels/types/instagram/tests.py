@@ -73,8 +73,14 @@ class InstagramTypeTest(TembaTest):
         post_data = response.context["form"].initial
         post_data["user_access_token"] = self.token
         post_data["page_id"] = "123456"
-        post_data["page_name"] = "Temba"
+        post_data["page_name"] = "Temba" * 20
 
+        response = self.client.post(url, post_data, follow=True)
+        self.assertFormError(
+            response, "form", "page_name", "Ensure this value has at most 64 characters (it has 100)."
+        )
+
+        post_data["page_name"] = "Temba"
         response = self.client.post(url, post_data, follow=True)
 
         # assert our channel got created
