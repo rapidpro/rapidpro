@@ -14,7 +14,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         channel_id = forms.CharField(
             label=_("Channel ID"), required=True, help_text=_("The Channel ID of the LINE channel for the Bot")
         )
-        name = forms.CharField(label=_("Name"), required=True, help_text=_("The Name of the Bot"))
+        name = forms.CharField(label=_("Name"), max_length=64, required=True, help_text=_("The Name of the Bot"))
         access_token = forms.CharField(
             label=_("Access Token"), required=True, help_text=_("The Access Token of the LINE Bot")
         )
