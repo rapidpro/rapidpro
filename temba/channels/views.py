@@ -1243,8 +1243,7 @@ class ChannelCRUDL(SmartCRUDL):
             context["only_regional_channels"] = only_regional_channels
             return context
         
-        def derive_title(self):
-            return _("Add Channel")
+        title = _("Add Channel")
 
     class ClaimAll(Claim):
         def channel_types_groups(self):
