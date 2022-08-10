@@ -117,5 +117,4 @@ class ClassifierCRUDL(SmartCRUDL):
             context["classifier_types"] = Classifier.get_types()
             return context
 
-        def derive_title(self):
-            return _("Connect a Classifier")
+        title = _("Connect a Classifier")
