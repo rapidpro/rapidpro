@@ -1242,7 +1242,7 @@ class ChannelCRUDL(SmartCRUDL):
             context["channel_types"] = types_by_category
             context["only_regional_channels"] = only_regional_channels
             return context
-        
+
         title = _("Add Channel")
 
     class ClaimAll(Claim):
