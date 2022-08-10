@@ -1244,7 +1244,7 @@ class ChannelCRUDL(SmartCRUDL):
             return context
         
         def derive_title(self):
-            return _("Add Channel");
+            return _("Add Channel")
 
     class ClaimAll(Claim):
         def channel_types_groups(self):
