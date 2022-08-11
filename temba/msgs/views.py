@@ -262,7 +262,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["object_list"] = self.get_object().children.all()
+            context["object_list"] = self.get_object().children.order_by("-created_on")
             return context
 
         def derive_formax_sections(self, formax, context):

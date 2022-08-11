@@ -412,6 +412,7 @@ class TriggerCRUDL(SmartCRUDL):
         def form_valid(self, form):
             if self.object.trigger_type == Trigger.TYPE_SCHEDULE:
                 self.object.schedule.update_schedule(
+                    self.request.user,
                     form.cleaned_data["start_datetime"],
                     form.cleaned_data["repeat_period"],
                     form.cleaned_data.get("repeat_days_of_week"),
