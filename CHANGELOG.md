@@ -1,3 +1,9 @@
+v7.5.17
+----------
+ * Show send history of scheduled broadcasts in correct order
+ * Only show option to delete runs to users who have that perm, and give editors that perm
+ * Update deps
+
 v7.5.16
 ----------
  * Fixed zaper page title
