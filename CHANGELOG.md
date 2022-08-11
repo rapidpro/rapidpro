@@ -1,3 +1,9 @@
+v7.5.16
+----------
+ * Fixed zaper page title
+ * Validate channel name is not more than 64 characters
+ * Added 'authentication' to the temba anchor URL text
+
 v7.5.15
 ----------
  * Fix URL for media uploads which was previously conflicting with media directory
