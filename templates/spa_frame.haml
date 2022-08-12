@@ -35,6 +35,7 @@
       --temba-select-selected-font-size: 1em;
       --temba-select-selected-padding: .6em .8em;
       --temba-select-selected-line-height: 1.2em;
+      overflow: hidden;
 
     }
 
@@ -263,9 +264,7 @@
      
 -block full-page-script
 
-
   %script(src="{{ STATIC_URL }}js/labels.js?4")
-  %script(src="{{ STATIC_URL }}js/urls.js")
   %script(src="{{ STATIC_URL }}bower/highcharts/highcharts.js")
 
   -include "full_page_script.haml"
@@ -791,9 +790,13 @@
             %temba-loading(size=20 units=6)
         .spa-content.p-5.overflow-y-auto.overflow-x-hidden
 
-        .spa-footer.text-center.text-gray-400.hide(style="margin-top:-60px;z-index:10000")
-          Copyright © 2012-2022 TextIt <a href="http://google.com">hey</a>
-
+        .spa-footer.text-center.text-gray-400.hide
+          Copyright © 2012-2022 TextIt
       
       
   
+  .bottom-strip.absolute.bottom-0.text-sm.text-center.text-white.p-1(style="background:rgba(0,0,0,.7); z-index:100000;width:100%;")
+    Go back to the
+    %span.linked(onclick="leaveNewInterface()")<
+      old interface
+      
