@@ -146,6 +146,9 @@ class OrgPermsMixin:
         self.request = request
         self.org = self.derive_org()
 
+        if self.get_user().is_staff:
+            return True
+
         if self.get_user().is_superuser:
             return True
 
@@ -1105,6 +1108,7 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["org"] = self.request.org
         context["is_spa"] = True
         return context
 
@@ -1406,14 +1410,18 @@ class OrgCRUDL(SmartCRUDL):
                     endpoint="tickets.ticket_menu",
                     href="tickets.ticket_list",
                 ),
-                {
-                    "id": "settings",
-                    "name": _("Settings"),
-                    "icon": "settings",
-                    "endpoint": f"{reverse('orgs.org_menu')}settings/",
-                    "bottom": True,
-                },
             ]
+
+            if org:
+                menu.append(
+                    {
+                        "id": "settings",
+                        "name": _("Settings"),
+                        "icon": "settings",
+                        "endpoint": f"{reverse('orgs.org_menu')}settings/",
+                        "bottom": True,
+                    }
+                )
 
             if self.request.user.is_staff or self.request.user.is_superuser:
                 menu.append(
@@ -2083,19 +2091,6 @@ class OrgCRUDL(SmartCRUDL):
         @csrf_exempt
         def dispatch(self, *args, **kwargs):
             return super().dispatch(*args, **kwargs)
-
-        def get_used(self, obj):
-            if not obj.credits:  # pragma: needs cover
-                used_pct = 0
-            else:
-                used_pct = round(100 * float(obj.get_credits_used()) / float(obj.credits))
-
-            used_class = "used-normal"
-            if used_pct >= 75:  # pragma: needs cover
-                used_class = "used-warning"
-            if used_pct >= 90:  # pragma: needs cover
-                used_class = "used-alert"
-            return mark_safe("<div class='used-pct %s'>%d%%</div>" % (used_class, used_pct))
 
         def get_plan(self, obj):  # pragma: needs cover
             if not obj.credits:  # pragma: needs cover

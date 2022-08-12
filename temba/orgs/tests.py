@@ -4130,6 +4130,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(manage_url + "?filter=suspended")
         self.assertNotIn(self.org, response.context["object_list"])
 
+        response = self.client.get(manage_url + "?filter=verified")
+        self.assertNotIn(self.org, response.context["object_list"])
+
         response = self.client.get(manage_url + "?filter=nyaruka")
         self.assertIn(self.org, response.context["object_list"])
         self.assertNotIn(self.org2, response.context["object_list"])
@@ -4143,6 +4146,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.get(manage_url + "?filter=flagged")
         self.assertTrue(self.org in response.context["object_list"])
+
+        self.org.verify()
+        response = self.client.get(manage_url + "?filter=verified")
+        self.assertIn(self.org, response.context["object_list"])
 
         # and can go to that org
         response = self.client.get(update_url)
@@ -5685,3 +5692,38 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class TestSpa(TembaTest):
+    def test_menu(self):
+
+        # our admin gets a full menu
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_menu"))
+        # TODO: feels like we have our assert params backward and this should be greater
+        self.assertLess(5, len(response.json()["results"]))
+
+        # customer support has no org, so they just see staff menu
+        self.login(self.customer_support)
+        response = self.client.get(reverse("orgs.org_menu"))
+        self.assertEqual(len(response.json()["results"]), 1)
+
+    def test_staff(self):
+
+        # admin can't see org manage page
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_read", args=[self.org.id]))
+        self.assertRedirect(response, reverse("users.user_login"))
+
+        # but staff members can manage orgs
+        self.login(self.customer_support)
+
+        # make our second org a child
+        self.org2.parent = self.org
+        self.org2.save()
+
+        response = self.client.get(reverse("orgs.org_read", args=[self.org.id]))
+        self.assertEqual(200, response.status_code)
+
+        # we should have a child in our context
+        self.assertEqual(1, len(response.context["children"]))
