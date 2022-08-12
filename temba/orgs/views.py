@@ -1383,7 +1383,7 @@ class OrgCRUDL(SmartCRUDL):
                         name=_("Users"),
                         icon="users",
                         href=reverse("orgs.user_list"),
-                    )
+                    ),
                 ]
 
             menu = [
@@ -1417,17 +1417,19 @@ class OrgCRUDL(SmartCRUDL):
             ]
 
             if self.request.user.is_staff or self.request.user.is_superuser:
-                menu.append(self.create_menu_item(
-                    menu_id="staff",
-                    name=_("Staff"),
-                    icon="hard-drive",
-                    endpoint=f"{reverse('orgs.org_menu')}staff/",
-                    bottom=True,
-                ))
+                menu.append(
+                    self.create_menu_item(
+                        menu_id="staff",
+                        name=_("Staff"),
+                        icon="hard-drive",
+                        endpoint=f"{reverse('orgs.org_menu')}staff/",
+                        bottom=True,
+                    )
+                )
 
             return menu
 
-            # Other Plugins:    
+            # Other Plugins:
             # Wit.ai, Luis, Bothub, ZenDesk, DT One, Chatbase, Prometheus, Zapier/Resthooks
 
     class Import(NonAtomicMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
