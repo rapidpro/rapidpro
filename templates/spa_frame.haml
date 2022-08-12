@@ -14,7 +14,6 @@
 
 -block interface-option
   
-
 -block extra-style
   {{block.super}}
 
@@ -263,9 +262,13 @@
 
      
 -block full-page-script
+
+
   %script(src="{{ STATIC_URL }}js/labels.js?4")
   %script(src="{{ STATIC_URL }}js/urls.js")
   %script(src="{{ STATIC_URL }}bower/highcharts/highcharts.js")
+
+  -include "full_page_script.haml"
 
   :javascript
 
