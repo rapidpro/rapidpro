@@ -80,6 +80,11 @@ def icon(o):
 
 
 @register.filter
+def deslug(str):
+    return str.replace("_", " ").title()
+
+
+@register.filter
 def object_url(o):
     assert type(o) in OBJECT_URLS
 

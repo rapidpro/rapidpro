@@ -302,6 +302,10 @@
           }
         );
 
+        if (response.status < 200 || response.status > 299) {
+          return;
+        }
+
         // we may have redirected
         if (response.url) {
           window.lastFetch = response.url;
@@ -331,6 +335,7 @@
           
         });
       }).catch(function(e) {
+
         // canceled
       })
     }
@@ -466,7 +471,6 @@
       handleUpdateComplete();
     })
 
-    
     document.querySelector(".spa-content").addEventListener("click", function(evt) {
       var target = evt.target;
       if (target.href && target.href.indexOf("xlsx") > -1) {
@@ -493,17 +497,18 @@
 
         evt.stopPropagation();
         evt.preventDefault();
-
         const url = new URL(a.href);
 
-        fetchURL(url.pathname + url.search);
+        if (a.target) {
+          window.open(url, a.target, {popup: true});
+        } else {
+          fetchURL(url.pathname + url.search);
+        }
       } 
     });
     
-
     document.querySelector(".spa-content").addEventListener("submit", function(evt) {
       var formEle = evt.target;
-
       if(formEle.closest(".formax-section")) {
         return;
       }
@@ -514,7 +519,17 @@
         var formData = new FormData(formEle);
         let queryString = new URLSearchParams(formData).toString();
         showLoading();
-        fetchPJAXContent(window.lastFetch + "?" + queryString, ".spa-content", { 
+
+        var url = window.lastFetch;
+        if (queryString) {
+          if (url.indexOf("?") > 0) {
+            url += "&" + queryString;
+          } else {
+            url += "?" + queryString;
+          }
+        }
+
+        fetchPJAXContent(url, ".spa-content", { 
             "headers": { "TEMBA-SPA": "1"}, 
             "onSuccess": hideLoading,  
         });
@@ -530,7 +545,6 @@
         });
       }
     });
-
     
     window.addEventListener("popstate", function (event){
       let state = event.state;
@@ -618,7 +632,7 @@
       document.querySelectorAll(".posterize").forEach(function(ele){
         ele.addEventListener("click", function(){ 
           handlePosterize(ele);
-          });
+        });
       });
     }
 
@@ -680,6 +694,7 @@
     }
 
     function fetchURL(url, triggerEvents) {
+
       showLoading();
       var refererPath = window.location.pathname;
       window.lastFetch = url;
@@ -764,7 +779,7 @@
   .ajax-scripts
 
   .flex-col
-    .flex.widget-container(style="height:100vh;")
+    .flex.widget-container(style="height:100vh;overflow:hidden")
       .folders       
         %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)" -temba-ready="handleMenuReady")
       .flex-grow.spa-container.flex.flex-col

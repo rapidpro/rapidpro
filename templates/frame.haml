@@ -309,7 +309,8 @@
       }
 
       function handlePosterize(ele) {
-        posterize(ele.getAttribute('href'));
+        console.log(ele.getAttribute('href') || ele.dataset.href);
+        posterize(ele.getAttribute('href') || ele.dataset.href);
       }
 
       function removalConfirmation(removal, buttonName) {

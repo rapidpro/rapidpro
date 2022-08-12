@@ -20,14 +20,13 @@
 
 -block page-header
 
-  -if user_orgs|length > 1
+  -if user_orgs|length > 1 or request.user.is_staff
     .text-xl.w-full.mb-4
       %temba-select.w-full(onchange="handleWorkspaceChanged(event)")
-        -for org in user_orgs
-          -if org.id == user_org.id
-            %temba-option(name='{{ org.name|escapejs }}' value="{{org.id}}" selected="true")
-          -else
-            %temba-option(name='{{ org.name|escapejs }}' value="{{org.id}}")
+        %temba-option(name='{{ user_org.name|escapejs }}' value="{{user_org.id}}" selected="true")
+        -for other_org in user_orgs
+          -if other_org.id != user_org.id
+            %temba-option(name='{{ other_org.name|escapejs }}' value="{{other_org.id}}")
   - else
     {{block.super}}
 
