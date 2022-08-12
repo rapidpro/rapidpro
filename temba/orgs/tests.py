@@ -629,7 +629,7 @@ class UserTest(TembaTest):
         self.assertContains(response, ", ...")
 
         response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), {"delete": True})
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(reverse("orgs.user_list"), response["Temba-Success"])
 
         self.editor.refresh_from_db()
         self.assertFalse(self.editor.is_active)
@@ -3520,7 +3520,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # make sure we have the appropriate number of sections
-        self.assertEqual(7, len(response.context["formax"].sections))
+        self.assertEqual(6, len(response.context["formax"].sections))
 
         # create a child org
         self.child_org = Org.objects.create(
@@ -3533,7 +3533,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(54):
+        with self.assertNumQueries(48):
             response = self.client.get(reverse("orgs.org_workspace"))
 
         # make sure we have the appropriate number of sections
@@ -4134,13 +4134,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertIn(self.org, response.context["object_list"])
         self.assertNotIn(self.org2, response.context["object_list"])
 
-        response = self.client.get(manage_url)
-        self.assertEqual(200, response.status_code)
-        self.assertNotContains(response, "(Flagged)")
-
         self.org.flag()
-        response = self.client.get(manage_url)
-        self.assertContains(response, "(Flagged)")
+        response = self.client.get(manage_url + "?filter=flagged")
+        self.assertIn(self.org, response.context["object_list"])
 
         # should contain our test org
         self.assertContains(response, "Temba")
@@ -4153,7 +4149,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(200, response.status_code)
 
         # We should have the limits fields
-        self.assertEqual(17, len(response.context["form"].fields))
+        self.assertEqual(18, len(response.context["form"].fields))
         for elt in settings.ORG_LIMIT_DEFAULTS.keys():
             self.assertIn(f"{elt}_limit", response.context["form"].fields.keys())
 
@@ -4576,7 +4572,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Nyaruka")
 
         response = self.requestView(delete_url, self.customer_support, post_data={})
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(reverse("orgs.user_list"), response["Temba-Success"])
 
         self.editor.refresh_from_db()
         self.assertFalse(self.editor.is_active)
