@@ -119,7 +119,7 @@ class StaffMixin:
 
 class OrgPermsMixin:
     """
-    Get the organisation and the user within the inheriting view so that it be come easy to decide
+    Get the organization and the user within the inheriting view so that it be come easy to decide
     whether this user has a certain permission for that particular organization to perform the view's actions
     """
 
@@ -146,7 +146,7 @@ class OrgPermsMixin:
         self.request = request
         self.org = self.derive_org()
 
-        if self.get_user().is_staff:
+        if self.get_user().is_staff and self.org:
             return True
 
         if self.get_user().is_superuser:
@@ -1251,15 +1251,20 @@ class OrgCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
 
+        def has_permission(self, request, *args, **kwargs):
+            if self.get_user().is_staff:
+                return True
+            return super().has_permission(request, *args, **kwargs)
+
         def derive_menu(self):
 
             submenu = self.kwargs.get("submenu")
-            org = self.request.user.get_org()
+            self.org = self.derive_org()
 
             # how this menu is made up is a wip
             # TODO: remove pragma
             if submenu == "settings":  # pragma: no cover
-                has_classifiers = Classifier.objects.filter(org=org, is_active=True).exists()
+                has_classifiers = Classifier.objects.filter(org=self.org, is_active=True).exists()
                 menu = []
 
                 if self.has_org_perm("orgs.org_account"):
@@ -1289,7 +1294,7 @@ class OrgCRUDL(SmartCRUDL):
                     )
 
                 menu.append(self.create_section(_("Workspace")))
-                menu.append(self.create_menu_item(name=org.name, icon="layers", href="orgs.org_workspace"))
+                menu.append(self.create_menu_item(name=self.org.name, icon="layers", href="orgs.org_workspace"))
                 menu.append(self.create_menu_item(name=_("Logins"), icon="users", href="orgs.org_manage_accounts"))
 
                 if has_classifiers:
@@ -1319,7 +1324,7 @@ class OrgCRUDL(SmartCRUDL):
                     from temba.channels.views import get_channel_read_url
 
                     items = []
-                    channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
+                    channels = Channel.objects.filter(org=self.org, is_active=True, parent=None).order_by("-role")
                     for channel in channels:
                         icon = channel.type.icon.replace("icon-", "")
                         icon = icon.replace("power-cord", "box")
@@ -1356,7 +1361,7 @@ class OrgCRUDL(SmartCRUDL):
 
                     menu.append(self.create_menu_item(name=_("Archives"), items=items, inline=True))
 
-                child_orgs = Org.objects.filter(parent=org, is_active=True).order_by("name")
+                child_orgs = Org.objects.filter(parent=self.org, is_active=True).order_by("name")
 
                 if child_orgs:
                     menu.append(self.create_section(_("Workspaces")))
@@ -1412,7 +1417,7 @@ class OrgCRUDL(SmartCRUDL):
                 ),
             ]
 
-            if org:
+            if self.org:
                 menu.append(
                     {
                         "id": "settings",
