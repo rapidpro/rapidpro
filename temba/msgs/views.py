@@ -262,7 +262,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["object_list"] = self.get_object().children.all()
+            context["object_list"] = self.get_object().children.order_by("-created_on")
             return context
 
         def derive_formax_sections(self, formax, context):
@@ -902,7 +902,7 @@ class LabelCRUDL(SmartCRUDL):
             return Label.get_active_for_org(self.request.org).exclude(label_type=Label.TYPE_FOLDER)
 
         def render_to_response(self, context, **response_kwargs):
-            results = [{"id": lb.uuid, "text": lb.name} for lb in context["object_list"]]
+            results = [{"id": str(lb.uuid), "text": lb.name} for lb in context["object_list"]]
             return HttpResponse(json.dumps(results), content_type="application/json")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
@@ -985,6 +985,7 @@ class LabelCRUDL(SmartCRUDL):
 
 class MediaCRUDL(SmartCRUDL):
     model = Media
+    path = "msgmedia"  # so we don't conflict with the /media directory
     actions = ("upload", "list")
 
     class Upload(OrgPermsMixin, SmartCreateView):
@@ -1005,7 +1006,7 @@ class MediaCRUDL(SmartCRUDL):
                     "content_type": media.content_type,
                     "type": media.content_type,  # deprecated
                     "url": media.url,
-                    "name": media.name,
+                    "name": media.filename,
                     "size": media.size,
                 }
             )

@@ -42,6 +42,11 @@ class FreshChatTypeTest(TembaTest):
         post_data["webhook_key"] = "-----BEGIN RSA PUBLIC KEY----- MIIBIDAQAB -----END RSA PUBLIC KEY-----"
         post_data["auth_token"] = "eyJVTI0LTm5WZ2Ut"
         post_data["agent_id"] = "c0534f78-b6e9-4f79-8853-11cedfc1f35b"
+        post_data["title"] = "FreshChat" * 20
+
+        response = self.client.post(url, post_data, follow=True)
+        self.assertFormError(response, "form", "title", "Ensure this value has at most 64 characters (it has 180).")
+
         post_data["title"] = "FreshChat"
 
         response = self.client.post(url, post_data, follow=True)

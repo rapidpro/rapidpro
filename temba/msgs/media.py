@@ -94,12 +94,12 @@ def _create_alternate(original: Media, file, transform, new_content_type: str, n
     Creates a new media instance by transforming an original with an ffmpeg pipeline
     """
 
-    new_name = _change_extension(original.name, new_extension)
+    filename = _change_extension(original.filename, new_extension)
 
     with NamedTemporaryFile(suffix="." + new_extension, delete=True) as temp:
         transform(file.name, temp.name)
 
-        return Media.create_alternate(original, new_name, new_content_type, temp, **kwargs)
+        return Media.create_alternate(original, filename, new_content_type, temp, **kwargs)
 
 
 def _get_stream_info(filename: str, stream_id: str) -> dict:

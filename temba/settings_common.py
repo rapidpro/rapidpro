@@ -763,6 +763,7 @@ GROUP_PERMISSIONS = {
         "csv_imports.importtask.*",
         "flows.flow.*",
         "flows.flowlabel.*",
+        "flows.flowrun_delete",
         "flows.flowstart_api",
         "flows.flowstart_list",
         "globals.global_api",

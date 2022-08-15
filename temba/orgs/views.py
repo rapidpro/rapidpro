@@ -3225,6 +3225,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = ResthookForm
         success_message = ""
+        title = _("Zapier")
 
         def get_form(self):
             form = super().get_form()

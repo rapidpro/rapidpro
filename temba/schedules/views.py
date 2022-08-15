@@ -101,6 +101,7 @@ class ScheduleCRUDL(SmartCRUDL):
 
         def save(self, *args, **kwargs):
             self.object.update_schedule(
+                self.request.user,
                 self.form.cleaned_data["start_datetime"],
                 self.form.cleaned_data["repeat_period"],
                 self.form.cleaned_data.get("repeat_days_of_week"),
