@@ -5738,3 +5738,19 @@ class TestSpa(TembaTest):
 
         # we should have a child in our context
         self.assertEqual(1, len(response.context["children"]))
+
+        # we should have an option to flag
+        self.assertContentMenuContains(response.context["content_menu"], "Flag")
+        self.assertContentMenuExcludes(response.context["content_menu"], "Unflag")
+
+        # flag and content menu option should be inverted
+        self.org.flag()
+        response = self.client.get(reverse("orgs.org_read", args=[self.org.id]))
+        self.assertContentMenuContains(response.context["content_menu"], "Unflag")
+        self.assertContentMenuExcludes(response.context["content_menu"], "Flag")
+
+        # no menu for inactive orgs
+        self.org.is_active = False
+        self.org.save()
+        response = self.client.get(reverse("orgs.org_read", args=[self.org.id]))
+        self.assertEquals([], response.context["content_menu"])

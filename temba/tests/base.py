@@ -751,6 +751,19 @@ class TembaTestMixin:
         self.assertTrue(message, isinstance(body[field], (list, tuple)))
         self.assertIn(message, body[field])
 
+    def getContentMenuItem(self, menu, title):
+        for item in menu:
+            if item.get("label", None) == title:
+                return item
+
+    def assertContentMenuContains(self, menu, title):
+        if not self.getContentMenuItem(menu, title):
+            raise AssertionError(f"No content menu item for '{title}'")
+
+    def assertContentMenuExcludes(self, menu, title):
+        if self.getContentMenuItem(menu, title):
+            raise AssertionError(f"Found content menu item for '{title}'")
+
 
 class TembaTest(TembaTestMixin, SmartminTest):
     """
