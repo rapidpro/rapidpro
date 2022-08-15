@@ -1,0 +1,27 @@
+-load i18n humanize temba
+
+%table.list
+  %tbody
+    %tr.border-b(class="{% if log.status_code < 200 or log.status_code >= 400 or log.elapsed_ms > 5000 %}warning{% endif %}")
+      %td(style="width: 30px;")
+        .font-normal.text-2xl
+          {{ log.status_code|default:"--" }}
+      %td
+        .font-normal.inline.mr-1
+          %span.method
+            {{ log.request|first_word }}
+        {{ log.url }}
+      %td
+        .text-right.whitespace-nowrap.mr-3
+          -trans "Took"
+          {{ log.elapsed_ms|default:"0"|intcomma }}ms
+          -if log.retries
+            ({{ log.retries }} retries)
+    %tr
+      %td(colspan="99" style="padding:0;")
+        %pre.prettyprint.request<
+          {{ log.request }}
+    %tr
+      %td(colspan="4" style="padding:0;")
+        %pre.prettyprint.response<
+          {% if object.response%}{{ log.response }}{% else %}{% trans "Connection Error" %}{% endif %}
