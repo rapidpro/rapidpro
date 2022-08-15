@@ -20,6 +20,7 @@ from temba.flows.models import Flow
 from temba.triggers.models import Trigger
 from temba.utils import analytics
 from temba.utils.dates import datetime_to_str
+from temba.utils.text import unsnakify
 
 TIME_SINCE_CHUNKS = (
     (60 * 60 * 24 * 365, ngettext_lazy("%d year", "%d years")),
@@ -80,8 +81,8 @@ def icon(o):
 
 
 @register.filter
-def deslug(str):
-    return str.replace("_", " ").title()
+def unsnake(str):
+    return unsnakify(str)
 
 
 @register.filter

@@ -5711,8 +5711,7 @@ class TestSpa(TembaTest):
         # our admin gets a full menu
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_menu"))
-        # TODO: feels like we have our assert params backward and this should be greater
-        self.assertLess(5, len(response.json()["results"]))
+        self.assertGreater(len(response.json()["results"]), 5)
 
         # customer support has no org, so they just see staff menu
         self.login(self.customer_support)

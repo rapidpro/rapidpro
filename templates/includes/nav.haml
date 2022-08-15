@@ -183,7 +183,7 @@
         .title
           -trans "channels"
 
-  -if request.user.is_superuser or request.user.is_staff
+  -if request.user.is_staff
     -if not user_org
       %a{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
         .circle
@@ -191,7 +191,7 @@
         .title
           -trans "users"
 
-  -if request.user.is_superuser or request.user.is_staff
+  -if request.user.is_staff
     -if not user_org
       %a{href:"{% url 'orgs.org_manage' %}", class:"{% active request 'org' %}"}
         .circle
