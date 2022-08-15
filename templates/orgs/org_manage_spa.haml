@@ -1,0 +1,11 @@
+-extends "orgs/org_manage.haml"
+-load i18n
+
+-block page-header
+
+-block pre-table
+  .flex.mb-4.items-center
+    .search-box.flex-grow
+      %form#search-form(method='get')
+        %temba-textinput(name='search' value='{{ search }}' placeholder="Search Workspaces")
+        %input.hidden(type="submit" value="Submit")

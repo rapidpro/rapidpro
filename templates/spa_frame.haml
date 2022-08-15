@@ -14,7 +14,6 @@
 
 -block interface-option
   
-
 -block extra-style
   {{block.super}}
 
@@ -36,6 +35,7 @@
       --temba-select-selected-font-size: 1em;
       --temba-select-selected-padding: .6em .8em;
       --temba-select-selected-line-height: 1.2em;
+      overflow: hidden;
 
     }
 
@@ -263,9 +263,11 @@
 
      
 -block full-page-script
+
   %script(src="{{ STATIC_URL }}js/labels.js?4")
-  %script(src="{{ STATIC_URL }}js/urls.js")
   %script(src="{{ STATIC_URL }}bower/highcharts/highcharts.js")
+
+  -include "full_page_script.haml"
 
   :javascript
 
@@ -302,6 +304,10 @@
           }
         );
 
+        if (response.status < 200 || response.status > 299) {
+          return;
+        }
+
         // we may have redirected
         if (response.url) {
           window.lastFetch = response.url;
@@ -331,6 +337,7 @@
           
         });
       }).catch(function(e) {
+
         // canceled
       })
     }
@@ -466,7 +473,6 @@
       handleUpdateComplete();
     })
 
-    
     document.querySelector(".spa-content").addEventListener("click", function(evt) {
       var target = evt.target;
       if (target.href && target.href.indexOf("xlsx") > -1) {
@@ -493,17 +499,18 @@
 
         evt.stopPropagation();
         evt.preventDefault();
-
         const url = new URL(a.href);
 
-        fetchURL(url.pathname + url.search);
+        if (a.target) {
+          window.open(url, a.target, {popup: true});
+        } else {
+          fetchURL(url.pathname + url.search);
+        }
       } 
     });
     
-
     document.querySelector(".spa-content").addEventListener("submit", function(evt) {
       var formEle = evt.target;
-
       if(formEle.closest(".formax-section")) {
         return;
       }
@@ -514,7 +521,17 @@
         var formData = new FormData(formEle);
         let queryString = new URLSearchParams(formData).toString();
         showLoading();
-        fetchPJAXContent(window.lastFetch + "?" + queryString, ".spa-content", { 
+
+        var url = window.lastFetch;
+        if (queryString) {
+          if (url.indexOf("?") > 0) {
+            url += "&" + queryString;
+          } else {
+            url += "?" + queryString;
+          }
+        }
+
+        fetchPJAXContent(url, ".spa-content", { 
             "headers": { "TEMBA-SPA": "1"}, 
             "onSuccess": hideLoading,  
         });
@@ -530,7 +547,6 @@
         });
       }
     });
-
     
     window.addEventListener("popstate", function (event){
       let state = event.state;
@@ -618,7 +634,7 @@
       document.querySelectorAll(".posterize").forEach(function(ele){
         ele.addEventListener("click", function(){ 
           handlePosterize(ele);
-          });
+        });
       });
     }
 
@@ -680,6 +696,7 @@
     }
 
     function fetchURL(url, triggerEvents) {
+
       showLoading();
       var refererPath = window.location.pathname;
       window.lastFetch = url;
@@ -764,7 +781,7 @@
   .ajax-scripts
 
   .flex-col
-    .flex.widget-container(style="height:100vh;")
+    .flex.widget-container(style="height:100vh;overflow:hidden")
       .folders       
         %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)" -temba-ready="handleMenuReady")
       .flex-grow.spa-container.flex.flex-col
@@ -773,9 +790,11 @@
             %temba-loading(size=20 units=6)
         .spa-content.p-5.overflow-y-auto.overflow-x-hidden
 
-        .spa-footer.text-center.text-gray-400.hide(style="margin-top:-60px;z-index:10000")
-          Copyright © 2012-2022 TextIt <a href="http://google.com">hey</a>
-
-      
-      
+        .spa-footer.text-center.text-gray-400.hide
+          Copyright © 2012-2022 TextIt
   
+  .bottom-strip.absolute.bottom-0.text-sm.text-center.text-white.p-1(style="background:rgba(0,0,0,.7); z-index:100000;width:100%;")
+    Go back to the
+    %span.linked(onclick="leaveNewInterface()")<
+      old interface
+      

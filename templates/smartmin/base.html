@@ -9,15 +9,6 @@
 {% block extra-script %}
 
 <script>
-  $("td.clickable").hover(function(){
-    this.style.cursor='pointer'
-  },
-  function(){});
-
-  $("td.clickable").click(function(){
-    document.location = $(this).children("a").attr("href");
-  });
-
 
   function fetchPJAXContent(url, container, options) {
 
