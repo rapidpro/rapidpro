@@ -46,9 +46,8 @@
         -else
           {{ object.msg.get_status_display }}
 
-  -block log-entries
-    -for log in object.log_group
-      -include "channels/channellog_log.haml"
+  -for log in http_logs
+    -include "includes/http_log.haml" with log=log
 
 -block extra-script
   {{ block.super }}

@@ -17,6 +17,9 @@
           {{ log.elapsed_ms|default:"0"|intcomma }}ms
           -if log.retries
             ({{ log.retries }} retries)
+      %td
+        .text-right.whitespace-nowrap
+          {% format_datetime log.created_on seconds=True %}
     %tr
       %td(colspan="99" style="padding:0;")
         %pre.prettyprint.request<
