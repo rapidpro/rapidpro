@@ -3514,6 +3514,17 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         menu = response.json()["results"]
         self.assertEqual(2, len(menu))
 
+        # customer support should only see the staff option
+        self.login(self.customer_support)
+        menu = self.client.get(menu_url).json()["results"]
+        self.assertEqual(1, len(menu))
+        self.assertEqual("Staff", menu[0]["name"])
+
+        menu = self.client.get(f"{menu_url}staff/").json()["results"]
+        self.assertEqual(2, len(menu))
+        self.assertEqual("Workspaces", menu[0]["name"])
+        self.assertEqual("Users", menu[1]["name"])
+
     def test_workspace(self):
         response = self.assertListFetch(
             reverse("orgs.org_workspace"), allow_viewers=True, allow_editors=True, allow_agents=False
