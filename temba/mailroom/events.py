@@ -79,7 +79,7 @@ class Event:
         """
 
         logs_url = None
-        if obj.get_last_log():
+        if obj.channel_logs.exists():
             logs_url = _url_for_user(
                 org, user, "channels.channellog_msg", args=[obj.id], perm="channels.channellog_read"
             )

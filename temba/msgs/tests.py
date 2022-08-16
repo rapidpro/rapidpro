@@ -1795,11 +1795,15 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(33):
+        with self.assertNumQueries(28):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
-        self.assertListFetch(sent_url, allow_viewers=True, allow_editors=True, context_objects=[msg1, msg3, msg2])
+        response = self.assertListFetch(
+            sent_url, allow_viewers=True, allow_editors=True, context_objects=[msg1, msg3, msg2]
+        )
+
+        self.assertContains(response, reverse("channels.channellog_msg", args=[msg1.id]))
 
         response = self.client.get(sent_url + "?search=joe")
         self.assertEqual([msg1, msg2], list(response.context_data["object_list"]))
@@ -1808,7 +1812,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_failed(self, mock_msg_resend):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
         msg1 = self.create_outgoing_msg(contact1, "message number 1", status="F")
-        log = ChannelLog.objects.create(channel=msg1.channel, msg=msg1, is_error=True, description="Failed")
+        ChannelLog.objects.create(channel=msg1.channel, msg=msg1, is_error=True, description="Failed")
 
         failed_url = reverse("msgs.msg_failed")
 
@@ -1822,7 +1826,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(32):
+        with self.assertNumQueries(28):
             self.client.get(failed_url)
 
         response = self.assertListFetch(
@@ -1830,12 +1834,12 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertEqual(("resend",), response.context["actions"])
-        self.assertContains(response, reverse("channels.channellog_read", args=[log.id]))
+        self.assertContains(response, reverse("channels.channellog_msg", args=[msg1.id]))
 
         # make the org anonymous
         with AnonymousOrg(self.org):
             response = self.requestView(failed_url, self.admin)
-            self.assertNotContains(response, reverse("channels.channellog_read", args=[log.id]))
+            self.assertNotContains(response, reverse("channels.channellog_msg", args=[msg1.id]))
 
         # resend some messages
         self.client.post(failed_url, {"action": "resend", "objects": [msg2.id]})

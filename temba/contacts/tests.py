@@ -2372,9 +2372,7 @@ class ContactTest(TembaTest):
         failed = Msg.objects.filter(direction="O", contact=self.joe).last()
         failed.status = "F"
         failed.save(update_fields=("status",))
-        log = ChannelLog.objects.create(
-            channel=failed.channel, msg=failed, is_error=True, description="It didn't send!!"
-        )
+        ChannelLog.objects.create(channel=failed.channel, msg=failed, is_error=True, description="It didn't send!!")
 
         # create an airtime transfer
         transfer = AirtimeTransfer.objects.create(
@@ -2450,7 +2448,7 @@ class ContactTest(TembaTest):
         # fetch our contact history
         self.login(self.admin)
         with patch("temba.utils.s3.s3.client", return_value=self.mock_s3):
-            with self.assertNumQueries(35):
+            with self.assertNumQueries(34):
                 response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -2492,7 +2490,7 @@ class ContactTest(TembaTest):
             response,
             "http://www.openstreetmap.org/?mlat=47.5414799&amp;mlon=-122.6359908#map=18/47.5414799/-122.6359908",
         )
-        self.assertContains(response, reverse("channels.channellog_read", args=[log.id]))
+        self.assertContains(response, reverse("channels.channellog_msg", args=[failed.id]))
         self.assertContains(response, reverse("channels.channellog_call", args=[call.id]))
         self.assertContains(response, "Transferred <b>100.00</b> <b>RWF</b> of airtime")
         self.assertContains(response, reverse("airtime.airtimetransfer_read", args=[transfer.id]))
