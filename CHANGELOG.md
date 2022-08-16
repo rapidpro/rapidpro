@@ -1,3 +1,8 @@
+v7.5.19
+----------
+ * Rework channel log rendering to use common HTTPLog template
+ * Fix titles on channel, classifier and manage logins pages
+
 v7.5.18
 ----------
  * Workspace and user management in new UI
