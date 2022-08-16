@@ -11,7 +11,6 @@ from django_redis import get_redis_connection
 from openpyxl import load_workbook
 
 from django.conf import settings
-from django.contrib.auth.models import Group
 from django.db.models.functions import TruncDate
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -264,12 +263,7 @@ class FlowTest(TembaTest):
         self.assertContains(response, "id='rp-flow-editor'")
 
         # customer service gets a service button
-        csrep = self.create_user("csrep")
-        csrep.groups.add(Group.objects.get(name="Customer Support"))
-        csrep.is_staff = True
-        csrep.save()
-
-        self.login(csrep)
+        self.login(self.customer_support)
 
         response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertContains(response, "Service")

@@ -243,10 +243,6 @@ class User(AuthUser):
     def is_beta(self) -> bool:
         return self.groups.filter(name="Beta").exists()
 
-    @cached_property
-    def is_support(self) -> bool:
-        return self.groups.filter(name="Customer Support").exists()
-
     def get_org(self):
         """
         Gets the request org cached on the user. This should only be used where request.org can't be.
@@ -260,13 +256,13 @@ class User(AuthUser):
         """
         Determines if a user has the given permission in the given org.
         """
-        if self.is_superuser:
+        if self.is_staff:
             return True
 
         if self.is_anonymous:  # pragma: needs cover
             return False
 
-        # has it innately? (e.g. customer support)
+        # has it innately?
         if self.has_perm(permission):
             return True
 
@@ -1119,7 +1115,7 @@ class Org(SmartModel):
 
     def has_user(self, user: User) -> bool:
         """
-        Returns whether the given user has a role in this org (only explicit roles, so doesn't include customer support)
+        Returns whether the given user has a role in this org (only explicit roles, so doesn't include staff)
         """
         return self.users.filter(id=user.id).exists()
 

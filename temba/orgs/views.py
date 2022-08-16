@@ -73,7 +73,14 @@ from temba.utils.fields import (
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
-from temba.utils.views import ComponentFormMixin, ContentMenuMixin, NonAtomicMixin, RequireRecentAuthMixin, SpaMixin
+from temba.utils.views import (
+    ComponentFormMixin,
+    ContentMenuMixin,
+    NonAtomicMixin,
+    RequireRecentAuthMixin,
+    SpaMixin,
+    StaffOnlyMixin,
+)
 
 from .models import (
     BackupToken,
@@ -106,15 +113,6 @@ def check_login(request):
         return HttpResponseRedirect(settings.LOGIN_REDIRECT_URL)
     else:
         return HttpResponseRedirect(settings.LOGIN_URL)
-
-
-class StaffMixin:
-    """
-    Views that only staff should be able to access
-    """
-
-    def has_permission(self, request, *args, **kwargs):
-        return self.request.user.is_staff
 
 
 class OrgPermsMixin:
@@ -164,7 +162,7 @@ class OrgPermsMixin:
 
         # non admin authenticated users without orgs get the org chooser
         user = self.get_user()
-        if user.is_authenticated and not (user.is_superuser or user.is_staff):
+        if user.is_authenticated and not user.is_staff:
             if not self.derive_org():
                 return HttpResponseRedirect(reverse("orgs.org_choose"))
 
@@ -173,7 +171,7 @@ class OrgPermsMixin:
 
 class OrgFilterMixin:
     """
-    Simple mixin to filter a view's queryset by the user's org
+    Simple mixin to filter a view's queryset by the request org
     """
 
     def derive_queryset(self, *args, **kwargs):
@@ -182,7 +180,7 @@ class OrgFilterMixin:
         if not self.request.user.is_authenticated:
             return queryset.none()  # pragma: no cover
         else:
-            return queryset.filter(org=self.request.user.get_org())
+            return queryset.filter(org=self.request.org)
 
 
 class AnonMixin(OrgPermsMixin):
@@ -194,7 +192,7 @@ class AnonMixin(OrgPermsMixin):
         org = self.derive_org()
 
         # can this user break anonymity? then we are fine
-        if self.get_user().has_perm("contacts.contact_break_anon"):
+        if self.request.user.is_staff:
             return True
 
         # otherwise if this org is anon, no go
@@ -714,7 +712,7 @@ class UserCRUDL(SmartCRUDL):
         "account",
     )
 
-    class List(StaffMixin, SpaMixin, SmartListView):
+    class List(StaffOnlyMixin, SpaMixin, SmartListView):
         fields = ("email", "name", "orgs", "date_joined")
         ordering = ("-date_joined",)
         search_fields = ("email", "first_name", "last_name")
@@ -756,7 +754,7 @@ class UserCRUDL(SmartCRUDL):
             context["filters"] = self.filters
             return context
 
-    class Update(StaffMixin, SpaMixin, ComponentFormMixin, ContentMenuMixin, SmartUpdateView):
+    class Update(StaffOnlyMixin, SpaMixin, ComponentFormMixin, ContentMenuMixin, SmartUpdateView):
         class Form(UserUpdateForm):
             groups = forms.ModelMultipleChoiceField(
                 widget=SelectMultipleWidget(
@@ -800,7 +798,7 @@ class UserCRUDL(SmartCRUDL):
 
             return obj
 
-    class Delete(StaffMixin, SpaMixin, ModalMixin, SmartDeleteView):
+    class Delete(StaffOnlyMixin, SpaMixin, ModalMixin, SmartDeleteView):
         fields = ("id",)
         permission = "orgs.user_update"
         submit_button_name = _("Delete")
@@ -2019,7 +2017,7 @@ class OrgCRUDL(SmartCRUDL):
             context["from_email_custom"] = from_email_custom
             return context
 
-    class Read(StaffMixin, SpaMixin, ContentMenuMixin, SmartReadView):
+    class Read(StaffOnlyMixin, SpaMixin, ContentMenuMixin, SmartReadView):
         def build_content_menu(self, menu):
             if not self.object.is_active:
                 return
@@ -2079,7 +2077,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
-    class Manage(StaffMixin, SpaMixin, SmartListView):
+    class Manage(StaffOnlyMixin, SpaMixin, SmartListView):
         fields = ("name", "owner", "created_on", "service")
         field_config = {"service": {"label": ""}}
         default_order = ("-credits", "-created_on")
@@ -2168,7 +2166,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class Update(StaffMixin, SpaMixin, ModalMixin, ComponentFormMixin, SmartUpdateView):
+    class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             parent = forms.IntegerField(required=False)
             plan_end = forms.DateTimeField(required=False)
@@ -2259,7 +2257,7 @@ class OrgCRUDL(SmartCRUDL):
             obj.limits = cleaned_data["limits"]
             return obj
 
-    class Delete(StaffMixin, SpaMixin, ModalMixin, SmartDeleteView):
+    class Delete(StaffOnlyMixin, SpaMixin, ModalMixin, SmartDeleteView):
         cancel_url = "id@orgs.org_update"
         success_url = "id@orgs.org_update"
         fields = ("id",)
@@ -2544,7 +2542,7 @@ class OrgCRUDL(SmartCRUDL):
             org_id = self.request.GET.get("org")
             return "%s?org=%s" % (reverse("orgs.org_manage_accounts_sub_org"), org_id)
 
-    class Service(StaffMixin, SmartFormView):
+    class Service(StaffOnlyMixin, SmartFormView):
         class ServiceForm(forms.Form):
             organization = TembaChoiceField(queryset=Org.objects.all(), empty_label=None)
             redirect_url = forms.CharField(required=False)
@@ -2717,7 +2715,7 @@ class OrgCRUDL(SmartCRUDL):
                     return HttpResponseRedirect(self.get_success_url())
 
                 elif user_orgs.count() == 0:
-                    if user.is_support:
+                    if user.is_staff:
                         return HttpResponseRedirect(reverse("orgs.org_manage"))
 
                     # for regular users, if there's no orgs, log them out with a message
@@ -3082,7 +3080,6 @@ class OrgCRUDL(SmartCRUDL):
         fields = ("first_name", "last_name", "email", "password", "name", "timezone", "credits")
         success_message = "Workspace successfully created."
         submit_button_name = _("Create")
-        permission = "orgs.org_grant"
         success_url = "@orgs.org_grant"
 
         def get_or_create_user(self, email, first_name, last_name, password, language):
@@ -3878,7 +3875,7 @@ class TopUpCRUDL(SmartCRUDL):
             else:
                 return super().get_template_names()
 
-    class Create(ComponentFormMixin, SmartCreateView):
+    class Create(StaffOnlyMixin, ComponentFormMixin, SmartCreateView):
         """
         This is only for root to be able to credit accounts.
         """
@@ -3897,7 +3894,7 @@ class TopUpCRUDL(SmartCRUDL):
             apply_topups_task.delay(obj.org.id)
             return obj
 
-    class Update(ComponentFormMixin, SmartUpdateView):
+    class Update(StaffOnlyMixin, ComponentFormMixin, SmartUpdateView):
         fields = ("is_active", "price", "credits", "expires_on")
 
         def get_success_url(self):
@@ -3908,7 +3905,7 @@ class TopUpCRUDL(SmartCRUDL):
             apply_topups_task.delay(obj.org.id)
             return obj
 
-    class Manage(SpaMixin, SmartListView):
+    class Manage(StaffOnlyMixin, SpaMixin, SmartListView):
         """
         This is only for root to be able to manage topups on an account
         """

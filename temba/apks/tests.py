@@ -3,12 +3,12 @@ from unittest.mock import MagicMock
 from django.core.files import File
 from django.urls import reverse
 
-from temba.tests import TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest
 
 from .models import Apk
 
 
-class ApkTest(TembaTest):
+class ApkCRUDLTest(CRUDLTestMixin, TembaTest):
     def setUp(self):
         super().setUp()
         apk_file_mock = MagicMock(spec=File)
@@ -27,51 +27,20 @@ class ApkTest(TembaTest):
         self.assertContains(response, "<li>has new things</li>")
 
     def test_list(self):
-        url = reverse("apks.apk_list")
+        list_url = reverse("apks.apk_list")
 
-        self.login(self.admin)
-        response = self.client.get(url)
-        self.assertLoginRedirect(response)
+        response = self.assertStaffOnly(list_url)
 
-        self.login(self.customer_support)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-
-        self.login(self.superuser)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Relayer Application APK")
 
     def test_create(self):
-        url = reverse("apks.apk_create")
+        create_url = reverse("apks.apk_create")
 
-        self.login(self.admin)
-        response = self.client.get(url)
-        self.assertLoginRedirect(response)
-
-        self.login(self.customer_support)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-
-        self.login(self.superuser)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
+        self.assertStaffOnly(create_url)
 
     def test_update(self):
-        url = reverse("apks.apk_update", args=[self.apk.id])
+        update_url = reverse("apks.apk_update", args=[self.apk.id])
 
-        response = self.client.get(url)
-        self.assertLoginRedirect(response)
+        response = self.assertStaffOnly(update_url)
 
-        self.login(self.admin)
-        response = self.client.get(url)
-        self.assertLoginRedirect(response)
-
-        self.login(self.customer_support)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-
-        self.login(self.superuser)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Relayer Application APK")

@@ -225,7 +225,7 @@ class CRUDLTestMixin:
         self.requestView(url, admin, checks=[LoginRedirect()])
 
         self.requestView(url, self.superuser, checks=[StatusCode(200)])
-        self.requestView(url, self.customer_support, checks=[StatusCode(200)])
+        return self.requestView(url, self.customer_support, checks=[StatusCode(200)])
 
 
 class BaseCheck:

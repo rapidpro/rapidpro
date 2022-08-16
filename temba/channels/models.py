@@ -1256,7 +1256,7 @@ class ChannelLog(models.Model):
         for secret_val in redact_values:
             original = redact.text(original, secret_val, mask)
 
-        if not self.channel.org.is_anon or user.has_org_perm(self.channel.org, "contacts.contact_break_anon"):
+        if not self.channel.org.is_anon or user.is_staff:
             return original
 
         # if this log doesn't have a msg then we don't know what to redact, so redact completely

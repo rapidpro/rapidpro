@@ -2186,7 +2186,7 @@ class ChannelLogTest(TembaTest):
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
             # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            # Contact.get_display does not check if user is staff
             self.assertContains(response, "3527065", count=2)
             self.assertContains(response, "Nic", count=2)
             self.assertContains(response, "Pottier", count=1)
@@ -2347,7 +2347,7 @@ class ChannelLogTest(TembaTest):
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
             # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            # Contact.get_display does not check if user is staff
             self.assertContains(response, "767659860", count=4)
             self.assertContains(response, "Aaron Tumukunde", count=1)
             self.assertContains(response, "tumaaron", count=2)
@@ -2463,7 +2463,7 @@ class ChannelLogTest(TembaTest):
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
             # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            # Contact.get_display does not check if user is staff
             self.assertContains(response, "2150393045080607", count=2)
             self.assertContains(response, "facebook:", count=1)
 
@@ -2527,7 +2527,7 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "There is no contact identifying information", count=3)
 
             # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            # Contact.get_display does not check if user is staff
             self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
     def test_redaction_for_twilio(self):
@@ -2595,7 +2595,7 @@ class ChannelLogTest(TembaTest):
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
             # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            # Contact.get_display does not check if user is staff
             self.assertContains(response, "097 909 9111", count=0)
             self.assertContains(response, "979099111", count=1)
             self.assertContains(response, "Quito", count=1)
