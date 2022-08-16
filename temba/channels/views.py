@@ -1207,9 +1207,9 @@ class ChannelCRUDL(SmartCRUDL):
             return obj
 
     class Claim(SpaMixin, OrgPermsMixin, SmartTemplateView):
-        
+
         title = _("Add Channel")
-        
+
         def channel_types_groups(self):
             user = self.request.user
 
