@@ -99,6 +99,7 @@ class ClassifierCRUDL(SmartCRUDL):
         fields = ()
         success_url = "uuid@classifiers.classifier_read"
         success_message = ""
+        title = _("Connect a Classifier")
 
         def post(self, *args, **kwargs):
             self.object = self.get_object()
