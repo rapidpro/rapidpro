@@ -1185,44 +1185,20 @@ class ChannelLog(models.Model):
     A log of an interaction with a channel
     """
 
-    LOG_TYPE_MSG_SEND = "msg_send"
-    LOG_TYPE_MSG_UPDATE = "msg_update"
-    LOG_TYPE_MSG_RECEIVE = "msg_receive"
-    LOG_TYPE_IVR_START = "ivr_start"
-    LOG_TYPE_IVR_CALLBACK = "ivr_callback"
-    LOG_TYPE_CONTACT_UPDATE = "contact_update"
-    LOG_TYPE_TOKEN_REFRESH = "token_refresh"
-    LOG_TYPE_CHOICES = (
-        (LOG_TYPE_MSG_SEND, _("Message Send")),
-        (LOG_TYPE_MSG_UPDATE, _("Message Update")),
-        (LOG_TYPE_MSG_RECEIVE, _("Message Receive")),
-        (LOG_TYPE_IVR_START, _("IVR Start")),
-        (LOG_TYPE_IVR_CALLBACK, _("IVR Callback")),
-        (LOG_TYPE_CONTACT_UPDATE, _("Contact Update")),
-        (LOG_TYPE_TOKEN_REFRESH, _("Token Refresh")),
-    )
-
     id = models.BigAutoField(primary_key=True)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
     connection = models.ForeignKey(
         "channels.ChannelConnection", on_delete=models.PROTECT, related_name="channel_logs", null=True
     )
-
-    log_type = models.CharField(max_length=16, choices=LOG_TYPE_CHOICES, null=True)
-    http_logs = models.JSONField(null=True)
-    errors = models.JSONField(null=True)
-    is_error = models.BooleanField(default=False)
-    elapsed_ms = models.IntegerField(null=True)
-    created_on = models.DateTimeField(default=timezone.now)
-
-    # TODO deprecated
     description = models.CharField(max_length=255)
+    is_error = models.BooleanField(default=False)
     url = models.TextField(null=True)
     method = models.CharField(max_length=16, null=True)
     request = models.TextField(null=True)
     response = models.TextField(null=True)
     response_status = models.IntegerField(null=True)
+    created_on = models.DateTimeField(default=timezone.now)
     request_time = models.IntegerField(null=True)
 
     @classmethod
@@ -1308,9 +1284,6 @@ class ChannelLog(models.Model):
             "retries": 0,
             "created_on": self.created_on,
         }
-
-    def get_duration(self) -> int:
-        return self.elapsed_ms or self.request_time
 
     class Meta:
         indexes = [
@@ -1719,12 +1692,6 @@ class ChannelConnection(models.Model):
                 from temba.ivr.models import IVRCall
 
                 self.__class__ = IVRCall
-
-    def has_logs(self):
-        """
-        Returns whether this connection has any channel logs
-        """
-        return self.channel.is_active and self.channel_logs.count() > 0
 
     def get_duration(self):
         """

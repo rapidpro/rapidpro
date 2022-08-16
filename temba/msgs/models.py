@@ -780,8 +780,7 @@ class Msg(models.Model):
             self.visibility = Msg.VISIBILITY_DELETED_BY_USER
             self.save(update_fields=("text", "attachments", "visibility"))
         else:
-            for log in self.channel_logs.all():
-                log.release()
+            self.channel_logs.all().delete()
 
             super().delete()
 

@@ -156,7 +156,7 @@ class Event:
     @classmethod
     def from_ivr_call(cls, org: Org, user: User, obj: IVRCall) -> dict:
         logs_url = None
-        if obj.has_logs():
+        if obj.channel_logs.exists():
             logs_url = _url_for_user(
                 org, user, "channels.channellog_call", args=[obj.id], perm="channels.channellog_read"
             )

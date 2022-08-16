@@ -1733,7 +1733,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(31):
+        with self.assertNumQueries(30):
             self.client.get(outbox_url)
 
         # messages sorted by created_on
