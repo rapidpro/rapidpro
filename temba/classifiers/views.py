@@ -99,6 +99,7 @@ class ClassifierCRUDL(SmartCRUDL):
         fields = ()
         success_url = "uuid@classifiers.classifier_read"
         success_message = ""
+        title = _("Connect a Classifier")
 
         def post(self, *args, **kwargs):
             self.object = self.get_object()
@@ -116,5 +117,3 @@ class ClassifierCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["classifier_types"] = Classifier.get_types()
             return context
-
-        title = _("Connect a Classifier")
