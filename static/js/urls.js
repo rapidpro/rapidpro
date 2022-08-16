@@ -6,7 +6,7 @@ window.urls = [
   { old: /\/contact\/read\/(.*)/,                        new: /\/contacts\/read\/(.*)/ },
   { old: /\/contact\/filter\/(.*)/,                      new: /\/contacts\/groups\/(.*)/ },
   { old: /\/contact\//,                                  new: /\/contacts\// },
-  { old: /\/flow\/editor\/(.*)\//,                       new: /\/flows\/editor\/(.*)/ },
+  { old: /\/flow\/editor\/(.*)/,                         new: /\/flows\/editor\/(.*)/ },
   { old: /\/flow\/filter\/(.*)\//,                       new: /\/flows\/labels\/(.*)/ },
   { old: /\/flow\//,                                     new: /\/flows\/active/ },
   { old: /\/flow\/(.*)\//,                               new: /\/flows\/(.*)\// },
@@ -23,8 +23,11 @@ window.urls = [
   { old: /\/channels\/types\/(.*)\/claim/,               new: /\/settings\/channel\/(.*)/ },
   { old: /\/org\/manage_accounts\/(.*)/,                 new: /\/settings\/logins/ },
   { old: /\/user\/account\//,                            new: /\/settings\/account/ },
-  { old: /\/user\/two_factor_disable\//,                 new: /\/settings\/authentication\/2fa-disable/ }
-]
+  { old: /\/user\/two_factor_disable\//,                 new: /\/settings\/authentication\/2fa-disable/ },
+  { old: /\/user\/update\/(.*)/,                         new: /\/staff\/users\/(.*)/ },
+  { old: /\/org\/read\/(.*)/,                            new: /\/staff\/workspaces\/(.*)/ },
+  { old: /\/org\/update\/(.*)/,                          new: /\/staff\/workspaces\/(.*)\/update/ },
+];
 
 window.mapUrl = function (path, reverse) {
     var findDirection = reverse ? 'new' : 'old';

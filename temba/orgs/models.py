@@ -467,7 +467,6 @@ class Org(SmartModel):
         verbose_name=_("Plan"),
         max_length=16,
         default=settings.DEFAULT_PLAN,
-        help_text=_("What plan your organization is on"),
     )
     plan_start = models.DateTimeField(null=True)
     plan_end = models.DateTimeField(null=True)
@@ -553,7 +552,6 @@ class Org(SmartModel):
         max_length=128,
         default=settings.DEFAULT_BRAND,
         verbose_name=_("Brand"),
-        help_text=_("The brand used in emails"),
     )
 
     surveyor_password = models.CharField(

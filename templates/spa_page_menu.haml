@@ -81,6 +81,11 @@
     var href = link.getAttribute("data-href");
     var modax = link.getAttribute("data-modax");
     var onSubmit = link.getAttribute("data-on-submit");
+
+    if(link.classList.contains("posterize")) {
+      return;
+    }
+
     if (modax) {
       showModax(modax, href, onSubmit);
     } else {

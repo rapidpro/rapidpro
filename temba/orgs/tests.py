@@ -629,7 +629,7 @@ class UserTest(TembaTest):
         self.assertContains(response, ", ...")
 
         response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), {"delete": True})
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(reverse("orgs.user_list"), response["Temba-Success"])
 
         self.editor.refresh_from_db()
         self.assertFalse(self.editor.is_active)
@@ -3514,13 +3514,24 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         menu = response.json()["results"]
         self.assertEqual(2, len(menu))
 
+        # customer support should only see the staff option
+        self.login(self.customer_support)
+        menu = self.client.get(menu_url).json()["results"]
+        self.assertEqual(1, len(menu))
+        self.assertEqual("Staff", menu[0]["name"])
+
+        menu = self.client.get(f"{menu_url}staff/").json()["results"]
+        self.assertEqual(2, len(menu))
+        self.assertEqual("Workspaces", menu[0]["name"])
+        self.assertEqual("Users", menu[1]["name"])
+
     def test_workspace(self):
         response = self.assertListFetch(
             reverse("orgs.org_workspace"), allow_viewers=True, allow_editors=True, allow_agents=False
         )
 
         # make sure we have the appropriate number of sections
-        self.assertEqual(7, len(response.context["formax"].sections))
+        self.assertEqual(6, len(response.context["formax"].sections))
 
         # create a child org
         self.child_org = Org.objects.create(
@@ -3533,7 +3544,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(54):
+        with self.assertNumQueries(48):
             response = self.client.get(reverse("orgs.org_workspace"))
 
         # make sure we have the appropriate number of sections
@@ -4130,17 +4141,16 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(manage_url + "?filter=suspended")
         self.assertNotIn(self.org, response.context["object_list"])
 
+        response = self.client.get(manage_url + "?filter=verified")
+        self.assertNotIn(self.org, response.context["object_list"])
+
         response = self.client.get(manage_url + "?filter=nyaruka")
         self.assertIn(self.org, response.context["object_list"])
         self.assertNotIn(self.org2, response.context["object_list"])
 
-        response = self.client.get(manage_url)
-        self.assertEqual(200, response.status_code)
-        self.assertNotContains(response, "(Flagged)")
-
         self.org.flag()
-        response = self.client.get(manage_url)
-        self.assertContains(response, "(Flagged)")
+        response = self.client.get(manage_url + "?filter=flagged")
+        self.assertIn(self.org, response.context["object_list"])
 
         # should contain our test org
         self.assertContains(response, "Temba")
@@ -4148,12 +4158,16 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(manage_url + "?filter=flagged")
         self.assertTrue(self.org in response.context["object_list"])
 
+        self.org.verify()
+        response = self.client.get(manage_url + "?filter=verified")
+        self.assertIn(self.org, response.context["object_list"])
+
         # and can go to that org
         response = self.client.get(update_url)
         self.assertEqual(200, response.status_code)
 
         # We should have the limits fields
-        self.assertEqual(17, len(response.context["form"].fields))
+        self.assertEqual(18, len(response.context["form"].fields))
         for elt in settings.ORG_LIMIT_DEFAULTS.keys():
             self.assertIn(f"{elt}_limit", response.context["form"].fields.keys())
 
@@ -4576,7 +4590,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Nyaruka")
 
         response = self.requestView(delete_url, self.customer_support, post_data={})
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(reverse("orgs.user_list"), response["Temba-Success"])
 
         self.editor.refresh_from_db()
         self.assertFalse(self.editor.is_active)
@@ -5689,3 +5703,53 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class TestSpa(TembaTest):
+    def test_menu(self):
+
+        # our admin gets a full menu
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_menu"))
+        self.assertGreater(len(response.json()["results"]), 5)
+
+        # customer support has no org, so they just see staff menu
+        self.login(self.customer_support)
+        response = self.client.get(reverse("orgs.org_menu"))
+        self.assertEqual(len(response.json()["results"]), 1)
+
+    def test_staff(self):
+
+        # admin can't see org manage page
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_read", args=[self.org.id]))
+        self.assertRedirect(response, reverse("users.user_login"))
+
+        # but staff members can manage orgs
+        self.login(self.customer_support)
+
+        # make our second org a child
+        self.org2.parent = self.org
+        self.org2.save()
+
+        response = self.client.get(reverse("orgs.org_read", args=[self.org.id]))
+        self.assertEqual(200, response.status_code)
+
+        # we should have a child in our context
+        self.assertEqual(1, len(response.context["children"]))
+
+        # we should have an option to flag
+        self.assertContentMenuContains(response.context["content_menu"], "Flag")
+        self.assertContentMenuExcludes(response.context["content_menu"], "Unflag")
+
+        # flag and content menu option should be inverted
+        self.org.flag()
+        response = self.client.get(reverse("orgs.org_read", args=[self.org.id]))
+        self.assertContentMenuContains(response.context["content_menu"], "Unflag")
+        self.assertContentMenuExcludes(response.context["content_menu"], "Flag")
+
+        # no menu for inactive orgs
+        self.org.is_active = False
+        self.org.save()
+        response = self.client.get(reverse("orgs.org_read", args=[self.org.id]))
+        self.assertEquals([], response.context["content_menu"])

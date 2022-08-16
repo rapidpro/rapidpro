@@ -16,10 +16,9 @@
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
     -if user.is_staff
-      %script{src:"{{ STATIC_URL }}js/urls.js"}
+      %script(src="{{ STATIC_URL }}js/urls.js")
 
       :javascript
-
         window.STATIC_URL = "{{STATIC_URL}}";
         function loadNewInterface(force) {
           var newUrl = mapUrl(window.location.pathname);
@@ -309,7 +308,7 @@
       }
 
       function handlePosterize(ele) {
-        posterize(ele.getAttribute('href'));
+        posterize(ele.getAttribute('href') || ele.dataset.href);
       }
 
       function removalConfirmation(removal, buttonName) {

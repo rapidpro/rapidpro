@@ -1,3 +1,7 @@
+v7.5.18
+----------
+ * Workspace and user management in new UI
+
 v7.5.17
 ----------
  * Show send history of scheduled broadcasts in correct order
