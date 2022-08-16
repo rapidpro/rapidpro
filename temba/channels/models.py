@@ -1218,12 +1218,6 @@ class ChannelLog(models.Model):
             request_time=request_time_ms,
         )
 
-    def log_group(self):
-        if self.msg:
-            return ChannelLog.objects.filter(msg=self.msg).order_by("-created_on")
-
-        return ChannelLog.objects.filter(id=self.id)
-
     def get_url_display(self, user, anon_mask):
         """
         Gets the URL as it should be displayed to the given user
@@ -1267,7 +1261,7 @@ class ChannelLog(models.Model):
 
         # if this log doesn't have a msg then we don't know what to redact, so redact completely
         if not self.msg_id:
-            return mask
+            return original[:10] + mask
 
         needle = self.msg.contact_urn.path
 
@@ -1278,9 +1272,22 @@ class ChannelLog(models.Model):
 
         # if nothing was redacted, don't risk returning sensitive information we didn't find
         if original == redacted:
-            return mask
+            return original[:10] + mask
 
         return redacted
+
+    def get_display(self, user) -> dict:
+        from temba.request_logs.models import HTTPLog
+
+        return {
+            "url": self.get_url_display(user, HTTPLog.REDACT_MASK),
+            "status_code": self.response_status or 0,
+            "request": self.get_request_display(user, HTTPLog.REDACT_MASK),
+            "response": self.get_response_display(user, HTTPLog.REDACT_MASK),
+            "elapsed_ms": self.request_time,
+            "retries": 0,
+            "created_on": self.created_on,
+        }
 
     def release(self):
         self.delete()

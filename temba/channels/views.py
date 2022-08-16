@@ -1528,6 +1528,13 @@ class ChannelLogCRUDL(SmartCRUDL):
                 reverse("channels.channellog_list", args=[self.get_object().channel.uuid]) + "?connections=1",
             )
 
+        def get_context_data(self, **kwargs):
+            log_group = self.object.channel_logs.order_by("-created_on")
+
+            context = super().get_context_data(**kwargs)
+            context["http_logs"] = [log.get_display(self.request.user) for log in log_group]
+            return context
+
     class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         fields = ("description", "created_on")
         slug_url_kwarg = "pk"
@@ -1545,3 +1552,12 @@ class ChannelLogCRUDL(SmartCRUDL):
         def derive_queryset(self, **kwargs):
             queryset = super().derive_queryset(**kwargs)
             return queryset.order_by("-created_on")
+
+        def get_context_data(self, **kwargs):
+            log_group = ChannelLog.objects.filter(id=self.object.id)
+            if self.object.msg:
+                log_group = ChannelLog.objects.filter(msg=self.object.msg).order_by("-created_on")
+
+            context = super().get_context_data(**kwargs)
+            context["http_logs"] = [log.get_display(self.request.user) for log in log_group]
+            return context

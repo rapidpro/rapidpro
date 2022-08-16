@@ -5,13 +5,11 @@ from requests_toolbelt.utils import dump
 from django.db import models
 from django.db.models import Index, Q
 from django.utils import timezone
-from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from temba.airtime.models import AirtimeTransfer
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
-from temba.contacts.models import ContactURN
 from temba.flows.models import Flow
 from temba.orgs.models import Org
 from temba.tickets.models import Ticketer
@@ -25,6 +23,7 @@ class HTTPLog(models.Model):
     HTTPLog is used to log HTTP requests and responses.
     """
 
+    REDACT_MASK = "*" * 8  # used to mask redacted values
     HEALTHY_TIME_LIMIT = 10_000  # a call that takes longer than 10 seconds is considered unhealthy
 
     # used for dumping traces
@@ -81,10 +80,6 @@ class HTTPLog(models.Model):
         AirtimeTransfer, related_name="http_logs", on_delete=models.PROTECT, null=True
     )
     channel = models.ForeignKey(Channel, related_name="http_logs", on_delete=models.PROTECT, null=True)
-
-    @cached_property
-    def method(self):
-        return self.request.split(" ")[0] if self.request else None
 
     @classmethod
     def create_from_response(
@@ -152,39 +147,28 @@ class HTTPLog(models.Model):
             ticketer=ticketer,
         )
 
-    def get_redact_secrets(self) -> tuple:
+    def _get_redact_secrets(self) -> tuple:
         if self.channel:
             return self.channel.type.redact_values
         return ()
 
-    def get_url_display(self):
-        """
-        Gets the URL as it should be displayed to users
-        """
-        return self._get_display_value(self.url, ContactURN.ANON_MASK)
-
-    def get_request_display(self):
-        """
-        Gets the request trace as it should be displayed to users
-        """
-        return self._get_display_value(self.request, ContactURN.ANON_MASK)
-
-    def get_response_display(self):
-        """
-        Gets the response trace as it should be displayed to users
-        """
-        return self._get_display_value(self.response, ContactURN.ANON_MASK)
-
-    def _get_display_value(self, original, mask):
-        redact_secrets = self.get_redact_secrets()
+    def _get_display_value(self, original):
+        redact_secrets = self._get_redact_secrets()
 
         for secret in redact_secrets:
-            original = redact.text(original, secret, mask)
+            original = redact.text(original, secret, self.REDACT_MASK)
         return original
 
-    @property
-    def is_healthy(self):
-        return self.request_time <= self.HEALTHY_TIME_LIMIT
+    def get_display(self) -> dict:
+        return {
+            "url": self._get_display_value(self.url),
+            "status_code": self.status_code,
+            "request": self._get_display_value(self.request),
+            "response": self._get_display_value(self.response or ""),
+            "elapsed_ms": self.request_time,
+            "retries": self.num_retries,
+            "created_on": self.created_on,
+        }
 
     class Meta:
         indexes = (

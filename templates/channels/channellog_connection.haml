@@ -13,7 +13,3 @@
 
 -block log-status
   {{ object.status_display }}
-
--block log-entries
-  -for log in object.channel_logs.all
-    -include "channels/channellog_log.haml"

@@ -3,7 +3,7 @@ from temba.flows.models import Flow
 from temba.tests import TembaTest
 from temba.triggers.models import Trigger
 
-from .temba import object_class_name, object_url, unsnake, verbose_name_plural
+from .temba import first_word, object_class_name, object_url, unsnake, verbose_name_plural
 
 
 class TembaTagLibraryTest(TembaTest):
@@ -28,6 +28,11 @@ class TembaTagLibraryTest(TembaTest):
         self.assertEqual("Campaign", object_class_name(Campaign()))
         self.assertEqual("CampaignEvent", object_class_name(CampaignEvent()))
         self.assertEqual("Trigger", object_class_name(Trigger()))
+
+    def test_first_word(self):
+        self.assertEqual("First", first_word("First Second"))
+        self.assertEqual("First", first_word("First"))
+        self.assertEqual("", first_word(""))
 
     def test_unsnake(self):
         self.assertEqual("Rapid Pro", unsnake("rapid_pro"))

@@ -38,41 +38,7 @@
         -trans "Date"
       {% format_datetime object.created_on seconds=True %}
 
-  %table.list
-    %tbody
-      %tr.border-b(class="{% if object.is_error or not object.is_healthy %}warning{% endif %}")
-        %td(style="width: 30px;")
-          .font-normal.text-2xl
-            {{ object.status_code|default:"--" }}
-        %td
-          .font-normal.inline.mr-1
-            %span.method
-              {{ object.method }}
-          {{ object.get_url_display }}
-        %td
-          .text-right.whitespace-nowrap.mr-3
-            -trans "Took"
-            {{ object.request_time|default:"0"|intcomma }}ms
-
-            -if object.num_retries
-              ({{ object.num_retries }} retries)
-      %tr
-        %td(colspan="99" style="padding:0;")
-          %pre.prettyprint.request<
-            :plain
-              {{ object.get_request_display }}
-
-      -if object.response
-        %tr
-          %td(colspan="4" style="padding:0;")
-            %pre.prettyprint.response<
-              :plain
-                {{ object.get_response_display }}
-      -elif object.is_error
-        %tr
-          %td(colspan="4" style="padding:0;")
-            %pre.prettyprint.response<
-              -trans "Connection Error"
+  -include "includes/http_log.haml" with log=object.get_display
 
 -block extra-script
   {{ block.super }}

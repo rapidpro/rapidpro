@@ -280,6 +280,11 @@ def parse_isodate(value):
     return iso8601.parse_date(value)
 
 
+@register.filter
+def first_word(value):
+    return str(value).split(" ", maxsplit=1)[0]
+
+
 @register.simple_tag(takes_context=True)
 def analytics_hook(context, name: str):
     return mark_safe(analytics.get_hook_html(name, context))
