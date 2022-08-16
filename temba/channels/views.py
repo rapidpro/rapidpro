@@ -1438,6 +1438,7 @@ class ChannelEventCRUDL(SmartCRUDL):
 
 class ChannelLogCRUDL(SmartCRUDL):
     model = ChannelLog
+    path = "log"  # urls like /channels/log/
     actions = ("list", "read", "msg", "call")
 
     class List(SpaMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):

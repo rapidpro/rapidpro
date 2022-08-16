@@ -881,7 +881,7 @@ class EventTest(TembaTest):
                     "quick_replies": ["yes", "no"],
                 },
                 "status": "E",
-                "logs_url": f"/channels/channellog/msg/{msg_out.id}/",
+                "logs_url": f"/channels/log/msg/{msg_out.id}/",
             },
             Event.from_msg(self.org, self.admin, msg_out),
         )
@@ -1133,7 +1133,7 @@ class EventTest(TembaTest):
                 "status": "E",
                 "status_display": "Errored (Busy)",
                 "created_on": matchers.ISODate(),
-                "logs_url": f"/channels/channellog/call/{call2.id}/",
+                "logs_url": f"/channels/log/call/{call2.id}/",
             },
             Event.from_ivr_call(self.org, self.admin, call2),
         )
