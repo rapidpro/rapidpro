@@ -2,10 +2,7 @@
 -load smartmin temba compress i18n
 
 -block title
-  -if parent
-    {{org.name}}
-  -else
-    {{user_org.name|capfirst}}
+  -trans "Manage Logins"
 
 -block extra-style
   {{block.super}}
