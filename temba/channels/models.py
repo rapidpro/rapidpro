@@ -1758,8 +1758,7 @@ class ChannelConnection(models.Model):
             return None
 
     def release(self):
-        for log in self.channel_logs.all():
-            log.release()
+        self.channel_logs.all().delete()
 
         session = self.get_session()
         if session:

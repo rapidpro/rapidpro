@@ -1,91 +1,27 @@
--extends "smartmin/list.html"
--load i18n compress
+-extends "channels/channellog_group_base.haml"
+-load i18n
 
 -block title
   -trans "Message Log"
 
--block content
-  .card.flex.mt-0.flex-shrink-0
-    .inline-flex.mr-8
-      .font-normal.mr-2
-        -trans "Recipient"
-      %temba-anchor(href='{% url "contacts.contact_read" msg.contact.uuid %}')
-        {{ msg.contact_urn.get_display }}
+-block group_object
+  .inline-flex.mr-8
+    .font-normal.mr-2
+      -trans "Recipient"
+    %temba-anchor(href='{% url "contacts.contact_read" msg.contact.uuid %}')
+      {{ msg.contact_urn.get_display }}
 
-    .inline-flex.mr-8
-      .font-normal.mr-2
-        -trans "Direction"
-      {{ msg.get_direction_display }}
+  .inline-flex.mr-8
+    .font-normal.mr-2
+      -trans "Direction"
+    {{ msg.get_direction_display }}
 
-    .inline-flex.mr-8
-      .font-normal.mr-2
-        -trans "Date"
-      {% format_datetime msg.created_on seconds=True %}
+  .inline-flex.mr-8
+    .font-normal.mr-2
+      -trans "Date"
+    {% format_datetime msg.created_on seconds=True %}
 
-    .inline-flex.mr-8
-      .font-normal.mr-2
-        -trans "Status"
-      {{ msg.get_status_display }}
-
-  -for log in http_logs
-    -include "includes/http_log.haml" with log=log
-
--block extra-script
-  {{ block.super }}
-  <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
-  :javascript
-    $(function(){
-      prettyPrint();
-    });
-
-  :javascript
-    $('document').ready(function(){
-      $('.summary :first').click();
-    });
-
-    $('.summary').on('click', function() {
-      var top = $(this).parent('.log')
-      var ele = top.find(".details");
-      if (ele.is(':visible')) {
-        ele.slideUp();
-        top.removeClass('expanded');
-      } else {
-        ele.slideDown();
-        top.addClass('expanded')
-      }
-    });
-
--block extra-style
-  {{ block.super }}
-  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
-  :css
-    .page-content {
-      max-width: 100%;
-    }
-
--block extra-less
-  {{block.super}}
-  -compress css inline
-    {% lessblock %}
-      :plain
-        table.list {
-          tbody {
-            tr:first-child {
-              td {
-                padding: 1.5rem;
-              }
-            }
-          }
-        }
-
-        pre.prettyprint {
-          margin: 0;
-          border: 0;
-          max-height: none !important;
-          padding: 1.5rem;
-
-          &.request {
-            background: #f7f7f9 + 111;
-          }
-        }
-    {% endlessblock %}
+  .inline-flex.mr-8
+    .font-normal.mr-2
+      -trans "Status"
+    {{ msg.get_status_display }}
