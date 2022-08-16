@@ -2015,7 +2015,7 @@ class ChannelLogTest(TembaTest):
         response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
-        read_url = reverse("channels.channellog_read", args=[failed_log.channel.uuid, failed_log.id])
+        read_url = reverse("channels.channellog_read", args=[failed_log.id])
         response = self.client.get(read_url)
         self.assertLoginRedirect(response)
 
@@ -2026,7 +2026,7 @@ class ChannelLogTest(TembaTest):
         response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
-        read_url = reverse("channels.channellog_read", args=[failed_log.channel.uuid, failed_log.id])
+        read_url = reverse("channels.channellog_read", args=[failed_log.id])
         response = self.client.get(read_url)
         self.assertLoginRedirect(response)
 
@@ -2052,9 +2052,7 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "invalid credentials")
 
         # can't view log from other org
-        response = self.client.get(
-            reverse("channels.channellog_read", args=[other_org_log.channel.uuid, other_org_log.id])
-        )
+        response = self.client.get(reverse("channels.channellog_read", args=[other_org_log.id]))
         self.assertLoginRedirect(response)
 
         # disconnect our msg
@@ -2065,9 +2063,7 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "invalid credentials")
 
         # view success alone
-        response = self.client.get(
-            reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
-        )
+        response = self.client.get(reverse("channels.channellog_read", args=[success_log.id]))
         self.assertContains(response, "POST https://foo.bar/send?msg=failed+message")
 
         self.assertEqual(self.channel.get_success_log_count(), 2)
@@ -2079,7 +2075,7 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "2 results")
 
         # make sure we can see the details of the IVR log
-        response = self.client.get(reverse("channels.channellog_connection", args=[call.id]))
+        response = self.client.get(reverse("channels.channellog_call", args=[call.id]))
         self.assertContains(response, "{&quot;say&quot;: &quot;Hello&quot;}")
 
         # if duration isn't set explicitly, it can be calculated
@@ -2094,7 +2090,7 @@ class ChannelLogTest(TembaTest):
             )
             self.assertContains(response, "30 seconds")
 
-    def test_channellog_connection_anonymous(self):
+    def test_channellog_call_anonymous(self):
         contact = self.create_contact("Joe Blow", phone="123")
         call = IVRCall.objects.create(
             contact=contact,
@@ -2105,7 +2101,7 @@ class ChannelLogTest(TembaTest):
             contact_urn=contact.urns.all().first(),
             error_count=0,
         )
-        url = reverse("channels.channellog_connection", args=(call.pk,))
+        url = reverse("channels.channellog_call", args=(call.id,))
 
         self.login(self.admin)
         response = self.client.get(url)
@@ -2130,7 +2126,7 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("TG", "Test TG Channel", "234567")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             description="Successfully Sent",
@@ -2145,7 +2141,7 @@ class ChannelLogTest(TembaTest):
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[msg.id])
 
         # check list page shows un-redacted content for a regular org
         response = self.client.get(list_url)
@@ -2178,7 +2174,6 @@ class ChannelLogTest(TembaTest):
         # login as customer support, must see URNs
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "3527065", count=3)
@@ -2198,7 +2193,7 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("TG", "Test TG Channel", "234567")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             description="Successfully Sent",
@@ -2212,7 +2207,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[msg.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "3527065", count=1)
@@ -2230,7 +2225,6 @@ class ChannelLogTest(TembaTest):
         # login as customer support, must see URNs
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "3527065", count=1)
@@ -2247,7 +2241,7 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("TG", "Test TG Channel", "234567")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             description="Successfully Sent",
@@ -2261,7 +2255,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[msg.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "3527065", count=1)
@@ -2295,7 +2289,7 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             description="Successfully Sent",
@@ -2310,7 +2304,7 @@ class ChannelLogTest(TembaTest):
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[msg.id])
 
         response = self.client.get(list_url)
 
@@ -2339,7 +2333,6 @@ class ChannelLogTest(TembaTest):
         # login as customer support, must see URNs
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "767659860", count=5)
@@ -2360,7 +2353,7 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             description="Successfully Sent",
@@ -2374,7 +2367,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[msg.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "767659860", count=1)
@@ -2408,7 +2401,7 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("FB", "Test FB Channel", "54764868534")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             description="Successfully Sent",
@@ -2435,7 +2428,7 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "facebook:2150393045080607", count=0)
             self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[msg.id])
 
         response = self.client.get(read_url)
 
@@ -2453,7 +2446,7 @@ class ChannelLogTest(TembaTest):
         # login as customer support, must see URNs
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[msg.id])
 
         response = self.client.get(read_url)
 
@@ -2476,7 +2469,7 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("FB", "Test FB Channel", "54764868534")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             description="Successfully Sent",
@@ -2500,7 +2493,7 @@ class ChannelLogTest(TembaTest):
 
             self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[msg.id])
 
         response = self.client.get(read_url)
 
@@ -2535,7 +2528,7 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("T", "Test Twilio Channel", "+12345")
         msg = self.create_outgoing_msg(contact, "Hi")
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             description="Status Updated",
@@ -2550,7 +2543,7 @@ class ChannelLogTest(TembaTest):
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[msg.id])
 
         # check list page shows un-redacted content for a regular org
         response = self.client.get(list_url)
@@ -2585,7 +2578,6 @@ class ChannelLogTest(TembaTest):
         # login as customer support, must see URNs
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "097 909 9111", count=1)
@@ -2632,7 +2624,7 @@ MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
 
         # check list page shows un-redacted content for a regular org
         response = self.client.get(list_url)
@@ -2677,7 +2669,7 @@ Error: missing request signature""",
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_read", args=[failed_log.channel.uuid, failed_log.id])
+        read_url = reverse("channels.channellog_read", args=[failed_log.id])
 
         response = self.client.get(read_url)
 

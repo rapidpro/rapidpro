@@ -2492,8 +2492,8 @@ class ContactTest(TembaTest):
             response,
             "http://www.openstreetmap.org/?mlat=47.5414799&amp;mlon=-122.6359908#map=18/47.5414799/-122.6359908",
         )
-        self.assertContains(response, reverse("channels.channellog_read", args=[log.channel.uuid, log.id]))
-        self.assertContains(response, reverse("channels.channellog_connection", args=[call.id]))
+        self.assertContains(response, reverse("channels.channellog_read", args=[log.id]))
+        self.assertContains(response, reverse("channels.channellog_call", args=[call.id]))
         self.assertContains(response, "Transferred <b>100.00</b> <b>RWF</b> of airtime")
         self.assertContains(response, reverse("airtime.airtimetransfer_read", args=[transfer.id]))
 

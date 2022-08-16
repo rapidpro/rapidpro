@@ -1309,6 +1309,9 @@ class ChannelLog(models.Model):
             "created_on": self.created_on,
         }
 
+    def get_duration(self) -> int:
+        return self.elapsed_ms or self.request_time
+
     class Meta:
         indexes = [
             models.Index(

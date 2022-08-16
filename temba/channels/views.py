@@ -46,6 +46,7 @@ from temba.utils.fields import SelectWidget
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
+from ..ivr.models import IVRCall
 from .models import (
     Alert,
     Channel,
@@ -1437,7 +1438,7 @@ class ChannelEventCRUDL(SmartCRUDL):
 
 class ChannelLogCRUDL(SmartCRUDL):
     model = ChannelLog
-    actions = ("list", "read", "connection")
+    actions = ("list", "read", "msg", "call")
 
     class List(SpaMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
         fields = ("channel", "description", "created_on")
@@ -1519,45 +1520,74 @@ class ChannelLogCRUDL(SmartCRUDL):
             context["channel"] = self.channel
             return context
 
-    class Connection(AnonMixin, ContentMenuMixin, SmartReadView):
-        model = ChannelConnection
-
-        def build_content_menu(self, menu):
-            menu.add_link(
-                _("More Calls"),
-                reverse("channels.channellog_list", args=[self.get_object().channel.uuid]) + "?connections=1",
-            )
-
-        def get_context_data(self, **kwargs):
-            log_group = self.object.channel_logs.order_by("-created_on")
-
-            context = super().get_context_data(**kwargs)
-            context["http_logs"] = [log.get_display(self.request.user) for log in log_group]
-            return context
-
     class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
-        fields = ("description", "created_on")
-        slug_url_kwarg = "pk"
+        """
+        Detail view for a single channel log
+        """
 
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<channel_uuid>[0-9a-f-]+)/(?P<pk>\d+)/$" % (path, action)
+        fields = ("description", "created_on")
 
         def build_content_menu(self, menu):
-            menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[self.get_object().channel.uuid]))
+            menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[self.object.channel.uuid]))
 
         def get_object_org(self):
             return self.get_object().channel.org
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["http_logs"] = [self.object.get_display(self.request.user)]
+            return context
+
+    class Msg(SpaMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
+        """
+        All channel logs for a message
+        """
+
+        permission = "channels.channellog_read"
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<msg_id>\d+)/$" % (path, action)
+
+        @cached_property
+        def msg(self):
+            return get_object_or_404(Msg, pk=self.kwargs["msg_id"])
+
+        def build_content_menu(self, menu):
+            menu.add_link(_("More Logs"), reverse("channels.channellog_list", args=[self.msg.channel.uuid]))
+
         def derive_queryset(self, **kwargs):
-            queryset = super().derive_queryset(**kwargs)
-            return queryset.order_by("-created_on")
+            return super().derive_queryset(**kwargs).filter(msg=self.msg).order_by("-created_on")
 
         def get_context_data(self, **kwargs):
-            log_group = ChannelLog.objects.filter(id=self.object.id)
-            if self.object.msg:
-                log_group = ChannelLog.objects.filter(msg=self.object.msg).order_by("-created_on")
-
             context = super().get_context_data(**kwargs)
-            context["http_logs"] = [log.get_display(self.request.user) for log in log_group]
+            context["msg"] = self.msg
+            context["http_logs"] = [log.get_display(self.request.user) for log in context["object_list"]]
+            return context
+
+    class Call(AnonMixin, ContentMenuMixin, SmartListView):
+        """
+        All channel logs for a call
+        """
+
+        permission = "channels.channellog_read"
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<call_id>\d+)/$" % (path, action)
+
+        @cached_property
+        def call(self):
+            return get_object_or_404(IVRCall, pk=self.kwargs["call_id"])
+
+        def build_content_menu(self, menu):
+            menu.add_link(
+                _("More Calls"),
+                reverse("channels.channellog_list", args=[self.call.channel.uuid]) + "?connections=1",
+            )
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["call"] = self.call
+            context["http_logs"] = [log.get_display(self.request.user) for log in context["object_list"]]
             return context

@@ -865,7 +865,7 @@ class EventTest(TembaTest):
         msg_out = self.create_outgoing_msg(
             contact1, "Hello", channel=self.channel, status="E", quick_replies=("yes", "no")
         )
-        log = ChannelLog.objects.create(channel=self.channel, is_error=True, description="Boom", msg=msg_out)
+        ChannelLog.objects.create(channel=self.channel, is_error=True, description="Boom", msg=msg_out)
         msg_out.refresh_from_db()
 
         self.assertEqual(
@@ -881,7 +881,7 @@ class EventTest(TembaTest):
                     "quick_replies": ["yes", "no"],
                 },
                 "status": "E",
-                "logs_url": f"/channels/channellog/read/{log.channel.uuid}/{log.id}/",
+                "logs_url": f"/channels/channellog/msg/{msg_out.id}/",
             },
             Event.from_msg(self.org, self.admin, msg_out),
         )
@@ -1104,6 +1104,7 @@ class EventTest(TembaTest):
             contact_urn=contact.urns.all().first(),
             error_count=0,
         )
+        ChannelLog.objects.create(channel=self.channel, is_error=True, description="Boom", connection=call2)
 
         self.assertEqual(
             {
@@ -1113,7 +1114,7 @@ class EventTest(TembaTest):
                 "created_on": matchers.ISODate(),
                 "logs_url": None,
             },
-            Event.from_ivr_call(self.org, self.user, call1),
+            Event.from_ivr_call(self.org, self.admin, call1),
         )
 
         self.assertEqual(
@@ -1122,7 +1123,17 @@ class EventTest(TembaTest):
                 "status": "E",
                 "status_display": "Errored (Busy)",
                 "created_on": matchers.ISODate(),
-                "logs_url": None,
+                "logs_url": None,  # user can't see logs
             },
             Event.from_ivr_call(self.org, self.user, call2),
+        )
+        self.assertEqual(
+            {
+                "type": "call_started",
+                "status": "E",
+                "status_display": "Errored (Busy)",
+                "created_on": matchers.ISODate(),
+                "logs_url": f"/channels/channellog/call/{call2.id}/",
+            },
+            Event.from_ivr_call(self.org, self.admin, call2),
         )
