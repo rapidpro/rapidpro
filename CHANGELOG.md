@@ -1,3 +1,8 @@
+v7.5.20
+----------
+ * Update the links for line developers console on the line claim page
+ * Rework channel log details views into one generic one, one for messages, one for calls
+
 v7.5.19
 ----------
  * Rework channel log rendering to use common HTTPLog template

@@ -1,16 +1,10 @@
--extends "smartmin/read.html"
+-extends "smartmin/list.html"
 -load i18n compress
 
--block page-title
-  -trans "Channel Event"
-
--block title
-  -trans "Channel Log"
-
--block subtitle
-  {{ object.channel.get_channel_type_display }}
-
 -block content
+  .card.flex.mt-0.flex-shrink-0
+    -block group_object
+  
   -for log in http_logs
     -include "includes/http_log.haml" with log=log
 

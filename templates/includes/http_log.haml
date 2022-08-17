@@ -27,4 +27,4 @@
     %tr
       %td(colspan="4" style="padding:0;")
         %pre.prettyprint.response<
-          {% if object.response%}{{ log.response }}{% else %}{% trans "Connection Error" %}{% endif %}
+          {% if log.response%}{{ log.response }}{% else %}{% trans "Connection Error" %}{% endif %}

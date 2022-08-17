@@ -563,7 +563,6 @@ GROUP_PERMISSIONS = {
         "channels.channel_read",
         "channels.channel_update",
         "channels.channelevent.*",
-        "channels.channellog_connection",
         "channels.channellog_list",
         "channels.channellog_read",
         "classifiers.classifier_api",
