@@ -661,15 +661,6 @@ class Msg(models.Model):
         """
         return Attachment.parse_all(self.attachments)
 
-    def get_last_log(self):
-        """
-        Gets the last channel log for this message. Performs sorting in Python to ease pre-fetching.
-        """
-        sorted_logs = None
-        if self.channel and self.channel.is_active:
-            sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
-        return sorted_logs[0] if sorted_logs else None
-
     def update(self, cmd):
         """
         Updates our message according to the provided client command
@@ -789,8 +780,7 @@ class Msg(models.Model):
             self.visibility = Msg.VISIBILITY_DELETED_BY_USER
             self.save(update_fields=("text", "attachments", "visibility"))
         else:
-            for log in self.channel_logs.all():
-                log.release()
+            self.channel_logs.all().delete()
 
             super().delete()
 

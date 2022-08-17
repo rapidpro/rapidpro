@@ -1,0 +1,27 @@
+-extends "channels/channellog_group_base.haml"
+-load i18n
+
+-block title
+  -trans "Message Log"
+
+-block group_object
+  .inline-flex.mr-8
+    .font-normal.mr-2
+      -trans "Recipient"
+    %temba-anchor(href='{% url "contacts.contact_read" msg.contact.uuid %}')
+      {{ msg.contact_urn.get_display }}
+
+  .inline-flex.mr-8
+    .font-normal.mr-2
+      -trans "Direction"
+    {{ msg.get_direction_display }}
+
+  .inline-flex.mr-8
+    .font-normal.mr-2
+      -trans "Date"
+    {% format_datetime msg.created_on seconds=True %}
+
+  .inline-flex.mr-8
+    .font-normal.mr-2
+      -trans "Status"
+    {{ msg.get_status_display }}

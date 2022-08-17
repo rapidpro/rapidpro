@@ -1182,7 +1182,7 @@ class ChannelEvent(models.Model):
 
 class ChannelLog(models.Model):
     """
-    A log of an call made to or from a channel
+    A log of an interaction with a channel
     """
 
     id = models.BigAutoField(primary_key=True)
@@ -1218,79 +1218,72 @@ class ChannelLog(models.Model):
             request_time=request_time_ms,
         )
 
-    def get_url_display(self, user, anon_mask):
+    def _get_url_display(self, user, value):
         """
         Gets the URL as it should be displayed to the given user
         """
         redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
 
-        return self._get_display_value(user, self.url, anon_mask, redact_values=redact_values)
+        return self._get_display_value(user, value, redact_values=redact_values)
 
-    def get_request_display(self, user, anon_mask):
+    def _get_request_display(self, user, value):
         """
         Gets the request trace as it should be displayed to the given user
         """
         redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_request_keys
         redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
 
-        return self._get_display_value(
-            user, self.request, anon_mask, redact_keys=redact_keys, redact_values=redact_values
-        )
+        return self._get_display_value(user, value, redact_keys=redact_keys, redact_values=redact_values)
 
-    def get_response_display(self, user, anon_mask):
+    def _get_response_display(self, user, value):
         """
         Gets the response trace as it should be displayed to the given user
         """
         redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_response_keys
         redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
 
-        return self._get_display_value(
-            user, self.response, anon_mask, redact_keys=redact_keys, redact_values=redact_values
-        )
+        return self._get_display_value(user, value, redact_keys=redact_keys, redact_values=redact_values)
 
-    def _get_display_value(self, user, original, mask, redact_keys=(), redact_values=()):
+    def _get_display_value(self, user, original, redact_keys=(), redact_values=()):
         """
         Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
         """
 
+        from temba.request_logs.models import HTTPLog
+
         for secret_val in redact_values:
-            original = redact.text(original, secret_val, mask)
+            original = redact.text(original, secret_val, HTTPLog.REDACT_MASK)
 
         if not self.channel.org.is_anon or user.has_org_perm(self.channel.org, "contacts.contact_break_anon"):
             return original
 
         # if this log doesn't have a msg then we don't know what to redact, so redact completely
         if not self.msg_id:
-            return original[:10] + mask
+            return original[:10] + HTTPLog.REDACT_MASK
 
         needle = self.msg.contact_urn.path
 
         if redact_keys:
-            redacted = redact.http_trace(original, needle, mask, redact_keys)
+            redacted = redact.http_trace(original, needle, HTTPLog.REDACT_MASK, redact_keys)
         else:
-            redacted = redact.text(original, needle, mask)
+            redacted = redact.text(original, needle, HTTPLog.REDACT_MASK)
 
         # if nothing was redacted, don't risk returning sensitive information we didn't find
         if original == redacted:
-            return original[:10] + mask
+            return original[:10] + HTTPLog.REDACT_MASK
 
         return redacted
 
     def get_display(self, user) -> dict:
-        from temba.request_logs.models import HTTPLog
-
         return {
-            "url": self.get_url_display(user, HTTPLog.REDACT_MASK),
+            "url": self._get_url_display(user, self.url),
             "status_code": self.response_status or 0,
-            "request": self.get_request_display(user, HTTPLog.REDACT_MASK),
-            "response": self.get_response_display(user, HTTPLog.REDACT_MASK),
+            "request": self._get_request_display(user, self.request),
+            "response": self._get_response_display(user, self.response),
             "elapsed_ms": self.request_time,
             "retries": 0,
             "created_on": self.created_on,
         }
-
-    def release(self):
-        self.delete()
 
     class Meta:
         indexes = [
@@ -1700,12 +1693,6 @@ class ChannelConnection(models.Model):
 
                 self.__class__ = IVRCall
 
-    def has_logs(self):
-        """
-        Returns whether this connection has any channel logs
-        """
-        return self.channel.is_active and self.channel_logs.count() > 0
-
     def get_duration(self):
         """
         Either gets the set duration as reported by provider, or tries to calculate it
@@ -1738,8 +1725,7 @@ class ChannelConnection(models.Model):
             return None
 
     def release(self):
-        for log in self.channel_logs.all():
-            log.release()
+        self.channel_logs.all().delete()
 
         session = self.get_session()
         if session:
