@@ -3,15 +3,17 @@
 
 -block pre-form
   -blocktrans trimmed with name=brand.name
-    You can connect a <a href="https://developers.line.me/messaging-api/overview">LINE Bot</a> to your {{ name }} workspace
+    You can connect a <a href="https://developers.line.biz/en/docs/messaging-api/overview/">LINE Bot</a> to your {{ name }} workspace
     to automate sending and receiving LINE messages.
   -blocktrans trimmed
-    To start creating a LINE bot, go to <a href="https://developers.line.me/messaging-api/getting-started">Getting started with the Messaging API</a>.
+    To start creating a LINE bot, go to <a href="https://developers.line.biz/en/docs/messaging-api/getting-started/">Getting started with the Messaging API</a>.
 
   %ol.steps.card
+
+
     %li
       -blocktrans trimmed
-        Access the <a href="https://developers.line.me/channels/">LINE Channels</a> page and add a new Channel.</li>
+        Access the <a href="https://developers.line.biz/console/">LINE Developers Console</a> page.</li>
 
     %li
       -blocktrans trimmed
@@ -27,16 +29,20 @@
 
     %li
       -blocktrans trimmed
-        Create a new business account Line (With Messaging API enabled)
+        Create a new account on LINE Developers Console (With Messaging API enabled)
+
+    %li
+      -blocktrans trimmed
+        Follow the steps on <a href="https://developers.line.biz/en/docs/messaging-api/getting-started/#using-console">Creating a channel on the LINE Developers Console</a>
 
       %ol
         %li
           -blocktrans trimmed
-            In <a href="https://business.line.me/en/">LINE Business Center</a>, select <i>Messaging API</i> in <i>Services</i>
+            Log in to the LINE Developers Console
 
         %li
           -blocktrans trimmed
-            Select <i>Start using Messaging API</i>
+            Register as a developer (only on first login)
 
         %li
           -blocktrans trimmed
@@ -45,12 +51,20 @@
           .important
             %p
               -blocktrans trimmed
-                Note: At this time you must create a LINE business account and some information, for example, address,
+                Note: At this time you must create a LINE Developers Console account and some information, for example, address,
                 phone, etc., will be requested.
 
         %li
           -blocktrans trimmed
-            After the creation process of the LINE business account, you will see the page to add a new channel of
+            Create a new provider
+
+        %li
+          -blocktrans trimmed
+            Create a channel
+
+        %li
+          -blocktrans trimmed
+            After the creation process of the LINE Developers Console account, you will see the page to add a new channel of
             communication <i>Messaging API</i>. Enter the name and select the appropriate category and click OK.
 
         %li
@@ -72,11 +86,11 @@
       %ol
         %li
           -blocktrans trimmed
-            Click on the menu "Accounts" at the top of the page at the link <a href="https://business.line.me">https://business.line.me</a>
+            Click on the menu "Accounts" at the top of the page at the link <a href="https://developers.line.biz/console/">https://developers.line.biz/console/</a>
 
         %li
           -blocktrans trimmed
-            In the communication channel of your choice, click on the <i>LINE Developers</i> button, accept the terms,
+            In the communication channel of your choice, click on the <i>LINE Developers Console</i> button, accept the terms,
             and it will direct you to a page with the information needed to fill out in the form below
             (Channel ID, Channel Name, Channel Secret and Channel Access Token).
 
