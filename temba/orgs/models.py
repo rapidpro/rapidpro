@@ -262,7 +262,7 @@ class User(AuthUser):
         if self.is_anonymous:  # pragma: needs cover
             return False
 
-        # has it innately?
+        # has it innately? e.g. Granter group
         if self.has_perm(permission):
             return True
 

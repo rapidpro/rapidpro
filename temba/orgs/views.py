@@ -2045,7 +2045,7 @@ class OrgCRUDL(SmartCRUDL):
             if not self.object.is_verified():
                 menu.add_url_post(_("Verify"), f"{reverse('orgs.org_update', args=[self.object.id])}?action=verify")
 
-            if self.request.user.has_perm("orgs.org_delete"):
+            if self.request.user.is_staff:
                 menu.add_modax(
                     _("Delete"),
                     "delete-org",

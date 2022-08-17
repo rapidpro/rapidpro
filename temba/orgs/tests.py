@@ -136,6 +136,8 @@ class UserTest(TembaTest):
         self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim"}, user.as_engine_ref())
 
     def test_has_org_perm(self):
+        granter = self.create_user("jim@rapidpro.io", group_names=("Granters",))
+
         tests = (
             (
                 self.org,
@@ -157,6 +159,17 @@ class UserTest(TembaTest):
                     self.admin: False,
                     self.admin2: True,
                     self.customer_support: True,
+                },
+            ),
+            (
+                self.org2,
+                "contacts.contact_read",
+                {
+                    self.agent: False,
+                    self.user: False,
+                    self.admin: False,
+                    self.admin2: True,
+                    self.customer_support: True,  # needed for servicing
                 },
             ),
             (
@@ -190,6 +203,7 @@ class UserTest(TembaTest):
                     self.admin: False,
                     self.admin2: False,
                     self.customer_support: True,
+                    granter: True,
                 },
             ),
             (
