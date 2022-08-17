@@ -1185,20 +1185,44 @@ class ChannelLog(models.Model):
     A log of an interaction with a channel
     """
 
+    LOG_TYPE_MSG_SEND = "msg_send"
+    LOG_TYPE_MSG_UPDATE = "msg_update"
+    LOG_TYPE_MSG_RECEIVE = "msg_receive"
+    LOG_TYPE_IVR_START = "ivr_start"
+    LOG_TYPE_IVR_CALLBACK = "ivr_callback"
+    LOG_TYPE_CONTACT_UPDATE = "contact_update"
+    LOG_TYPE_TOKEN_REFRESH = "token_refresh"
+    LOG_TYPE_CHOICES = (
+        (LOG_TYPE_MSG_SEND, _("Message Send")),
+        (LOG_TYPE_MSG_UPDATE, _("Message Update")),
+        (LOG_TYPE_MSG_RECEIVE, _("Message Receive")),
+        (LOG_TYPE_IVR_START, _("IVR Start")),
+        (LOG_TYPE_IVR_CALLBACK, _("IVR Callback")),
+        (LOG_TYPE_CONTACT_UPDATE, _("Contact Update")),
+        (LOG_TYPE_TOKEN_REFRESH, _("Token Refresh")),
+    )
+
     id = models.BigAutoField(primary_key=True)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
     connection = models.ForeignKey(
         "channels.ChannelConnection", on_delete=models.PROTECT, related_name="channel_logs", null=True
     )
-    description = models.CharField(max_length=255)
+
+    log_type = models.CharField(max_length=16, choices=LOG_TYPE_CHOICES, null=True)
+    http_logs = models.JSONField(null=True)
+    errors = models.JSONField(null=True)
     is_error = models.BooleanField(default=False)
+    elapsed_ms = models.IntegerField(null=True)
+    created_on = models.DateTimeField(default=timezone.now)
+
+    # TODO deprecated
+    description = models.CharField(max_length=255)
     url = models.TextField(null=True)
     method = models.CharField(max_length=16, null=True)
     request = models.TextField(null=True)
     response = models.TextField(null=True)
     response_status = models.IntegerField(null=True)
-    created_on = models.DateTimeField(default=timezone.now)
     request_time = models.IntegerField(null=True)
 
     @classmethod
@@ -1217,32 +1241,6 @@ class ChannelLog(models.Model):
             description=description[:255],
             request_time=request_time_ms,
         )
-
-    def _get_url_display(self, user, value):
-        """
-        Gets the URL as it should be displayed to the given user
-        """
-        redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
-
-        return self._get_display_value(user, value, redact_values=redact_values)
-
-    def _get_request_display(self, user, value):
-        """
-        Gets the request trace as it should be displayed to the given user
-        """
-        redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_request_keys
-        redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
-
-        return self._get_display_value(user, value, redact_keys=redact_keys, redact_values=redact_values)
-
-    def _get_response_display(self, user, value):
-        """
-        Gets the response trace as it should be displayed to the given user
-        """
-        redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_response_keys
-        redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
-
-        return self._get_display_value(user, value, redact_keys=redact_keys, redact_values=redact_values)
 
     def _get_display_value(self, user, original, redact_keys=(), redact_values=()):
         """
@@ -1275,15 +1273,68 @@ class ChannelLog(models.Model):
         return redacted
 
     def get_display(self, user) -> dict:
+        redact_values = self.channel.type.redact_values
+        redact_request_keys = self.channel.type.redact_request_keys
+        redact_response_keys = self.channel.type.redact_response_keys
+
+        http_logs, errors = self._get_logs_and_errors()
+
+        def redact_http(log: dict) -> dict:
+            return {
+                "url": self._get_display_value(user, log["url"], redact_values=redact_values),
+                "status_code": log["status_code"],
+                "request": self._get_display_value(
+                    user, log["request"], redact_keys=redact_request_keys, redact_values=redact_values
+                ),
+                "response": self._get_display_value(
+                    user, log["response"], redact_keys=redact_response_keys, redact_values=redact_values
+                ),
+                "elapsed_ms": log["elapsed_ms"],
+                "retries": log["retries"],
+                "created_on": log["created_on"],
+            }
+
+        def redact_error(err: dict) -> dict:
+            return {
+                "message": self._get_display_value(user, err["message"], redact_values=redact_values),
+                "code": err["code"],
+            }
+
         return {
-            "url": self._get_url_display(user, self.url),
-            "status_code": self.response_status or 0,
-            "request": self._get_request_display(user, self.request),
-            "response": self._get_response_display(user, self.response),
-            "elapsed_ms": self.request_time,
-            "retries": 0,
+            "description": self.get_description(),
+            "http_logs": [redact_http(h) for h in http_logs],
+            "errors": [redact_error(e) for e in errors],
             "created_on": self.created_on,
         }
+
+    def get_description(self) -> str:
+        return self.description or self.get_log_type_display()
+
+    def _get_logs_and_errors(self) -> tuple:
+        # if this is a legacy style log, create from deprecated fields
+        if not self.http_logs and not self.errors:
+            # legacy logs append error messages to response traces
+            resp_parts = self.response.split("\n\nError: ", maxsplit=2)
+            response, error = resp_parts if len(resp_parts) == 2 else (resp_parts[0], None)
+            logs = []
+            if self.request:
+                logs.append(
+                    {
+                        "url": self.url,
+                        "status_code": self.response_status or 0,
+                        "request": self.request,
+                        "response": response,
+                        "elapsed_ms": self.request_time,
+                        "retries": 0,
+                        "created_on": self.created_on.isoformat(),
+                    }
+                )
+            return (
+                logs,
+                [{"message": error, "code": ""}] if error else [],
+            )
+
+        return self.http_logs or [], self.errors or []
 
     class Meta:
         indexes = [

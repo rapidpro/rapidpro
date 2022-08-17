@@ -167,7 +167,7 @@ class HTTPLog(models.Model):
             "response": self._get_display_value(self.response or ""),
             "elapsed_ms": self.request_time,
             "retries": self.num_retries,
-            "created_on": self.created_on,
+            "created_on": self.created_on.isoformat(),
         }
 
     class Meta:

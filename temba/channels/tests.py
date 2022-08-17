@@ -1951,6 +1951,188 @@ class ChannelCountTest(TembaTest):
 
 
 class ChannelLogTest(TembaTest):
+    def test_get_display_success_legacy(self):
+        channel = self.create_channel("TG", "Telegram", "mybot")
+        contact = self.create_contact("Fred Jones", urns=["telegram:74747474"])
+        msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S")
+        log = ChannelLog.objects.create(
+            channel=channel,
+            msg=msg_out,
+            description="Message Sent",
+            is_error=False,
+            url="https://telegram.com/send?to=74747474",
+            response_status=200,
+            request='POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+            response='HTTP/2.0 200 OK\r\n\r\n{"to":"74747474","first_name":"Fred"}',
+            request_time=263,
+        )
+
+        expected_unredacted = {
+            "description": "Message Sent",
+            "http_logs": [
+                {
+                    "url": "https://telegram.com/send?to=74747474",
+                    "status_code": 200,
+                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                    "response": 'HTTP/2.0 200 OK\r\n\r\n{"to":"74747474","first_name":"Fred"}',
+                    "elapsed_ms": 263,
+                    "retries": 0,
+                    "created_on": matchers.ISODate(),
+                }
+            ],
+            "errors": [],
+            "created_on": matchers.Datetime(),
+        }
+
+        expected_redacted = {
+            "description": "Message Sent",
+            "http_logs": [
+                {
+                    "url": "https://telegram.com/send?to=********",
+                    "status_code": 200,
+                    "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
+                    "response": 'HTTP/2.0 200 OK\r\n\r\n{"to": "********", "first_name": "********"}',
+                    "elapsed_ms": 263,
+                    "retries": 0,
+                    "created_on": matchers.ISODate(),
+                }
+            ],
+            "errors": [],
+            "created_on": matchers.Datetime(),
+        }
+
+        self.assertEqual(expected_unredacted, log.get_display(self.admin))
+        self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+
+        with AnonymousOrg(self.org):
+            self.assertEqual(expected_redacted, log.get_display(self.admin))
+            self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+
+    def test_get_display_error_legacy(self):
+        channel = self.create_channel("TG", "Telegram", "mybot")
+        contact = self.create_contact("Fred Jones", urns=["telegram:74747474"])
+        msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S")
+        log = ChannelLog.objects.create(
+            channel=channel,
+            msg=msg_out,
+            description="Message Send Error",
+            is_error=True,
+            url="https://telegram.com/send?to=74747474",
+            response_status=400,
+            request='POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+            response='HTTP/2.0 200 OK\r\n\r\n{"to":"74747474","first_name":"Fred"}\n\nError: response not right',
+            request_time=263,
+        )
+
+        expected_unredacted = {
+            "description": "Message Send Error",
+            "http_logs": [
+                {
+                    "url": "https://telegram.com/send?to=74747474",
+                    "status_code": 400,
+                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                    "response": 'HTTP/2.0 200 OK\r\n\r\n{"to":"74747474","first_name":"Fred"}',
+                    "elapsed_ms": 263,
+                    "retries": 0,
+                    "created_on": matchers.ISODate(),
+                }
+            ],
+            "errors": [{"message": "response not right", "code": ""}],
+            "created_on": matchers.Datetime(),
+        }
+
+        expected_redacted = {
+            "description": "Message Send Error",
+            "http_logs": [
+                {
+                    "url": "https://telegram.com/send?to=********",
+                    "status_code": 400,
+                    "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
+                    "response": 'HTTP/2.0 200 OK\r\n\r\n{"to": "********", "first_name": "********"}',
+                    "elapsed_ms": 263,
+                    "retries": 0,
+                    "created_on": matchers.ISODate(),
+                }
+            ],
+            "errors": [{"message": "response n********", "code": ""}],
+            "created_on": matchers.Datetime(),
+        }
+
+        self.assertEqual(expected_unredacted, log.get_display(self.admin))
+        self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+
+        with AnonymousOrg(self.org):
+            self.assertEqual(expected_redacted, log.get_display(self.admin))
+            self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+
+    def test_get_display_error(self):
+        channel = self.create_channel("TG", "Telegram", "mybot")
+        contact = self.create_contact("Fred Jones", urns=["telegram:74747474"])
+        msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S")
+        log = ChannelLog.objects.create(
+            channel=channel,
+            msg=msg_out,
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
+            is_error=True,
+            http_logs=[
+                {
+                    "url": "https://telegram.com/send?to=74747474",
+                    "status_code": 400,
+                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                    "response": 'HTTP/2.0 200 OK\r\n\r\n{"to":"74747474","first_name":"Fred"}',
+                    "elapsed_ms": 263,
+                    "retries": 0,
+                    "created_on": "2022-08-17T14:07:30Z",
+                }
+            ],
+            errors=[{"message": "response not right", "code": ""}],
+        )
+
+        expected_unredacted = {
+            "description": "Message Send",
+            "http_logs": [
+                {
+                    "url": "https://telegram.com/send?to=74747474",
+                    "status_code": 400,
+                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                    "response": 'HTTP/2.0 200 OK\r\n\r\n{"to":"74747474","first_name":"Fred"}',
+                    "elapsed_ms": 263,
+                    "retries": 0,
+                    "created_on": "2022-08-17T14:07:30Z",
+                }
+            ],
+            "errors": [{"message": "response not right", "code": ""}],
+            "created_on": matchers.Datetime(),
+        }
+
+        expected_redacted = {
+            "description": "Message Send",
+            "http_logs": [
+                {
+                    "url": "https://telegram.com/send?to=********",
+                    "status_code": 400,
+                    "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
+                    "response": 'HTTP/2.0 200 OK\r\n\r\n{"to": "********", "first_name": "********"}',
+                    "elapsed_ms": 263,
+                    "retries": 0,
+                    "created_on": "2022-08-17T14:07:30Z",
+                }
+            ],
+            "errors": [{"message": "response n********", "code": ""}],
+            "created_on": matchers.Datetime(),
+        }
+
+        self.maxDiff = None
+
+        self.assertEqual(expected_unredacted, log.get_display(self.admin))
+        self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+
+        with AnonymousOrg(self.org):
+            self.assertEqual(expected_redacted, log.get_display(self.admin))
+            self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+
+
+class ChannelLogCRUDLTest(TembaTest):
     def test_views(self):
         self.channel.role = "CASR"
         self.channel.save(update_fields=("role",))
@@ -2682,7 +2864,7 @@ Error: missing request signature""",
             self.assertContains(response, tw_urn, count=0)
 
             # when we can't identify the contact, url, request and response objects are completely masked
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=4)
 
     def test_trim_task(self):
         contact = self.create_contact("Fred Jones", phone="12345")
