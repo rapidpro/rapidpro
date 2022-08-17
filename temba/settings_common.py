@@ -535,6 +535,7 @@ GROUP_PERMISSIONS = {
     "Customer Support": (
         "campaigns.campaign_read",  # anywhere we allow servicing still needs these
         "channels.channel_read",
+        "channels.channellog_read",
         "contacts.contact_read",
         "flows.flow_editor",
     ),
