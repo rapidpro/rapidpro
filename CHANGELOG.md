@@ -1,3 +1,8 @@
+v7.5.22
+----------
+ * Remove unused policies.policy_read perm
+ * Replace all permission checking against Customer Support group with is_staff check on user
+
 v7.5.21
 ----------
  * Allow views with ContentMenuMixin to be fetched as JSON menu items using a header
