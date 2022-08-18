@@ -1536,7 +1536,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["http_logs"] = [self.object.get_display(self.request.user)]
+            context["log"] = self.object.get_display(self.request.user)
             return context
 
     class Msg(SpaMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
@@ -1563,7 +1563,7 @@ class ChannelLogCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["msg"] = self.msg
-            context["http_logs"] = [log.get_display(self.request.user) for log in context["object_list"]]
+            context["logs"] = [log.get_display(self.request.user) for log in context["object_list"]]
             return context
 
     class Call(AnonMixin, ContentMenuMixin, SmartListView):
@@ -1590,5 +1590,5 @@ class ChannelLogCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["call"] = self.call
-            context["http_logs"] = [log.get_display(self.request.user) for log in context["object_list"]]
+            context["logs"] = [log.get_display(self.request.user) for log in context["object_list"]]
             return context
