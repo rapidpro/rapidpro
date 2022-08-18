@@ -1,3 +1,8 @@
+v7.5.21
+----------
+ * Allow views with ContentMenuMixin to be fetched as JSON menu items using a header
+ * Add new fields to channel log model and start reading from them if they're set
+
 v7.5.20
 ----------
  * Update the links for line developers console on the line claim page

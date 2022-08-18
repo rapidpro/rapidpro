@@ -50,7 +50,7 @@ from temba.utils.fields import (
     TembaChoiceField,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
 from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
@@ -1011,5 +1011,5 @@ class MediaCRUDL(SmartCRUDL):
                 }
             )
 
-    class List(OrgPermsMixin, SmartListView):
+    class List(StaffOnlyMixin, OrgPermsMixin, SmartListView):
         fields = ("name", "content_type", "size", "created_by", "created_on")
