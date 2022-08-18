@@ -3535,6 +3535,36 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("Workspaces", menu[0]["name"])
         self.assertEqual("Users", menu[1]["name"])
 
+    def test_read(self):
+        read_url = reverse("orgs.org_read", args=[self.org.id])
+
+        # make our second org a child
+        self.org2.parent = self.org
+        self.org2.save()
+
+        response = self.assertStaffOnly(read_url)
+
+        # we should have a child in our context
+        self.assertEqual(1, len(response.context["children"]))
+
+        # we should have an option to flag
+        self.assertContentMenu(
+            read_url, self.customer_support, ["Service", "Edit", "Topups", "Flag", "Verify", "Delete"]
+        )
+
+        # flag and content menu option should be inverted
+        self.org.flag()
+        response = self.client.get(read_url)
+        self.assertContentMenu(
+            read_url, self.customer_support, ["Service", "Edit", "Topups", "Unflag", "Verify", "Delete"]
+        )
+
+        # no menu for inactive orgs
+        self.org.is_active = False
+        self.org.save()
+        response = self.client.get(read_url)
+        self.assertEquals([], response.context["content_menu"])
+
     def test_workspace(self):
         response = self.assertListFetch(
             reverse("orgs.org_workspace"), allow_viewers=True, allow_editors=True, allow_agents=False
@@ -5706,53 +5736,3 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
-
-
-class TestSpa(TembaTest):
-    def test_menu(self):
-
-        # our admin gets a full menu
-        self.login(self.admin)
-        response = self.client.get(reverse("orgs.org_menu"))
-        self.assertGreater(len(response.json()["results"]), 5)
-
-        # customer support has no org, so they just see staff menu
-        self.login(self.customer_support)
-        response = self.client.get(reverse("orgs.org_menu"))
-        self.assertEqual(len(response.json()["results"]), 1)
-
-    def test_staff(self):
-
-        # admin can't see org manage page
-        self.login(self.admin)
-        response = self.client.get(reverse("orgs.org_read", args=[self.org.id]))
-        self.assertRedirect(response, reverse("users.user_login"))
-
-        # but staff members can manage orgs
-        self.login(self.customer_support)
-
-        # make our second org a child
-        self.org2.parent = self.org
-        self.org2.save()
-
-        response = self.client.get(reverse("orgs.org_read", args=[self.org.id]))
-        self.assertEqual(200, response.status_code)
-
-        # we should have a child in our context
-        self.assertEqual(1, len(response.context["children"]))
-
-        # we should have an option to flag
-        self.assertContentMenuContains(response.context["content_menu"], "Flag")
-        self.assertContentMenuExcludes(response.context["content_menu"], "Unflag")
-
-        # flag and content menu option should be inverted
-        self.org.flag()
-        response = self.client.get(reverse("orgs.org_read", args=[self.org.id]))
-        self.assertContentMenuContains(response.context["content_menu"], "Unflag")
-        self.assertContentMenuExcludes(response.context["content_menu"], "Flag")
-
-        # no menu for inactive orgs
-        self.org.is_active = False
-        self.org.save()
-        response = self.client.get(reverse("orgs.org_read", args=[self.org.id]))
-        self.assertEquals([], response.context["content_menu"])

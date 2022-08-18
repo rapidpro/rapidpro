@@ -3,7 +3,7 @@ from urllib.parse import quote
 
 from django import forms
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -30,8 +30,7 @@ class SpaMixin(View):
         return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
 
     def is_spa(self):
-        is_spa = "HTTP_TEMBA_SPA" in self.request.META
-        return is_spa
+        return "HTTP_TEMBA_SPA" in self.request.META
 
     def get_template_names(self):
         templates = super().get_template_names()
@@ -366,3 +365,11 @@ class ContentMenuMixin:
 
     def build_content_menu(self, menu: ContentMenu):  # pragma: no cover
         pass
+
+    def get(self, request, *args, **kwargs):
+        if "HTTP_TEMBA_CONTENT_MENU" in self.request.META:
+            menu = ContentMenu()
+            self.build_content_menu(menu)
+            return JsonResponse({"items": menu.as_items()})
+
+        return super().get(request, *args, **kwargs)

@@ -1,6 +1,6 @@
 -load i18n humanize temba
 
-%table.list
+%table.list.http-log.mb-8
   %tbody
     %tr.border-b(class="{% if log.status_code < 200 or log.status_code >= 400 or log.elapsed_ms > 5000 %}warning{% endif %}")
       %td(style="width: 30px;")
@@ -19,7 +19,7 @@
             ({{ log.retries }} retries)
       %td
         .text-right.whitespace-nowrap
-          {% format_datetime log.created_on seconds=True %}
+          {% format_datetime log.created_on|parse_isodate seconds=True %}
     %tr
       %td(colspan="99" style="padding:0;")
         %pre.prettyprint.request<

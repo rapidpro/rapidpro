@@ -5,8 +5,8 @@
   .card.flex.mt-0.flex-shrink-0
     -block group_object
   
-  -for log in http_logs
-    -include "includes/http_log.haml" with log=log
+  -for log in logs  
+    -include "channels/channellog.haml" with log=log
 
 -block extra-script
   {{ block.super }}
@@ -46,7 +46,7 @@
   -compress css inline
     {% lessblock %}
       :plain
-        table.list {
+        table.http-log {
           tbody {
             tr:first-child {
               td {
