@@ -667,6 +667,7 @@ class CampaignTest(TembaTest):
         campaign = Campaign.create(self.org, self.admin, "Perform the rain dance", self.farmers)
 
         response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.uuid]))
+
         self.assertEqual(
             [
                 {

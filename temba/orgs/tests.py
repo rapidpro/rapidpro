@@ -124,7 +124,6 @@ class UserTest(TembaTest):
         self.assertEqual("Jim McFlow", user.name)
         self.assertFalse(user.is_alpha)
         self.assertFalse(user.is_beta)
-        self.assertFalse(user.is_support)
         self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim McFlow"}, user.as_engine_ref())
         self.assertEqual([self.org, self.org2], list(user.get_orgs().order_by("id")))
         self.assertEqual([], list(user.get_orgs(roles=[OrgRole.ADMINISTRATOR]).order_by("id")))
@@ -137,8 +136,7 @@ class UserTest(TembaTest):
         self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim"}, user.as_engine_ref())
 
     def test_has_org_perm(self):
-        self.customer_support.is_staff = True
-        self.customer_support.save(update_fields=("is_staff",))
+        granter = self.create_user("jim@rapidpro.io", group_names=("Granters",))
 
         tests = (
             (
@@ -164,6 +162,17 @@ class UserTest(TembaTest):
                 },
             ),
             (
+                self.org2,
+                "contacts.contact_read",
+                {
+                    self.agent: False,
+                    self.user: False,
+                    self.admin: False,
+                    self.admin2: True,
+                    self.customer_support: True,  # needed for servicing
+                },
+            ),
+            (
                 self.org,
                 "orgs.org_edit",
                 {
@@ -187,13 +196,14 @@ class UserTest(TembaTest):
             ),
             (
                 self.org,
-                "apks.apk_create",
+                "orgs.org_grant",
                 {
                     self.agent: False,
                     self.user: False,
                     self.admin: False,
                     self.admin2: False,
                     self.customer_support: True,
+                    granter: True,
                 },
             ),
             (
@@ -204,7 +214,7 @@ class UserTest(TembaTest):
                     self.user: False,
                     self.admin: False,
                     self.admin2: False,
-                    self.customer_support: False,
+                    self.customer_support: True,  # staff have implicit all perm access
                 },
             ),
         )
@@ -4041,9 +4051,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get("/users/login/")
         self.assertContains(response, "No organizations for this account, please contact your administrator.")
 
-        # unless they are Customer Support
-        Group.objects.get(name="Customer Support").user_set.add(self.non_org_user)
-        self.assertRedirect(self.requestView(choose_url, self.non_org_user), "/org/manage/")
+        # unless they are staff
+        self.assertRedirect(self.requestView(choose_url, self.customer_support), "/org/manage/")
 
         # superusers are sent to the manage orgs page
         self.assertRedirect(self.requestView(choose_url, self.superuser), "/org/manage/")
@@ -4369,27 +4378,21 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_org_service(self, mr_mocks):
-        # create a customer service user
-        self.csrep = self.create_user("csrep")
-        self.csrep.groups.add(Group.objects.get(name="Customer Support"))
-        self.csrep.is_staff = True
-        self.csrep.save()
-
         service_url = reverse("orgs.org_service")
 
         # without logging in, try to service our main org
         response = self.client.post(service_url, dict(organization=self.org.id))
-        self.assertRedirect(response, "/users/login/")
+        self.assertLoginRedirect(response)
 
         # try logging in with a normal user
         self.login(self.admin)
 
         # same thing, no permission
         response = self.client.post(service_url, dict(organization=self.org.id))
-        self.assertRedirect(response, "/users/login/")
+        self.assertLoginRedirect(response)
 
         # ok, log in as our cs rep
-        self.login(self.csrep)
+        self.login(self.customer_support)
 
         # then service our org
         response = self.client.post(service_url, dict(organization=self.org.id))
@@ -4407,7 +4410,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # make sure that contact's created on is our cs rep
         contact = Contact.objects.get(urns__path="+250788123123", org=self.org)
-        self.assertEqual(self.csrep, contact.created_by)
+        self.assertEqual(self.customer_support, contact.created_by)
 
         # make sure we can manage topups as well
         TopUp.objects.create(

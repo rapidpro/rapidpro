@@ -174,7 +174,6 @@ class Command(BaseCommand):
 
         # create root user and a customer support user
         superuser = User.objects.create_superuser("root", "root@nyaruka.com", password)
-
         support = User.objects.create_user("support@nyaruka.com", "support@nyaruka.com", password, is_staff=True)
         support.groups.add(Group.objects.get(name="Customer Support"))
 

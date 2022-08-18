@@ -95,6 +95,15 @@ class ComponentFormMixin(View):
         return field
 
 
+class StaffOnlyMixin:
+    """
+    Views that only staff should be able to access
+    """
+
+    def has_permission(self, request, *args, **kwargs):
+        return self.request.user.is_staff
+
+
 class PostOnlyMixin(View):
     """
     Utility mixin to make a class based view be POST only

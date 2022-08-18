@@ -62,7 +62,7 @@ from temba.utils.fields import (
     TembaChoiceField,
 )
 from temba.utils.text import slugify_with
-from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
 from .models import (
     ExportFlowResultsTask,
@@ -157,9 +157,8 @@ class FlowSessionCRUDL(SmartCRUDL):
     actions = ("json",)
     model = FlowSession
 
-    class Json(SmartReadView):
+    class Json(StaffOnlyMixin, SmartReadView):
         slug_url_kwarg = "uuid"
-        permission = "flows.flowsession_json"
 
         def get(self, request, *args, **kwargs):
             session = self.get_object()
