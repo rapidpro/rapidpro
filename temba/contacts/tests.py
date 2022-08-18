@@ -101,13 +101,12 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertIsNone(response.context["search_error"])
         self.assertEqual([], list(response.context["actions"]))
+        self.assertContentMenu(list_url, self.user, ["Export"])
 
         active_contacts = self.org.active_contacts_group
         open_tickets = self.org.groups.get(name="Open Tickets")
         survey_audience = self.org.groups.get(name="Survey Audience")
         unsatisfied = self.org.groups.get(name="Unsatisfied Customers")
-
-        self.maxDiff = None
 
         self.assertEqual(
             [
@@ -228,6 +227,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(list_url)
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "archive", "send"], list(response.context["actions"]))
+        self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
 
         # TODO: group labeling as a feature is on probation
         # self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
@@ -437,6 +437,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
         self.assertContains(response, "Edit Group")
         self.assertContains(response, "Delete Group")
+        self.assertContentMenu(
+            group1_url, self.admin, ["Manage Fields", "Edit Group", "Export", "Usages", "Delete Group"]
+        )
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
 
@@ -562,6 +565,32 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # invalid uuid should return 404
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
+
+    def test_read_as_customer_support(self):
+        joe = self.create_contact("Joe", phone="123")
+        read_url = reverse("contacts.contact_read", args=[joe.uuid])
+
+        # should see service button
+        self.assertContentMenu(read_url, self.customer_support, ["Service"])
+
+    def test_read_language(self):
+        joe = self.create_contact("Joe", phone="123")
+        read_url = reverse("contacts.contact_read", args=[joe.uuid])
+
+        # this is a bogus
+        joe.language = "zzz"
+        joe.save(update_fields=("language",))
+        response = self.requestView(read_url, self.admin)
+
+        # should just show the language code instead of the language name
+        self.assertContains(response, "zzz")
+
+        joe.language = "fra"
+        joe.save(update_fields=("language",))
+        response = self.requestView(read_url, self.admin)
+
+        # with a proper code, we should see the language
+        self.assertContains(response, "French")
 
     def test_scheduled(self):
         contact1 = self.create_contact("Joe", phone="+1234567890")
@@ -2959,38 +2988,6 @@ class ContactTest(TembaTest):
             reverse("contacts.contact_read", args=[self.other_org_contact.uuid]), self.superuser
         )
         self.assertEqual(response.status_code, 200)
-
-    def test_read_with_customer_support(self):
-        self.login(self.customer_support)
-
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-        self.assertEqual(
-            [
-                {
-                    "type": "url_post",
-                    "label": "Service",
-                    "url": f"/org/service/?organization={self.org.id}&redirect_url=/contact/read/{self.joe.uuid}/",
-                }
-            ],
-            response.context["content_menu"],
-        )
-
-    def test_read_language(self):
-
-        # this is a bogus
-        self.joe.language = "zzz"
-        self.joe.save(update_fields=("language",))
-        response = self.fetch_protected(reverse("contacts.contact_read", args=[self.joe.uuid]), self.admin)
-
-        # should just show the language code instead of the language name
-        self.assertContains(response, "zzz")
-
-        self.joe.language = "fra"
-        self.joe.save(update_fields=("language",))
-        response = self.fetch_protected(reverse("contacts.contact_read", args=[self.joe.uuid]), self.admin)
-
-        # with a proper code, we should see the language
-        self.assertContains(response, "French")
 
     @mock_mailroom
     def test_contacts_search(self, mr_mocks):

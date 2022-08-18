@@ -3562,8 +3562,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # no menu for inactive orgs
         self.org.is_active = False
         self.org.save()
-        response = self.client.get(read_url)
-        self.assertEquals([], response.context["content_menu"])
+        self.assertContentMenu(read_url, self.customer_support, [])
 
     def test_workspace(self):
         response = self.assertListFetch(

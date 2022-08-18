@@ -334,7 +334,7 @@ class ContentMenuMixin:
     """
     Mixin for views that have a content menu (hamburger icon with dropdown items)
 
-    TODO: rework legacy gear-link templates to use `content_menu` instead of `gear_links`
+    TODO: use component to read menu as JSON and then can stop putting menu (in legacy gear-links format) in context
     """
 
     # renderers to convert menu items to the legacy "gear-links" format
@@ -354,22 +354,20 @@ class ContentMenuMixin:
     }
 
     def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["gear_links"] = [self.gear_link_renderers[i["type"]](i) for i in self._get_content_menu()]
+        return context
+
+    def _get_content_menu(self):
         menu = ContentMenu()
         self.build_content_menu(menu)
-        menu_items = menu.as_items()
-
-        context = super().get_context_data(**kwargs)
-        context["content_menu"] = menu_items
-        context["gear_links"] = [self.gear_link_renderers[i["type"]](i) for i in menu_items]
-        return context
+        return menu.as_items()
 
     def build_content_menu(self, menu: ContentMenu):  # pragma: no cover
         pass
 
     def get(self, request, *args, **kwargs):
         if "HTTP_TEMBA_CONTENT_MENU" in self.request.META:
-            menu = ContentMenu()
-            self.build_content_menu(menu)
-            return JsonResponse({"items": menu.as_items()})
+            return JsonResponse({"items": self._get_content_menu()})
 
         return super().get(request, *args, **kwargs)
