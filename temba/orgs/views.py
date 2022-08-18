@@ -2021,37 +2021,38 @@ class OrgCRUDL(SmartCRUDL):
 
     class Read(StaffMixin, SpaMixin, ContentMenuMixin, SmartReadView):
         def build_content_menu(self, menu):
-            if not self.object.is_active:
+            obj = self.get_object()
+            if not obj.is_active:
                 return
 
             menu.add_url_post(
                 _("Service"),
-                f'{reverse("orgs.org_service")}?organization={self.object.id}&redirect_url={reverse("msgs.msg_inbox", args=[])}',
+                f'{reverse("orgs.org_service")}?organization={obj.id}&redirect_url={reverse("msgs.msg_inbox", args=[])}',
             )
 
             if self.request.user.is_staff:
                 menu.add_modax(
                     _("Edit"),
                     "update-workspace",
-                    reverse("orgs.org_update", args=[self.object.id]),
+                    reverse("orgs.org_update", args=[obj.id]),
                     title=_("Edit Workspace"),
                 )
 
-            menu.add_link(_("Topups"), f"{reverse('orgs.topup_manage')}?org={self.object.id}")
+            menu.add_link(_("Topups"), f"{reverse('orgs.topup_manage')}?org={obj.id}")
 
-            if self.object.is_flagged:
-                menu.add_url_post(_("Unflag"), f"{reverse('orgs.org_update', args=[self.object.id])}?action=unflag")
+            if obj.is_flagged:
+                menu.add_url_post(_("Unflag"), f"{reverse('orgs.org_update', args=[obj.id])}?action=unflag")
             else:  # pragma: needs cover
-                menu.add_url_post(_("Flag"), f"{reverse('orgs.org_update', args=[self.object.id])}?action=flag")
+                menu.add_url_post(_("Flag"), f"{reverse('orgs.org_update', args=[obj.id])}?action=flag")
 
-            if not self.object.is_verified():
-                menu.add_url_post(_("Verify"), f"{reverse('orgs.org_update', args=[self.object.id])}?action=verify")
+            if not obj.is_verified():
+                menu.add_url_post(_("Verify"), f"{reverse('orgs.org_update', args=[obj.id])}?action=verify")
 
             if self.request.user.has_perm("orgs.org_delete"):
                 menu.add_modax(
                     _("Delete"),
                     "delete-org",
-                    reverse("orgs.org_delete", args=[self.object.id]),
+                    reverse("orgs.org_delete", args=[obj.id]),
                     title=_("Delete Workspace"),
                 )
 

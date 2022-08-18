@@ -864,30 +864,30 @@ class ContactCRUDL(SmartCRUDL):
             return HttpResponse("unknown action", status=400)  # pragma: no cover
 
         def build_content_menu(self, menu):
-            if self.object.status == Contact.STATUS_ACTIVE:
+            obj = self.get_object()
+
+            if obj.status == Contact.STATUS_ACTIVE:
                 if not self.is_spa() and self.has_org_perm("msgs.broadcast_send"):
                     menu.add_modax(
                         _("Send Message"),
                         "send-message",
-                        f"{reverse('msgs.broadcast_send')}?c={self.object.uuid}",
+                        f"{reverse('msgs.broadcast_send')}?c={obj.uuid}",
                         primary=True,
                     )
                 if self.has_org_perm("flows.flow_broadcast"):
-                    menu.add_modax(
-                        _("Start Flow"), "start-flow", f"{reverse('flows.flow_broadcast')}?c={self.object.uuid}"
-                    )
+                    menu.add_modax(_("Start Flow"), "start-flow", f"{reverse('flows.flow_broadcast')}?c={obj.uuid}")
                 if self.has_org_perm("contacts.contact_open_ticket"):
                     menu.add_modax(
-                        _("Open Ticket"), "open-ticket", reverse("contacts.contact_open_ticket", args=[self.object.id])
+                        _("Open Ticket"), "open-ticket", reverse("contacts.contact_open_ticket", args=[obj.id])
                     )
-                if self.has_org_perm("contacts.contact_interrupt") and self.object.current_flow:
-                    menu.add_url_post(_("Interrupt"), reverse("contacts.contact_interrupt", args=(self.object.id,)))
+                if self.has_org_perm("contacts.contact_interrupt") and obj.current_flow:
+                    menu.add_url_post(_("Interrupt"), reverse("contacts.contact_interrupt", args=(obj.id,)))
 
             if self.has_org_perm("contacts.contact_update"):
                 menu.add_modax(
                     _("Edit"),
                     "edit-contact",
-                    f"{reverse('contacts.contact_update', args=[self.object.id])}",
+                    f"{reverse('contacts.contact_update', args=[obj.id])}",
                     title=_("Edit Contact"),
                     on_submit="contactUpdated()",
                 )
@@ -896,21 +896,21 @@ class ContactCRUDL(SmartCRUDL):
                     menu.add_modax(
                         _("Custom Fields"),
                         "update-custom-fields",
-                        f"{reverse('contacts.contact_update_fields', args=[self.object.id])}",
+                        f"{reverse('contacts.contact_update_fields', args=[obj.id])}",
                         on_submit="contactUpdated()",
                     )
 
-                if self.object.status != Contact.STATUS_ACTIVE and self.has_org_perm("contacts.contact_restore"):
-                    menu.add_url_post(_("Activate"), reverse("contacts.contact_restore", args=(self.object.id,)))
-                if self.object.status != Contact.STATUS_BLOCKED and self.has_org_perm("contacts.contact_block"):
-                    menu.add_url_post(_("Block"), reverse("contacts.contact_block", args=(self.object.id,)))
-                if self.object.status != Contact.STATUS_ARCHIVED and self.has_org_perm("contacts.contact_archive"):
-                    menu.add_url_post(_("Archive"), reverse("contacts.contact_archive", args=(self.object.id,)))
+                if obj.status != Contact.STATUS_ACTIVE and self.has_org_perm("contacts.contact_restore"):
+                    menu.add_url_post(_("Activate"), reverse("contacts.contact_restore", args=(obj.id,)))
+                if obj.status != Contact.STATUS_BLOCKED and self.has_org_perm("contacts.contact_block"):
+                    menu.add_url_post(_("Block"), reverse("contacts.contact_block", args=(obj.id,)))
+                if obj.status != Contact.STATUS_ARCHIVED and self.has_org_perm("contacts.contact_archive"):
+                    menu.add_url_post(_("Archive"), reverse("contacts.contact_archive", args=(obj.id,)))
 
             if self.request.user.is_superuser or self.request.user.is_staff:
                 menu.add_url_post(
                     _("Service"),
-                    f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("contacts.contact_read", args=[self.object.uuid])}',
+                    f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("contacts.contact_read", args=[obj.uuid])}',
                 )
 
     class Scheduled(OrgObjPermsMixin, SmartReadView):
