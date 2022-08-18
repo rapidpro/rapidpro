@@ -260,7 +260,9 @@ class RequestCode(ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActi
         return reverse("channels.types.whatsapp_cloud.verify_code", args=[self.object.uuid])
 
     def build_content_menu(self, menu):
-        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[self.object.uuid]))
+        obj = self.get_object()
+
+        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[obj.uuid]))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -316,7 +318,9 @@ class VerifyCode(ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActio
     submit_button_name = _("Verify Number")
 
     def build_content_menu(self, menu):
-        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[self.object.uuid]))
+        obj = self.get_object()
+
+        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[obj.uuid]))
 
     def get_queryset(self):
         return Channel.objects.filter(is_active=True, org=self.request.org, channel_type="WAC")
