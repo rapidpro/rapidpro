@@ -101,13 +101,12 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertIsNone(response.context["search_error"])
         self.assertEqual([], list(response.context["actions"]))
+        self.assertContentMenu(list_url, self.user, ["Export"])
 
         active_contacts = self.org.active_contacts_group
         open_tickets = self.org.groups.get(name="Open Tickets")
         survey_audience = self.org.groups.get(name="Survey Audience")
         unsatisfied = self.org.groups.get(name="Unsatisfied Customers")
-
-        self.maxDiff = None
 
         self.assertEqual(
             [
@@ -228,6 +227,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(list_url)
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "archive", "send"], list(response.context["actions"]))
+        self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
 
         # TODO: group labeling as a feature is on probation
         # self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
@@ -437,6 +437,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
         self.assertContains(response, "Edit Group")
         self.assertContains(response, "Delete Group")
+        self.assertContentMenu(
+            group1_url, self.admin, ["Manage Fields", "Edit Group", "Export", "Usages", "Delete Group"]
+        )
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
 

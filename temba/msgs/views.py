@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from functools import cached_property
 from urllib.parse import quote_plus
 
 from smartmin.views import (
@@ -793,43 +794,49 @@ class MsgCRUDL(SmartCRUDL):
         bulk_actions = ("label",)
 
         def derive_title(self, *args, **kwargs):
-            return self.derive_label().name
+            return self.label.name
 
         def build_content_menu(self, menu):
-            label = self.derive_label()
-
             if self.has_org_perm("msgs.msg_update"):
-                if label.is_folder():
-                    menu.add_modax(_("Edit Folder"), "update-folder", reverse("msgs.label_update", args=[label.id]))
+                if self.label.is_folder():
+                    menu.add_modax(
+                        _("Edit Folder"), "update-folder", reverse("msgs.label_update", args=[self.label.id])
+                    )
                 else:
-                    menu.add_modax(_("Edit Label"), "update-label", reverse("msgs.label_update", args=[label.id]))
+                    menu.add_modax(_("Edit Label"), "update-label", reverse("msgs.label_update", args=[self.label.id]))
 
             if self.has_org_perm("msgs.msg_export"):
                 menu.add_modax(
                     _("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages")
                 )
 
-            menu.add_modax(_("Usages"), "label-usages", reverse("msgs.label_usages", args=[label.uuid]))
+            menu.add_modax(_("Usages"), "label-usages", reverse("msgs.label_usages", args=[self.label.uuid]))
 
-            if label.is_folder():
+            if self.label.is_folder():
                 if self.has_org_perm("msgs.label_delete_folder"):
                     menu.add_modax(
-                        _("Delete Folder"), "delete-folder", reverse("msgs.label_delete_folder", args=[label.id])
+                        _("Delete Folder"), "delete-folder", reverse("msgs.label_delete_folder", args=[self.label.id])
                     )
             else:
                 if self.has_org_perm("msgs.label_delete"):
-                    menu.add_modax(_("Delete Label"), "delete-label", reverse("msgs.label_delete", args=[label.uuid]))
+                    menu.add_modax(
+                        _("Delete Label"), "delete-label", reverse("msgs.label_delete", args=[self.label.uuid])
+                    )
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<label>[^/]+)/$" % (path, action)
+            return r"^%s/%s/(?P<label_uuid>[^/]+)/$" % (path, action)
+
+        @cached_property
+        def label(self):
+            return self.request.org.msgs_labels.get(uuid=self.kwargs["label_uuid"])
 
         def derive_label(self):
-            return self.request.user.get_org().msgs_labels.get(uuid=self.kwargs["label"])
+            return self.label
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            qs = self.derive_label().filter_messages(qs).filter(visibility=Msg.VISIBILITY_VISIBLE)
+            qs = self.label.filter_messages(qs).filter(visibility=Msg.VISIBILITY_VISIBLE)
 
             return qs.prefetch_related("labels").select_related("contact")
 

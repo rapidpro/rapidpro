@@ -216,10 +216,11 @@ class CRUDLTestMixin:
         as_user(org2_admin, allowed=False)
         return as_user(admin, allowed=True)
 
-    def assertStaffOnly(self, url):
+    def assertStaffOnly(self, url: str):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
         self.requestView(url, None, checks=[LoginRedirect()])
+        self.requestView(url, agent, checks=[LoginRedirect()])
         self.requestView(url, viewer, checks=[LoginRedirect()])
         self.requestView(url, editor, checks=[LoginRedirect()])
         self.requestView(url, admin, checks=[LoginRedirect()])
@@ -227,15 +228,16 @@ class CRUDLTestMixin:
         self.requestView(url, self.superuser, checks=[StatusCode(200)])
         return self.requestView(url, self.customer_support, checks=[StatusCode(200)])
 
-    def assertContentMenu(self, url, user, labels: list):
+    def assertContentMenu(self, url: str, user, labels: list):
         response = self.requestView(
             url, user, checks=[StatusCode(200), ContentType("application/json")], HTTP_TEMBA_CONTENT_MENU=1
         )
-        self.assertEqual(labels, [i["label"] for i in response.json()["items"]])
+
+        self.assertEqual(labels, [item.get("label", "-") for item in response.json()["items"]])
 
         # for now menu is also stuffed into context in old gear links format
         response = self.requestView(url, user, checks=[StatusCode(200)])
-        self.assertEqual(labels, [i["title"] for i in response.context["gear_links"]])
+        self.assertEqual(labels, [i.get("title", "-") for i in response.context["gear_links"]])
 
 
 class BaseCheck:

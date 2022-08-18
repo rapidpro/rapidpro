@@ -1891,18 +1891,16 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.requestView(label3_url, self.user)
         self.assertEqual(200, response.status_code)
         self.assertEqual(("label",), response.context["actions"])
-        self.assertNotContains(response, reverse("msgs.label_update", args=[label3.id]))  # can't update label
-        self.assertNotContains(response, reverse("msgs.label_delete", args=[label3.id]))  # can't delete label
+        self.assertContentMenu(label3_url, self.user, ["Download", "Usages"])  # no update or delete
 
         # check that test and non-visible messages are excluded, and messages and ordered newest to oldest
         self.assertEqual([msg6, msg3, msg2, msg1], list(response.context["object_list"]))
 
         # check viewing a folder
-        response = self.client.get(reverse("msgs.msg_filter", args=[folder.uuid]))
+        response = self.client.get(folder_url)
         self.assertEqual(200, response.status_code)
         self.assertEqual(("label",), response.context["actions"])
-        self.assertNotContains(response, reverse("msgs.label_update", args=[folder.id]))  # can't update folder
-        self.assertNotContains(response, reverse("msgs.label_delete", args=[folder.id]))  # can't delete folder
+        self.assertContentMenu(folder_url, self.user, ["Download", "Usages"])  # no update or delete
 
         # messages from contained labels are rolled up without duplicates
         self.assertEqual([msg3, msg2, msg1], list(response.context["object_list"]))
@@ -1916,13 +1914,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({msg1, msg6}, set(response.context_data["object_list"]))
 
         # check admin users see edit and delete options for labels and folders
-        response = self.requestView(folder_url, self.admin)
-        self.assertContains(response, reverse("msgs.label_update", args=[folder.id]))
-        self.assertContains(response, reverse("msgs.label_delete", args=[folder.id]))
-
-        response = self.requestView(label1_url, self.admin)
-        self.assertContains(response, reverse("msgs.label_update", args=[label1.id]))
-        self.assertContains(response, reverse("msgs.label_delete", args=[label1.id]))
+        self.assertContentMenu(folder_url, self.admin, ["Edit Folder", "Download", "Usages", "Delete Folder"])
+        self.assertContentMenu(label1_url, self.admin, ["Edit Label", "Download", "Usages", "Delete Label"])
 
 
 class BroadcastTest(TembaTest):
