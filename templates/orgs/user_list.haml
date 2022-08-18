@@ -1,0 +1,24 @@
+-extends "smartmin/list.html"
+-load i18n
+
+-block title
+  -trans "Users"
+
+-block pre-table
+  .flex.mb-4.items-center
+    .bg-gray-100.px-4.py-2.rounded-lg.inline-block.mr-4.self-center.-mb-1
+      -for filter_key, filter_name in filters
+        -if filter == filter_key
+          .font-normal.inline-block.px-1
+            {{ filter_name }}
+        -else
+          %a.inline-block.px-1(href='?filter={{ filter_key }}')<
+            {{ filter_name }}
+        -if not forloop.last
+          \ |
+
+    .search-box.flex-grow
+      %form#search-form(method='get')
+        %input(type="hidden" name="filter" value='{{ filter }}')
+        %temba-textinput(name='search' value='{{ search }}')
+        %input.hidden(type="submit" value="Submit")

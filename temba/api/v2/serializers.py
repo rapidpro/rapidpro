@@ -889,7 +889,7 @@ class FlowReadSerializer(ReadSerializer):
         return self.FLOW_TYPES.get(obj.flow_type)
 
     def get_labels(self, obj):
-        return [{"uuid": lb.uuid, "name": lb.name} for lb in obj.labels.all()]
+        return [{"uuid": str(lb.uuid), "name": lb.name} for lb in obj.labels.all()]
 
     def get_runs(self, obj):
         stats = obj.get_run_stats()
@@ -1442,6 +1442,8 @@ class TicketReadSerializer(ReadSerializer):
     topic = fields.TopicField()
     assignee = fields.UserField()
     opened_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    opened_by = fields.UserField()
+    opened_in = fields.FlowField()
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     closed_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
@@ -1459,6 +1461,8 @@ class TicketReadSerializer(ReadSerializer):
             "body",
             "assignee",
             "opened_on",
+            "opened_by",
+            "opened_in",
             "modified_on",
             "closed_on",
         )

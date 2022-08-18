@@ -660,6 +660,21 @@ class Contact(LegacyUUIDMixin, SmartModel):
         contact_urn = ContactURN.objects.get(id=response["urn"]["id"])
         return contact, contact_urn
 
+    @classmethod
+    def from_urn(cls, org, urn_as_string, country=None):
+        """
+        Looks up a contact by a URN string (which will be normalized)
+        """
+        try:
+            urn_obj = ContactURN.lookup(org, urn_as_string, country)
+        except ValueError:
+            return None
+
+        if urn_obj and urn_obj.contact and urn_obj.contact.is_active:
+            return urn_obj.contact
+        else:
+            return None
+
     @property
     def anon_identifier(self):
         """
@@ -998,21 +1013,6 @@ class Contact(LegacyUUIDMixin, SmartModel):
         return [c.id for c in contacts if modified(c)]
 
     @classmethod
-    def from_urn(cls, org, urn_as_string, country=None):
-        """
-        Looks up a contact by a URN string (which will be normalized)
-        """
-        try:
-            urn_obj = ContactURN.lookup(org, urn_as_string, country)
-        except ValueError:
-            return None
-
-        if urn_obj and urn_obj.contact and urn_obj.contact.is_active:
-            return urn_obj.contact
-        else:
-            return None
-
-    @classmethod
     def bulk_change_status(cls, user, contacts, status):
         cls.bulk_modify(user, contacts, [modifiers.Status(status=status)])
 
@@ -1052,6 +1052,28 @@ class Contact(LegacyUUIDMixin, SmartModel):
             from .tasks import release_contacts
 
             on_transaction_commit(lambda: release_contacts.delay(user.id, [c.id for c in contacts]))
+
+    def open_ticket(self, user, ticketer, topic, body: str, assignee=None):
+        """
+        Opens a new ticket for this contact.
+        """
+        mod = modifiers.Ticket(
+            ticketer=modifiers.TicketerRef(uuid=str(ticketer.uuid), name=ticketer.name),
+            topic=modifiers.TopicRef(uuid=str(topic.uuid), name=topic.name),
+            body=body,
+            assignee=modifiers.UserRef(email=assignee.email, name=assignee.name) if assignee else None,
+        )
+        self.modify(user, [mod], refresh=False)
+        return self.tickets.order_by("id").last()
+
+    def interrupt(self, user) -> bool:
+        """
+        Interrupts this contact's current flow
+        """
+        if self.current_flow:
+            sessions = mailroom.get_client().contact_interrupt(self.org.id, user.id, self.id)
+            return len(sessions) > 0
+        return False
 
     def block(self, user):
         """

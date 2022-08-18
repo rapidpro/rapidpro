@@ -11,7 +11,6 @@ import pytz
 from openpyxl import load_workbook
 
 from django.conf import settings
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.validators import ValidationError
 from django.db import connection
 from django.db.models import Value as DbValue
@@ -477,25 +476,32 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(read_url)
         self.assertLoginRedirect(response)
 
+        self.assertContentMenu(read_url, self.user, [])
+        self.assertContentMenu(
+            read_url,
+            self.editor,
+            ["Send Message", "Start Flow", "Open Ticket", "Edit", "Custom Fields", "Block", "Archive"],
+        )
+        self.assertContentMenu(
+            read_url,
+            self.admin,
+            ["Send Message", "Start Flow", "Open Ticket", "Edit", "Custom Fields", "Block", "Archive"],
+        )
+
         # login as viewer
         self.login(self.user)
 
         response = self.client.get(read_url)
         self.assertContains(response, "Joe")
 
-        # make sure the block link is not present
-        self.assertNotContains(response, block_url)
-
         # login as admin
         self.login(self.admin)
 
-        # make sure the block link is present now
-        response = self.client.get(read_url)
-        self.assertContains(response, block_url)
-
-        # and that it works
+        # block the contact
         self.client.post(block_url, dict(id=joe.id))
         self.assertTrue(Contact.objects.get(pk=joe.id, status="B"))
+
+        self.assertContentMenu(read_url, self.admin, ["Edit", "Custom Fields", "Activate", "Archive"])
 
         # try unblocking now
         response = self.client.get(read_url)
@@ -674,6 +680,64 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(3, len(response.json()["results"]))
 
     @mock_mailroom
+    def test_open_ticket(self, mr_mocks):
+        contact = self.create_contact("Joe", phone="+593979000111")
+        internal = self.org.ticketers.get()
+        general = self.org.default_ticket_topic
+
+        # create deleted ticketer
+        deleted_ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Deleted", config={})
+        deleted_ticketer.release(self.admin)
+
+        open_url = reverse("contacts.contact_open_ticket", args=[contact.id])
+
+        self.assertUpdateFetch(
+            open_url, allow_viewers=False, allow_editors=True, form_fields=("topic", "body", "assignee")
+        )
+
+        # try to submit with empty body
+        self.assertUpdateSubmit(
+            open_url,
+            {"ticketer": internal.id, "topic": general.id, "body": "", "assignee": ""},
+            form_errors={"body": "This field is required."},
+            object_unchanged=contact,
+        )
+
+        # can submit with no assignee
+        response = self.assertUpdateSubmit(
+            open_url, {"ticketer": internal.id, "topic": general.id, "body": "Help", "assignee": ""}
+        )
+
+        # should have new ticket
+        ticket = contact.tickets.get()
+        self.assertEqual(internal, ticket.ticketer)
+        self.assertEqual(general, ticket.topic)
+        self.assertEqual("Help", ticket.body)
+        self.assertIsNone(ticket.assignee)
+
+        # and we're redirected to that ticket
+        self.assertRedirect(response, f"/ticket/all/open/{ticket.uuid}/")
+
+        # create external ticketer
+        zendesk = Ticketer.create(self.org, self.admin, "zendesk", "Zendesk", config={})
+
+        # now ticketer is an option on the form
+        self.assertUpdateFetch(
+            open_url, allow_viewers=False, allow_editors=True, form_fields=("ticketer", "topic", "body", "assignee")
+        )
+
+        self.assertUpdateSubmit(
+            open_url, {"ticketer": zendesk.id, "topic": general.id, "body": "Help again", "assignee": self.agent.id}
+        )
+
+        # should have new ticket
+        ticket = contact.tickets.order_by("id").last()
+        self.assertEqual(zendesk, ticket.ticketer)
+        self.assertEqual(general, ticket.topic)
+        self.assertEqual("Help again", ticket.body)
+        self.assertEqual(self.agent, ticket.assignee)
+
+    @mock_mailroom
     def test_archive(self, mr_mocks):
         contact = self.create_contact("Joe", phone="+593979000111")
         other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
@@ -742,6 +806,55 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # contact should be unchanged
         other_org_contact.refresh_from_db()
         self.assertEqual(Contact.STATUS_STOPPED, other_org_contact.status)
+
+    @mock_mailroom
+    def test_interrupt(self, mr_mocks):
+        contact = self.create_contact("Joe", phone="+593979000111")
+        other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
+
+        read_url = reverse("contacts.contact_read", args=[contact.uuid])
+        interrupt_url = reverse("contacts.contact_interrupt", args=[contact.id])
+
+        self.login(self.admin)
+
+        # no interrupt option if not in a flow
+        response = self.client.get(read_url)
+        self.assertNotContains(response, interrupt_url)
+
+        MockSessionWriter(contact, self.create_flow("Test")).wait().save()
+        MockSessionWriter(other_org_contact, self.create_flow("Test", org=self.org2)).wait().save()
+
+        # now it's an option
+        response = self.client.get(read_url)
+        self.assertContains(response, interrupt_url)
+
+        # can't interrupt if not logged in
+        self.client.logout()
+        response = self.client.post(interrupt_url, {"id": contact.id})
+        self.assertLoginRedirect(response)
+
+        self.login(self.user)
+
+        # can't interrupt if just regular user
+        response = self.client.post(interrupt_url, {"id": contact.id})
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.post(interrupt_url, {"id": contact.id})
+        self.assertEqual(302, response.status_code)
+
+        contact.refresh_from_db()
+        self.assertIsNone(contact.current_flow)
+
+        # can't interrupt contact in other org
+        restore_url = reverse("contacts.contact_interrupt", args=[other_org_contact.id])
+        response = self.client.post(restore_url, {"id": other_org_contact.id})
+        self.assertLoginRedirect(response)
+
+        # contact should be unchanged
+        other_org_contact.refresh_from_db()
+        self.assertIsNotNone(other_org_contact.current_flow)
 
     def test_delete(self):
         contact = self.create_contact("Joe", phone="+593979000111")
@@ -1548,6 +1661,27 @@ class ContactTest(TembaTest):
         mock_contact_modify.reset_mock()
 
     @mock_mailroom
+    def test_open_ticket(self, mock_contact_modify):
+        mock_contact_modify.return_value = {self.joe.id: {"contact": {}, "events": []}}
+
+        ticket = self.joe.open_ticket(
+            self.admin, self.org.ticketers.get(), self.org.default_ticket_topic, "Looks sus", assignee=self.agent
+        )
+
+        self.assertEqual(self.org.default_ticket_topic, ticket.topic)
+        self.assertEqual("Looks sus", ticket.body)
+
+    @mock_mailroom
+    def test_interrupt(self, mr_mocks):
+        # noop when contact not in a flow
+        self.assertFalse(self.joe.interrupt(self.admin))
+
+        flow = self.create_flow("Test")
+        MockSessionWriter(self.joe, flow).wait().save()
+
+        self.assertTrue(self.joe.interrupt(self.admin))
+
+    @mock_mailroom
     def test_release(self, mr_mocks):
         # create a contact with a message
         old_contact = self.create_contact("Jose", phone="+12065552000")
@@ -2245,9 +2379,7 @@ class ContactTest(TembaTest):
         failed = Msg.objects.filter(direction="O", contact=self.joe).last()
         failed.status = "F"
         failed.save(update_fields=("status",))
-        log = ChannelLog.objects.create(
-            channel=failed.channel, msg=failed, is_error=True, description="It didn't send!!"
-        )
+        ChannelLog.objects.create(channel=failed.channel, msg=failed, is_error=True, description="It didn't send!!")
 
         # create an airtime transfer
         transfer = AirtimeTransfer.objects.create(
@@ -2323,7 +2455,7 @@ class ContactTest(TembaTest):
         # fetch our contact history
         self.login(self.admin)
         with patch("temba.utils.s3.s3.client", return_value=self.mock_s3):
-            with self.assertNumQueries(35):
+            with self.assertNumQueries(34):
                 response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -2365,8 +2497,8 @@ class ContactTest(TembaTest):
             response,
             "http://www.openstreetmap.org/?mlat=47.5414799&amp;mlon=-122.6359908#map=18/47.5414799/-122.6359908",
         )
-        self.assertContains(response, reverse("channels.channellog_read", args=[log.channel.uuid, log.id]))
-        self.assertContains(response, reverse("channels.channellog_connection", args=[call.id]))
+        self.assertContains(response, reverse("channels.channellog_msg", args=[failed.id]))
+        self.assertContains(response, reverse("channels.channellog_call", args=[call.id]))
         self.assertContains(response, "Transferred <b>100.00</b> <b>RWF</b> of airtime")
         self.assertContains(response, reverse("airtime.airtimetransfer_read", args=[transfer.id]))
 
@@ -2832,12 +2964,15 @@ class ContactTest(TembaTest):
         self.login(self.customer_support)
 
         response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Service"])
         self.assertEqual(
-            gear_links[-1]["href"],
-            f"/org/service/?organization={self.joe.org_id}&redirect_url=/contact/read/{self.joe.uuid}/",
+            [
+                {
+                    "type": "url_post",
+                    "label": "Service",
+                    "url": f"/org/service/?organization={self.org.id}&redirect_url=/contact/read/{self.joe.uuid}/",
+                }
+            ],
+            response.context["content_menu"],
         )
 
     def test_read_language(self):
@@ -6098,16 +6233,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(create_url, {})
         self.assertFormError(response, "form", "file", "This field is required.")
 
-        def upload(path):
-            with open(path, "rb") as f:
-                return SimpleUploadedFile(path, content=f.read())
-
         # try uploading an empty CSV file
-        response = self.client.post(create_url, {"file": upload("media/test_imports/empty.csv")})
+        response = self.client.post(create_url, {"file": self.upload("media/test_imports/empty.csv")})
         self.assertFormError(response, "form", "file", "Import file doesn't contain any records.")
 
         # try uploading a valid XLSX file
-        response = self.client.post(create_url, {"file": upload("media/test_imports/simple.xlsx")})
+        response = self.client.post(create_url, {"file": self.upload("media/test_imports/simple.xlsx")})
         self.assertEqual(302, response.status_code)
 
         imp = ContactImport.objects.get()

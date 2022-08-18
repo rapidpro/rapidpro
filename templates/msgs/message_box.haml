@@ -102,12 +102,12 @@
                           -trans "Remove Label"
 
                       - if 'archive' in actions
-                        .button-action(onclick='runActionOnObjectRows("archive")')
+                        .button-action(onclick='runActionOnObjectRows("archive", wireTableListeners)')
                           .-mt-1.mr-2.glyph.icon-box
                           -trans "Archive"
 
                       - if 'restore' in actions
-                        .button-action(onclick='runActionOnObjectRows("restore")')
+                        .button-action(onclick='runActionOnObjectRows("restore", wireTableListeners)')
                           .-mt-1.mr-2.glyph.icon-download
                           -trans "Restore"
 
@@ -117,7 +117,7 @@
                           -trans "Delete"
 
                       - if 'resend' in actions
-                        .button-action(onclick='runActionOnObjectRows("resend")')
+                        .button-action(onclick='runActionOnObjectRows("resend", wireTableListeners)')
                           .mt-1.mr-2.glyph.icon-loop.text-sm
                           -trans "Resend"
 
@@ -131,7 +131,7 @@
                             -for node in labels
                               -if node.obj.is_folder and node.children
                                 %li.dropdown-submenu
-                                  .lbl-menu.cursor-pointer(href='#' onclick='labelObjectRows({{node.obj.id}})' data-id='{{node.obj.id}}')
+                                  .lbl-menu.cursor-pointer(href='#' onclick='labelObjectRows({{node.obj.id}}, false, wireTableListeners)' data-id='{{node.obj.id}}')
                                     .flex.items-center.py-1.hover-linked
                                       .icon-arrow-right-8.text-2xl.-ml-1.-mt-1.mr-1
                                       .name.px-2
@@ -139,7 +139,7 @@
                                   %ul.dropdown-menu.label-menu.border-none
                                     - for child in node.children
                                       %li
-                                        .lbl-menu.object-btn-label.px-4(href='#' onclick='labelObjectRows({{child.obj.id}})' data-id='{{child.obj.id}}')
+                                        .lbl-menu.object-btn-label.px-4(href='#' onclick='labelObjectRows({{child.obj.id}}, false, wireTableListeners)' data-id='{{child.obj.id}}')
                                           .flex.items-center.py-1.hover-linked
                                             .glyph.message-label.label-checkbox
                                             .name.px-1
@@ -147,7 +147,7 @@
                             -for node in labels
                               -if not node.obj.is_folder
                                 %li
-                                  .lbl-menu(href='#' onclick='labelObjectRows({{node.obj.id}})' data-id='{{node.obj.id}}')
+                                  .lbl-menu(href='#' onclick='labelObjectRows({{node.obj.id}}, false, wireTableListeners)' data-id='{{node.obj.id}}')
                                     .flex.items-center.py-1.hover-linked
                                       .glyph.message-label.label-checkbox
                                       .name.px-1
@@ -202,7 +202,7 @@
                             -block message_time
                               {% short_datetime object.created_on %}
 
-                          -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
+                          -if show_channel_logs and not user_org.is_anon or user.is_staff
                             .inline-block.text-gray-400.linked.ml-3
                               {% channel_log_link object %}
 
@@ -277,7 +277,7 @@
 
         deleteConfirmation.addEventListener("temba-button-clicked", function(event){
           if (!event.detail.button.secondary) {
-            runActionOnObjectRows("delete");
+            runActionOnObjectRows("delete", wireTableListeners);
           }
           deleteConfirmation.open = false;
         });
@@ -291,6 +291,9 @@
 
     function handleCreateLabelModalSubmitted(event) {
       refresh(function() { recheckIds(); }, true);
+      if (refreshMenu) {
+        refreshMenu();
+      }
     }
 
     function handleSendMessageClicked() {

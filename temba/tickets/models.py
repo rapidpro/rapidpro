@@ -178,6 +178,16 @@ class Topic(TembaModel, DependencyMixin):
     def create_from_import_def(cls, org, user, definition: dict):
         return cls.create(org, user, definition["name"])
 
+    def release(self, user):
+        assert not (self.is_system and self.org.is_active), "can't release system topics"
+
+        super().release(user)
+
+        self.is_active = False
+        self.name = self._deleted_name()
+        self.modified_by = user
+        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
+
     class Meta:
         constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_topic_names")]
 
@@ -215,8 +225,11 @@ class Ticket(models.Model):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
-    # when this ticket was opened, first replied to, closed, modified
     opened_on = models.DateTimeField(default=timezone.now)
+    opened_in = models.ForeignKey("flows.Flow", null=True, on_delete=models.PROTECT, related_name="opened_tickets")
+    opened_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="opened_tickets")
+
+    # when this ticket was first replied to, closed, modified
     replied_on = models.DateTimeField(null=True)
     closed_on = models.DateTimeField(null=True)
     modified_on = models.DateTimeField(default=timezone.now)

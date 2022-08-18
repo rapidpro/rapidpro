@@ -9,6 +9,7 @@ from temba.contacts.models import URN, Contact, ContactField as ContactFieldMode
 from temba.flows.models import Flow
 from temba.msgs.models import Label, Msg
 from temba.tickets.models import Ticket, Ticketer, Topic
+from temba.utils.uuid import is_uuid
 
 # default maximum number of items in a posted list or dict
 DEFAULT_MAX_LIST_ITEMS = 100
@@ -154,8 +155,18 @@ class TembaModelField(serializers.RelatedField):
         return manager.filter(**kwargs)
 
     def get_object(self, value):
-        query = Q()
+        # ignore lookup fields that can't be queryed with the given value
+        lookup_fields = []
         for lookup_field in self.lookup_fields:
+            if lookup_field != "uuid" or is_uuid(value):
+                lookup_fields.append(lookup_field)
+
+        # if we have no possible lookup fields left, there's no matching object
+        if not lookup_fields:
+            return None  # pragma: no cover
+
+        query = Q()
+        for lookup_field in lookup_fields:
             ignore_case = lookup_field in self.ignore_case_for_fields
             lookup = "%s__%s" % (lookup_field, "iexact" if ignore_case else "exact")
             query |= Q(**{lookup: value})

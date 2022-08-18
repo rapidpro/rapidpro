@@ -37,6 +37,7 @@ from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
+from temba.orgs.models import User
 from temba.orgs.views import (
     DependencyDeleteModal,
     DependencyUsagesModal,
@@ -45,7 +46,7 @@ from temba.orgs.views import (
     OrgObjPermsMixin,
     OrgPermsMixin,
 )
-from temba.tickets.models import Ticket
+from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import (
@@ -58,7 +59,7 @@ from temba.utils.fields import (
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.models.es import IDSliceQuerySet
-from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin, SpaMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, NonAtomicMixin, SpaMixin
 
 from .models import (
     URN,
@@ -559,9 +560,11 @@ class ContactCRUDL(SmartCRUDL):
         "filter",
         "blocked",
         "omnibox",
+        "open_ticket",
         "update_fields",
         "update_fields_input",
         "export",
+        "interrupt",
         "block",
         "restore",
         "archive",
@@ -772,7 +775,7 @@ class ContactCRUDL(SmartCRUDL):
 
             return HttpResponse(json.dumps(json_result), content_type="application/json")
 
-    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         fields = ("name",)
         select_related = ("current_flow",)
@@ -860,95 +863,55 @@ class ContactCRUDL(SmartCRUDL):
 
             return HttpResponse("unknown action", status=400)  # pragma: no cover
 
-        def get_gear_links(self):
-            links = []
+        def build_content_menu(self, menu):
+            obj = self.get_object()
 
-            if self.object.status == Contact.STATUS_ACTIVE:
-
+            if obj.status == Contact.STATUS_ACTIVE:
                 if not self.is_spa() and self.has_org_perm("msgs.broadcast_send"):
-                    links.append(
-                        dict(
-                            id="send-message",
-                            title=_("Send Message"),
-                            style="button-primary",
-                            href=f"{reverse('msgs.broadcast_send')}?c={self.object.uuid}",
-                            modax=_("Send Message"),
-                        )
+                    menu.add_modax(
+                        _("Send Message"),
+                        "send-message",
+                        f"{reverse('msgs.broadcast_send')}?c={obj.uuid}",
+                        primary=True,
                     )
-
                 if self.has_org_perm("flows.flow_broadcast"):
-                    links.append(
-                        dict(
-                            id="start-flow",
-                            title=_("Start Flow"),
-                            href=f"{reverse('flows.flow_broadcast', args=[])}?c={self.object.uuid}",
-                            modax=_("Start Flow"),
-                        )
+                    menu.add_modax(_("Start Flow"), "start-flow", f"{reverse('flows.flow_broadcast')}?c={obj.uuid}")
+                if self.has_org_perm("contacts.contact_open_ticket"):
+                    menu.add_modax(
+                        _("Open Ticket"), "open-ticket", reverse("contacts.contact_open_ticket", args=[obj.id])
                     )
+                if self.has_org_perm("contacts.contact_interrupt") and obj.current_flow:
+                    menu.add_url_post(_("Interrupt"), reverse("contacts.contact_interrupt", args=(obj.id,)))
 
             if self.has_org_perm("contacts.contact_update"):
-                links.append(
-                    dict(
-                        id="edit-contact",
-                        title=_("Edit"),
-                        modax=_("Edit Contact"),
-                        on_submit="contactUpdated()",
-                        href=f"{reverse('contacts.contact_update', args=[self.object.pk])}",
-                    )
+                menu.add_modax(
+                    _("Edit"),
+                    "edit-contact",
+                    f"{reverse('contacts.contact_update', args=[obj.id])}",
+                    title=_("Edit Contact"),
+                    on_submit="contactUpdated()",
                 )
 
                 if not self.is_spa():
-                    links.append(
-                        dict(
-                            id="update-custom-fields",
-                            title=_("Custom Fields"),
-                            modax=_("Custom Fields"),
-                            on_submit="contactUpdated()",
-                            href=f"{reverse('contacts.contact_update_fields', args=[self.object.pk])}",
-                        )
+                    menu.add_modax(
+                        _("Custom Fields"),
+                        "update-custom-fields",
+                        f"{reverse('contacts.contact_update_fields', args=[obj.id])}",
+                        on_submit="contactUpdated()",
                     )
 
-                if self.object.status != Contact.STATUS_ACTIVE and self.has_org_perm("contacts.contact_restore"):
-                    links.append(
-                        dict(
-                            title=_("Activate"),
-                            style="button-primary",
-                            js_class="posterize",
-                            href=reverse("contacts.contact_restore", args=(self.object.pk,)),
-                        )
-                    )
+                if obj.status != Contact.STATUS_ACTIVE and self.has_org_perm("contacts.contact_restore"):
+                    menu.add_url_post(_("Activate"), reverse("contacts.contact_restore", args=(obj.id,)))
+                if obj.status != Contact.STATUS_BLOCKED and self.has_org_perm("contacts.contact_block"):
+                    menu.add_url_post(_("Block"), reverse("contacts.contact_block", args=(obj.id,)))
+                if obj.status != Contact.STATUS_ARCHIVED and self.has_org_perm("contacts.contact_archive"):
+                    menu.add_url_post(_("Archive"), reverse("contacts.contact_archive", args=(obj.id,)))
 
-                if self.object.status != Contact.STATUS_BLOCKED and self.has_org_perm("contacts.contact_block"):
-                    links.append(
-                        dict(
-                            title=_("Block"),
-                            style="button-primary",
-                            js_class="posterize",
-                            href=reverse("contacts.contact_block", args=(self.object.pk,)),
-                        )
-                    )
-
-                if self.object.status != Contact.STATUS_ARCHIVED and self.has_org_perm("contacts.contact_archive"):
-                    links.append(
-                        dict(
-                            title=_("Archive"),
-                            style="btn-primary",
-                            js_class="posterize",
-                            href=reverse("contacts.contact_archive", args=(self.object.pk,)),
-                        )
-                    )
-
-            user = self.get_user()
-            if user.is_superuser or user.is_staff:
-                links.append(
-                    dict(
-                        title=_("Service"),
-                        posterize=True,
-                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("contacts.contact_read", args=[self.get_object().uuid])}',
-                    )
+            if self.request.user.is_superuser or self.request.user.is_staff:
+                menu.add_url_post(
+                    _("Service"),
+                    f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("contacts.contact_read", args=[obj.uuid])}',
                 )
-
-            return links
 
     class Scheduled(OrgObjPermsMixin, SmartReadView):
         """
@@ -1090,16 +1053,14 @@ class ContactCRUDL(SmartCRUDL):
             }
             return JsonResponse(summary)
 
-    class List(ContactListView):
+    class List(ContentMenuMixin, ContactListView):
         title = _("Active Contacts")
         system_group = ContactGroup.TYPE_DB_ACTIVE
 
         def get_bulk_actions(self):
             return ("block", "archive", "send") if self.has_org_perm("contacts.contact_update") else ()
 
-        def get_gear_links(self):
-            links = []
-
+        def build_content_menu(self, menu):
             is_spa = "HTTP_TEMBA_SPA" in self.request.META
             search = self.request.GET.get("search")
 
@@ -1111,31 +1072,19 @@ class ContactCRUDL(SmartCRUDL):
                 try:
                     parsed = parse_query(self.org, search)
                     if parsed.metadata.allow_as_group:
-                        links.append(
-                            dict(
-                                id="create-smartgroup",
-                                title=_("Create Smart Group"),
-                                modax=_("Create Smart Group"),
-                                href=f"{reverse('contacts.contactgroup_create')}?search={quote_plus(search)}",
-                            )
+                        menu.add_modax(
+                            _("Create Smart Group"),
+                            "create-smartgroup",
+                            f"{reverse('contacts.contactgroup_create')}?search={quote_plus(search)}",
                         )
                 except SearchException:  # pragma: no cover
                     pass
 
             if self.has_org_perm("contacts.contactfield_list") and not is_spa:
-                links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
+                menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
 
             if self.has_org_perm("contacts.contact_export"):
-                links.append(
-                    dict(
-                        id="export-contacts",
-                        title=_("Export"),
-                        modax=_("Export Contacts"),
-                        href=self.derive_export_url(),
-                    )
-                )
-
-            return links
+                menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1171,7 +1120,7 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-    class Archived(ContactListView):
+    class Archived(ContentMenuMixin, ContactListView):
         title = _("Archived Contacts")
         template_name = "contacts/contact_archived.haml"
         system_group = ContactGroup.TYPE_DB_ARCHIVED
@@ -1190,70 +1139,35 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-        def get_gear_links(self):
-            links = []
+        def build_content_menu(self, menu):
             if self.has_org_perm("contacts.contact_delete"):
-                links.append(
-                    dict(
-                        title=_("Delete All"),
-                        style="btn-default",
-                        on_click="handleDeleteAllContacts(event)",
-                        js_class="contacts-btn-delete-all",
-                        href="#",
-                    )
-                )
-            return links
+                menu.add_js(_("Delete All"), "handleDeleteAllContacts(event)", "contacts-btn-delete-all")
 
-    class Filter(ContactListView, OrgObjPermsMixin):
+    class Filter(OrgObjPermsMixin, ContentMenuMixin, ContactListView):
         template_name = "contacts/contact_filter.haml"
 
-        def get_gear_links(self):
-            links = []
-
+        def build_content_menu(self, menu):
             is_spa = "HTTP_TEMBA_SPA" in self.request.META
 
             if self.has_org_perm("contacts.contactfield_list") and not is_spa:
-                links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
+                menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
 
             if not self.group.is_system and self.has_org_perm("contacts.contactgroup_update"):
-                links.append(
-                    dict(
-                        id="edit-group",
-                        title=_("Edit Group"),
-                        modax=_("Edit Group"),
-                        href=reverse("contacts.contactgroup_update", args=[self.group.id]),
-                    )
+                menu.add_modax(
+                    _("Edit Group"), "edit-group", reverse("contacts.contactgroup_update", args=[self.group.id])
                 )
 
             if self.has_org_perm("contacts.contact_export"):
-                links.append(
-                    dict(
-                        id="export-contacts",
-                        title=_("Export"),
-                        modax=_("Export Contacts"),
-                        href=self.derive_export_url(),
-                    )
-                )
+                menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
 
-            links.append(
-                dict(
-                    id="group-usages",
-                    title=_("Usages"),
-                    modax=_("Usages"),
-                    href=reverse("contacts.contactgroup_usages", args=[self.group.uuid]),
-                )
+            menu.add_modax(
+                _("Usages"), "group-usages", reverse("contacts.contactgroup_usages", args=[self.group.uuid])
             )
 
             if not self.group.is_system and self.has_org_perm("contacts.contactgroup_delete"):
-                links.append(
-                    dict(
-                        id="delete-group",
-                        title=_("Delete Group"),
-                        modax=_("Delete Group"),
-                        href=reverse("contacts.contactgroup_delete", args=[self.group.uuid]),
-                    )
+                menu.add_modax(
+                    _("Delete Group"), "delete-group", reverse("contacts.contactgroup_delete", args=[self.group.uuid])
                 )
-            return links
 
         def get_bulk_actions(self):
             return ("block", "archive") if self.group.is_smart else ("block", "unlabel")
@@ -1462,6 +1376,70 @@ class ContactCRUDL(SmartCRUDL):
                     context["value"] = self.get_object().get_field_display(contact_field)
             return context
 
+    class OpenTicket(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+        """
+        Opens a new ticket for this contact.
+        """
+
+        class Form(forms.Form):
+            ticketer = forms.ModelChoiceField(
+                queryset=Ticketer.objects.none(), label=_("Ticket Service"), required=True
+            )
+            topic = forms.ModelChoiceField(queryset=Topic.objects.none(), label=_("Topic"), required=True)
+            body = forms.CharField(label=_("Body"), widget=forms.Textarea, required=True)
+            assignee = forms.ModelChoiceField(
+                queryset=User.objects.none(),
+                label=_("Assignee"),
+                widget=SelectWidget(),
+                required=False,
+                empty_label=_("Unassigned"),
+            )
+
+            def __init__(self, instance, org, **kwargs):
+                super().__init__(**kwargs)
+
+                self.fields["ticketer"].queryset = org.ticketers.filter(is_active=True).order_by("id")
+                self.fields["topic"].queryset = org.topics.filter(is_active=True).order_by("name")
+                self.fields["assignee"].queryset = Ticket.get_allowed_assignees(org).order_by("email")
+
+        form_class = Form
+        submit_button_name = _("Open")
+        success_message = ""
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
+            return kwargs
+
+        def derive_exclude(self):
+            # don't show ticketer select if they don't have external ticketers
+            return ["ticketer"] if self.request.org.ticketers.filter(is_active=True).count() == 1 else []
+
+        def save(self, obj):
+            self.ticket = obj.open_ticket(
+                self.request.user,
+                self.form.cleaned_data.get("ticketer") or self.request.org.ticketers.filter(is_active=True).first(),
+                self.form.cleaned_data["topic"],
+                self.form.cleaned_data["body"],
+                assignee=self.form.cleaned_data.get("assignee"),
+            )
+
+        def get_success_url(self):
+            return f"{reverse('tickets.ticket_list')}all/open/{self.ticket.uuid}/"
+
+    class Interrupt(OrgObjPermsMixin, SmartUpdateView):
+        """
+        Interrupt this contact
+        """
+
+        fields = ()
+        success_url = "uuid@contacts.contact_read"
+        success_message = ""
+
+        def save(self, obj):
+            obj.interrupt(self.request.user)
+            return obj
+
     class Block(OrgObjPermsMixin, SmartUpdateView):
         """
         Block this contact
@@ -1541,27 +1519,17 @@ class ContactGroupCRUDL(SmartCRUDL):
                 )
             return menu
 
-    class List(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+    class List(SpaMixin, OrgPermsMixin, BulkActionMixin, ContentMenuMixin, SmartListView):
         fields = ("name", "query", "count", "created_on")
         search_fields = ("name__icontains", "query")
         default_order = ("name",)
         paginate_by = 250
 
-        def get_gear_links(self):
-            links = []
+        def build_content_menu(self, menu):
             group_type = self.request.GET.get("type", "")
-            if group_type != "smart" and self.has_org_perm("contacts.contactgroup_create"):
-                links.append(
-                    {
-                        "id": "new-group",
-                        "title": _("New Group"),
-                        "style": "button-primary",
-                        "href": f"{reverse('contacts.contactgroup_create')}",
-                        "modax": _("New Group"),
-                    }
-                )
 
-            return links
+            if group_type != "smart" and self.has_org_perm("contacts.contactgroup_create"):
+                menu.add_modax(_("New Group"), "new-group", f"{reverse('contacts.contactgroup_create')}", primary=True)
 
         def get_bulk_actions(self):
             return ("delete",) if self.has_org_perm("contacts.contactgroup_delete") else ()

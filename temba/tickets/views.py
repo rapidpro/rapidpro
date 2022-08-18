@@ -18,7 +18,7 @@ from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
 from temba.utils.fields import InputWidget, SelectWidget
-from temba.utils.views import ComponentFormMixin, SpaMixin
+from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import (
     AllFolder,
@@ -399,9 +399,9 @@ class TicketerCRUDL(SmartCRUDL):
     model = Ticketer
     actions = ("connect", "read", "delete")
 
-    class Connect(OrgPermsMixin, SmartTemplateView):
-        def get_gear_links(self):
-            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"))]
+    class Connect(ContentMenuMixin, OrgPermsMixin, SmartTemplateView):
+        def build_content_menu(self, menu):
+            menu.add_link(_("Home"), reverse("orgs.org_home"))
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

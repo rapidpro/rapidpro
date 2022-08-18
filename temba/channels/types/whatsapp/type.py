@@ -29,7 +29,7 @@ class WhatsAppType(ChannelType):
     A WhatsApp Channel Type
     """
 
-    extra_links = [dict(name=_("Message Templates"), link="channels.types.whatsapp.templates")]
+    extra_links = [dict(label=_("Message Templates"), view_name="channels.types.whatsapp.templates")]
 
     code = "WA"
     category = ChannelType.Category.SOCIAL_MEDIA

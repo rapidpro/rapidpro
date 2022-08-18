@@ -1,3 +1,120 @@
+v7.5.21
+----------
+ * Allow views with ContentMenuMixin to be fetched as JSON menu items using a header
+ * Add new fields to channel log model and start reading from them if they're set
+
+v7.5.20
+----------
+ * Update the links for line developers console on the line claim page
+ * Rework channel log details views into one generic one, one for messages, one for calls
+
+v7.5.19
+----------
+ * Rework channel log rendering to use common HTTPLog template
+ * Fix titles on channel, classifier and manage logins pages
+
+v7.5.18
+----------
+ * Workspace and user management in new UI
+
+v7.5.17
+----------
+ * Show send history of scheduled broadcasts in correct order
+ * Only show option to delete runs to users who have that perm, and give editors that perm
+ * Update deps
+
+v7.5.16
+----------
+ * Fixed zaper page title
+ * Validate channel name is not more than 64 characters
+ * Added 'authentication' to the temba anchor URL text
+
+v7.5.15
+----------
+ * Fix URL for media uploads which was previously conflicting with media directory
+
+v7.5.14
+----------
+ * Deprecate Media.name which can always be inferred from .path
+ * Improve cleaning of media filenames
+ * Convert legacy UUID fields on exports and labels
+ * Request instagram_basic permission for IG channels
+
+v7.5.11
+----------
+ * Don't allow creating of labels with parents or editing labels to have a parent
+ * Rework the undocumented media API endpoint to be more specific to surveyor attachments
+ * Add MediaCRUDL with upload and list endpoints
+ * Remove requiring instagram_basic permission
+
+v7.5.10
+----------
+ * Remove Media.is_ready, fix setting .status on alternates, add limit for upload size
+ * Rework ContentMenuMixin to put the menu in the context, and include new and legacy formats
+
+v7.5.9
+----------
+ * Add status field to Media, move primary index to UUID field
+
+v7.5.8
+----------
+ * Update floweditor
+ * Convert all views to use ContentMenuMixin instead of get_gear_links
+ * Add decorator to mock uuid generation in tests
+ * Process media uploads with ffmpeg in celery task
+
+v7.5.7
+----------
+ * Add constraint to ensure non-waiting/active runs have exited_on set
+ * Add constraint to ensure non-waiting sessions have an ended_on
+
+v7.5.6
+----------
+ * Remove unused upload_recording endpoint
+ * Add Media model
+
+v7.5.5
+----------
+ * Remaining fallback modax references
+ * Add util for easier gear menu creation
+ * Add option to interrupt a contact from read page
+
+v7.5.4
+----------
+ * Fix scripts on contact page start modal
+ * Add logging for IG channel claim failures
+ * Add features to BRANDING which determines whether brands have access to features
+ * Sort permissions a-z
+ * Fix related names on Flow.topics and Flow.users and add Topic.release
+ * Expose opened_by and opened_in over ticket API
+
+v7.5.3
+----------
+ * Fix id for custom fields modal
+
+v7.5.2
+----------
+ * Fix typo on archive button
+ * Only show active ticketers and topics on Open Ticket modal
+ * Add data migration to fix non-waiting sessions with no ended_on
+
+v7.5.1
+----------
+ * Allow claiming WAC test numbers
+ * Move black setting into pyproject.toml
+ * Add Open Ticket modal view to contact read page
+
+v7.5.0
+----------
+ * Improve user list page
+ * Add new fields to Ticket record who or what flow opened a ticket
+ * Refresh menu on modax redircts, omit excess listeners from legacy lists
+ * Fix field label vs name in new UI
+ * Add start flow bulk action in new UI
+ * Show zeros in menu items in new UI
+ * Add workspace selection to account page in new UI
+ * Scroll main content pane up on page replacement in new UI
+
 v7.4.2
 ----------
  * Update copyright notice

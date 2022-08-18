@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -10,6 +11,24 @@ class FieldRef:
 @dataclass(frozen=True)
 class GroupRef:
     uuid: str
+    name: str
+
+
+@dataclass(frozen=True)
+class TicketerRef:
+    uuid: str
+    name: str
+
+
+@dataclass(frozen=True)
+class TopicRef:
+    uuid: str
+    name: str
+
+
+@dataclass(frozen=True)
+class UserRef:
+    email: str
     name: str
 
 
@@ -53,6 +72,15 @@ class Groups(Modifier):
     type: str = field(default="groups", init=False)
     groups: list[GroupRef]
     modification: str
+
+
+@dataclass(frozen=True)
+class Ticket(Modifier):
+    type: str = field(default="ticket", init=False)
+    ticketer: TicketerRef
+    topic: TopicRef
+    body: str
+    assignee: Optional[UserRef]
 
 
 @dataclass(frozen=True)

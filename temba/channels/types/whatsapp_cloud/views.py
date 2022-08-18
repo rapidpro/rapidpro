@@ -11,6 +11,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
+from temba.utils.views import ContentMenuMixin
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -123,7 +124,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                             display_phone_number=target_phone["display_phone_number"],
                             phone_number_id=target_phone["id"],
                             waba_id=target_waba_details["id"],
-                            currency=target_waba_details["currency"],
+                            currency=target_waba_details.get("currency", "USD"),
                             business_id=business_id,
                             message_template_namespace=target_waba_details["message_template_namespace"],
                         )
@@ -239,7 +240,7 @@ class ClearSessionToken(OrgPermsMixin, SmartTemplateView):
         return JsonResponse({})
 
 
-class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+class RequestCode(ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
         pass
 
@@ -258,13 +259,8 @@ class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     def get_success_url(self):
         return reverse("channels.types.whatsapp_cloud.verify_code", args=[self.object.uuid])
 
-    def get_gear_links(self):
-        return [
-            dict(
-                title=_("Channel"),
-                href=reverse("channels.channel_read", args=[self.object.uuid]),
-            )
-        ]
+    def build_content_menu(self, menu):
+        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[self.object.uuid]))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -304,7 +300,7 @@ class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
                 )
 
 
-class VerifyCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+class VerifyCode(ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
         code = forms.CharField(
             min_length=6, required=True, help_text=_("The 6-digits number verification code"), widget=InputWidget()
@@ -319,13 +315,8 @@ class VerifyCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     title = _("Verify Number")
     submit_button_name = _("Verify Number")
 
-    def get_gear_links(self):
-        return [
-            dict(
-                title=_("Channel"),
-                href=reverse("channels.channel_read", args=[self.object.uuid]),
-            )
-        ]
+    def build_content_menu(self, menu):
+        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[self.object.uuid]))
 
     def get_queryset(self):
         return Channel.objects.filter(is_active=True, org=self.request.org, channel_type="WAC")

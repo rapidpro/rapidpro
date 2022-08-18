@@ -3,7 +3,7 @@ from urllib.parse import quote
 
 from django import forms
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -30,8 +30,7 @@ class SpaMixin(View):
         return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
 
     def is_spa(self):
-        is_spa = "HTTP_TEMBA_SPA" in self.request.META
-        return is_spa
+        return "HTTP_TEMBA_SPA" in self.request.META
 
     def get_template_names(self):
         templates = super().get_template_names()
@@ -94,6 +93,15 @@ class ComponentFormMixin(View):
             field.widget = CheckboxWidget(attrs)
 
         return field
+
+
+class StaffOnlyMixin:
+    """
+    Views that only staff should be able to access
+    """
+
+    def has_permission(self, request, *args, **kwargs):
+        return self.request.user.is_staff
 
 
 class PostOnlyMixin(View):
@@ -271,3 +279,97 @@ class CourierURLHandler(ExternalURLHandler):
 
 class MailroomURLHandler(ExternalURLHandler):
     service = "Mailroom"
+
+
+class ContentMenu:
+    """
+    Utility for building content menus
+    """
+
+    def __init__(self):
+        self.groups = [[]]
+
+    def new_group(self):
+        self.groups.append([])
+
+    def add_link(self, label: str, url: str):
+        self.groups[-1].append({"type": "link", "label": label, "url": url})
+
+    def add_js(self, label: str, on_click: str, link_class: str):
+        self.groups[-1].append({"type": "js", "label": label, "on_click": on_click, "link_class": link_class})
+
+    def add_url_post(self, label: str, url: str):
+        self.groups[-1].append({"type": "url_post", "label": label, "url": url})
+
+    def add_modax(
+        self, label: str, modal_id: str, url: str, *, title: str = None, on_submit: str = None, primary: bool = False
+    ):
+        self.groups[-1].append(
+            {
+                "type": "modax",
+                "label": label,
+                "url": url,
+                "modal_id": modal_id,
+                "title": title or label,
+                "on_submit": on_submit,
+                "primary": primary,
+            }
+        )
+
+    def as_items(self):
+        """
+        Reduce groups to a flat list of items separated by dividers.
+        """
+        items = []
+        for group in self.groups:
+            if not group:
+                continue
+            if items:
+                items.append({"type": "divider"})
+            items.extend(group)
+        return items
+
+
+class ContentMenuMixin:
+    """
+    Mixin for views that have a content menu (hamburger icon with dropdown items)
+
+    TODO: rework legacy gear-link templates to use `content_menu` instead of `gear_links`
+    """
+
+    # renderers to convert menu items to the legacy "gear-links" format
+    gear_link_renderers = {
+        "link": lambda i: {"title": i["label"], "href": i["url"]},
+        "js": lambda i: {"title": i["label"], "on_click": i["on_click"], "js_class": i["link_class"], "href": "#"},
+        "url_post": lambda i: {"title": i["label"], "href": i["url"], "js_class": "posterize"},
+        "modax": lambda i: {
+            "id": i["modal_id"],
+            "title": i["label"],
+            "modax": i["title"],
+            "href": i["url"],
+            "on_submit": i["on_submit"],
+            "style": "button-primary" if i["primary"] else "",
+        },
+        "divider": lambda i: {"divider": True},
+    }
+
+    def get_context_data(self, **kwargs):
+        menu = ContentMenu()
+        self.build_content_menu(menu)
+        menu_items = menu.as_items()
+
+        context = super().get_context_data(**kwargs)
+        context["content_menu"] = menu_items
+        context["gear_links"] = [self.gear_link_renderers[i["type"]](i) for i in menu_items]
+        return context
+
+    def build_content_menu(self, menu: ContentMenu):  # pragma: no cover
+        pass
+
+    def get(self, request, *args, **kwargs):
+        if "HTTP_TEMBA_CONTENT_MENU" in self.request.META:
+            menu = ContentMenu()
+            self.build_content_menu(menu)
+            return JsonResponse({"items": menu.as_items()})
+
+        return super().get(request, *args, **kwargs)

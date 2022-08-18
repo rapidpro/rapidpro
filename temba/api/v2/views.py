@@ -10,8 +10,8 @@ from rest_framework.reverse import reverse
 from smartmin.views import SmartFormView, SmartTemplateView
 
 from django import forms
+from django.conf import settings
 from django.contrib.auth import authenticate, login
-from django.contrib.auth.models import User
 from django.db.models import Prefetch, Q
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import gettext_lazy as _
@@ -37,11 +37,12 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
-from temba.orgs.models import OrgMembership, OrgRole
+from temba.orgs.models import OrgMembership, OrgRole, User
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import splitting_getlist, str_to_bool
-from temba.utils.uuid import is_uuid
+from temba.utils.s3 import public_file_storage
+from temba.utils.uuid import is_uuid, uuid4
 
 from ..models import SSLPermission
 from ..support import InvalidQueryError
@@ -2404,31 +2405,6 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         }
 
 
-class MediaEndpoint(BaseAPIView):
-    """
-    This endpoint allows you to submit media which can be embedded in flow steps.
-
-    ## Creating Media
-
-    By making a `POST` request to the endpoint you can add a new media files
-    """
-
-    parser_classes = (MultiPartParser, FormParser)
-    permission = "msgs.msg_api"
-
-    def post(self, request, format=None, *args, **kwargs):
-
-        org = self.request.user.get_org()
-        media_file = request.data.get("media_file", None)
-        extension = request.data.get("extension", None)
-
-        if media_file and extension:
-            location = org.save_media(media_file, extension)
-            return Response(dict(location=location), status=status.HTTP_201_CREATED)
-
-        return Response(dict(), status=status.HTTP_400_BAD_REQUEST)
-
-
 class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list messages in your account.
@@ -2565,7 +2541,11 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         # filter by label name/uuid (optional)
         label_ref = params.get("label")
         if label_ref:
-            label = Label.get_active_for_org(org).filter(Q(name=label_ref) | Q(uuid=label_ref)).first()
+            label_filter = Q(name=label_ref)
+            if is_uuid(label_ref):
+                label_filter |= Q(uuid=label_ref)
+
+            label = Label.get_active_for_org(org).filter(label_filter).first()
             if label:
                 queryset = queryset.filter(labels=label, visibility=Msg.VISIBILITY_VISIBLE)
             else:
@@ -3481,8 +3461,11 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **status** - the status of the ticket, e.g. 'open' or 'closed'.
      * **topic** - the topic of the ticket (object).
+     * **assignee** - the user assigned to the ticket (object).
      * **body** - the body of the ticket (string).
      * **opened_on** - when this ticket was opened (datetime).
+     * **opened_by** - the user who opened the ticket (object).
+     * **opened_in** - the flow which opened the ticket (object).
      * **modified_on** - when this ticket was last modified (datetime).
      * **closed_on** - when this ticket was closed (datetime).
 
@@ -3502,8 +3485,11 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                 "contact": {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Jim"},
                 "status": "open",
                 "topic": {"uuid": "040edbfe-be55-48f3-864d-a4a7147c447b", "name": "Support"},
+                "assignee": {"email": "bob@flow.com", "name": "Bob McFlow"},
                 "body": "Where did I leave my shorts?",
                 "opened_on": "2013-02-27T09:06:15.456",
+                "opened_by": null,
+                "opened_in": {"uuid": "54cd8e2c-6334-49a4-abf9-f0fa8d0971da", "name": "Support Flow"},
                 "modified_on": "2013-02-27T09:07:18.234",
                 "closed_on": null
             },
@@ -3538,7 +3524,9 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             Prefetch("ticketer", queryset=Ticketer.objects.only("uuid", "name")),
             Prefetch("topic", queryset=Topic.objects.only("uuid", "name")),
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
-            "assignee",
+            Prefetch("assignee", queryset=User.objects.only("email", "first_name", "last_name")),
+            Prefetch("opened_by", queryset=User.objects.only("email", "first_name", "last_name")),
+            Prefetch("opened_in", queryset=Flow.objects.only("uuid", "name")),
         )
 
         return queryset
@@ -3777,3 +3765,27 @@ class WorkspaceEndpoint(BaseAPIView):
             "url": reverse("api.v2.workspace"),
             "slug": "workspace-read",
         }
+
+
+class SurveyorAttachmentsEndpoint(BaseAPIView):
+    """
+    Undocumented endpoint used by Surveyor to submit response attachments.
+    """
+
+    parser_classes = (MultiPartParser, FormParser)
+    permission = "msgs.msg_api"
+
+    def post(self, request, format=None, *args, **kwargs):
+        org = self.request.user.get_org()
+        file = request.data.get("media_file", None)
+        extension = request.data.get("extension", None)
+
+        if file and extension:
+            uuid = uuid4()
+            path = f"{settings.STORAGE_ROOT_DIR}/{org.id}/surveyor_attachments/{str(uuid)[0:4]}/{uuid}.{extension}"
+            public_file_storage.save(path, file)
+            url = public_file_storage.url(path)
+
+            return Response({"location": url}, status=status.HTTP_201_CREATED)
+
+        return Response({}, status=status.HTTP_400_BAD_REQUEST)

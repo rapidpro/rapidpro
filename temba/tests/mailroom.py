@@ -16,6 +16,7 @@ from django.utils import timezone
 from temba import mailroom
 from temba.campaigns.models import CampaignEvent, EventFire
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
+from temba.flows.models import FlowRun, FlowSession
 from temba.locations.models import AdminBoundary
 from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
@@ -171,6 +172,17 @@ class TestClient(MailroomClient):
             "contact": {"id": contact.id, "uuid": str(contact.uuid), "name": contact.name},
             "urn": {"id": contact_urn.id, "identity": contact_urn.identity},
         }
+
+    @_client_method
+    def contact_interrupt(self, org_id: int, user_id: int, contact_id: int):
+        contact = Contact.objects.get(id=contact_id)
+
+        # get the waiting session IDs
+        session_ids = list(contact.sessions.filter(status=FlowSession.STATUS_WAITING).values_list("id", flat=True))
+
+        exit_sessions(session_ids, FlowSession.STATUS_INTERRUPTED)
+
+        return {"sessions": len(session_ids)}
 
     @_client_method
     def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = ""):
@@ -368,6 +380,20 @@ def apply_modifiers(org, user, contacts, modifiers: list):
             add = mod.modification == "add"
             for contact in contacts:
                 update_groups_locally(contact, [g.uuid for g in mod.groups], add=add)
+
+        elif mod.type == "ticket":
+            ticketer = org.ticketers.get(uuid=mod.ticketer.uuid, is_active=True)
+            topic = org.topics.get(uuid=mod.topic.uuid, is_active=True)
+            assignee = org.users.get(email=mod.assignee.email, is_active=True) if mod.assignee else None
+            for contact in contacts:
+                contact.tickets.create(
+                    org=org,
+                    ticketer=ticketer,
+                    topic=topic,
+                    status=Ticket.STATUS_OPEN,
+                    body=mod.body,
+                    assignee=assignee,
+                )
 
         elif mod.type == "urns":
             assert len(contacts) == 1, "should never be trying to bulk update contact URNs"
@@ -655,3 +681,22 @@ def decrement_credit(org):
             r.decr(f"org:{org.id}:cache:credits_remaining:{active_topup_id}", 1)
 
     return active_topup_id or None
+
+
+def exit_sessions(session_ids: list, status: str):
+    FlowRun.objects.filter(session_id__in=session_ids).update(
+        status=status, exited_on=timezone.now(), modified_on=timezone.now()
+    )
+    FlowSession.objects.filter(id__in=session_ids).update(
+        status=status,
+        ended_on=timezone.now(),
+        wait_started_on=None,
+        wait_expires_on=None,
+        timeout_on=None,
+        current_flow_id=None,
+    )
+
+    for session in FlowSession.objects.filter(id__in=session_ids):
+        session.contact.current_flow = None
+        session.contact.modified_on = timezone.now()
+        session.contact.save(update_fields=("current_flow", "modified_on"))

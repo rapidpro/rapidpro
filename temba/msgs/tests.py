@@ -19,17 +19,196 @@ from temba.msgs.models import (
     ExportMessagesTask,
     Label,
     LabelCount,
+    Media,
     Msg,
     SystemLabel,
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
+from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 
 from .tasks import squash_msgcounts
 from .templatetags.sms import as_icon
+
+
+class MediaTest(TembaTest):
+    def tearDown(self):
+        self.clear_storage()
+
+        return super().tearDown()
+
+    def test_clean_name(self):
+        self.assertEqual("file.jpg", Media.clean_name("", "image/jpeg"))
+        self.assertEqual("foo.jpg", Media.clean_name("foo", "image/jpeg"))
+        self.assertEqual("file.png", Media.clean_name("*.png", "image/png"))
+        self.assertEqual("passwd.jpg", Media.clean_name(".passwd", "image/jpeg"))
+        self.assertEqual("tést[0].jpg", Media.clean_name("tést[0]/^..\\", "image/jpeg"))
+
+    @mock_uuids
+    def test_from_upload(self):
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+            process=False,
+        )
+
+        self.assertEqual("b97f69f7-5edf-45c7-9fda-d37066eae91d", str(media.uuid))
+        self.assertEqual(self.org, media.org)
+        self.assertEqual(
+            f"/media/test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve%20marten.jpg",
+            media.url,
+        )
+        self.assertEqual("steve marten.jpg", media.name)
+        self.assertEqual("image/jpeg", media.content_type)
+        self.assertEqual(
+            f"test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve marten.jpg", media.path
+        )
+        self.assertEqual(self.admin, media.created_by)
+        self.assertEqual(Media.STATUS_PENDING, media.status)
+
+        # check that our filename is cleaned
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/klab.png", "image/png", name="../../../etc/passwd"),
+            process=False,
+        )
+
+        self.assertEqual("passwd.png", media.name)
+        self.assertEqual(
+            f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/passwd.png", media.path
+        )
+
+    @mock_uuids
+    def test_process_image_png(self):
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/klab.png", "image/png"),
+        )
+        media.refresh_from_db()
+
+        self.assertEqual(371425, media.size)
+        self.assertEqual(0, media.duration)
+        self.assertEqual(480, media.width)
+        self.assertEqual(360, media.height)
+        self.assertEqual(Media.STATUS_READY, media.status)
+
+    @mock_uuids
+    def test_process_audio_wav(self):
+        media = Media.from_upload(
+            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_media/allo.wav", "audio/wav")
+        )
+        media.refresh_from_db()
+
+        self.assertEqual(81818, media.size)
+        self.assertEqual(5110, media.duration)
+        self.assertEqual(0, media.width)
+        self.assertEqual(0, media.height)
+        self.assertEqual(Media.STATUS_READY, media.status)
+
+        alt1, alt2 = list(media.alternates.order_by("id"))
+
+        self.assertEqual(self.org, alt1.org)
+        self.assertEqual(
+            f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/allo.mp3", alt1.url
+        )
+        self.assertEqual("allo.mp3", alt1.name)
+        self.assertEqual("audio/mp3", alt1.content_type)
+        self.assertEqual(
+            f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/allo.mp3", alt1.path
+        )
+        self.assertAlmostEqual(5517, alt1.size, delta=1000)
+        self.assertEqual(5110, alt1.duration)
+        self.assertEqual(0, alt1.width)
+        self.assertEqual(0, alt1.height)
+        self.assertEqual(Media.STATUS_READY, alt1.status)
+
+        self.assertEqual(self.org, alt2.org)
+        self.assertEqual(
+            f"/media/test_orgs/{self.org.id}/media/d1ee/d1ee73f0-bdb5-47ce-99dd-0c95d4ebf008/allo.m4a", alt2.url
+        )
+        self.assertEqual("allo.m4a", alt2.name)
+        self.assertEqual("audio/mp4", alt2.content_type)
+        self.assertEqual(
+            f"test_orgs/{self.org.id}/media/d1ee/d1ee73f0-bdb5-47ce-99dd-0c95d4ebf008/allo.m4a", alt2.path
+        )
+        self.assertAlmostEqual(20552, alt2.size, delta=7500)
+        self.assertEqual(5110, alt2.duration)
+        self.assertEqual(0, alt2.width)
+        self.assertEqual(0, alt2.height)
+        self.assertEqual(Media.STATUS_READY, alt2.status)
+
+    @mock_uuids
+    def test_process_audio_m4a(self):
+        media = Media.from_upload(
+            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a", "audio/mp4")
+        )
+        media.refresh_from_db()
+
+        self.assertEqual(46468, media.size)
+        self.assertEqual(10216, media.duration)
+        self.assertEqual(0, media.width)
+        self.assertEqual(0, media.height)
+        self.assertEqual(Media.STATUS_READY, media.status)
+
+        alt = media.alternates.get()
+
+        self.assertEqual(self.org, alt.org)
+        self.assertEqual(
+            f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/bubbles.mp3", alt.url
+        )
+        self.assertEqual("bubbles.mp3", alt.name)
+        self.assertEqual("audio/mp3", alt.content_type)
+        self.assertEqual(
+            f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/bubbles.mp3", alt.path
+        )
+        self.assertAlmostEqual(41493, alt.size, delta=1000)
+        self.assertEqual(10216, alt.duration)
+        self.assertEqual(0, alt.width)
+        self.assertEqual(0, alt.height)
+        self.assertEqual(Media.STATUS_READY, alt.status)
+
+    @mock_uuids
+    def test_process_video_mp4(self):
+        media = Media.from_upload(
+            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_media/snow.mp4", "video/mp4")
+        )
+        media.refresh_from_db()
+
+        self.assertEqual(684558, media.size)
+        self.assertEqual(3536, media.duration)
+        self.assertEqual(640, media.width)
+        self.assertEqual(480, media.height)
+        self.assertEqual(Media.STATUS_READY, media.status)
+
+        alt = media.alternates.get()
+
+        self.assertEqual(self.org, alt.org)
+        self.assertEqual(
+            f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/snow.jpg", alt.url
+        )
+        self.assertEqual("snow.jpg", alt.name)
+        self.assertEqual("image/jpeg", alt.content_type)
+        self.assertEqual(f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/snow.jpg", alt.path)
+        self.assertAlmostEqual(37613, alt.size, delta=1000)
+        self.assertEqual(0, alt.duration)
+        self.assertEqual(640, alt.width)
+        self.assertEqual(480, alt.height)
+        self.assertEqual(Media.STATUS_READY, alt.status)
+
+    @mock_uuids
+    def test_process_unsupported(self):
+        media = Media.from_upload(
+            self.org, self.admin, self.upload(f"{settings.MEDIA_ROOT}/test_imports/simple.xls", "audio/m4a")
+        )
+        media.refresh_from_db()
+
+        self.assertEqual(19968, media.size)
+        self.assertEqual(Media.STATUS_FAILED, media.status)
 
 
 class MsgTest(TembaTest):
@@ -1554,7 +1733,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(31):
+        with self.assertNumQueries(30):
             self.client.get(outbox_url)
 
         # messages sorted by created_on
@@ -1616,11 +1795,15 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(33):
+        with self.assertNumQueries(28):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
-        self.assertListFetch(sent_url, allow_viewers=True, allow_editors=True, context_objects=[msg1, msg3, msg2])
+        response = self.assertListFetch(
+            sent_url, allow_viewers=True, allow_editors=True, context_objects=[msg1, msg3, msg2]
+        )
+
+        self.assertContains(response, reverse("channels.channellog_msg", args=[msg1.id]))
 
         response = self.client.get(sent_url + "?search=joe")
         self.assertEqual([msg1, msg2], list(response.context_data["object_list"]))
@@ -1629,7 +1812,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_failed(self, mock_msg_resend):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
         msg1 = self.create_outgoing_msg(contact1, "message number 1", status="F")
-        log = ChannelLog.objects.create(channel=msg1.channel, msg=msg1, is_error=True, description="Failed")
+        ChannelLog.objects.create(channel=msg1.channel, msg=msg1, is_error=True, description="Failed")
 
         failed_url = reverse("msgs.msg_failed")
 
@@ -1643,7 +1826,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(32):
+        with self.assertNumQueries(28):
             self.client.get(failed_url)
 
         response = self.assertListFetch(
@@ -1651,12 +1834,12 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertEqual(("resend",), response.context["actions"])
-        self.assertContains(response, reverse("channels.channellog_read", args=[log.channel.uuid, log.id]))
+        self.assertContains(response, reverse("channels.channellog_msg", args=[msg1.id]))
 
         # make the org anonymous
         with AnonymousOrg(self.org):
             response = self.requestView(failed_url, self.admin)
-            self.assertNotContains(response, reverse("channels.channellog_read", args=[log.channel.uuid, log.id]))
+            self.assertNotContains(response, reverse("channels.channellog_msg", args=[msg1.id]))
 
         # resend some messages
         self.client.post(failed_url, {"action": "resend", "objects": [msg2.id]})
@@ -2724,3 +2907,73 @@ class TagsTest(TembaTest):
         # exception if tag not used correctly
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render with bob %}{% endrender %}")
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render as %}{% endrender %}")
+
+
+class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
+    @mock_uuids
+    def test_upload(self):
+        upload_url = reverse("msgs.media_upload")
+
+        def assert_upload(user, filename, expected_json):
+            self.login(user)
+
+            with open(filename, "rb") as data:
+                response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(expected_json, response.json())
+
+        assert_upload(
+            self.admin,
+            f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg",
+            {
+                "uuid": "b97f69f7-5edf-45c7-9fda-d37066eae91d",
+                "content_type": "image/jpeg",
+                "type": "image/jpeg",
+                "url": f"/media/test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve%20marten.jpg",
+                "name": "steve marten.jpg",
+                "size": 7461,
+            },
+        )
+        assert_upload(
+            self.editor,
+            f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
+            {
+                "uuid": "14f6ea01-456b-4417-b0b8-35e942f549f1",
+                "content_type": "video/mp4",
+                "type": "video/mp4",
+                "url": f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/snow.mp4",
+                "name": "snow.mp4",
+                "size": 684558,
+            },
+        )
+        assert_upload(
+            self.editor,
+            f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a",
+            {
+                "uuid": "9295ebab-5c2d-4eb1-86f9-7c15ed2f3219",
+                "content_type": "audio/mp4",
+                "type": "audio/mp4",
+                "url": f"/media/test_orgs/{self.org.id}/media/9295/9295ebab-5c2d-4eb1-86f9-7c15ed2f3219/bubbles.m4a",
+                "name": "bubbles.m4a",
+                "size": 46468,
+            },
+        )
+
+        # error message if you upload something unsupported
+        with open(f"{settings.MEDIA_ROOT}/test_imports/simple.xls", "rb") as data:
+            response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+            self.assertEqual({"error": "Unsupported file type"}, response.json())
+
+        # error message if upload is too big
+        with patch("temba.msgs.models.Media.MAX_UPLOAD_SIZE", 1024):
+            with open(f"{settings.MEDIA_ROOT}/test_media/snow.mp4", "rb") as data:
+                response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+                self.assertEqual({"error": "Limit for file uploads is 0.0009765625 MB"}, response.json())
+
+        self.clear_storage()
+
+    def test_list(self):
+        list_url = reverse("msgs.media_list")
+
+        self.assertStaffOnly(list_url)

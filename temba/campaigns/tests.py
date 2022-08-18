@@ -668,11 +668,15 @@ class CampaignTest(TembaTest):
 
         response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.uuid]))
 
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Service"])
         self.assertEqual(
-            gear_links[-1]["href"],
-            f"/org/service/?organization={campaign.org_id}&redirect_url=/campaign/read/{campaign.uuid}/",
+            [
+                {
+                    "type": "url_post",
+                    "label": "Service",
+                    "url": f"/org/service/?organization={campaign.org_id}&redirect_url=/campaign/read/{campaign.uuid}/",
+                }
+            ],
+            response.context["content_menu"],
         )
 
     def test_view_campaign_read_archived(self):
@@ -685,9 +689,9 @@ class CampaignTest(TembaTest):
         # page title and main content title should NOT contain (Archived)
         self.assertContains(response, "Perform the rain dance", count=2)
         self.assertContains(response, "Archived", count=0)
-
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["New Event", "Export", "Edit", "Archive"])
+        self.assertListEqual(
+            ["New Event", "Export", "Edit", "Archive"], [i["label"] for i in response.context["content_menu"]]
+        )
 
         # archive the campaign
         campaign.is_archived = True
@@ -698,9 +702,7 @@ class CampaignTest(TembaTest):
         # page title and main content title should contain (Archived)
         self.assertContains(response, "Perform the rain dance", count=2)
         self.assertContains(response, "Archived", count=2)
-
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Activate", "Export"])
+        self.assertListEqual(["Activate", "Export"], [i["label"] for i in response.context["content_menu"]])
 
     def test_view_campaign_archive(self):
         self.login(self.admin)
@@ -749,9 +751,7 @@ class CampaignTest(TembaTest):
         # page title and main content title should NOT contain Archived
         self.assertContains(response, "Perform the rain dance", count=1)
         self.assertContains(response, "Archived", count=0)
-
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Edit", "Delete"])
+        self.assertListEqual(["Edit", "Delete"], [i["label"] for i in response.context["content_menu"]])
 
         # archive the campaign
         campaign.is_archived = True
@@ -763,8 +763,7 @@ class CampaignTest(TembaTest):
         self.assertContains(response, "Perform the rain dance", count=1)
         self.assertContains(response, "Archived", count=1)
 
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Delete"])
+        self.assertListEqual(["Delete"], [i["label"] for i in response.context["content_menu"]])
 
     def test_view_campaignevent_update_on_archived_campaign(self):
         self.login(self.admin)

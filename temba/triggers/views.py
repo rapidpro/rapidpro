@@ -215,12 +215,11 @@ class TriggerCRUDL(SmartCRUDL):
 
             from .types import TYPES_BY_SLUG
 
-            org_triggers = org.triggers.filter(is_active=True, is_archived=False)
-
+            org_triggers = org.triggers.filter(is_active=True)
             menu.append(
                 self.create_menu_item(
                     name=_("Active"),
-                    count=org_triggers.count(),
+                    count=org_triggers.filter(is_archived=False).count(),
                     href=reverse("triggers.trigger_list"),
                     icon="radio",
                 )
@@ -413,6 +412,7 @@ class TriggerCRUDL(SmartCRUDL):
         def form_valid(self, form):
             if self.object.trigger_type == Trigger.TYPE_SCHEDULE:
                 self.object.schedule.update_schedule(
+                    self.request.user,
                     form.cleaned_data["start_datetime"],
                     form.cleaned_data["repeat_period"],
                     form.cleaned_data.get("repeat_days_of_week"),
