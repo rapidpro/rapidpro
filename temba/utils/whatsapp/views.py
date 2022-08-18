@@ -45,9 +45,9 @@ class TemplatesView(ContentMenuMixin, OrgPermsMixin, SmartReadView):
     template_name = "utils/whatsapp/templates.html"
 
     def build_content_menu(self, menu):
-        menu.add_link(
-            _("Sync Logs"), reverse(f"channels.types.{self.object.type.slug}.sync_logs", args=[self.object.uuid])
-        )
+        obj = self.get_object()
+
+        menu.add_link(_("Sync Logs"), reverse(f"channels.types.{obj.type.slug}.sync_logs", args=[obj.uuid]))
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -75,14 +75,13 @@ class SyncLogsView(ContentMenuMixin, OrgPermsMixin, SmartReadView):
     template_name = "utils/whatsapp/sync_logs.html"
 
     def build_content_menu(self, menu):
-        menu.add_link(
-            _("Message Templates"),
-            reverse(f"channels.types.{self.object.type.slug}.templates", args=[self.object.uuid]),
-        )
+        obj = self.get_object()
+
+        menu.add_link(_("Message Templates"), reverse(f"channels.types.{obj.type.slug}.templates", args=[obj.uuid]))
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        return queryset.filter(org=self.get_user().get_org())
+        return queryset.filter(org=self.request.org)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
