@@ -110,21 +110,6 @@ class ChannelTest(TembaTest):
 
         raise Exception("Did not find '%s' cmd in response: '%s'" % (cmd_name, response.content))
 
-    def test_channel_read_with_customer_support(self):
-        self.login(self.customer_support)
-
-        response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
-        self.assertEqual(
-            [
-                {
-                    "type": "url_post",
-                    "label": "Service",
-                    "url": f"/org/service/?organization={self.tel_channel.org_id}&redirect_url=/channels/channel/read/{self.tel_channel.uuid}/",
-                }
-            ],
-            response.context["content_menu"],
-        )
-
     def test_deactivate(self):
         self.login(self.admin)
         self.tel_channel.is_active = False
@@ -1428,6 +1413,12 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             config={"send_url": "http://send.com"},
         )
 
+    def test_channel_read_as_customer_support(self):
+        read_url = reverse("channels.channel_read", args=[self.ex_channel.uuid])
+
+        # should see service button
+        self.assertContentMenu(read_url, self.customer_support, ["Settings", "Channel Log", "Service"])
+
     def test_configuration(self):
         config_url = reverse("channels.channel_configuration", args=[self.ex_channel.uuid])
 
@@ -2132,7 +2123,7 @@ class ChannelLogTest(TembaTest):
             self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
 
 
-class ChannelLogCRUDLTest(TembaTest):
+class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
     def test_views(self):
         self.channel.role = "CASR"
         self.channel.save(update_fields=("role",))
@@ -2247,6 +2238,7 @@ class ChannelLogCRUDLTest(TembaTest):
         # view success alone
         response = self.client.get(reverse("channels.channellog_read", args=[success_log.id]))
         self.assertContains(response, "POST https://foo.bar/send?msg=failed+message")
+        self.assertContentMenu(reverse("channels.channellog_read", args=[success_log.id]), self.admin, ["Channel Log"])
 
         self.assertEqual(self.channel.get_success_log_count(), 2)
         self.assertEqual(self.channel.get_error_log_count(), 4)  # error log count always includes IVR logs

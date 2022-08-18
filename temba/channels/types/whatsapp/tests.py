@@ -492,16 +492,7 @@ class WhatsAppTypeTest(TembaTest):
 
         # check if message templates link are in sync_logs view
         response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
-        self.assertEqual(
-            [
-                {
-                    "type": "link",
-                    "label": "Message Templates",
-                    "url": reverse("channels.types.whatsapp.templates", args=[channel.uuid]),
-                }
-            ],
-            response.context["content_menu"],
-        )
+        self.assertContains(response, reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
 
         # sync logs and message templates not accessible by user from other org
         self.login(self.admin2)

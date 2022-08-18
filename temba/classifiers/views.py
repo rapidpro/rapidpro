@@ -78,22 +78,24 @@ class ClassifierCRUDL(SmartCRUDL):
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
         def build_content_menu(self, menu):
-            menu.add_link(_("Log"), reverse("request_logs.httplog_classifier", args=[self.object.uuid]))
+            obj = self.get_object()
+
+            menu.add_link(_("Log"), reverse("request_logs.httplog_classifier", args=[obj.uuid]))
 
             if self.has_org_perm("classifiers.classifier_sync"):
-                menu.add_url_post(_("Sync"), reverse("classifiers.classifier_sync", args=[self.object.id]))
+                menu.add_url_post(_("Sync"), reverse("classifiers.classifier_sync", args=[obj.id]))
 
             if self.has_org_perm("classifiers.classifier_delete"):
                 menu.add_modax(
                     _("Delete"),
                     "classifier-delete",
-                    reverse("classifiers.classifier_delete", args=[self.object.uuid]),
+                    reverse("classifiers.classifier_delete", args=[obj.uuid]),
                     title=_("Delete Classifier"),
                 )
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
-            return queryset.filter(org=self.request.user.get_org(), is_active=True)
+            return queryset.filter(org=self.request.org, is_active=True)
 
     class Sync(OrgObjPermsMixin, SmartUpdateView):
         fields = ()
