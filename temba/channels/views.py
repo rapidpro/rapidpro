@@ -790,23 +790,25 @@ class ChannelCRUDL(SmartCRUDL):
             return Channel.objects.filter(is_active=True)
 
         def build_content_menu(self, menu):
-            for extra in self.object.type.extra_links or ():
-                menu.add_link(extra["label"], reverse(extra["view_name"], args=[self.object.uuid]))
+            obj = self.get_object()
 
-            if self.object.parent:
-                menu.add_link(_("Android Channel"), reverse("channels.channel_read", args=[self.object.parent.uuid]))
+            for extra in obj.type.extra_links or ():
+                menu.add_link(extra["label"], reverse(extra["view_name"], args=[obj.uuid]))
 
-            if self.object.type.show_config_page:
-                menu.add_link(_("Settings"), reverse("channels.channel_configuration", args=[self.object.uuid]))
+            if obj.parent:
+                menu.add_link(_("Android Channel"), reverse("channels.channel_read", args=[obj.parent.uuid]))
 
-            if not self.object.is_android():
-                sender = self.object.get_sender()
-                caller = self.object.get_caller()
+            if obj.type.show_config_page:
+                menu.add_link(_("Settings"), reverse("channels.channel_configuration", args=[obj.uuid]))
+
+            if not obj.is_android():
+                sender = obj.get_sender()
+                caller = obj.get_caller()
 
                 if sender:
                     menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[sender.uuid]))
-                elif Channel.ROLE_RECEIVE in self.object.role:
-                    menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[self.object.uuid]))
+                elif Channel.ROLE_RECEIVE in obj.role:
+                    menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[obj.uuid]))
 
                 if caller and caller != sender:
                     menu.add_link(
@@ -817,12 +819,12 @@ class ChannelCRUDL(SmartCRUDL):
                 menu.add_modax(
                     _("Edit"),
                     "update-channel",
-                    reverse("channels.channel_update", args=[self.object.id]),
+                    reverse("channels.channel_update", args=[obj.id]),
                     title=_("Edit Channel"),
                 )
 
-                if self.object.is_android() or (self.object.parent and self.object.parent.is_android()):
-                    sender = self.object.get_sender()
+                if obj.is_android() or (obj.parent and obj.parent.is_android()):
+                    sender = obj.get_sender()
 
                     if sender and sender.is_delegate_sender():
                         menu.add_modax(
@@ -830,13 +832,13 @@ class ChannelCRUDL(SmartCRUDL):
                             "disable-sender",
                             reverse("channels.channel_delete", args=[sender.uuid]),
                         )
-                    elif self.object.is_android():
+                    elif obj.is_android():
                         menu.add_link(
                             _("Enable Bulk Sending"),
-                            f"{reverse('channels.channel_bulk_sender_options')}?channel={self.object.id}",
+                            f"{reverse('channels.channel_bulk_sender_options')}?channel={obj.id}",
                         )
 
-                    caller = self.object.get_caller()
+                    caller = obj.get_caller()
 
                     if caller and caller.is_delegate_caller():
                         menu.add_modax(
@@ -844,28 +846,28 @@ class ChannelCRUDL(SmartCRUDL):
                             "disable-voice",
                             reverse("channels.channel_delete", args=[caller.uuid]),
                         )
-                    elif self.object.org.is_connected_to_twilio():
+                    elif obj.org.is_connected_to_twilio():
                         menu.add_url_post(
                             _("Enable Voice Calling"),
-                            f"{reverse('channels.channel_create_caller')}?channel={self.object.id}",
+                            f"{reverse('channels.channel_create_caller')}?channel={obj.id}",
                         )
 
             if self.has_org_perm("channels.channel_delete"):
                 menu.add_modax(
-                    _("Delete Channel"), "delete-channel", reverse("channels.channel_delete", args=[self.object.uuid])
+                    _("Delete Channel"), "delete-channel", reverse("channels.channel_delete", args=[obj.uuid])
                 )
 
-            if self.object.channel_type == "FB" and self.has_org_perm("channels.channel_facebook_whitelist"):
+            if obj.channel_type == "FB" and self.has_org_perm("channels.channel_facebook_whitelist"):
                 menu.add_modax(
                     _("Whitelist Domain"),
                     "fb-whitelist",
-                    reverse("channels.channel_facebook_whitelist", args=[self.object.uuid]),
+                    reverse("channels.channel_facebook_whitelist", args=[obj.uuid]),
                 )
 
             if self.request.user.is_staff:
                 menu.add_url_post(
                     _("Service"),
-                    f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("channels.channel_read", args=[self.object.uuid])}',
+                    f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("channels.channel_read", args=[obj.uuid])}',
                 )
 
         def get_context_data(self, **kwargs):
@@ -1529,7 +1531,9 @@ class ChannelLogCRUDL(SmartCRUDL):
         fields = ("description", "created_on")
 
         def build_content_menu(self, menu):
-            menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[self.object.channel.uuid]))
+            obj = self.get_object()
+
+            menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[obj.channel.uuid]))
 
         def get_object_org(self):
             return self.get_object().channel.org

@@ -233,6 +233,10 @@ class CRUDLTestMixin:
         )
         self.assertEqual(labels, [i["label"] for i in response.json()["items"]])
 
+        # for now menu is also stuffed into context in old gear links format
+        response = self.requestView(url, user, checks=[StatusCode(200)])
+        self.assertEqual(labels, [i["title"] for i in response.context["gear_links"]])
+
 
 class BaseCheck:
     def pre_check(self, test_cls, desc):
