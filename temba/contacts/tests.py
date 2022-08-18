@@ -476,25 +476,32 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(read_url)
         self.assertLoginRedirect(response)
 
+        self.assertContentMenu(read_url, self.user, [])
+        self.assertContentMenu(
+            read_url,
+            self.editor,
+            ["Send Message", "Start Flow", "Open Ticket", "Edit", "Custom Fields", "Block", "Archive"],
+        )
+        self.assertContentMenu(
+            read_url,
+            self.admin,
+            ["Send Message", "Start Flow", "Open Ticket", "Edit", "Custom Fields", "Block", "Archive"],
+        )
+
         # login as viewer
         self.login(self.user)
 
         response = self.client.get(read_url)
         self.assertContains(response, "Joe")
 
-        # make sure the block link is not present
-        self.assertNotContains(response, block_url)
-
         # login as admin
         self.login(self.admin)
 
-        # make sure the block link is present now
-        response = self.client.get(read_url)
-        self.assertContains(response, block_url)
-
-        # and that it works
+        # block the contact
         self.client.post(block_url, dict(id=joe.id))
         self.assertTrue(Contact.objects.get(pk=joe.id, status="B"))
+
+        self.assertContentMenu(read_url, self.admin, ["Edit", "Custom Fields", "Activate", "Archive"])
 
         # try unblocking now
         response = self.client.get(read_url)
