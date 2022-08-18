@@ -1,3 +1,9 @@
+v7.5.23
+----------
+ * Update to latest floweditor
+ * Add new ChannelLog log type choices and make description nullable
+ * Fix more content menus so that they can be fetched as JSON and add more tests
+
 v7.5.22
 ----------
  * Remove unused policies.policy_read perm
