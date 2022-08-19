@@ -766,6 +766,8 @@ class TembaTest(TembaTestMixin, SmartminTest):
             role.group  # noqa
             role.permissions  # noqa
 
+        self.maxDiff = None
+
     def tearDown(self):
         clear_flow_users()
 

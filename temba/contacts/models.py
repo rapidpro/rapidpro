@@ -1421,26 +1421,26 @@ class ContactURN(models.Model):
 
         return self
 
-    def get_display(self, org=None, international=False, formatted=True):
+    def get_display(self, org=None, international: bool = False, formatted: bool = True) -> str:
         """
-        Gets a representation of the URN for display
+        Gets a representation of the URN for display, e.g. tel:+12345678901 becomes +1 234 567-8901
         """
-        if not org:
-            org = self.org
-
-        if org.is_anon:
+        if (org or self.org).is_anon:
             return self.ANON_MASK
 
         return URN.format(self.urn, international=international, formatted=formatted)
 
-    def api_urn(self):
-        if self.org.is_anon:
+    def get_for_api(self, org=None) -> str:
+        """
+        Gets a representation for sharing over the API which will have the path redacted if the org is anon
+        """
+        if (org or self.org).is_anon:
             return URN.from_parts(self.scheme, self.ANON_MASK)
 
-        return URN.from_parts(self.scheme, self.path, display=self.display)
+        return self.urn
 
     @property
-    def urn(self):
+    def urn(self) -> str:
         """
         Returns a full representation of this contact URN as a string
         """
