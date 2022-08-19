@@ -103,7 +103,7 @@ class FieldsTest(TembaTest):
                 frank: {
                     "uuid": str(frank.uuid),
                     "name": "Frank",
-                    "urn": "twitterid:2352463463#franky",
+                    "urn": "twitterid:2352463463",
                     "urn_display": "franky",
                 },
                 voldemort: {
@@ -130,6 +130,11 @@ class FieldsTest(TembaTest):
         )
 
         with AnonymousOrg(self.org):
+            # load contacts again without cached org on them or their urns
+            joe = Contact.objects.get(id=joe.id)
+            frank = Contact.objects.get(id=frank.id)
+            voldemort = Contact.objects.get(id=voldemort.id)
+
             self.assert_field(
                 fields.ContactField(source="test"),
                 submissions={
@@ -1775,7 +1780,7 @@ class EndpointsTest(TembaTest):
         hans = self.create_contact("Hans", phone="0788000004", org=self.org2)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url, readonly_models={Contact})
 
         resp_json = response.json()
@@ -1802,7 +1807,7 @@ class EndpointsTest(TembaTest):
         )
 
         # reversed
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url, "reverse=true")
 
         resp_json = response.json()
@@ -1811,7 +1816,7 @@ class EndpointsTest(TembaTest):
         self.assertResultsByUUID(response, [self.frank, contact1, contact2, self.joe, contact4])
 
         with AnonymousOrg(self.org):
-            with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+            with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
                 response = self.fetchJSON(url)
 
             resp_json = response.json()
@@ -3618,10 +3623,15 @@ class EndpointsTest(TembaTest):
         resp_json = response.json()
         self.assertEqual(
             {
-                "id": frank_run2.pk,
+                "id": frank_run2.id,
                 "uuid": str(frank_run2.uuid),
-                "flow": {"uuid": flow1.uuid, "name": "Colors"},
-                "contact": {"uuid": self.frank.uuid, "urn": "twitter:franky", "name": self.frank.name},
+                "flow": {"uuid": str(flow1.uuid), "name": "Colors"},
+                "contact": {
+                    "uuid": str(self.frank.uuid),
+                    "name": self.frank.name,
+                    "urn": "twitter:franky",
+                    "urn_display": "franky",
+                },
                 "start": None,
                 "responded": False,
                 "path": [
@@ -3644,10 +3654,15 @@ class EndpointsTest(TembaTest):
         )
         self.assertEqual(
             {
-                "id": joe_run1.pk,
+                "id": joe_run1.id,
                 "uuid": str(joe_run1.uuid),
-                "flow": {"uuid": flow1.uuid, "name": "Colors"},
-                "contact": {"uuid": self.joe.uuid, "urn": "tel:+250788123123", "name": self.joe.name},
+                "flow": {"uuid": str(flow1.uuid), "name": "Colors"},
+                "contact": {
+                    "uuid": str(self.joe.uuid),
+                    "name": self.joe.name,
+                    "urn": "tel:+250788123123",
+                    "urn_display": "0788 123 123",
+                },
                 "start": {"uuid": str(joe_run1.start.uuid)},
                 "responded": True,
                 "path": [
@@ -3689,10 +3704,15 @@ class EndpointsTest(TembaTest):
         resp_json = response.json()
         self.assertEqual(
             {
-                "id": frank_run2.pk,
+                "id": frank_run2.id,
                 "uuid": str(frank_run2.uuid),
-                "flow": {"uuid": flow1.uuid, "name": "Colors"},
-                "contact": {"uuid": self.frank.uuid, "urn": "twitter:franky", "name": self.frank.name},
+                "flow": {"uuid": str(flow1.uuid), "name": "Colors"},
+                "contact": {
+                    "uuid": str(self.frank.uuid),
+                    "name": self.frank.name,
+                    "urn": "twitter:franky",
+                    "urn_display": "franky",
+                },
                 "start": None,
                 "responded": False,
                 "path": None,
@@ -3726,7 +3746,12 @@ class EndpointsTest(TembaTest):
                     "id": frank_run2.pk,
                     "uuid": str(frank_run2.uuid),
                     "flow": {"uuid": flow1.uuid, "name": "Colors"},
-                    "contact": {"uuid": self.frank.uuid, "name": self.frank.name},
+                    "contact": {
+                        "uuid": self.frank.uuid,
+                        "name": self.frank.name,
+                        "urn": "twitter:********",
+                        "urn_display": f"{self.frank.id:010}",
+                    },
                     "start": None,
                     "responded": False,
                     "path": [

@@ -222,7 +222,7 @@ class ContactField(TembaModelField):
         if self.with_urn:
             urn = obj.get_urn()
             if urn:
-                urn_str = urn.get_for_api(org)
+                urn_str = urn.get_for_api()
                 urn_display = obj.anon_identifier if org.is_anon else obj.get_urn_display()
             else:
                 urn_str, urn_display = None, None

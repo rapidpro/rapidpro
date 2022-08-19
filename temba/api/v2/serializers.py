@@ -528,7 +528,7 @@ class ContactReadSerializer(ReadSerializer):
         if not obj.is_active:
             return []
 
-        return [urn.api_urn() for urn in obj.get_urns()]
+        return [urn.get_for_api() for urn in obj.get_urns()]
 
     def get_groups(self, obj):
         if not obj.is_active:
