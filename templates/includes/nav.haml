@@ -199,14 +199,14 @@
         .title
           -trans "workspaces"
 
-  -if request.user.is_superuser or perms.apks.apk_list
+  -if request.user.is_staff or perms.apks.apk_list
     %a{href:"{% url 'apks.apk_list' %}", class:"{% active request 'apk' %}"}
       .circle
         .icon-channel-android
       .title
         -trans "android"
 
-  -if request.user.is_superuser or perms.orgs.org_dashboard
+  -if request.user.is_staff or perms.orgs.org_dashboard
     %a{href:"{% url 'dashboard.dashboard_home' %}", class:"{% active request 'dashboard(?!/flows)' %}"}
       .circle
         .icon-bars-3.icon-1
@@ -221,7 +221,7 @@
 
           -block loggedin-submenu
 
-          -if request.user.is_superuser or request.user.is_staff
+          -if request.user.is_staff
             -if user_org
               %a{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
                 .circle
@@ -229,7 +229,7 @@
                 .title
                   -trans "users"
 
-          -if request.user.is_superuser or request.user.is_staff
+          -if request.user.is_staff
             -if user_org
               %a{href:"{% url 'orgs.org_manage' %}", class:"{% active request 'org' %}"}
                 .circle
@@ -237,7 +237,7 @@
                 .title
                   -trans "orgs"
 
-          -if perms.orgs.org_service and user_org
+          -if request.user.is_staff and user_org
             %a.posterize{href:"{% url 'orgs.org_service' %}"}
               .circle
                 .icon-exit
