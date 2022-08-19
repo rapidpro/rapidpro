@@ -1,3 +1,7 @@
+v7.5.24
+----------
+ * Fix missing service end button
+
 v7.5.23
 ----------
  * Update to latest floweditor
