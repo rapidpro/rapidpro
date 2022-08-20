@@ -86,7 +86,7 @@ class FieldsTest(TembaTest):
         )
 
         self.assert_field(
-            fields.ContactField(source="test", with_urn=True),
+            fields.ContactField(source="test", as_summary=True),
             submissions={
                 joe.uuid: joe,  # by UUID
                 joe.get_urn().urn: joe,  # by URN
@@ -151,7 +151,7 @@ class FieldsTest(TembaTest):
             )
 
             self.assert_field(
-                fields.ContactField(source="test", with_urn=True),
+                fields.ContactField(source="test", as_summary=True),
                 submissions={
                     joe.uuid: joe,  # by UUID
                     joe.get_urn().urn: joe,  # by URN
@@ -163,19 +163,22 @@ class FieldsTest(TembaTest):
                         "uuid": str(joe.uuid),
                         "name": "Joe",
                         "urn": "tel:********",
-                        "urn_display": f"{joe.id:010}",
+                        "urn_display": "********",
+                        "anon_display": f"{joe.id:010}",
                     },
                     frank: {
                         "uuid": str(frank.uuid),
                         "name": "Frank",
                         "urn": "twitterid:********",
-                        "urn_display": f"{frank.id:010}",
+                        "urn_display": "********",
+                        "anon_display": f"{frank.id:010}",
                     },
                     voldemort: {
                         "uuid": str(voldemort.uuid),
                         "name": "",
                         "urn": None,
                         "urn_display": None,
+                        "anon_display": f"{voldemort.id:010}",
                     },
                 },
             )
@@ -3750,7 +3753,8 @@ class EndpointsTest(TembaTest):
                         "uuid": self.frank.uuid,
                         "name": self.frank.name,
                         "urn": "twitter:********",
-                        "urn_display": f"{self.frank.id:010}",
+                        "urn_display": "********",
+                        "anon_display": f"{self.frank.id:010}",
                     },
                     "start": None,
                     "responded": False,

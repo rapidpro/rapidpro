@@ -211,23 +211,25 @@ class ContactField(TembaModelField):
     model = Contact
     lookup_fields = ("uuid", "urns__urn")
 
-    def __init__(self, with_urn=False, **kwargs):
-        self.with_urn = with_urn
+    def __init__(self, as_summary=False, **kwargs):
+        self.as_summary = as_summary
         super().__init__(**kwargs)
 
     def to_representation(self, obj):
         rep = {"uuid": str(obj.uuid), "name": obj.name}
         org = self.context["org"]
 
-        if self.with_urn:
+        if self.as_summary:
             urn = obj.get_urn()
             if urn:
-                urn_str = urn.get_for_api()
-                urn_display = obj.anon_identifier if org.is_anon else obj.get_urn_display()
+                urn_str, urn_display = urn.get_for_api(), obj.get_urn_display()
             else:
                 urn_str, urn_display = None, None
 
             rep.update({"urn": urn_str, "urn_display": urn_display})
+
+            if org.is_anon:
+                rep["anon_display"] = obj.anon_identifier
 
         return rep
 
