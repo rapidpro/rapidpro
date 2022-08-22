@@ -1,3 +1,7 @@
+v7.5.26
+----------
+ * Don't set org on bulk initialized contacts
+
 v7.5.25
 ----------
  * Fix filtering on channel log call page
