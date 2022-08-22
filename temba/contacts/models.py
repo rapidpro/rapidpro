@@ -1207,7 +1207,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
         contact_map = dict()
         for contact in contacts:
-            contact.org = org
+            # contact.org = org
             contact_map[contact.id] = contact
             # initialize URN list cache
             setattr(contact, "_urns_cache", list())
@@ -1220,7 +1220,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         )
         for urn in urns:
             contact = contact_map[urn.contact_id]
-            urn.org = org
+            # urn.org = org
             getattr(contact, "_urns_cache").append(urn)
 
     def get_groups(self, *, manual_only=False):
