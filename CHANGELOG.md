@@ -1,3 +1,7 @@
+v7.5.27
+----------
+ * Revert change to Contact.Bulk_urn_cache_initialize to have it set org on contacts
+
 v7.5.26
 ----------
  * Don't set org on bulk initialized contacts
