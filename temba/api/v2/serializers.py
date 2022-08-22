@@ -528,7 +528,7 @@ class ContactReadSerializer(ReadSerializer):
         if not obj.is_active:
             return []
 
-        return [urn.api_urn() for urn in obj.get_urns()]
+        return [urn.get_for_api() for urn in obj.get_urns()]
 
     def get_groups(self, obj):
         if not obj.is_active:
@@ -932,7 +932,7 @@ class FlowRunReadSerializer(ReadSerializer):
     }
 
     flow = fields.FlowField()
-    contact = fields.ContactField(with_urn=True)
+    contact = fields.ContactField(as_summary=True)
     start = serializers.SerializerMethodField()
     path = serializers.SerializerMethodField()
     values = serializers.SerializerMethodField()
