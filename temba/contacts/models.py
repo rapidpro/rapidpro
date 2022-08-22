@@ -1198,7 +1198,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
                 broadcast.contacts.remove(self)
 
     @classmethod
-    def bulk_urn_cache_initialize(cls, org, contacts, *, using="default"):
+    def bulk_urn_cache_initialize(cls, contacts, *, using="default"):
         """
         Initializes the URN caches on the given contacts.
         """
@@ -1207,7 +1207,6 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
         contact_map = dict()
         for contact in contacts:
-            contact.org = org
             contact_map[contact.id] = contact
             # initialize URN list cache
             setattr(contact, "_urns_cache", list())
@@ -1220,7 +1219,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         )
         for urn in urns:
             contact = contact_map[urn.contact_id]
-            urn.org = org
+            urn.org = contact.org
             getattr(contact, "_urns_cache").append(urn)
 
     def get_groups(self, *, manual_only=False):
@@ -1936,12 +1935,14 @@ class ExportContactsTask(BaseExportTask):
         # write out contacts in batches to limit memory usage
         for batch_ids in chunk_list(contact_ids, 1000):
             # fetch all the contacts for our batch
-            batch_contacts = Contact.objects.filter(id__in=batch_ids).prefetch_related("groups").using("readonly")
+            batch_contacts = (
+                Contact.objects.filter(id__in=batch_ids).prefetch_related("org", "groups").using("readonly")
+            )
 
             # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
             contact_by_id = {c.id: c for c in batch_contacts}
 
-            Contact.bulk_urn_cache_initialize(self.org, batch_contacts, using="readonly")
+            Contact.bulk_urn_cache_initialize(batch_contacts, using="readonly")
 
             for contact_id in batch_ids:
                 contact = contact_by_id[contact_id]
