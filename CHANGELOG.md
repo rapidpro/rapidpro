@@ -1,3 +1,9 @@
+v7.5.25
+----------
+ * Fix filtering on channel log call page
+ * Add anon_display and use that when org is anon instead of using urn_display for anon id
+ * Add urn_display to contact reference on serialized runs in API
+
 v7.5.24
 ----------
  * Fix missing service end button
