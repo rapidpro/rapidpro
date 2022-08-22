@@ -163,14 +163,14 @@ class FieldsTest(TembaTest):
                         "uuid": str(joe.uuid),
                         "name": "Joe",
                         "urn": "tel:********",
-                        "urn_display": "********",
+                        "urn_display": None,
                         "anon_display": f"{joe.id:010}",
                     },
                     frank: {
                         "uuid": str(frank.uuid),
                         "name": "Frank",
                         "urn": "twitterid:********",
-                        "urn_display": "********",
+                        "urn_display": None,
                         "anon_display": f"{frank.id:010}",
                     },
                     voldemort: {
@@ -1830,6 +1830,7 @@ class EndpointsTest(TembaTest):
                 {
                     "uuid": contact4.uuid,
                     "name": "Don",
+                    "anon_display": f"{contact4.id:010}",
                     "status": "active",
                     "language": "fra",
                     "urns": ["tel:********"],
@@ -3753,7 +3754,7 @@ class EndpointsTest(TembaTest):
                         "uuid": self.frank.uuid,
                         "name": self.frank.name,
                         "urn": "twitter:********",
-                        "urn_display": "********",
+                        "urn_display": None,
                         "anon_display": f"{self.frank.id:010}",
                     },
                     "start": None,

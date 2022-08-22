@@ -98,7 +98,7 @@ def name(contact, org):
     if contact.name:
         return contact.name
     elif org.is_anon:
-        return contact.anon_identifier
+        return contact.anon_display
     else:
         return MISSING_VALUE
 

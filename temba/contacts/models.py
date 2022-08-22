@@ -676,11 +676,11 @@ class Contact(LegacyUUIDMixin, SmartModel):
             return None
 
     @property
-    def anon_identifier(self):
+    def anon_display(self):
         """
         The displayable identifier used in place of URNs for anonymous orgs
         """
-        return "%010d" % self.id
+        return f"{self.id:010}"
 
     @classmethod
     def get_status_counts(cls, org) -> dict:
@@ -1271,7 +1271,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         if self.name:
             return self.name
         elif org.is_anon:
-            return self.anon_identifier
+            return self.anon_display
 
         return self.get_urn_display(org=org, formatted=formatted)
 
