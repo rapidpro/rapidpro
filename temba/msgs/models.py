@@ -154,7 +154,6 @@ class Media(models.Model):
             uuid=uuid,
             org=org,
             url=public_file_storage.url(path),
-            name=filename,
             content_type=content_type,
             path=path,
             size=size,
