@@ -515,6 +515,13 @@ class ContactReadSerializer(ReadSerializer):
     blocked = serializers.SerializerMethodField()  # deprecated
     stopped = serializers.SerializerMethodField()  # deprecated
 
+    def __init__(self, *args, context, **kwargs):
+        super().__init__(*args, context=context, **kwargs)
+
+        # remove anon_display field if org isn't anon
+        if not context["org"].is_anon:
+            self.fields.pop("anon_display")
+
     def get_name(self, obj):
         return obj.name if obj.is_active else None
 
@@ -557,6 +564,7 @@ class ContactReadSerializer(ReadSerializer):
         fields = (
             "uuid",
             "name",
+            "anon_display",
             "status",
             "language",
             "urns",
