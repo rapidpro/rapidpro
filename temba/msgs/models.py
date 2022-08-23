@@ -479,12 +479,14 @@ class Msg(models.Model):
     )
 
     FAILED_SUSPENDED = "S"
+    FAILED_CONTACT = "C"
     FAILED_LOOPING = "L"
     FAILED_ERROR_LIMIT = "E"
     FAILED_TOO_OLD = "O"
     FAILED_NO_DESTINATION = "D"
     FAILED_CHOICES = (
         (FAILED_SUSPENDED, _("Workspace suspended")),
+        (FAILED_CONTACT, _("Contact is no longer active")),
         (FAILED_LOOPING, _("Looping detected")),  # mailroom checks for this
         (FAILED_ERROR_LIMIT, _("Retry limit reached")),  # courier tried to send but it errored too many times
         (FAILED_TOO_OLD, _("Too old to send")),  # was queued for too long, would be confusing to send now
