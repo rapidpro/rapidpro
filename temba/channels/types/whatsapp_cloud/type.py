@@ -56,31 +56,9 @@ class WhatsAppCloudType(ChannelType):
 
     def activate(self, channel):
         waba_id = channel.config.get("wa_waba_id")
-        waba_currency = channel.config.get("wa_currency")
-        waba_business_id = channel.config.get("wa_business_id")
         wa_pin = channel.config.get("wa_pin")
 
         headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
-
-        if waba_business_id != settings.WHATSAPP_FACEBOOK_BUSINESS_ID:
-            # Get credit line ID
-            url = f"https://graph.facebook.com/v13.0/{settings.WHATSAPP_FACEBOOK_BUSINESS_ID}/extendedcredits"
-            params = {"fields": "id,legal_entity_name"}
-            resp = requests.get(url, params=params, headers=headers)
-
-            if resp.status_code != 200:  # pragma: no cover
-                raise ValidationError(_("Unable to fetch credit line ID"))
-
-            data = resp.json().get("data", [])
-            if data:
-                credit_line_id = data[0].get("id", None)
-
-            url = f"https://graph.facebook.com/v13.0/{credit_line_id}/whatsapp_credit_sharing_and_attach"
-            params = {"waba_id": waba_id, "waba_currency": waba_currency}
-            resp = requests.post(url, params=params, headers=headers)
-
-            if resp.status_code != 200:  # pragma: no cover
-                raise ValidationError(_("Unable to assign credit line ID"))
 
         # Subscribe to events
         url = f"https://graph.facebook.com/v13.0/{waba_id}/subscribed_apps"
