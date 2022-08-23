@@ -8,7 +8,6 @@ from temba.utils.celery import nonoverlapping_task
 
 from .models import HTTPLog
 
-
 logger = logging.getLogger(__name__)
 
 
