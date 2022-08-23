@@ -1,3 +1,17 @@
+v7.5.27
+----------
+ * Revert change to Contact.Bulk_urn_cache_initialize to have it set org on contacts
+
+v7.5.26
+----------
+ * Don't set org on bulk initialized contacts
+
+v7.5.25
+----------
+ * Fix filtering on channel log call page
+ * Add anon_display and use that when org is anon instead of using urn_display for anon id
+ * Add urn_display to contact reference on serialized runs in API
+
 v7.5.24
 ----------
  * Fix missing service end button
