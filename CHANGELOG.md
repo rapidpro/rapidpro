@@ -1,3 +1,7 @@
+v7.5.29
+----------
+ * Fix servicing of channel logs
+
 v7.5.28
 ----------
  * Stop writing to unused media name field
