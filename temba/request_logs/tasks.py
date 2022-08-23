@@ -30,6 +30,6 @@ def trim_http_logs_task():
         num_deleted += len(http_log_ids)
 
         if num_deleted % 10000 == 0:  # pragma: no cover
-            print(f" > Deleted {num_deleted} http logs")
+            logger.debug(f" > Deleted {num_deleted} http logs")
 
     logger.info(f"Deleted {num_deleted} http logs in {timesince(start)}")
