@@ -1019,4 +1019,4 @@ class MediaCRUDL(SmartCRUDL):
             )
 
     class List(StaffOnlyMixin, OrgPermsMixin, SmartListView):
-        fields = ("name", "content_type", "size", "created_by", "created_on")
+        fields = ("url", "content_type", "size", "created_by", "created_on")
