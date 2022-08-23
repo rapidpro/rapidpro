@@ -2124,6 +2124,104 @@ class ChannelLogTest(TembaTest):
 
 
 class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
+    def test_msg(self):
+        contact = self.create_contact("Fred", phone="+12067799191")
+
+        msg1 = self.create_outgoing_msg(contact, "success message", status="D")
+        log1 = ChannelLog.objects.create(
+            channel=self.channel,
+            msg=msg1,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/send1",
+                    "status_code": 200,
+                    "request": "POST https://foo.bar/send1\r\n\r\n{}",
+                    "response": "HTTP/1.0 200 OK\r\r\r\n",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+            errors=[],
+        )
+        log2 = ChannelLog.objects.create(
+            channel=self.channel,
+            msg=msg1,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/send2",
+                    "status_code": 200,
+                    "request": "POST https://foo.bar/send2\r\n\r\n{}",
+                    "response": "HTTP/1.0 200 OK\r\r\r\n",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+            errors=[],
+        )
+
+        # create another msg and log that shouldn't be included
+        msg2 = self.create_outgoing_msg(contact, "success message", status="D")
+        ChannelLog.objects.create(
+            channel=self.channel,
+            msg=msg2,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/send3",
+                    "status_code": 200,
+                    "request": "POST https://foo.bar/send2\r\n\r\n{}",
+                    "response": "HTTP/1.0 200 OK\r\r\r\n",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+            errors=[],
+        )
+
+        msg1_url = reverse("channels.channellog_msg", args=[msg1.id])
+
+        self.assertListFetch(
+            msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log2, log1]
+        )
+
+    def test_call(self):
+        contact = self.create_contact("Fred", phone="+12067799191")
+        flow = self.create_flow("IVR")
+
+        call1 = self.create_incoming_call(flow, contact)
+        log1 = call1.channel_logs.get()
+        log2 = ChannelLog.objects.create(
+            channel=self.channel,
+            connection=call1,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/call2",
+                    "status_code": 200,
+                    "request": "POST https://foo.bar/send2\r\n\r\n{}",
+                    "response": "HTTP/1.0 200 OK\r\r\r\n",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+            errors=[],
+        )
+
+        # create another call and log that shouldn't be included
+        self.create_incoming_call(flow, contact)
+
+        call1_url = reverse("channels.channellog_call", args=[call1.id])
+
+        self.assertListFetch(
+            call1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log2, log1]
+        )
+
     def test_views(self):
         self.channel.role = "CASR"
         self.channel.save(update_fields=("role",))
