@@ -1,3 +1,13 @@
+v7.5.29
+----------
+ * Fix servicing of channel logs
+
+v7.5.28
+----------
+ * Stop writing to unused media name field
+ * Add missing C Msg failed reason
+ * Add anon-display field to API contact results if org is anon and make urn display null
+
 v7.5.27
 ----------
  * Revert change to Contact.Bulk_urn_cache_initialize to have it set org on contacts

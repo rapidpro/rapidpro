@@ -222,14 +222,14 @@ class ContactField(TembaModelField):
         if self.as_summary:
             urn = obj.get_urn()
             if urn:
-                urn_str, urn_display = urn.get_for_api(), obj.get_urn_display()
+                urn_str, urn_display = urn.get_for_api(), obj.get_urn_display() if not org.is_anon else None
             else:
                 urn_str, urn_display = None, None
 
             rep.update({"urn": urn_str, "urn_display": urn_display})
 
             if org.is_anon:
-                rep["anon_display"] = obj.anon_identifier
+                rep["anon_display"] = obj.anon_display
 
         return rep
 

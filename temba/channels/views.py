@@ -40,7 +40,7 @@ from temba.contacts.models import URN
 from temba.msgs.models import Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org
-from temba.orgs.views import AnonMixin, DependencyDeleteModal, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, countries, json
 from temba.utils.fields import SelectWidget
 from temba.utils.models import patch_queryset_count
@@ -1543,7 +1543,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             context["log"] = self.object.get_display(self.request.user)
             return context
 
-    class Msg(SpaMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
+    class Msg(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartListView):
         """
         All channel logs for a message
         """
@@ -1561,6 +1561,9 @@ class ChannelLogCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             menu.add_link(_("More Logs"), reverse("channels.channellog_list", args=[self.msg.channel.uuid]))
 
+        def get_object_org(self):
+            return self.msg.org
+
         def derive_queryset(self, **kwargs):
             return super().derive_queryset(**kwargs).filter(msg=self.msg).order_by("-created_on")
 
@@ -1570,7 +1573,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             context["logs"] = [log.get_display(self.request.user) for log in context["object_list"]]
             return context
 
-    class Call(AnonMixin, ContentMenuMixin, SmartListView):
+    class Call(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartListView):
         """
         All channel logs for a call
         """
@@ -1588,8 +1591,11 @@ class ChannelLogCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             menu.add_link(
                 _("More Calls"),
-                reverse("channels.channellog_list", args=[self.call.channel.uuid]) + "?connections=1",
+                reverse("channels.channellog_list", args=[self.call.channel.uuid]) + "?calls=1",
             )
+
+        def get_object_org(self):
+            return self.call.org
 
         def derive_queryset(self, **kwargs):
             return super().derive_queryset(**kwargs).filter(connection=self.call).order_by("-created_on")
