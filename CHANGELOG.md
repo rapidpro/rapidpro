@@ -1,3 +1,7 @@
+v7.5.31
+----------
+ * Add flow results in new UI
+
 v7.5.30
 ----------
  * Remove steps for add WAC credit line to businesses
