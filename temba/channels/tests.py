@@ -2362,36 +2362,6 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             )
             self.assertContains(response, "30 seconds")
 
-    def test_channellog_call_anonymous(self):
-        contact = self.create_contact("Joe Blow", phone="123")
-        call = IVRCall.objects.create(
-            contact=contact,
-            status=IVRCall.STATUS_ERRORED,
-            error_reason=IVRCall.ERROR_NOANSWER,
-            channel=self.channel,
-            org=self.org,
-            contact_urn=contact.urns.all().first(),
-            error_count=0,
-        )
-        url = reverse("channels.channellog_call", args=(call.id,))
-
-        self.login(self.admin)
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(url)
-            # admin has no access
-            self.assertLoginRedirect(response)
-
-        self.login(self.customer_support)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(url)
-            # customer_support has access
-            self.assertEqual(response.status_code, 200)
-
     def test_redaction_for_telegram(self):
         urn = "telegram:3527065"
         contact = self.create_contact("Fred Jones", urns=[urn])

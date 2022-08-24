@@ -183,25 +183,6 @@ class OrgFilterMixin:
             return queryset.filter(org=self.request.org)
 
 
-class AnonMixin(OrgPermsMixin):
-    """
-    Mixin that makes sure that anonymous orgs cannot add channels (have no permission if anon)
-    """
-
-    def has_permission(self, request, *args, **kwargs):
-        org = self.derive_org()
-
-        # can this user break anonymity? then we are fine
-        if self.request.user.is_staff:
-            return True
-
-        # otherwise if this org is anon, no go
-        if not org or org.is_anon:
-            return False
-        else:
-            return super().has_permission(request, *args, **kwargs)
-
-
 class OrgObjPermsMixin(OrgPermsMixin):
     def get_object_org(self):
         return self.get_object().org
