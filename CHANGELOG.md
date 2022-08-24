@@ -1,3 +1,7 @@
+v7.5.30
+----------
+ * Remove steps for add WAC credit line to businesses
+
 v7.5.29
 ----------
  * Fix servicing of channel logs
