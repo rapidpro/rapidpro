@@ -1,0 +1,317 @@
+-extends "smartmin/read.html"
+-load smartmin sms compress temba contacts i18n
+
+-block title
+  {{object.name}}
+  
+-block extra-less
+
+  -compress css inline
+    {% lessblock %}
+      :plain
+
+        .page-content {
+          align-self: auto;
+          max-width: 100%;
+        }
+
+        .archive-note {
+          text-align: center;
+          font-size: 90%;
+          font-color: #666;
+        }
+
+        .nav.nav-tabs > li > a:hover {
+          margin-right: 2px;
+          background: transparent;
+          border-color: transparent;
+        }
+
+        .nav.nav-tabs > li.active > a:hover {
+          margin-right: 2px;
+          background: #fff;
+          border-color: inherit;
+          border-bottom: 1px solid #fff;
+        }
+         
+        .after {
+          position: relative;
+        }
+
+        .tab {
+          display: inline-block;
+        }
+
+        .tab .content {
+          display: none;
+          position: absolute;
+        }
+
+        .tab.active .content {
+          display: block;
+        }
+
+        .chart {
+          width: 48%;
+          margin: 0;
+          padding: 0;
+          display: inline-block;
+        }
+
+        .chart.large {
+          width: 99% !important;
+        }
+
+        .chart.small {
+          width: 33% !important;
+        }
+
+        .chart .name {
+          padding-left: 50px;
+          padding-right: 50px;
+          font-size: 16px;
+          text-align: center;
+          position: relative;
+          top: 90px;
+          height: 50px;
+          z-index: 1;
+          text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white;
+        }
+
+        .hidden-columns {
+          margin-top:10px;
+        }
+
+        table {
+          width: 100%;
+        }
+
+        td {
+
+          padding: 10px 10px;
+          border-top: 1px solid rgb(239, 239, 239);
+          min-width: 150px;
+          background: #fff;
+
+          &.collapse {
+            width:0px;
+            border: none;
+            display:none;
+          }
+
+
+          &.header {
+            background: #efefef;
+            border-bottom: 1px solid #e6e6e6;
+            border-top: 1px solid #e6e6e6;
+            white-space: nowrap;
+
+            .icons {
+              color: rgba(30,30,30,.4);
+              text-shadow: 0px -1px rgba(230,230,230,.2);
+              margin-right:8px;
+              display:inline;
+            }
+
+            .details {
+              cursor: pointer;
+              display: inline;
+            }
+
+            .remove {
+              color: rgba(30,30,30,.4);
+              text-shadow: 0px -1px rgba(230,230,230,.2);
+              font-size:16px;
+              margin-right: 0px;
+              margin-top:1px;
+              visibility: hidden;
+              cursor: pointer;
+            }
+
+            &:hover {
+              .remove {
+                visibility:visible;
+              }
+            }
+
+         }
+
+         &.subheader {
+           padding: 0;
+           font-size: 11px;
+           padding: 3px 10px;
+           background: #e9e9e9;
+         }
+
+         &.started {
+           width: 200px;
+         }
+        }
+
+        .scroll-x {
+          width: 100%;
+          overflow-x: auto;
+        }
+
+        .responded-checkbox {
+          padding-bottom: 10px;
+          padding-left: 15px;
+
+          .input-group {
+            display: inline;
+            margin-left: 15px;
+            margin-right: 15px;
+          }
+
+          .runs-show-sep {
+            display: inline;
+            margin-left: 5px;
+            margin-right: 5px;
+          }
+
+          .runs-show {
+            display: inline;
+            cursor: pointer;
+            color: @color-primary;
+
+            &:hover{
+              text-decoration: underline;
+            }
+
+            &.active {
+              cursor: default;
+              pointer-events: none;
+              text-decoration: none;
+              color: #555555;
+            }
+          }
+        }
+
+        .add-columns {
+          display: inline;
+          margin-left: 8px;
+          .text {
+            display: block;
+          }
+
+          .selection {
+            display: none;
+          }
+
+          &.select {
+            .text {
+              display: none;
+            }
+
+            .selection {
+              display: inline;
+            }
+          }
+        }
+
+        input.contact-search {
+          width: 200px;
+          margin-top:5px;
+        }
+
+        tr.run {
+          &:hover {
+            background: #fbfbfb;
+            .icon-close {
+              visibility: visible;
+            }
+          }
+
+          .icon-close {
+            color: rgba(30,30,30,.2);
+            text-shadow: 0px -1px rgba(230,230,230,.2);
+            font-size:16px;
+            margin-left: -8px;
+            margin-top:1px;
+            visibility: hidden;
+            cursor: pointer;
+          }
+        }
+
+        .modal {
+          .modal-body {
+            max-height: 450px;
+          }
+        }
+
+    {% endlessblock %}
+
+-block extra-script
+  {{ block.super }}
+
+  -if not is_spa
+    %script(src="{{ STATIC_URL }}bower/highcharts/highcharts.js")
+    %script(src="{{ STATIC_URL }}bower/highcharts/modules/drilldown.js")
+
+  :javascript
+    function handleFlowRefreshed(evt) {
+      var flow = evt.detail.data;
+      if (flow.runs) {
+        var runCount = flow.runs.active + flow.runs.completed + flow.runs.expired + flow.runs.interrupted;
+
+        var tabs = document.querySelector("temba-tabs");
+        var runsTab = tabs.getTab(2);
+        runsTab.count = runCount;
+        tabs.requestUpdate();
+
+        var runList = document.querySelector("temba-run-list");
+        runList.results = flow.results;
+      }
+    }
+
+    function handleRunsRefreshed(evt) {
+      document.querySelector("temba-flow-details").refresh();
+    }
+
+    function deleteRun(id) {
+      var dialog = document.getElementById("confirm-run-delete");
+      dialog.runId = id;
+      dialog.open = true;
+    }
+
+    function performDelete(evt) {
+      var dialog = document.getElementById("confirm-run-delete");
+      dialog.open = false;
+
+      if(evt.detail.button.destructive) {
+        var store = document.querySelector("temba-store");
+        store.postUrl("/flowrun/delete/" + dialog.runId + "/").then(function(response) {
+          if (response.status == 200) {
+            var runList = document.querySelector("temba-run-list");
+            if (runList) {
+              runList.removeRun(dialog.runId);
+              var details = document.querySelector("temba-flow-details");
+              details.refresh();
+            }
+          }
+        });
+      }
+    }
+
+    
+
+-block content
+
+  %temba-flow-details(flow="{{object.uuid}}"  -temba-refreshed="handleFlowRefreshed")
+
+  %temba-tabs.flex-grow
+
+
+    %temba-tab(name='{{_("Overview")|escapejs}}')
+      .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
+
+
+    %temba-tab(name='{{_("Analytics")|escapejs}}')
+      #category-charts
+
+    %temba-tab(name='{{_("Runs")|escapejs}}')
+      %temba-run-list.p-4.flex.flex-col.flex-grow.overflow-hidden(flow="{{object.uuid}}" -temba-refreshed="handleRunsRefreshed")
+
+  %temba-dialog#confirm-run-delete(header='{{ _("Delete Run")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true' -temba-button-clicked="performDelete")
+    .p-6
+      -trans "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
