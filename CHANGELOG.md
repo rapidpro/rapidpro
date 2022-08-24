@@ -1,3 +1,7 @@
+v7.5.32
+----------
+ * Update components with label fix
+
 v7.5.31
 ----------
  * Add flow results in new UI
