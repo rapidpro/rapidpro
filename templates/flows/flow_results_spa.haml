@@ -469,7 +469,7 @@
       var store = document.querySelector("temba-store");
       var tabs = document.querySelector("temba-tabs");
 
-      if (tabs.index != 1) {
+      if (!tabs || tabs.index != 1) {
         return;
       }
 
@@ -509,6 +509,10 @@
 
     function handleTabChanged() {
       var tabs = document.querySelector("temba-tabs");
+
+      if (!tabs) {
+        return;
+      }
 
       // runs are paused unless our tab is active
       var runs = document.querySelector("temba-run-list");
