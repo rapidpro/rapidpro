@@ -10,62 +10,6 @@
     {% lessblock %}
       :plain
 
-        .page-content {
-          align-self: auto;
-          max-width: 100%;
-        }
-
-        .archive-note {
-          text-align: center;
-          font-size: 90%;
-          font-color: #666;
-        }
-
-        .nav.nav-tabs > li > a:hover {
-          margin-right: 2px;
-          background: transparent;
-          border-color: transparent;
-        }
-
-        .nav.nav-tabs > li.active > a:hover {
-          margin-right: 2px;
-          background: #fff;
-          border-color: inherit;
-          border-bottom: 1px solid #fff;
-        }
-         
-        .after {
-          position: relative;
-        }
-
-        .tab {
-          display: inline-block;
-        }
-
-        .tab .content {
-          display: none;
-          position: absolute;
-        }
-
-        .tab.active .content {
-          display: block;
-        }
-
-        .chart {
-          width: 48%;
-          margin: 0;
-          padding: 0;
-          display: inline-block;
-        }
-
-        .chart.large {
-          width: 99% !important;
-        }
-
-        .chart.small {
-          width: 33% !important;
-        }
-
         .chart .chart-name {
           padding-left: 50px;
           padding-right: 50px;
@@ -78,165 +22,36 @@
           text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white;
         }
 
-        .hidden-columns {
-          margin-top:10px;
-        }
-
-        table {
-          width: 100%;
-        }
-
-        td {
-
-          padding: 10px 10px;
-          border-top: 1px solid rgb(239, 239, 239);
-          min-width: 150px;
-          background: #fff;
-
-          &.collapse {
-            width:0px;
-            border: none;
-            display:none;
-          }
-
-
-          &.header {
-            background: #efefef;
-            border-bottom: 1px solid #e6e6e6;
-            border-top: 1px solid #e6e6e6;
-            white-space: nowrap;
-
-            .icons {
-              color: rgba(30,30,30,.4);
-              text-shadow: 0px -1px rgba(230,230,230,.2);
-              margin-right:8px;
-              display:inline;
-            }
-
-            .details {
-              cursor: pointer;
-              display: inline;
-            }
-
-            .remove {
-              color: rgba(30,30,30,.4);
-              text-shadow: 0px -1px rgba(230,230,230,.2);
-              font-size:16px;
-              margin-right: 0px;
-              margin-top:1px;
-              visibility: hidden;
-              cursor: pointer;
-            }
-
-            &:hover {
-              .remove {
-                visibility:visible;
-              }
-            }
-
-         }
-
-         &.subheader {
-           padding: 0;
-           font-size: 11px;
-           padding: 3px 10px;
-           background: #e9e9e9;
-         }
-
-         &.started {
-           width: 200px;
-         }
-        }
-
-        .scroll-x {
-          width: 100%;
-          overflow-x: auto;
-        }
-
-        .responded-checkbox {
-          padding-bottom: 10px;
-          padding-left: 15px;
-
-          .input-group {
-            display: inline;
-            margin-left: 15px;
-            margin-right: 15px;
-          }
-
-          .runs-show-sep {
-            display: inline;
-            margin-left: 5px;
-            margin-right: 5px;
-          }
-
-          .runs-show {
-            display: inline;
-            cursor: pointer;
-            color: @color-primary;
-
-            &:hover{
-              text-decoration: underline;
-            }
-
-            &.active {
-              cursor: default;
-              pointer-events: none;
-              text-decoration: none;
-              color: #555555;
-            }
-          }
-        }
-
-        .add-columns {
-          display: inline;
-          margin-left: 8px;
-          .text {
-            display: block;
-          }
-
-          .selection {
-            display: none;
-          }
-
-          &.select {
-            .text {
-              display: none;
-            }
-
-            .selection {
-              display: inline;
-            }
-          }
-        }
-
-        input.contact-search {
-          width: 200px;
-          margin-top:5px;
-        }
-
-        tr.run {
-          &:hover {
-            background: #fbfbfb;
-            .icon-close {
-              visibility: visible;
-            }
-          }
-
-          .icon-close {
-            color: rgba(30,30,30,.2);
-            text-shadow: 0px -1px rgba(230,230,230,.2);
-            font-size:16px;
-            margin-left: -8px;
-            margin-top:1px;
-            visibility: hidden;
-            cursor: pointer;
-          }
+        .chart {
+          flex-basis: 400px;
         }
 
         .modal {
           .modal-body {
             max-height: 450px;
           }
+        }
+
+        #category-charts {
+          justify-content: center; 
+        }
+
+
+        #overview-charts {
+          justify-content: center;
+          padding-top: 2em;
+
+        }
+
+        #overview-charts > div {
+          margin-bottom: 6em;
+          align-self: flex-start;
+          flex-basis: 400px;          
+        }
+
+        h4 {
+          font-weight: 300;
+          text-align: center;
         }
 
     {% endlessblock %}
@@ -249,6 +64,19 @@
     %script(src="{{ STATIC_URL }}bower/highcharts/modules/drilldown.js")
 
   :javascript
+
+    Highcharts.setOptions({
+      global: {
+        timezoneOffset: -1 * {{utcoffset}}
+      },
+      lang: {
+        thousandsSep: ','
+      }
+    })
+    
+    Highcharts.setOptions({
+      colors: ['#2387CA', '#8FC93A', '#E18335', '#483C46', '#E4CC37', '#723D46', '#606C38', '#7DCFB6']
+    });
 
     var colors = Highcharts.getOptions().colors;
     function getColor(index) {
@@ -518,6 +346,10 @@
       var runs = document.querySelector("temba-run-list");
       runs.paused = tabs.index != 2;
 
+      if (tabs.index == 0) {
+        fetchAjax('/flow/activity_chart/{{object.id}}', "#overview-charts", {});
+      }
+
       if (tabs.index == 1) {
         updateCharts();
       }
@@ -535,11 +367,10 @@
   %temba-tabs.flex-grow(-temba-context-changed="handleTabChanged")
 
     %temba-tab(name='{{_("Overview")|escapejs}}')
-      .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
-
+      #overview-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
 
     %temba-tab(name='{{_("Analytics")|escapejs}}' icon="bar-chart")
-      #category-charts.overflow-y-scroll.overflow-x-hidden
+      #category-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
 
     %temba-tab(name='{{_("Runs")|escapejs}}')
       %temba-run-list.p-4.flex.flex-col.flex-grow.overflow-hidden(flow="{{object.uuid}}" -temba-refreshed="handleRunsRefreshed")
