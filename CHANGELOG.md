@@ -1,3 +1,10 @@
+v7.5.33
+----------
+ * ChannelLogCRUDL.List should use get_description so that it works if log_type is set
+ * Tweak channel log types to match what courier now creates
+ * Check for tabs after timeouts, don't auto-collapse flows
+ * Add charts to analytics tab
+
 v7.5.32
 ----------
  * Update components with label fix
