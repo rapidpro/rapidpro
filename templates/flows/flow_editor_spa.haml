@@ -56,9 +56,6 @@
 
 -block page-container
 
-  :javascript
-    document.querySelector("temba-menu").collapsed = true;
-
   %temba-modax#send-message-modal{ header:"Send Message" }
 
   %temba-dialog.hide#confirm-language(header='{{_("Change Language")|escapejs}}' primaryButtonName='{{_("Update")|escapejs}}')
