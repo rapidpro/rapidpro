@@ -1185,27 +1185,31 @@ class ChannelLog(models.Model):
     A log of an interaction with a channel
     """
 
+    LOG_TYPE_UNKNOWN = "unknown"
     LOG_TYPE_MSG_SEND = "msg_send"
     LOG_TYPE_MSG_STATUS = "msg_status"
     LOG_TYPE_MSG_RECEIVE = "msg_receive"
+    LOG_TYPE_EVENT_RECEIVE = "event_receive"
     LOG_TYPE_IVR_START = "ivr_start"
     LOG_TYPE_IVR_INCOMING = "ivr_incoming"
     LOG_TYPE_IVR_CALLBACK = "ivr_callback"
     LOG_TYPE_IVR_STATUS = "ivr_status"
     LOG_TYPE_IVR_HANGUP = "ivr_hangup"
-    LOG_TYPE_CONTACT_UPDATE = "contact_update"
     LOG_TYPE_TOKEN_REFRESH = "token_refresh"
+    LOG_TYPE_PAGE_SUBSCRIBE = "page_subscribe"
     LOG_TYPE_CHOICES = (
+        (LOG_TYPE_UNKNOWN, _("Other Event")),
         (LOG_TYPE_MSG_SEND, _("Message Send")),
         (LOG_TYPE_MSG_STATUS, _("Message Status")),
         (LOG_TYPE_MSG_RECEIVE, _("Message Receive")),
+        (LOG_TYPE_EVENT_RECEIVE, _("Event Receive")),
         (LOG_TYPE_IVR_START, _("IVR Start")),
         (LOG_TYPE_IVR_INCOMING, _("IVR Incoming")),
         (LOG_TYPE_IVR_CALLBACK, _("IVR Callback")),
         (LOG_TYPE_IVR_STATUS, _("IVR Status")),
         (LOG_TYPE_IVR_HANGUP, _("IVR Hangup")),
-        (LOG_TYPE_CONTACT_UPDATE, _("Contact Update")),
         (LOG_TYPE_TOKEN_REFRESH, _("Token Refresh")),
+        (LOG_TYPE_PAGE_SUBSCRIBE, _("Page Subscribe")),
     )
 
     id = models.BigAutoField(primary_key=True)
