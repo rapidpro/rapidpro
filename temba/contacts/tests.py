@@ -2521,7 +2521,7 @@ class ContactTest(TembaTest):
         self.assertContains(response, "<audio ")
         self.assertContains(response, '<source type="audio/mp3" src="http://blah/file.mp3" />')
         self.assertContains(response, "<video ")
-        self.assertContains(response, '<source type="video/mp4" src="http://blah/file.mp4" />')
+        self.assertContains(response, '<source src="http://blah/file.mp4" type="video/mp4"')
         self.assertContains(
             response,
             "http://www.openstreetmap.org/?mlat=47.5414799&amp;mlon=-122.6359908#map=18/47.5414799/-122.6359908",
