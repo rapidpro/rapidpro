@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
-from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest, mock_object
 from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 
@@ -184,16 +184,19 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_http_log(self):
         channel = self.create_channel("WAC", "WhatsApp: 1234", "1234")
 
-        exception = RequestException("Network is unreachable", response=MockResponse(100, ""))
+        exception = RequestException(
+            "Network is unreachable",
+            request=mock_object(
+                "MockRequest",
+                method="GET",
+                url="https://graph.facebook.com/v14.0/1234/message_templates?access_token=MISSING_WHATSAPP_ADMIN_SYSTEM_USER_TOKEN",
+                body=b"{}",
+                headers={},
+            ),
+        )
         start = timezone.now()
 
-        log1 = HTTPLog.create_from_exception(
-            HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
-            "https://graph.facebook.com/v14.0/1234/message_templates",
-            exception,
-            start,
-            channel=channel,
-        )
+        log1 = HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, exception, start, channel=channel)
 
         self.login(self.admin)
         log_url = reverse("request_logs.httplog_read", args=[log1.id])
@@ -202,13 +205,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Connection Error")
         self.assertContains(response, "https://graph.facebook.com/v14.0/1234/message_templates")
 
-        log2 = HTTPLog.create_from_exception(
-            HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
-            "https://graph.facebook.com/v14.0/1234/message_templates?access_token=MISSING_WHATSAPP_ADMIN_SYSTEM_USER_TOKEN",
-            exception,
-            start,
-            channel=channel,
-        )
+        log2 = HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, exception, start, channel=channel)
         log2_url = reverse("request_logs.httplog_read", args=[log2.id])
         response = self.client.get(log2_url)
         self.assertContains(response, "200")
