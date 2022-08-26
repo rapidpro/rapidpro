@@ -1,3 +1,11 @@
+v7.5.34
+----------
+ * Use elapsed_ms rather than request_time on channel log templates
+ * Update components (custom widths for temba-dialog, use anon_display where possible)
+ * Switch to temba-dialog based attachment viewer, remove previous libs
+ * Nicer collapsing on flow list columns
+ * Add overview charts for run results
+
 v7.5.33
 ----------
  * ChannelLogCRUDL.List should use get_description so that it works if log_type is set
