@@ -34,12 +34,20 @@ class WeChatClient(JioChatClient):
                     params={"grant_type": "client_credential", "appid": self.app_id, "secret": self.app_secret},
                     timeout=15,
                 )
-                ChannelLog.from_response(ChannelLog.LOG_TYPE_TOKEN_REFRESH, channel, response, start, timezone.now())
 
                 if response.status_code != 200:
+                    ChannelLog.from_response(
+                        ChannelLog.LOG_TYPE_TOKEN_REFRESH, channel, response, start, timezone.now()
+                    )
                     return
 
                 response_json = response.json()
+                has_error = response_json.get("errcode", -1) != 0
+
+                ChannelLog.from_response(
+                    ChannelLog.LOG_TYPE_TOKEN_REFRESH, channel, response, start, timezone.now(), is_error=has_error
+                )
+
                 access_token = response_json.get("access_token", "")
                 expires = response_json.get("expires_in", 7200)
                 if access_token:

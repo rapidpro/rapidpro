@@ -1,5 +1,3 @@
-import time
-
 import requests
 from django_redis import get_redis_connection
 
@@ -46,7 +44,7 @@ class JioChatClient:
             with r.lock(lock_name, timeout=30):
                 key = self.token_store_key % self.channel_uuid
 
-                start = time.time()
+                start = timezone.now()
                 response = self._request(
                     self.token_url,
                     {

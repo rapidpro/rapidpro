@@ -1236,9 +1236,9 @@ class ChannelLog(models.Model):
     request_time = models.IntegerField(null=True)
 
     @classmethod
-    def from_response(cls, log_type, channel, response, created_on, ended_on):
+    def from_response(cls, log_type, channel, response, created_on, ended_on, is_error=None):
         http_log = HttpLog.from_response(response, created_on, ended_on)
-        is_error = http_log.status_code >= 400
+        is_error = is_error if is_error is not None else http_log.status_code >= 400
 
         return cls.objects.create(
             log_type=log_type,
