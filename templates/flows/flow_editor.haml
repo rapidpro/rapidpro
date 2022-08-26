@@ -205,6 +205,13 @@
     function handleEditorLoaded() {
       $('temba-loading').hide();
       $('#rp-flow-editor > div').css('opacity', '1');
+
+      {% if use_weni_layout %}
+        window.parent.postMessage({ 
+          event: 'flowEditorLoaded',
+          success: true
+        }, '*');
+      {% endif %}
     }
 
     function handleActivityClicked(nodeUUID, count) {
