@@ -1,3 +1,7 @@
+1.5.3-rapidpro-7.1.27
+----------
+* Adjust weni.internal in INSTALLED_APPS
+
 1.5.2-rapidpro-7.1.27
 ----------
 * Add weni.internals to INSTALLED_APPS
