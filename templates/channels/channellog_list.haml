@@ -55,7 +55,7 @@
                         {{obj.get_description}}
                   %td
                     %span
-                      {{ obj.request_time|default:"0"|intcomma }}ms
+                      {{ obj.elapsed_ms|default:"0"|intcomma }}ms
 
                   %td(style='text-align: right' nowrap='true')
                     {% format_datetime obj.created_on seconds=True %}
