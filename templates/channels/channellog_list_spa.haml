@@ -46,16 +46,16 @@
             %td
               -if obj.msg
                 .hover-linked(onclick="goto(event)" href='{% url "channels.channellog_msg" obj.msg.id %}')
-                  {{obj.description}}
+                  {{obj.get_description}}
               -elif obj.connection
                 .hover-linked(onclick="goto(event)" href='{% url "channels.channellog_call" obj.connection.id %}')
-                  {{obj.description}}
+                  {{obj.get_description}}
               -else
                 .hover-linked(onclick="goto(event)" href='{% url "channels.channellog_read" obj.id %}')
-                  {{obj.description}}
+                  {{obj.get_description}}
             %td
               %span
-                {{ obj.request_time|default:"0"|intcomma }}ms
+                {{ obj.elapsed_ms|default:"0"|intcomma }}ms
 
             %td(style='text-align: right' nowrap='true')
               {% format_datetime obj.created_on seconds=True %}
