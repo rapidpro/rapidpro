@@ -3,9 +3,10 @@ import time
 import requests
 from django_redis import get_redis_connection
 
-from temba.channels.models import ChannelLog
-from temba.utils import json
-from temba.utils.http import HttpEvent, http_headers
+from django.utils import timezone
+
+from temba.channels.models import Channel, ChannelLog
+from temba.utils.http import http_headers
 
 
 class JioChatClient:
@@ -37,6 +38,7 @@ class JioChatClient:
             return access_token
 
     def refresh_access_token(self, channel_id):
+        channel = Channel.objects.get(id=channel_id)
         r = get_redis_connection()
         lock_name = self.token_refresh_lock % self.channel_uuid
 
@@ -44,32 +46,22 @@ class JioChatClient:
             with r.lock(lock_name, timeout=30):
                 key = self.token_store_key % self.channel_uuid
 
-                post_data = {
-                    "grant_type": "client_credentials",
-                    "client_id": self.app_id,
-                    "client_secret": self.app_secret,
-                }
-                url = self.token_url
-
-                event = HttpEvent("POST", url, json.dumps(post_data))
                 start = time.time()
-
-                response = self._request(url, post_data, access_token=None)
-                event.status_code = response.status_code
+                response = self._request(
+                    self.token_url,
+                    {
+                        "grant_type": "client_credentials",
+                        "client_id": self.app_id,
+                        "client_secret": self.app_secret,
+                    },
+                    access_token=None,
+                )
+                ChannelLog.from_response(ChannelLog.LOG_TYPE_TOKEN_REFRESH, channel, response, start, timezone.now())
 
                 if response.status_code != 200:
-                    event.response_body = response.content
-                    ChannelLog.log_channel_request(
-                        channel_id, f"Got non-200 response from {self.api_name}", event, start, True
-                    )
                     return
 
                 response_json = response.json()
-                event.response_body = json.dumps(response_json)
-                ChannelLog.log_channel_request(
-                    channel_id, f"Successfully fetched access token from {self.api_name}", event, start
-                )
-
                 access_token = response_json["access_token"]
                 expires = response_json.get("expires_in", 7200)
                 r.set(key, access_token, ex=int(expires))

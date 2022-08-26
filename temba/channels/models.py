@@ -1,5 +1,4 @@
 import logging
-import time
 from abc import ABCMeta
 from datetime import timedelta
 from enum import Enum
@@ -30,6 +29,7 @@ from temba import mailroom
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, countries, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
+from temba.utils.http import HttpLog
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
 
@@ -1236,20 +1236,16 @@ class ChannelLog(models.Model):
     request_time = models.IntegerField(null=True)
 
     @classmethod
-    def log_channel_request(cls, channel_id, description, event, start, is_error=False):
-        request_time = 0 if not start else time.time() - start
-        request_time_ms = request_time * 1000
+    def from_response(cls, log_type, channel, response, created_on, ended_on):
+        http_log = HttpLog.from_response(response, created_on, ended_on)
+        is_error = http_log.status_code >= 400
 
-        return ChannelLog.objects.create(
-            channel_id=channel_id,
-            request=str(event.request_body),
-            response=str(event.response_body),
-            url=event.url,
-            method=event.method,
+        return cls.objects.create(
+            log_type=log_type,
+            channel=channel,
+            http_logs=[http_log.as_json()],
             is_error=is_error,
-            response_status=event.status_code,
-            description=description[:255],
-            request_time=request_time_ms,
+            elapsed_ms=http_log.elapsed_ms,
         )
 
     def _get_display_value(self, user, original, redact_keys=(), redact_values=()):
