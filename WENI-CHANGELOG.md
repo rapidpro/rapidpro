@@ -1,3 +1,8 @@
+1.5.1-rapidpro-7.1.27
+----------
+* Bump weni-rp-apps from 1.0.22 to 1.0.23
+* add iframe post message on editor load
+
 1.5.0-rapidpro-7.1.27
 ----------
 * Feat: Hide org config fields
