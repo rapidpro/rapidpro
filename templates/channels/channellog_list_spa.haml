@@ -45,7 +45,7 @@
                 -trans "Channel interaction"
             %td
               -if obj.msg
-                .hover-linked(onclick="goto(event)" href='{% url "channels.channellog_msg" obj.msg.id %}')
+                .hover-linked(onclick="goto(event)" href='{% url "channels.channellog_msg" obj.channel.uuid obj.msg.id %}')
                   {{obj.get_description}}
               -elif obj.connection
                 .hover-linked(onclick="goto(event)" href='{% url "channels.channellog_call" obj.connection.id %}')

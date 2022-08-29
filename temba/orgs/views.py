@@ -1404,6 +1404,7 @@ class OrgCRUDL(SmartCRUDL):
                         "icon": "settings",
                         "endpoint": f"{reverse('orgs.org_menu')}settings/",
                         "bottom": True,
+                        "show_header": True,
                     }
                 )
 
