@@ -1582,7 +1582,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<call_id>\d+)/$" % (path, action)
+            return r"^(?P<channel_uuid>[0-9a-f-]+)/%s/%s/(?P<call_id>\d+)/$" % (path, action)
 
         @cached_property
         def call(self):

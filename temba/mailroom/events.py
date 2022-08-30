@@ -158,7 +158,7 @@ class Event:
         logs_url = None
         if obj.channel_logs.exists():
             logs_url = _url_for_user(
-                org, user, "channels.channellog_call", args=[obj.id], perm="channels.channellog_read"
+                org, user, "channels.channellog_call", args=[obj.channel.uuid, obj.id], perm="channels.channellog_read"
             )
 
         return {

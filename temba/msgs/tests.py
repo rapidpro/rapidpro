@@ -1789,7 +1789,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(30):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
@@ -1820,7 +1820,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(29):
             self.client.get(failed_url)
 
         response = self.assertListFetch(

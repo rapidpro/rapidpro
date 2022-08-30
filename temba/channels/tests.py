@@ -2216,7 +2216,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         # create another call and log that shouldn't be included
         self.create_incoming_call(flow, contact)
 
-        call1_url = reverse("channels.channellog_call", args=[call1.id])
+        call1_url = reverse("channels.channellog_call", args=[self.channel.uuid, call1.id])
 
         self.assertListFetch(
             call1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log2, log1]
@@ -2347,7 +2347,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "2 results")
 
         # make sure we can see the details of the IVR log
-        response = self.client.get(reverse("channels.channellog_call", args=[call.id]))
+        response = self.client.get(reverse("channels.channellog_call", args=[self.channel.uuid, call.id]))
         self.assertContains(response, "{&quot;say&quot;: &quot;Hello&quot;}")
 
         # if duration isn't set explicitly, it can be calculated
@@ -2383,7 +2383,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("", args=[msg.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         # check list page shows un-redacted content for a regular org
         response = self.client.get(list_url)
