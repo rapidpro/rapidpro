@@ -1440,7 +1440,7 @@ class ChannelEventCRUDL(SmartCRUDL):
 
 class ChannelLogCRUDL(SmartCRUDL):
     model = ChannelLog
-    path = "log"  # urls like /channels/log/
+    path = "logs"  # urls like /channels/logs/
     actions = ("list", "read", "msg", "call")
 
     class List(SpaMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
@@ -1552,7 +1552,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<msg_id>\d+)/$" % (path, action)
+            return r"^(?P<channel_uuid>[0-9a-f-]+)/%s/%s/(?P<msg_id>\d+)/$" % (path, action)
 
         @cached_property
         def msg(self):
@@ -1582,7 +1582,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<call_id>\d+)/$" % (path, action)
+            return r"^(?P<channel_uuid>[0-9a-f-]+)/%s/%s/(?P<call_id>\d+)/$" % (path, action)
 
         @cached_property
         def call(self):

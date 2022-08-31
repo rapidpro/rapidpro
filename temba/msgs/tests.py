@@ -1789,7 +1789,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(30):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
@@ -1797,7 +1797,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             sent_url, allow_viewers=True, allow_editors=True, context_objects=[msg1, msg3, msg2]
         )
 
-        self.assertContains(response, reverse("channels.channellog_msg", args=[msg1.id]))
+        self.assertContains(response, reverse("channels.channellog_msg", args=[msg1.channel.uuid, msg1.id]))
 
         response = self.client.get(sent_url + "?search=joe")
         self.assertEqual([msg1, msg2], list(response.context_data["object_list"]))
@@ -1820,7 +1820,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(29):
             self.client.get(failed_url)
 
         response = self.assertListFetch(
@@ -1828,12 +1828,12 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertEqual(("resend",), response.context["actions"])
-        self.assertContains(response, reverse("channels.channellog_msg", args=[msg1.id]))
+        self.assertContains(response, reverse("channels.channellog_msg", args=[msg1.channel.uuid, msg1.id]))
 
         # make the org anonymous
         with AnonymousOrg(self.org):
             response = self.requestView(failed_url, self.admin)
-            self.assertNotContains(response, reverse("channels.channellog_msg", args=[msg1.id]))
+            self.assertNotContains(response, reverse("channels.channellog_msg", args=[msg1.channel.uuid, msg1.id]))
 
         # resend some messages
         self.client.post(failed_url, {"action": "resend", "objects": [msg2.id]})
