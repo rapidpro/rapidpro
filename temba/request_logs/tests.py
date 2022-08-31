@@ -55,7 +55,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
             org=self.org,
             log_type="webhook_called",
             url="http://org1.bar/",
-            request="GET /zap",
+            request="GET /zap\nHost: org1.bar\n\n",
             response=" OK 200",
             request_time=10,
             is_error=False,
@@ -67,7 +67,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
             org=self.org2,
             log_type="webhook_called",
             url="http://org1.bar/",
-            request="GET /zap",
+            request="GET /zap\nHost: org1.bar\n\n",
             response=" OK 200",
             request_time=10,
             is_error=False,
@@ -79,7 +79,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
             org=self.org,
             log_type="intents_synced",
             url="http://org1.bar/",
-            request="GET /zap",
+            request="GET /zap\nHost: org1.bar\n\n",
             response=" OK 200",
             request_time=10,
             is_error=False,
@@ -95,7 +95,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         # view the individual log item
         response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=True, context_object=l1)
         self.assertContains(response, "200")
-        self.assertContains(response, "http://org1.bar/")
+        self.assertContains(response, "org1.bar")
 
     def test_classifier(self):
         c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
@@ -106,7 +106,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         l1 = HTTPLog.objects.create(
             classifier=c1,
             url="http://org1.bar/zap/?text=" + ("0123456789" * 30),
-            request="GET /zap",
+            request="GET /zap\nHost: org1.bar\n\n",
             response=" OK 200",
             is_error=False,
             log_type=HTTPLog.INTENTS_SYNCED,
@@ -116,7 +116,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         HTTPLog.objects.create(
             classifier=c2,
             url="http://org2.bar/zap",
-            request="GET /zap",
+            request="GET /zap\nHost: org2.bar\n\n",
             response=" OK 200",
             is_error=False,
             log_type=HTTPLog.CLASSIFIER_CALLED,
@@ -137,8 +137,8 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         # view the individual log item
         response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=False, context_object=l1)
         self.assertContains(response, "200")
-        self.assertContains(response, "http://org1.bar/zap")
-        self.assertNotContains(response, "http://org2.bar/zap")
+        self.assertContains(response, "org1.bar")
+        self.assertNotContains(response, "org2.bar")
 
         # can't list logs for deleted classifier
         response = self.requestView(reverse("request_logs.httplog_classifier", args=[c2.uuid]), self.admin)
@@ -154,7 +154,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         l1 = HTTPLog.objects.create(
             ticketer=t1,
             url="http://org1.bar/zap",
-            request="GET /zap",
+            request="GET /zap\nHost: org1.bar\n\n",
             response=" OK 200",
             is_error=False,
             log_type=HTTPLog.TICKETER_CALLED,
@@ -174,8 +174,8 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         # view the individual log item
         response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=False, context_object=l1)
         self.assertContains(response, "200")
-        self.assertContains(response, "http://org1.bar/zap")
-        self.assertNotContains(response, "http://org2.bar/zap")
+        self.assertContains(response, "org1.bar")
+        self.assertNotContains(response, "org2.bar")
 
         # can't list logs for deleted ticketer
         response = self.requestView(reverse("request_logs.httplog_ticketer", args=[t2.uuid]), self.admin)
@@ -183,13 +183,14 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_http_log(self):
         channel = self.create_channel("WAC", "WhatsApp: 1234", "1234")
+        url = "https://graph.facebook.com/v14.0/1234/message_templates"
 
-        exception = RequestException("Network is unreachable", response=MockResponse(100, ""))
+        exception = RequestException("Network is unreachable", response=MockResponse(100, "", url=url))
         start = timezone.now()
 
         log1 = HTTPLog.create_from_exception(
             HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
-            "https://graph.facebook.com/v14.0/1234/message_templates",
+            url,
             exception,
             start,
             channel=channel,
@@ -200,11 +201,14 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(log_url)
         self.assertContains(response, "200")
         self.assertContains(response, "Connection Error")
-        self.assertContains(response, "https://graph.facebook.com/v14.0/1234/message_templates")
+        self.assertContains(response, "/v14.0/1234/message_templates")
+
+        url = "https://graph.facebook.com/v14.0/1234/message_templates?access_token=MISSING_WHATSAPP_ADMIN_SYSTEM_USER_TOKEN"
+        exception = RequestException("Network is unreachable", response=MockResponse(100, "", url=url))
 
         log2 = HTTPLog.create_from_exception(
             HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
-            "https://graph.facebook.com/v14.0/1234/message_templates?access_token=MISSING_WHATSAPP_ADMIN_SYSTEM_USER_TOKEN",
+            url,
             exception,
             start,
             channel=channel,
@@ -213,7 +217,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(log2_url)
         self.assertContains(response, "200")
         self.assertContains(response, "Connection Error")
-        self.assertContains(response, "https://graph.facebook.com/v14.0/1234/message_templates?access_token=********")
+        self.assertContains(response, "/v14.0/1234/message_templates?access_token=********")
 
         # and can't be from other org
         self.login(self.admin2)

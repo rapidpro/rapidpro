@@ -3,15 +3,24 @@
 .bg-white.rounded-lg.shadow.flex.flex-col
   .px-6.py-3
     .flex.flex-wrap.items-center
-      .fetch.flex-nowrap.flex.truncate.items-center.mr-4
-        .status.text-xl.font-normal.mr-4(class="{% if log.status_code < 200 or log.status_code >= 404 %}log-error{% endif %}")        
-          -if log.status_code < 200 or log.status_cod >= 400
-              -trans "Error"
+      .fetch.flex-nowrap.flex.truncate.items-center
+        .status.text-xl.font-normal
+          -if log.status_code > 0 and log.status_code < 200
+              .log-error.mr-4
+                -trans "Error"
+          
           -else
-            {{ log.status_code|default:"--" }}
+            -if log.status_code >= 400
+              .log-error.mr-4
+                -trans "Error"
+            -else
+              -if log.status_code
+                .mr-4
+                  {{ log.status_code|default:"" }}
 
         .time.text-xl.elapsed(class="{% if log.elapsed_ms > 3000%}log-error{%endif%}")
-          {{ log.elapsed_ms|default:"0"|intcomma }} ms
+          -if log.elapsed_ms > 0
+            {{ log.elapsed_ms|default:"0"|intcomma }} ms
 
       .flex-grow
       .flex

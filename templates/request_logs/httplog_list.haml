@@ -12,20 +12,21 @@
     {{ source.name }}
 
 -block table
-  %table.list.lined
+  %table.rounded-b-lg.shadow.bg-white
     %tbody
     -for obj in object_list
       %tr(class="{% if obj.is_error %}warning{% endif %}")
-        %td.w-full.clickable
+        %td.w-full.clickable.p-4
           %a(href='{% url "request_logs.httplog_read" obj.id %}')
             {{ obj.get_log_type_display }}
-        %td.clickable
-          %a(href='{% url "request_logs.httplog_read" obj.id %}')
+        %td.clickable.p-4
+        
+          %a.whitespace-nowrap(href='{% url "request_logs.httplog_read" obj.id %}')
             {{ obj.status_code|default:"--" }}
-        %td.whitespace-nowrap
+        %td.whitespace-nowrap.p-4
           -if obj.request_time
             {{ obj.request_time|intcomma }}ms
           -else
             {{ "--" }}
-        %td.text-right.whitespace-nowrap
+        %td.text-right.whitespace-nowrap.p-4
           {% format_datetime obj.created_on seconds=True %}
