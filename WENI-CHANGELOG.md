@@ -1,3 +1,7 @@
+1.5.4-rapidpro-7.1.27
+----------
+* Bump weni-rp-apps from 1.0.24 to 1.0.25
+
 1.5.3-rapidpro-7.1.27
 ----------
 * Adjust weni.internal in INSTALLED_APPS
