@@ -801,7 +801,7 @@ class ChannelCRUDL(SmartCRUDL):
             if obj.type.show_config_page:
                 menu.add_link(_("Settings"), reverse("channels.channel_configuration", args=[obj.uuid]))
 
-            if not obj.is_android():
+            if not self.is_spa() and not obj.is_android():
                 sender = obj.get_sender()
                 caller = obj.get_caller()
 
@@ -853,9 +853,7 @@ class ChannelCRUDL(SmartCRUDL):
                         )
 
             if self.has_org_perm("channels.channel_delete"):
-                menu.add_modax(
-                    _("Delete Channel"), "delete-channel", reverse("channels.channel_delete", args=[obj.uuid])
-                )
+                menu.add_modax(_("Delete"), "delete-channel", reverse("channels.channel_delete", args=[obj.uuid]))
 
             if obj.channel_type == "FB" and self.has_org_perm("channels.channel_facebook_whitelist"):
                 menu.add_modax(
@@ -1467,14 +1465,15 @@ class ChannelLogCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
 
-            if self.folder != self.FOLDER_MESSAGES:
-                menu.add_link(_("Messages"), list_url)
-            if self.folder != self.FOLDER_CALLS and self.channel.supports_ivr():
-                menu.add_link(_("Calls"), f"{list_url}?calls=1")
-            if self.folder != self.FOLDER_OTHERS:
-                menu.add_link(_("Other Interactions"), f"{list_url}?others=1")
-            if self.folder != self.FOLDER_ERRORS:
-                menu.add_link(_("Errors"), f"{list_url}?errors=1")
+            if not self.is_spa():
+                if self.folder != self.FOLDER_MESSAGES:
+                    menu.add_link(_("Messages"), list_url)
+                if self.folder != self.FOLDER_CALLS and self.channel.supports_ivr():
+                    menu.add_link(_("Calls"), f"{list_url}?calls=1")
+                if self.folder != self.FOLDER_OTHERS:
+                    menu.add_link(_("Other Interactions"), f"{list_url}?others=1")
+                if self.folder != self.FOLDER_ERRORS:
+                    menu.add_link(_("Errors"), f"{list_url}?errors=1")
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -1521,6 +1520,7 @@ class ChannelLogCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["channel"] = self.channel
+            context["folder"] = self.folder
             return context
 
     class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
@@ -1532,8 +1532,8 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def build_content_menu(self, menu):
             obj = self.get_object()
-
-            menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[obj.channel.uuid]))
+            if not self.is_spa():
+                menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[obj.channel.uuid]))
 
         def get_object_org(self):
             return self.get_object().channel.org
@@ -1559,7 +1559,8 @@ class ChannelLogCRUDL(SmartCRUDL):
             return get_object_or_404(Msg, pk=self.kwargs["msg_id"])
 
         def build_content_menu(self, menu):
-            menu.add_link(_("More Logs"), reverse("channels.channellog_list", args=[self.msg.channel.uuid]))
+            if not self.is_spa():
+                menu.add_link(_("More Logs"), reverse("channels.channellog_list", args=[self.msg.channel.uuid]))
 
         def get_object_org(self):
             return self.msg.org
