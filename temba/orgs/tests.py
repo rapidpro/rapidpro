@@ -3509,7 +3509,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
         self.login(self.admin)
         self.assertMenu(reverse("orgs.org_menu"), 7)
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 11)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 8)
 
         menu_url = reverse("orgs.org_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=True)
@@ -3591,7 +3591,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Transfer Credits")
 
         # should have an extra menu option for our child (and section header)
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 13)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 10)
 
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
