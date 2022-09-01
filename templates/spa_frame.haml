@@ -842,7 +842,7 @@
           .flex.org-chooser
             .flex-grow
             .pr-5.py-2.text-sm.font-normal.selection
-              %temba-select.w-full(onchange="handleWorkspaceChanged(event)")  
+              %temba-select.w-full(onchange="handleWorkspaceChanged(event)" option-width="250" anchor-right="true")  
                 %temba-option(name='{{ user_org.name|escapejs }}' value="{{user_org.id}}" selected="true")
                 -for other_org in user_orgs
                   -if other_org.id != user_org.id
