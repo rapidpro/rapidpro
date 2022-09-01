@@ -234,7 +234,7 @@ class TriggerCRUDL(SmartCRUDL):
                 )
             )
 
-            menu.append(self.create_menu_item(name=_("Create Trigger"), icon="plus", href="triggers.trigger_create"))
+            menu.append(self.create_menu_item(name=_("New Trigger"), icon="plus", href="triggers.trigger_create"))
 
             menu.append(self.create_divider())
 
@@ -252,11 +252,11 @@ class TriggerCRUDL(SmartCRUDL):
             return menu
 
     class Create(SpaMixin, FormaxMixin, OrgFilterMixin, OrgPermsMixin, SmartTemplateView):
-        title = _("Create Trigger")
+        title = _("New Trigger")
 
         def derive_formax_sections(self, formax, context):
             def add_section(name, url, icon):
-                formax.add_section(name, reverse(url), icon=icon, action="redirect", button=_("Create Trigger"))
+                formax.add_section(name, reverse(url), icon=icon, action="redirect", button=_("New Trigger"))
 
             org_schemes = self.org.get_schemes(Channel.ROLE_RECEIVE)
             add_section("trigger-keyword", "triggers.trigger_create_keyword", "icon-tree")
