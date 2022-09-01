@@ -2,8 +2,9 @@
 -load i18n compress
 
 -block content
-  .card.flex.mt-0.flex-shrink-0
-    -block group_object
+  .bg-white.rounded-lg.shadow.flex.mt-0.flex-shrink-0.mb-4
+    .p-4
+      -block group_object
   
   -for log in logs  
     -include "channels/channellog.haml" with log=log
@@ -40,6 +41,11 @@
     .page-content {
       max-width: 100%;
     }
+
+    .log-error {
+      color: rgb(var(--error-rgb));
+    }
+
 
 -block extra-less
   {{block.super}}

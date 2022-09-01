@@ -18,7 +18,7 @@ window.urls = [
   { old: /\/campaignevent\/read\/(.*)\/(.*)/,            new: /\/campaigns\/(.*)\/(.*)/ },
   { old: /\/campaign\/read\/(.*)\//,                     new: /\/campaigns\/(.*)/ },
   { old: /\/campaign\//,                                 new: /\/campaigns\/active/ },
-  { old: /\/channels\/log\/(.*)\//,                      new: /\/settings\/channels\/(.*)\/history/ },
+  { old: /\/channels\/logs\/(.*)\//,                     new: /\/settings\/channels\/(.*)\/history/ },
   { old: /\/channels\/channel\/configuration\/(.*)\//,   new: /\/settings\/channels\/(.*)\/config/ },
   { old: /\/channels\/channel\/read\/(.*)/,              new: /\/settings\/channels\/(.*)/ },
   { old: /\/channels\/types\/(.*)\/claim/,               new: /\/settings\/channel\/(.*)/ },
