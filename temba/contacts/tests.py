@@ -61,7 +61,7 @@ from .models import (
     ExportContactsTask,
 )
 from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
-from .templatetags.contacts import contact_field, history_class, history_icon
+from .templatetags.contacts import contact_field, history_class, history_icon, msg_status_badge
 
 
 class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
@@ -2712,6 +2712,28 @@ class ContactTest(TembaTest):
         )
         self.assertContains(response, "unable to send email")
         self.assertContains(response, "this is a failure")
+
+    def test_msg_status_badge(self):
+
+        msg = self.create_outgoing_msg(self.joe, "This is an outgoing message")
+
+        # wired has a primary color check
+        msg.status = Msg.STATUS_WIRED
+        self.assertIn('"check"', msg_status_badge(msg))
+        self.assertIn("--color-primary-dark", msg_status_badge(msg))
+
+        # delivered has a success check
+        msg.status = Msg.STATUS_DELIVERED
+        self.assertIn('"check"', msg_status_badge(msg))
+        self.assertIn("--success-rgb", msg_status_badge(msg))
+
+        # errored show retrying icon
+        msg.status = Msg.STATUS_ERRORED
+        self.assertIn('"refresh-cw"', msg_status_badge(msg))
+
+        # failed messages show an x
+        msg.status = Msg.STATUS_FAILED
+        self.assertIn('"x"', msg_status_badge(msg))
 
     def test_history_templatetags(self):
         item = {"type": "webhook_called", "url": "http://test.com", "status": "success"}
