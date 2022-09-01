@@ -1,36 +1,6 @@
 {% extends "smartmin/read.html" %}
 -load temba compress smartmin i18n
 
--block extra-script
-  {{block.super}}
-  :javascript
-    var currentOrg = {{user_org.id}};
-    function handleWorkspaceChanged(evt) {
-      var orgId = evt.target.value.value;
-      if (orgId != currentOrg) {
-        showLoading();
-        var store = document.querySelector("temba-store");
-        store.postUrl("/org/choose/", "organization=" + orgId, {}, 'application/x-www-form-urlencoded').then(function(response) {
-          var menu = document.querySelector("temba-menu");
-          menu.setSelectionPath("settings/account");
-          menu.refresh();
-        })
-      }
-    }
-
--block page-header
-
-  -if user_orgs|length > 1 or request.user.is_staff
-    .text-xl.w-full.mb-4
-      %temba-select.w-full(onchange="handleWorkspaceChanged(event)")
-        %temba-option(name='{{ user_org.name|escapejs }}' value="{{user_org.id}}" selected="true")
-        -for other_org in user_orgs
-          -if other_org.id != user_org.id
-            %temba-option(name='{{ other_org.name|escapejs }}' value="{{other_org.id}}")
-  - else
-    {{block.super}}
-
-
 -block content
   -if not two_factor_enabled
     %temba-alert.mb-4(level="info")

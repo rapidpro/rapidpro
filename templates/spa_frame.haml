@@ -70,8 +70,25 @@
       pointer-events: none;
     }
 
-    .spa-container.loading .spa-loader {
+    .widget-container.loading .spa-loader, .spa-container.loading .spa-loader {
       display: block;
+    }
+
+    .widget-container.loading .folders, .widget-container.loading .spa-content, .widget-container.loading .org-chooser  {
+      opacity: .3;
+      pointer-events: none;
+    }
+
+    .org-chooser {
+      background:rgba(0,0,0,.07);
+      box-shadow: 0px 0px 6px 0px rgba(0,0,0,.1) inset;
+      color:rgba(0,0,0,.6);
+      --color-widget-border:transparent;
+      --color-widget-bg:transparent;
+      --temba-select-selected-padding:0.25em;
+      --color-widget-bg-focused:transparent;
+      --color-focus:transparent;
+      --widget-box-shadow-focused:transparent;
     }
 
     temba-loading {
@@ -587,8 +604,12 @@
       }    
     }
 
-    function showLoading() {
-      document.querySelector(".spa-container").classList.add("loading");
+    function showLoading(full) {
+      if (full) {
+        document.querySelector(".widget-container").classList.add("loading");
+      } else {
+        document.querySelector(".spa-container").classList.add("loading");
+      }
     }
 
     function updatePageTitle() {
@@ -619,8 +640,8 @@
     }
 
     function hideLoading() {
-      var container = document.querySelector(".spa-container");
-      if (container) {
+      var containers = document.querySelectorAll(".spa-container, .widget-container");
+      for(container of containers) {
         container.classList.remove("loading");
       }
 
@@ -668,7 +689,7 @@
       });
     }
 
-    var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user|settings).*/;
+    var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user|settings|httplog).*/;
 
     function handleNoPath(event) {
 
@@ -753,6 +774,22 @@
       modax.open = true;
     }
 
+    var currentOrg = {{user_org.id}};
+    function handleWorkspaceChanged(evt) {
+      var orgId = evt.target.value.value;
+      if (currentOrg != orgId) {
+        currentOrg = orgId;
+        showLoading(true);
+        var store = document.querySelector("temba-store");
+        store.postUrl("/org/choose/", "organization=" + orgId, {}, 'application/x-www-form-urlencoded').then(function(response) {
+          var menu = document.querySelector("temba-menu");
+          menu.reset();
+          hideLoading();
+          store.reset();
+        });
+      }
+    }
+
 -block refresh-fn
   :javascript
     function refresh(onSuccess, forceReload){
@@ -788,8 +825,19 @@
         %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)" -temba-ready="handleMenuReady")
       .flex-grow.spa-container.flex.flex-col
         .spa-loader.hide.absolute
-          .wrapper(style="display:flex;z-index:100000;margin-top:2px;")
-            %temba-loading(size=20 units=6)
+          .wrapper(style="display:flex;z-index:100000;margin-top:0.1em;margin-left:1em")
+            %temba-loading(size=16 units=6)
+
+        -if user_orgs|length > 1 or request.user.is_staff
+          .flex.org-chooser
+            .flex-grow
+            .pr-5.py-2.text-sm.font-normal.selection
+              %temba-select.w-full(onchange="handleWorkspaceChanged(event)")  
+                %temba-option(name='{{ user_org.name|escapejs }}' value="{{user_org.id}}" selected="true")
+                -for other_org in user_orgs
+                  -if other_org.id != user_org.id
+                    %temba-option(name='{{ other_org.name|escapejs }}' value="{{other_org.id}}")
+
         .spa-content.p-5.overflow-y-auto.overflow-x-hidden
 
         .spa-footer.text-center.text-gray-400.hide

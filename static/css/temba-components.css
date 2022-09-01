@@ -30,6 +30,8 @@ html {
   --color-widget-bg-focused: #fff;
   --color-widget-border: rgb(225, 225, 225);
 
+  --color-options-bg: var(--color-widget-bg);
+
   /* primary colors, should be dark */
   --color-selection: #f0f6ff;
   --color-row-hover: rgba(var(--selection-light-rgb), .4);
@@ -38,6 +40,7 @@ html {
   --widget-box-shadow-focused-error: 0 0 0 3px rgba(var(--error-rgb), 0.3);
 
   --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-widget: 0 3px 20px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
 
   /* page text, borders, widgets */
   --color-text: #555;
