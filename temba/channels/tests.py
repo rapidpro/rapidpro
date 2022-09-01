@@ -2122,6 +2122,70 @@ class ChannelLogTest(TembaTest):
             self.assertEqual(expected_redacted, log.get_display(self.admin))
             self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
 
+    def test_get_display_timed_out(self):
+        channel = self.create_channel("TG", "Telegram", "mybot")
+        contact = self.create_contact("Fred Jones", urns=["telegram:74747474"])
+        msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S")
+        log = ChannelLog.objects.create(
+            channel=channel,
+            msg=msg_out,
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
+            is_error=True,
+            http_logs=[
+                {
+                    "url": "https://telegram.com/send?to=74747474",
+                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                    "elapsed_ms": 30001,
+                    "retries": 0,
+                    "created_on": "2022-08-17T14:07:30Z",
+                }
+            ],
+            errors=[{"message": "response not right", "code": ""}],
+        )
+
+        expected_unredacted = {
+            "description": "Message Send",
+            "http_logs": [
+                {
+                    "url": "https://telegram.com/send?to=74747474",
+                    "status_code": 0,
+                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                    "response": "",
+                    "elapsed_ms": 30001,
+                    "retries": 0,
+                    "created_on": "2022-08-17T14:07:30Z",
+                }
+            ],
+            "errors": [{"message": "response not right", "code": ""}],
+            "created_on": matchers.Datetime(),
+        }
+
+        expected_redacted = {
+            "description": "Message Send",
+            "http_logs": [
+                {
+                    "url": "https://telegram.com/send?to=********",
+                    "status_code": 0,
+                    "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
+                    "response": "********",
+                    "elapsed_ms": 30001,
+                    "retries": 0,
+                    "created_on": "2022-08-17T14:07:30Z",
+                }
+            ],
+            "errors": [{"message": "response n********", "code": ""}],
+            "created_on": matchers.Datetime(),
+        }
+
+        self.maxDiff = None
+
+        self.assertEqual(expected_unredacted, log.get_display(self.admin))
+        self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+
+        with AnonymousOrg(self.org):
+            self.assertEqual(expected_redacted, log.get_display(self.admin))
+            self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+
 
 class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
     def test_msg(self):

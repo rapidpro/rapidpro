@@ -1292,12 +1292,12 @@ class ChannelLog(models.Model):
         def redact_http(log: dict) -> dict:
             return {
                 "url": self._get_display_value(user, log["url"], redact_values=redact_values),
-                "status_code": log["status_code"],
+                "status_code": log.get("status_code", 0),
                 "request": self._get_display_value(
                     user, log["request"], redact_keys=redact_request_keys, redact_values=redact_values
                 ),
                 "response": self._get_display_value(
-                    user, log["response"], redact_keys=redact_response_keys, redact_values=redact_values
+                    user, log.get("response", ""), redact_keys=redact_response_keys, redact_values=redact_values
                 ),
                 "elapsed_ms": log["elapsed_ms"],
                 "retries": log["retries"],
