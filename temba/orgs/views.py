@@ -1245,7 +1245,11 @@ class OrgCRUDL(SmartCRUDL):
             if submenu == "settings":  # pragma: no cover
 
                 menu = []
-                menu.append(self.create_menu_item(name=self.org.name, icon="layers", href="orgs.org_workspace"))
+                menu.append(
+                    self.create_menu_item(
+                        menu_id="workspace", name=self.org.name, icon="layers", href="orgs.org_workspace"
+                    )
+                )
 
                 if self.request.user.settings.two_factor_enabled:
                     menu.append(
@@ -1401,6 +1405,7 @@ class OrgCRUDL(SmartCRUDL):
                         "icon": "settings",
                         "endpoint": f"{reverse('orgs.org_menu')}settings/",
                         "bottom": True,
+                        "show_header": True,
                     }
                 )
 

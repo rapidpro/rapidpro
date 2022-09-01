@@ -1,5 +1,6 @@
 // prettier-ignore
 window.urls = [
+  { old: /\/channels\/(.*)\/logs\/msg\/(.*)/,            new: /\/settings\/channels\/(.*)\/logs\/msg\/(.*)/ },
   { old: /\/msg\/filter\/(.*)/,                          new: /\/messages\/labels\/(.*)/ },
   { old: /\/msg\/flow\//,                                new: /\/messages\/flows/ },
   { old: /\/msg\/(.*)\//,                                new: /\/messages\/(.*)/ },
@@ -32,18 +33,18 @@ window.urls = [
 ];
 
 window.mapUrl = function (path, reverse) {
-    var findDirection = reverse ? 'new' : 'old';
-    var replaceDirection = reverse ? 'old' : 'new';
-    for (var mapping of urls) {
-        var match = path.match(mapping[findDirection]);
-        if (match) {
-            path = mapping[replaceDirection].source.replaceAll('\\/', '/');
-            for (var i = 1; i < match.length; i++) {
-                path = path.replace('(.*)', match[i]);
-            }
-            path = path.replaceAll('(.*)', '');
-            return path;
-        }
-    }
-    return path;
+  var findDirection = reverse ? 'new' : 'old';
+  var replaceDirection = reverse ? 'old' : 'new';
+  for (var mapping of urls) {
+      var match = path.match(mapping[findDirection]);
+      if (match) {
+          path = mapping[replaceDirection].source.replaceAll('\\/', '/');
+          for (var i = 1; i < match.length; i++) {
+              path = path.replace('(.*)', match[i]);
+          }
+          path = path.replaceAll('(.*)', '');
+          return path;
+      }
+  }
+  return path;
 };

@@ -134,6 +134,36 @@ def urn_icon(urn):
 
 
 @register.filter
+def msg_status_badge(msg) -> str:
+
+    display = {}
+
+    if msg.status == Msg.STATUS_DELIVERED:
+        display = {"background": "#efffe0", "icon": "check", "icon_color": "rgb(var(--success-rgb))"}
+
+    if msg.direction == Msg.DIRECTION_IN or msg.status == Msg.STATUS_WIRED:
+        display = {"background": "#f9f9f9", "icon": "check", "icon_color": "var(--color-primary-dark)"}
+
+    if msg.status == Msg.STATUS_ERRORED or msg.status == Msg.STATUS_FAILED:
+        display = {"background": "#fff4f4", "icon": "x", "icon_color": "var(--color-error)"}
+
+        # we are still working on errored messages, slightly different icon
+        if msg.status == Msg.STATUS_ERRORED:
+            display["icon"] = "refresh-cw"
+
+    if len(display) >= 3:
+        return mark_safe(
+            """
+            <div class="flex items-center flex-row p-1 rounded-lg" style="background:%(background)s">
+                <temba-icon name="%(icon)s" style="--icon-color:%(icon_color)s"></temba-icon>
+            </div>
+        """
+            % display
+        )
+    return ""
+
+
+@register.filter
 def history_icon(event: dict) -> str:
     event_type = event["type"]
     variant = None

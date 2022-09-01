@@ -2183,7 +2183,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             errors=[],
         )
 
-        msg1_url = reverse("channels.channellog_msg", args=[msg1.id])
+        msg1_url = reverse("channels.channellog_msg", args=[self.channel.uuid, msg1.id])
 
         self.assertListFetch(
             msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log2, log1]
@@ -2216,7 +2216,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         # create another call and log that shouldn't be included
         self.create_incoming_call(flow, contact)
 
-        call1_url = reverse("channels.channellog_call", args=[call1.id])
+        call1_url = reverse("channels.channellog_call", args=[self.channel.uuid, call1.id])
 
         self.assertListFetch(
             call1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log2, log1]
@@ -2347,7 +2347,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "2 results")
 
         # make sure we can see the details of the IVR log
-        response = self.client.get(reverse("channels.channellog_call", args=[call.id]))
+        response = self.client.get(reverse("channels.channellog_call", args=[self.channel.uuid, call.id]))
         self.assertContains(response, "{&quot;say&quot;: &quot;Hello&quot;}")
 
         # if duration isn't set explicitly, it can be calculated
@@ -2383,7 +2383,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_msg", args=[msg.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         # check list page shows un-redacted content for a regular org
         response = self.client.get(list_url)
@@ -2411,7 +2411,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             self.assertContains(response, "3527065", count=0)
             self.assertContains(response, "Nic", count=0)
             self.assertContains(response, "Pottier", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=9)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=8)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
@@ -2449,7 +2449,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_msg", args=[msg.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "3527065", count=1)
@@ -2462,7 +2462,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             self.assertContains(response, "Pottier", count=0)
 
             # everything is masked
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=4)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
@@ -2497,11 +2497,11 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_msg", args=[msg.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "3527065", count=1)
-        self.assertContains(response, "There is no contact identifying information", count=3)
+        self.assertContains(response, "There is no contact identifying information", count=2)
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
@@ -2510,7 +2510,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             self.assertContains(response, "There is no contact identifying information", count=0)
 
             self.assertContains(response, "3527065", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=4)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
@@ -2521,7 +2521,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-            self.assertContains(response, "There is no contact identifying information", count=3)
+            self.assertContains(response, "There is no contact identifying information", count=2)
 
             self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
@@ -2546,7 +2546,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_msg", args=[msg.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         response = self.client.get(list_url)
 
@@ -2570,7 +2570,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             self.assertContains(response, "767659860", count=0)
             self.assertContains(response, "Aaron Tumukunde", count=0)
             self.assertContains(response, "tumaaron", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=14)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=13)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
@@ -2609,11 +2609,11 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_msg", args=[msg.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "767659860", count=1)
-        self.assertContains(response, "There is no contact identifying information", count=3)
+        self.assertContains(response, "There is no contact identifying information", count=2)
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
@@ -2622,7 +2622,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             self.assertContains(response, "There is no contact identifying information", count=0)
 
             self.assertContains(response, "767659860", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=4)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
@@ -2633,7 +2633,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-            self.assertContains(response, "There is no contact identifying information", count=3)
+            self.assertContains(response, "There is no contact identifying information", count=2)
 
             self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
@@ -2670,7 +2670,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             self.assertContains(response, "facebook:2150393045080607", count=0)
             self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
-        read_url = reverse("channels.channellog_msg", args=[msg.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         response = self.client.get(read_url)
 
@@ -2683,12 +2683,12 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             self.assertContains(response, "2150393045080607", count=0)
             self.assertContains(response, "facebook:", count=1)
 
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=4)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_msg", args=[msg.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         response = self.client.get(read_url)
 
@@ -2735,7 +2735,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
             self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
-        read_url = reverse("channels.channellog_msg", args=[msg.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         response = self.client.get(read_url)
 
@@ -2748,7 +2748,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             self.assertContains(response, "There is no contact identifying information", count=0)
 
             self.assertContains(response, "2150393045080607", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=4)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
@@ -2759,7 +2759,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-            self.assertContains(response, "There is no contact identifying information", count=3)
+            self.assertContains(response, "There is no contact identifying information", count=2)
 
             # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
             # Contact.get_display does not check if user is staff
@@ -2785,7 +2785,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_msg", args=[msg.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         # check list page shows un-redacted content for a regular org
         response = self.client.get(list_url)
@@ -2815,7 +2815,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             self.assertContains(response, "097 909 9111", count=0)
             self.assertContains(response, "979099111", count=0)
             self.assertContains(response, "Quito", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=5)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=4)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
@@ -2874,7 +2874,7 @@ MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5
 
         response = self.client.get(read_url)
         self.assertNotContains(response, settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN)
-        self.assertContains(response, f"https://example.com/send/message?access_token={HTTPLog.REDACT_MASK}")
+        self.assertContains(response, f"/send/message?access_token={HTTPLog.REDACT_MASK}")
         self.assertContains(response, f"Authorizatio: Bearer {HTTPLog.REDACT_MASK}")
 
     def test_channellog_anonymous_org_no_msg(self):
@@ -2923,8 +2923,8 @@ Error: missing request signature""",
 
             self.assertContains(response, tw_urn, count=0)
 
-            # when we can't identify the contact, url, request and response objects are completely masked
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=4)
+            # when we can't identify the contact, request, and response body
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
 
     def test_trim_task(self):
         contact = self.create_contact("Fred Jones", phone="12345")

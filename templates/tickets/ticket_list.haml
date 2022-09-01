@@ -120,11 +120,7 @@
       }
     }
 
-    function updateTicketList() {
-      var app = document.location.pathname.indexOf('/ticket/') > -1 ? 'ticket' : 'tickets';
-      var url = `/${app}/${folder}/${status}/${ticketUUID || ''}`;
-      window.history.pushState({},"", url);
-
+    function updateTicketList() {      
       var tickets = document.querySelector("temba-ticket-list");
       var chat = document.querySelector("temba-contact-chat");
 
@@ -184,6 +180,16 @@
       }
       
       updateTicketList();
+      
+      var path = `${folder}/${status}/${ticketUUID || ''}`;
+      var show = `/tickets/${path}`;
+
+      if (!show.endsWith("/")) {
+        show += "/";
+      }
+
+      window.history.replaceState({ url: `/ticket/${path}`, show: show } ,"", show);
+      
     }
     
     function handleContactHistoryUpdated(event) {

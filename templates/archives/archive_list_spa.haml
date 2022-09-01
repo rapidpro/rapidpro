@@ -48,11 +48,8 @@
               {{archive.start_date|date:"M j, Y"}}
             -else
               {{archive.start_date|date:"F Y"}}
-          %td.text-gray-500
-            -if archive.period == 'D'
-              %temba-button(name="Download" onclick="goto(event)" href="{% url 'archives.archive_read' archive.id %}")
-            -else
-              %temba-button(name="Download" onclick="goto(event)" href="{% url 'archives.archive_read' archive.id %}")
+          %td(style="--icon-color:#bbb")
+            %temba-icon(clickable="true" name="download" onclick="downloadFile(event, \"{% url 'archives.archive_read' archive.id %}\")")
   -else
 
     -blocktrans trimmed
