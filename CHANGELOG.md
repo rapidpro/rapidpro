@@ -1,3 +1,7 @@
+v7.5.36
+----------
+ * Clean up chooser a smidge
+
 v7.5.35
 ----------
  * Add org-chooser
