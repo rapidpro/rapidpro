@@ -82,8 +82,8 @@
     }
 
     .org-chooser {
-      background:rgba(0,0,0,.07);
-      box-shadow: 0px 0px 6px 0px rgba(0,0,0,.1) inset;
+      background:rgba(0,0,0,.02);
+      box-shadow: 0px 0px 15px 0px rgba(0,0,0,.1) inset;
       color:rgba(0,0,0,.6);
       --color-widget-border:transparent;
       --color-widget-bg:transparent;
@@ -788,10 +788,13 @@
         showLoading(true);
         var store = document.querySelector("temba-store");
         store.postUrl("/org/choose/", "organization=" + orgId, {}, 'application/x-www-form-urlencoded').then(function(response) {
-          var menu = document.querySelector("temba-menu");
-          menu.reset();
-          hideLoading();
-          store.reset();
+          if (response.status >= 200 && response.status < 400) {
+            store.reset();
+            var menu = document.querySelector("temba-menu");
+            menu.reset();
+          } else {
+            document.location.reload();
+          }
         });
       }
     }
@@ -841,12 +844,12 @@
         -if user_orgs|length > 1 or request.user.is_staff
           .flex.org-chooser
             .flex-grow
-            .pr-5.py-2.text-sm.font-normal.selection
+            .pr-5.py-2.selection
               %temba-select.w-full(onchange="handleWorkspaceChanged(event)" option-width="250" anchor-right="true")  
-                %temba-option(name='{{ user_org.name|escapejs }}' value="{{user_org.id}}" selected="true")
+                %temba-option(name='{{ user_org.name }}' value="{{user_org.id}}" selected="true")
                 -for other_org in user_orgs
                   -if other_org.id != user_org.id
-                    %temba-option(name='{{ other_org.name|escapejs }}' value="{{other_org.id}}")
+                    %temba-option(name='{{ other_org.name }}' value="{{other_org.id}}")
 
         .spa-content.p-5.overflow-y-auto.overflow-x-hidden
 
