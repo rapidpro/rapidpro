@@ -782,6 +782,14 @@
 
     var currentOrg = {{user_org.id}};
     function handleWorkspaceChanged(evt) {
+
+      // remove any options with an icon
+      var options = event.target.getStaticOptions();
+      options = options.filter(function(option) {
+        return !option.icon;
+      });
+      event.target.setOptions(options)
+
       var orgId = evt.target.value.value;
       if (currentOrg != orgId) {
         currentOrg = orgId;
@@ -845,8 +853,11 @@
           .flex.org-chooser
             .flex-grow
             .pr-5.py-2.selection
-              %temba-select.w-full(onchange="handleWorkspaceChanged(event)" option-width="250" anchor-right="true")  
-                %temba-option(name='{{ user_org.name }}' value="{{user_org.id}}" selected="true")
+              %temba-select.w-full(onchange="handleWorkspaceChanged(event)" option-width="250" anchor-right="true")
+                -if user_org not in user_orgs               
+                  %temba-option(icon="agent" name='{{ user_org.name }}' value="{{user_org.id}}" selected="true")
+                -else
+                  %temba-option(name='{{ user_org.name }}' value="{{user_org.id}}" selected="true")
                 -for other_org in user_orgs
                   -if other_org.id != user_org.id
                     %temba-option(name='{{ other_org.name }}' value="{{other_org.id}}")
