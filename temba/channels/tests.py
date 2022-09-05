@@ -2113,8 +2113,6 @@ class ChannelLogTest(TembaTest):
             "created_on": matchers.Datetime(),
         }
 
-        self.maxDiff = None
-
         self.assertEqual(expected_unredacted, log.get_display(self.admin))
         self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
 
@@ -2176,8 +2174,6 @@ class ChannelLogTest(TembaTest):
             "errors": [{"message": "response n********", "code": ""}],
             "created_on": matchers.Datetime(),
         }
-
-        self.maxDiff = None
 
         self.assertEqual(expected_unredacted, log.get_display(self.admin))
         self.assertEqual(expected_unredacted, log.get_display(self.customer_support))

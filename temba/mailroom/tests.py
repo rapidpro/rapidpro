@@ -127,8 +127,6 @@ class MailroomClientTest(TembaTest):
 
         call = mock_post.call_args
 
-        self.maxDiff = None
-
         self.assertEqual(("http://localhost:8090/mr/flow/preview_start",), call[0])
         self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
         self.assertEqual(

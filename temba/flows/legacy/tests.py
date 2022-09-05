@@ -674,8 +674,6 @@ class FlowMigrationTest(TembaTest):
                     for text in sorted(action["msg"].values()):
                         replies.append(text)
 
-        self.maxDiff = None
-
         self.assertEqual(
             replies,
             [
