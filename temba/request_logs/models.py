@@ -1,5 +1,7 @@
 import logging
 
+import requests
+
 from django.db import models
 from django.db.models import Index, Q
 from django.utils import timezone
@@ -78,6 +80,9 @@ class HTTPLog(models.Model):
 
     @classmethod
     def from_response(cls, log_type, response, created_on, ended_on, classifier=None, channel=None, ticketer=None):
+        """
+        Creates a new HTTPLog from an HTTP response
+        """
         org = (classifier or channel or ticketer).org
         http_log = HttpLog.from_response(response, created_on, ended_on)
         is_error = http_log.status_code >= 400
@@ -98,6 +103,11 @@ class HTTPLog(models.Model):
 
     @classmethod
     def from_exception(cls, log_type, exception, created_on, classifier=None, channel=None, ticketer=None):
+        """
+        Creates a new HTTPLog from a request exception (typically a timeout)
+        """
+        assert isinstance(exception, requests.RequestException)
+
         org = (classifier or channel or ticketer).org
         http_log = HttpLog.from_request(exception.request, created_on, timezone.now())
 
