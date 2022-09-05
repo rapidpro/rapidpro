@@ -36,17 +36,13 @@ class BothubType(ClassifierType):
         start = timezone.now()
         try:
             response = requests.get(self.INTENT_URL, headers={"Authorization": f"Bearer {access_token}"})
-            elapsed = (timezone.now() - start).total_seconds() * 1000
-
             response.raise_for_status()
 
-            HTTPLog.create_from_response(
-                HTTPLog.INTENTS_SYNCED, self.INTENT_URL, response, classifier=classifier, request_time=elapsed
-            )
+            HTTPLog.from_response(HTTPLog.INTENTS_SYNCED, response, start, timezone.now(), classifier=classifier)
 
             response_json = response.json()
         except requests.RequestException as e:
-            HTTPLog.create_from_exception(HTTPLog.INTENTS_SYNCED, self.INTENT_URL, e, start, classifier=classifier)
+            HTTPLog.from_exception(HTTPLog.INTENTS_SYNCED, e, start, classifier=classifier)
             return []
 
         intents = []

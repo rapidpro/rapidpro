@@ -94,10 +94,7 @@ class WhatsAppCloudType(ChannelType):
             headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
             while url:
                 resp = requests.get(url, params=dict(limit=255), headers=headers)
-                elapsed = (timezone.now() - start).total_seconds() * 1000
-                HTTPLog.create_from_response(
-                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, resp, channel=channel, request_time=elapsed
-                )
+                HTTPLog.from_response(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, resp, start, timezone.now(), channel=channel)
                 if resp.status_code != 200:  # pragma: no cover
                     return [], False
 
@@ -105,5 +102,5 @@ class WhatsAppCloudType(ChannelType):
                 url = resp.json().get("paging", {}).get("next", None)
             return template_data, True
         except requests.RequestException as e:
-            HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
+            HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, start, channel=channel)
             return [], False
