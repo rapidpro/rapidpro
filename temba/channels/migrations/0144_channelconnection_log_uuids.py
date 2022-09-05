@@ -16,4 +16,9 @@ class Migration(migrations.Migration):
             name="log_uuids",
             field=django.contrib.postgres.fields.ArrayField(base_field=models.UUIDField(), null=True, size=None),
         ),
+        migrations.AddField(
+            model_name="channelevent",
+            name="log_uuids",
+            field=django.contrib.postgres.fields.ArrayField(base_field=models.UUIDField(), null=True, size=None),
+        ),
     ]

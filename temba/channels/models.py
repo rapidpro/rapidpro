@@ -1155,6 +1155,8 @@ class ChannelEvent(models.Model):
     occurred_on = models.DateTimeField()
     created_on = models.DateTimeField(default=timezone.now)
 
+    log_uuids = ArrayField(models.UUIDField(), null=True)
+
     @classmethod
     def create_relayer_event(cls, channel, urn, event_type, occurred_on, extra=None):
         from temba.contacts.models import Contact
