@@ -1,3 +1,11 @@
+v7.5.38
+----------
+ * Add codecov token to ci.yml
+ * Remove unnecessary maxdiff set in tests
+ * Fix to allow displaying logs that timed out
+ * Add HttpLog util and use to save channel logs in new format
+ * Add UUID to channel log and msgs
+
 v7.5.37
 ----------
  * Show servicing org
