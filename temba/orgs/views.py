@@ -1243,15 +1243,13 @@ class OrgCRUDL(SmartCRUDL):
             # how this menu is made up is a wip
             # TODO: remove pragma
             if submenu == "settings":  # pragma: no cover
-                has_classifiers = Classifier.objects.filter(org=self.org, is_active=True).exists()
-                menu = []
 
-                if self.has_org_perm("orgs.org_account"):
-                    menu.append(
-                        self.create_menu_item(
-                            menu_id="account", name=_("Account"), icon="user", href=reverse("orgs.user_account")
-                        )
+                menu = []
+                menu.append(
+                    self.create_menu_item(
+                        menu_id="workspace", name=self.org.name, icon="layers", href="orgs.org_workspace"
                     )
+                )
 
                 if self.request.user.settings.two_factor_enabled:
                     menu.append(
@@ -1272,23 +1270,14 @@ class OrgCRUDL(SmartCRUDL):
                         )
                     )
 
-                menu.append(self.create_section(_("Workspace")))
-                menu.append(self.create_menu_item(name=self.org.name, icon="layers", href="orgs.org_workspace"))
-                menu.append(self.create_menu_item(name=_("Logins"), icon="users", href="orgs.org_manage_accounts"))
-
-                if has_classifiers:
+                if self.has_org_perm("orgs.org_account"):
                     menu.append(
                         self.create_menu_item(
-                            name=_("Classifiers"), icon="git-pull-request", endpoint="classifiers.classifier_menu"
-                        )
-                    )
-                else:
-                    menu.append(
-                        self.create_menu_item(
-                            name=_("Classifiers"), icon="git-pull-request", href="classifiers.classifier_connect"
+                            menu_id="account", name=_("Account"), icon="user", href=reverse("orgs.user_account")
                         )
                     )
 
+                menu.append(self.create_menu_item(name=_("Users"), icon="users", href="orgs.org_manage_accounts"))
                 menu.append(self.create_menu_item(name=_("Zapier"), icon="zapier", href="orgs.org_resthooks"))
 
                 menu.append(
@@ -1316,12 +1305,24 @@ class OrgCRUDL(SmartCRUDL):
                             )
                         )
 
-                    menu.append(self.create_menu_item(name=_("Channels"), items=items, inline=True))
-                    menu.append(
-                        self.create_menu_item(
-                            menu_id="channel", name=_("Add Channel"), icon="channel", href="channels.channel_claim"
+                    if len(items):
+                        menu.append(self.create_menu_item(name=_("Channels"), items=items, inline=True))
+
+                if self.has_org_perm("classifiers.classifier_read"):
+                    items = []
+                    classifiers = Classifier.objects.filter(org=self.org, is_active=True).order_by("-created_on")
+                    for classifier in classifiers:
+                        items.append(
+                            self.create_menu_item(
+                                menu_id=classifier.uuid,
+                                name=classifier.name,
+                                href=reverse("classifiers.classifier_read", args=[classifier.uuid]),
+                                icon=classifier.get_type().icon.replace("icon-", ""),
+                            )
                         )
-                    )
+
+                    if len(items):
+                        menu.append(self.create_menu_item(name=_("Classifiers"), items=items, inline=True))
 
                 if self.has_org_perm("archives.archive_message"):
 
@@ -1404,6 +1405,7 @@ class OrgCRUDL(SmartCRUDL):
                         "icon": "settings",
                         "endpoint": f"{reverse('orgs.org_menu')}settings/",
                         "bottom": True,
+                        "show_header": True,
                     }
                 )
 

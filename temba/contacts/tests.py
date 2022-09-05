@@ -61,7 +61,7 @@ from .models import (
     ExportContactsTask,
 )
 from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
-from .templatetags.contacts import contact_field, history_class, history_icon
+from .templatetags.contacts import contact_field, history_class, history_icon, msg_status_badge
 
 
 class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
@@ -2526,8 +2526,8 @@ class ContactTest(TembaTest):
             response,
             "http://www.openstreetmap.org/?mlat=47.5414799&amp;mlon=-122.6359908#map=18/47.5414799/-122.6359908",
         )
-        self.assertContains(response, reverse("channels.channellog_msg", args=[failed.id]))
-        self.assertContains(response, reverse("channels.channellog_call", args=[call.id]))
+        self.assertContains(response, reverse("channels.channellog_msg", args=[failed.channel.uuid, failed.id]))
+        self.assertContains(response, reverse("channels.channellog_call", args=[call.channel.uuid, call.id]))
         self.assertContains(response, "Transferred <b>100.00</b> <b>RWF</b> of airtime")
         self.assertContains(response, reverse("airtime.airtimetransfer_read", args=[transfer.id]))
 
@@ -2712,6 +2712,28 @@ class ContactTest(TembaTest):
         )
         self.assertContains(response, "unable to send email")
         self.assertContains(response, "this is a failure")
+
+    def test_msg_status_badge(self):
+
+        msg = self.create_outgoing_msg(self.joe, "This is an outgoing message")
+
+        # wired has a primary color check
+        msg.status = Msg.STATUS_WIRED
+        self.assertIn('"check"', msg_status_badge(msg))
+        self.assertIn("--color-primary-dark", msg_status_badge(msg))
+
+        # delivered has a success check
+        msg.status = Msg.STATUS_DELIVERED
+        self.assertIn('"check"', msg_status_badge(msg))
+        self.assertIn("--success-rgb", msg_status_badge(msg))
+
+        # errored show retrying icon
+        msg.status = Msg.STATUS_ERRORED
+        self.assertIn('"refresh-cw"', msg_status_badge(msg))
+
+        # failed messages show an x
+        msg.status = Msg.STATUS_FAILED
+        self.assertIn('"x"', msg_status_badge(msg))
 
     def test_history_templatetags(self):
         item = {"type": "webhook_called", "url": "http://test.com", "status": "success"}

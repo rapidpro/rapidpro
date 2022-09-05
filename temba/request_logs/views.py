@@ -8,12 +8,12 @@ from django.utils.translation import gettext_lazy as _
 from temba.classifiers.models import Classifier
 from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticketer
-from temba.utils.views import ContentMenuMixin
+from temba.utils.views import ContentMenuMixin, SpaMixin
 
 from .models import HTTPLog
 
 
-class BaseObjLogsView(OrgObjPermsMixin, SmartListView):
+class BaseObjLogsView(SpaMixin, OrgObjPermsMixin, SmartListView):
     """
     Base list view for logs associated with an object (e.g. ticketer, classifier)
     """
@@ -84,7 +84,7 @@ class HTTPLogCRUDL(SmartCRUDL):
         def get_source(self, uuid):
             return Ticketer.objects.filter(uuid=uuid, is_active=True)
 
-    class Read(ContentMenuMixin, OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, ContentMenuMixin, OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
 
         @property

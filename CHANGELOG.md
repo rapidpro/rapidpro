@@ -1,3 +1,23 @@
+v7.5.37
+----------
+ * Show servicing org
+
+v7.5.36
+----------
+ * Clean up chooser a smidge
+
+v7.5.35
+----------
+ * Add org-chooser
+ * Refresh channel logs
+ * Add channel uuid to call log url
+ * Fix history state on tickets and contacts  
+ * Update footer  
+ * Add download icons for archives  
+ * Fix create flow modal opener  
+ * Flow editor embed styling
+ * Updating copyright dates and TextIt name (dba of Nyaruka)
+
 v7.5.34
 ----------
  * Use elapsed_ms rather than request_time on channel log templates

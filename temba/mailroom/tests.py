@@ -127,8 +127,6 @@ class MailroomClientTest(TembaTest):
 
         call = mock_post.call_args
 
-        self.maxDiff = None
-
         self.assertEqual(("http://localhost:8090/mr/flow/preview_start",), call[0])
         self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
         self.assertEqual(
@@ -881,7 +879,7 @@ class EventTest(TembaTest):
                     "quick_replies": ["yes", "no"],
                 },
                 "status": "E",
-                "logs_url": f"/channels/log/msg/{msg_out.id}/",
+                "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{msg_out.id}/",
             },
             Event.from_msg(self.org, self.admin, msg_out),
         )
@@ -1133,7 +1131,7 @@ class EventTest(TembaTest):
                 "status": "E",
                 "status_display": "Errored (Busy)",
                 "created_on": matchers.ISODate(),
-                "logs_url": f"/channels/log/call/{call2.id}/",
+                "logs_url": f"/channels/{call2.channel.uuid}/logs/call/{call2.id}/",
             },
             Event.from_ivr_call(self.org, self.admin, call2),
         )
