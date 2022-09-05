@@ -34,7 +34,6 @@ from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
 from .fields import NameValidator, validate_external_url
-from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .templatetags.temba import oxford, short_datetime
 from .text import (
@@ -189,13 +188,6 @@ class InitTest(TembaTest):
 
     def test_replace_non_characters(self):
         self.assertEqual(clean_string("Bangsa\ufddfBangsa"), "Bangsa\ufffdBangsa")
-
-    def test_http_headers(self):
-        headers = http_headers(extra={"Foo": "Bar"})
-        headers["Token"] = "123456"
-
-        self.assertEqual(headers, {"User-agent": "RapidPro", "Foo": "Bar", "Token": "123456"})
-        self.assertEqual(http_headers(), {"User-agent": "RapidPro"})  # check changes don't leak
 
     def test_generate_token(self):
         self.assertEqual(len(generate_token()), 8)

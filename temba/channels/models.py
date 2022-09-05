@@ -1,9 +1,9 @@
 import logging
-import time
 from abc import ABCMeta
 from datetime import timedelta
 from enum import Enum
 from urllib.parse import quote_plus
+from uuid import uuid4
 from xml.sax.saxutils import escape
 
 import phonenumbers
@@ -30,6 +30,7 @@ from temba import mailroom
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, countries, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
+from temba.utils.http import HttpLog
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
 
@@ -1185,24 +1186,35 @@ class ChannelLog(models.Model):
     A log of an interaction with a channel
     """
 
+    LOG_TYPE_UNKNOWN = "unknown"
     LOG_TYPE_MSG_SEND = "msg_send"
-    LOG_TYPE_MSG_UPDATE = "msg_update"
+    LOG_TYPE_MSG_STATUS = "msg_status"
     LOG_TYPE_MSG_RECEIVE = "msg_receive"
+    LOG_TYPE_EVENT_RECEIVE = "event_receive"
     LOG_TYPE_IVR_START = "ivr_start"
+    LOG_TYPE_IVR_INCOMING = "ivr_incoming"
     LOG_TYPE_IVR_CALLBACK = "ivr_callback"
-    LOG_TYPE_CONTACT_UPDATE = "contact_update"
+    LOG_TYPE_IVR_STATUS = "ivr_status"
+    LOG_TYPE_IVR_HANGUP = "ivr_hangup"
     LOG_TYPE_TOKEN_REFRESH = "token_refresh"
+    LOG_TYPE_PAGE_SUBSCRIBE = "page_subscribe"
     LOG_TYPE_CHOICES = (
+        (LOG_TYPE_UNKNOWN, _("Other Event")),
         (LOG_TYPE_MSG_SEND, _("Message Send")),
-        (LOG_TYPE_MSG_UPDATE, _("Message Update")),
+        (LOG_TYPE_MSG_STATUS, _("Message Status")),
         (LOG_TYPE_MSG_RECEIVE, _("Message Receive")),
+        (LOG_TYPE_EVENT_RECEIVE, _("Event Receive")),
         (LOG_TYPE_IVR_START, _("IVR Start")),
+        (LOG_TYPE_IVR_INCOMING, _("IVR Incoming")),
         (LOG_TYPE_IVR_CALLBACK, _("IVR Callback")),
-        (LOG_TYPE_CONTACT_UPDATE, _("Contact Update")),
+        (LOG_TYPE_IVR_STATUS, _("IVR Status")),
+        (LOG_TYPE_IVR_HANGUP, _("IVR Hangup")),
         (LOG_TYPE_TOKEN_REFRESH, _("Token Refresh")),
+        (LOG_TYPE_PAGE_SUBSCRIBE, _("Page Subscribe")),
     )
 
     id = models.BigAutoField(primary_key=True)
+    uuid = models.UUIDField(null=True)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
     connection = models.ForeignKey(
@@ -1217,7 +1229,7 @@ class ChannelLog(models.Model):
     created_on = models.DateTimeField(default=timezone.now)
 
     # TODO deprecated
-    description = models.CharField(max_length=255)
+    description = models.CharField(max_length=255, null=True)
     url = models.TextField(null=True)
     method = models.CharField(max_length=16, null=True)
     request = models.TextField(null=True)
@@ -1226,20 +1238,17 @@ class ChannelLog(models.Model):
     request_time = models.IntegerField(null=True)
 
     @classmethod
-    def log_channel_request(cls, channel_id, description, event, start, is_error=False):
-        request_time = 0 if not start else time.time() - start
-        request_time_ms = request_time * 1000
+    def from_response(cls, log_type, channel, response, created_on, ended_on, is_error=None):
+        http_log = HttpLog.from_response(response, created_on, ended_on)
+        is_error = is_error if is_error is not None else http_log.status_code >= 400
 
-        return ChannelLog.objects.create(
-            channel_id=channel_id,
-            request=str(event.request_body),
-            response=str(event.response_body),
-            url=event.url,
-            method=event.method,
+        return cls.objects.create(
+            uuid=uuid4(),
+            log_type=log_type,
+            channel=channel,
+            http_logs=[http_log.as_json()],
             is_error=is_error,
-            response_status=event.status_code,
-            description=description[:255],
-            request_time=request_time_ms,
+            elapsed_ms=http_log.elapsed_ms,
         )
 
     def _get_display_value(self, user, original, redact_keys=(), redact_values=()):
@@ -1282,12 +1291,12 @@ class ChannelLog(models.Model):
         def redact_http(log: dict) -> dict:
             return {
                 "url": self._get_display_value(user, log["url"], redact_values=redact_values),
-                "status_code": log["status_code"],
+                "status_code": log.get("status_code", 0),
                 "request": self._get_display_value(
                     user, log["request"], redact_keys=redact_request_keys, redact_values=redact_values
                 ),
                 "response": self._get_display_value(
-                    user, log["response"], redact_keys=redact_response_keys, redact_values=redact_values
+                    user, log.get("response", ""), redact_keys=redact_response_keys, redact_values=redact_values
                 ),
                 "elapsed_ms": log["elapsed_ms"],
                 "retries": log["retries"],

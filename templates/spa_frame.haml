@@ -3,7 +3,6 @@
 
 -block page-top
 -block header
--block footer
 
 -block auto-route
   :javascript
@@ -18,6 +17,9 @@
   {{block.super}}
 
   :css
+    temba-menu > div {
+      display: none;
+    }
     .shadow {
       --tw-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 40px 0 rgba(0, 0, 0, 0.09);
     }
@@ -70,8 +72,25 @@
       pointer-events: none;
     }
 
-    .spa-container.loading .spa-loader {
+    .widget-container.loading .spa-loader, .spa-container.loading .spa-loader {
       display: block;
+    }
+
+    .widget-container.loading .folders, .widget-container.loading .spa-content, .widget-container.loading .org-chooser  {
+      opacity: .3;
+      pointer-events: none;
+    }
+
+    .org-chooser {
+      background:rgba(0,0,0,.02);
+      box-shadow: 0px 0px 15px 0px rgba(0,0,0,.1) inset;
+      color:rgba(0,0,0,.6);
+      --color-widget-border:transparent;
+      --color-widget-bg:transparent;
+      --temba-select-selected-padding:0em;
+      --color-widget-bg-focused:transparent;
+      --color-focus:transparent;
+      --widget-box-shadow-focused:transparent;
     }
 
     temba-loading {
@@ -254,10 +273,15 @@
       margin-right: 0 !important;
     }
 
+    .spa-content {
+      margin-bottom: -2em;
+      padding-bottom: 2em;
+    }
+    
     .spa-footer {
-      background: rgba(0,0,0,.05);
-      padding: 18px;
-      
+      margin-bottom: 2.5em;
+      padding-top: 0.5em;
+
     }
 }
 
@@ -266,6 +290,7 @@
 
   %script(src="{{ STATIC_URL }}js/labels.js?4")
   %script(src="{{ STATIC_URL }}bower/highcharts/highcharts.js")
+  %script(src="{{ STATIC_URL }}bower/highcharts/modules/drilldown.js")
 
   -include "full_page_script.haml"
 
@@ -550,7 +575,7 @@
     
     window.addEventListener("popstate", function (event){
       let state = event.state;
-      if (state) {
+      if (state && state.url && state.show) {
         showLoading();
         gotoURL(state.url, state.show, false, true);
         var menu = document.querySelector("temba-menu");
@@ -586,8 +611,12 @@
       }    
     }
 
-    function showLoading() {
-      document.querySelector(".spa-container").classList.add("loading");
+    function showLoading(full) {
+      if (full) {
+        document.querySelector(".widget-container").classList.add("loading");
+      } else {
+        document.querySelector(".spa-container").classList.add("loading");
+      }
     }
 
     function updatePageTitle() {
@@ -618,8 +647,8 @@
     }
 
     function hideLoading() {
-      var container = document.querySelector(".spa-container");
-      if (container) {
+      var containers = document.querySelectorAll(".spa-container, .widget-container");
+      for(container of containers) {
         container.classList.remove("loading");
       }
 
@@ -667,10 +696,9 @@
       });
     }
 
-    var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user|settings).*/;
+    var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user|settings|httplog).*/;
 
     function handleNoPath(event) {
-
       var details = event.detail;
       var menu = document.querySelector("temba-menu");
 
@@ -696,7 +724,7 @@
     }
 
     function fetchURL(url, triggerEvents) {
-
+ 
       showLoading();
       var refererPath = window.location.pathname;
       window.lastFetch = url;
@@ -752,6 +780,33 @@
       modax.open = true;
     }
 
+    var currentOrg = {{user_org.id}};
+    function handleWorkspaceChanged(evt) {
+
+      // remove any options with an icon
+      var options = event.target.getStaticOptions();
+      options = options.filter(function(option) {
+        return !option.icon;
+      });
+      event.target.setOptions(options)
+
+      var orgId = evt.target.value.value;
+      if (currentOrg != orgId) {
+        currentOrg = orgId;
+        showLoading(true);
+        var store = document.querySelector("temba-store");
+        store.postUrl("/org/choose/", "organization=" + orgId, {}, 'application/x-www-form-urlencoded').then(function(response) {
+          if (response.status >= 200 && response.status < 400) {
+            store.reset();
+            var menu = document.querySelector("temba-menu");
+            menu.reset();
+          } else {
+            document.location.reload();
+          }
+        });
+      }
+    }
+
 -block refresh-fn
   :javascript
     function refresh(onSuccess, forceReload){
@@ -766,35 +821,73 @@
     }
 
 -block temba-store
-  %temba-store(
-    completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
-    languages="/org/languages/"
-    fields="/api/v2/fields.json"
-    globals="/api/v2/globals.json"
-    groups="/api/v2/groups.json"
-    workspace="/api/v2/workspace.json"
-  )
-      
+  -if org
+    %temba-store(
+      completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
+      languages="/org/languages/"
+      fields="/api/v2/fields.json"
+      globals="/api/v2/globals.json"
+      groups="/api/v2/groups.json"
+      workspace="/api/v2/workspace.json"
+    )
+   
+
 -block page-container
   -include "includes/frame_top.html"
   %temba-modax#shared-modax
+  %temba-dialog#shared-dialog
   .ajax-scripts
 
   .flex-col
     .flex.widget-container(style="height:100vh;overflow:hidden")
       .folders       
         %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)" -temba-ready="handleMenuReady")
+          -block menu-header
+
       .flex-grow.spa-container.flex.flex-col
         .spa-loader.hide.absolute
-          .wrapper(style="display:flex;z-index:100000;margin-top:2px;")
-            %temba-loading(size=20 units=6)
+          .wrapper(style="display:flex;z-index:100000;margin-top:0.1em;margin-left:1em")
+            %temba-loading(size=16 units=6)
+
+        -if user_orgs|length > 1 or request.user.is_staff
+          .flex.org-chooser
+            .flex-grow
+            .pr-5.py-2.selection
+              %temba-select.w-full(onchange="handleWorkspaceChanged(event)" option-width="250" anchor-right="true")
+                -if user_org not in user_orgs               
+                  %temba-option(icon="agent" name='{{ user_org.name }}' value="{{user_org.id}}" selected="true")
+                -else
+                  %temba-option(name='{{ user_org.name }}' value="{{user_org.id}}" selected="true")
+                -for other_org in user_orgs
+                  -if other_org.id != user_org.id
+                    %temba-option(name='{{ other_org.name }}' value="{{other_org.id}}")
+
         .spa-content.p-5.overflow-y-auto.overflow-x-hidden
 
-        .spa-footer.text-center.text-gray-400.hide
-          Copyright © 2012-2022 TextIt
+        -block footer
+          .spa-footer.text-center.text-gray-500.mt-4
+            :plain
+              <!--
+                This software is licensed under AGPL v3. Please review the full license:
+                https://github.com/rapidpro/rapidpro/blob/main/LICENSE
+                
+                WARNING!
+
+                Hey, we get it. This is neat software, and it would be great to slap
+                the name of your company on it. While you can copyright your modifications,
+                which they themselves require careful consideration of the AGPL license,
+                you cannot claim copyright for work that is not yours. Any modified source code
+                must be shared publicly. Any related copyrights of such work much make notice
+                that it is based on this AGPL software, and also include the below notice.
+                
+                DO NOT illegally claim copyright of this work. If you want to edit the 
+                presentation of the below copyright, please contact us at legal@textit.com 
+                to discuss attribution requirements for this software.
+              -->
+              Copyright © 2012-2022 TextIt, UNICEF
   
   .bottom-strip.absolute.bottom-0.text-sm.text-center.text-white.p-1(style="background:rgba(0,0,0,.7); z-index:100000;width:100%;")
     Go back to the
-    %span.linked(onclick="leaveNewInterface()")<
+    %span.linked(onclick="leaveNewInterface()" style="color:#43b1ff")<
       old interface
       

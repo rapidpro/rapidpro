@@ -61,7 +61,6 @@ class MediaTest(TembaTest):
             f"/media/test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve%20marten.jpg",
             media.url,
         )
-        self.assertEqual("steve marten.jpg", media.name)
         self.assertEqual("image/jpeg", media.content_type)
         self.assertEqual(
             f"test_orgs/{self.org.id}/media/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d/steve marten.jpg", media.path
@@ -77,7 +76,6 @@ class MediaTest(TembaTest):
             process=False,
         )
 
-        self.assertEqual("passwd.png", media.name)
         self.assertEqual(
             f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/passwd.png", media.path
         )
@@ -116,7 +114,6 @@ class MediaTest(TembaTest):
         self.assertEqual(
             f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/allo.mp3", alt1.url
         )
-        self.assertEqual("allo.mp3", alt1.name)
         self.assertEqual("audio/mp3", alt1.content_type)
         self.assertEqual(
             f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/allo.mp3", alt1.path
@@ -131,7 +128,6 @@ class MediaTest(TembaTest):
         self.assertEqual(
             f"/media/test_orgs/{self.org.id}/media/d1ee/d1ee73f0-bdb5-47ce-99dd-0c95d4ebf008/allo.m4a", alt2.url
         )
-        self.assertEqual("allo.m4a", alt2.name)
         self.assertEqual("audio/mp4", alt2.content_type)
         self.assertEqual(
             f"test_orgs/{self.org.id}/media/d1ee/d1ee73f0-bdb5-47ce-99dd-0c95d4ebf008/allo.m4a", alt2.path
@@ -161,7 +157,6 @@ class MediaTest(TembaTest):
         self.assertEqual(
             f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/bubbles.mp3", alt.url
         )
-        self.assertEqual("bubbles.mp3", alt.name)
         self.assertEqual("audio/mp3", alt.content_type)
         self.assertEqual(
             f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/bubbles.mp3", alt.path
@@ -191,7 +186,6 @@ class MediaTest(TembaTest):
         self.assertEqual(
             f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/snow.jpg", alt.url
         )
-        self.assertEqual("snow.jpg", alt.name)
         self.assertEqual("image/jpeg", alt.content_type)
         self.assertEqual(f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/snow.jpg", alt.path)
         self.assertAlmostEqual(37613, alt.size, delta=1000)
@@ -1795,7 +1789,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(30):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
@@ -1803,7 +1797,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             sent_url, allow_viewers=True, allow_editors=True, context_objects=[msg1, msg3, msg2]
         )
 
-        self.assertContains(response, reverse("channels.channellog_msg", args=[msg1.id]))
+        self.assertContains(response, reverse("channels.channellog_msg", args=[msg1.channel.uuid, msg1.id]))
 
         response = self.client.get(sent_url + "?search=joe")
         self.assertEqual([msg1, msg2], list(response.context_data["object_list"]))
@@ -1826,7 +1820,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(29):
             self.client.get(failed_url)
 
         response = self.assertListFetch(
@@ -1834,12 +1828,12 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertEqual(("resend",), response.context["actions"])
-        self.assertContains(response, reverse("channels.channellog_msg", args=[msg1.id]))
+        self.assertContains(response, reverse("channels.channellog_msg", args=[msg1.channel.uuid, msg1.id]))
 
         # make the org anonymous
         with AnonymousOrg(self.org):
             response = self.requestView(failed_url, self.admin)
-            self.assertNotContains(response, reverse("channels.channellog_msg", args=[msg1.id]))
+            self.assertNotContains(response, reverse("channels.channellog_msg", args=[msg1.channel.uuid, msg1.id]))
 
         # resend some messages
         self.client.post(failed_url, {"action": "resend", "objects": [msg2.id]})
@@ -1891,18 +1885,16 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.requestView(label3_url, self.user)
         self.assertEqual(200, response.status_code)
         self.assertEqual(("label",), response.context["actions"])
-        self.assertNotContains(response, reverse("msgs.label_update", args=[label3.id]))  # can't update label
-        self.assertNotContains(response, reverse("msgs.label_delete", args=[label3.id]))  # can't delete label
+        self.assertContentMenu(label3_url, self.user, ["Download", "Usages"])  # no update or delete
 
         # check that test and non-visible messages are excluded, and messages and ordered newest to oldest
         self.assertEqual([msg6, msg3, msg2, msg1], list(response.context["object_list"]))
 
         # check viewing a folder
-        response = self.client.get(reverse("msgs.msg_filter", args=[folder.uuid]))
+        response = self.client.get(folder_url)
         self.assertEqual(200, response.status_code)
         self.assertEqual(("label",), response.context["actions"])
-        self.assertNotContains(response, reverse("msgs.label_update", args=[folder.id]))  # can't update folder
-        self.assertNotContains(response, reverse("msgs.label_delete", args=[folder.id]))  # can't delete folder
+        self.assertContentMenu(folder_url, self.user, ["Download", "Usages"])  # no update or delete
 
         # messages from contained labels are rolled up without duplicates
         self.assertEqual([msg3, msg2, msg1], list(response.context["object_list"]))
@@ -1916,13 +1908,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({msg1, msg6}, set(response.context_data["object_list"]))
 
         # check admin users see edit and delete options for labels and folders
-        response = self.requestView(folder_url, self.admin)
-        self.assertContains(response, reverse("msgs.label_update", args=[folder.id]))
-        self.assertContains(response, reverse("msgs.label_delete", args=[folder.id]))
-
-        response = self.requestView(label1_url, self.admin)
-        self.assertContains(response, reverse("msgs.label_update", args=[label1.id]))
-        self.assertContains(response, reverse("msgs.label_delete", args=[label1.id]))
+        self.assertContentMenu(folder_url, self.admin, ["Edit Folder", "Download", "Usages", "Delete Folder"])
+        self.assertContentMenu(label1_url, self.admin, ["Edit Label", "Download", "Usages", "Delete Label"])
 
 
 class BroadcastTest(TembaTest):

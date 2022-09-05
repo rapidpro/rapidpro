@@ -20,7 +20,6 @@ class WhatsAppCloudTypeTest(TembaTest):
         FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET",
         WHATSAPP_FACEBOOK_BUSINESS_ID="FB_BUSINESS_ID",
         WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN",
-        ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS=["2222222222222"],
     )
     @patch("temba.channels.types.whatsapp_cloud.views.randint")
     def test_claim(self, mock_randint):
@@ -308,7 +307,7 @@ class WhatsAppCloudTypeTest(TembaTest):
 
                 self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
-                self.assertEqual(4, wa_cloud_post.call_count)
+                self.assertEqual(3, wa_cloud_post.call_count)
 
                 self.assertEqual(
                     "https://graph.facebook.com/v13.0/111111111111111/assigned_users",
@@ -319,19 +318,15 @@ class WhatsAppCloudTypeTest(TembaTest):
                 )
 
                 self.assertEqual(
-                    "https://graph.facebook.com/v13.0/567567567/whatsapp_credit_sharing_and_attach",
-                    wa_cloud_post.call_args_list[1][0][0],
-                )
-                self.assertEqual(
                     "https://graph.facebook.com/v13.0/111111111111111/subscribed_apps",
-                    wa_cloud_post.call_args_list[2][0][0],
+                    wa_cloud_post.call_args_list[1][0][0],
                 )
 
                 self.assertEqual(
-                    "https://graph.facebook.com/v13.0/123123123/register", wa_cloud_post.call_args_list[3][0][0]
+                    "https://graph.facebook.com/v13.0/123123123/register", wa_cloud_post.call_args_list[2][0][0]
                 )
                 self.assertEqual(
-                    {"messaging_product": "whatsapp", "pin": "111111"}, wa_cloud_post.call_args_list[3][1]["data"]
+                    {"messaging_product": "whatsapp", "pin": "111111"}, wa_cloud_post.call_args_list[2][1]["data"]
                 )
 
                 channel = Channel.objects.get()

@@ -17,7 +17,7 @@ def process_upload(media: Media):
     try:
         with public_file_storage.open(media.path, mode="rb") as stream:
             # download the media from storage to a local temp file
-            with NamedTemporaryFile(suffix=media.name, delete=True) as temp:
+            with NamedTemporaryFile(suffix=os.path.basename(media.path), delete=True) as temp:
                 data = stream.read()
                 temp.write(data)
                 temp.flush()

@@ -1916,7 +1916,21 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # make sure we don't get a start flow button for Android Surveys
         response = self.client.get(reverse("flows.flow_editor", args=[flow2.uuid]))
-        self.assertNotContains(response, "broadcast-rulesflow btn-primary")
+        self.assertContentMenu(
+            reverse("flows.flow_editor", args=[flow2.uuid]),
+            self.admin,
+            [
+                "Results",
+                "-",
+                "Edit",
+                "Copy",
+                "Delete",
+                "-",
+                "Export Definition",
+                "Export Translation",
+                "Import Translation",
+            ],
+        )
 
         # create a new voice flow
         response = self.client.post(

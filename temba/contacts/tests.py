@@ -61,7 +61,7 @@ from .models import (
     ExportContactsTask,
 )
 from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
-from .templatetags.contacts import contact_field, history_class, history_icon
+from .templatetags.contacts import contact_field, history_class, history_icon, msg_status_badge
 
 
 class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
@@ -101,13 +101,12 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertIsNone(response.context["search_error"])
         self.assertEqual([], list(response.context["actions"]))
+        self.assertContentMenu(list_url, self.user, ["Export"])
 
         active_contacts = self.org.active_contacts_group
         open_tickets = self.org.groups.get(name="Open Tickets")
         survey_audience = self.org.groups.get(name="Survey Audience")
         unsatisfied = self.org.groups.get(name="Unsatisfied Customers")
-
-        self.maxDiff = None
 
         self.assertEqual(
             [
@@ -228,6 +227,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(list_url)
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "archive", "send"], list(response.context["actions"]))
+        self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
 
         # TODO: group labeling as a feature is on probation
         # self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
@@ -437,6 +437,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
         self.assertContains(response, "Edit Group")
         self.assertContains(response, "Delete Group")
+        self.assertContentMenu(
+            group1_url, self.admin, ["Manage Fields", "Edit Group", "Export", "Usages", "Delete Group"]
+        )
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
 
@@ -562,6 +565,32 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # invalid uuid should return 404
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
+
+    def test_read_as_customer_support(self):
+        joe = self.create_contact("Joe", phone="123")
+        read_url = reverse("contacts.contact_read", args=[joe.uuid])
+
+        # should see service button
+        self.assertContentMenu(read_url, self.customer_support, ["Service"])
+
+    def test_read_language(self):
+        joe = self.create_contact("Joe", phone="123")
+        read_url = reverse("contacts.contact_read", args=[joe.uuid])
+
+        # this is a bogus
+        joe.language = "zzz"
+        joe.save(update_fields=("language",))
+        response = self.requestView(read_url, self.admin)
+
+        # should just show the language code instead of the language name
+        self.assertContains(response, "zzz")
+
+        joe.language = "fra"
+        joe.save(update_fields=("language",))
+        response = self.requestView(read_url, self.admin)
+
+        # with a proper code, we should see the language
+        self.assertContains(response, "French")
 
     def test_scheduled(self):
         contact1 = self.create_contact("Joe", phone="+1234567890")
@@ -2492,13 +2521,13 @@ class ContactTest(TembaTest):
         self.assertContains(response, "<audio ")
         self.assertContains(response, '<source type="audio/mp3" src="http://blah/file.mp3" />')
         self.assertContains(response, "<video ")
-        self.assertContains(response, '<source type="video/mp4" src="http://blah/file.mp4" />')
+        self.assertContains(response, '<source src="http://blah/file.mp4" type="video/mp4"')
         self.assertContains(
             response,
             "http://www.openstreetmap.org/?mlat=47.5414799&amp;mlon=-122.6359908#map=18/47.5414799/-122.6359908",
         )
-        self.assertContains(response, reverse("channels.channellog_msg", args=[failed.id]))
-        self.assertContains(response, reverse("channels.channellog_call", args=[call.id]))
+        self.assertContains(response, reverse("channels.channellog_msg", args=[failed.channel.uuid, failed.id]))
+        self.assertContains(response, reverse("channels.channellog_call", args=[call.channel.uuid, call.id]))
         self.assertContains(response, "Transferred <b>100.00</b> <b>RWF</b> of airtime")
         self.assertContains(response, reverse("airtime.airtimetransfer_read", args=[transfer.id]))
 
@@ -2683,6 +2712,28 @@ class ContactTest(TembaTest):
         )
         self.assertContains(response, "unable to send email")
         self.assertContains(response, "this is a failure")
+
+    def test_msg_status_badge(self):
+
+        msg = self.create_outgoing_msg(self.joe, "This is an outgoing message")
+
+        # wired has a primary color check
+        msg.status = Msg.STATUS_WIRED
+        self.assertIn('"check"', msg_status_badge(msg))
+        self.assertIn("--color-primary-dark", msg_status_badge(msg))
+
+        # delivered has a success check
+        msg.status = Msg.STATUS_DELIVERED
+        self.assertIn('"check"', msg_status_badge(msg))
+        self.assertIn("--success-rgb", msg_status_badge(msg))
+
+        # errored show retrying icon
+        msg.status = Msg.STATUS_ERRORED
+        self.assertIn('"refresh-cw"', msg_status_badge(msg))
+
+        # failed messages show an x
+        msg.status = Msg.STATUS_FAILED
+        self.assertIn('"x"', msg_status_badge(msg))
 
     def test_history_templatetags(self):
         item = {"type": "webhook_called", "url": "http://test.com", "status": "success"}
@@ -2959,38 +3010,6 @@ class ContactTest(TembaTest):
             reverse("contacts.contact_read", args=[self.other_org_contact.uuid]), self.superuser
         )
         self.assertEqual(response.status_code, 200)
-
-    def test_read_with_customer_support(self):
-        self.login(self.customer_support)
-
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-        self.assertEqual(
-            [
-                {
-                    "type": "url_post",
-                    "label": "Service",
-                    "url": f"/org/service/?organization={self.org.id}&redirect_url=/contact/read/{self.joe.uuid}/",
-                }
-            ],
-            response.context["content_menu"],
-        )
-
-    def test_read_language(self):
-
-        # this is a bogus
-        self.joe.language = "zzz"
-        self.joe.save(update_fields=("language",))
-        response = self.fetch_protected(reverse("contacts.contact_read", args=[self.joe.uuid]), self.admin)
-
-        # should just show the language code instead of the language name
-        self.assertContains(response, "zzz")
-
-        self.joe.language = "fra"
-        self.joe.save(update_fields=("language",))
-        response = self.fetch_protected(reverse("contacts.contact_read", args=[self.joe.uuid]), self.admin)
-
-        # with a proper code, we should see the language
-        self.assertContains(response, "French")
 
     @mock_mailroom
     def test_contacts_search(self, mr_mocks):
@@ -3915,14 +3934,14 @@ class ContactURNTest(TembaTest):
         with self.assertRaises(IntegrityError):
             ContactURN.objects.create(org=self.org, scheme="ext", path="1234", identity="ext:5678")
 
-    def test_api_urn(self):
+    def test_get_for_api(self):
         urn = ContactURN.objects.create(
-            org=self.org, scheme="tel", path="+250788383383", identity="tel:+250788383383", priority=50
+            org=self.org, scheme="tel", path="+250788383383", identity="tel:+250788383383", priority=50, display="xyz"
         )
-        self.assertEqual(urn.api_urn(), "tel:+250788383383")
+        self.assertEqual(urn.get_for_api(), "tel:+250788383383")
 
         with AnonymousOrg(self.org):
-            self.assertEqual(urn.api_urn(), "tel:********")
+            self.assertEqual(urn.get_for_api(), "tel:********")
 
 
 class ContactFieldTest(TembaTest):

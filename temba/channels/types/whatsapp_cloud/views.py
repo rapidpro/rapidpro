@@ -67,8 +67,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         url = "https://graph.facebook.com/v13.0/debug_token"
         params = {"access_token": f"{app_id}|{app_secret}", "input_token": oauth_user_token}
 
-        unsupported_facebook_business_id = False
-
         response = requests.get(url, params=params)
         if response.status_code != 200:  # pragma: no cover
             context["waba_details"] = []
@@ -79,11 +77,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             waba_targets = []
             granular_scopes = response_json.get("data", dict()).get("granular_scopes", [])
             for scope_dict in granular_scopes:
-                if scope_dict["scope"] == "business_management":
-                    for business_id in scope_dict.get("target_ids", []):
-                        if business_id not in settings.ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS:  # pragma: no cover
-                            unsupported_facebook_business_id = True
-
                 if scope_dict["scope"] in ["whatsapp_business_management", "whatsapp_business_messaging"]:
                     waba_targets.extend(scope_dict.get("target_ids", []))
 
@@ -107,9 +100,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 target_waba_details = response_json
 
                 business_id = target_waba_details["on_behalf_of_business_info"]["id"]
-                if business_id not in settings.ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS:  # pragma: no cover
-                    unsupported_facebook_business_id = True
-                    continue
 
                 url = f"https://graph.facebook.com/v13.0/{target_waba}/phone_numbers"
                 params = {"access_token": oauth_user_token}
@@ -141,8 +131,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         if context["form"].errors:
             claim_error = context["form"].errors["__all__"][0]
         context["claim_error"] = claim_error
-
-        context["unsupported_facebook_business_id"] = unsupported_facebook_business_id
 
         # make sure we clear the session credentials if no number was granted
         if not context.get("phone_numbers", []):
@@ -260,7 +248,9 @@ class RequestCode(ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActi
         return reverse("channels.types.whatsapp_cloud.verify_code", args=[self.object.uuid])
 
     def build_content_menu(self, menu):
-        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[self.object.uuid]))
+        obj = self.get_object()
+
+        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[obj.uuid]))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -316,7 +306,9 @@ class VerifyCode(ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActio
     submit_button_name = _("Verify Number")
 
     def build_content_menu(self, menu):
-        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[self.object.uuid]))
+        obj = self.get_object()
+
+        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[obj.uuid]))
 
     def get_queryset(self):
         return Channel.objects.filter(is_active=True, org=self.request.org, channel_type="WAC")

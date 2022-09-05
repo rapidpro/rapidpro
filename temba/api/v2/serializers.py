@@ -515,6 +515,13 @@ class ContactReadSerializer(ReadSerializer):
     blocked = serializers.SerializerMethodField()  # deprecated
     stopped = serializers.SerializerMethodField()  # deprecated
 
+    def __init__(self, *args, context, **kwargs):
+        super().__init__(*args, context=context, **kwargs)
+
+        # remove anon_display field if org isn't anon
+        if not context["org"].is_anon:
+            self.fields.pop("anon_display")
+
     def get_name(self, obj):
         return obj.name if obj.is_active else None
 
@@ -528,7 +535,7 @@ class ContactReadSerializer(ReadSerializer):
         if not obj.is_active:
             return []
 
-        return [urn.api_urn() for urn in obj.get_urns()]
+        return [urn.get_for_api() for urn in obj.get_urns()]
 
     def get_groups(self, obj):
         if not obj.is_active:
@@ -557,6 +564,7 @@ class ContactReadSerializer(ReadSerializer):
         fields = (
             "uuid",
             "name",
+            "anon_display",
             "status",
             "language",
             "urns",
@@ -932,7 +940,7 @@ class FlowRunReadSerializer(ReadSerializer):
     }
 
     flow = fields.FlowField()
-    contact = fields.ContactField(with_urn=True)
+    contact = fields.ContactField(as_summary=True)
     start = serializers.SerializerMethodField()
     path = serializers.SerializerMethodField()
     values = serializers.SerializerMethodField()

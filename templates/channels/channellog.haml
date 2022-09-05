@@ -1,11 +1,9 @@
 -for http_log in log.http_logs
   -include "includes/http_log.haml" with log=http_log
 -if log.errors
-  %table.list.mb-8
-    %tbody
-      -for err in log.errors
-        %tr.border-b.warning
-          %td(width="32")
-            .icon-warning
-          %td
-            {{ err.message }}
+  -for err in log.errors
+    .p-4.shadow.bg-white.rounded-lg.my-4
+      .entry.flex
+        %temba-icon.ml-2.mr-4(name="alert-triangle" style="--icon-color:rgb(var(--error-rgb))" size="1.5")
+        .msg.flex-grow
+          {{ err.message }}

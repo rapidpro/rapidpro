@@ -1,3 +1,97 @@
+v7.5.38
+----------
+ * Add codecov token to ci.yml
+ * Remove unnecessary maxdiff set in tests
+ * Fix to allow displaying logs that timed out
+ * Add HttpLog util and use to save channel logs in new format
+ * Add UUID to channel log and msgs
+
+v7.5.37
+----------
+ * Show servicing org
+
+v7.5.36
+----------
+ * Clean up chooser a smidge
+
+v7.5.35
+----------
+ * Add org-chooser
+ * Refresh channel logs
+ * Add channel uuid to call log url
+ * Fix history state on tickets and contacts  
+ * Update footer  
+ * Add download icons for archives  
+ * Fix create flow modal opener  
+ * Flow editor embed styling
+ * Updating copyright dates and TextIt name (dba of Nyaruka)
+
+v7.5.34
+----------
+ * Use elapsed_ms rather than request_time on channel log templates
+ * Update components (custom widths for temba-dialog, use anon_display where possible)
+ * Switch to temba-dialog based attachment viewer, remove previous libs
+ * Nicer collapsing on flow list columns
+ * Add overview charts for run results
+
+v7.5.33
+----------
+ * ChannelLogCRUDL.List should use get_description so that it works if log_type is set
+ * Tweak channel log types to match what courier now creates
+ * Check for tabs after timeouts, don't auto-collapse flows
+ * Add charts to analytics tab
+
+v7.5.32
+----------
+ * Update components with label fix
+
+v7.5.31
+----------
+ * Add flow results in new UI
+
+v7.5.30
+----------
+ * Remove steps for add WAC credit line to businesses
+
+v7.5.29
+----------
+ * Fix servicing of channel logs
+
+v7.5.28
+----------
+ * Stop writing to unused media name field
+ * Add missing C Msg failed reason
+ * Add anon-display field to API contact results if org is anon and make urn display null
+
+v7.5.27
+----------
+ * Revert change to Contact.Bulk_urn_cache_initialize to have it set org on contacts
+
+v7.5.26
+----------
+ * Don't set org on bulk initialized contacts
+
+v7.5.25
+----------
+ * Fix filtering on channel log call page
+ * Add anon_display and use that when org is anon instead of using urn_display for anon id
+ * Add urn_display to contact reference on serialized runs in API
+
+v7.5.24
+----------
+ * Fix missing service end button
+
+v7.5.23
+----------
+ * Update to latest floweditor
+ * Add new ChannelLog log type choices and make description nullable
+ * Fix more content menus so that they can be fetched as JSON and add more tests
+
+v7.5.22
+----------
+ * Remove unused policies.policy_read perm
+ * Replace all permission checking against Customer Support group with is_staff check on user
+
 v7.5.21
 ----------
  * Allow views with ContentMenuMixin to be fetched as JSON menu items using a header

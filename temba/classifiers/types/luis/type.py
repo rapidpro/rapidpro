@@ -54,8 +54,8 @@ class LuisType(ClassifierType):
             pass
 
         for log in client.logs:
-            HTTPLog.create_from_response(
-                HTTPLog.INTENTS_SYNCED, log["url"], log["response"], classifier=classifier, request_time=log["elapsed"]
+            HTTPLog.from_response(
+                HTTPLog.INTENTS_SYNCED, log["response"], log["created_on"], log["ended_on"], classifier=classifier
             )
 
         return [Intent(name=i["name"], external_id=i["id"]) for i in intents]

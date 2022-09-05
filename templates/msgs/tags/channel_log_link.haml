@@ -1,3 +1,3 @@
 -if has_logs
-  .hover-linked{onclick:"goto(event)", href:"{% url 'channels.channellog_msg' msg.id %}"}
+  .hover-linked{onclick:"goto(event)", href:"{% url 'channels.channellog_msg' msg.channel.uuid msg.id %}"}
     .icon-docs-2.pointer-events-none

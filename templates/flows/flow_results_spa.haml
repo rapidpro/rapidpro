@@ -1,0 +1,380 @@
+-extends "smartmin/read.html"
+-load smartmin sms compress temba contacts i18n
+
+-block title
+  {{object.name}}
+  
+-block extra-less
+
+  -compress css inline
+    {% lessblock %}
+      :plain
+
+        .chart .chart-name {
+          padding-left: 50px;
+          padding-right: 50px;
+          font-size: 16px;
+          text-align: center;
+          position: relative;
+          top: 90px;
+          height: 50px;
+          z-index: 1;
+          text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white;
+        }
+
+        .chart {
+          flex-basis: 400px;
+        }
+
+        .modal {
+          .modal-body {
+            max-height: 450px;
+          }
+        }
+
+        #category-charts {
+          justify-content: center; 
+        }
+
+
+        #overview-charts {
+          justify-content: center;
+          padding-top: 2em;
+
+        }
+
+        #overview-charts > div {
+          margin-bottom: 6em;
+          align-self: flex-start;
+          flex-basis: 400px;          
+        }
+
+        h4 {
+          font-weight: 300;
+          text-align: center;
+        }
+
+    {% endlessblock %}
+
+-block extra-script
+  {{ block.super }}
+
+  -if not is_spa
+    %script(src="{{ STATIC_URL }}bower/highcharts/highcharts.js")
+    %script(src="{{ STATIC_URL }}bower/highcharts/modules/drilldown.js")
+
+  :javascript
+
+    Highcharts.setOptions({
+      global: {
+        timezoneOffset: -1 * {{utcoffset}}
+      },
+      lang: {
+        thousandsSep: ','
+      }
+    })
+    
+    Highcharts.setOptions({
+      colors: ['#2387CA', '#8FC93A', '#E18335', '#483C46', '#E4CC37', '#723D46', '#606C38', '#7DCFB6']
+    });
+
+    var colors = Highcharts.getOptions().colors;
+    function getColor(index) {
+      return colors[index % colors.length];
+    }
+
+    var charts = {}
+    function handleFlowRefreshed(evt) {
+      var flow = evt.detail.data;
+      if (flow.runs) {
+        var runCount = flow.runs.active + flow.runs.completed + flow.runs.expired + flow.runs.interrupted;
+
+        var tabs = document.querySelector("temba-tabs");
+        var runsTab = tabs.getTab(2);
+        runsTab.count = runCount;
+        tabs.requestUpdate();
+
+        var runList = document.querySelector("temba-run-list");
+        runList.results = flow.results;
+      }
+    }
+
+    function handleRunsRefreshed(evt) {
+      document.querySelector("temba-flow-details").refresh();
+    }
+
+    function deleteRun(id) {
+      var dialog = document.getElementById("confirm-run-delete");
+      dialog.runId = id;
+      dialog.open = true;
+    }
+
+    function performDelete(evt) {
+      var dialog = document.getElementById("confirm-run-delete");
+      dialog.open = false;
+
+      if(evt.detail.button.destructive) {
+        var store = document.querySelector("temba-store");
+        store.postUrl("/flowrun/delete/" + dialog.runId + "/").then(function(response) {
+          if (response.status == 200) {
+            var runList = document.querySelector("temba-run-list");
+            if (runList) {
+              runList.removeRun(dialog.runId);
+              var details = document.querySelector("temba-flow-details");
+              details.refresh();
+            }
+          }
+        });
+      }
+    }
+
+    function getChart(key, name) {
+      var chart = charts[key];
+      if (!chart) {
+
+        // add our chart container
+        var ele = document.querySelector(".chart-template").cloneNode(true);
+        ele.classList = "chart";
+        ele.querySelector(".chart-container").id = key + "-chart";
+        ele.querySelector(".chart-name").innerText = name;
+        document.querySelector("#category-charts").append(ele);
+
+        // init with highcharts
+        chart = Highcharts.chart(key + '-chart', {
+          chart: {
+              type: 'column',
+              margin: [25, 25, 90, 25]
+          },
+          title: {
+              text: null
+          },
+          credits: {
+             enabled: false
+          },
+          yAxis: {
+            min: 0,
+            max: 100,
+            lineWidth: 0,
+            minorGridLineWidth: 0,
+            lineColor: 'transparent',
+            minorTickLength: 0,
+            tickLength: 0,
+            gridLineColor: '#f2f2f2',
+            labels: {
+              enabled: false
+            },
+            title: {
+              text: null
+            }
+          },
+          xAxis: {
+            categories: [],
+
+            title: {
+              text: null
+            },
+            labels: {
+              enabled: true
+            },
+          },
+          tooltip: {
+            formatter: function() {
+              return "<b>" + this.x + "</b>: " + this.point.count;
+            }
+          },
+          series: []
+        });
+      }
+
+      charts[key] = chart;
+      return chart;
+    }
+
+    function updateChart(chartData) {
+      var key = chartData.key;
+      var chart = getChart(key, chartData.name);
+      var seriesData = [];
+      var labels = [];
+      var totalPct = 0;
+      for (var category of chartData.categories) {
+        pointLabels = {}
+        pointLabels.enabled = true;
+        pointLabels.color = "#fff";
+        pointLabels.x = 0;
+        pointLabels.y = 0;
+        pointLabels.format = "{point.y}%";
+
+        pct = parseInt(category.pct * 100);
+
+        if (pct > 15) {
+          pointLabels.y = 25;
+        }
+
+        seriesData.push({name: category.name, count: category.count, y: pct, dataLabels: pointLabels});
+      }
+
+      seriesData.sort(function(a, b) {
+        if (a.name == 'Other') {
+          return 1;
+        } else if (b.name == 'Other') {
+          return -1;
+        }
+        return b.count - a.count;
+      });
+
+      for (var idx in seriesData) {
+        labels.push(seriesData[idx].name);
+        var color = getColor(idx);
+        if (seriesData[idx].name == 'Other') {
+          color = '#999';
+        }
+        seriesData[idx].color = color;
+      }
+
+      var series = { name: chartData.name, showInLegend: false, data: seriesData};
+
+      if (chart.series.length == 0) {
+        chart.addSeries(series);
+      } else {
+        chart.series[0].setData(seriesData, true);
+      }
+
+      chart.xAxis[0].update({categories:labels});
+
+      // on larger series make sure we are wide
+      var size = chartData['size'];
+      if (size) {
+        var ele = document.querySelector("#" + key + "-chart");
+        if (ele) {
+          ele.classList.add(size);
+        }
+        chart.reflow();
+        window.dispatchEvent(new Event('resize'));
+      }
+    }
+
+    function chartLayoutChanged(counts) {
+      var keys = Object.keys(charts);
+      if (counts.length != keys.length) {
+        return true;
+      }
+
+      // check if order changed
+      for (var i=0; i<counts.length; i++) {
+        if (counts[i]['key'] != keys[i]) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function resetCharts() {
+
+      var cats = document.querySelector("#category-charts");
+      while (cats.firstChild) {
+        cats.removeChild(cats.firstChild);
+      }
+
+      for (var key in charts){
+        charts[key].destroy();
+      }
+      charts = {};
+    }
+
+    function updatePreviousCharts(from, to, counts) {
+      var chartCount = to - from;
+      if (chartCount % 3 == 0) {
+        for (var j=from; j < to; j++) {
+          counts[j]['size'] = 'small';
+        }
+      } else if (chartCount == 1) {
+        counts[to-1]['size'] = 'large';
+      }
+    }
+
+    function updateCharts() {
+
+      var store = document.querySelector("temba-store");
+      var tabs = document.querySelector("temba-tabs");
+
+      if (!tabs || tabs.index != 1) {
+        return;
+      }
+
+      store.getUrl("/flow/category_counts/{{object.uuid}}/", { force: true }).then(function(response){
+        var data = response.json;
+
+        if (data.counts) {
+          // determine chart sizes
+          var lastBigChart = -1;
+          for (var i=0; i<data.counts.length; i++) {
+            data.counts[i]['size'] = 'medium';
+            if (data.counts[i].categories.length > 5) {
+              data.counts[i]['size'] = 'large';
+              updatePreviousCharts(lastBigChart + 1, i, data.counts);
+              lastBigChart = i;
+            }
+          }
+
+          if (lastBigChart != data.counts.length - 1) {
+            updatePreviousCharts(lastBigChart + 1, i, data.counts);
+          }
+
+          if (chartLayoutChanged(data.counts)) {
+            resetCharts();
+          }
+
+          for (var chartData of data.counts) {
+            updateChart(chartData);
+          }
+        }
+      });
+
+      window.setTimeout(function() {
+        updateCharts();
+      }, 5000);
+    }
+
+    function handleTabChanged() {
+      var tabs = document.querySelector("temba-tabs");
+
+      if (!tabs) {
+        return;
+      }
+
+      // runs are paused unless our tab is active
+      var runs = document.querySelector("temba-run-list");
+      runs.paused = tabs.index != 2;
+
+      if (tabs.index == 0) {
+        fetchAjax('/flow/activity_chart/{{object.id}}', "#overview-charts", {});
+      }
+
+      if (tabs.index == 1) {
+        updateCharts();
+      }
+    }
+
+
+-block content
+
+  .chart-template
+    .chart-name
+    .chart-container
+
+  %temba-flow-details(flow="{{object.uuid}}"  -temba-refreshed="handleFlowRefreshed")
+
+  %temba-tabs.flex-grow(-temba-context-changed="handleTabChanged")
+
+    %temba-tab(name='{{_("Overview")|escapejs}}')
+      #overview-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
+
+    %temba-tab(name='{{_("Analytics")|escapejs}}' icon="bar-chart")
+      #category-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
+
+    %temba-tab(name='{{_("Runs")|escapejs}}')
+      %temba-run-list.p-4.flex.flex-col.flex-grow.overflow-hidden(flow="{{object.uuid}}" -temba-refreshed="handleRunsRefreshed")
+
+  %temba-dialog#confirm-run-delete(header='{{ _("Delete Run")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true' -temba-button-clicked="performDelete")
+    .p-6
+      -trans "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."

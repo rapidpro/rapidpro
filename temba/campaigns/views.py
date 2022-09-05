@@ -130,38 +130,40 @@ class CampaignCRUDL(SmartCRUDL):
             return self.object.name
 
         def build_content_menu(self, menu):
-            if self.object.is_archived:
+            obj = self.get_object()
+
+            if obj.is_archived:
                 if self.has_org_perm("campaigns.campaign_activate"):
-                    menu.add_url_post(_("Activate"), reverse("campaigns.campaign_activate", args=[self.object.id]))
+                    menu.add_url_post(_("Activate"), reverse("campaigns.campaign_activate", args=[obj.id]))
 
                 if self.has_org_perm("orgs.org_export"):
-                    menu.add_link(_("Export"), f"{reverse('orgs.org_export')}?campaign={self.object.id}&archived=1")
+                    menu.add_link(_("Export"), f"{reverse('orgs.org_export')}?campaign={obj.id}&archived=1")
             else:
                 if self.has_org_perm("campaigns.campaignevent_create"):
                     menu.add_modax(
                         _("New Event"),
                         "event-add",
-                        f"{reverse('campaigns.campaignevent_create')}?campaign={self.object.id}",
+                        f"{reverse('campaigns.campaignevent_create')}?campaign={obj.id}",
                     )
 
                 if self.has_org_perm("orgs.org_export"):
-                    menu.add_link(_("Export"), f"{reverse('orgs.org_export')}?campaign={self.object.id}")
+                    menu.add_link(_("Export"), f"{reverse('orgs.org_export')}?campaign={obj.id}")
 
                 if self.has_org_perm("campaigns.campaign_update"):
                     menu.add_modax(
                         _("Edit"),
                         "campaign-update",
-                        reverse("campaigns.campaign_update", args=[self.object.id]),
+                        reverse("campaigns.campaign_update", args=[obj.id]),
                         title=_("Edit Campaign"),
                     )
 
                 if self.has_org_perm("campaigns.campaign_archive"):
-                    menu.add_url_post(_("Archive"), reverse("campaigns.campaign_archive", args=[self.object.id]))
+                    menu.add_url_post(_("Archive"), reverse("campaigns.campaign_archive", args=[obj.id]))
 
             if self.request.user.is_staff:
                 menu.add_url_post(
                     _("Service"),
-                    f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("campaigns.campaign_read", args=[self.object.uuid])}',
+                    f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("campaigns.campaign_read", args=[obj.uuid])}',
                 )
 
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
@@ -172,7 +174,7 @@ class CampaignCRUDL(SmartCRUDL):
 
         def pre_save(self, obj):
             obj = super().pre_save(obj)
-            obj.org = self.request.user.get_org()
+            obj.org = self.request.org
             return obj
 
         def get_form_kwargs(self):
@@ -187,14 +189,14 @@ class CampaignCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["org_has_campaigns"] = Campaign.objects.filter(org=self.request.user.get_org()).count()
+            context["org_has_campaigns"] = Campaign.objects.filter(org=self.request.org).count()
             if not self.is_spa():
                 context["folders"] = self.get_folders()
             context["request_url"] = self.request.path
             return context
 
         def get_folders(self):
-            org = self.request.user.get_org()
+            org = self.request.org
             folders = []
             folders.append(
                 dict(
@@ -541,11 +543,13 @@ class CampaignEventCRUDL(SmartCRUDL):
             return context
 
         def build_content_menu(self, menu):
-            if self.has_org_perm("campaigns.campaignevent_update") and not self.object.campaign.is_archived:
+            obj = self.get_object()
+
+            if self.has_org_perm("campaigns.campaignevent_update") and not obj.campaign.is_archived:
                 menu.add_modax(
                     _("Edit"),
                     "event-update",
-                    reverse("campaigns.campaignevent_update", args=[self.object.id]),
+                    reverse("campaigns.campaignevent_update", args=[obj.id]),
                     title=_("Edit Event"),
                 )
 
@@ -553,7 +557,7 @@ class CampaignEventCRUDL(SmartCRUDL):
                 menu.add_modax(
                     _("Delete"),
                     "event-delete",
-                    reverse("campaigns.campaignevent_delete", args=[self.object.id]),
+                    reverse("campaigns.campaignevent_delete", args=[obj.id]),
                     title=_("Delete Event"),
                 )
 

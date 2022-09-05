@@ -874,51 +874,49 @@ class FlowCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
         def build_content_menu(self, menu):
-            label = FlowLabel.objects.get(uuid=self.kwargs["uuid"])
-
             if self.has_org_perm("flows.flow_update"):
                 menu.add_modax(
                     _("Edit"),
                     "update-label",
-                    f"{reverse('flows.flowlabel_update', args=[label.pk])}",
+                    f"{reverse('flows.flowlabel_update', args=[self.label.id])}",
                     title=_("Edit Label"),
                     primary=True,
                 )
 
             if self.has_org_perm("flows.flow_delete"):
                 menu.add_modax(
-                    _("Delete Label"), "delete-label", f"{reverse('flows.flowlabel_delete', args=[label.pk])}"
+                    _("Delete Label"), "delete-label", f"{reverse('flows.flowlabel_delete', args=[self.label.id])}"
                 )
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            context["current_label"] = self.derive_label()
+            context["current_label"] = self.label
             return context
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<uuid>[0-9a-f-]+)/$" % (path, action)
+            return r"^%s/%s/(?P<label_uuid>[0-9a-f-]+)/$" % (path, action)
 
         def derive_title(self, *args, **kwargs):
-            return self.derive_label().name
+            return self.label.name
 
         def get_object_org(self):
-            return FlowLabel.objects.get(uuid=self.kwargs["uuid"]).org
+            return self.label.org
 
-        def derive_label(self):
-            return FlowLabel.objects.get(uuid=self.kwargs["uuid"], org=self.request.user.get_org())
+        @cached_property
+        def label(self):
+            return FlowLabel.objects.get(uuid=self.kwargs["label_uuid"], org=self.request.org)
 
         def get_label_filter(self):
-            label = FlowLabel.objects.get(uuid=self.kwargs["uuid"])
-            children = label.children.all()
+            children = self.label.children.all()
             if children:  # pragma: needs cover
-                return [lb for lb in FlowLabel.objects.filter(parent=label)] + [label]
+                return [lb for lb in FlowLabel.objects.filter(parent=self.label)] + [self.label]
             else:
-                return [label]
+                return [self.label]
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.user.get_org()).order_by("-created_on")
+            qs = qs.filter(org=self.request.org).order_by("-created_on")
             qs = qs.filter(labels__in=self.get_label_filter(), is_archived=False).distinct()
 
             return qs
@@ -1007,65 +1005,62 @@ class FlowCRUDL(SmartCRUDL):
             return features
 
         def build_content_menu(self, menu):
-            flow = self.object
-            if (
-                flow.flow_type != Flow.TYPE_SURVEY
-                and self.has_org_perm("flows.flow_broadcast")
-                and not flow.is_archived
-            ):
+            obj = self.get_object()
+
+            if obj.flow_type != Flow.TYPE_SURVEY and self.has_org_perm("flows.flow_broadcast") and not obj.is_archived:
                 menu.add_modax(
                     _("Start Flow"),
                     "start-flow",
-                    f"{reverse('flows.flow_broadcast', args=[])}?flow={self.object.id}",
+                    f"{reverse('flows.flow_broadcast', args=[])}?flow={obj.id}",
                     primary=True,
                 )
 
             if self.has_org_perm("flows.flow_results"):
-                menu.add_link(_("Results"), reverse("flows.flow_results", args=[flow.uuid]))
+                menu.add_link(_("Results"), reverse("flows.flow_results", args=[obj.uuid]))
 
             menu.new_group()
 
-            if self.has_org_perm("flows.flow_update") and not flow.is_archived:
+            if self.has_org_perm("flows.flow_update") and not obj.is_archived:
                 menu.add_modax(
                     _("Edit"),
                     "edit-flow",
-                    f"{reverse('flows.flow_update', args=[self.object.pk])}",
+                    f"{reverse('flows.flow_update', args=[obj.id])}",
                     title=_("Edit Flow"),
                 )
 
             if self.has_org_perm("flows.flow_copy"):
-                menu.add_url_post(_("Copy"), reverse("flows.flow_copy", args=[flow.id]))
+                menu.add_url_post(_("Copy"), reverse("flows.flow_copy", args=[obj.id]))
 
             if self.has_org_perm("flows.flow_delete"):
                 menu.add_modax(
                     _("Delete"),
                     "delete-flow",
-                    reverse("flows.flow_delete", args=[self.object.uuid]),
+                    reverse("flows.flow_delete", args=[obj.uuid]),
                     title=_("Delete Flow"),
                 )
 
             menu.new_group()
 
             if self.has_org_perm("orgs.org_export"):
-                menu.add_link(_("Export Definition"), f"{reverse('orgs.org_export')}?flow={flow.id}")
+                menu.add_link(_("Export Definition"), f"{reverse('orgs.org_export')}?flow={obj.id}")
 
             # limit PO export/import to non-archived flows since mailroom doesn't know about archived flows
-            if not self.object.is_archived:
+            if not obj.is_archived:
                 if self.has_org_perm("flows.flow_export_translation"):
                     menu.add_modax(
                         _("Export Translation"),
                         "export-translation",
-                        reverse("flows.flow_export_translation", args=[self.object.pk]),
+                        reverse("flows.flow_export_translation", args=[obj.id]),
                     )
 
                 if self.has_org_perm("flows.flow_import_translation"):
-                    menu.add_link(_("Import Translation"), reverse("flows.flow_import_translation", args=[flow.id]))
+                    menu.add_link(_("Import Translation"), reverse("flows.flow_import_translation", args=[obj.id]))
 
             user = self.get_user()
             if user.is_superuser or user.is_staff:
                 menu.add_url_post(
                     _("Service"),
-                    f'{reverse("orgs.org_service")}?organization={flow.org_id}&redirect_url={reverse("flows.flow_editor", args=[flow.uuid])}',
+                    f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("flows.flow_editor", args=[obj.uuid])}',
                 )
 
     class ChangeLanguage(OrgObjPermsMixin, SmartUpdateView):
@@ -1596,16 +1591,18 @@ class FlowCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
         def build_content_menu(self, menu):
+            obj = self.get_object()
+
             if self.has_org_perm("flows.flow_update"):
                 menu.add_modax(
                     _("Download"),
                     "download-results",
-                    f"{reverse('flows.flow_export_results')}?ids={self.get_object().pk}",
+                    f"{reverse('flows.flow_export_results')}?ids={obj.id}",
                     title=_("Download Results"),
                 )
 
             if self.has_org_perm("flows.flow_editor"):
-                menu.add_link(_("Edit Flow"), reverse("flows.flow_editor", args=[self.get_object().uuid]))
+                menu.add_link(_("Edit Flow"), reverse("flows.flow_editor", args=[obj.uuid]))
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)

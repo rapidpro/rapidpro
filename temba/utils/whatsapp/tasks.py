@@ -62,11 +62,8 @@ def refresh_whatsapp_contacts(channel_id):
 
             start = timezone.now()
             resp = requests.post(url, json=payload, headers=headers)
-            elapsed = (timezone.now() - start).total_seconds() * 1000
 
-            HTTPLog.create_from_response(
-                HTTPLog.WHATSAPP_CONTACTS_REFRESHED, url, resp, channel=channel, request_time=elapsed
-            )
+            HTTPLog.from_response(HTTPLog.WHATSAPP_CONTACTS_REFRESHED, resp, start, timezone.now(), channel=channel)
 
             # if we had an error, break out
             if resp.status_code != 200:

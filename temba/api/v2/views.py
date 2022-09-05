@@ -3068,12 +3068,15 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
             Prefetch("flow", queryset=Flow.objects.only("uuid", "name", "base_language")),
-            Prefetch("contact", queryset=Contact.objects.only("uuid", "name", "language")),
-            Prefetch("contact__urns", ContactURN.objects.order_by("-priority", "id")),
+            Prefetch("contact", queryset=Contact.objects.only("uuid", "name", "language", "org")),
+            Prefetch("contact__org"),
             Prefetch("start", queryset=FlowStart.objects.only("uuid")),
         )
 
         return self.filter_before_after(queryset, "modified_on")
+
+    def prepare_for_serialization(self, object_list, using: str):
+        Contact.bulk_urn_cache_initialize([r.contact for r in object_list], using=using)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

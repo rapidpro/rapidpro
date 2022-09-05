@@ -34,9 +34,8 @@ class AuthoringClient:
 
         start = timezone.now()
         response = requests.get(f"{self.endpoint}luis/api/v2.0/{path}", headers={self.AUTH_HEADER: self.key})
-        elapsed = (timezone.now() - start).total_seconds() * 1000
 
-        self.logs.append({"url": url, "response": response, "elapsed": elapsed})
+        self.logs.append({"url": url, "response": response, "created_on": start, "ended_on": timezone.now()})
 
         response.raise_for_status()
         return response.json()
