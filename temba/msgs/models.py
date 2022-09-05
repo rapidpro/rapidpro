@@ -540,6 +540,7 @@ class Msg(models.Model):
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
 
     metadata = JSONAsTextField(null=True, default=dict)
+    logs = ArrayField(models.UUIDField(), null=True)
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):

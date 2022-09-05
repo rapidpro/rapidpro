@@ -4,6 +4,7 @@ from abc import ABCMeta
 from datetime import timedelta
 from enum import Enum
 from urllib.parse import quote_plus
+from uuid import uuid4
 from xml.sax.saxutils import escape
 
 import phonenumbers
@@ -1213,6 +1214,7 @@ class ChannelLog(models.Model):
     )
 
     id = models.BigAutoField(primary_key=True)
+    uuid = models.UUIDField(null=True)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
     connection = models.ForeignKey(
@@ -1240,7 +1242,8 @@ class ChannelLog(models.Model):
         request_time = 0 if not start else time.time() - start
         request_time_ms = request_time * 1000
 
-        return ChannelLog.objects.create(
+        return cls.objects.create(
+            uuid=uuid4(),
             channel_id=channel_id,
             request=str(event.request_body),
             response=str(event.response_body),
