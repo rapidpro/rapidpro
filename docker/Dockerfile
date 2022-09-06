@@ -7,6 +7,7 @@ COPY ./poetry.lock .
 COPY ./docker/pip-requires.txt .
 
 RUN python -m pip install -U poetry \
+ && apt-get install --no-install-recommends --no-install-suggests -y gcc build-essential \
  && poetry cache clear -n --all pypi \
  && poetry add -n --lock $(cat pip-requires.txt) \
  && poetry export --without-hashes --output requirements.txt
