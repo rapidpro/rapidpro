@@ -1,3 +1,7 @@
+1.5.7-rapidpro-7.1.27
+----------
+* Lock dulwich package version into 0.20.45
+
 1.5.6-rapidpro-7.1.27
 ----------
 * Add build dependencies on Dockerfile
