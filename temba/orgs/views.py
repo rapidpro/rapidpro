@@ -814,7 +814,7 @@ class UserCRUDL(SmartCRUDL):
         title = _("Password Recovery")
         form_class = ForgetForm
         permission = None
-        success_message = _("An Email has been sent to your account with further instructions.")
+        success_message = _("An email has been sent to your account with further instructions.")
         success_url = "@users.user_login"
         fields = ("email",)
 
