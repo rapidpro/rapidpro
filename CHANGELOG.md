@@ -1,3 +1,7 @@
+v7.5.40
+----------
+ * Tweak forgot password success message
+
 v7.5.39
 ----------
  * Add log_uuids field to ChannelConnection, ChannelEvent and Msg
