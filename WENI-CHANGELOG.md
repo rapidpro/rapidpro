@@ -1,3 +1,7 @@
+1.5.6-rapidpro-7.1.27
+----------
+* Add build dependencies on Dockerfile
+
 1.5.5-rapidpro-7.1.27
 ----------
 * Update gunicorn to support max_requests #348 
