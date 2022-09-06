@@ -1,3 +1,7 @@
+1.5.5-rapidpro-7.1.27
+----------
+* Update gunicorn to support max_requests #348 
+
 1.5.4-rapidpro-7.1.27
 ----------
 * Bump weni-rp-apps from 1.0.24 to 1.0.25
