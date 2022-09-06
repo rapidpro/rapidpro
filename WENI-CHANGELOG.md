@@ -1,3 +1,7 @@
+1.5.8-rapidpro-7.1.27
+----------
+* Remove gcc dependencies from Dockerfile
+
 1.5.7-rapidpro-7.1.27
 ----------
 * Lock dulwich package version into 0.20.45
