@@ -6,3 +6,4 @@ django-csp@^3.7
 weni-rp-apps@==1.0.25
 elasticsearch==7.13.4
 slack_sdk==3.17.0
+dulwich==0.20.45
