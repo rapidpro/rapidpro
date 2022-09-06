@@ -1,3 +1,8 @@
+v7.5.39
+----------
+ * Add log_uuids field to ChannelConnection, ChannelEvent and Msg
+ * Improve `trim_http_logs_task` performance by splitting the query
+
 v7.5.38
 ----------
  * Add codecov token to ci.yml
