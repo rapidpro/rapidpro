@@ -1,3 +1,7 @@
+v7.5.41
+----------
+ * Fix temba-store
+
 v7.5.40
 ----------
  * Tweak forgot password success message
