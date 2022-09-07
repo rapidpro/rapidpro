@@ -173,7 +173,7 @@
   
   -block temba-store
     
-    -if user.is_authenticated and org
+    -if user.is_authenticated and user_org
       %temba-store(
         completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
         fields="/api/v2/fields.json"
