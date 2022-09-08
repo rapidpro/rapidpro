@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("channels", "0144_channelconnection_log_uuids"),
+        ("channels", "0145_drop_legacy_logs"),
     ]
 
     operations = [
