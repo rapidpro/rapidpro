@@ -13,11 +13,11 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
-from temba.assets.models import register_asset_store
+# from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org, User, UserSettings
 from temba.utils.dates import date_range
-from temba.utils.export import BaseExportAssetStore, BaseExportTask
+# from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
