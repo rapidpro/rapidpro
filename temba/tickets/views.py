@@ -1,5 +1,4 @@
 from datetime import timedelta
-# from urllib.parse import quote_plus
 
 from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
@@ -31,6 +30,8 @@ from .models import (
     UnassignedFolder,
     export_ticket_stats,
 )
+
+# from urllib.parse import quote_plus
 
 
 class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
@@ -167,7 +168,7 @@ class TicketCRUDL(SmartCRUDL):
         # TODO should i be doing both of these checks ? flow results only checks has_org_perm, messages checks both allow_export and has_org_perm
         #     if self.allow_export and self.has_org_perm("tickets.ticket_export"):
         # TODO should i be using add_modax? OR should i be using something like add_link, add_js, or add_url_post ? flow results and messages both use add_modax
-        #         menu.add_modax(_("Download"), "export-tickets", f"{reverse('tickets.ticket_export')}?ids={obj.id}", title=_("Download Tickets")) 
+        #         menu.add_modax(_("Download"), "export-tickets", f"{reverse('tickets.ticket_export')}?ids={obj.id}", title=_("Download Tickets"))
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
@@ -403,9 +404,10 @@ class TicketCRUDL(SmartCRUDL):
             )
 
             return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
-    
-    class ExportTickets():
+
+    class ExportTickets:
         pass
+
 
 class TicketerCRUDL(SmartCRUDL):
     model = Ticketer
