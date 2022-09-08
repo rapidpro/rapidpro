@@ -1,4 +1,5 @@
 from datetime import timedelta
+from urllib.parse import quote_plus
 
 from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
@@ -88,8 +89,9 @@ class NoteForm(forms.ModelForm):
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
     actions = ("list", "folder", "note", "assign", "menu", "export_stats")
+    # actions = ("list", "folder", "note", "assign", "menu", "export_stats", "export_tickets")
 
-    class List(SpaMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
+    class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
         A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
         """
@@ -158,6 +160,14 @@ class TicketCRUDL(SmartCRUDL):
                 context["nextUUID" if in_page else "uuid"] = uuid
 
             return context
+
+        # def build_content_menu(self, menu):
+        # TODO should i be using self.get_object() ?
+        #     obj = self.get_object()
+        # TODO should i be doing both of these checks ? flow results only checks has_org_perm, messages checks both allow_export and has_org_perm
+        #     if self.allow_export and self.has_org_perm("tickets.ticket_export"):
+        # TODO should i be using add_modax? OR should i be using something like add_link, add_js, or add_url_post ? flow results and messages both use add_modax
+        #         menu.add_modax(_("Download"), "export-tickets", f"{reverse('tickets.ticket_export')}?ids={obj.id}", title=_("Download Tickets")) 
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
@@ -393,7 +403,9 @@ class TicketCRUDL(SmartCRUDL):
             )
 
             return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
-
+    
+    class ExportTickets():
+        pass
 
 class TicketerCRUDL(SmartCRUDL):
     model = Ticketer

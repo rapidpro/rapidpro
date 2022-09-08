@@ -270,6 +270,20 @@
       // menu.refresh();
     }
 
+    {% comment %} 
+    // TODO do i need this? this seems to be needed for flow run exports, but not for message exports
+    function exportTickets(){
+      var endpoint = '{% url "tickets.ticket_export" %}';
+      // TODO update from #export-results to #ticket-export or something similar
+      var modal = document.querySelector("#export-results");
+        var ids = getCheckedIds();
+        if (ids.length > 0) {
+          modal.setAttribute("endpoint", endpoint + '?ids=' + ids);
+        }
+      modal.open = true;
+    } 
+    {% endcomment %}
+
 -block page-container
   -block content
     .flex.flex-col(style="height:100%")

@@ -13,9 +13,11 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
+from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org, User, UserSettings
 from temba.utils.dates import date_range
+from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
@@ -625,3 +627,20 @@ def export_ticket_stats(org: Org, since: date, until: date) -> openpyxl.Workbook
         day_row += 1
 
     return workbook
+
+# TODO do i need something like this? (similar to export_ticket_stats)
+# def export_tickets:
+#     pass
+#
+# OR
+#
+# TODO do i need something like this? (similar to flow runs and messages)
+# class ExportTicketsTask(BaseExportTask):
+#     pass
+# @register_asset_store
+# class TicketExportAssetStore(BaseExportAssetStore):
+#     model = ExportTicketsTask
+#     key = "ticket_export"
+#     directory = "ticket_exports"
+#     permission = "tickets.ticket_export"
+#     extensions = ("xlsx",)
