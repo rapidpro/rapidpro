@@ -642,16 +642,18 @@ class ExportTicketsTask(BaseExportTask):
 
     @classmethod
     def create(cls, org, user):
-        export = cls.objects.create(org=org, created_by=user, modified_by=user)
-        return export
+        return cls.objects.create(org=org, created_by=user, modified_by=user)
 
     def write_export(self):
 
         # get the fields aka column headers
         fields = self.get_fields(self)
 
-        # TODO get the ticket ids
-        ticket_ids = []
+        # get the ticket ids
+        # TODO this should prob be filtering on org
+        # TODO should this be filtering on anything else?
+        # TODO is there a more scaleable way we should be doing this instead?
+        ticket_ids = Ticket.objects.values_list('id')
 
         # create the exporter
         exporter = TableExporter(self, "Ticket", [f["label"] for f in fields])
@@ -660,10 +662,11 @@ class ExportTicketsTask(BaseExportTask):
         total_exported_tickets = 0
         start = time.time()
 
-        # add tickets to the export in batches of 10k to limit memory usage
+        # add tickets to the export in batches of 1k to limit memory usage
         for ticket_batch_ids in chunk_list(ticket_ids, 1000):
 
             # create a map of id:ticket to maintain order within each batch
+            # TODO should we also be using this to prefetch contacts and users?
             batch_tickets = Ticket.objects.filter(id__in=ticket_batch_ids).prefetch_related("org").using("readonly")
             tickets_by_id = {t.id: t for t in batch_tickets}
 
@@ -675,6 +678,7 @@ class ExportTicketsTask(BaseExportTask):
                 values = []
                 for field in fields:
                     value = self.get_field_value(field, ticket)
+                    # TODO is there a shared util we should be using instead?
                     values.append(self.prepare_value(value))
 
                 # add row to the export
@@ -716,9 +720,11 @@ class ExportTicketsTask(BaseExportTask):
         # if the org is anon, get the contact id of the ticket
         if self.org.is_anon:
             fields = fields + dict(label="Contact ID", key="contact_id", field=None, urn_scheme=None)
+        # TODO URN Scheme - clarify what this is and how to get the field(s)
         fields = fields + dict(label="URN Scheme", key="TODO", field=None, urn_scheme=None)
         # if the org is NOT anon, get the urn value of the ticket
         if not self.org.is_anon:
+            # TODO URN Value - clarify what this is and how to get the field(s)
             fields = fields + dict(label="URN Value", key="TODO", field=None, urn_scheme=None)
         return fields
 
@@ -732,16 +738,27 @@ class ExportTicketsTask(BaseExportTask):
         elif field["key"] == "topic_id":
             return ticket.topic
         elif field["key"] == "assignee_id":
-            return ticket.assignee
+            # TODO we should prob prefetch all of the users based on the assignee_id's
+            if(ticket.assignee):
+                user = User.objects.get(id=ticket.assignee).values()
+                return user.email if user else None
+            else:
+                return ticket.assignee
         elif field["key"] == "opened_by_id":
-            return ticket.opened_by
+            # TODO should this be a contact or user?
+            # TODO we should prob prefetch all of the users based on the opened_by_id's
+            user = User.objects.get(id=ticket.opened_by).values()
+            return user.id if user else  None
         elif field["key"] == "contact_id":
-            return ticket.contact
-        # TODO URN Scheme
-        # TODO URN Value
+            # TODO we should prob prefetch all of the contacts based on the contact_id's
+            contact = Contact.objects.get(id=ticket.contact).values()
+            return contact.uuid if contact else None
+        # TODO URN Scheme - clarify what this is and how to get the value(s)
+        # TODO URN Value - clarify what this is and how to get the value(s)
         else:
-            return "no field value"  # TODO update this to something standard
+            return None # TODO should we update this to return something else?
 
+    # TODO is there a shared util we should be using instead?
     def prepare_value(self, value):
         if value is None:
             return ""

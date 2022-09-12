@@ -164,13 +164,33 @@ class TicketCRUDL(SmartCRUDL):
 
             return context
 
+        # TODO need to configure permissions
+        # TODO need to configure deep link (or implement derive_export_url)
         # def build_content_menu(self, menu):
-        # TODO should i be using self.get_object() ?
+        #     # contacts
+        #     # if self.has_org_perm("contacts.contact_export"):
+        #     #     menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
+        #     # messages
+        #     # if self.allow_export and self.has_org_perm("msgs.msg_export"):
+        #     #     menu.add_modax(_("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages"))
+            
+        #     # TODO implementation similar to contacts and messages
+        #     # TODO would need to add derive_export_url()
+        #     if self.has_org_perm("tickets.ticket_export"):
+        #             menu.add_modax(_("Export"), "export-tickets", self.derive_export_url(), title=_("Export Tickets"))
+            
+        #     # flow runs
         #     obj = self.get_object()
-        # TODO should i be doing both of these checks ? flow results only checks has_org_perm, messages checks both allow_export and has_org_perm
-        #     if self.allow_export and self.has_org_perm("tickets.ticket_export"):
-        # TODO should i be using add_modax? OR should i be using something like add_link, add_js, or add_url_post ? flow results and messages both use add_modax
+        #     # if self.has_org_perm("flows.flow_update"):
+        #     #     menu.add_modax(_("Download"), "download-results", f"{reverse('flows.flow_export_results')}?ids={obj.id}", title=_("Download Results"),)
+        #     # TODO implementation similar to flow runs
+        #     # TODO would need to add deep link
+        #     obj = self.get_object()
+        #     if self.has_org_perm("tickets.ticket_export"):
         #         menu.add_modax(_("Download"), "export-tickets", f"{reverse('tickets.ticket_export')}?ids={obj.id}", title=_("Download Tickets"))
+
+        # def derive_export_url():
+        #     pass
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
@@ -445,7 +465,7 @@ class TicketCRUDL(SmartCRUDL):
                     ),
                 )
             else:
-                # generate the export!
+                # generate the export
                 export = ExportTicketsTask.create(org, user)
 
                 # schedule the export job
@@ -453,7 +473,7 @@ class TicketCRUDL(SmartCRUDL):
 
                 pass
 
-            # todo comment on why this is needed
+            # TODO comment on why this is needed
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
