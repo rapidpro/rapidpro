@@ -1216,21 +1216,21 @@ class ChannelLog(models.Model):
     )
 
     id = models.BigAutoField(primary_key=True)
-    uuid = models.UUIDField(null=True)
+    uuid = models.UUIDField(default=uuid4)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
     connection = models.ForeignKey(
         "channels.ChannelConnection", on_delete=models.PROTECT, related_name="channel_logs", null=True
     )
 
-    log_type = models.CharField(max_length=16, choices=LOG_TYPE_CHOICES, null=True)
+    log_type = models.CharField(max_length=16, choices=LOG_TYPE_CHOICES)
     http_logs = models.JSONField(null=True)
     errors = models.JSONField(null=True)
     is_error = models.BooleanField(default=False)
-    elapsed_ms = models.IntegerField(null=True)
+    elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
 
-    # TODO deprecated
+    # TODO drop
     description = models.CharField(max_length=255, null=True)
     url = models.TextField(null=True)
     method = models.CharField(max_length=16, null=True)
@@ -1249,6 +1249,7 @@ class ChannelLog(models.Model):
             log_type=log_type,
             channel=channel,
             http_logs=[http_log.as_json()],
+            errors=[],
             is_error=is_error,
             elapsed_ms=http_log.elapsed_ms,
         )
@@ -1288,8 +1289,6 @@ class ChannelLog(models.Model):
         redact_request_keys = self.channel.type.redact_request_keys
         redact_response_keys = self.channel.type.redact_response_keys
 
-        http_logs, errors = self._get_logs_and_errors()
-
         def redact_http(log: dict) -> dict:
             return {
                 "url": self._get_display_value(user, log["url"], redact_values=redact_values),
@@ -1312,40 +1311,11 @@ class ChannelLog(models.Model):
             }
 
         return {
-            "description": self.get_description(),
-            "http_logs": [redact_http(h) for h in http_logs],
-            "errors": [redact_error(e) for e in errors],
+            "description": self.get_log_type_display(),
+            "http_logs": [redact_http(h) for h in (self.http_logs or [])],
+            "errors": [redact_error(e) for e in (self.errors or [])],
             "created_on": self.created_on,
         }
-
-    def get_description(self) -> str:
-        return self.description or self.get_log_type_display()
-
-    def _get_logs_and_errors(self) -> tuple:
-        # if this is a legacy style log, create from deprecated fields
-        if not self.http_logs and not self.errors:
-            # legacy logs append error messages to response traces
-            resp_parts = self.response.split("\n\nError: ", maxsplit=2)
-            response, error = resp_parts if len(resp_parts) == 2 else (resp_parts[0], None)
-            logs = []
-            if self.request:
-                logs.append(
-                    {
-                        "url": self.url,
-                        "status_code": self.response_status or 0,
-                        "request": self.request,
-                        "response": response,
-                        "elapsed_ms": self.request_time,
-                        "retries": 0,
-                        "created_on": self.created_on.isoformat(),
-                    }
-                )
-            return (
-                logs,
-                [{"message": error, "code": ""}] if error else [],
-            )
-
-        return self.http_logs or [], self.errors or []
 
     class Meta:
         indexes = [
