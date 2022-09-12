@@ -1,3 +1,8 @@
+v7.5.42
+----------
+ * Add data migration to delete legacy channel logs
+ * Drop support for channel logs in legacy format
+
 v7.5.41
 ----------
  * Fix temba-store
