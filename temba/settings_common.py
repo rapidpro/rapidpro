@@ -509,7 +509,7 @@ PERMISSIONS = {
     "request_logs.httplog": ("webhooks", "classifier", "ticketer"),
     "templates.template": ("api",),
     "tickets.ticket": ("api", "assign", "assignee", "menu", "note", "export_stats"),
-    # "tickets.ticket": ("api", "assign", "assignee", "menu", "note", "export_stats", "export_tickets"),
+    # "tickets.ticket": ("api", "assign", "assignee", "menu", "note", "export_stats", "export"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "tickets.topic": ("api",),
     "triggers.trigger": ("archived", "type", "menu"),

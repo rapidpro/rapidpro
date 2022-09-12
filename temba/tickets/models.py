@@ -1,3 +1,6 @@
+import datetime
+import logging
+import time
 from abc import ABCMeta
 from datetime import date
 
@@ -13,15 +16,17 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
-
-# from temba.assets.models import register_asset_store
+from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org, User, UserSettings
+from temba.utils import chunk_list
 from temba.utils.dates import date_range
-
-# from temba.utils.export import BaseExportAssetStore, BaseExportTask
+from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
+from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
+
+logger = logging.getLogger(__name__)
 
 
 class TicketerType(metaclass=ABCMeta):
@@ -631,19 +636,131 @@ def export_ticket_stats(org: Org, since: date, until: date) -> openpyxl.Workbook
     return workbook
 
 
-# TODO do i need something like this? (similar to export_ticket_stats)
-# def export_tickets:
-#     pass
-#
-# OR
-#
-# TODO do i need something like this? (similar to flow runs and messages)
-# class ExportTicketsTask(BaseExportTask):
-#     pass
-# @register_asset_store
-# class TicketExportAssetStore(BaseExportAssetStore):
-#     model = ExportTicketsTask
-#     key = "ticket_export"
-#     directory = "ticket_exports"
-#     permission = "tickets.ticket_export"
-#     extensions = ("xlsx",)
+class ExportTicketsTask(BaseExportTask):
+    analytics_key = "ticket_export"
+    notification_export_type = "ticket"
+
+    @classmethod
+    def create(cls, org, user):
+        export = cls.objects.create(org=org, created_by=user, modified_by=user)
+        return export
+
+    def write_export(self):
+
+        # get the fields aka column headers
+        fields = self.get_fields(self)
+
+        # TODO get the ticket ids
+        ticket_ids = []
+
+        # create the exporter
+        exporter = TableExporter(self, "Ticket", [f["label"] for f in fields])
+
+        # init progress info to log every 10k tickets
+        total_exported_tickets = 0
+        start = time.time()
+
+        # add tickets to the export in batches of 10k to limit memory usage
+        for ticket_batch_ids in chunk_list(ticket_ids, 1000):
+
+            # create a map of id:ticket to maintain order within each batch
+            batch_tickets = Ticket.objects.filter(id__in=ticket_batch_ids).prefetch_related("org").using("readonly")
+            tickets_by_id = {t.id: t for t in batch_tickets}
+
+            # for each batch of ticket ids...
+            for ticket_id in ticket_batch_ids:
+                ticket = tickets_by_id[ticket_id]
+
+                # get the field values aka row values
+                values = []
+                for field in fields:
+                    value = self.get_field_value(field, ticket)
+                    values.append(self.prepare_value(value))
+
+                # add row to the export
+                exporter.write_row(values)
+
+                # get progress info and log every 10k tickets
+                if total_exported_tickets % ExportTicketsTask.LOG_PROGRESS_PER_ROWS == 0:
+                    elapsed = time.time() - start
+                    predicted = elapsed // (total_exported_tickets / len(ticket_ids))
+
+                    logger.info(
+                        "Export of %s tickets - %d%% (%s/%s) completed in %0.2fs (predicted %0.0fs)"
+                        % (
+                            self.org.name,
+                            total_exported_tickets * 100 // len(ticket_ids),
+                            "{:,}".format(total_exported_tickets),
+                            "{:,}".format(len(ticket_ids)),
+                            time.time() - start,
+                            predicted,
+                        )
+                    )
+
+                    self.modified_on = timezone.now()
+                    self.save(update_fields=["modified_on"])
+
+        return exporter.save_file()
+
+    def get_fields(self):
+        fields = [
+            dict(label="UUID", key="uuid", field=None, urn_scheme=None),
+            dict(label="Opened On", key="opened_on", field=None, urn_scheme=None),
+            dict(label="Closed On", key="closed_on", field=None, urn_scheme=None),
+            dict(label="Topic", key="topic_id", field=None, urn_scheme=None),
+            # TODO get email address of user, NOT assignee_id
+            dict(label="Assigned To", key="assignee_id", field=None, urn_scheme=None),
+            # TODO get contact uuid of contact, NOT opened_by_id
+            dict(label="Contact UUID", key="opened_by_id", field=None, urn_scheme=None),
+        ]
+        # if the org is anon, get the contact id of the ticket
+        if self.org.is_anon:
+            fields = fields + dict(label="Contact ID", key="contact_id", field=None, urn_scheme=None)
+        fields = fields + dict(label="URN Scheme", key="TODO", field=None, urn_scheme=None)
+        # if the org is NOT anon, get the urn value of the ticket
+        if not self.org.is_anon:
+            fields = fields + dict(label="URN Value", key="TODO", field=None, urn_scheme=None)
+        return fields
+
+    def get_field_value(self, field: dict, ticket: Ticket):
+        if field["key"] == "uuid":
+            return ticket.uuid
+        elif field["key"] == "opened_on":
+            return ticket.opened_on
+        elif field["key"] == "closed_on":
+            return ticket.closed_on
+        elif field["key"] == "topic_id":
+            return ticket.topic
+        elif field["key"] == "assignee_id":
+            return ticket.assignee
+        elif field["key"] == "opened_by_id":
+            return ticket.opened_by
+        elif field["key"] == "contact_id":
+            return ticket.contact
+        # TODO URN Scheme
+        # TODO URN Value
+        else:
+            return "no field value"  # TODO update this to something standard
+
+    def prepare_value(self, value):
+        if value is None:
+            return ""
+        elif isinstance(value, str):
+            if value.startswith("="):  # escape = so value isn't mistaken for a formula
+                value = "'" + value
+            return clean_string(value)
+        elif isinstance(value, datetime):
+            return value.astimezone(self.org.timezone).replace(microsecond=0, tzinfo=None)
+        elif isinstance(value, bool):
+            return value
+        else:
+            return clean_string(str(value))
+
+
+@register_asset_store
+class TicketExportAssetStore(BaseExportAssetStore):
+    model = ExportTicketsTask
+    key = "ticket_export"
+    directory = "ticket_exports"
+    permission = "tickets.ticket_export"
+    extensions = ("xlsx",)
