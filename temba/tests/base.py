@@ -537,13 +537,19 @@ class TembaTestMixin:
         ChannelLog.objects.create(
             channel=self.channel,
             connection=call,
-            request='{"say": "Hello"}',
-            response='{"status": "%s"}' % ("error" if status == IVRCall.STATUS_FAILED else "OK"),
-            url="https://acme-calls.com/reply",
-            method="POST",
+            log_type=ChannelLog.LOG_TYPE_IVR_START,
             is_error=status == IVRCall.STATUS_FAILED,
-            response_status=200,
-            description="Looks good",
+            http_logs=[
+                {
+                    "url": "https://acme-calls.com/reply",
+                    "status_code": 200,
+                    "request": 'POST /reply\r\n\r\n{"say": "Hello"}',
+                    "response": '{"status": "%s"}' % ("error" if status == IVRCall.STATUS_FAILED else "OK"),
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
         )
         return call
 

@@ -540,6 +540,9 @@ class Msg(models.Model):
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
 
     metadata = JSONAsTextField(null=True, default=dict)
+    log_uuids = ArrayField(models.UUIDField(), null=True)
+
+    # TODO drop
     logs = ArrayField(models.UUIDField(), null=True)
 
     @classmethod

@@ -40,13 +40,13 @@
             .description
               -if obj.msg
                 .hover-linked.truncate.w-64(onclick="goto(event)" href='{% url "channels.channellog_msg" obj.channel.uuid obj.msg.id %}')
-                  {{obj.get_description}}
+                  {{obj.get_log_type_display}}
               -elif obj.connection
                 .hover-linked.truncate.w-64(onclick="goto(event)" href='{% url "channels.channellog_call" obj.connection.channel.uuid obj.connection.id %}')
-                  {{obj.get_description}}
+                  {{obj.get_log_type_display}}
               -else
                 .hover-linked.truncate.w-64(onclick="goto(event)" href='{% url "channels.channellog_read" obj.id %}')
-                  {{obj.get_description}}
+                  {{obj.get_log_type_display}}
             .elapsed.mx-2.text-right.mr-4.flex-grow
               %span
                 {{ obj.elapsed_ms|default:"0"|intcomma }}ms
