@@ -481,11 +481,13 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # but a new conversation trigger can't be created with a suitable channel
         self.assertNotContains(response, create_new_convo_url)
 
-        # create a facebook channel
+        # create a facebook channel and delete our Android channel
         self.create_channel("FB", "Facebook Channel", "1234567")
+        self.channel.release()
 
         response = self.client.get(create_url)
         self.assertContains(response, create_new_convo_url)
+        self.assertNotContains(response, create_missed_call_url)
 
     def test_create_keyword(self):
         create_url = reverse("triggers.trigger_create_keyword")
