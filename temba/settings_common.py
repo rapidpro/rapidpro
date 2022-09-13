@@ -382,7 +382,7 @@ PERMISSIONS = {
         "menu",
     ),
     "channels.channellog": ("connection",),
-    "channels.channelevent": ("api", "calls"),
+    "channels.channelevent": ("api",),
     "classifiers.classifier": ("connect", "api", "sync", "menu"),
     "classifiers.intent": ("api",),
     "contacts.contact": (
@@ -795,7 +795,6 @@ GROUP_PERMISSIONS = {
         "channels.channel_list",
         "channels.channel_menu",
         "channels.channel_read",
-        "channels.channelevent_calls",
         "classifiers.classifier_api",
         "classifiers.classifier_list",
         "classifiers.classifier_menu",

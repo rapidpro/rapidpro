@@ -23,7 +23,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
@@ -877,7 +877,6 @@ class SystemLabel:
     TYPE_SENT = "S"
     TYPE_FAILED = "X"
     TYPE_SCHEDULED = "E"
-    TYPE_CALLS = "C"
 
     TYPE_CHOICES = (
         (TYPE_INBOX, "Inbox"),
@@ -887,7 +886,6 @@ class SystemLabel:
         (TYPE_SENT, "Sent"),
         (TYPE_FAILED, "Failed"),
         (TYPE_SCHEDULED, "Scheduled"),
-        (TYPE_CALLS, "Calls"),
     )
 
     @classmethod
@@ -929,8 +927,6 @@ class SystemLabel:
             )
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None).prefetch_related("groups", "contacts", "urns")
-        elif label_type == cls.TYPE_CALLS:
-            qs = ChannelEvent.objects.filter(event_type__in=ChannelEvent.CALL_TYPES)
         else:  # pragma: needs cover
             raise ValueError("Invalid label type: %s" % label_type)
 

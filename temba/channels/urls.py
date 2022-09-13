@@ -4,7 +4,7 @@ from django.urls import re_path
 from temba.utils.views import CourierURLHandler
 
 from .models import Channel
-from .views import ChannelCRUDL, ChannelEventCRUDL, ChannelLogCRUDL
+from .views import ChannelCRUDL, ChannelLogCRUDL
 
 # we iterate all our channel types, finding all the URLs they want to wire in
 courier_urls = []
@@ -25,7 +25,6 @@ for ch_type in Channel.get_types():
 
 
 urlpatterns = [
-    re_path(r"^", include(ChannelEventCRUDL().as_urlpatterns())),
     re_path(r"^channels/", include(ChannelCRUDL().as_urlpatterns() + ChannelLogCRUDL().as_urlpatterns())),
     re_path(r"^c/", include(courier_urls)),
     re_path(r"^channels/types/", include(type_urls)),
