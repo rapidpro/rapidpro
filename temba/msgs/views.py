@@ -543,17 +543,18 @@ class MsgCRUDL(SmartCRUDL):
                         icon="inbox",
                     ),
                     self.create_menu_item(
+                        name=_("Flows"),
+                        href=reverse("msgs.msg_flow"),
+                        count=counts[SystemLabel.TYPE_FLOWS],
+                        icon="flow",
+                    ),
+                    self.create_menu_item(
                         name=_("Archived"),
                         href=reverse("msgs.msg_archived"),
                         count=counts[SystemLabel.TYPE_ARCHIVED],
                         icon="archive",
                     ),
                     self.create_divider(),
-                    self.create_menu_item(
-                        name=_("Scheduled"),
-                        href=reverse("msgs.broadcast_schedule_list"),
-                        count=counts[SystemLabel.TYPE_SCHEDULED],
-                    ),
                     self.create_menu_item(
                         name=_("Outbox"),
                         href=reverse("msgs.msg_outbox"),
@@ -569,10 +570,11 @@ class MsgCRUDL(SmartCRUDL):
                         href=reverse("msgs.msg_failed"),
                         count=counts[SystemLabel.TYPE_FAILED],
                     ),
+                    self.create_divider(),
                     self.create_menu_item(
-                        name=_("Flows"),
-                        href=reverse("msgs.msg_flow"),
-                        count=counts[SystemLabel.TYPE_FLOWS],
+                        name=_("Scheduled"),
+                        href=reverse("msgs.broadcast_schedule_list"),
+                        count=counts[SystemLabel.TYPE_SCHEDULED],
                     ),
                 ]
 
