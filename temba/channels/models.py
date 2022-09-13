@@ -95,7 +95,7 @@ class ChannelType(metaclass=ABCMeta):
     redact_response_keys = ()
     redact_values = ()
 
-    def is_available_to(self, user):
+    def is_available_to(self, org, user):
         """
         Determines whether this channel type is available to the given user considering the region and when not considering region, e.g. check timezone
         """
@@ -103,18 +103,16 @@ class ChannelType(metaclass=ABCMeta):
         region_aware_visible = True
 
         if self.available_timezones is not None:
-            timezone = user.get_org().timezone
-            region_aware_visible = timezone and str(timezone) in self.available_timezones
+            region_aware_visible = org.timezone and str(org.timezone) in self.available_timezones
 
         return region_aware_visible, region_ignore_visible
 
-    def is_recommended_to(self, user):
+    def is_recommended_to(self, org, user):
         """
         Determines whether this channel type is recommended to the given user.
         """
         if self.recommended_timezones is not None:
-            timezone = user.get_org().timezone
-            return timezone and str(timezone) in self.recommended_timezones
+            return org.timezone and str(org.timezone) in self.recommended_timezones
         else:
             return False
 
