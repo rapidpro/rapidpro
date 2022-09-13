@@ -35,5 +35,5 @@ class VerboiceType(ChannelType):
         ),
     )
 
-    def is_available_to(self, user):
+    def is_available_to(self, org, user):
         return False, False

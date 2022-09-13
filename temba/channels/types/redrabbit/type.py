@@ -26,5 +26,5 @@ class RedRabbitType(ChannelType):
     max_length = 1600
     attachment_support = False
 
-    def is_available_to(self, user):
+    def is_available_to(self, org, user):
         return False, False  # Hidden since it is MT only
