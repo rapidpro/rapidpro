@@ -145,7 +145,7 @@ class InboundCallTriggerType(TriggerType):
 
 class MissedCallTriggerType(TriggerType):
     """
-    A trigger for missed inbound IVR calls
+    A trigger for missed calls on Android devices
     """
 
     class Form(BaseTriggerForm):

@@ -1163,12 +1163,6 @@ class Org(SmartModel):
             self._user_role_cache[user] = get_role()
         return self._user_role_cache[user]
 
-    def has_twilio_number(self):  # pragma: needs cover
-        return self.channels.filter(channel_type="T")
-
-    def has_vonage_number(self):  # pragma: needs cover
-        return self.channels.filter(channel_type="NX")
-
     def init_topups(self, topup_size=None):
         if topup_size:
             return TopUp.create(self, self.created_by, price=0, credits=topup_size)
