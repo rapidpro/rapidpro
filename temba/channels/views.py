@@ -1211,15 +1211,16 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Add Channel")
 
         def channel_types_groups(self):
+            org = self.request.org
             user = self.request.user
 
             # fetch channel types, sorted by category and name
             types_by_category = defaultdict(list)
             recommended_channels = []
             for ch_type in list(Channel.get_types()):
-                region_aware_visible, region_ignore_visible = ch_type.is_available_to(user)
+                region_aware_visible, region_ignore_visible = ch_type.is_available_to(org, user)
 
-                if ch_type.is_recommended_to(user):
+                if ch_type.is_recommended_to(org, user):
                     recommended_channels.append(ch_type)
                 elif region_ignore_visible and region_aware_visible and ch_type.category:
                     types_by_category[ch_type.category.name].append(ch_type)
@@ -1228,9 +1229,8 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            user = self.request.user
+            org = self.request.org
 
-            org = user.get_org()
             context["org_timezone"] = str(org.timezone)
             context["brand"] = org.get_branding()
 
@@ -1248,13 +1248,14 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimAll(Claim):
         def channel_types_groups(self):
+            org = self.request.org
             user = self.request.user
 
             types_by_category = defaultdict(list)
             recommended_channels = []
             for ch_type in list(Channel.get_types()):
-                region_aware_visible, region_ignore_visible = ch_type.is_available_to(user)
-                if ch_type.is_recommended_to(user):
+                _, region_ignore_visible = ch_type.is_available_to(org, user)
+                if ch_type.is_recommended_to(org, user):
                     recommended_channels.append(ch_type)
                 elif region_ignore_visible and ch_type.category:
                     types_by_category[ch_type.category.name].append(ch_type)

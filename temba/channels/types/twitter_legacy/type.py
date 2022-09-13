@@ -20,5 +20,5 @@ class TwitterLegacyType(ChannelType):
     free_sending = True
     quick_reply_text_size = 36
 
-    def is_available_to(self, user):
+    def is_available_to(self, org, user):
         return False, False
