@@ -483,7 +483,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create a facebook channel and delete our Android channel
         self.create_channel("FB", "Facebook Channel", "1234567")
-        self.channel.release()
+        self.channel.release(self.admin)
 
         response = self.client.get(create_url)
         self.assertContains(response, create_new_convo_url)
