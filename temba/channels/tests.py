@@ -1565,29 +1565,6 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(f"/channels/channel/read/{android.uuid}/", response["Temba-Success"])
 
 
-class ChannelEventCRUDLTest(TembaTest, CRUDLTestMixin):
-    def test_calls(self):
-        event1 = self.create_channel_event(
-            self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, extra={"duration": 60}
-        )
-        event2 = self.create_channel_event(self.channel, "tel:67890", ChannelEvent.TYPE_CALL_IN_MISSED)
-        self.create_channel_event(self.channel, "tel:456767", ChannelEvent.TYPE_UNKNOWN)
-
-        list_url = reverse("channels.channelevent_calls")
-
-        response = self.assertListFetch(
-            list_url, allow_viewers=True, allow_editors=True, context_objects=[event2, event1]
-        )
-
-        self.assertContains(response, "Missed Incoming Call")
-        self.assertContains(response, "Incoming Call (60 seconds)")
-
-        # can search by URN
-        self.assertListFetch(
-            list_url + "?search=678", allow_viewers=True, allow_editors=True, context_objects=[event2]
-        )
-
-
 class SyncEventTest(SmartminTest):
     def setUp(self):
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")

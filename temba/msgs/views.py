@@ -179,7 +179,6 @@ class InboxView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Smar
             dict(count=counts[SystemLabel.TYPE_ARCHIVED], label=_("Archived"), url=reverse("msgs.msg_archived")),
             dict(count=counts[SystemLabel.TYPE_OUTBOX], label=_("Outbox"), url=reverse("msgs.msg_outbox")),
             dict(count=counts[SystemLabel.TYPE_SENT], label=_("Sent"), url=reverse("msgs.msg_sent")),
-            dict(count=counts[SystemLabel.TYPE_CALLS], label=_("Calls"), url=reverse("channels.channelevent_calls")),
             dict(
                 count=counts[SystemLabel.TYPE_SCHEDULED],
                 label=_("Schedules"),
@@ -574,11 +573,6 @@ class MsgCRUDL(SmartCRUDL):
                         name=_("Flows"),
                         href=reverse("msgs.msg_flow"),
                         count=counts[SystemLabel.TYPE_FLOWS],
-                    ),
-                    self.create_menu_item(
-                        name=_("Calls"),
-                        href=reverse("channels.channelevent_calls"),
-                        count=counts[SystemLabel.TYPE_CALLS],
                     ),
                 ]
 
