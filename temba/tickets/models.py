@@ -650,10 +650,11 @@ class ExportTicketsTask(BaseExportTask):
         fields = self.get_fields(self)
 
         # get the ticket ids
-        # TODO this should prob be filtering on org
+        # TODO this should prob be filtering on org - YES
         # TODO should this be filtering on anything else?
-        # TODO is there a more scaleable way we should be doing this instead?
-        ticket_ids = Ticket.objects.values_list('id')
+        # TODO is there a more scaleable way we should be doing this instead? YES
+        # ticket_ids = Ticket.objects.values_list('id')
+        ticket_ids = self.org.tickets.values_list('id')
 
         # create the exporter
         exporter = TableExporter(self, "Ticket", [f["label"] for f in fields])
@@ -666,7 +667,7 @@ class ExportTicketsTask(BaseExportTask):
         for ticket_batch_ids in chunk_list(ticket_ids, 1000):
 
             # create a map of id:ticket to maintain order within each batch
-            # TODO should we also be using this to prefetch contacts and users?
+            # TODO should we also be using this to prefetch contacts and users? YES
             batch_tickets = Ticket.objects.filter(id__in=ticket_batch_ids).prefetch_related("org").using("readonly")
             tickets_by_id = {t.id: t for t in batch_tickets}
 
@@ -678,7 +679,7 @@ class ExportTicketsTask(BaseExportTask):
                 values = []
                 for field in fields:
                     value = self.get_field_value(field, ticket)
-                    # TODO is there a shared util we should be using instead?
+                    # TODO call BaseExportTask.prepare_value
                     values.append(self.prepare_value(value))
 
                 # add row to the export
@@ -738,7 +739,7 @@ class ExportTicketsTask(BaseExportTask):
         elif field["key"] == "topic_id":
             return ticket.topic
         elif field["key"] == "assignee_id":
-            # TODO we should prob prefetch all of the users based on the assignee_id's
+            # TODO we should prob prefetch all of the users based on the assignee_id's? YES
             if(ticket.assignee):
                 user = User.objects.get(id=ticket.assignee).values()
                 return user.email if user else None
@@ -746,15 +747,16 @@ class ExportTicketsTask(BaseExportTask):
                 return ticket.assignee
         elif field["key"] == "opened_by_id":
             # TODO should this be a contact or user?
-            # TODO we should prob prefetch all of the users based on the opened_by_id's
+            # TODO follow-up with Rowan, as tickets can be opened by contacts within a flow, or by a user from the contacts page
+            # TODO we should prob prefetch all of the users based on the opened_by_id's? YES
             user = User.objects.get(id=ticket.opened_by).values()
             return user.id if user else  None
         elif field["key"] == "contact_id":
             # TODO we should prob prefetch all of the contacts based on the contact_id's
             contact = Contact.objects.get(id=ticket.contact).values()
             return contact.uuid if contact else None
-        # TODO URN Scheme - clarify what this is and how to get the value(s)
-        # TODO URN Value - clarify what this is and how to get the value(s)
+        # TODO URN Scheme - clarify what this is and how to get the value(s) - just the primary URN is prob fine, follow-up wtih Rowan
+        # TODO URN Value - clarify what this is and how to get the value(s) - just the primary URN is prob fine, follow-up wtih Rowan
         else:
             return None # TODO should we update this to return something else?
 

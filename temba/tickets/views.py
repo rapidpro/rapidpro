@@ -91,8 +91,7 @@ class NoteForm(forms.ModelForm):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "folder", "note", "assign", "menu", "export_stats")
-    # actions = ("list", "folder", "note", "assign", "menu", "export_stats", "export")
+    actions = ("list", "folder", "note", "assign", "menu", "export_stats", "export")
 
     class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
@@ -164,33 +163,9 @@ class TicketCRUDL(SmartCRUDL):
 
             return context
 
-        # TODO need to configure permissions
-        # TODO need to configure deep link (or implement derive_export_url)
-        # def build_content_menu(self, menu):
-        #     # contacts
-        #     # if self.has_org_perm("contacts.contact_export"):
-        #     #     menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
-        #     # messages
-        #     # if self.allow_export and self.has_org_perm("msgs.msg_export"):
-        #     #     menu.add_modax(_("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages"))
-            
-        #     # TODO implementation similar to contacts and messages
-        #     # TODO would need to add derive_export_url()
-        #     if self.has_org_perm("tickets.ticket_export"):
-        #             menu.add_modax(_("Export"), "export-tickets", self.derive_export_url(), title=_("Export Tickets"))
-            
-        #     # flow runs
-        #     obj = self.get_object()
-        #     # if self.has_org_perm("flows.flow_update"):
-        #     #     menu.add_modax(_("Download"), "download-results", f"{reverse('flows.flow_export_results')}?ids={obj.id}", title=_("Download Results"),)
-        #     # TODO implementation similar to flow runs
-        #     # TODO would need to add deep link
-        #     obj = self.get_object()
-        #     if self.has_org_perm("tickets.ticket_export"):
-        #         menu.add_modax(_("Download"), "export-tickets", f"{reverse('tickets.ticket_export')}?ids={obj.id}", title=_("Download Tickets"))
-
-        # def derive_export_url():
-        #     pass
+        def build_content_menu(self, menu):
+            if self.has_org_perm("tickets.ticket_export"):
+                    menu.add_modax(_("Export"), "export-tickets", f"{reverse('tickets.ticket_export')}", title=_("Export Tickets"))
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
