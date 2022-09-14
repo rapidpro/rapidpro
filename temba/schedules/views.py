@@ -25,12 +25,12 @@ class ScheduleFormMixin(forms.Form):
         widget=SelectMultipleWidget(attrs=({"placeholder": _("Select days")})),
     )
 
-    def set_user(self, user):
+    def set_org(self, org):
         """
         Because this mixin is mixed with other forms it can't have a __init__ constructor that takes non standard Django
         forms args and kwargs, so we have to customize based on user after the form has been created.
         """
-        tz = user.get_org().timezone
+        tz = org.timezone
         self.fields["start_datetime"].help_text = _("First time this should happen in the %s timezone.") % tz
 
     def clean_repeat_days_of_week(self):

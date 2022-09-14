@@ -60,11 +60,11 @@ class BaseTriggerForm(forms.ModelForm):
         ),
     )
 
-    def __init__(self, user, trigger_type, *args, **kwargs):
+    def __init__(self, org, user, trigger_type, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.org = org
         self.user = user
-        self.org = user.get_org()
         self.trigger_type = Trigger.get_type(code=trigger_type)
 
         flow_types = self.trigger_type.allowed_flow_types
@@ -134,9 +134,9 @@ class RegisterTriggerForm(BaseTriggerForm):
                 value = value[7:]
 
                 # we must get groups for this org only
-                group = ContactGroup.get_group_by_name(self.user.get_org(), value)
+                group = ContactGroup.get_group_by_name(self.org, value)
                 if not group:
-                    group = ContactGroup.create_manual(self.user.get_org(), self.user, name=value)
+                    group = ContactGroup.create_manual(self.org, self.user, name=value)
                 return group
 
             return super().clean(value)
@@ -164,8 +164,8 @@ class RegisterTriggerForm(BaseTriggerForm):
         help_text=_("The message to send in response after they join the group (optional)"),
     )
 
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(user, Trigger.TYPE_KEYWORD, *args, **kwargs)
+    def __init__(self, org, user, *args, **kwargs):
+        super().__init__(org, user, Trigger.TYPE_KEYWORD, *args, **kwargs)
 
         # on this form flow becomes the flow to be triggered from the generated flow and is optional
         self.fields["flow"].required = False
@@ -289,6 +289,7 @@ class TriggerCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
             kwargs["user"] = self.request.user
             return kwargs
 
@@ -297,7 +298,7 @@ class TriggerCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             user = self.request.user
-            org = user.get_org()
+            org = self.request.org
             flow = form.cleaned_data["flow"]
             groups = form.cleaned_data["groups"]
             exclude_groups = form.cleaned_data["exclude_groups"]
@@ -396,6 +397,7 @@ class TriggerCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
             kwargs["user"] = self.request.user
             return kwargs
 
