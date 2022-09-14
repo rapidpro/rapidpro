@@ -1,3 +1,9 @@
+v7.5.44
+----------
+ * Add data migration to cleanup counts for SystemLabel=Calls
+ * Tweak ordering of Msg menu sections
+ * Add slack channel
+
 v7.5.43
 ----------
  * Include config for mailroom test db channels
