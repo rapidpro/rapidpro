@@ -61,6 +61,7 @@ class URN:
     JIOCHAT_SCHEME = "jiochat"
     LINE_SCHEME = "line"
     ROCKETCHAT_SCHEME = "rocketchat"
+    SLACK_SCHEME = "slack"
     TELEGRAM_SCHEME = "telegram"
     TEL_SCHEME = "tel"
     TWITTERID_SCHEME = "twitterid"
@@ -83,6 +84,7 @@ class URN:
         (JIOCHAT_SCHEME, _("JioChat Identifier")),
         (LINE_SCHEME, _("LINE Identifier")),
         (ROCKETCHAT_SCHEME, _("RocketChat Identifier")),
+        (SLACK_SCHEME, _("Slack Identifier")),
         (TELEGRAM_SCHEME, _("Telegram Identifier")),
         (TWITTERID_SCHEME, _("Twitter ID")),
         (TWITTER_SCHEME, _("Twitter Handle")),

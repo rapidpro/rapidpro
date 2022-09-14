@@ -59,6 +59,7 @@ requests-toolbelt = "^0.9.1"
 chardet = "^4.0.0"
 openpyxl = "^3.0.9"
 ffmpeg-python = "^0.2.0"
+slack-sdk = "3.17.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"
