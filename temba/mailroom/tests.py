@@ -127,8 +127,6 @@ class MailroomClientTest(TembaTest):
 
         call = mock_post.call_args
 
-        self.maxDiff = None
-
         self.assertEqual(("http://localhost:8090/mr/flow/preview_start",), call[0])
         self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
         self.assertEqual(
@@ -346,6 +344,19 @@ class MailroomClientTest(TembaTest):
             "http://localhost:8090/mr/contact/resolve",
             headers={"User-Agent": "Temba"},
             json={"org_id": self.org.id, "channel_id": 345, "urn": "tel:+1234567890"},
+        )
+
+    @patch("requests.post")
+    def test_contact_interrupt(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"sessions": 1}')
+
+        response = get_client().contact_interrupt(self.org.id, 3, 345)
+
+        self.assertEqual({"sessions": 1}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/interrupt",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "user_id": 3, "contact_id": 345},
         )
 
     @patch("requests.post")
@@ -852,7 +863,7 @@ class EventTest(TembaTest):
         msg_out = self.create_outgoing_msg(
             contact1, "Hello", channel=self.channel, status="E", quick_replies=("yes", "no")
         )
-        log = ChannelLog.objects.create(channel=self.channel, is_error=True, description="Boom", msg=msg_out)
+        ChannelLog.objects.create(channel=self.channel, is_error=True, description="Boom", msg=msg_out)
         msg_out.refresh_from_db()
 
         self.assertEqual(
@@ -868,7 +879,7 @@ class EventTest(TembaTest):
                     "quick_replies": ["yes", "no"],
                 },
                 "status": "E",
-                "logs_url": f"/channels/channellog/read/{log.channel.uuid}/{log.id}/",
+                "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{msg_out.id}/",
             },
             Event.from_msg(self.org, self.admin, msg_out),
         )
@@ -1091,6 +1102,7 @@ class EventTest(TembaTest):
             contact_urn=contact.urns.all().first(),
             error_count=0,
         )
+        ChannelLog.objects.create(channel=self.channel, is_error=True, description="Boom", connection=call2)
 
         self.assertEqual(
             {
@@ -1100,7 +1112,7 @@ class EventTest(TembaTest):
                 "created_on": matchers.ISODate(),
                 "logs_url": None,
             },
-            Event.from_ivr_call(self.org, self.user, call1),
+            Event.from_ivr_call(self.org, self.admin, call1),
         )
 
         self.assertEqual(
@@ -1109,7 +1121,17 @@ class EventTest(TembaTest):
                 "status": "E",
                 "status_display": "Errored (Busy)",
                 "created_on": matchers.ISODate(),
-                "logs_url": None,
+                "logs_url": None,  # user can't see logs
             },
             Event.from_ivr_call(self.org, self.user, call2),
+        )
+        self.assertEqual(
+            {
+                "type": "call_started",
+                "status": "E",
+                "status_display": "Errored (Busy)",
+                "created_on": matchers.ISODate(),
+                "logs_url": f"/channels/{call2.channel.uuid}/logs/call/{call2.id}/",
+            },
+            Event.from_ivr_call(self.org, self.admin, call2),
         )

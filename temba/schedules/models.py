@@ -82,17 +82,17 @@ class Schedule(SmartModel):
 
     @classmethod
     def create_blank_schedule(cls, org, user):
-        return Schedule.create_schedule(org, user, None, Schedule.REPEAT_NEVER)
+        return cls.create_schedule(org, user, None, cls.REPEAT_NEVER)
 
     @classmethod
     def create_schedule(cls, org, user, start_time, repeat_period, repeat_days_of_week=None, now=None):
         assert not repeat_days_of_week or set(repeat_days_of_week).issubset(cls.DAYS_OF_WEEK_OFFSET)
 
         schedule = Schedule(repeat_period=repeat_period, created_by=user, modified_by=user, org=org)
-        schedule.update_schedule(start_time, repeat_period, repeat_days_of_week, now=now)
+        schedule.update_schedule(user, start_time, repeat_period, repeat_days_of_week, now=now)
         return schedule
 
-    def update_schedule(self, start_time, repeat_period, repeat_days_of_week, now=None):
+    def update_schedule(self, user, start_time, repeat_period, repeat_days_of_week, now=None):
         assert self.org is not None
 
         if not now:
@@ -141,6 +141,8 @@ class Schedule(SmartModel):
             else:
                 self.next_fire = start_time
 
+            self.modified_by = user
+            self.modified_on = timezone.now()
             self.save()
 
     def get_broadcast(self):

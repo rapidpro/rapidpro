@@ -13,12 +13,11 @@
 
   :javascript
     function handleRowClicked(event) {
-
       if (event.target.tagName == "TEMBA-CHECKBOX") {
         return;
       }
       var row = event.target.closest("tr");
-      var id = row.getAttribute("data-object-id");
+      var id = row.getAttribute("data-uuid");
       fetchURL("/campaign/read/" + id + "/");
     }
 
@@ -49,7 +48,7 @@
     %table.list.lined.selectable.scrolled
       %tbody
         -for obj in object_list
-          %tr.campaign.object-row.select-row(data-object-id="{{ obj.uuid }}" onclick='handleRowClicked(event)')
+          %tr.campaign.object-row.select-row(data-object-id="{{ obj.id }}" data-uuid="{{ obj.uuid }}" onclick='handleRowClicked(event)')
             - if org_perms.campaigns.campaign_update
               %td.campaign.checkbox.object-row-checkbox
                 %temba-checkbox{onclick:"handleRowSelection(this)"}

@@ -20,7 +20,7 @@ from temba.orgs.views import OrgPermsMixin
 from temba.utils import json
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
-from temba.utils.views import ComponentFormMixin
+from temba.utils.views import ComponentFormMixin, ContentMenuMixin
 
 from ...models import Ticketer
 from ...views import BaseConnectView
@@ -116,7 +116,7 @@ class ConnectView(BaseConnectView):
         return HttpResponseRedirect(self.get_success_url())
 
 
-class ConfigureView(ComponentFormMixin, OrgPermsMixin, SmartReadView):
+class ConfigureView(ComponentFormMixin, ContentMenuMixin, OrgPermsMixin, SmartReadView):
     model = Ticketer
     fields = ()
     permission = "tickets.ticketer_configure"
@@ -127,11 +127,9 @@ class ConfigureView(ComponentFormMixin, OrgPermsMixin, SmartReadView):
         queryset = super().get_queryset()
         return queryset.filter(org=self.get_user().get_org())
 
-    def get_gear_links(self):
-        links = []
+    def build_content_menu(self, menu):
         if self.has_org_perm("tickets.ticket_list"):
-            links.append(dict(title=_("Tickets"), href=reverse("tickets.ticket_list")))
-        return links
+            menu.add_link(_("Tickets"), reverse("tickets.ticket_list"))
 
     def get_context_data(self, **kwargs):
         from .type import ZendeskType

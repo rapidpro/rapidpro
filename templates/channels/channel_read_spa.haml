@@ -1,0 +1,78 @@
+-extends "channels/channel_read.html"
+-load smartmin temba compress humanize channels i18n tz
+
+-block spa-title
+  %temba-urn.mr-2(scheme="{{channel.schemes|first}}")
+  .flex.items-start.flex-col
+    .name
+      -if object.parent
+        {{ object.parent.name }}
+      -else
+        {{ object.name|default:object.get_address_display }}
+  
+-block subtitle
+  -if object.get_channel_type_display != object.name
+    .flex.mt-2
+      .flex.flex-col
+        .channel_type
+          -if object.parent
+            {{ object.name }}
+
+  -if object.name
+    .text-gray-500.text-xl
+      {{ object.get_address_display }}
+
+  -if object.get_country_display
+    .text-gray-500.text-base
+      {{ object.get_country_display }}
+
+  -with object.get_delegate_channels as delegates
+    -if delegates
+      .channel-roles.mt-3
+        -for channel in delegates
+          .lbl.linked(onclick="goto(event, this)" href="{% url 'channels.channel_read' channel.uuid %}")
+            .flex.items-center
+              .text-base{class:'{{ channel|channel_icon }}'}
+              .name.mx-1
+                -if channel.is_delegate_sender
+                  -trans "Bulk sending"
+
+                -if channel.is_delegate_caller
+                  -trans "Voice calls"
+
+    .mb-4.text-base
+      -if delayed_sync_event or unsent_msgs_count
+        .flex.items-center.text-error
+          .mr-1
+            .icon-warning.text-error.text-lg.mt-1
+          .message             
+            -if delayed_sync_event
+              .inline-block.ml-2
+                -if last_sync
+                  -trans "Last synced"
+                  -blocktrans trimmed with last_sync.created_on|timesince as last_sync
+                    {{ last_sync }} ago
+                -else
+                  -trans "Not synced yet"
+
+            -if unsent_msgs_count
+              .text-error.text-base.inline-block.ml-2(onclick="goto(event)" href="{% url 'msgs.msg_failed' %}")
+                = unsent_msgs_count|intcomma
+                {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
+                  unsent message
+                {% plural %}
+                  unsent messages
+                {% endblocktrans %}
+
+      -else
+        -if object.channel_type == 'A'
+          -if last_sync
+            -trans "Last synced"
+            -blocktrans trimmed with last_sync.created_on|timesince as last_sync
+              {{ last_sync }} ago
+          -else
+            -trans "Not synced yet"
+        -else
+          -trans "Activated"
+          {{ object.created_on }}
+

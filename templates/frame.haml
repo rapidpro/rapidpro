@@ -16,10 +16,9 @@
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
     -if user.is_staff
-      %script{src:"{{ STATIC_URL }}js/urls.js"}
+      %script(src="{{ STATIC_URL }}js/urls.js")
 
       :javascript
-
         window.STATIC_URL = "{{STATIC_URL}}";
         function loadNewInterface(force) {
           var newUrl = mapUrl(window.location.pathname);
@@ -87,9 +86,6 @@
       %script{src:"{{ STATIC_URL }}bower/intercooler-js/src/intercooler.js"}
       %script{src:"{{ STATIC_URL }}bower/moment/moment.js"}
       %script{src:"{{ STATIC_URL }}bower/moment-timezone/builds/moment-timezone-with-data.js"}
-      %script{src:"{{ STATIC_URL }}bower/featherlight/src/featherlight.js"}
-      %script{src:"{{ STATIC_URL }}bower/video.js/dist/video.js"}
-      %script{src:"{{ STATIC_URL }}bower/videojs-vjsdownload/dist/videojs-vjsdownload.js"}
       %script{src:"{{ STATIC_URL }}bower/xregexp/xregexp-all.js"}
 
       // expanded nav dropdown
@@ -125,9 +121,6 @@
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/toastr/toastr.css", media:'all'}
-        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/featherlight/src/featherlight.css", media:'all'}
-        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/video.js/dist/video-js.css", media:'all'}
-        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/videojs-vjsdownload/dist/videojs-vjsdownload.css", media:'all'}
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/icons/style.css", media:'all'}
@@ -180,7 +173,7 @@
   
   -block temba-store
     
-    -if user.is_authenticated
+    -if user.is_authenticated and user_org
       %temba-store(
         completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
         fields="/api/v2/fields.json"
@@ -223,7 +216,7 @@
       -if user.is_staff
         #preview.text-center.px-3.text-sm.py-1(style='background:rgba(0,0,0,.75);z-index:10000;position:fixed;bottom:0px;width:100%;color:#fff')
           Preview the
-          %span.linked(onclick="switchToNewInterface()")<
+          %span.linked(onclick="switchToNewInterface()" style="color:#43b1ff")<
             new interface
 
     -if messages
@@ -237,6 +230,8 @@
     -block post-header
     <!-- Content -->
     -block page-container
+      %temba-modax#shared-modax
+      %temba-dialog#shared-dialog
       .flex-grow
         .page-content
           -block suspension
@@ -268,13 +263,30 @@
             
             -block post-content
 
-    -block footer
-      .footer.text-center.py-12.bg-gray-200.text-gray-500
-        {{ request.branding.credits|safe }}
-        %div
-          %a.p-1.text-gray-500.underline(href="/policy/")
-            -trans "Privacy"
+      -block footer
+        .text-center.text-gray-500.pb-10.-mt-8.bg-gray-200.pt-4
+          :plain
+            <!--
+              This software is licensed under AGPL v3. Please review the full license:
+              https://github.com/rapidpro/rapidpro/blob/main/LICENSE
+              
+              WARNING!
 
+              Hey, we get it. This is neat software, and it would be great to slap
+              the name of your company on it. While you can copyright your modifications,
+              which they themselves require careful consideration of the AGPL license,
+              you cannot claim copyright for work that is not yours. Any modified source code
+              must be shared publicly. Any related copyrights of such work much make notice
+              that it is based on this AGPL software, and also include the below notice.
+              
+              DO NOT illegally claim copyright of this work. If you want to edit the 
+              presentation of the below copyright, please contact us at legal@textit.com 
+              to discuss attribution requirements for this software.
+            -->
+            Copyright © 2012-2022 TextIt, UNICEF. All rights reserved.
+            
+            <div style="font-size:.8em;margin: 0em 0.75em;display:inline-block">|</div><a style="color:#bbb" href="/policy">Privacy</a>
+    
 
   -trans 'Delete' as title
   %temba-dialog#general-delete-confirmation.hidden{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}
@@ -308,7 +320,7 @@
       }
 
       function handlePosterize(ele) {
-        posterize(ele.getAttribute('href'));
+        posterize(ele.getAttribute('href') || ele.dataset.href);
       }
 
       function removalConfirmation(removal, buttonName) {

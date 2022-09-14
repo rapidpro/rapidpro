@@ -20,7 +20,7 @@ class Dialog360Type(ChannelType):
     A 360 Dialog Channel Type
     """
 
-    extra_links = [dict(name=_("Message Templates"), link="channels.types.dialog360.templates")]
+    extra_links = [dict(label=_("Message Templates"), view_name="channels.types.dialog360.templates")]
 
     code = "D3"
     category = ChannelType.Category.SOCIAL_MEDIA
@@ -69,16 +69,12 @@ class Dialog360Type(ChannelType):
         if Channel.CONFIG_AUTH_TOKEN not in channel.config:  # pragma: no cover
             return [], False
 
+        templates_url = "%s/v1/configs/templates" % channel.config.get(Channel.CONFIG_BASE_URL, "")
         start = timezone.now()
+
         try:
-
-            templates_url = "%s/v1/configs/templates" % channel.config.get(Channel.CONFIG_BASE_URL, "")
-
             response = requests.get(templates_url, headers=self.get_headers(channel))
-            elapsed = (timezone.now() - start).total_seconds() * 1000
-            HTTPLog.create_from_response(
-                HTTPLog.WHATSAPP_TEMPLATES_SYNCED, templates_url, response, channel=channel, request_time=elapsed
-            )
+            HTTPLog.from_response(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, response, start, timezone.now(), channel=channel)
 
             if response.status_code != 200:  # pragma: no cover
                 return [], False
@@ -86,7 +82,7 @@ class Dialog360Type(ChannelType):
             template_data = response.json()["waba_templates"]
             return template_data, True
         except requests.RequestException as e:
-            HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, templates_url, e, start, channel=channel)
+            HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, start, channel=channel)
             return [], False
 
     def check_health(self, channel):

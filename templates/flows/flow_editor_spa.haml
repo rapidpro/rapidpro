@@ -5,13 +5,11 @@
   {{block.super}}
   :css
     .spa-content {
-      padding: 0;
+      margin-bottom: 0;
+      padding-bottom: 0;      
     }
 
-    .spa-title {
-      margin-bottom: 0;
-      padding: 1em;
-    }
+    
 
     .more .submenu {
       top: 2.5em !important;
@@ -26,7 +24,10 @@
     #grid {
       overflow: auto;
       z-index: 0;
-      border: 1px solid #e7e7e7;
+      border: 0px solid #e7e7e7;
+      margin-bottom: 2.5em;
+      margin-top: 0px;
+      height: 100%;
     }
 
     #simulator-tab {
@@ -45,6 +46,27 @@
       display:none;
     }
 
+    #canvas::after {
+      background-color: #ffffff;
+    }
+
+    #canvas-container > div {
+      background-color: #ffffff;
+    }
+
+    .language-selector > div {
+      right: 4em !important;
+    }
+
+    .pop_wrapper.pop_invisible {
+      margin-right: 1.3em;
+    }
+
+    .flow_node {
+      box-shadow: 0px 0px 4px 2px rgba(0,0,0,.05);
+      border: 1px solid transparent;
+    }
+
 -block alert-messages
   -if is_starting or messages or user_org.is_suspended
     .pt-5.pr-5.pl-5
@@ -56,9 +78,6 @@
 
 -block page-container
 
-  :javascript
-    document.querySelector("temba-menu").collapsed = true;
-
   %temba-modax#send-message-modal{ header:"Send Message" }
 
   %temba-dialog.hide#confirm-language(header='{{_("Change Language")|escapejs}}' primaryButtonName='{{_("Update")|escapejs}}')
@@ -69,6 +88,6 @@
         in this flow and no translation exists for their language or the default language of the workspace,
         communication with that contact will default to <b>{{ language }}</b>.
 
-  #grid
+  #grid.card.p-0
     <temba-loading class="editor-loader" units="10" size="8"></temba-loading>
     #rp-flow-editor

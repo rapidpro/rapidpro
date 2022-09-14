@@ -120,11 +120,7 @@
       }
     }
 
-    function updateTicketList() {
-      var app = document.location.pathname.indexOf('/ticket/') > -1 ? 'ticket' : 'tickets';
-      var url = `/${app}/${folder}/${status}/${ticketUUID || ''}`;
-      window.history.pushState({},"", url);
-
+    function updateTicketList() {      
       var tickets = document.querySelector("temba-ticket-list");
       var chat = document.querySelector("temba-contact-chat");
 
@@ -184,6 +180,16 @@
       }
       
       updateTicketList();
+      
+      var path = `${folder}/${status}/${ticketUUID || ''}`;
+      var show = `/tickets/${path}`;
+
+      if (!show.endsWith("/")) {
+        show += "/";
+      }
+
+      window.history.replaceState({ url: `/ticket/${path}`, show: show } ,"", show);
+      
     }
     
     function handleContactHistoryUpdated(event) {
@@ -280,12 +286,12 @@
 
             .flex.flex-grow(style="max-height:100%;")
               -if uuid
-                %temba-ticket-list(agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status uuid %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+                %temba-ticket-list.flex-grow(agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status uuid %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
                   .filter-note.m-2.hidden(style="text-align:center")
                     .linked(onclick="clearFilter()")
                       -trans "See more tickets"
               -else
-                %temba-ticket-list(nextselection="{{nextUUID}}" agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+                %temba-ticket-list.flex-grow(nextselection="{{nextUUID}}" agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
 
           .flex-grow.flex-col.flex.min-h-0(class="{% if is_spa %}ml-4{%else%}py-4 pb-4 pr-4{% endif %}")
             .empty

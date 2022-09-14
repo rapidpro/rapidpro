@@ -1,0 +1,11 @@
+-extends "orgs/user_list.haml"
+-load i18n
+
+-block page-header
+
+-block pre-table
+  %form#search-form(method='get')
+    .flex.mb-4.items-center
+      .search-box.flex-grow
+        %temba-textinput(name='search' value='{{ search }}' placeholder="Search Users")
+        %input.hidden(type="submit" value="Submit")

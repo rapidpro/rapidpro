@@ -21,7 +21,7 @@ from temba.msgs.models import Msg
 from temba.orgs.views import MenuMixin, ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import languages
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget, TembaChoiceField
-from temba.utils.views import BulkActionMixin, SpaMixin
+from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin
 
 from .models import Campaign, CampaignEvent
 
@@ -54,12 +54,15 @@ class CampaignCRUDL(SmartCRUDL):
     class Menu(MenuMixin, SmartTemplateView):
         def derive_menu(self):
 
+            org = self.request.user.get_org()
+
             menu = []
             menu.append(
                 self.create_menu_item(
                     menu_id="active",
                     name=_("Active"),
                     icon="campaign",
+                    count=org.campaigns.filter(is_active=True, is_archived=False).count(),
                     href="campaigns.campaign_list",
                 )
             )
@@ -69,6 +72,7 @@ class CampaignCRUDL(SmartCRUDL):
                     menu_id="archived",
                     name=_("Archived"),
                     icon="archive",
+                    count=org.campaigns.filter(is_active=True, is_archived=True).count(),
                     href="campaigns.campaign_archived",
                 )
             )
@@ -119,78 +123,48 @@ class CampaignCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def derive_title(self):
             return self.object.name
 
-        def get_gear_links(self):
-            links = []
+        def build_content_menu(self, menu):
+            obj = self.get_object()
 
-            if self.object.is_archived:
+            if obj.is_archived:
                 if self.has_org_perm("campaigns.campaign_activate"):
-                    links.append(
-                        dict(
-                            title="Activate",
-                            js_class="posterize activate-campaign",
-                            href=reverse("campaigns.campaign_activate", args=[self.object.id]),
-                        )
-                    )
+                    menu.add_url_post(_("Activate"), reverse("campaigns.campaign_activate", args=[obj.id]))
 
                 if self.has_org_perm("orgs.org_export"):
-                    links.append(
-                        dict(
-                            title=_("Export"),
-                            href=f"{reverse('orgs.org_export')}?campaign={self.object.id}&archived=1",
-                        )
-                    )
-
+                    menu.add_link(_("Export"), f"{reverse('orgs.org_export')}?campaign={obj.id}&archived=1")
             else:
                 if self.has_org_perm("campaigns.campaignevent_create"):
-                    links.append(
-                        dict(
-                            id="event-add",
-                            title=_("New Event"),
-                            href=f"{reverse('campaigns.campaignevent_create')}?campaign={self.object.pk}",
-                            modax=_("New Event"),
-                        )
-                    )
-                if self.has_org_perm("orgs.org_export"):
-                    links.append(
-                        dict(title=_("Export"), href=f"{reverse('orgs.org_export')}?campaign={self.object.id}")
+                    menu.add_modax(
+                        _("New Event"),
+                        "event-add",
+                        f"{reverse('campaigns.campaignevent_create')}?campaign={obj.id}",
                     )
 
+                if self.has_org_perm("orgs.org_export"):
+                    menu.add_link(_("Export"), f"{reverse('orgs.org_export')}?campaign={obj.id}")
+
                 if self.has_org_perm("campaigns.campaign_update"):
-                    links.append(
-                        dict(
-                            id="campaign-update",
-                            title=_("Edit"),
-                            href=reverse("campaigns.campaign_update", args=[self.object.pk]),
-                            modax=_("Edit Campaign"),
-                        )
+                    menu.add_modax(
+                        _("Edit"),
+                        "campaign-update",
+                        reverse("campaigns.campaign_update", args=[obj.id]),
+                        title=_("Edit Campaign"),
                     )
 
                 if self.has_org_perm("campaigns.campaign_archive"):
-                    links.append(
-                        dict(
-                            title="Archive",
-                            js_class="posterize archive-campaign",
-                            href=reverse("campaigns.campaign_archive", args=[self.object.id]),
-                        )
-                    )
+                    menu.add_url_post(_("Archive"), reverse("campaigns.campaign_archive", args=[obj.id]))
 
-            user = self.get_user()
-            if user.is_superuser or user.is_staff:
-                links.append(
-                    dict(
-                        title=_("Service"),
-                        posterize=True,
-                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("campaigns.campaign_read", args=[self.object.uuid])}',
-                    )
+            if self.request.user.is_staff:
+                menu.add_url_post(
+                    _("Service"),
+                    f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("campaigns.campaign_read", args=[obj.uuid])}',
                 )
-
-            return links
 
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
         fields = ("name", "group")
@@ -200,7 +174,7 @@ class CampaignCRUDL(SmartCRUDL):
 
         def pre_save(self, obj):
             obj = super().pre_save(obj)
-            obj.org = self.request.user.get_org()
+            obj.org = self.request.org
             return obj
 
         def get_form_kwargs(self):
@@ -215,13 +189,14 @@ class CampaignCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["org_has_campaigns"] = Campaign.objects.filter(org=self.request.user.get_org()).count()
-            context["folders"] = self.get_folders()
+            context["org_has_campaigns"] = Campaign.objects.filter(org=self.request.org).count()
+            if not self.is_spa():
+                context["folders"] = self.get_folders()
             context["request_url"] = self.request.path
             return context
 
         def get_folders(self):
-            org = self.request.user.get_org()
+            org = self.request.org
             folders = []
             folders.append(
                 dict(
@@ -533,7 +508,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         "This is a background flow. When it triggers, it will run it for all contacts without interruption."
     )
 
-    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<campaign_uuid>[0-9a-f-]+)/(?P<pk>\d+)/$" % (path, action)
@@ -567,32 +542,24 @@ class CampaignEventCRUDL(SmartCRUDL):
 
             return context
 
-        def get_gear_links(self):
-            links = []
+        def build_content_menu(self, menu):
+            obj = self.get_object()
 
-            campaign_event = self.get_object()
-
-            if self.has_org_perm("campaigns.campaignevent_update") and not campaign_event.campaign.is_archived:
-                links.append(
-                    dict(
-                        id="event-update",
-                        title=_("Edit"),
-                        href=reverse("campaigns.campaignevent_update", args=[campaign_event.pk]),
-                        modax=_("Edit Event"),
-                    )
+            if self.has_org_perm("campaigns.campaignevent_update") and not obj.campaign.is_archived:
+                menu.add_modax(
+                    _("Edit"),
+                    "event-update",
+                    reverse("campaigns.campaignevent_update", args=[obj.id]),
+                    title=_("Edit Event"),
                 )
 
             if self.has_org_perm("campaigns.campaignevent_delete"):
-                links.append(
-                    dict(
-                        id="event-delete",
-                        title="Delete",
-                        href=reverse("campaigns.campaignevent_delete", args=[campaign_event.id]),
-                        modax=_("Delete Event"),
-                    )
+                menu.add_modax(
+                    _("Delete"),
+                    "event-delete",
+                    reverse("campaigns.campaignevent_delete", args=[obj.id]),
+                    title=_("Delete Event"),
                 )
-
-            return links
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
 

@@ -34,7 +34,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole, User
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.tickets.types.mailgun import MailgunType
@@ -48,7 +48,275 @@ from .serializers import format_datetime, normalize_extra
 NUM_BASE_REQUEST_QUERIES = 5  # number of db queries required for any API request
 
 
-class APITest(TembaTest):
+class FieldsTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+    def assert_field(self, f, *, submissions: dict, representations: dict):
+        f._context = {"org": self.org}  # noqa
+
+        for submitted, expected in submissions.items():
+            if isinstance(expected, type) and issubclass(expected, Exception):
+                with self.assertRaises(expected, msg=f"expected exception for '{submitted}'"):
+                    f.to_internal_value(submitted)
+            else:
+                self.assertEqual(
+                    f.to_internal_value(submitted), expected, f"to_internal_value mismatch for '{submitted}'"
+                )
+
+        for value, expected in representations.items():
+            self.assertEqual(f.to_representation(value), expected, f"to_representation mismatch for '{value}'")
+
+    def test_contact(self):
+        joe = self.create_contact("Joe", urns=["tel:+593999123456"])
+        frank = self.create_contact("Frank", urns=["twitterid:2352463463#franky"])  # urn has display fragment
+        voldemort = self.create_contact("", urns=[])  # no name or URNs
+
+        self.assert_field(
+            fields.ContactField(source="test"),
+            submissions={
+                joe.uuid: joe,  # by UUID
+                joe.get_urn().urn: joe,  # by URN
+                0: serializers.ValidationError,
+                (joe.uuid, frank.uuid): serializers.ValidationError,
+            },
+            representations={
+                joe: {"uuid": str(joe.uuid), "name": "Joe"},
+            },
+        )
+
+        self.assert_field(
+            fields.ContactField(source="test", as_summary=True),
+            submissions={
+                joe.uuid: joe,  # by UUID
+                joe.get_urn().urn: joe,  # by URN
+                0: serializers.ValidationError,
+                (joe.uuid, frank.uuid): serializers.ValidationError,
+            },
+            representations={
+                joe: {
+                    "uuid": str(joe.uuid),
+                    "name": "Joe",
+                    "urn": "tel:+593999123456",
+                    "urn_display": "099 912 3456",
+                },
+                frank: {
+                    "uuid": str(frank.uuid),
+                    "name": "Frank",
+                    "urn": "twitterid:2352463463",
+                    "urn_display": "franky",
+                },
+                voldemort: {
+                    "uuid": str(voldemort.uuid),
+                    "name": "",
+                    "urn": None,
+                    "urn_display": None,
+                },
+            },
+        )
+
+        self.assert_field(
+            fields.ContactField(source="test", many=True),
+            submissions={
+                (joe.uuid, frank.uuid): [joe, frank],
+                joe.uuid: serializers.ValidationError,
+            },
+            representations={
+                (joe, frank): [
+                    {"uuid": str(joe.uuid), "name": "Joe"},
+                    {"uuid": str(frank.uuid), "name": "Frank"},
+                ]
+            },
+        )
+
+        with AnonymousOrg(self.org):
+            # load contacts again without cached org on them or their urns
+            joe = Contact.objects.get(id=joe.id)
+            frank = Contact.objects.get(id=frank.id)
+            voldemort = Contact.objects.get(id=voldemort.id)
+
+            self.assert_field(
+                fields.ContactField(source="test"),
+                submissions={
+                    joe.uuid: joe,  # by UUID
+                    joe.get_urn().urn: joe,  # by URN
+                    0: serializers.ValidationError,
+                    (joe.uuid, frank.uuid): serializers.ValidationError,
+                },
+                representations={
+                    joe: {"uuid": str(joe.uuid), "name": "Joe"},
+                    frank: {"uuid": str(frank.uuid), "name": "Frank"},
+                    voldemort: {"uuid": str(voldemort.uuid), "name": ""},
+                },
+            )
+
+            self.assert_field(
+                fields.ContactField(source="test", as_summary=True),
+                submissions={
+                    joe.uuid: joe,  # by UUID
+                    joe.get_urn().urn: joe,  # by URN
+                    0: serializers.ValidationError,
+                    (joe.uuid, frank.uuid): serializers.ValidationError,
+                },
+                representations={
+                    joe: {
+                        "uuid": str(joe.uuid),
+                        "name": "Joe",
+                        "urn": "tel:********",
+                        "urn_display": None,
+                        "anon_display": f"{joe.id:010}",
+                    },
+                    frank: {
+                        "uuid": str(frank.uuid),
+                        "name": "Frank",
+                        "urn": "twitterid:********",
+                        "urn_display": None,
+                        "anon_display": f"{frank.id:010}",
+                    },
+                    voldemort: {
+                        "uuid": str(voldemort.uuid),
+                        "name": "",
+                        "urn": None,
+                        "urn_display": None,
+                        "anon_display": f"{voldemort.id:010}",
+                    },
+                },
+            )
+
+    def test_others(self):
+        group = self.create_group("Customers")
+        field_obj = self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
+        flow = self.create_flow("Test")
+        campaign = Campaign.create(self.org, self.admin, "Reminders #1", group)
+        event = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, field_obj, 6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12
+        )
+
+        field = fields.LimitedListField(child=serializers.IntegerField(), source="test")
+
+        self.assertEqual(field.to_internal_value([1, 2, 3]), [1, 2, 3])
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, list(range(101)))  # too long
+
+        field = fields.CampaignField(source="test")
+        field._context = {"org": self.org}
+
+        self.assertEqual(field.to_internal_value(str(campaign.uuid)), campaign)
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"id": 3})  # not a string or int
+
+        field = fields.CampaignEventField(source="test")
+        field._context = {"org": self.org}
+
+        self.assertEqual(field.to_internal_value(str(event.uuid)), event)
+
+        field._context = {"org": self.org2}
+
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, event.uuid)
+
+        deleted_channel = self.create_channel("A", "My Android", "123456")
+        deleted_channel.is_active = False
+        deleted_channel.save(update_fields=("is_active",))
+
+        self.assert_field(
+            fields.ChannelField(source="test"),
+            submissions={self.channel.uuid: self.channel, deleted_channel.uuid: serializers.ValidationError},
+            representations={self.channel: {"uuid": str(self.channel.uuid), "name": "Test Channel"}},
+        )
+
+        self.assert_field(
+            fields.ContactGroupField(source="test"),
+            submissions={group.uuid: group},
+            representations={group: {"uuid": str(group.uuid), "name": "Customers"}},
+        )
+
+        field_created_on = self.org.fields.get(key="created_on")
+
+        self.assert_field(
+            fields.ContactFieldField(source="test"),
+            submissions={"registered": field_obj, "created_on": field_created_on, "xyz": serializers.ValidationError},
+            representations={field_obj: {"key": "registered", "label": "Registered On"}},
+        )
+
+        self.assert_field(
+            fields.FlowField(source="test"),
+            submissions={flow.uuid: flow},
+            representations={flow: {"uuid": str(flow.uuid), "name": flow.name}},
+        )
+
+        self.assert_field(
+            fields.TopicField(source="test"),
+            submissions={str(self.org.default_ticket_topic.uuid): self.org.default_ticket_topic},
+            representations={
+                self.org.default_ticket_topic: {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"}
+            },
+        )
+
+        self.assert_field(
+            fields.URNField(source="test"),
+            submissions={
+                "tel:+1-800-123-4567": "tel:+18001234567",
+                "tel:0788 123 123": "tel:+250788123123",  # using org country
+                "tel:(078) 812-3123": "tel:+250788123123",
+                "12345": serializers.ValidationError,  # un-parseable
+                "tel:800-123-4567": serializers.ValidationError,  # no country code
+                18_001_234_567: serializers.ValidationError,  # non-string
+            },
+            representations={"tel:+18001234567": "tel:+18001234567"},
+        )
+
+        self.editor.is_active = False
+        self.editor.save(update_fields=("is_active",))
+
+        self.assert_field(
+            fields.UserField(source="test"),
+            submissions={
+                "VIEWER@NYARUKA.COM": self.user,
+                "admin@nyaruka.com": self.admin,
+                self.editor.email: serializers.ValidationError,  # deleted
+                self.admin2.email: serializers.ValidationError,  # not in org
+            },
+            representations={
+                self.user: {"email": "viewer@nyaruka.com", "name": ""},
+                self.editor: {"email": "editor@nyaruka.com", "name": "Ed McEdits"},
+            },
+        )
+        self.assert_field(
+            fields.UserField(source="test", assignable_only=True),
+            submissions={
+                self.user.email: serializers.ValidationError,  # not assignable
+                self.admin.email: self.admin,
+                self.agent.email: self.agent,
+            },
+            representations={self.agent: {"email": "agent@nyaruka.com", "name": "Agnes"}},
+        )
+
+        field = fields.TranslatableField(source="test", max_length=10)
+        field._context = {"org": self.org}
+
+        self.assertEqual(field.to_internal_value("Hello"), ({"base": "Hello"}, "base"))
+        self.assertEqual(field.to_internal_value({"base": "Hello"}), ({"base": "Hello"}, "base"))
+
+        self.org.set_flow_languages(self.admin, ["kin"])
+        self.org.save()
+
+        self.assertEqual(field.to_internal_value("Hello"), ({"kin": "Hello"}, "kin"))
+        self.assertEqual(
+            field.to_internal_value({"eng": "Hello", "kin": "Muraho"}), ({"eng": "Hello", "kin": "Muraho"}, "kin")
+        )
+
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, 123)  # not a string or dict
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"kin": 123})
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {})
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {123: "Hello", "kin": "Muraho"})
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, "HelloHello1")  # too long
+        self.assertRaises(
+            serializers.ValidationError, field.to_internal_value, {"kin": "HelloHello1"}
+        )  # also too long
+        self.assertRaises(
+            serializers.ValidationError, field.to_internal_value, {"eng": "HelloHello1"}
+        )  # base lang not provided
+
+
+class EndpointsTest(TembaTest):
     def setUp(self):
         super().setUp()
 
@@ -174,178 +442,6 @@ class APITest(TembaTest):
             reverse("api.v2.fields") + ".json", content_type="application/json", HTTP_X_FORWARDED_HTTPS="https"
         )
         self.assertContains(response, "Server Error. Site administrators have been notified.", status_code=500)
-
-    def test_serializer_fields(self):
-        def assert_field(f, *, submissions: dict, representations: dict):
-            f._context = {"org": self.org}  # noqa
-
-            for submitted, expected in submissions.items():
-                if isinstance(expected, type) and issubclass(expected, Exception):
-                    with self.assertRaises(expected, msg=f"expected exception for '{submitted}'"):
-                        f.to_internal_value(submitted)
-                else:
-                    self.assertEqual(
-                        f.to_internal_value(submitted), expected, f"to_internal_value mismatch for '{submitted}'"
-                    )
-
-            for value, expected in representations.items():
-                self.assertEqual(f.to_representation(value), expected, f"to_representation mismatch for '{value}'")
-
-        group = self.create_group("Customers")
-        field_obj = self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
-        flow = self.create_flow("Test")
-        campaign = Campaign.create(self.org, self.admin, "Reminders #1", group)
-        event = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, field_obj, 6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12
-        )
-
-        field = fields.LimitedListField(child=serializers.IntegerField(), source="test")
-
-        self.assertEqual(field.to_internal_value([1, 2, 3]), [1, 2, 3])
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, list(range(101)))  # too long
-
-        field = fields.CampaignField(source="test")
-        field._context = {"org": self.org}
-
-        self.assertEqual(field.to_internal_value(str(campaign.uuid)), campaign)
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"id": 3})  # not a string or int
-
-        field = fields.CampaignEventField(source="test")
-        field._context = {"org": self.org}
-
-        self.assertEqual(field.to_internal_value(str(event.uuid)), event)
-
-        field._context = {"org": self.org2}
-
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, event.uuid)
-
-        deleted_channel = self.create_channel("A", "My Android", "123456")
-        deleted_channel.is_active = False
-        deleted_channel.save(update_fields=("is_active",))
-
-        assert_field(
-            fields.ChannelField(source="test"),
-            submissions={self.channel.uuid: self.channel, deleted_channel.uuid: serializers.ValidationError},
-            representations={self.channel: {"uuid": str(self.channel.uuid), "name": "Test Channel"}},
-        )
-
-        assert_field(
-            fields.ContactField(source="test"),
-            submissions={
-                self.joe.uuid: self.joe,  # by UUID
-                self.joe.get_urn().urn: self.joe,  # by URN
-                0: serializers.ValidationError,
-                (self.joe.uuid, self.frank.uuid): serializers.ValidationError,
-            },
-            representations={self.joe: {"uuid": str(self.joe.uuid), "name": "Joe Blow"}},
-        )
-
-        assert_field(
-            fields.ContactField(source="test", many=True),
-            submissions={
-                (self.joe.uuid, self.frank.uuid): [self.joe, self.frank],
-                self.joe.uuid: serializers.ValidationError,
-            },
-            representations={
-                (self.joe, self.frank): [
-                    {"uuid": str(self.joe.uuid), "name": "Joe Blow"},
-                    {"uuid": str(self.frank.uuid), "name": "Frank"},
-                ]
-            },
-        )
-
-        assert_field(
-            fields.ContactGroupField(source="test"),
-            submissions={group.uuid: group},
-            representations={group: {"uuid": str(group.uuid), "name": "Customers"}},
-        )
-
-        field_created_on = self.org.fields.get(key="created_on")
-
-        assert_field(
-            fields.ContactFieldField(source="test"),
-            submissions={"registered": field_obj, "created_on": field_created_on, "xyz": serializers.ValidationError},
-            representations={field_obj: {"key": "registered", "label": "Registered On"}},
-        )
-
-        assert_field(
-            fields.FlowField(source="test"),
-            submissions={flow.uuid: flow},
-            representations={flow: {"uuid": str(flow.uuid), "name": flow.name}},
-        )
-
-        assert_field(
-            fields.TopicField(source="test"),
-            submissions={str(self.org.default_ticket_topic.uuid): self.org.default_ticket_topic},
-            representations={
-                self.org.default_ticket_topic: {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"}
-            },
-        )
-
-        assert_field(
-            fields.URNField(source="test"),
-            submissions={
-                "tel:+1-800-123-4567": "tel:+18001234567",
-                "tel:0788 123 123": "tel:+250788123123",  # using org country
-                "tel:(078) 812-3123": "tel:+250788123123",
-                "12345": serializers.ValidationError,  # un-parseable
-                "tel:800-123-4567": serializers.ValidationError,  # no country code
-                18_001_234_567: serializers.ValidationError,  # non-string
-            },
-            representations={"tel:+18001234567": "tel:+18001234567"},
-        )
-
-        self.editor.is_active = False
-        self.editor.save(update_fields=("is_active",))
-
-        assert_field(
-            fields.UserField(source="test"),
-            submissions={
-                "VIEWER@NYARUKA.COM": self.user,
-                "admin@nyaruka.com": self.admin,
-                self.editor.email: serializers.ValidationError,  # deleted
-                self.admin2.email: serializers.ValidationError,  # not in org
-            },
-            representations={
-                self.user: {"email": "viewer@nyaruka.com", "name": ""},
-                self.editor: {"email": "editor@nyaruka.com", "name": "Ed McEdits"},
-            },
-        )
-        assert_field(
-            fields.UserField(source="test", assignable_only=True),
-            submissions={
-                self.user.email: serializers.ValidationError,  # not assignable
-                self.admin.email: self.admin,
-                self.agent.email: self.agent,
-            },
-            representations={self.agent: {"email": "agent@nyaruka.com", "name": "Agnes"}},
-        )
-
-        field = fields.TranslatableField(source="test", max_length=10)
-        field._context = {"org": self.org}
-
-        self.assertEqual(field.to_internal_value("Hello"), ({"base": "Hello"}, "base"))
-        self.assertEqual(field.to_internal_value({"base": "Hello"}), ({"base": "Hello"}, "base"))
-
-        self.org.set_flow_languages(self.admin, ["kin"])
-        self.org.save()
-
-        self.assertEqual(field.to_internal_value("Hello"), ({"kin": "Hello"}, "kin"))
-        self.assertEqual(
-            field.to_internal_value({"eng": "Hello", "kin": "Muraho"}), ({"eng": "Hello", "kin": "Muraho"}, "kin")
-        )
-
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, 123)  # not a string or dict
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"kin": 123})
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {})
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {123: "Hello", "kin": "Muraho"})
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, "HelloHello1")  # too long
-        self.assertRaises(
-            serializers.ValidationError, field.to_internal_value, {"kin": "HelloHello1"}
-        )  # also too long
-        self.assertRaises(
-            serializers.ValidationError, field.to_internal_value, {"eng": "HelloHello1"}
-        )  # base lang not provided
 
     @override_settings(FLOW_START_PARAMS_SIZE=4)
     def test_normalize_extra(self):
@@ -543,7 +639,10 @@ class APITest(TembaTest):
 
         # create 1255 test runs (5 full pages of 250 items + 1 partial with 5 items)
         flow = self.create_flow("Test")
-        FlowRun.objects.bulk_create([FlowRun(org=self.org, flow=flow, contact=self.joe) for r in range(1255)])
+        runs = []
+        for r in range(1255):
+            runs.append(FlowRun(org=self.org, flow=flow, contact=self.joe, status="C", exited_on=timezone.now()))
+        FlowRun.objects.bulk_create(runs)
         actual_ids = list(FlowRun.objects.order_by("-pk").values_list("pk", flat=True))
 
         # give them all the same modified_on
@@ -1731,6 +1830,7 @@ class APITest(TembaTest):
                 {
                     "uuid": contact4.uuid,
                     "name": "Don",
+                    "anon_display": f"{contact4.id:010}",
                     "status": "active",
                     "language": "fra",
                     "urns": ["tel:********"],
@@ -2277,11 +2377,11 @@ class APITest(TembaTest):
         self.create_group("Developers", query="isdeveloper = YES")
         other_org_group = self.create_group("Testers", org=self.org2)
 
-        # create some "active" runs for some of the contacts
-        flow = self.get_flow("favorites_v13")
-        FlowRun.objects.create(org=self.org, flow=flow, contact=contact1)
-        FlowRun.objects.create(org=self.org, flow=flow, contact=contact2)
-        FlowRun.objects.create(org=self.org, flow=flow, contact=contact3)
+        # create some waiting runs for some of the contacts
+        flow = self.create_flow("Favorites")
+        MockSessionWriter(contact1, flow).wait().save()
+        MockSessionWriter(contact2, flow).wait().save()
+        MockSessionWriter(contact3, flow).wait().save()
 
         self.create_incoming_msg(contact1, "Hello")
         self.create_incoming_msg(contact2, "Hello")
@@ -2643,10 +2743,9 @@ class APITest(TembaTest):
         color.labels.add(reporting)
 
         # make it look like joe completed the color flow
-        run = FlowRun.objects.create(org=self.org, flow=color, contact=self.joe)
-        run.status = FlowRun.STATUS_COMPLETED
-        run.exited_on = timezone.now()
-        run.save(update_fields=("status", "exited_on", "modified_on"))
+        FlowRun.objects.create(
+            org=self.org, flow=color, contact=self.joe, status=FlowRun.STATUS_COMPLETED, exited_on=timezone.now()
+        )
 
         # flow belong to other org
         self.create_flow("Other", org=self.org2)
@@ -2698,7 +2797,7 @@ class APITest(TembaTest):
                     "name": "Color Flow",
                     "type": "message",
                     "archived": False,
-                    "labels": [{"uuid": reporting.uuid, "name": "Reporting"}],
+                    "labels": [{"uuid": str(reporting.uuid), "name": "Reporting"}],
                     "expires": 10080,
                     "runs": {"active": 0, "completed": 1, "interrupted": 0, "expired": 0},
                     "results": [
@@ -3163,21 +3262,21 @@ class APITest(TembaTest):
         self.assertEqual(
             resp_json["results"],
             [
-                {"uuid": feedback.uuid, "name": "Feedback", "count": 0},
-                {"uuid": important.uuid, "name": "Important", "count": 1},
+                {"uuid": str(feedback.uuid), "name": "Feedback", "count": 0},
+                {"uuid": str(important.uuid), "name": "Important", "count": 1},
             ],
         )
 
         # filter by UUID
-        response = self.fetchJSON(url, "uuid=%s" % feedback.uuid)
-        self.assertEqual(response.json()["results"], [{"uuid": feedback.uuid, "name": "Feedback", "count": 0}])
+        response = self.fetchJSON(url, f"uuid={feedback.uuid}")
+        self.assertEqual(response.json()["results"], [{"uuid": str(feedback.uuid), "name": "Feedback", "count": 0}])
 
         # filter by name
         response = self.fetchJSON(url, "name=important")
         self.assertResultsByUUID(response, [important])
 
         # try to filter by both
-        response = self.fetchJSON(url, "uuid=%s&name=important" % important.uuid)
+        response = self.fetchJSON(url, f"uuid={important.uuid}&name=important")
         self.assertResponseError(response, None, "You may only specify one of the uuid, name parameters")
 
         # try to create empty label
@@ -3189,7 +3288,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         interesting = Label.objects.get(name="Interesting")
-        self.assertEqual(response.json(), {"uuid": interesting.uuid, "name": "Interesting", "count": 0})
+        self.assertEqual(response.json(), {"uuid": str(interesting.uuid), "name": "Interesting", "count": 0})
 
         # try to create another label with same name
         response = self.postJSON(url, None, {"name": "interesting"})
@@ -3208,14 +3307,14 @@ class APITest(TembaTest):
         self.assertResponseError(response, "name", "Ensure this field has no more than 64 characters.")
 
         # update label by UUID
-        response = self.postJSON(url, "uuid=%s" % interesting.uuid, {"name": "More Interesting"})
+        response = self.postJSON(url, f"uuid={interesting.uuid}", {"name": "More Interesting"})
         self.assertEqual(response.status_code, 200)
 
         interesting.refresh_from_db()
         self.assertEqual(interesting.name, "More Interesting")
 
         # can't update label from other org
-        response = self.postJSON(url, "uuid=%s" % spam.uuid, {"name": "Won't work"})
+        response = self.postJSON(url, f"uuid={spam.uuid}", {"name": "Won't work"})
         self.assert404(response)
 
         # try an empty delete request
@@ -3223,7 +3322,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, None, "URL must contain one of the following parameters: uuid")
 
         # delete a label by UUID
-        response = self.deleteJSON(url, "uuid=%s" % interesting.uuid)
+        response = self.deleteJSON(url, f"uuid={interesting.uuid}")
         self.assertEqual(response.status_code, 204)
 
         interesting.refresh_from_db()
@@ -3231,7 +3330,7 @@ class APITest(TembaTest):
         self.assertFalse(interesting.is_active)
 
         # try to delete a label in another org
-        response = self.deleteJSON(url, "uuid=%s" % spam.uuid)
+        response = self.deleteJSON(url, f"uuid={spam.uuid}")
         self.assert404(response)
 
         # try creating a new label after reaching the limit on labels
@@ -3257,7 +3356,7 @@ class APITest(TembaTest):
                 "archived": msg.visibility == "A",
                 "visibility": msg_visibility,
                 "text": msg.text,
-                "labels": [{"name": lb.name, "uuid": lb.uuid} for lb in msg.labels.all()],
+                "labels": [{"uuid": str(lb.uuid), "name": lb.name} for lb in msg.labels.all()],
                 "attachments": [{"content_type": a.content_type, "url": a.url} for a in msg.get_attachments()],
                 "created_on": format_datetime(msg.created_on),
                 "sent_on": format_datetime(msg.sent_on),
@@ -3458,33 +3557,6 @@ class APITest(TembaTest):
             },
         )
 
-    def test_media(self):
-        url = reverse("api.v2.media") + ".json"
-
-        self.login(self.admin)
-
-        def assert_media_upload(filename, ext):
-            with open(filename, "rb") as data:
-
-                post_data = dict(media_file=data, extension=ext, HTTP_X_FORWARDED_HTTPS="https")
-                response = self.client.post(url, post_data)
-
-                self.assertEqual(response.status_code, 201)
-                location = response.json().get("location", None)
-                self.assertIsNotNone(location)
-
-                starts_with = f"{settings.STORAGE_URL}/{settings.STORAGE_ROOT_DIR}/{self.org.id}/media/"
-                self.assertEqual(starts_with, location[0 : len(starts_with)])
-                self.assertEqual(".%s" % ext, location[-4:])
-
-        assert_media_upload("%s/test_media/steve marten.jpg" % settings.MEDIA_ROOT, "jpg")
-        assert_media_upload("%s/test_media/snow.mp4" % settings.MEDIA_ROOT, "mp4")
-
-        # missing file
-        response = self.client.post(url, dict(), HTTP_X_FORWARDED_HTTPS="https")
-        self.assertEqual(response.status_code, 400)
-        self.clear_storage()
-
     def test_runs(self):
         url = reverse("api.v2.runs")
 
@@ -3545,7 +3617,7 @@ class APITest(TembaTest):
         frank_run2.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url, readonly_models={FlowRun})
 
         self.assertEqual(200, response.status_code)
@@ -3555,10 +3627,15 @@ class APITest(TembaTest):
         resp_json = response.json()
         self.assertEqual(
             {
-                "id": frank_run2.pk,
+                "id": frank_run2.id,
                 "uuid": str(frank_run2.uuid),
-                "flow": {"uuid": flow1.uuid, "name": "Colors"},
-                "contact": {"uuid": self.frank.uuid, "urn": "twitter:franky", "name": self.frank.name},
+                "flow": {"uuid": str(flow1.uuid), "name": "Colors"},
+                "contact": {
+                    "uuid": str(self.frank.uuid),
+                    "name": self.frank.name,
+                    "urn": "twitter:franky",
+                    "urn_display": "franky",
+                },
                 "start": None,
                 "responded": False,
                 "path": [
@@ -3581,10 +3658,15 @@ class APITest(TembaTest):
         )
         self.assertEqual(
             {
-                "id": joe_run1.pk,
+                "id": joe_run1.id,
                 "uuid": str(joe_run1.uuid),
-                "flow": {"uuid": flow1.uuid, "name": "Colors"},
-                "contact": {"uuid": self.joe.uuid, "urn": "tel:+250788123123", "name": self.joe.name},
+                "flow": {"uuid": str(flow1.uuid), "name": "Colors"},
+                "contact": {
+                    "uuid": str(self.joe.uuid),
+                    "name": self.joe.name,
+                    "urn": "tel:+250788123123",
+                    "urn_display": "0788 123 123",
+                },
                 "start": {"uuid": str(joe_run1.start.uuid)},
                 "responded": True,
                 "path": [
@@ -3626,10 +3708,15 @@ class APITest(TembaTest):
         resp_json = response.json()
         self.assertEqual(
             {
-                "id": frank_run2.pk,
+                "id": frank_run2.id,
                 "uuid": str(frank_run2.uuid),
-                "flow": {"uuid": flow1.uuid, "name": "Colors"},
-                "contact": {"uuid": self.frank.uuid, "urn": "twitter:franky", "name": self.frank.name},
+                "flow": {"uuid": str(flow1.uuid), "name": "Colors"},
+                "contact": {
+                    "uuid": str(self.frank.uuid),
+                    "name": self.frank.name,
+                    "urn": "twitter:franky",
+                    "urn_display": "franky",
+                },
                 "start": None,
                 "responded": False,
                 "path": None,
@@ -3643,7 +3730,7 @@ class APITest(TembaTest):
         )
 
         # reversed
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url, "reverse=true")
 
         self.assertEqual(200, response.status_code)
@@ -3663,7 +3750,13 @@ class APITest(TembaTest):
                     "id": frank_run2.pk,
                     "uuid": str(frank_run2.uuid),
                     "flow": {"uuid": flow1.uuid, "name": "Colors"},
-                    "contact": {"uuid": self.frank.uuid, "name": self.frank.name},
+                    "contact": {
+                        "uuid": self.frank.uuid,
+                        "name": self.frank.name,
+                        "urn": "twitter:********",
+                        "urn_display": None,
+                        "anon_display": f"{self.frank.id:010}",
+                    },
                     "start": None,
                     "responded": False,
                     "path": [
@@ -3759,18 +3852,22 @@ class APITest(TembaTest):
         url = reverse("api.v2.runs")
         self.assertEndpointAccess(url)
 
-        flow = self.get_flow("color")
-        run = FlowRun.objects.create(org=self.org, flow=flow, contact=self.frank)
-        run.results = {
-            "manual": {
-                "created_on": "2019-06-28T06:37:02.628152471Z",
-                "name": "Manual",
-                "node_uuid": "6edeb849-1f65-4038-95dc-4d99d7dde6b8",
-                "value": "",
-            }
-        }
-        run.save(update_fields=("results",))
-
+        flow = self.create_flow("Test")
+        FlowRun.objects.create(
+            org=self.org,
+            flow=flow,
+            contact=self.frank,
+            status=FlowRun.STATUS_COMPLETED,
+            exited_on=timezone.now(),
+            results={
+                "manual": {
+                    "created_on": "2019-06-28T06:37:02.628152471Z",
+                    "name": "Manual",
+                    "node_uuid": "6edeb849-1f65-4038-95dc-4d99d7dde6b8",
+                    "value": "",
+                }
+            },
+        )
         response = self.fetchJSON(url)
 
         resp_json = response.json()
@@ -3804,7 +3901,7 @@ class APITest(TembaTest):
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         # add label by its UUID to message 3
-        response = self.postJSON(url, None, {"messages": [msg3.id], "action": "label", "label": label.uuid})
+        response = self.postJSON(url, None, {"messages": [msg3.id], "action": "label", "label": str(label.uuid)})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(label.get_messages()), {msg1, msg2, msg3})
 
@@ -3818,7 +3915,9 @@ class APITest(TembaTest):
         self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
         # and remove from messages 1 and 3 by UUID
-        response = self.postJSON(url, None, {"messages": [msg1.id, msg3.id], "action": "unlabel", "label": label.uuid})
+        response = self.postJSON(
+            url, None, {"messages": [msg1.id, msg3.id], "action": "unlabel", "label": str(label.uuid)}
+        )
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(label.get_messages()), set())
 
@@ -4428,6 +4527,38 @@ class APITest(TembaTest):
             ],
         )
 
+    @mock_uuids
+    def test_surveyor_attachments(self):
+        endpoint = reverse("api.v2.surveyor_attachments") + ".json"
+
+        self.login(self.admin)
+
+        def assert_media_upload(filename: str, ext: str, location: str):
+            with open(filename, "rb") as data:
+                response = self.client.post(
+                    endpoint, {"media_file": data, "extension": ext}, HTTP_X_FORWARDED_HTTPS="https"
+                )
+
+                self.assertEqual(response.status_code, 201)
+                self.assertEqual(location, response.json().get("location", None))
+
+        assert_media_upload(
+            f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg",
+            "jpg",
+            f"/media/test_orgs/{self.org.id}/surveyor_attachments/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d.jpg",
+        )
+        assert_media_upload(
+            f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
+            "mp4",
+            f"/media/test_orgs/{self.org.id}/surveyor_attachments/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1.mp4",
+        )
+
+        # missing file
+        response = self.client.post(endpoint, dict(), HTTP_X_FORWARDED_HTTPS="https")
+        self.assertEqual(response.status_code, 400)
+
+        self.clear_storage()
+
     def test_classifiers(self):
         url = reverse("api.v2.classifiers")
         self.assertEndpointAccess(url)
@@ -4549,10 +4680,12 @@ class APITest(TembaTest):
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
         ann = self.create_contact("Ann", urns=["twitter:annie"])
         bob = self.create_contact("Bob", urns=["twitter:bobby"])
+        flow = self.create_flow("Support")
+
         ticket1 = self.create_ticket(
-            mailgun, ann, "Help", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
+            mailgun, ann, "Help", opened_by=self.admin, closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
         )
-        ticket2 = self.create_ticket(mailgun, bob, "Really")
+        ticket2 = self.create_ticket(mailgun, bob, "Really", opened_in=flow)
         ticket3 = self.create_ticket(mailgun, bob, "Pleeeease help", assignee=self.agent)
 
         # on another org
@@ -4560,7 +4693,7 @@ class APITest(TembaTest):
         self.create_ticket(zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Stuff")
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
             response = self.fetchJSON(url, readonly_models={Ticket})
 
         resp_json = response.json()
@@ -4578,6 +4711,8 @@ class APITest(TembaTest):
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Pleeeease help",
                     "opened_on": format_datetime(ticket3.opened_on),
+                    "opened_by": None,
+                    "opened_in": None,
                     "modified_on": format_datetime(ticket3.modified_on),
                     "closed_on": None,
                 },
@@ -4590,6 +4725,8 @@ class APITest(TembaTest):
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Really",
                     "opened_on": format_datetime(ticket2.opened_on),
+                    "opened_by": None,
+                    "opened_in": {"uuid": str(flow.uuid), "name": "Support"},
                     "modified_on": format_datetime(ticket2.modified_on),
                     "closed_on": None,
                 },
@@ -4602,6 +4739,8 @@ class APITest(TembaTest):
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Help",
                     "opened_on": format_datetime(ticket1.opened_on),
+                    "opened_by": {"email": "admin@nyaruka.com", "name": "Andy"},
+                    "opened_in": None,
                     "modified_on": format_datetime(ticket1.modified_on),
                     "closed_on": "2021-01-01T12:30:45.123456Z",
                 },

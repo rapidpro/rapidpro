@@ -1,7 +1,11 @@
 import logging
+import mimetypes
+import os
+import re
 import time
 from array import array
 from datetime import datetime, timedelta
+from fnmatch import fnmatch
 
 import iso8601
 import pytz
@@ -19,13 +23,14 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, TranslatableField
+from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
+from temba.utils.s3 import public_file_storage
 from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
 
@@ -38,6 +43,135 @@ class UnreachableException(Exception):
     """
 
     pass
+
+
+class Media(models.Model):
+    """
+    An uploaded media file that can be used as an attachment on messages.
+    """
+
+    ALLOWED_CONTENT_TYPES = ("image/*", "audio/*", "video/*", "application/pdf")
+    MAX_UPLOAD_SIZE = 1024 * 1024 * 25  # 25MB
+
+    STATUS_PENDING = "P"
+    STATUS_READY = "R"
+    STATUS_FAILED = "F"
+    STATUS_CHOICES = ((STATUS_PENDING, "Pending"), (STATUS_READY, "Ready"), (STATUS_FAILED, "Failed"))
+
+    uuid = models.UUIDField(default=uuid4, db_index=True, unique=True)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    url = models.URLField(max_length=2048)
+    content_type = models.CharField(max_length=255)
+    path = models.CharField(max_length=2048)
+    size = models.IntegerField(default=0)  # bytes
+    original = models.ForeignKey("self", null=True, on_delete=models.CASCADE, related_name="alternates")
+    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
+
+    # fields that will be set after upload by a processing task
+    duration = models.IntegerField(default=0)  # milliseconds
+    width = models.IntegerField(default=0)  # pixels
+    height = models.IntegerField(default=0)  # pixels
+
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    created_on = models.DateTimeField(default=timezone.now)
+
+    # TODO remove
+    name = models.CharField(max_length=255, null=True)
+
+    @classmethod
+    def is_allowed_type(cls, content_type: str) -> bool:
+        for allowed_type in cls.ALLOWED_CONTENT_TYPES:
+            if fnmatch(content_type, allowed_type):
+                return True
+        return False
+
+    @classmethod
+    def get_storage_path(cls, org, uuid, filename):
+        """
+        Returns the storage path for the given filename. Differs slightly from that used by the media endpoint because
+        it preserves the original filename which courier still needs if there's no media record for an attachment URL.
+        """
+        return f"{settings.STORAGE_ROOT_DIR}/{org.id}/media/{str(uuid)[0:4]}/{uuid}/{filename}"
+
+    @classmethod
+    def clean_name(cls, filename: str, content_type: str) -> str:
+        base_name, extension = os.path.splitext(filename)
+        base_name = re.sub(r"[^\w\-\[\]\(\) ]", "", base_name).strip()[:255] or "file"
+
+        if not extension or len(extension) < 2 or not extension[1:].isalnum():
+            extension = mimetypes.guess_extension(content_type) or ".bin"
+
+        return base_name + extension
+
+    @classmethod
+    def from_upload(cls, org, user, file, process=True):
+        """
+        Creates a new media instance from a file upload.
+        """
+
+        from .tasks import process_media_upload
+
+        assert cls.is_allowed_type(file.content_type), "unsupported content type"
+
+        filename = cls.clean_name(file.name, file.content_type)
+
+        # browsers might send m4a files but correct MIME type is audio/mp4
+        if filename.endswith(".m4a"):
+            file.content_type = "audio/mp4"
+
+        media = cls._create(org, user, filename, file.content_type, file)
+
+        if process:
+            on_transaction_commit(lambda: process_media_upload.delay(media.id))
+
+        return media
+
+    @classmethod
+    def create_alternate(cls, original, filename: str, content_type: str, file, **kwargs):
+        """
+        Creates a new alternate media instance for the given original.
+        """
+
+        return cls._create(
+            original.org,
+            original.created_by,
+            filename,
+            content_type,
+            file,
+            original=original,
+            status=cls.STATUS_READY,
+            **kwargs,
+        )
+
+    @classmethod
+    def _create(cls, org, user, filename: str, content_type: str, file, **kwargs):
+        uuid = uuid4()
+        path = cls.get_storage_path(org, uuid, filename)
+        path = public_file_storage.save(path, file)
+        size = public_file_storage.size(path)
+
+        return cls.objects.create(
+            uuid=uuid,
+            org=org,
+            url=public_file_storage.url(path),
+            content_type=content_type,
+            path=path,
+            size=size,
+            created_by=user,
+            **kwargs,
+        )
+
+    @property
+    def filename(self) -> str:
+        return os.path.basename(self.path)
+
+    def process_upload(self):
+        from .media import process_upload
+
+        assert self.status == self.STATUS_PENDING, "media file is already processed"
+        assert not self.original, "only original uploads can be processed"
+
+        process_upload(self)
 
 
 class Broadcast(models.Model):
@@ -344,12 +478,14 @@ class Msg(models.Model):
     )
 
     FAILED_SUSPENDED = "S"
+    FAILED_CONTACT = "C"
     FAILED_LOOPING = "L"
     FAILED_ERROR_LIMIT = "E"
     FAILED_TOO_OLD = "O"
     FAILED_NO_DESTINATION = "D"
     FAILED_CHOICES = (
         (FAILED_SUSPENDED, _("Workspace suspended")),
+        (FAILED_CONTACT, _("Contact is no longer active")),
         (FAILED_LOOPING, _("Looping detected")),  # mailroom checks for this
         (FAILED_ERROR_LIMIT, _("Retry limit reached")),  # courier tried to send but it errored too many times
         (FAILED_TOO_OLD, _("Too old to send")),  # was queued for too long, would be confusing to send now
@@ -404,6 +540,10 @@ class Msg(models.Model):
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
 
     metadata = JSONAsTextField(null=True, default=dict)
+    log_uuids = ArrayField(models.UUIDField(), null=True)
+
+    # TODO drop
+    logs = ArrayField(models.UUIDField(), null=True)
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
@@ -455,7 +595,7 @@ class Msg(models.Model):
             "visibility": MsgReadSerializer.VISIBILITIES.get(self.visibility),
             "text": self.text,
             "attachments": [attachment.as_json() for attachment in Attachment.parse_all(self.attachments)],
-            "labels": [{"uuid": lb.uuid, "name": lb.name} for lb in self.labels.all()],
+            "labels": [{"uuid": str(lb.uuid), "name": lb.name} for lb in self.labels.all()],
             "created_on": self.created_on.isoformat(),
             "sent_on": self.sent_on.isoformat() if self.sent_on else None,
         }
@@ -525,15 +665,6 @@ class Msg(models.Model):
         Gets this message's attachments parsed into actual attachment objects
         """
         return Attachment.parse_all(self.attachments)
-
-    def get_last_log(self):
-        """
-        Gets the last channel log for this message. Performs sorting in Python to ease pre-fetching.
-        """
-        sorted_logs = None
-        if self.channel and self.channel.is_active:
-            sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
-        return sorted_logs[0] if sorted_logs else None
 
     def update(self, cmd):
         """
@@ -654,8 +785,7 @@ class Msg(models.Model):
             self.visibility = Msg.VISIBILITY_DELETED_BY_USER
             self.save(update_fields=("text", "attachments", "visibility"))
         else:
-            for log in self.channel_logs.all():
-                log.release()
+            self.channel_logs.all().delete()
 
             super().delete()
 
@@ -747,7 +877,6 @@ class SystemLabel:
     TYPE_SENT = "S"
     TYPE_FAILED = "X"
     TYPE_SCHEDULED = "E"
-    TYPE_CALLS = "C"
 
     TYPE_CHOICES = (
         (TYPE_INBOX, "Inbox"),
@@ -757,7 +886,6 @@ class SystemLabel:
         (TYPE_SENT, "Sent"),
         (TYPE_FAILED, "Failed"),
         (TYPE_SCHEDULED, "Scheduled"),
-        (TYPE_CALLS, "Calls"),
     )
 
     @classmethod
@@ -799,8 +927,6 @@ class SystemLabel:
             )
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None).prefetch_related("groups", "contacts", "urns")
-        elif label_type == cls.TYPE_CALLS:
-            qs = ChannelEvent.objects.filter(event_type__in=ChannelEvent.CALL_TYPES)
         else:  # pragma: needs cover
             raise ValueError("Invalid label type: %s" % label_type)
 
@@ -874,7 +1000,7 @@ class SystemLabelCount(SquashableModel):
         index_together = ("org", "label_type")
 
 
-class Label(LegacyUUIDMixin, TembaModel, DependencyMixin):
+class Label(TembaModel, DependencyMixin):
     """
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.

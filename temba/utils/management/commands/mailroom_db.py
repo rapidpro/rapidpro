@@ -191,6 +191,7 @@ class Command(BaseCommand):
                 schemes=[c["scheme"]],
                 uuid=c["uuid"],
                 role=c["role"],
+                config=c["config"],
                 created_by=user,
                 modified_by=user,
             )

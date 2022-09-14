@@ -661,47 +661,6 @@ class CampaignTest(TembaTest):
         # we should get 404 for the inactive campaign
         self.assertEqual(response.status_code, 404)
 
-    def test_view_campaign_read_with_customer_support(self):
-        self.login(self.customer_support)
-
-        campaign = Campaign.create(self.org, self.admin, "Perform the rain dance", self.farmers)
-
-        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.uuid]))
-
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Service"])
-        self.assertEqual(
-            gear_links[-1]["href"],
-            f"/org/service/?organization={campaign.org_id}&redirect_url=/campaign/read/{campaign.uuid}/",
-        )
-
-    def test_view_campaign_read_archived(self):
-        self.login(self.admin)
-
-        campaign = Campaign.create(self.org, self.admin, "Perform the rain dance", self.farmers)
-
-        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.uuid]))
-
-        # page title and main content title should NOT contain (Archived)
-        self.assertContains(response, "Perform the rain dance", count=2)
-        self.assertContains(response, "Archived", count=0)
-
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["New Event", "Export", "Edit", "Archive"])
-
-        # archive the campaign
-        campaign.is_archived = True
-        campaign.save()
-
-        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.uuid]))
-
-        # page title and main content title should contain (Archived)
-        self.assertContains(response, "Perform the rain dance", count=2)
-        self.assertContains(response, "Archived", count=2)
-
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Activate", "Export"])
-
     def test_view_campaign_archive(self):
         self.login(self.admin)
 
@@ -733,38 +692,6 @@ class CampaignTest(TembaTest):
 
         campaign.refresh_from_db()
         self.assertFalse(campaign.is_archived)
-
-    def test_view_campaignevent_read_on_archived_campaign(self):
-        self.login(self.admin)
-
-        campaign = Campaign.create(self.org, self.admin, "Perform the rain dance", self.farmers)
-
-        # create a reminder for our first planting event
-        event = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
-        )
-
-        response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.campaign.uuid, event.pk]))
-
-        # page title and main content title should NOT contain Archived
-        self.assertContains(response, "Perform the rain dance", count=1)
-        self.assertContains(response, "Archived", count=0)
-
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Edit", "Delete"])
-
-        # archive the campaign
-        campaign.is_archived = True
-        campaign.save()
-
-        response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.campaign.uuid, event.pk]))
-
-        # page title and main content title should contain Archived
-        self.assertContains(response, "Perform the rain dance", count=1)
-        self.assertContains(response, "Archived", count=1)
-
-        gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Delete"])
 
     def test_view_campaignevent_update_on_archived_campaign(self):
         self.login(self.admin)
@@ -1282,12 +1209,42 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_read(self):
         group = self.create_group("Reporters", contacts=[])
         campaign = self.create_campaign(self.org, "Welcomes", group)
-
         read_url = reverse("campaigns.campaign_read", args=[campaign.uuid])
 
         response = self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=campaign)
         self.assertContains(response, "Welcomes")
         self.assertContains(response, "Registered")
+
+    def test_read_archived(self):
+        group = self.create_group("Reporters", contacts=[])
+        campaign = self.create_campaign(self.org, "Welcomes", group)
+        read_url = reverse("campaigns.campaign_read", args=[campaign.uuid])
+
+        response = self.requestView(read_url, self.admin)
+
+        # page title and main content title should NOT contain (Archived)
+        self.assertContains(response, "Welcomes", count=3)
+        self.assertContains(response, "Archived", count=0)
+        self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"])
+
+        # archive the campaign
+        campaign.is_archived = True
+        campaign.save()
+
+        response = self.client.get(read_url)
+
+        # page title and main content title should contain (Archived)
+        self.assertContains(response, "Welcomes", count=3)
+        self.assertContains(response, "Archived", count=2)
+        self.assertContentMenu(read_url, self.admin, ["Activate", "Export"])
+
+    def test_read_as_customer_support(self):
+        group = self.create_group("Reporters", contacts=[])
+        campaign = Campaign.create(self.org, self.admin, "Reminders", group)
+        read_url = reverse("campaigns.campaign_read", args=[campaign.uuid])
+
+        # should see service button
+        self.assertContentMenu(read_url, self.customer_support, ["Service"])
 
     def test_archive_and_activate(self):
         group = self.create_group("Reporters", contacts=[])
@@ -1421,6 +1378,28 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Welcomes")
         self.assertContains(response, "1 week after")
         self.assertContains(response, "Registered")
+
+    def test_read_on_archived_campaign(self):
+        event = self.campaign1.events.order_by("id").first()
+        read_url = reverse("campaigns.campaignevent_read", args=[event.campaign.uuid, event.id])
+
+        response = self.requestView(read_url, self.admin)
+
+        # page title and main content title should NOT contain Archived
+        self.assertContains(response, "Welcomes", count=2)
+        self.assertContains(response, "Archived", count=0)
+        self.assertContentMenu(read_url, self.admin, ["Edit", "Delete"])
+
+        # archive the campaign
+        event.campaign.is_archived = True
+        event.campaign.save()
+
+        response = self.requestView(read_url, self.admin)
+
+        # page title and main content title should contain Archived
+        self.assertContains(response, "Welcomes", count=2)
+        self.assertContains(response, "Archived", count=1)
+        self.assertContentMenu(read_url, self.admin, ["Delete"])
 
     def test_create(self):
         farmer1 = self.create_contact("Rob Jasper", phone="+250788111111")

@@ -1,3 +1,5 @@
+import logging
+
 import requests
 from smartmin.views import SmartFormView, SmartModelActionView
 
@@ -7,9 +9,12 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin
+from temba.utils.text import truncate
 
 from ...models import Channel
 from ...views import ClaimViewMixin
+
+logger = logging.getLogger(__name__)
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
@@ -102,10 +107,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     raise Exception("Failed to subscribe to app for webhook events")
 
                 self.cleaned_data["page_access_token"] = page_access_token
-                self.cleaned_data["name"] = name
+                self.cleaned_data["name"] = truncate(name, Channel._meta.get_field("name").max_length)
 
+                # requires instagram_basic permission
+                # https://developers.facebook.com/docs/instagram-api/reference/page#read
                 url = f"https://graph.facebook.com/{page_id}?fields=instagram_business_account"
-                params = {"access_token": page_access_token}
+                params = {"access_token": auth_token}
 
                 response = requests.get(url, params=params)
 
@@ -115,7 +122,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 response_json = response.json()
                 self.cleaned_data["ig_user_id"] = response_json.get("instagram_business_account").get("id")
 
-            except Exception:
+            except Exception as e:
+                logger.error(f"Unable to connect Instagram channel with error: {str(e)}", exc_info=True)
                 raise forms.ValidationError(_("Sorry your Instagram channel could not be connected. Please try again"))
 
             return self.cleaned_data

@@ -8,7 +8,7 @@ STATUS_WAITING = "W"
 STATUS_FAILED = "F"
 
 
-def fail_ghost_runs(apps, schema_editor):
+def fail_ghost_runs(apps, schema_editor):  # pragma: no cover
     FlowRun = apps.get_model("flows", "FlowRun")
 
     num_failed = 0
@@ -26,7 +26,7 @@ def fail_ghost_runs(apps, schema_editor):
         print(f"Failed {num_failed} active/waiting runs without a session")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

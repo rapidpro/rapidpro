@@ -17,6 +17,9 @@
   {% block pjax %}
   #pjax
     -block pre-table
+    -block paginator
+      .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
+        -include "includes/short_pagination.haml"     
     -block table
       %table.list.lined
         %thead
@@ -44,10 +47,6 @@
 
   -block post-table
 
-  {% block paginator %}
-    -include "includes/pagination.haml"
-
-{% endblock pjax %}
 {% endblock content %}
 
 {% block extra-script %}

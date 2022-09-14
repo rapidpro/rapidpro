@@ -232,11 +232,12 @@ class ScheduleTest(TembaTest):
         response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
         self.assertContains(response, "This field is required")
 
-        # finally create our message
-        post_data = dict(text="A scheduled message to Joe", omnibox=omnibox, sender=self.channel.pk, schedule=True)
-
-        headers = {"HTTP_X_PJAX": "True"}
-        response = self.client.post(reverse("msgs.broadcast_send"), post_data, **headers)
+        # finally create our scheduled broadcast
+        response = self.client.post(
+            reverse("msgs.broadcast_send"),
+            {"text": "A scheduled message to Joe", "omnibox": omnibox, "sender": self.channel.id, "schedule": True},
+            HTTP_X_PJAX=True,
+        )
         self.assertIn("/broadcast/schedule_read", response["Temba-Success"])
 
         # should have a schedule with no next fire
@@ -245,29 +246,42 @@ class ScheduleTest(TembaTest):
 
         self.assertIsNone(schedule.next_fire)
         self.assertEqual(Schedule.REPEAT_NEVER, schedule.repeat_period)
+        self.assertEqual(self.admin, schedule.modified_by)
 
         # fetch our formax page
         response = self.client.get(response["Temba-Success"])
         self.assertContains(response, "id-schedule")
-        broadcast = response.context["object"]
+        self.assertEqual(bcast, response.context["object"])
 
         # update our message
-        omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
-        post_data = dict(message="An updated scheduled message", omnibox=omnibox)
-        self.client.post(reverse("msgs.broadcast_update", args=[broadcast.pk]), post_data)
-        self.assertEqual(Broadcast.objects.get(id=broadcast.id).text, {"base": "An updated scheduled message"})
+        update_bcast_url = reverse("msgs.broadcast_update", args=[bcast.id])
+
+        self.login(self.editor)
+        self.client.post(
+            update_bcast_url,
+            {
+                "message": "An updated scheduled message",
+                "omnibox": omnibox_serialize(self.org, [], [self.joe], json_encode=True),
+            },
+        )
+
+        bcast.refresh_from_db()
+        self.assertEqual({"base": "An updated scheduled message"}, bcast.text)
+        self.assertEqual(self.editor, bcast.modified_by)
 
         start = datetime(2045, 9, 19, hour=10, minute=15, second=0, microsecond=0)
         start = pytz.utc.normalize(self.org.timezone.localize(start))
 
         # update the schedule
-        post_data = dict(
-            repeat_period=Schedule.REPEAT_WEEKLY,
-            repeat_days_of_week="W",
-            start="later",
-            start_datetime=datetime_to_str(start, "%Y-%m-%d %H:%M", self.org.timezone),
+        response = self.client.post(
+            reverse("schedules.schedule_update", args=[bcast.schedule.id]),
+            {
+                "repeat_period": Schedule.REPEAT_WEEKLY,
+                "repeat_days_of_week": "W",
+                "start": "later",
+                "start_datetime": datetime_to_str(start, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
         )
-        response = self.client.post(reverse("schedules.schedule_update", args=[broadcast.schedule.pk]), post_data)
 
         # assert out next fire was updated properly
         schedule.refresh_from_db()
@@ -276,6 +290,7 @@ class ScheduleTest(TembaTest):
         self.assertEqual(10, schedule.repeat_hour_of_day)
         self.assertEqual(15, schedule.repeat_minute_of_hour)
         self.assertEqual(start, schedule.next_fire)
+        self.assertEqual(self.editor, schedule.modified_by)
 
         # manually set our fire in the past
         schedule.next_fire = timezone.now() - timedelta(days=1)

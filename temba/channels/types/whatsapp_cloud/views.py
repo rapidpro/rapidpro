@@ -11,6 +11,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
+from temba.utils.views import ContentMenuMixin
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -66,8 +67,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         url = "https://graph.facebook.com/v13.0/debug_token"
         params = {"access_token": f"{app_id}|{app_secret}", "input_token": oauth_user_token}
 
-        unsupported_facebook_business_id = False
-
         response = requests.get(url, params=params)
         if response.status_code != 200:  # pragma: no cover
             context["waba_details"] = []
@@ -78,11 +77,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             waba_targets = []
             granular_scopes = response_json.get("data", dict()).get("granular_scopes", [])
             for scope_dict in granular_scopes:
-                if scope_dict["scope"] == "business_management":
-                    for business_id in scope_dict.get("target_ids", []):
-                        if business_id not in settings.ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS:  # pragma: no cover
-                            unsupported_facebook_business_id = True
-
                 if scope_dict["scope"] in ["whatsapp_business_management", "whatsapp_business_messaging"]:
                     waba_targets.extend(scope_dict.get("target_ids", []))
 
@@ -106,9 +100,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 target_waba_details = response_json
 
                 business_id = target_waba_details["on_behalf_of_business_info"]["id"]
-                if business_id not in settings.ALLOWED_WHATSAPP_FACEBOOK_BUSINESS_IDS:  # pragma: no cover
-                    unsupported_facebook_business_id = True
-                    continue
 
                 url = f"https://graph.facebook.com/v13.0/{target_waba}/phone_numbers"
                 params = {"access_token": oauth_user_token}
@@ -123,7 +114,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                             display_phone_number=target_phone["display_phone_number"],
                             phone_number_id=target_phone["id"],
                             waba_id=target_waba_details["id"],
-                            currency=target_waba_details["currency"],
+                            currency=target_waba_details.get("currency", "USD"),
                             business_id=business_id,
                             message_template_namespace=target_waba_details["message_template_namespace"],
                         )
@@ -140,8 +131,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         if context["form"].errors:
             claim_error = context["form"].errors["__all__"][0]
         context["claim_error"] = claim_error
-
-        context["unsupported_facebook_business_id"] = unsupported_facebook_business_id
 
         # make sure we clear the session credentials if no number was granted
         if not context.get("phone_numbers", []):
@@ -239,7 +228,7 @@ class ClearSessionToken(OrgPermsMixin, SmartTemplateView):
         return JsonResponse({})
 
 
-class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+class RequestCode(ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
         pass
 
@@ -258,13 +247,10 @@ class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     def get_success_url(self):
         return reverse("channels.types.whatsapp_cloud.verify_code", args=[self.object.uuid])
 
-    def get_gear_links(self):
-        return [
-            dict(
-                title=_("Channel"),
-                href=reverse("channels.channel_read", args=[self.object.uuid]),
-            )
-        ]
+    def build_content_menu(self, menu):
+        obj = self.get_object()
+
+        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[obj.uuid]))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -304,7 +290,7 @@ class RequestCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
                 )
 
 
-class VerifyCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+class VerifyCode(ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
         code = forms.CharField(
             min_length=6, required=True, help_text=_("The 6-digits number verification code"), widget=InputWidget()
@@ -319,13 +305,10 @@ class VerifyCode(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     title = _("Verify Number")
     submit_button_name = _("Verify Number")
 
-    def get_gear_links(self):
-        return [
-            dict(
-                title=_("Channel"),
-                href=reverse("channels.channel_read", args=[self.object.uuid]),
-            )
-        ]
+    def build_content_menu(self, menu):
+        obj = self.get_object()
+
+        menu.add_link(_("Channel"), reverse("channels.channel_read", args=[obj.uuid]))
 
     def get_queryset(self):
         return Channel.objects.filter(is_active=True, org=self.request.org, channel_type="WAC")

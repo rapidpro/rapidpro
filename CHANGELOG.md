@@ -1,3 +1,249 @@
+v7.5.43
+----------
+ * Include config for mailroom test db channels
+ * Remove Calls from msgs section
+ * Update wording of Missed Call triggers to clarify they should only be used with Android channels
+ * Only show Missed Call trigger as option for workspaces with an Android channel
+ * Change ChannelType.is_available_to and is_recommended_to to include org
+
+v7.5.42
+----------
+ * Add data migration to delete legacy channel logs
+ * Drop support for channel logs in legacy format
+
+v7.5.41
+----------
+ * Fix temba-store
+
+v7.5.40
+----------
+ * Tweak forgot password success message
+
+v7.5.39
+----------
+ * Add log_uuids field to ChannelConnection, ChannelEvent and Msg
+ * Improve `trim_http_logs_task` performance by splitting the query
+
+v7.5.38
+----------
+ * Add codecov token to ci.yml
+ * Remove unnecessary maxdiff set in tests
+ * Fix to allow displaying logs that timed out
+ * Add HttpLog util and use to save channel logs in new format
+ * Add UUID to channel log and msgs
+
+v7.5.37
+----------
+ * Show servicing org
+
+v7.5.36
+----------
+ * Clean up chooser a smidge
+
+v7.5.35
+----------
+ * Add org-chooser
+ * Refresh channel logs
+ * Add channel uuid to call log url
+ * Fix history state on tickets and contacts  
+ * Update footer  
+ * Add download icons for archives  
+ * Fix create flow modal opener  
+ * Flow editor embed styling
+ * Updating copyright dates and TextIt name (dba of Nyaruka)
+
+v7.5.34
+----------
+ * Use elapsed_ms rather than request_time on channel log templates
+ * Update components (custom widths for temba-dialog, use anon_display where possible)
+ * Switch to temba-dialog based attachment viewer, remove previous libs
+ * Nicer collapsing on flow list columns
+ * Add overview charts for run results
+
+v7.5.33
+----------
+ * ChannelLogCRUDL.List should use get_description so that it works if log_type is set
+ * Tweak channel log types to match what courier now creates
+ * Check for tabs after timeouts, don't auto-collapse flows
+ * Add charts to analytics tab
+
+v7.5.32
+----------
+ * Update components with label fix
+
+v7.5.31
+----------
+ * Add flow results in new UI
+
+v7.5.30
+----------
+ * Remove steps for add WAC credit line to businesses
+
+v7.5.29
+----------
+ * Fix servicing of channel logs
+
+v7.5.28
+----------
+ * Stop writing to unused media name field
+ * Add missing C Msg failed reason
+ * Add anon-display field to API contact results if org is anon and make urn display null
+
+v7.5.27
+----------
+ * Revert change to Contact.Bulk_urn_cache_initialize to have it set org on contacts
+
+v7.5.26
+----------
+ * Don't set org on bulk initialized contacts
+
+v7.5.25
+----------
+ * Fix filtering on channel log call page
+ * Add anon_display and use that when org is anon instead of using urn_display for anon id
+ * Add urn_display to contact reference on serialized runs in API
+
+v7.5.24
+----------
+ * Fix missing service end button
+
+v7.5.23
+----------
+ * Update to latest floweditor
+ * Add new ChannelLog log type choices and make description nullable
+ * Fix more content menus so that they can be fetched as JSON and add more tests
+
+v7.5.22
+----------
+ * Remove unused policies.policy_read perm
+ * Replace all permission checking against Customer Support group with is_staff check on user
+
+v7.5.21
+----------
+ * Allow views with ContentMenuMixin to be fetched as JSON menu items using a header
+ * Add new fields to channel log model and start reading from them if they're set
+
+v7.5.20
+----------
+ * Update the links for line developers console on the line claim page
+ * Rework channel log details views into one generic one, one for messages, one for calls
+
+v7.5.19
+----------
+ * Rework channel log rendering to use common HTTPLog template
+ * Fix titles on channel, classifier and manage logins pages
+
+v7.5.18
+----------
+ * Workspace and user management in new UI
+
+v7.5.17
+----------
+ * Show send history of scheduled broadcasts in correct order
+ * Only show option to delete runs to users who have that perm, and give editors that perm
+ * Update deps
+
+v7.5.16
+----------
+ * Fixed zaper page title
+ * Validate channel name is not more than 64 characters
+ * Added 'authentication' to the temba anchor URL text
+
+v7.5.15
+----------
+ * Fix URL for media uploads which was previously conflicting with media directory
+
+v7.5.14
+----------
+ * Deprecate Media.name which can always be inferred from .path
+ * Improve cleaning of media filenames
+ * Convert legacy UUID fields on exports and labels
+ * Request instagram_basic permission for IG channels
+
+v7.5.11
+----------
+ * Don't allow creating of labels with parents or editing labels to have a parent
+ * Rework the undocumented media API endpoint to be more specific to surveyor attachments
+ * Add MediaCRUDL with upload and list endpoints
+ * Remove requiring instagram_basic permission
+
+v7.5.10
+----------
+ * Remove Media.is_ready, fix setting .status on alternates, add limit for upload size
+ * Rework ContentMenuMixin to put the menu in the context, and include new and legacy formats
+
+v7.5.9
+----------
+ * Add status field to Media, move primary index to UUID field
+
+v7.5.8
+----------
+ * Update floweditor
+ * Convert all views to use ContentMenuMixin instead of get_gear_links
+ * Add decorator to mock uuid generation in tests
+ * Process media uploads with ffmpeg in celery task
+
+v7.5.7
+----------
+ * Add constraint to ensure non-waiting/active runs have exited_on set
+ * Add constraint to ensure non-waiting sessions have an ended_on
+
+v7.5.6
+----------
+ * Remove unused upload_recording endpoint
+ * Add Media model
+
+v7.5.5
+----------
+ * Remaining fallback modax references
+ * Add util for easier gear menu creation
+ * Add option to interrupt a contact from read page
+
+v7.5.4
+----------
+ * Fix scripts on contact page start modal
+ * Add logging for IG channel claim failures
+ * Add features to BRANDING which determines whether brands have access to features
+ * Sort permissions a-z
+ * Fix related names on Flow.topics and Flow.users and add Topic.release
+ * Expose opened_by and opened_in over ticket API
+
+v7.5.3
+----------
+ * Fix id for custom fields modal
+
+v7.5.2
+----------
+ * Fix typo on archive button
+ * Only show active ticketers and topics on Open Ticket modal
+ * Add data migration to fix non-waiting sessions with no ended_on
+
+v7.5.1
+----------
+ * Allow claiming WAC test numbers
+ * Move black setting into pyproject.toml
+ * Add Open Ticket modal view to contact read page
+
+v7.5.0
+----------
+ * Improve user list page
+ * Add new fields to Ticket record who or what flow opened a ticket
+ * Refresh menu on modax redircts, omit excess listeners from legacy lists
+ * Fix field label vs name in new UI
+ * Add start flow bulk action in new UI
+ * Show zeros in menu items in new UI
+ * Add workspace selection to account page in new UI
+ * Scroll main content pane up on page replacement in new UI
+
+v7.4.2
+----------
+ * Update copyright notice
+ * Update stable versions
+
+v7.4.1
+----------
+ * Update locale files
+
 v7.4.0
 ----------
  * Remove superfulous Beta group perm

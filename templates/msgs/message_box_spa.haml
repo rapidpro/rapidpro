@@ -12,7 +12,7 @@
       .flex.flex-col
         %form#search-form(method="get")
           %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
-          %input.hide(type="submit")
+          %input.hidden(type="submit" value="Submit")
 
 
   .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
@@ -52,7 +52,7 @@
                     -block message_time
                       {% short_datetime object.created_on %}
 
-                  -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
+                  -if show_channel_logs and not user_org.is_anon or user.is_staff
                     .inline-block.text-gray-400.linked.ml-3
                       {% channel_log_link object %}
 

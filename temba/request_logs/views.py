@@ -8,11 +8,12 @@ from django.utils.translation import gettext_lazy as _
 from temba.classifiers.models import Classifier
 from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticketer
+from temba.utils.views import ContentMenuMixin, SpaMixin
 
 from .models import HTTPLog
 
 
-class BaseObjLogsView(OrgObjPermsMixin, SmartListView):
+class BaseObjLogsView(SpaMixin, OrgObjPermsMixin, SmartListView):
     """
     Base list view for logs associated with an object (e.g. ticketer, classifier)
     """
@@ -55,15 +56,14 @@ class HTTPLogCRUDL(SmartCRUDL):
     model = HTTPLog
     actions = ("webhooks", "classifier", "ticketer", "read")
 
-    class Webhooks(OrgPermsMixin, SmartListView):
+    class Webhooks(ContentMenuMixin, OrgPermsMixin, SmartListView):
         title = _("Webhook Calls")
         default_order = ("-created_on",)
         select_related = ("flow",)
-
         fields = ("flow", "url", "status_code", "request_time", "created_on")
 
-        def get_gear_links(self):
-            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"))]
+        def build_content_menu(self, menu):
+            menu.add_link(_("Flows"), reverse("flows.flow_list"))
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).filter(org=self.request.org, flow__isnull=False)
@@ -84,21 +84,15 @@ class HTTPLogCRUDL(SmartCRUDL):
         def get_source(self, uuid):
             return Ticketer.objects.filter(uuid=uuid, is_active=True)
 
-    class Read(OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, ContentMenuMixin, OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
 
         @property
         def permission(self):
             return "request_logs.httplog_webhooks" if self.get_object().flow else "request_logs.httplog_read"
 
-        def get_gear_links(self):
-            links = []
+        def build_content_menu(self, menu):
             if self.object.classifier:
-                links.append(
-                    dict(
-                        title=_("Classifier Log"),
-                        style="button-light",
-                        href=reverse("request_logs.httplog_classifier", args=[self.object.classifier.uuid]),
-                    )
+                menu.add_link(
+                    _("Classifier Log"), reverse("request_logs.httplog_classifier", args=[self.object.classifier.uuid])
                 )
-            return links

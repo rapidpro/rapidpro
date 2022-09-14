@@ -7,7 +7,7 @@ from temba.channels.models import Channel
 from temba.orgs.views import OrgPermsMixin
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
-from temba.utils.views import PostOnlyMixin
+from temba.utils.views import ContentMenuMixin, PostOnlyMixin
 
 from .tasks import refresh_whatsapp_contacts
 
@@ -33,7 +33,7 @@ class RefreshView(PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
         return obj
 
 
-class TemplatesView(OrgPermsMixin, SmartReadView):
+class TemplatesView(ContentMenuMixin, OrgPermsMixin, SmartReadView):
     """
     Displays a simple table of all the templates synced on this whatsapp channel
     """
@@ -44,13 +44,10 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
     slug_url_kwarg = "uuid"
     template_name = "utils/whatsapp/templates.html"
 
-    def get_gear_links(self):
-        return [
-            dict(
-                title=_("Sync Logs"),
-                href=reverse(f"channels.types.{self.object.type.slug}.sync_logs", args=[self.object.uuid]),
-            )
-        ]
+    def build_content_menu(self, menu):
+        obj = self.get_object()
+
+        menu.add_link(_("Sync Logs"), reverse(f"channels.types.{obj.type.slug}.sync_logs", args=[obj.uuid]))
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -66,7 +63,7 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
         return context
 
 
-class SyncLogsView(OrgPermsMixin, SmartReadView):
+class SyncLogsView(ContentMenuMixin, OrgPermsMixin, SmartReadView):
     """
     Displays a simple table of the WhatsApp Templates Synced requests for this channel
     """
@@ -77,17 +74,14 @@ class SyncLogsView(OrgPermsMixin, SmartReadView):
     slug_url_kwarg = "uuid"
     template_name = "utils/whatsapp/sync_logs.html"
 
-    def get_gear_links(self):
-        return [
-            dict(
-                title=_("Message Templates"),
-                href=reverse(f"channels.types.{self.object.type.slug}.templates", args=[self.object.uuid]),
-            )
-        ]
+    def build_content_menu(self, menu):
+        obj = self.get_object()
+
+        menu.add_link(_("Message Templates"), reverse(f"channels.types.{obj.type.slug}.templates", args=[obj.uuid]))
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        return queryset.filter(org=self.get_user().get_org())
+        return queryset.filter(org=self.request.org)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

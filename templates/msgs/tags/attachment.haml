@@ -1,35 +1,29 @@
 .attachment
   -if category == 'image'
-    %a.attachment-preview.button-light.rounded-r-none(href="#" data-featherlight='<img class="image-full" src="{{url}}"/>' data-featherlight-before-open="stopEvent(event)")
+    .attachment-preview.button-light.rounded-r-none(onclick="showPreview(event, this)" attachment='<img style="max-width:500px;max-height:500px" src="{{url}}" />')
       .attachment-icon.icon-photo
       {{preview}}
 
   -elif category == 'audio' and is_playable
-    %a.attachment-preview.button-light.rounded-r-none(href="#" data-featherlight='<audio style="width: 360px" controls><source type="{{content_type}}" src="{{url}}" /></audio>' data-featherlight-before-open="stopEvent(event)")
+    %a.attachment-preview.button-light.rounded-r-none(onclick="showPreview(event, this)" attachment='<audio style="width: 360px;padding:2em;" controls><source type="{{content_type}}" src="{{url}}" /></audio>')
       .attachment-icon.icon-volume-medium
       {{preview}}
 
   -elif category == 'video' and is_playable
-    %a.attachment-preview.button-light.rounded-r-none{
-      href:"#",
-      data-featherlight:'<video class="video-js vjs-default-skin" controls preload="auto"><source type="{{content_type}}" src="{{url}}" /></video>',
-      data-featherlight-after-content:'initializeVideoPlayer(this.$content[0])',
-      data-featherlight-after-close:'disposeVideoPlayer(this.$content[0])',
-      data-featherlight-after-open:'stopEvent(event)'
-    }
+    %a.attachment-preview.button-light.rounded-r-none(onclick="showPreview(event, this)" attachment='<video style="border-top-left-radius:var(--curvature);border-top-right-radius:var(--curvature);box-shadow:0px 0px 12px 0px rgba(0,0,0,.1), 0px 0px 2px 0px rgba(0,0,0,.15);max-width:400px;max-height:400px;" height="auto" controls="true"><source src="{{url}}" type="{{content_type}}" /></video>')
       .attachment-icon.icon-videocam
       {{preview}}
 
   -elif category == 'geo'
-    .attachment-preview.button-light(onclick="goto(event)" href="{{url}}" target="_loc" )
+    .attachment-preview.button-light(onclick='openWindow(event, "{{url}}", "_loc")')
       .attachment-icon.icon-pin_drop
       {{preview}}
 
   -else
-    .attachment-preview.button-light.rounded-r-none(onclick="goto(event, this)" href="{{url}}" download="true")
+    .attachment-preview.button-light.rounded-r-none(onclick="showPreview(event, this)" attachment='<div style="width:600px;height:600px;border-top-right-radius:var(--curvature);border-top-left-radius:var(--curvature);box-shadow:0px 0px 12px 0px rgba(0,0,0,.1), 0px 0px 2px 0px rgba(0,0,0,.15);overflow:hidden"><embed src="{{url}}#view=Fit" type="application/pdf" frameBorder="0" scrolling="auto" height="100%" width="100%"></embed></div>')
       .attachment-icon.icon-docs
       {{preview}}
 
   -if category != 'geo'
     .attachment-download.rounded-l-none.button-light(onclick="goto(event, this)" href="{{url}}" download="true")
-      .icon-file_download
+      .icon-file_download(onclick='downloadFile(event, "{{url}}")')

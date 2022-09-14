@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _, ngettext_lazy
 
 from temba.channels.models import Channel
+from temba.channels.types.android import AndroidType
 from temba.contacts.models import ContactGroup, ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
@@ -215,12 +216,11 @@ class TriggerCRUDL(SmartCRUDL):
 
             from .types import TYPES_BY_SLUG
 
-            org_triggers = org.triggers.filter(is_active=True, is_archived=False)
-
+            org_triggers = org.triggers.filter(is_active=True)
             menu.append(
                 self.create_menu_item(
                     name=_("Active"),
-                    count=org_triggers.count(),
+                    count=org_triggers.filter(is_archived=False).count(),
                     href=reverse("triggers.trigger_list"),
                     icon="radio",
                 )
@@ -235,7 +235,7 @@ class TriggerCRUDL(SmartCRUDL):
                 )
             )
 
-            menu.append(self.create_menu_item(name=_("Create Trigger"), icon="plus", href="triggers.trigger_create"))
+            menu.append(self.create_menu_item(name=_("New Trigger"), icon="plus", href="triggers.trigger_create"))
 
             menu.append(self.create_divider())
 
@@ -253,19 +253,22 @@ class TriggerCRUDL(SmartCRUDL):
             return menu
 
     class Create(SpaMixin, FormaxMixin, OrgFilterMixin, OrgPermsMixin, SmartTemplateView):
-        title = _("Create Trigger")
+        title = _("New Trigger")
 
         def derive_formax_sections(self, formax, context):
             def add_section(name, url, icon):
-                formax.add_section(name, reverse(url), icon=icon, action="redirect", button=_("Create Trigger"))
+                formax.add_section(name, reverse(url), icon=icon, action="redirect", button=_("New Trigger"))
 
             org_schemes = self.org.get_schemes(Channel.ROLE_RECEIVE)
+
             add_section("trigger-keyword", "triggers.trigger_create_keyword", "icon-tree")
             add_section("trigger-register", "triggers.trigger_create_register", "icon-users-2")
             add_section("trigger-catchall", "triggers.trigger_create_catchall", "icon-bubble")
             add_section("trigger-schedule", "triggers.trigger_create_schedule", "icon-clock")
             add_section("trigger-inboundcall", "triggers.trigger_create_inbound_call", "icon-phone2")
-            add_section("trigger-missedcall", "triggers.trigger_create_missed_call", "icon-phone")
+
+            if self.org.channels.filter(is_active=True, channel_type=AndroidType.code).exists():
+                add_section("trigger-missedcall", "triggers.trigger_create_missed_call", "icon-phone")
 
             if ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION.intersection(org_schemes):
                 add_section("trigger-new-conversation", "triggers.trigger_create_new_conversation", "icon-bubbles-2")
@@ -413,6 +416,7 @@ class TriggerCRUDL(SmartCRUDL):
         def form_valid(self, form):
             if self.object.trigger_type == Trigger.TYPE_SCHEDULE:
                 self.object.schedule.update_schedule(
+                    self.request.user,
                     form.cleaned_data["start_datetime"],
                     form.cleaned_data["repeat_period"],
                     form.cleaned_data.get("repeat_days_of_week"),

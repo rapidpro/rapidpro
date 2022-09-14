@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import DependencyDeleteModal, MenuMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.views import ComponentFormMixin, SpaMixin
+from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import Classifier
 
@@ -73,42 +73,35 @@ class ClassifierCRUDL(SmartCRUDL):
         success_url = "@orgs.org_home"
         success_message = _("Your classifier has been deleted.")
 
-    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
-        def get_gear_links(self):
-            links = [dict(title=_("Log"), href=reverse("request_logs.httplog_classifier", args=[self.object.uuid]))]
+        def build_content_menu(self, menu):
+            obj = self.get_object()
+
+            menu.add_link(_("Log"), reverse("request_logs.httplog_classifier", args=[obj.uuid]))
 
             if self.has_org_perm("classifiers.classifier_sync"):
-                links.append(
-                    dict(
-                        title=_("Sync"),
-                        style="btn-secondary",
-                        posterize=True,
-                        href=reverse("classifiers.classifier_sync", args=[self.object.id]),
-                    )
-                )
-            if self.has_org_perm("classifiers.classifier_delete"):
-                links.append(
-                    dict(
-                        id="ticketer-delete",
-                        title=_("Delete"),
-                        modax=_("Delete Classifier"),
-                        href=reverse("classifiers.classifier_delete", args=[self.object.uuid]),
-                    )
-                )
+                menu.add_url_post(_("Sync"), reverse("classifiers.classifier_sync", args=[obj.id]))
 
-            return links
+            if self.has_org_perm("classifiers.classifier_delete"):
+                menu.add_modax(
+                    _("Delete"),
+                    "classifier-delete",
+                    reverse("classifiers.classifier_delete", args=[obj.uuid]),
+                    title=_("Delete Classifier"),
+                )
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
-            return queryset.filter(org=self.request.user.get_org(), is_active=True)
+            return queryset.filter(org=self.request.org, is_active=True)
 
     class Sync(OrgObjPermsMixin, SmartUpdateView):
         fields = ()
         success_url = "uuid@classifiers.classifier_read"
         success_message = ""
+        title = _("Connect a Classifier")
 
         def post(self, *args, **kwargs):
             self.object = self.get_object()

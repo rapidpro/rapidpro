@@ -29,7 +29,7 @@ class WhatsAppType(ChannelType):
     A WhatsApp Channel Type
     """
 
-    extra_links = [dict(name=_("Message Templates"), link="channels.types.whatsapp.templates")]
+    extra_links = [dict(label=_("Message Templates"), view_name="channels.types.whatsapp.templates")]
 
     code = "WA"
     category = ChannelType.Category.SOCIAL_MEDIA
@@ -109,9 +109,8 @@ class WhatsAppType(ChannelType):
                 response = requests.get(
                     url, params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255)
                 )
-                elapsed = (timezone.now() - start).total_seconds() * 1000
-                HTTPLog.create_from_response(
-                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, response, channel=channel, request_time=elapsed
+                HTTPLog.from_response(
+                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED, response, start, timezone.now(), channel=channel
                 )
 
                 if response.status_code != 200:  # pragma: no cover
@@ -121,7 +120,7 @@ class WhatsAppType(ChannelType):
                 url = response.json().get("paging", {}).get("next", None)
             return template_data, True
         except requests.RequestException as e:
-            HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
+            HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, start, channel=channel)
             return [], False
 
     def check_health(self, channel):

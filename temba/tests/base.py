@@ -1,5 +1,6 @@
 import shutil
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
 from unittest.mock import patch
 
@@ -512,9 +513,15 @@ class TembaTestMixin:
             output_url="http://sessions.com/123.json",
             connection=call,
             wait_resume_on_expire=False,
+            ended_on=timezone.now(),
         )
         FlowRun.objects.create(
-            org=self.org, flow=flow, contact=contact, status=FlowRun.STATUS_COMPLETED, session=session
+            org=self.org,
+            flow=flow,
+            contact=contact,
+            status=FlowRun.STATUS_COMPLETED,
+            session=session,
+            exited_on=timezone.now(),
         )
         Msg.objects.create(
             org=self.org,
@@ -530,13 +537,19 @@ class TembaTestMixin:
         ChannelLog.objects.create(
             channel=self.channel,
             connection=call,
-            request='{"say": "Hello"}',
-            response='{"status": "%s"}' % ("error" if status == IVRCall.STATUS_FAILED else "OK"),
-            url="https://acme-calls.com/reply",
-            method="POST",
+            log_type=ChannelLog.LOG_TYPE_IVR_START,
             is_error=status == IVRCall.STATUS_FAILED,
-            response_status=200,
-            description="Looks good",
+            http_logs=[
+                {
+                    "url": "https://acme-calls.com/reply",
+                    "status_code": 200,
+                    "request": 'POST /reply\r\n\r\n{"say": "Hello"}',
+                    "response": '{"status": "%s"}' % ("error" if status == IVRCall.STATUS_FAILED else "OK"),
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
         )
         return call
 
@@ -638,6 +651,7 @@ class TembaTestMixin:
         assignee=None,
         opened_on=None,
         opened_by=None,
+        opened_in=None,
         closed_on=None,
         closed_by=None,
     ):
@@ -653,6 +667,8 @@ class TembaTestMixin:
             status=Ticket.STATUS_CLOSED if closed_on else Ticket.STATUS_OPEN,
             assignee=assignee,
             opened_on=opened_on,
+            opened_by=opened_by,
+            opened_in=opened_in,
             closed_on=closed_on,
         )
         TicketEvent.objects.create(
@@ -756,11 +772,17 @@ class TembaTest(TembaTestMixin, SmartminTest):
             role.group  # noqa
             role.permissions  # noqa
 
+        self.maxDiff = None
+
     def tearDown(self):
         clear_flow_users()
 
     def mockReadOnly(self, assert_models: set = None):
         return MockReadOnly(self, assert_models=assert_models)
+
+    def upload(self, path: str, content_type="text/plain", name=None):
+        with open(path, "rb") as f:
+            return SimpleUploadedFile(name or path, content=f.read(), content_type=content_type)
 
 
 class TembaNonAtomicTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
@@ -848,3 +870,28 @@ class MigrationTest(TembaTest):
 
     def setUpBeforeMigration(self, apps):
         pass
+
+
+def mock_uuids(method=None, *, seed=1234):
+    """
+    Convenience decorator to override UUID generation in a test.
+    """
+
+    from temba.utils import uuid
+
+    def _wrap_test_method(f, instance, *args, **kwargs):
+        try:
+            uuid.default_generator = uuid.seeded_generator(seed)
+
+            return f(instance, *args, **kwargs)
+        finally:
+            uuid.default_generator = uuid.real_uuid4
+
+    def actual_decorator(f):
+        @wraps(f)
+        def wrapper(instance, *args, **kwargs):
+            _wrap_test_method(f, instance, *args, **kwargs)
+
+        return wrapper
+
+    return actual_decorator(method) if method else actual_decorator

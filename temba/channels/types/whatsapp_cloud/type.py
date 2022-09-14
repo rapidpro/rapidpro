@@ -20,8 +20,8 @@ class WhatsAppCloudType(ChannelType):
     """
 
     extra_links = [
-        dict(name=_("Message Templates"), link="channels.types.whatsapp_cloud.templates"),
-        dict(name=_("Verify Number"), link="channels.types.whatsapp_cloud.request_code"),
+        dict(label=_("Message Templates"), view_name="channels.types.whatsapp_cloud.templates"),
+        dict(label=_("Verify Number"), view_name="channels.types.whatsapp_cloud.request_code"),
     ]
 
     code = "WAC"
@@ -56,31 +56,9 @@ class WhatsAppCloudType(ChannelType):
 
     def activate(self, channel):
         waba_id = channel.config.get("wa_waba_id")
-        waba_currency = channel.config.get("wa_currency")
-        waba_business_id = channel.config.get("wa_business_id")
         wa_pin = channel.config.get("wa_pin")
 
         headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
-
-        if waba_business_id != settings.WHATSAPP_FACEBOOK_BUSINESS_ID:
-            # Get credit line ID
-            url = f"https://graph.facebook.com/v13.0/{settings.WHATSAPP_FACEBOOK_BUSINESS_ID}/extendedcredits"
-            params = {"fields": "id,legal_entity_name"}
-            resp = requests.get(url, params=params, headers=headers)
-
-            if resp.status_code != 200:  # pragma: no cover
-                raise ValidationError(_("Unable to fetch credit line ID"))
-
-            data = resp.json().get("data", [])
-            if data:
-                credit_line_id = data[0].get("id", None)
-
-            url = f"https://graph.facebook.com/v13.0/{credit_line_id}/whatsapp_credit_sharing_and_attach"
-            params = {"waba_id": waba_id, "waba_currency": waba_currency}
-            resp = requests.post(url, params=params, headers=headers)
-
-            if resp.status_code != 200:  # pragma: no cover
-                raise ValidationError(_("Unable to assign credit line ID"))
 
         # Subscribe to events
         url = f"https://graph.facebook.com/v13.0/{waba_id}/subscribed_apps"
@@ -116,10 +94,7 @@ class WhatsAppCloudType(ChannelType):
             headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
             while url:
                 resp = requests.get(url, params=dict(limit=255), headers=headers)
-                elapsed = (timezone.now() - start).total_seconds() * 1000
-                HTTPLog.create_from_response(
-                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, resp, channel=channel, request_time=elapsed
-                )
+                HTTPLog.from_response(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, resp, start, timezone.now(), channel=channel)
                 if resp.status_code != 200:  # pragma: no cover
                     return [], False
 
@@ -127,5 +102,5 @@ class WhatsAppCloudType(ChannelType):
                 url = resp.json().get("paging", {}).get("next", None)
             return template_data, True
         except requests.RequestException as e:
-            HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
+            HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, start, channel=channel)
             return [], False

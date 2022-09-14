@@ -15,7 +15,7 @@ class FacebookAppType(ChannelType):
     A Facebook channel
     """
 
-    extra_links = [dict(name=_("Reconnect Facebook Page"), link="channels.types.facebookapp.refresh_token")]
+    extra_links = [dict(label=_("Reconnect Facebook Page"), view_name="channels.types.facebookapp.refresh_token")]
 
     code = "FBA"
     category = ChannelType.Category.SOCIAL_MEDIA

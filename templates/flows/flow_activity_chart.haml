@@ -3,10 +3,19 @@
 -compress css inline
   {% lessblock %}
     :plain
+
+      #overview > div {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      #overview > div > div {
+        flex-basis: 400px;
+      }
+
       #histogram_container {
         height: 200px;
-        display: inline-block;
-        width: 49%;
       }
 
       #histogram {
@@ -15,7 +24,6 @@
 
       #completion_container {
         display: inline-block;
-        width: 49%;
 
         #completion {
           height: 200px;
@@ -24,16 +32,12 @@
 
       #dow_container {
         width: 49%;
-        display: inline-block;
         #dow {
           height: 200px;
         }
       }
 
       #hod_container {
-        width: 49%;
-        display: inline-block;
-
         #hod {
           height:200px;
         }
@@ -205,14 +209,81 @@
       {% endfor %}
     ];
 
-    $(document).ready(function(){
-      new Highcharts.Chart({
-        credits: { enabled: false },
-        colors: ['#2387CA'],
+
+    new Highcharts.Chart({
+      credits: { enabled: false },
+      colors: ['#2387CA'],
+      chart: {
+          renderTo: 'dow',
+          type: 'column',
+          backgroundColor: 'transparent'
+      },
+      title: {
+          text: null
+      },
+      xAxis: {
+        title: { text: null },
+        labels: { enabled: true },
+        lineWidth: 1,
+        minorGridLineWidth: 0,
+        lineColor: '#2387CA',
+        minorTickLength: 0,
+        tickLength: 0,
+
+        categories: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+      },
+      yAxis: {
+        title: { text: null },
+        labels: { enabled: false },
+        lineWidth: 0,
+        minorGridLineWidth: 0,
+        lineColor: 'transparent',
+        gridLineWidth: 0,
+      },
+      legend: {
+        enabled: false
+      },
+      plotOptions: {
+        series: {
+          groupPadding: .05,
+          pointPadding: 0,
+          borderWidth: 0
+        },
+        column: {
+          dataLabels: {
+            enabled: true,
+            formatter:function() {
+              return '<span style="font-size:75%">' + Highcharts.numberFormat(this.point.y,0) + '%</span>';
+            }
+          }
+        }
+      },
+      tooltip: {
+        formatter: function() {
+          return '<b>{{ _("Messages")|escapejs }}</b>: ' + Highcharts.numberFormat(this.point.msgs, 0);
+        }
+      },
+      series:[{
+        data: dow_points
+      }]
+    });
+
+
+  :javascript
+    var counts = [
+    {% for point in histogram %}
+      [ {{point.bucket|date:"U"}} * 1000, {{point.count }}]{% if not forloop.last %},{% endif %}{% endfor %}
+    ];
+
+
+    chart = new Highcharts.chart({
+        credits: {
+            enabled: false
+        },
         chart: {
-            renderTo: 'dow',
+            renderTo: 'histogram',
             type: 'column',
-            backgroundColor: 'transparent'
+            backgroundColor: 'transparent',
         },
         title: {
             text: null
@@ -222,11 +293,21 @@
           labels: { enabled: true },
           lineWidth: 1,
           minorGridLineWidth: 0,
-          lineColor: '#2387CA',
+          lineColor: '#2980b9',
           minorTickLength: 0,
           tickLength: 0,
-
-          categories: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+          min: {{min_date|date:"U"}} * 1000,
+          type: 'datetime',
+          dateTimeLabelFormats: {
+            millisecond: '%H:%M:%S.%L',
+            second: '%H:%M:%S',
+            minute: '%H:%M',
+            hour: '%H:%M',
+            day: '%e. %b',
+            week: '%e. %b',
+            month: '%b \'%y',
+            year: '%Y'
+          }
         },
         yAxis: {
           title: { text: null },
@@ -241,98 +322,19 @@
         },
         plotOptions: {
           series: {
-            groupPadding: .05,
+            groupPadding: 0,
             pointPadding: 0,
             borderWidth: 0
-          },
-          column: {
-            dataLabels: {
-              enabled: true,
-              formatter:function() {
-                return '<span style="font-size:75%">' + Highcharts.numberFormat(this.point.y,0) + '%</span>';
-              }
-            }
           }
         },
         tooltip: {
           formatter: function() {
-            return '<b>{{ _("Messages")|escapejs }}</b>: ' + Highcharts.numberFormat(this.point.msgs, 0);
+            return '<b>'+ this.series.name + '</b>: ' + this.y +'<br/>' + Highcharts.dateFormat('%b %e, %Y %l:%M %P', this.x);
           }
         },
         series:[{
-          data: dow_points
+          name: '{{ _("Messages")|escapejs }}',
+          data: counts
         }]
-      });
     });
-
-  :javascript
-    var counts = [
-    {% for point in histogram %}
-      [ {{point.bucket|date:"U"}} * 1000, {{point.count }}]{% if not forloop.last %},{% endif %}{% endfor %}
-    ];
-
-    $(document).ready(function() {
-
-        chart = new Highcharts.chart({
-            credits: {
-                enabled: false
-            },
-            chart: {
-                renderTo: 'histogram',
-                type: 'column',
-                backgroundColor: 'transparent',
-            },
-            title: {
-                text: null
-            },
-            xAxis: {
-              title: { text: null },
-              labels: { enabled: true },
-              lineWidth: 1,
-              minorGridLineWidth: 0,
-              lineColor: '#2980b9',
-              minorTickLength: 0,
-              tickLength: 0,
-              min: {{min_date|date:"U"}} * 1000,
-              type: 'datetime',
-              dateTimeLabelFormats: {
-                millisecond: '%H:%M:%S.%L',
-                second: '%H:%M:%S',
-                minute: '%H:%M',
-                hour: '%H:%M',
-                day: '%e. %b',
-                week: '%e. %b',
-                month: '%b \'%y',
-                year: '%Y'
-              }
-            },
-            yAxis: {
-              title: { text: null },
-              labels: { enabled: false },
-              lineWidth: 0,
-              minorGridLineWidth: 0,
-              lineColor: 'transparent',
-              gridLineWidth: 0,
-            },
-            legend: {
-              enabled: false
-            },
-            plotOptions: {
-              series: {
-                groupPadding: 0,
-                pointPadding: 0,
-                borderWidth: 0
-              }
-            },
-            tooltip: {
-              formatter: function() {
-                return '<b>'+ this.series.name + '</b>: ' + this.y +'<br/>' + Highcharts.dateFormat('%b %e, %Y %l:%M %P', this.x);
-              }
-            },
-            series:[{
-              name: '{{ _("Messages")|escapejs }}',
-              data: counts
-            }]
-        });
-      });
 

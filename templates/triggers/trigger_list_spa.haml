@@ -12,7 +12,7 @@
     %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
     -if request.REQUEST.status
       %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
-    %input.hide(type="submit")
+    %input.hidden(type="submit")
 
   .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
     -include "includes/short_pagination.haml"

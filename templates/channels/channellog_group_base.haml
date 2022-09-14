@@ -1,0 +1,75 @@
+-extends "smartmin/list.html"
+-load i18n compress
+
+-block content
+  .bg-white.rounded-lg.shadow.flex.mt-0.flex-shrink-0.mb-4
+    .p-4
+      -block group_object
+  
+  -for log in logs  
+    -include "channels/channellog.haml" with log=log
+
+-block extra-script
+  {{ block.super }}
+  <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
+  :javascript
+    $(function(){
+      prettyPrint();
+    });
+
+  :javascript
+    $('document').ready(function(){
+      $('.summary :first').click();
+    });
+
+    $('.summary').on('click', function() {
+      var top = $(this).parent('.log')
+      var ele = top.find(".details");
+      if (ele.is(':visible')) {
+        ele.slideUp();
+        top.removeClass('expanded');
+      } else {
+        ele.slideDown();
+        top.addClass('expanded')
+      }
+    });
+
+-block extra-style
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
+  :css
+    .page-content {
+      max-width: 100%;
+    }
+
+    .log-error {
+      color: rgb(var(--error-rgb));
+    }
+
+
+-block extra-less
+  {{block.super}}
+  -compress css inline
+    {% lessblock %}
+      :plain
+        table.http-log {
+          tbody {
+            tr:first-child {
+              td {
+                padding: 1.5rem;
+              }
+            }
+          }
+        }
+
+        pre.prettyprint {
+          margin: 0;
+          border: 0;
+          max-height: none !important;
+          padding: 1.5rem;
+
+          &.request {
+            background: #f7f7f9 + 111;
+          }
+        }
+    {% endlessblock %}

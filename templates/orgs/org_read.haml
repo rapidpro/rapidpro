@@ -1,0 +1,37 @@
+-extends 'smartmin/read.html'
+-load i18n
+
+-block content
+  .flex
+    -if org.is_active
+      -if org.is_anon
+        %temba-label.mr-2(icon="help-circle" backgroundcolor="#eee" textcolor="#999")
+          -trans "Anonymous"
+
+      -if org.is_suspended
+        %temba-label.mr-2(icon="slash" backgroundcolor="#eee" textcolor="#999")
+          -trans "Suspended"
+          
+      -if org.is_flagged
+        %temba-label.mr-2(icon="flag"  backgroundcolor="#eee" textcolor="#999")
+          -trans "Flagged"
+
+      -if org.is_verified
+        %temba-label.mr-2(icon="check" backgroundcolor="rgb(136 193 122)" textcolor="white")
+          -trans "Verified"
+
+    -else
+      %temba-label.mr-2(icon="trash" backgroundcolor="#eee" textcolor="#999")
+        -trans "Deleted"
+
+  .card
+    -for user_role in users_roles
+      .my-1
+        .cap-label
+          {{user_role.role_display}}
+
+        .flex.flex-col
+          -for user in user_role.users
+            .user
+              %a(href='{% url "orgs.user_update" user.id %}')<
+                {{user.email}}

@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from functools import cached_property
 from urllib.parse import quote_plus
 
 from smartmin.views import (
@@ -17,7 +18,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.db.models.functions.text import Lower
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -50,9 +51,9 @@ from temba.utils.fields import (
     TembaChoiceField,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import BulkActionMixin, ComponentFormMixin, SpaMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
-from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Msg, Schedule, SystemLabel
+from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -106,7 +107,7 @@ class SendMessageForm(Form):
         return cleaned
 
 
-class InboxView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+class InboxView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     """
     Base class for inbox views with message folders and labels listed by the side
     """
@@ -178,7 +179,6 @@ class InboxView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
             dict(count=counts[SystemLabel.TYPE_ARCHIVED], label=_("Archived"), url=reverse("msgs.msg_archived")),
             dict(count=counts[SystemLabel.TYPE_OUTBOX], label=_("Outbox"), url=reverse("msgs.msg_outbox")),
             dict(count=counts[SystemLabel.TYPE_SENT], label=_("Sent"), url=reverse("msgs.msg_sent")),
-            dict(count=counts[SystemLabel.TYPE_CALLS], label=_("Calls"), url=reverse("channels.channelevent_calls")),
             dict(
                 count=counts[SystemLabel.TYPE_SCHEDULED],
                 label=_("Schedules"),
@@ -210,18 +210,9 @@ class InboxView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
 
         return context
 
-    def get_gear_links(self):
-        links = []
+    def build_content_menu(self, menu):
         if self.allow_export and self.has_org_perm("msgs.msg_export"):
-            links.append(
-                dict(
-                    id="export-messages",
-                    title=_("Download"),
-                    href=self.derive_export_url(),
-                    modax=_("Download Messages"),
-                )
-            )
-        return links
+            menu.add_modax(_("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages"))
 
 
 class BroadcastForm(forms.ModelForm):
@@ -271,7 +262,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["object_list"] = self.get_object().children.all()
+            context["object_list"] = self.get_object().children.order_by("-created_on")
             return context
 
         def derive_formax_sections(self, formax, context):
@@ -583,11 +574,6 @@ class MsgCRUDL(SmartCRUDL):
                         href=reverse("msgs.msg_flow"),
                         count=counts[SystemLabel.TYPE_FLOWS],
                     ),
-                    self.create_menu_item(
-                        name=_("Calls"),
-                        href=reverse("channels.channelevent_calls"),
-                        count=counts[SystemLabel.TYPE_CALLS],
-                    ),
                 ]
 
                 label_items = []
@@ -802,84 +788,49 @@ class MsgCRUDL(SmartCRUDL):
         bulk_actions = ("label",)
 
         def derive_title(self, *args, **kwargs):
-            return self.derive_label().name
+            return self.label.name
 
-        def get_gear_links(self):
-            links = []
-
-            label = self.derive_label()
+        def build_content_menu(self, menu):
             if self.has_org_perm("msgs.msg_update"):
-                if label.is_folder():
-                    links.append(
-                        dict(
-                            id="update-label",
-                            title=_("Edit Folder"),
-                            href=reverse("msgs.label_update", args=[label.pk]),
-                            modax=_("Edit Folder"),
-                        )
+                if self.label.is_folder():
+                    menu.add_modax(
+                        _("Edit Folder"), "update-folder", reverse("msgs.label_update", args=[self.label.id])
                     )
                 else:
-                    links.append(
-                        dict(
-                            id="update-label",
-                            title=_("Edit Label"),
-                            href=reverse("msgs.label_update", args=[label.pk]),
-                            modax=_("Edit Label"),
-                        )
-                    )
+                    menu.add_modax(_("Edit Label"), "update-label", reverse("msgs.label_update", args=[self.label.id]))
 
             if self.has_org_perm("msgs.msg_export"):
-                links.append(
-                    dict(
-                        id="export-messages",
-                        title=_("Download"),
-                        href=self.derive_export_url(),
-                        modax=_("Download Messages"),
-                    )
+                menu.add_modax(
+                    _("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages")
                 )
 
-            links.append(
-                dict(
-                    id="label-usages",
-                    title=_("Usages"),
-                    modax=_("Usages"),
-                    href=reverse("msgs.label_usages", args=[label.uuid]),
-                )
-            )
+            menu.add_modax(_("Usages"), "label-usages", reverse("msgs.label_usages", args=[self.label.uuid]))
 
-            if label.is_folder():
+            if self.label.is_folder():
                 if self.has_org_perm("msgs.label_delete_folder"):
-                    links.append(
-                        dict(
-                            id="delete-folder",
-                            title=_("Delete Folder"),
-                            href=reverse("msgs.label_delete_folder", args=[label.id]),
-                            modax=_("Delete Folder"),
-                        )
+                    menu.add_modax(
+                        _("Delete Folder"), "delete-folder", reverse("msgs.label_delete_folder", args=[self.label.id])
                     )
             else:
                 if self.has_org_perm("msgs.label_delete"):
-                    links.append(
-                        dict(
-                            id="delete-label",
-                            title=_("Delete Label"),
-                            href=reverse("msgs.label_delete", args=[label.uuid]),
-                            modax=_("Delete Label"),
-                        )
+                    menu.add_modax(
+                        _("Delete Label"), "delete-label", reverse("msgs.label_delete", args=[self.label.uuid])
                     )
-
-            return links
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<label>[^/]+)/$" % (path, action)
+            return r"^%s/%s/(?P<label_uuid>[^/]+)/$" % (path, action)
+
+        @cached_property
+        def label(self):
+            return self.request.org.msgs_labels.get(uuid=self.kwargs["label_uuid"])
 
         def derive_label(self):
-            return self.request.user.get_org().msgs_labels.get(uuid=self.kwargs["label"])
+            return self.label
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            qs = self.derive_label().filter_messages(qs).filter(visibility=Msg.VISIBILITY_VISIBLE)
+            qs = self.label.filter_messages(qs).filter(visibility=Msg.VISIBILITY_VISIBLE)
 
             return qs.prefetch_related("labels").select_related("contact")
 
@@ -952,12 +903,12 @@ class LabelCRUDL(SmartCRUDL):
             return Label.get_active_for_org(self.request.org).exclude(label_type=Label.TYPE_FOLDER)
 
         def render_to_response(self, context, **response_kwargs):
-            results = [{"id": lb.uuid, "text": lb.name} for lb in context["object_list"]]
+            results = [{"id": str(lb.uuid), "text": lb.name} for lb in context["object_list"]]
             return HttpResponse(json.dumps(results), content_type="application/json")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "messages")
-        success_url = "hide"
+        success_url = "uuid@msgs.msg_filter"
         form_class = LabelForm
         success_message = ""
         submit_button_name = _("Create")
@@ -1031,3 +982,35 @@ class LabelCRUDL(SmartCRUDL):
             response = HttpResponse()
             response["Temba-Success"] = self.get_success_url()
             return response
+
+
+class MediaCRUDL(SmartCRUDL):
+    model = Media
+    path = "msgmedia"  # so we don't conflict with the /media directory
+    actions = ("upload", "list")
+
+    class Upload(OrgPermsMixin, SmartCreateView):
+        def post(self, request, *args, **kwargs):
+            file = request.FILES["file"]
+
+            if not Media.is_allowed_type(file.content_type):
+                return JsonResponse({"error": _("Unsupported file type")})
+            if file.size > Media.MAX_UPLOAD_SIZE:
+                limit_MB = Media.MAX_UPLOAD_SIZE / (1024 * 1024)
+                return JsonResponse({"error": _("Limit for file uploads is %s MB") % limit_MB})
+
+            media = Media.from_upload(request.org, request.user, file)
+
+            return JsonResponse(
+                {
+                    "uuid": str(media.uuid),
+                    "content_type": media.content_type,
+                    "type": media.content_type,  # deprecated
+                    "url": media.url,
+                    "name": media.filename,
+                    "size": media.size,
+                }
+            )
+
+    class List(StaffOnlyMixin, OrgPermsMixin, SmartListView):
+        fields = ("url", "content_type", "size", "created_by", "created_on")

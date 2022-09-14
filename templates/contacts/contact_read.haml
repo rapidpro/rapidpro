@@ -121,7 +121,7 @@
           %td.w-full
             .contact-field
               .contact-field-value
-                {{contact.anon_identifier}}
+                {{contact.anon_display}}
   
     
       -for field in all_contact_fields
@@ -568,7 +568,7 @@
     $('.contact-field-value.editable').live('click', function(evt) {
       var endpoint = '{% url "contacts.contact_update_fields" object.pk %}';
       var field_id = $(this).parent().data('id');
-      var modax = document.querySelector("#update-custom-fields, #shared-modax");
+      var modax = getModax("#update-custom-fields");
       modax.endpoint = endpoint + '?field=' + field_id;
       modax.open = true;
 

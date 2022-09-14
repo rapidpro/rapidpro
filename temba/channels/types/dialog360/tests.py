@@ -8,14 +8,14 @@ from django.urls import reverse
 
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
-from temba.tests import MockResponse, TembaTest
+from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
 from temba.utils.whatsapp.tasks import refresh_whatsapp_templates
 
 from ...models import Channel
 from .type import Dialog360Type
 
 
-class Dialog360TypeTest(TembaTest):
+class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
     @patch("temba.channels.types.dialog360.Dialog360Type.check_health")
     def test_claim(self, mock_health):
         mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "2.35.4"}}')
@@ -207,25 +207,26 @@ class Dialog360TypeTest(TembaTest):
             "foo_namespace",
         )
 
+        sync_url = reverse("channels.types.dialog360.sync_logs", args=[channel.uuid])
+        templates_url = reverse("channels.types.dialog360.templates", args=[channel.uuid])
+
         self.login(self.admin)
-        # hit our template page
-        response = self.client.get(reverse("channels.types.dialog360.templates", args=[channel.uuid]))
+        response = self.client.get(templates_url)
+
         # should have our template translations
         self.assertContains(response, "Hello")
-        self.assertContains(response, reverse("channels.types.dialog360.sync_logs", args=[channel.uuid]))
+        self.assertContains(response, sync_url)
+        self.assertContentMenu(templates_url, self.admin, ["Sync Logs"])
 
-        # Check if message templates link are in sync_logs view
-        response = self.client.get(reverse("channels.types.dialog360.sync_logs", args=[channel.uuid]))
-        gear_links = response.context["view"].get_gear_links()
-        self.assertEqual(gear_links[-1]["title"], "Message Templates")
-        self.assertEqual(gear_links[-1]["href"], reverse("channels.types.dialog360.templates", args=[channel.uuid]))
+        # check if message templates link are in sync_logs view
+        self.assertContentMenu(sync_url, self.admin, ["Message Templates"])
 
         # sync logs not accessible by user from other org
         self.login(self.admin2)
-        response = self.client.get(reverse("channels.types.dialog360.templates", args=[channel.uuid]))
+        response = self.client.get(templates_url)
         self.assertEqual(404, response.status_code)
 
-        response = self.client.get(reverse("channels.types.dialog360.sync_logs", args=[channel.uuid]))
+        response = self.client.get(sync_url)
         self.assertEqual(404, response.status_code)
 
     def test_check_health(self):

@@ -279,10 +279,12 @@ class MockSessionWriter:
             wait_started_on = timezone.now()
             wait_expires_on = iso8601.parse_date(wait_event["expires_on"]) if wait_event["expires_on"] else None
             wait_resume_on_expire = False  # this doesn't support sub-flows
+            ended_on = None
         else:
             wait_started_on = None
             wait_expires_on = None
             wait_resume_on_expire = False
+            ended_on = timezone.now()
 
         # create or update session object itself
         if self.session:
@@ -290,7 +292,8 @@ class MockSessionWriter:
             self.session.status = SESSION_STATUSES[self.output["status"]]
             self.session.wait_started_on = wait_started_on
             self.session.wait_expires_on = wait_expires_on
-            self.session.save(update_fields=("output", "status", "wait_started_on", "wait_expires_on"))
+            self.session.ended_on = ended_on
+            self.session.save(update_fields=("output", "status", "wait_started_on", "wait_expires_on", "ended_on"))
         else:
             self.session = FlowSession.objects.create(
                 uuid=self.output["uuid"],
@@ -302,6 +305,7 @@ class MockSessionWriter:
                 wait_started_on=wait_started_on,
                 wait_expires_on=wait_expires_on,
                 wait_resume_on_expire=wait_resume_on_expire,
+                ended_on=ended_on,
             )
 
         current_flow = None

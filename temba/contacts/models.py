@@ -662,12 +662,27 @@ class Contact(LegacyUUIDMixin, SmartModel):
         contact_urn = ContactURN.objects.get(id=response["urn"]["id"])
         return contact, contact_urn
 
+    @classmethod
+    def from_urn(cls, org, urn_as_string, country=None):
+        """
+        Looks up a contact by a URN string (which will be normalized)
+        """
+        try:
+            urn_obj = ContactURN.lookup(org, urn_as_string, country)
+        except ValueError:
+            return None
+
+        if urn_obj and urn_obj.contact and urn_obj.contact.is_active:
+            return urn_obj.contact
+        else:
+            return None
+
     @property
-    def anon_identifier(self):
+    def anon_display(self):
         """
         The displayable identifier used in place of URNs for anonymous orgs
         """
-        return "%010d" % self.id
+        return f"{self.id:010}"
 
     @classmethod
     def get_status_counts(cls, org) -> dict:
@@ -1000,21 +1015,6 @@ class Contact(LegacyUUIDMixin, SmartModel):
         return [c.id for c in contacts if modified(c)]
 
     @classmethod
-    def from_urn(cls, org, urn_as_string, country=None):
-        """
-        Looks up a contact by a URN string (which will be normalized)
-        """
-        try:
-            urn_obj = ContactURN.lookup(org, urn_as_string, country)
-        except ValueError:
-            return None
-
-        if urn_obj and urn_obj.contact and urn_obj.contact.is_active:
-            return urn_obj.contact
-        else:
-            return None
-
-    @classmethod
     def bulk_change_status(cls, user, contacts, status):
         cls.bulk_modify(user, contacts, [modifiers.Status(status=status)])
 
@@ -1054,6 +1054,28 @@ class Contact(LegacyUUIDMixin, SmartModel):
             from .tasks import release_contacts
 
             on_transaction_commit(lambda: release_contacts.delay(user.id, [c.id for c in contacts]))
+
+    def open_ticket(self, user, ticketer, topic, body: str, assignee=None):
+        """
+        Opens a new ticket for this contact.
+        """
+        mod = modifiers.Ticket(
+            ticketer=modifiers.TicketerRef(uuid=str(ticketer.uuid), name=ticketer.name),
+            topic=modifiers.TopicRef(uuid=str(topic.uuid), name=topic.name),
+            body=body,
+            assignee=modifiers.UserRef(email=assignee.email, name=assignee.name) if assignee else None,
+        )
+        self.modify(user, [mod], refresh=False)
+        return self.tickets.order_by("id").last()
+
+    def interrupt(self, user) -> bool:
+        """
+        Interrupts this contact's current flow
+        """
+        if self.current_flow:
+            sessions = mailroom.get_client().contact_interrupt(self.org.id, user.id, self.id)
+            return len(sessions) > 0
+        return False
 
     def block(self, user):
         """
@@ -1250,7 +1272,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         if self.name:
             return self.name
         elif org.is_anon:
-            return self.anon_identifier
+            return self.anon_display
 
         return self.get_urn_display(org=org, formatted=formatted)
 
@@ -1401,26 +1423,26 @@ class ContactURN(models.Model):
 
         return self
 
-    def get_display(self, org=None, international=False, formatted=True):
+    def get_display(self, org=None, international: bool = False, formatted: bool = True) -> str:
         """
-        Gets a representation of the URN for display
+        Gets a representation of the URN for display, e.g. tel:+12345678901 becomes +1 234 567-8901
         """
-        if not org:
-            org = self.org
-
-        if org.is_anon:
+        if (org or self.org).is_anon:
             return self.ANON_MASK
 
         return URN.format(self.urn, international=international, formatted=formatted)
 
-    def api_urn(self):
+    def get_for_api(self) -> str:
+        """
+        Gets a representation for the API which will be scheme:path and will have the path redacted if the org is anon
+        """
         if self.org.is_anon:
             return URN.from_parts(self.scheme, self.ANON_MASK)
 
-        return URN.from_parts(self.scheme, self.path, display=self.display)
+        return URN.from_parts(self.scheme, self.path)
 
     @property
-    def urn(self):
+    def urn(self) -> str:
         """
         Returns a full representation of this contact URN as a string
         """

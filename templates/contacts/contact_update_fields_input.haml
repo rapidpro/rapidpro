@@ -16,7 +16,7 @@
 
 :javascript
 
-  var modaxBody = document.querySelector("#update-custom-fields, #gear-modax, #shared-modax").shadowRoot.querySelector(".modax-body");
+  var modaxBody = getModax("#update-custom-fields").shadowRoot.querySelector(".modax-body");
   
   // aggressively grab focus when we load
   var ele = $(modaxBody).find('temba-textinput[name="field_value"]');

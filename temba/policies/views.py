@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import analytics
-from temba.utils.views import ComponentFormMixin
+from temba.utils.views import ComponentFormMixin, ContentMenuMixin, StaffOnlyMixin
 
 from .models import Consent, Policy
 
@@ -20,15 +20,14 @@ class PolicyCRUDL(SmartCRUDL):
     model = Policy
     permissions = True
 
-    class Admin(SmartListView):
+    class Admin(StaffOnlyMixin, ContentMenuMixin, SmartListView):
         ordering = ("-created_on",)
         link_fields = ("policy_type",)
         title = "Policies"
         paginate_by = 500
 
-        def get_gear_links(self):
-            links = [dict(title=_("New Policy"), href=reverse("policies.policy_create"))]
-            return links
+        def build_content_menu(self, menu):
+            menu.add_link(_("New Policy"), reverse("policies.policy_create"))
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
@@ -37,13 +36,12 @@ class PolicyCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["active_policies"] = Policy.objects.filter(is_active=True).order_by(*self.ordering)
-            context["gear_links"] = self.get_gear_links()
             return context
 
-    class Update(ComponentFormMixin, SmartUpdateView):
+    class Update(StaffOnlyMixin, ComponentFormMixin, SmartUpdateView):
         pass
 
-    class Create(ComponentFormMixin, SmartCreateView):
+    class Create(StaffOnlyMixin, ComponentFormMixin, SmartCreateView):
 
         # make sure we only have one active policy at a time
         def post_save(self, obj):
@@ -52,17 +50,20 @@ class PolicyCRUDL(SmartCRUDL):
             )
             return obj
 
-    class History(SmartReadView):
+    class History(StaffOnlyMixin, SmartReadView):
         def derive_title(self):
             return self.get_object().get_policy_type_display()
 
-    class Read(History):
+    class Read(SmartReadView):
         permission = None
 
         @classmethod
         def derive_url_pattern(cls, path, action):
             archive_types = (choice[0] for choice in Policy.TYPE_CHOICES)
             return r"^%s/(%s)/$" % (path, "|".join(archive_types))
+
+        def derive_title(self):
+            return self.get_object().get_policy_type_display()
 
         def get_requested_policy_type(self):
             return self.request.path.split("/")[-2]

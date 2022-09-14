@@ -29,11 +29,7 @@ def refresh_whatsapp_tokens():
                 resp = requests.post(
                     url, auth=(channel.config[Channel.CONFIG_USERNAME], channel.config[Channel.CONFIG_PASSWORD])
                 )
-                elapsed = (timezone.now() - start).total_seconds() * 1000
-
-                HTTPLog.create_from_response(
-                    HTTPLog.WHATSAPP_TOKENS_SYNCED, url, resp, channel=channel, request_time=elapsed
-                )
+                HTTPLog.from_response(HTTPLog.WHATSAPP_TOKENS_SYNCED, resp, start, timezone.now(), channel=channel)
 
                 if resp.status_code != 200:
                     continue

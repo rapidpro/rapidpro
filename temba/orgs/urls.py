@@ -32,7 +32,7 @@ for integration in IntegrationType.get_all():
 
 
 spa = SpaView.as_view()
-sections = r"campaigns|contacts|tickets|triggers|messages|channels|flows|plugins|settings"
+sections = r"campaigns|contacts|tickets|triggers|messages|channels|flows|plugins|settings|staff"
 level_0 = rf"^(?P<level_0>{sections})/"
 level_1 = rf"{level_0}(?P<level_1>.+)/"
 level_2 = rf"{level_1}(?P<level_2>.+)/"
