@@ -25,7 +25,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 
@@ -2954,3 +2954,25 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         list_url = reverse("msgs.media_list")
 
         self.assertStaffOnly(list_url)
+
+
+class RemoveCallsCountsMigrationTest(MigrationTest):
+    app = "msgs"
+    migrate_from = "0188_alter_systemlabelcount_label_type"
+    migrate_to = "0189_remove_calls_counts"
+
+    def setUpBeforeMigration(self, apps):
+        def add_count(org, label_type: str):
+            SystemLabelCount.objects.create(org=org, label_type=label_type, is_archived=False, count=123)
+
+        add_count(self.org, "I")
+        add_count(self.org, "F")
+        add_count(self.org, "C")
+        add_count(self.org, "C")
+        add_count(self.org2, "I")
+        add_count(self.org2, "C")
+
+    def test_migration(self):
+        self.assertEqual(2, SystemLabelCount.objects.filter(label_type="I").count())
+        self.assertEqual(1, SystemLabelCount.objects.filter(label_type="F").count())
+        self.assertEqual(0, SystemLabelCount.objects.filter(label_type="C").count())
