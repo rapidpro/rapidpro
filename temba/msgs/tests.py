@@ -2167,7 +2167,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
                 ),
             },
         )
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(200, response.status_code)
 
         broadcast = Broadcast.objects.get()
         self.assertEqual({"base": "Hey Joe, where you goin?"}, broadcast.text)
@@ -2229,7 +2229,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(["text", "step_node", "loc"], list(response.context["form"].fields.keys()))
 
         response = self.client.post(send_url, {"text": "Hurry up", "step_node": color_split["uuid"]})
-        self.assertRedirect(response, reverse("msgs.msg_inbox"))
+        self.assertEqual("hide", response["Temba-Success"])
 
         broadcast = Broadcast.objects.get()
         self.assertEqual(broadcast.text, {"base": "Hurry up"})
@@ -2242,7 +2242,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             send_url, {"text": "Hurry up", "step_node": "36b2c697-a1d9-47a9-9553-d07d6a725877"}
         )
-        self.assertRedirect(response, reverse("msgs.msg_inbox"))
+        self.assertEqual("hide", response["Temba-Success"])
 
         self.assertEqual(1, Broadcast.objects.count())
 

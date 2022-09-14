@@ -491,12 +491,9 @@ class BroadcastCRUDL(SmartCRUDL):
                     dict(contacts=len(contacts), groups=len(groups), urns=len(urns)),
                 )
 
-            if "HTTP_X_PJAX" in self.request.META:
-                response = self.render_to_response(self.get_context_data())
-                response["Temba-Success"] = "hide"
-                return response
-
-            return HttpResponseRedirect(self.get_success_url())
+            response = self.render_to_response(self.get_context_data())
+            response["Temba-Success"] = "hide"
+            return response
 
         def post_save(self, obj):
             on_transaction_commit(lambda: obj.send_async())
