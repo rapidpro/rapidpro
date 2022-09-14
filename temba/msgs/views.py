@@ -37,6 +37,7 @@ from temba.orgs.views import (
     OrgObjPermsMixin,
     OrgPermsMixin,
 )
+from temba.schedules.models import Schedule
 from temba.schedules.views import ScheduleFormMixin
 from temba.utils import analytics, json, on_transaction_commit
 from temba.utils.fields import (
@@ -186,7 +187,7 @@ class BroadcastForm(forms.ModelForm):
         valid = super().is_valid()
         if valid:
             if "omnibox" not in self.data or len(self.data["omnibox"].strip()) == 0:  # pragma: needs cover
-                self.errors["__all__"] = self.error_class([_("At least one recipient is required")])
+                self.errors["__all__"] = self.error_class([_("At least one recipient is required.")])
                 return False
 
         return valid
@@ -248,6 +249,19 @@ class BroadcastCRUDL(SmartCRUDL):
                 self.org = org
                 self.fields["omnibox"].default_country = org.default_country_code
 
+            def clean_omnibox(self):
+                recipients = omnibox_deserialize(self.org, self.cleaned_data["omnibox"])
+                if not (recipients["groups"] or recipients["contacts"] or recipients["urns"]):
+                    raise forms.ValidationError(_("At least one recipient is required."))
+                return recipients
+
+            def clean(self):
+                cleaned_data = super().clean()
+
+                ScheduleFormMixin.clean(self)
+
+                return cleaned_data
+
         form_class = Form
         fields = ("omnibox", "text") + ScheduleFormMixin.Meta.fields
         success_url = "id@msgs.broadcast_scheduled_read"
@@ -262,32 +276,27 @@ class BroadcastCRUDL(SmartCRUDL):
             user = self.request.user
             org = self.request.org
             text = form.cleaned_data["text"]
+            recipients = form.cleaned_data["omnibox"]
+            start_time = form.cleaned_data["start_datetime"]
+            repeat_period = form.cleaned_data["repeat_period"]
+            repeat_days_of_week = form.cleaned_data["repeat_days_of_week"]
 
-            omnibox = omnibox_deserialize(org, form.cleaned_data["omnibox"])
-            groups = list(omnibox["groups"])
-            contacts = list(omnibox["contacts"])
-            urns = list(omnibox["urns"])
-
-            broadcast = Broadcast.create(
+            schedule = Schedule.create_schedule(
+                org, user, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
+            )
+            self.object = Broadcast.create(
                 org,
                 user,
                 text,
-                groups=groups,
-                contacts=contacts,
-                urns=urns,
+                groups=list(recipients["groups"]),
+                contacts=list(recipients["contacts"]),
+                urns=list(recipients["urns"]),
                 status=Msg.STATUS_QUEUED,
                 template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
+                schedule=schedule,
             )
 
-            self.post_save(broadcast)
-            super().form_valid(form)
-
-            if "HTTP_X_PJAX" in self.request.META:
-                response = self.render_to_response(self.get_context_data())
-                response["Temba-Success"] = "hide"
-                return response
-
-            return HttpResponseRedirect(self.get_success_url())
+            return self.render_modal_response(form)
 
     class ScheduledRead(SpaMixin, FormaxMixin, OrgObjPermsMixin, SmartReadView):
         def derive_title(self):

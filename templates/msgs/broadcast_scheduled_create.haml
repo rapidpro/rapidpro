@@ -23,20 +23,22 @@
       --textarea-height: 110px;
     }
 
--block extra-script
+-block modal-script
   {{ block.super }}
+
   :javascript
-    document.addEventListener("DOMContentLoaded", function(){
-      var repeatPeriod = document.querySelector("#id_repeat_period");
-      var repeatDays = document.querySelector(".repeat-days-container");
-      if (repeatPeriod) {
-        repeatPeriod.addEventListener("change", function(event) {
-          var currentRepeat = event.currentTarget.values[0].value;
-          if (currentRepeat === 'W') {
-            repeatDays.classList.remove("hidden");
-          } else {
-            repeatDays.classList.add("hidden");
-          }
-        });
-      }
-    });
+
+    var modalBody = getModax("#create-scheduled").shadowRoot;
+    var repeatPeriod = modalBody.querySelector("#id_repeat_period");
+    var repeatDays = modalBody.querySelector(".repeat-days-container");
+
+    if (repeatPeriod) {
+      repeatPeriod.addEventListener("change", function(event) {
+        var currentRepeat = event.currentTarget.values[0].value;
+        if (currentRepeat === 'W') {
+          repeatDays.classList.remove("hidden");
+        } else {
+          repeatDays.classList.add("hidden");
+        }
+      });
+    }

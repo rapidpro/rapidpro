@@ -2126,9 +2126,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(self.editor)
 
         response = self.client.get(send_url)
-        self.assertEqual(
-            ["omnibox", "text", "schedule", "step_node", "loc"], list(response.context["form"].fields.keys())
-        )
+        self.assertEqual(["omnibox", "text", "step_node", "loc"], list(response.context["form"].fields.keys()))
 
         # initialize form based on a contact
         response = self.client.get(f"{send_url}?c={self.joe.uuid}")
@@ -2248,29 +2246,12 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual(1, Broadcast.objects.count())
 
-    def test_update(self):
-        self.login(self.editor)
-        omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
-        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
-        broadcast = Broadcast.objects.get()
-        url = reverse("msgs.broadcast_update", args=[broadcast.pk])
-
-        response = self.client.get(url)
-        self.assertEqual(list(response.context["form"].fields.keys()), ["message", "omnibox", "loc"])
-
-        omnibox = omnibox_serialize(self.org, [], [self.frank], json_encode=True)
-        response = self.client.post(url, dict(message="Dinner reminder", omnibox=omnibox))
-        self.assertEqual(response.status_code, 302)
-
-        broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {"base": "Dinner reminder"})
-        self.assertEqual(broadcast.base_language, "base")
-        self.assertEqual(set(broadcast.contacts.all()), {self.frank})
-
-    def test_schedule_list(self):
-        list_url = reverse("msgs.broadcast_schedule_list")
+    def test_scheduled(self):
+        list_url = reverse("msgs.broadcast_scheduled")
 
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[])
+        self.assertContentMenu(list_url, self.user, [])
+        self.assertContentMenu(list_url, self.admin, ["Create"])
 
         bc1 = self.create_broadcast(
             self.admin,
@@ -2290,17 +2271,102 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(list_url + "?search=MORN", allow_viewers=True, allow_editors=True, context_objects=[bc1])
 
-    def test_schedule_read(self):
+    def test_scheduled_create(self):
+        create_url = reverse("msgs.broadcast_scheduled_create")
+
+        self.assertCreateFetch(
+            create_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["start_datetime", "repeat_period", "repeat_days_of_week", "omnibox", "text"],
+        )
+
+        # try to submit with no values
+        self.assertCreateSubmit(
+            create_url,
+            {},
+            form_errors={
+                "omnibox": "At least one recipient is required.",
+                "text": "This field is required.",
+                "start_datetime": "This field is required.",
+                "repeat_period": "This field is required.",
+            },
+        )
+
+        response = self.assertCreateSubmit(
+            create_url,
+            {
+                "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
+                "text": "Daily reminder",
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "W",
+                "repeat_days_of_week": ["M", "F"],
+            },
+            new_obj_query=Broadcast.objects.filter(
+                text={"base": "Daily reminder"}, schedule__repeat_period="W", schedule__repeat_days_of_week="MF"
+            ),
+            success_status=200,
+        )
+
+        bcast = Broadcast.objects.get()
+        self.assertEqual(f"/broadcast/scheduled_read/{bcast.id}/", response["Temba-Success"])
+
+    def test_scheduled_read(self):
+        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), "D", repeat_days_of_week="MWF")
+        broadcast = self.create_broadcast(
+            self.admin,
+            "Daily reminder",
+            groups=[self.joe_and_frank],
+            schedule=schedule,
+        )
+
+        read_url = reverse("msgs.broadcast_scheduled_read", args=[broadcast.id])
+
         self.login(self.editor)
 
-        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
+        # view with empty Send History
+        response = self.client.get(read_url)
+        self.assertEqual(broadcast, response.context["object"])
+        self.assertEqual([], list(response.context["send_history"]))
+
+        # add some send history
+        sends = []
+        for i in range(3):
+            sends.append(
+                Broadcast.create(
+                    self.org,
+                    self.admin,
+                    "Daily Reminder",
+                    groups=[self.joe_and_frank],
+                    status=Msg.STATUS_QUEUED,
+                    template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
+                    parent=broadcast,
+                )
+            )
+
+        # sends are listed newest first
+        response = self.client.get(read_url)
+        self.assertEqual(response.context["object"], broadcast)
+        self.assertEqual(list(reversed(sends)), list(response.context["send_history"]))
+
+    def test_scheduled_update(self):
+        self.login(self.editor)
+        omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
         self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
+        url = reverse("msgs.broadcast_scheduled_update", args=[broadcast.pk])
 
-        # view with empty Send History
-        response = self.client.get(reverse("msgs.broadcast_schedule_read", args=[broadcast.pk]))
-        self.assertEqual(response.context["object"], broadcast)
-        self.assertEqual(response.context["object_list"].count(), 0)
+        response = self.client.get(url)
+        self.assertEqual(list(response.context["form"].fields.keys()), ["message", "omnibox", "loc"])
+
+        omnibox = omnibox_serialize(self.org, [], [self.frank], json_encode=True)
+        response = self.client.post(url, dict(message="Dinner reminder", omnibox=omnibox))
+        self.assertEqual(response.status_code, 302)
+
+        broadcast = Broadcast.objects.get()
+        self.assertEqual(broadcast.text, {"base": "Dinner reminder"})
+        self.assertEqual(broadcast.base_language, "base")
+        self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
     def test_missing_contacts(self):
         self.login(self.editor)
@@ -2311,10 +2377,10 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         omnibox = omnibox_serialize(self.org, [], [], json_encode=True)
         response = self.client.post(
-            reverse("msgs.broadcast_update", args=[broadcast.pk]),
+            reverse("msgs.broadcast_scheduled_update", args=[broadcast.pk]),
             dict(omnibox=omnibox, message="Empty contacts", schedule=True),
         )
-        self.assertFormError(response, "form", None, "At least one recipient is required")
+        self.assertFormError(response, "form", None, "At least one recipient is required.")
 
 
 class LabelTest(TembaTest):
