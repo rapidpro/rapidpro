@@ -721,7 +721,6 @@ class ExportTicketsTask(BaseExportTask):
         #     fields.append(dict(label="Contact ID", key="contact_id", field=None, urn_scheme=None))
         fields.append(dict(label="Contact ID", key="contact_id", field=None, urn_scheme=None))
 
-        # TODO
         fields.append(dict(label="URN Scheme", key="contact.urn.scheme", field=None, urn_scheme=None))
 
         # TODO
