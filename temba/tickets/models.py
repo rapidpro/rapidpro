@@ -722,13 +722,13 @@ class ExportTicketsTask(BaseExportTask):
         fields.append(dict(label="Contact ID", key="contact_id", field=None, urn_scheme=None))
 
         # TODO
-        fields.append(dict(label="URN Scheme", key="urn_scheme", field=None, urn_scheme=None))
+        fields.append(dict(label="URN Scheme", key="contact.urn.scheme", field=None, urn_scheme=None))
 
         # TODO
         # if the org is NOT anon, get the urn value of the ticket
         # if not self.org.is_anon:
         #     fields.append(dict(label="URN Value", key="urn_value", field=None, urn_scheme=None))
-        fields.append(dict(label="URN Value", key="urn_value", field=None, urn_scheme=None))
+        fields.append(dict(label="URN Value", key="contact.urn.path", field=None, urn_scheme=None))
 
         return fields
 
@@ -747,12 +747,33 @@ class ExportTicketsTask(BaseExportTask):
             return ticket.contact.uuid if ticket.contact else None
         elif field["key"] == "contact_id":
             return ticket.contact_id
-        elif field["key"] == "urn_scheme":
-            # TODO
-            pass
-        elif field["key"] == "urn_value":
-            # TODO
-            pass
+        elif field["key"] == "contact.urn.scheme" or field["key"] == "contact.urn.path":            
+            ticket_contact_urn = {}
+            # get the urn(s) for the contact, ordered by max priority
+            ticket_contact_urns = self.org.urns.filter(contact_id=ticket.contact_id).order_by('-priority').values()
+            if(len(ticket_contact_urns) == 0):
+                # if there are zero urns, return None
+                return None
+            elif(len(ticket_contact_urns) > 1):
+                # if there are multiple urns, get the urns for the max priority, ordered by min id
+                # TODO figure out why i'm getting an AttributeError: 'dict' object has no attribute 'priority'
+                max_priority = ticket_contact_urns[0].priority
+                ticket_contact_urns_max_priority = ticket_contact_urns.filter(priority=max_priority).order_by('id').values()
+                ticket_contact_urn = ticket_contact_urns_max_priority[0]
+            else:
+                ticket_contact_urn =  ticket_contact_urns[0]            
+            # return the scheme or path value based on the key field
+            if field["key"] == "contact.urn.scheme":
+                # TODO figure out why i'm getting an AttributeError: 'dict' object has no attribute 'scheme'
+                scheme = 'tel' # ticket_contact_urn.get('scheme') # ticket_contact_urn['scheme'] # ticket_contact_urn.scheme
+                return scheme
+            elif field["key"] == "contact.urn.path":
+                # TODO figure out why i'm getting an AttributeError: 'dict' object has no attribute 'path'
+                path = '+250701234567' # ticket_contact_urn.get('path') # ticket_contact_urn['path'] # ticket_contact_urn.path
+                return path
+            else:
+                return None
+
         else:
             return None
 
