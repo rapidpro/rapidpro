@@ -58,7 +58,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
     def form_valid(self, form):
         user = self.request.user
-        org = user.get_org()
+        org = self.request.org
         data = form.cleaned_data
 
         country = data.get("country")
