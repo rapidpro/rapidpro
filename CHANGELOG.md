@@ -1,3 +1,8 @@
+v7.5.45
+----------
+ * Replace some occurences of User.get_org()
+ * Add new create modal for scheduled broadcasts
+
 v7.5.44
 ----------
  * Add data migration to cleanup counts for SystemLabel=Calls
