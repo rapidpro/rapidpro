@@ -36,7 +36,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         self.client = None
 
     def pre_process(self, *args, **kwargs):
-        org = self.request.user.get_org()
+        org = self.request.org
         try:
             self.client = org.get_twilio_client()
             if not self.client:
@@ -88,8 +88,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return country_code in SUPPORTED_COUNTRIES
 
     def claim_number(self, user, phone_number, country, role):
-        org = user.get_org()
-
+        org = self.request.org
         client = org.get_twilio_client()
         twilio_phones = client.api.incoming_phone_numbers.stream(phone_number=phone_number)
         channel_uuid = uuid4()

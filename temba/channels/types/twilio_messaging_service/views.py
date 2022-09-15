@@ -30,7 +30,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         self.object = None
 
     def pre_process(self, *args, **kwargs):
-        org = self.request.user.get_org()
+        org = self.request.org
         try:
             self.client = org.get_twilio_client()
             if not self.client:
@@ -48,8 +48,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
     def form_valid(self, form):
         user = self.request.user
-        org = user.get_org()
-
+        org = self.request.org
         data = form.cleaned_data
 
         org_config = org.config

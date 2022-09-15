@@ -53,7 +53,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             ).first()
 
             if existing:
-                if existing.org_id == self.request.user.get_org().id:
+                if existing.org_id == self.request.org.id:
                     raise ValidationError(_("A slack channel for this bot already exists in this workspace."))
                 raise ValidationError(_("A slack channel for this bot already exists in another workspace."))
 

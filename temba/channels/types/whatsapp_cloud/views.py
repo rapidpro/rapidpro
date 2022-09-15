@@ -139,7 +139,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return context
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
+        org = self.request.org
 
         number = form.cleaned_data["number"]
         verified_name = form.cleaned_data["verified_name"]
