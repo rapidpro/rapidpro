@@ -25,7 +25,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 
@@ -2687,7 +2687,6 @@ class SystemLabelTest(TembaTest):
         )
 
         self.assertEqual(("visible", "in", None, None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_SCHEDULED))
-        self.assertEqual(("visible", "in", None, None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_CALLS))
 
     def test_get_counts(self):
         self.assertEqual(
@@ -2700,7 +2699,6 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_SENT: 0,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 0,
-                SystemLabel.TYPE_CALLS: 0,
             },
         )
 
@@ -2710,7 +2708,6 @@ class SystemLabelTest(TembaTest):
         self.create_incoming_msg(contact1, "Message 2")
         msg3 = self.create_incoming_msg(contact1, "Message 3")
         msg4 = self.create_incoming_msg(contact1, "Message 4")
-        call1 = self.create_channel_event(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, extra={})
         Broadcast.create(self.org, self.user, "Broadcast 2", contacts=[contact1, contact2], status=Msg.STATUS_QUEUED)
         Broadcast.create(
             self.org,
@@ -2730,7 +2727,6 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_SENT: 0,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 1,
-                SystemLabel.TYPE_CALLS: 1,
             },
         )
 
@@ -2740,7 +2736,6 @@ class SystemLabelTest(TembaTest):
         Msg.objects.filter(broadcast=bcast1).update(status=Msg.STATUS_PENDING)
 
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
-        self.create_channel_event(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, extra={})
         Broadcast.create(
             self.org,
             self.user,
@@ -2759,7 +2754,6 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_SENT: 0,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,
-                SystemLabel.TYPE_CALLS: 2,
             },
         )
 
@@ -2770,7 +2764,6 @@ class SystemLabelTest(TembaTest):
         msg5.save(update_fields=("status",))
         msg6.status = "S"
         msg6.save(update_fields=("status",))
-        call1.release()
 
         self.assertEqual(
             SystemLabel.get_counts(self.org),
@@ -2782,7 +2775,6 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_SENT: 1,
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
-                SystemLabel.TYPE_CALLS: 1,
             },
         )
 
@@ -2802,11 +2794,10 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_SENT: 1,
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
-                SystemLabel.TYPE_CALLS: 1,
             },
         )
 
-        self.assertEqual(SystemLabelCount.objects.all().count(), 28)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 25)
 
         # squash our counts
         squash_msgcounts()
@@ -2821,12 +2812,11 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_SENT: 1,
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
-                SystemLabel.TYPE_CALLS: 1,
             },
         )
 
         # we should only have one system label per type
-        self.assertEqual(SystemLabelCount.objects.all().count(), 7)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 6)
 
 
 class TagsTest(TembaTest):
@@ -2964,3 +2954,25 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         list_url = reverse("msgs.media_list")
 
         self.assertStaffOnly(list_url)
+
+
+class RemoveCallsCountsMigrationTest(MigrationTest):
+    app = "msgs"
+    migrate_from = "0188_alter_systemlabelcount_label_type"
+    migrate_to = "0189_remove_calls_counts"
+
+    def setUpBeforeMigration(self, apps):
+        def add_count(org, label_type: str):
+            SystemLabelCount.objects.create(org=org, label_type=label_type, is_archived=False, count=123)
+
+        add_count(self.org, "I")
+        add_count(self.org, "F")
+        add_count(self.org, "C")
+        add_count(self.org, "C")
+        add_count(self.org2, "I")
+        add_count(self.org2, "C")
+
+    def test_migration(self):
+        self.assertEqual(2, SystemLabelCount.objects.filter(label_type="I").count())
+        self.assertEqual(1, SystemLabelCount.objects.filter(label_type="F").count())
+        self.assertEqual(0, SystemLabelCount.objects.filter(label_type="C").count())

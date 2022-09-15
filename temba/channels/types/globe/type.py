@@ -42,5 +42,5 @@ class GlobeType(ChannelType):
 
     available_timezones = ["Asia/Manila"]
 
-    def is_recommended_to(self, user):
-        return self.is_available_to(user)[0]
+    def is_recommended_to(self, org, user):
+        return self.is_available_to(org, user)[0]

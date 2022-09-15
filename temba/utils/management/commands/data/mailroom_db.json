@@ -102,7 +102,11 @@
           "channel_type": "T",
           "address": "+13605551212",
           "scheme": "tel",
-          "role": "SRCA"
+          "role": "SRCA",
+          "config": {
+            "account_sid": "SID123456789",
+            "auth_token": "sesame"
+          }
         },
         {
           "uuid": "19012bfd-3ce3-4cae-9bb9-76cf92c73d49",
@@ -110,7 +114,11 @@
           "channel_type": "NX",
           "address": "5789",
           "scheme": "tel",
-          "role": "SR"
+          "role": "SR",
+          "config": {
+            "nexmo_app_id": "appid_123456789",
+            "nexmo_app_private_key": "-----BEGIN PRIVATE KEY-----\nMIICdgIBADANBgkqhkiG9w0BAQEFAASCAmAwggJcAgEAAoGBAKNwapOQ6rQJHetP\nHRlJBIh1OsOsUBiXb3rXXE3xpWAxAha0MH+UPRblOko+5T2JqIb+xKf9Vi3oTM3t\nKvffaOPtzKXZauscjq6NGzA3LgeiMy6q19pvkUUOlGYK6+Xfl+B7Xw6+hBMkQuGE\nnUS8nkpR5mK4ne7djIyfHFfMu4ptAgMBAAECgYA+s0PPtMq1osG9oi4xoxeAGikf\nJB3eMUptP+2DYW7mRibc+ueYKhB9lhcUoKhlQUhL8bUUFVZYakP8xD21thmQqnC4\nf63asad0ycteJMLb3r+z26LHuCyOdPg1pyLk3oQ32lVQHBCYathRMcVznxOG16VK\nI8BFfstJTaJu0lK/wQJBANYFGusBiZsJQ3utrQMVPpKmloO2++4q1v6ZR4puDQHx\nTjLjAIgrkYfwTJBLBRZxec0E7TmuVQ9uJ+wMu/+7zaUCQQDDf2xMnQqYknJoKGq+\noAnyC66UqWC5xAnQS32mlnJ632JXA0pf9pb1SXAYExB1p9Dfqd3VAwQDwBsDDgP6\nHD8pAkEA0lscNQZC2TaGtKZk2hXkdcH1SKru/g3vWTkRHxfCAznJUaza1fx0wzdG\nGcES1Bdez0tbW4llI5By/skZc2eE3QJAFl6fOskBbGHde3Oce0F+wdZ6XIJhEgCP\niukIcKZoZQzoiMJUoVRrA5gqnmaYDI5uRRl/y57zt6YksR3KcLUIuQJAd242M/WF\n6YAZat3q/wEeETeQq1wrooew+8lHl05/Nt0cCpV48RGEhJ83pzBm3mnwHf8lTBJH\nx6XroMXsmbnsEw==\n-----END PRIVATE KEY-----"
+          }
         },
         {
           "uuid": "0f661e8b-ea9d-4bd3-9953-d368340acf91",
@@ -118,7 +126,8 @@
           "channel_type": "TWT",
           "address": "ureport",
           "scheme": "twitter",
-          "role": "SR"
+          "role": "SR",
+          "config": {}
         }
       ],
       "globals": [
@@ -421,12 +430,17 @@
         {
           "uuid": "4321c30b-b596-46fa-adb4-4a46d37923f6",
           "name": "Partners",
-          "topics": ["Support"]
+          "topics": [
+            "Support"
+          ]
         },
         {
           "uuid": "f14c1762-d38b-4072-ae63-2705332a3719",
           "name": "Office",
-          "topics": ["Sales", "Support"]
+          "topics": [
+            "Sales",
+            "Support"
+          ]
         }
       ]
     },
@@ -453,7 +467,8 @@
           "channel_type": "T",
           "address": "1234",
           "scheme": "tel",
-          "role": "SR"
+          "role": "SR",
+          "config": {}
         }
       ],
       "classifiers": [],
