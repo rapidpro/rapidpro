@@ -3,6 +3,7 @@ from datetime import timedelta
 from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
 from django import forms
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db.models.aggregates import Max
@@ -446,7 +447,19 @@ class TicketCRUDL(SmartCRUDL):
                 # schedule the export job
                 on_transaction_commit(lambda: export_tickets_task.delay(export.pk))
 
-                pass
+                # display progress info message to user
+                if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: no cover
+                    messages.info(
+                        self.request,
+                        _("We are preparing your export. We will e-mail you at %s when it is ready.")
+                        % self.request.user.username,
+                    )
+                else:
+                    dl_url = reverse("assets.download", kwargs=dict(type="ticket_export", pk=export.pk))
+                    messages.info(
+                        self.request,
+                        _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
+                    )
 
             # TODO comment on why this is needed
             if "HTTP_X_PJAX" not in self.request.META:
