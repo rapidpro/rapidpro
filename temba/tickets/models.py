@@ -647,14 +647,11 @@ class ExportTicketsTask(BaseExportTask):
     def write_export(self):
 
         # get the fields aka column headers
-        fields = self.get_fields(self)
+        fields = self.get_fields()
 
         # get the ticket ids
-        # TODO this should prob be filtering on org - YES
-        # TODO should this be filtering on anything else?
-        # TODO is there a more scaleable way we should be doing this instead? YES
-        # ticket_ids = Ticket.objects.values_list('id')
-        ticket_ids = self.org.tickets.values_list('id')
+        # TODO clarify how to order by
+        ticket_ids = self.org.tickets.order_by("id").values_list('id', flat=True)
 
         # create the exporter
         exporter = TableExporter(self, "Ticket", [f["label"] for f in fields])
@@ -667,23 +664,23 @@ class ExportTicketsTask(BaseExportTask):
         for ticket_batch_ids in chunk_list(ticket_ids, 1000):
 
             # create a map of id:ticket to maintain order within each batch
-            # TODO should we also be using this to prefetch contacts and users? YES
             batch_tickets = Ticket.objects.filter(id__in=ticket_batch_ids).prefetch_related("org").using("readonly")
             tickets_by_id = {t.id: t for t in batch_tickets}
 
             # for each batch of ticket ids...
             for ticket_id in ticket_batch_ids:
+
                 ticket = tickets_by_id[ticket_id]
 
                 # get the field values aka row values
                 values = []
                 for field in fields:
                     value = self.get_field_value(field, ticket)
-                    # TODO call BaseExportTask.prepare_value
                     values.append(self.prepare_value(value))
 
                 # add row to the export
                 exporter.write_row(values)
+                total_exported_tickets += 1
 
                 # get progress info and log every 10k tickets
                 if total_exported_tickets % ExportTicketsTask.LOG_PROGRESS_PER_ROWS == 0:
@@ -708,25 +705,31 @@ class ExportTicketsTask(BaseExportTask):
         return exporter.save_file()
 
     def get_fields(self):
+        
         fields = [
             dict(label="UUID", key="uuid", field=None, urn_scheme=None),
             dict(label="Opened On", key="opened_on", field=None, urn_scheme=None),
             dict(label="Closed On", key="closed_on", field=None, urn_scheme=None),
-            dict(label="Topic", key="topic_id", field=None, urn_scheme=None),
-            # TODO get email address of user, NOT assignee_id
-            dict(label="Assigned To", key="assignee_id", field=None, urn_scheme=None),
-            # TODO get contact uuid of contact, NOT opened_by_id
-            dict(label="Contact UUID", key="opened_by_id", field=None, urn_scheme=None),
+            dict(label="Topic", key="topic.name", field=None, urn_scheme=None),
+            dict(label="Assigned To", key="assignee.email", field=None, urn_scheme=None),
+            dict(label="Contact UUID", key="contact.uuid", field=None, urn_scheme=None),
         ]
+
+        # TODO
         # if the org is anon, get the contact id of the ticket
-        if self.org.is_anon:
-            fields = fields + dict(label="Contact ID", key="contact_id", field=None, urn_scheme=None)
-        # TODO URN Scheme - clarify what this is and how to get the field(s)
-        fields = fields + dict(label="URN Scheme", key="TODO", field=None, urn_scheme=None)
+        # if self.org.is_anon:
+        #     fields.append(dict(label="Contact ID", key="contact_id", field=None, urn_scheme=None))
+        fields.append(dict(label="Contact ID", key="contact_id", field=None, urn_scheme=None))
+
+        # TODO
+        fields.append(dict(label="URN Scheme", key="urn_scheme", field=None, urn_scheme=None))
+
+        # TODO
         # if the org is NOT anon, get the urn value of the ticket
-        if not self.org.is_anon:
-            # TODO URN Value - clarify what this is and how to get the field(s)
-            fields = fields + dict(label="URN Value", key="TODO", field=None, urn_scheme=None)
+        # if not self.org.is_anon:
+        #     fields.append(dict(label="URN Value", key="urn_value", field=None, urn_scheme=None))
+        fields.append(dict(label="URN Value", key="urn_value", field=None, urn_scheme=None))
+
         return fields
 
     def get_field_value(self, field: dict, ticket: Ticket):
@@ -736,45 +739,22 @@ class ExportTicketsTask(BaseExportTask):
             return ticket.opened_on
         elif field["key"] == "closed_on":
             return ticket.closed_on
-        elif field["key"] == "topic_id":
-            return ticket.topic
-        elif field["key"] == "assignee_id":
-            # TODO we should prob prefetch all of the users based on the assignee_id's? YES
-            if(ticket.assignee):
-                user = User.objects.get(id=ticket.assignee).values()
-                return user.email if user else None
-            else:
-                return ticket.assignee
-        elif field["key"] == "opened_by_id":
-            # TODO should this be a contact or user?
-            # TODO follow-up with Rowan, as tickets can be opened by contacts within a flow, or by a user from the contacts page
-            # TODO we should prob prefetch all of the users based on the opened_by_id's? YES
-            user = User.objects.get(id=ticket.opened_by).values()
-            return user.id if user else  None
+        elif field["key"] == "topic.name":
+            return ticket.topic.name if ticket.topic else None
+        elif field["key"] == "assignee.email":
+            return ticket.assignee.email if ticket.assignee else None
+        elif field["key"] == "contact.uuid":
+            return ticket.contact.uuid if ticket.contact else None
         elif field["key"] == "contact_id":
-            # TODO we should prob prefetch all of the contacts based on the contact_id's
-            contact = Contact.objects.get(id=ticket.contact).values()
-            return contact.uuid if contact else None
-        # TODO URN Scheme - clarify what this is and how to get the value(s) - just the primary URN is prob fine, follow-up wtih Rowan
-        # TODO URN Value - clarify what this is and how to get the value(s) - just the primary URN is prob fine, follow-up wtih Rowan
+            return ticket.contact_id
+        elif field["key"] == "urn_scheme":
+            # TODO
+            pass
+        elif field["key"] == "urn_value":
+            # TODO
+            pass
         else:
-            return None # TODO should we update this to return something else?
-
-    # TODO is there a shared util we should be using instead?
-    def prepare_value(self, value):
-        if value is None:
-            return ""
-        elif isinstance(value, str):
-            if value.startswith("="):  # escape = so value isn't mistaken for a formula
-                value = "'" + value
-            return clean_string(value)
-        elif isinstance(value, datetime):
-            return value.astimezone(self.org.timezone).replace(microsecond=0, tzinfo=None)
-        elif isinstance(value, bool):
-            return value
-        else:
-            return clean_string(str(value))
-
+            return None
 
 @register_asset_store
 class TicketExportAssetStore(BaseExportAssetStore):
