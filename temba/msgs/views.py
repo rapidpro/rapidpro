@@ -326,7 +326,7 @@ class BroadcastCRUDL(SmartCRUDL):
         fields = ("message", "omnibox")
         field_config = {"restrict": {"label": ""}, "omnibox": {"label": ""}, "message": {"label": "", "help": ""}}
         success_message = ""
-        success_url = "msgs.broadcast_schedule_list"
+        success_url = "msgs.broadcast_scheduled"
 
         def derive_initial(self):
             org = self.object.org
@@ -616,7 +616,7 @@ class MsgCRUDL(SmartCRUDL):
                     self.create_divider(),
                     self.create_menu_item(
                         name=_("Scheduled"),
-                        href=reverse("msgs.broadcast_schedule_list"),
+                        href=reverse("msgs.broadcast_scheduled"),
                         count=counts[SystemLabel.TYPE_SCHEDULED],
                     ),
                 ]
