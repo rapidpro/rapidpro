@@ -1,4 +1,4 @@
--extends "msgs/broadcast_schedule_read.haml"
+-extends "msgs/broadcast_scheduled_read.haml"
 -load smartmin sms temba i18n humanize
 
 -block title
@@ -15,7 +15,7 @@
     .shadow-lg.overflow-y-auto.rounded-b-lg
       %table.list.bg-white(style='border-radius: 0;{% if not org_perms.msgs.broadcast_send %}margin-top:10px{% endif %}')
         %tbody
-          -for object in object_list
+          -for object in send_history
             %tr
               %td
                 -with recipient_count=object.get_message_count
