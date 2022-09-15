@@ -1,3 +1,7 @@
+v7.5.46
+----------
+ * Fix new UI messages menu
+
 v7.5.45
 ----------
  * Replace some occurences of User.get_org()
