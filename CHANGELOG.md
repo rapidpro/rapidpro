@@ -1,3 +1,17 @@
+v7.5.44
+----------
+ * Add data migration to cleanup counts for SystemLabel=Calls
+ * Tweak ordering of Msg menu sections
+ * Add slack channel
+
+v7.5.43
+----------
+ * Include config for mailroom test db channels
+ * Remove Calls from msgs section
+ * Update wording of Missed Call triggers to clarify they should only be used with Android channels
+ * Only show Missed Call trigger as option for workspaces with an Android channel
+ * Change ChannelType.is_available_to and is_recommended_to to include org
+
 v7.5.42
 ----------
  * Add data migration to delete legacy channel logs
