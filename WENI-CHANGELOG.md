@@ -1,3 +1,7 @@
+1.5.9-rapidpro-7.1.27
+----------
+* Bump weni-rp-apps from 1.0.25 to 1.0.26
+
 1.5.8-rapidpro-7.1.27
 ----------
 * Remove gcc dependencies from Dockerfile
