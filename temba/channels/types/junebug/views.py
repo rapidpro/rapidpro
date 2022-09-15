@@ -39,7 +39,7 @@ class ClaimView(AuthenticatedExternalClaimView):
     form_class = Form
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
+        org = self.request.org
         data = form.cleaned_data
         config = {Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
         if data["secret"]:

@@ -31,8 +31,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = Form
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
-
         title = form.cleaned_data.get("title")
         agent_id = form.cleaned_data.get("agent_id")
         auth_token = form.cleaned_data.get("auth_token")
@@ -44,7 +42,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
 
         self.object = Channel.create(
-            org, self.request.user, None, self.channel_type, address=agent_id, name=title, config=config
+            self.request.org, self.request.user, None, self.channel_type, address=agent_id, name=title, config=config
         )
 
         return super().form_valid(form)
