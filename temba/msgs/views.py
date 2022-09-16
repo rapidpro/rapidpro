@@ -1,5 +1,4 @@
-import datetime
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from functools import cached_property
 from urllib.parse import quote_plus
 
@@ -408,7 +407,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super().derive_initial()
-            org = self.request.user.get_org()
+            org = self.request.org
 
             urn_ids = [_ for _ in self.request.GET.get("u", "").split(",") if _]
             contact_uuids = [_ for _ in self.request.GET.get("c", "").split(",") if _]
@@ -651,11 +650,11 @@ class MsgCRUDL(SmartCRUDL):
 
             # default to last 90 days in org timezone
             tz = self.request.user.get_org().timezone
-            end = datetime.datetime.now(tz)
+            end = datetime.now(tz)
             start = end - timedelta(days=90)
 
-            initial["end_date"] = end.strftime("%Y-%m-%d")
-            initial["start_date"] = start.strftime("%Y-%m-%d")
+            initial["end_date"] = end.date().isoformat()
+            initial["start_date"] = start.date().isoformat()
             return initial
 
         def derive_label(self):

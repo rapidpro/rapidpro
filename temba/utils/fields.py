@@ -1,7 +1,7 @@
-import datetime
 import ipaddress
 import json
 import socket
+from datetime import datetime
 from urllib import parse
 
 from django import forms
@@ -38,7 +38,7 @@ class TembaDateTimeField(forms.DateTimeField):
     widget = DateWidget()
 
     def prepare_value(self, value):
-        if isinstance(value, datetime.datetime):
+        if isinstance(value, datetime):
             return str(value)
         return value
 
