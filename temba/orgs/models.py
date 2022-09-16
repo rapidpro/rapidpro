@@ -166,9 +166,6 @@ class User(AuthUser):
         """
         Gets the orgs in the given brands that this user has access to (i.e. a role in).
         """
-        if self.is_superuser:
-            return Org.objects.all()
-
         orgs = self.orgs.filter(is_active=True).order_by("name")
         if brands is not None:
             orgs = orgs.filter(brand__in=brands)
@@ -308,7 +305,7 @@ class User(AuthUser):
             org.release(user, release_users=False)
 
         # remove user from all roles on any org for our brand
-        for org in user.get_orgs(brands=[brand]):
+        for org in self.get_orgs(brands=[brand]):
             org.remove_user(self)
 
     def __str__(self):

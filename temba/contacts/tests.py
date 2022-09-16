@@ -2594,13 +2594,6 @@ class ContactTest(TembaTest):
         response = self.client.get(reverse("contacts.contact_history", args=["bad-uuid"]))
         self.assertEqual(response.status_code, 404)
 
-        # super users can view history of any contact
-        response = self.fetch_protected(url + "?limit=90", self.superuser)
-        self.assertEqual(90, len(response.context["events"]))
-
-        response = self.fetch_protected(reverse("contacts.contact_history", args=[hans.uuid]), self.superuser)
-        self.assertEqual(0, len(response.context["events"]))
-
         # add a new run
         (
             MockSessionWriter(self.joe, flow)
@@ -2951,7 +2944,7 @@ class ContactTest(TembaTest):
 
         contact_no_name = self.create_contact(name=None, phone="678")
         read_url = reverse("contacts.contact_read", args=[contact_no_name.uuid])
-        response = self.fetch_protected(read_url, self.superuser)
+        response = self.fetch_protected(read_url, self.customer_support)
         self.assertEqual(contact_no_name, response.context["object"])
         self.client.logout()
 
@@ -3003,11 +2996,11 @@ class ContactTest(TembaTest):
         response = self.client.get(reverse("contacts.contact_read", args=["bad-uuid"]))
         self.assertEqual(response.status_code, 404)
 
-        # super users can view history of any contact
-        response = self.fetch_protected(reverse("contacts.contact_read", args=[self.joe.uuid]), self.superuser)
+        # staff can view history of any contact
+        response = self.fetch_protected(reverse("contacts.contact_read", args=[self.joe.uuid]), self.customer_support)
         self.assertEqual(response.status_code, 200)
         response = self.fetch_protected(
-            reverse("contacts.contact_read", args=[self.other_org_contact.uuid]), self.superuser
+            reverse("contacts.contact_read", args=[self.other_org_contact.uuid]), self.customer_support
         )
         self.assertEqual(response.status_code, 200)
 

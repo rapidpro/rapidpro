@@ -972,7 +972,7 @@ class FlowCRUDL(SmartCRUDL):
                 context["can_start"] = False
                 context["can_simulate"] = False
             else:
-                context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
+                context["mutable"] = self.has_org_perm("flows.flow_update")
                 context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
                 context["can_simulate"] = True
 
@@ -1056,8 +1056,7 @@ class FlowCRUDL(SmartCRUDL):
                 if self.has_org_perm("flows.flow_import_translation"):
                     menu.add_link(_("Import Translation"), reverse("flows.flow_import_translation", args=[obj.id]))
 
-            user = self.get_user()
-            if user.is_superuser or user.is_staff:
+            if self.request.user.is_staff:
                 menu.add_url_post(
                     _("Service"),
                     f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("flows.flow_editor", args=[obj.uuid])}',
