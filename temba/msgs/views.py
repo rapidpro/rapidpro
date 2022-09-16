@@ -1,3 +1,4 @@
+import datetime
 from datetime import date, timedelta
 from functools import cached_property
 from urllib.parse import quote_plus
@@ -49,6 +50,7 @@ from temba.utils.fields import (
     SelectMultipleWidget,
     SelectWidget,
     TembaChoiceField,
+    TembaDateField,
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
@@ -463,20 +465,11 @@ class ExportForm(Form):
 
     SYSTEM_LABEL_CHOICES = ((0, _("Just this folder")), (1, _("All messages")))
 
+    start_date = TembaDateField(required=True, label=_("Start Date"))
+    end_date = TembaDateField(required=True, label=_("End Date"))
+
     export_all = forms.ChoiceField(
         choices=(), label=_("Selection"), initial=0, widget=SelectWidget(attrs={"widget_only": True})
-    )
-
-    start_date = forms.DateField(
-        required=False,
-        help_text=_("Leave blank for the oldest message"),
-        widget=InputWidget(attrs={"datepicker": True, "hide_label": True, "placeholder": _("Start Date")}),
-    )
-
-    end_date = forms.DateField(
-        required=False,
-        help_text=_("Leave blank for the latest message"),
-        widget=InputWidget(attrs={"datepicker": True, "hide_label": True, "placeholder": _("End Date")}),
     )
 
     groups = forms.ModelMultipleChoiceField(
@@ -491,9 +484,9 @@ class ExportForm(Form):
     def __init__(self, user, label, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-
+        org = self.user.get_org()
         self.fields["export_all"].choices = self.LABEL_CHOICES if label else self.SYSTEM_LABEL_CHOICES
-        self.fields["groups"].queryset = ContactGroup.get_groups(self.user.get_org())
+        self.fields["groups"].queryset = ContactGroup.get_groups(org)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -613,6 +606,18 @@ class MsgCRUDL(SmartCRUDL):
         form_class = ExportForm
         submit_button_name = "Export"
         success_url = "@msgs.msg_inbox"
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+
+            # default to last 90 days in org timezone
+            tz = self.request.user.get_org().timezone
+            end = datetime.datetime.now(tz)
+            start = end - timedelta(days=90)
+
+            initial["end_date"] = end.strftime("%Y-%m-%d")
+            initial["start_date"] = start.strftime("%Y-%m-%d")
+            return initial
 
         def derive_label(self):
             # label is either a UUID of a Label instance (36 chars) or a system label type code (1 char)
