@@ -1084,7 +1084,6 @@ TICKETER_TYPES = [
 
 CHANNEL_TYPES = [
     "temba.channels.types.africastalking.AfricasTalkingType",
-    "temba.channels.types.android.AndroidType",
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.blackmyna.BlackmynaType",
     "temba.channels.types.bongolive.BongoLiveType",
@@ -1151,6 +1150,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.zenvia_sms.ZenviaSMSType",
     "temba.channels.types.zenvia_whatsapp.ZenviaWhatsAppType",
     "temba.channels.types.zenvia.ZenviaType",
+    "temba.channels.types.android.AndroidType",
 ]
 
 ANALYTICS_TYPES = [

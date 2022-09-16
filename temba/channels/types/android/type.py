@@ -29,3 +29,6 @@ class AndroidType(ChannelType):
     attachment_support = False
     free_sending = False
     show_config_page = False
+
+    def is_recommended_to(self, org, user):
+        return False

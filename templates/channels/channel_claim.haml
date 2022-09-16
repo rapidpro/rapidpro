@@ -91,15 +91,6 @@
 
 -block form-buttons
 
--block extra-script
-  {{block.super}}
-
-  :javascript
-    $(document).ready(function() {
-      var channel = $('.claim-row.recommended');
-      $('.channel-options-recommended').prepend(channel);
-    });
-
 
 -block extra-less
   -compress css inline
