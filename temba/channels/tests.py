@@ -3063,9 +3063,17 @@ class RemoveNonIVRConnectionsMigrationTest(MigrationTest):
             contact=contact,
             contact_urn=contact.urns.get(),
             status=ChannelConnection.STATUS_WIRED,
-            connection_type="V",
+            connection_type="V",  # current code for IVR
         )
         self.connection2 = ChannelConnection.objects.create(
+            org=self.org,
+            channel=self.channel,
+            contact=contact,
+            contact_urn=contact.urns.get(),
+            status=ChannelConnection.STATUS_COMPLETED,
+            connection_type="F",  # legacy code for IVR
+        )
+        self.connection3 = ChannelConnection.objects.create(
             org=self.org,
             channel=self.channel,
             contact=contact,
@@ -3076,4 +3084,5 @@ class RemoveNonIVRConnectionsMigrationTest(MigrationTest):
 
     def test_migration(self):
         self.assertTrue(ChannelConnection.objects.filter(id=self.connection1.id).exists())
-        self.assertFalse(ChannelConnection.objects.filter(id=self.connection2.id).exists())
+        self.assertTrue(ChannelConnection.objects.filter(id=self.connection2.id).exists())
+        self.assertFalse(ChannelConnection.objects.filter(id=self.connection3.id).exists())

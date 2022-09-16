@@ -8,7 +8,9 @@ def remove_non_ivr_connections(apps, schema_editor):
 
     num_deleted = 0
     while True:
-        batch_ids = ChannelConnection.objects.exclude(connection_type="V").values_list("id", flat=True)[:5000]
+        batch_ids = list(
+            ChannelConnection.objects.exclude(connection_type__in=("V", "F")).values_list("id", flat=True)[:1000]
+        )
         if not batch_ids:
             break
 
