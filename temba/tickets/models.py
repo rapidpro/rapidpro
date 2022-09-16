@@ -649,9 +649,8 @@ class ExportTicketsTask(BaseExportTask):
         # get the fields aka column headers
         fields = self.get_fields()
 
-        # get the ticket ids
-        # TODO clarify how to order by
-        ticket_ids = self.org.tickets.order_by("id").values_list('id', flat=True)
+        # get the ticket ids, ordered by opened on
+        ticket_ids = self.org.tickets.order_by("opened_on").values_list('id', flat=True)
 
         # create the exporter
         exporter = TableExporter(self, "Ticket", [f["label"] for f in fields])
@@ -760,7 +759,7 @@ class ExportTicketsTask(BaseExportTask):
                 ticket_contact_urns_max_priority = ticket_contact_urns.filter(priority=max_priority).order_by('id').values()
                 ticket_contact_urn = ticket_contact_urns_max_priority[0]
             else:
-                ticket_contact_urn =  ticket_contact_urns[0]            
+                ticket_contact_urn =  ticket_contact_urns[0]
             # return the scheme or path value based on the key field
             if field["key"] == "contact.urn.scheme":
                 # TODO figure out why i'm getting an AttributeError: 'dict' object has no attribute 'scheme'
