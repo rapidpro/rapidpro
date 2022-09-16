@@ -24,12 +24,13 @@ class ScheduleFormMixin(forms.Form):
         widget=SelectMultipleWidget(attrs=({"placeholder": _("Select days")})),
     )
 
-    def set_user(self, user):
+    def set_org(self, org):
         """
         Because this mixin is mixed with other forms it can't have a __init__ constructor that takes non standard Django
         forms args and kwargs, so we have to customize based on user after the form has been created.
         """
-        tz = user.get_org().timezone
+
+        tz = org.timezone
         start_datetime = self.fields["start_datetime"]
         start_datetime.help_text = _("First time this should happen in the %s timezone.") % tz
 
@@ -63,12 +64,13 @@ class ScheduleCRUDL(SmartCRUDL):
 
     class Update(OrgObjPermsMixin, ComponentFormMixin, SmartUpdateView):
         class Form(forms.ModelForm, ScheduleFormMixin):
-            def __init__(self, user, *args, **kwargs):
+            def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
                 # we use a post with a blank date to mean unschedule
                 self.fields["start_datetime"].required = False
-                self.set_user(user)
+
+                self.set_org(org)
 
             def clean(self):
                 super().clean()
@@ -85,7 +87,7 @@ class ScheduleCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             return kwargs
 
         def derive_initial(self):
@@ -99,7 +101,7 @@ class ScheduleCRUDL(SmartCRUDL):
         def get_success_url(self):
             broadcast = self.get_object().get_broadcast()
             assert broadcast is not None
-            return reverse("msgs.broadcast_schedule_read", args=[broadcast.id])
+            return reverse("msgs.broadcast_scheduled_read", args=[broadcast.id])
 
         def save(self, *args, **kwargs):
             self.object.update_schedule(

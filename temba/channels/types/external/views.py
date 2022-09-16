@@ -173,7 +173,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         from .type import ExternalType
 
-        org = self.request.user.get_org()
+        org = self.request.org
         data = form.cleaned_data
 
         if self.request.GET.get("role", None) == "S":  # pragma: needs cover
@@ -197,7 +197,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         channel = self.request.GET.get("channel", None)
         if channel:  # pragma: needs cover
             # make sure they own it
-            channel = self.request.user.get_org().channels.filter(pk=channel).first()
+            channel = org.channels.filter(pk=channel).first()
 
         config = {
             Channel.CONFIG_SEND_URL: data["url"],

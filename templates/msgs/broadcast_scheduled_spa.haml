@@ -12,7 +12,7 @@
     %table.list.lined.w-full
       %tbody
         -for object in object_list
-          %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'goto(event)', href:'{%url "msgs.broadcast_schedule_read" object.id%}'}
+          %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'goto(event)', href:'{%url "msgs.broadcast_scheduled_read" object.id%}'}
 
             %td.value-contacts.field_phone
               -include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all urns=object.raw_urns
@@ -28,7 +28,7 @@
           -empty
             %tr
               %td{colspan:3}
-                -trans "No Matching schedules"
+                -trans "No matching scheduled messages"
 
 
 -block extra-less

@@ -93,10 +93,8 @@ class VonageType(ChannelType):
         ),
     )
 
-    def is_recommended_to(self, user):
-        org = user.get_org()
-        country_code = timezone_to_country_code(org.timezone)
-        return country_code in RECOMMENDED_COUNTRIES
+    def is_recommended_to(self, org, user):
+        return timezone_to_country_code(org.timezone) in RECOMMENDED_COUNTRIES
 
     def deactivate(self, channel):
         app_id = channel.config.get(Channel.CONFIG_VONAGE_APP_ID)

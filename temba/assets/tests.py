@@ -85,9 +85,9 @@ class AssetTest(TembaTest):
             reverse("assets.download", kwargs=dict(type="message_export", pk=message_export_task.pk))
         )
         self.assertEqual(200, response.status_code)
-        user = response.context_data["view"].request.user
-        self.assertEqual(user, self.admin)
-        self.assertEqual(user.get_org(), self.org)
+        request = response.context_data["view"].request
+        self.assertEqual(self.admin, request.user)
+        self.assertEqual(self.org, request.org)
 
     def test_stream(self):
         # create a message export

@@ -142,7 +142,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return context
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
         page_id = form.cleaned_data["page_id"]
         page_access_token = form.cleaned_data["page_access_token"]
         name = form.cleaned_data["name"]
@@ -155,7 +154,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
 
         self.object = Channel.create(
-            org,
+            self.request.org,
             self.request.user,
             None,
             self.channel_type,
@@ -212,7 +211,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         return context
 
     def get_queryset(self):
-        return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="IG")
+        return self.request.org.channels.filter(is_active=True, channel_type="IG")
 
     def execute_action(self):
 

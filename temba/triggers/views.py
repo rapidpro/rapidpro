@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _, ngettext_lazy
 
 from temba.channels.models import Channel
+from temba.channels.types.android import AndroidType
 from temba.contacts.models import ContactGroup, ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
@@ -59,11 +60,11 @@ class BaseTriggerForm(forms.ModelForm):
         ),
     )
 
-    def __init__(self, user, trigger_type, *args, **kwargs):
+    def __init__(self, org, user, trigger_type, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.org = org
         self.user = user
-        self.org = user.get_org()
         self.trigger_type = Trigger.get_type(code=trigger_type)
 
         flow_types = self.trigger_type.allowed_flow_types
@@ -133,9 +134,9 @@ class RegisterTriggerForm(BaseTriggerForm):
                 value = value[7:]
 
                 # we must get groups for this org only
-                group = ContactGroup.get_group_by_name(self.user.get_org(), value)
+                group = ContactGroup.get_group_by_name(self.org, value)
                 if not group:
-                    group = ContactGroup.create_manual(self.user.get_org(), self.user, name=value)
+                    group = ContactGroup.create_manual(self.org, self.user, name=value)
                 return group
 
             return super().clean(value)
@@ -163,8 +164,8 @@ class RegisterTriggerForm(BaseTriggerForm):
         help_text=_("The message to send in response after they join the group (optional)"),
     )
 
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(user, Trigger.TYPE_KEYWORD, *args, **kwargs)
+    def __init__(self, org, user, *args, **kwargs):
+        super().__init__(org, user, Trigger.TYPE_KEYWORD, *args, **kwargs)
 
         # on this form flow becomes the flow to be triggered from the generated flow and is optional
         self.fields["flow"].required = False
@@ -259,12 +260,15 @@ class TriggerCRUDL(SmartCRUDL):
                 formax.add_section(name, reverse(url), icon=icon, action="redirect", button=_("New Trigger"))
 
             org_schemes = self.org.get_schemes(Channel.ROLE_RECEIVE)
+
             add_section("trigger-keyword", "triggers.trigger_create_keyword", "icon-tree")
             add_section("trigger-register", "triggers.trigger_create_register", "icon-users-2")
             add_section("trigger-catchall", "triggers.trigger_create_catchall", "icon-bubble")
             add_section("trigger-schedule", "triggers.trigger_create_schedule", "icon-clock")
             add_section("trigger-inboundcall", "triggers.trigger_create_inbound_call", "icon-phone2")
-            add_section("trigger-missedcall", "triggers.trigger_create_missed_call", "icon-phone")
+
+            if self.org.channels.filter(is_active=True, channel_type=AndroidType.code).exists():
+                add_section("trigger-missedcall", "triggers.trigger_create_missed_call", "icon-phone")
 
             if ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION.intersection(org_schemes):
                 add_section("trigger-new-conversation", "triggers.trigger_create_new_conversation", "icon-bubbles-2")
@@ -285,6 +289,7 @@ class TriggerCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
             kwargs["user"] = self.request.user
             return kwargs
 
@@ -293,7 +298,7 @@ class TriggerCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             user = self.request.user
-            org = user.get_org()
+            org = self.request.org
             flow = form.cleaned_data["flow"]
             groups = form.cleaned_data["groups"]
             exclude_groups = form.cleaned_data["exclude_groups"]
@@ -392,6 +397,7 @@ class TriggerCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
             kwargs["user"] = self.request.user
             return kwargs
 

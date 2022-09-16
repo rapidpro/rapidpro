@@ -37,9 +37,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.contacts.models import URN
-from temba.msgs.models import Msg, SystemLabel
-from temba.msgs.views import InboxView
-from temba.orgs.models import Org
+from temba.msgs.models import Msg
 from temba.orgs.views import DependencyDeleteModal, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, countries, json
 from temba.utils.fields import SelectWidget
@@ -350,7 +348,7 @@ class ClaimViewMixin(SpaMixin, OrgPermsMixin, ComponentFormMixin):
             super().__init__(**kwargs)
 
         def clean(self):
-            count, limit = Channel.get_org_limit_progress(self.request.user.get_org())
+            count, limit = Channel.get_org_limit_progress(self.request.org)
             if limit is not None and count >= limit:
                 raise forms.ValidationError(
                     _(
@@ -478,7 +476,7 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
         return context
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
+        org = self.request.org
 
         data = form.cleaned_data
         extra_config = self.get_channel_config(org, data)
@@ -508,7 +506,7 @@ class BaseClaimNumberMixin(ClaimViewMixin):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        org = self.request.user.get_org()
+        org = self.request.org
 
         try:
             context["account_numbers"] = self.get_existing_numbers(org)
@@ -594,7 +592,7 @@ class BaseClaimNumberMixin(ClaimViewMixin):
     def form_valid(self, form, *args, **kwargs):
 
         # must have an org
-        org = self.request.user.get_org()
+        org = self.request.org
         if not org:  # pragma: needs cover
             form._errors["upgrade"] = True
             form._errors["phone_number"] = form.error_class(
@@ -758,7 +756,7 @@ class ChannelCRUDL(SmartCRUDL):
 
     class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):  # pragma: no cover
         def derive_menu(self):
-            org = self.request.user.get_org()
+            org = self.request.org
 
             menu = []
             if self.has_org_perm("channels.channel_read"):
@@ -1073,7 +1071,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = DomainForm
 
         def get_queryset(self):
-            return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="FB")
+            return self.request.org.channels.filter(is_active=True, channel_type="FB")
 
         def execute_action(self):
             # curl -X POST -H "Content-Type: application/json" -d '{
@@ -1212,15 +1210,16 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Add Channel")
 
         def channel_types_groups(self):
+            org = self.request.org
             user = self.request.user
 
             # fetch channel types, sorted by category and name
             types_by_category = defaultdict(list)
             recommended_channels = []
             for ch_type in list(Channel.get_types()):
-                region_aware_visible, region_ignore_visible = ch_type.is_available_to(user)
+                region_aware_visible, region_ignore_visible = ch_type.is_available_to(org, user)
 
-                if ch_type.is_recommended_to(user):
+                if ch_type.is_recommended_to(org, user):
                     recommended_channels.append(ch_type)
                 elif region_ignore_visible and region_aware_visible and ch_type.category:
                     types_by_category[ch_type.category.name].append(ch_type)
@@ -1229,9 +1228,8 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            user = self.request.user
+            org = self.request.org
 
-            org = user.get_org()
             context["org_timezone"] = str(org.timezone)
             context["brand"] = org.get_branding()
 
@@ -1249,13 +1247,14 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimAll(Claim):
         def channel_types_groups(self):
+            org = self.request.org
             user = self.request.user
 
             types_by_category = defaultdict(list)
             recommended_channels = []
             for ch_type in list(Channel.get_types()):
-                region_aware_visible, region_ignore_visible = ch_type.is_available_to(user)
-                if ch_type.is_recommended_to(user):
+                _, region_ignore_visible = ch_type.is_available_to(org, user)
+                if ch_type.is_recommended_to(org, user):
                     recommended_channels.append(ch_type)
                 elif region_ignore_visible and ch_type.category:
                     types_by_category[ch_type.category.name].append(ch_type)
@@ -1337,13 +1336,13 @@ class ChannelCRUDL(SmartCRUDL):
         fields = ("connection", "channel")
 
         def get_form_kwargs(self, *args, **kwargs):
-            form_kwargs = super().get_form_kwargs(*args, **kwargs)
-            form_kwargs["org"] = Org.objects.get(pk=self.request.user.get_org().pk)
-            return form_kwargs
+            kwargs = super().get_form_kwargs(*args, **kwargs)
+            kwargs["org"] = self.request.org
+            return kwargs
 
         def form_valid(self, form):
+            org = self.request.org
             user = self.request.user
-            org = user.get_org()
 
             channel = form.cleaned_data["channel"]
             Channel.add_call_channel(org, user, channel)
@@ -1386,7 +1385,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             # org users see channels for their org, superuser sees all
             if not self.request.user.is_superuser:
-                org = self.request.user.get_org()
+                org = self.request.org
                 queryset = queryset.filter(org=org)
 
             return queryset.filter(is_active=True)
@@ -1397,7 +1396,7 @@ class ChannelCRUDL(SmartCRUDL):
                 return super().pre_process(*args, **kwargs)
 
             # everybody else goes to a different page depending how many channels there are
-            org = self.request.user.get_org()
+            org = self.request.org
             channels = list(Channel.objects.filter(org=org, is_active=True))
 
             if len(channels) == 0:
@@ -1412,28 +1411,6 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_address(self, obj):
             return obj.address if obj.address else _("Unknown")
-
-
-class ChannelEventCRUDL(SmartCRUDL):
-    model = ChannelEvent
-    actions = ("calls",)
-
-    class Calls(InboxView):
-        title = _("Calls")
-        fields = ("contact", "event_type", "channel", "occurred_on")
-        default_order = ("-occurred_on",)
-        search_fields = ("contact__urns__path__icontains", "contact__name__icontains")
-        system_label = SystemLabel.TYPE_CALLS
-        select_related = ("contact", "channel")
-
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^calls/$"
-
-        def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
-            context["actions"] = []
-            return context
 
 
 class ChannelLogCRUDL(SmartCRUDL):

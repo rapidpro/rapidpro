@@ -43,7 +43,7 @@ class ClassifierCRUDL(SmartCRUDL):
 
     class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
         def derive_menu(self):
-            org = self.request.user.get_org()
+            org = self.request.org
 
             menu = []
             if self.has_org_perm("classifiers.classifier_read"):

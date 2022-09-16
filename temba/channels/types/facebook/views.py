@@ -18,7 +18,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = Form
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
         auth_token = form.cleaned_data["page_access_token"]
         name = form.cleaned_data["page_name"]
         page_id = form.cleaned_data["page_id"]
@@ -29,7 +28,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_SECRET: Channel.generate_secret(),
         }
         self.object = Channel.create(
-            org, self.request.user, None, self.channel_type, name=name, address=page_id, config=config
+            self.request.org, self.request.user, None, self.channel_type, name=name, address=page_id, config=config
         )
 
         return super().form_valid(form)

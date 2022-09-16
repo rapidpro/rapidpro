@@ -26,8 +26,8 @@ class KeywordTriggerType(TriggerType):
     )
 
     class Form(BaseTriggerForm):
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_KEYWORD, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_KEYWORD, *args, **kwargs)
 
         def get_conflicts_kwargs(self, cleaned_data):
             kwargs = super().get_conflicts_kwargs(cleaned_data)
@@ -67,8 +67,8 @@ class CatchallTriggerType(TriggerType):
     """
 
     class Form(BaseTriggerForm):
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
 
     code = Trigger.TYPE_CATCH_ALL
     slug = "catch_all"
@@ -91,10 +91,10 @@ class ScheduledTriggerType(TriggerType):
             widget=OmniboxChoice(attrs={"placeholder": _("Optional: Search for contacts"), "contacts": True}),
         )
 
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_SCHEDULE, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_SCHEDULE, *args, **kwargs)
 
-            self.set_user(user)
+            self.set_org(org)
 
         def clean_contacts(self):
             return omnibox_deserialize(self.org, self.cleaned_data["contacts"])["contacts"]
@@ -132,8 +132,8 @@ class InboundCallTriggerType(TriggerType):
     """
 
     class Form(BaseTriggerForm):
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_INBOUND_CALL, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_INBOUND_CALL, *args, **kwargs)
 
     code = Trigger.TYPE_INBOUND_CALL
     slug = "inbound_call"
@@ -145,12 +145,12 @@ class InboundCallTriggerType(TriggerType):
 
 class MissedCallTriggerType(TriggerType):
     """
-    A trigger for missed inbound IVR calls
+    A trigger for missed calls on Android devices
     """
 
     class Form(BaseTriggerForm):
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_MISSED_CALL, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_MISSED_CALL, *args, **kwargs)
 
     code = Trigger.TYPE_MISSED_CALL
     slug = "missed_call"
@@ -168,8 +168,8 @@ class NewConversationTriggerType(TriggerType):
     class Form(BaseTriggerForm):
         channel = TembaChoiceField(Channel.objects.none(), label=_("Channel"), required=True)
 
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_NEW_CONVERSATION, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_NEW_CONVERSATION, *args, **kwargs)
 
             self.fields["channel"].queryset = self.get_channel_choices(ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION)
 
@@ -207,8 +207,8 @@ class ReferralTriggerType(TriggerType):
             max_length=255, required=False, label=_("Referrer Id"), help_text=_("The referrer id that will trigger us")
         )
 
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_REFERRAL, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_REFERRAL, *args, **kwargs)
 
             self.fields["channel"].queryset = self.get_channel_choices(ContactURN.SCHEMES_SUPPORTING_REFERRALS)
 
@@ -236,8 +236,8 @@ class ClosedTicketTriggerType(TriggerType):
     """
 
     class Form(BaseTriggerForm):
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_CLOSED_TICKET, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_CLOSED_TICKET, *args, **kwargs)
 
     code = Trigger.TYPE_CLOSED_TICKET
     slug = "closed_ticket"

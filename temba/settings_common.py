@@ -382,7 +382,7 @@ PERMISSIONS = {
         "menu",
     ),
     "channels.channellog": ("connection",),
-    "channels.channelevent": ("api", "calls"),
+    "channels.channelevent": ("api",),
     "classifiers.classifier": ("connect", "api", "sync", "menu"),
     "classifiers.intent": ("api",),
     "contacts.contact": (
@@ -440,7 +440,7 @@ PERMISSIONS = {
     "globals.global": ("api", "unused"),
     "ivr.ivrcall": ("start",),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
-    "msgs.broadcast": ("api", "detail", "schedule", "schedule_list", "schedule_read", "send"),
+    "msgs.broadcast": ("api", "scheduled", "scheduled_create", "scheduled_read", "scheduled_update", "send"),
     "msgs.label": ("api", "delete_folder"),
     "msgs.media": ("upload", "list"),
     "msgs.msg": (
@@ -611,7 +611,6 @@ GROUP_PERMISSIONS = {
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
         "msgs.broadcast.*",
-        "msgs.broadcastschedule.*",
         "msgs.label.*",
         "msgs.media_upload",
         "msgs.msg_api",
@@ -744,7 +743,6 @@ GROUP_PERMISSIONS = {
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
         "msgs.broadcast.*",
-        "msgs.broadcastschedule.*",
         "msgs.label.*",
         "msgs.media_upload",
         "msgs.msg_api",
@@ -795,7 +793,6 @@ GROUP_PERMISSIONS = {
         "channels.channel_list",
         "channels.channel_menu",
         "channels.channel_read",
-        "channels.channelevent_calls",
         "classifiers.classifier_api",
         "classifiers.classifier_list",
         "classifiers.classifier_menu",
@@ -839,8 +836,8 @@ GROUP_PERMISSIONS = {
         "locations.adminboundary_alias",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
-        "msgs.broadcast_schedule_list",
-        "msgs.broadcast_schedule_read",
+        "msgs.broadcast_scheduled",
+        "msgs.broadcast_scheduled_read",
         "msgs.label_api",
         "msgs.label_read",
         "msgs.msg_archived",
@@ -1153,6 +1150,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.discord.DiscordType",
     "temba.channels.types.rocketchat.RocketChatType",
     "temba.channels.types.instagram.InstagramType",
+    "temba.channels.types.slack.SlackType",
 ]
 
 ANALYTICS_TYPES = [
