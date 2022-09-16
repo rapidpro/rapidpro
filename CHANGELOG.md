@@ -1,3 +1,7 @@
+v7.5.47
+----------
+ * Switch to temba-datepicker
+
 v7.5.46
 ----------
  * Fix new UI messages menu
