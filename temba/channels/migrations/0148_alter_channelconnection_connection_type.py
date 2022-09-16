@@ -15,4 +15,16 @@ class Migration(migrations.Migration):
             name="connection_type",
             field=models.CharField(default="V", max_length=1, null=True),
         ),
+        migrations.RemoveIndex(
+            model_name="channelconnection",
+            name="channelconnection_ivr_to_retry",
+        ),
+        migrations.AddIndex(
+            model_name="channelconnection",
+            index=models.Index(
+                condition=models.Q(("next_attempt__isnull", False), ("status__in", ("Q", "E"))),
+                fields=["next_attempt"],
+                name="channelconnection_to_retry",
+            ),
+        ),
     ]

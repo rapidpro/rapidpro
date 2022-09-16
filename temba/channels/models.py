@@ -1755,8 +1755,8 @@ class ChannelConnection(models.Model):
         indexes = [
             # used by mailroom to fetch calls that need to be retried
             models.Index(
-                name="channelconnection_ivr_to_retry",
+                name="channelconnection_to_retry",
                 fields=["next_attempt"],
-                condition=Q(connection_type="V", status__in=("Q", "E"), next_attempt__isnull=False),
+                condition=Q(status__in=("Q", "E"), next_attempt__isnull=False),
             )
         ]
