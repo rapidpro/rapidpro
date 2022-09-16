@@ -1202,7 +1202,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(
             update_url,
             {
-                "start_datetime": "2021-06-24 12:00",
+                "start_datetime": "2021-06-24T10:00Z",
                 "repeat_period": "D",
                 "flow": flow1.id,
                 "groups": [group2.id],

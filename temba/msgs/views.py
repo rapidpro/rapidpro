@@ -465,8 +465,8 @@ class ExportForm(Form):
 
     SYSTEM_LABEL_CHOICES = ((0, _("Just this folder")), (1, _("All messages")))
 
-    start_date = TembaDateField(required=True, label=_("Start Date"))
-    end_date = TembaDateField(required=True, label=_("End Date"))
+    start_date = TembaDateField(required=False, label=_("Start Date"))
+    end_date = TembaDateField(required=False, label=_("End Date"))
 
     export_all = forms.ChoiceField(
         choices=(), label=_("Selection"), initial=0, widget=SelectWidget(attrs={"widget_only": True})

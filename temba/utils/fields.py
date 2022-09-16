@@ -30,7 +30,7 @@ class DateWidget(forms.DateTimeInput):
         return context
 
 
-class TembaDateField(forms.DateTimeField):
+class TembaDateField(forms.DateField):
     widget = DateWidget()
 
 
@@ -43,7 +43,9 @@ class TembaDateTimeField(forms.DateTimeField):
         return value
 
     def to_python(self, value):
-        return parse_datetime(value.strip())
+        if value:
+            return parse_datetime(value.strip())
+        return None
 
 
 class InputWidget(forms.TextInput):
