@@ -18,10 +18,9 @@ from django.test import TransactionTestCase
 from django.utils import timezone
 
 from temba.archives.models import Archive
-from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.channels.models import Channel, ChannelConnection, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport, ContactURN
 from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
-from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole, User
@@ -492,14 +491,14 @@ class TembaTestMixin:
 
         return flow
 
-    def create_incoming_call(self, flow, contact, status=IVRCall.STATUS_COMPLETED):
+    def create_incoming_call(self, flow, contact, status=ChannelConnection.STATUS_COMPLETED):
         """
         Create something that looks like an incoming IVR call handled by mailroom
         """
-        call = IVRCall.objects.create(
+        call = ChannelConnection.objects.create(
             org=self.org,
             channel=self.channel,
-            direction=IVRCall.DIRECTION_IN,
+            direction=ChannelConnection.DIRECTION_IN,
             contact=contact,
             contact_urn=contact.get_urn(),
             status=status,
@@ -538,13 +537,13 @@ class TembaTestMixin:
             channel=self.channel,
             connection=call,
             log_type=ChannelLog.LOG_TYPE_IVR_START,
-            is_error=status == IVRCall.STATUS_FAILED,
+            is_error=status == ChannelConnection.STATUS_FAILED,
             http_logs=[
                 {
                     "url": "https://acme-calls.com/reply",
                     "status_code": 200,
                     "request": 'POST /reply\r\n\r\n{"say": "Hello"}',
-                    "response": '{"status": "%s"}' % ("error" if status == IVRCall.STATUS_FAILED else "OK"),
+                    "response": '{"status": "%s"}' % ("error" if status == ChannelConnection.STATUS_FAILED else "OK"),
                     "elapsed_ms": 12,
                     "retries": 0,
                     "created_on": "2022-01-01T00:00:00Z",

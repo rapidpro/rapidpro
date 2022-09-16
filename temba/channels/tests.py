@@ -19,9 +19,10 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
 
+from temba.channels.models import ChannelConnection
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
-from temba.ivr.models import IVRCall
+from temba.flows.models import FlowSession
 from temba.msgs.models import Msg
 from temba.orgs.models import Org, OrgRole
 from temba.request_logs.models import HTTPLog
@@ -1607,6 +1608,28 @@ class SyncEventTest(SmartminTest):
         self.assertEqual("RW", self.tel_channel.country)
 
 
+class ChannelConnectionTest(TembaTest):
+    def test_release(self):
+        flow = self.get_flow("ivr")
+        contact = self.create_contact("Jose", phone="+12065552000")
+
+        call1 = self.create_incoming_call(flow, contact)
+        call2 = self.create_incoming_call(flow, contact)
+
+        self.assertEqual(FlowSession.objects.count(), 2)
+        self.assertEqual(call1.channel_logs.count(), 1)
+        self.assertEqual(call2.channel_logs.count(), 1)
+
+        call2.release()
+
+        self.assertEqual(FlowSession.objects.count(), 1)
+
+        # call #1 unaffected
+        self.assertEqual(call1.channel_logs.count(), 1)
+        self.assertEqual(call2.channel_logs.count(), 0)
+        self.assertFalse(ChannelConnection.objects.filter(id=call2.id).exists())
+
+
 class ChannelAlertTest(TembaTest):
     def test_no_alert_email(self):
         # set our last seen to a while ago
@@ -2218,7 +2241,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         call = self.create_incoming_call(ivr_flow, contact)
 
         # create failed call with an interaction log
-        self.create_incoming_call(ivr_flow, contact, status=IVRCall.STATUS_FAILED)
+        self.create_incoming_call(ivr_flow, contact, status=ChannelConnection.STATUS_FAILED)
 
         # create log for other org
         other_org_contact = self.create_contact("Hans", phone="+593979123456")
@@ -2310,7 +2333,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # if duration isn't set explicitly, it can be calculated
         call.started_on = datetime(2019, 8, 12, 11, 4, 0, 0, timezone.utc)
-        call.status = IVRCall.STATUS_IN_PROGRESS
+        call.status = ChannelConnection.STATUS_IN_PROGRESS
         call.duration = None
         call.save(update_fields=("started_on", "status", "duration"))
 
