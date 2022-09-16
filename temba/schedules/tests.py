@@ -252,7 +252,7 @@ class ScheduleTest(TembaTest):
                 "repeat_period": Schedule.REPEAT_WEEKLY,
                 "repeat_days_of_week": "W",
                 "start": "later",
-                "start_datetime": datetime_to_str(start, "%Y-%m-%d %H:%M", self.org.timezone),
+                "start_datetime": datetime_to_str(start, "%Y-%m-%dT%H:%MZ", timezone.utc),
             },
         )
 
@@ -299,7 +299,7 @@ class ScheduleTest(TembaTest):
 
         self.client.post(
             update_url,
-            {"start_datetime": datetime_to_str(start_date, "%Y-%m-%d %H:%M", self.org.timezone), "repeat_period": "D"},
+            {"start_datetime": datetime_to_str(start_date, "%Y-%m-%dT%H:%MZ", timezone.utc), "repeat_period": "D"},
         )
         sched = Schedule.objects.get(pk=sched.pk)
 
@@ -313,7 +313,7 @@ class ScheduleTest(TembaTest):
         post_data = dict()
         post_data["repeat_period"] = "D"
         post_data["start"] = "later"
-        post_data["start_datetime"] = (datetime_to_str(start_date, "%Y-%m-%d %H:%M", self.org.timezone),)
+        post_data["start_datetime"] = (datetime_to_str(start_date, "%Y-%m-%dT%H:%MZ", timezone.utc),)
         self.client.post(update_url, post_data)
         sched = Schedule.objects.get(pk=sched.pk)
 
@@ -343,7 +343,7 @@ class ScheduleCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         def datepicker_fmt(d: datetime):
-            return datetime_to_str(d, "%Y-%m-%d %H:%M", self.org.timezone)
+            return datetime_to_str(d, "%Y-%m-%dT%H:%MZ", timezone.utc)
 
         today = timezone.now().replace(second=0, microsecond=0)
         yesterday = today - timedelta(days=1)

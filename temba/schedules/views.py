@@ -5,16 +5,15 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import OrgObjPermsMixin
-from temba.utils.fields import InputWidget, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import DateWidget, SelectMultipleWidget, SelectWidget, TembaDateTimeField
 from temba.utils.views import ComponentFormMixin
 
 from .models import Schedule
 
 
 class ScheduleFormMixin(forms.Form):
-    start_datetime = forms.DateTimeField(
+    start_datetime = TembaDateTimeField(
         label=_("Start Time"),
-        widget=InputWidget(attrs={"datetimepicker": True, "placeholder": _("Select a date and time")}),
     )
     repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES, label=_("Repeat"), widget=SelectWidget())
     repeat_days_of_week = forms.MultipleChoiceField(
@@ -30,8 +29,13 @@ class ScheduleFormMixin(forms.Form):
         Because this mixin is mixed with other forms it can't have a __init__ constructor that takes non standard Django
         forms args and kwargs, so we have to customize based on user after the form has been created.
         """
+
         tz = org.timezone
-        self.fields["start_datetime"].help_text = _("First time this should happen in the %s timezone.") % tz
+        start_datetime = self.fields["start_datetime"]
+        start_datetime.help_text = _("First time this should happen in the %s timezone.") % tz
+
+        # we want to edit schedules in the org's timezone
+        start_datetime.widget = DateWidget(attrs={"timezone": tz, "time": True})
 
     def clean_repeat_days_of_week(self):
         value = self.cleaned_data["repeat_days_of_week"]

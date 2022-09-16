@@ -13,7 +13,7 @@
 -block summary
   -if object.next_fire
     .flex
-      .schedule-summary
+      .schedule-summary.self-center
         -if object.get_broadcast
           -blocktrans trimmed with when=object.next_fire|naturaltime
             The next message will be sent <b>{{ when }}</b>.
