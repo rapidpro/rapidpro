@@ -653,8 +653,8 @@ class MsgCRUDL(SmartCRUDL):
             end = datetime.now(tz)
             start = end - timedelta(days=90)
 
-            initial["end_date"] = end.date().isoformat()
-            initial["start_date"] = start.date().isoformat()
+            initial["end_date"] = end.date()
+            initial["start_date"] = start.date()
             return initial
 
         def derive_label(self):
