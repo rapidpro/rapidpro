@@ -44,7 +44,6 @@ from temba.utils.fields import SelectWidget
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
-from ..ivr.models import IVRCall
 from .models import (
     Alert,
     Channel,
@@ -1552,7 +1551,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         @cached_property
         def call(self):
-            return get_object_or_404(IVRCall, pk=self.kwargs["call_id"])
+            return get_object_or_404(ChannelConnection, pk=self.kwargs["call_id"])
 
         def build_content_menu(self, menu):
             menu.add_link(

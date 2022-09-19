@@ -33,12 +33,11 @@ from django.views.generic import FormView
 
 from temba import mailroom
 from temba.archives.models import Archive
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelConnection
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.contacts.search import SearchException, parse_query
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task, update_session_wait_expires
-from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import (
@@ -528,7 +527,7 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Retry call if unable to connect"),
                 help_text=_("Retries call three times for the chosen interval"),
                 initial=60,
-                choices=IVRCall.RETRY_CHOICES,
+                choices=ChannelConnection.RETRY_CHOICES,
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
             expires_after_minutes = forms.ChoiceField(
