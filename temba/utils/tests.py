@@ -813,7 +813,7 @@ class MiddlewareTest(TembaTest):
         response = self.client.get(reverse("public.public_index"))
         self.assertFalse(response.has_header("X-Temba-Org"))
 
-        self.login(self.superuser)
+        self.login(self.customer_support)
 
         response = self.client.get(reverse("public.public_index"))
         self.assertFalse(response.has_header("X-Temba-Org"))

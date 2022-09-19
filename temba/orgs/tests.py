@@ -219,8 +219,6 @@ class UserTest(TembaTest):
             ),
         )
         for (org, perm, checks) in tests:
-            self.assertTrue(self.superuser.has_org_perm(org, perm))
-
             for user, has_perm in checks.items():
                 self.assertEqual(
                     has_perm,
@@ -657,7 +655,7 @@ class UserTest(TembaTest):
         branded_org.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
         # now release our user on our primary brand
-        self.admin.release(self.superuser, brand=settings.DEFAULT_BRAND)
+        self.admin.release(self.customer_support, brand=settings.DEFAULT_BRAND)
 
         # our admin should still be good
         self.admin.refresh_from_db()
@@ -668,7 +666,7 @@ class UserTest(TembaTest):
         self.assertFalse(self.admin.get_orgs(brands=[settings.DEFAULT_BRAND]).exists())
 
         # now lets release her from the branded org
-        self.admin.release(self.superuser, brand="some-other-brand.com")
+        self.admin.release(self.customer_support, brand="some-other-brand.com")
 
         # now she gets deactivated and ambiguated and belongs to no orgs
         self.assertFalse(self.admin.is_active)
@@ -714,10 +712,10 @@ class UserTest(TembaTest):
         self.assertEqual(0, len(self.admin.get_owned_orgs()))
 
         # release all but our admin
-        self.surveyor.release(self.superuser, brand=self.org.brand)
-        self.editor.release(self.superuser, brand=self.org.brand)
-        self.user.release(self.superuser, brand=self.org.brand)
-        self.agent.release(self.superuser, brand=self.org.brand)
+        self.surveyor.release(self.customer_support, brand=self.org.brand)
+        self.editor.release(self.customer_support, brand=self.org.brand)
+        self.user.release(self.customer_support, brand=self.org.brand)
+        self.agent.release(self.customer_support, brand=self.org.brand)
 
         # still a user left, our org remains active
         self.org.refresh_from_db()
@@ -725,7 +723,7 @@ class UserTest(TembaTest):
 
         # now that we are the last user, we own it now
         self.assertEqual(1, len(self.admin.get_owned_orgs()))
-        self.admin.release(self.superuser, brand=self.org.brand)
+        self.admin.release(self.customer_support, brand=self.org.brand)
 
         # and we take our org with us
         self.org.refresh_from_db()
@@ -995,7 +993,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             )
 
             # release our primary org
-            org.release(self.superuser)
+            org.release(self.customer_support)
             if delete:
                 org.delete()
 
@@ -2088,8 +2086,8 @@ class OrgTest(TembaTest):
         update_url = reverse("orgs.topup_update", args=[topup.pk])
         self.assertRedirect(self.client.get(update_url), "/users/login/")
 
-        # log in as root
-        self.login(self.superuser)
+        # log in as staff
+        self.login(self.customer_support)
 
         # should list our one topup
         response = self.client.get(manage_url)
@@ -3126,7 +3124,7 @@ class OrgTest(TembaTest):
         self.assertEqual(len(response.context["sub_orgs"]), 1)
 
         # sub_org is deleted
-        sub_org.release(self.superuser)
+        sub_org.release(self.customer_support)
 
         response = self.client.get(reverse("orgs.org_edit"))
         self.assertEqual(200, response.status_code)
@@ -4054,9 +4052,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # unless they are staff
         self.assertRedirect(self.requestView(choose_url, self.customer_support), "/org/manage/")
 
-        # superusers are sent to the manage orgs page
-        self.assertRedirect(self.requestView(choose_url, self.superuser), "/org/manage/")
-
         # turn editor into a multi-org user
         self.org2.add_user(self.editor, OrgRole.EDITOR)
 
@@ -4349,30 +4344,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_login_case_not_sensitive(self):
         login_url = reverse("users.user_login")
 
-        User.objects.create_superuser("superuser", "superuser@group.com", "superuser")
+        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"}, follow=True)
+        self.assertEqual(response.request["PATH_INFO"], reverse("msgs.msg_inbox"))
 
-        response = self.client.post(login_url, dict(username="superuser", password="superuser"))
-        self.assertEqual(response.status_code, 302)
-
-        response = self.client.post(login_url, dict(username="superuser", password="superuser"), follow=True)
-        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_manage"))
-
-        response = self.client.post(login_url, dict(username="SUPeruser", password="superuser"))
-        self.assertEqual(response.status_code, 302)
-
-        response = self.client.post(login_url, dict(username="SUPeruser", password="superuser"), follow=True)
-        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_manage"))
-
-        User.objects.create_superuser("withCAPS", "with_caps@group.com", "thePASSWORD")
-
-        response = self.client.post(login_url, dict(username="withcaps", password="thePASSWORD"))
-        self.assertEqual(response.status_code, 302)
-
-        response = self.client.post(login_url, dict(username="withcaps", password="thePASSWORD"), follow=True)
-        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_manage"))
+        response = self.client.post(login_url, {"username": "ADMIN@nyaruka.com", "password": "Qwerty123"}, follow=True)
+        self.assertEqual(response.request["PATH_INFO"], reverse("msgs.msg_inbox"))
 
         # passwords stay case sensitive
-        response = self.client.post(login_url, dict(username="withcaps", password="thepassword"), follow=True)
+        response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "QWERTY123"}, follow=True)
         self.assertIn("form", response.context)
         self.assertTrue(response.context["form"].errors)
 

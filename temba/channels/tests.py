@@ -10,7 +10,7 @@ from urllib.parse import quote
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
 from django.core import mail
 from django.template import loader
 from django.test import RequestFactory
@@ -388,12 +388,6 @@ class ChannelTest(TembaTest):
         response = self.client.get(reverse("channels.channel_list"))
         self.assertRedirect(response, reverse("channels.channel_claim"))
 
-        # unless you're a superuser
-        self.login(self.superuser)
-        response = self.client.get(reverse("channels.channel_list"))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context["object_list"]), [])
-
         # re-activate one of the channels so org has a single channel
         self.tel_channel.is_active = True
         self.tel_channel.save()
@@ -402,12 +396,6 @@ class ChannelTest(TembaTest):
         self.login(self.user)
         response = self.client.get(reverse("channels.channel_list"))
         self.assertRedirect(response, reverse("channels.channel_read", args=[self.tel_channel.uuid]))
-
-        # unless you're a superuser
-        self.login(self.superuser)
-        response = self.client.get(reverse("channels.channel_list"))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context["object_list"]), [self.tel_channel])
 
         # re-activate other channel so org now has two channels
         self.twitter_channel.is_active = True
@@ -431,13 +419,6 @@ class ChannelTest(TembaTest):
         # visit page as a viewer
         self.login(self.user)
         response = self.client.get("/", follow=True)
-        self.assertNotIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
-        self.assertNotIn("delayed_syncevents", response.context, msg="Found delayed_syncevents in context")
-
-        # visit page as superuser
-        self.login(self.superuser)
-        response = self.client.get("/", follow=True)
-        # superusers doesn't have orgs thus cannot have both values
         self.assertNotIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
         self.assertNotIn("delayed_syncevents", response.context, msg="Found delayed_syncevents in context")
 
@@ -635,8 +616,10 @@ class ChannelTest(TembaTest):
         self.assertIn("delayed_sync_event", response.context_data.keys())
         self.assertIn("unsent_msgs_count", response.context_data.keys())
 
-        # with superuser
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
+        # as staff
+        response = self.fetch_protected(
+            reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.customer_support
+        )
         self.assertEqual(200, response.status_code)
 
         # now that we can access the channel, which messages do we display in the chart?
@@ -662,7 +645,7 @@ class ChannelTest(TembaTest):
         self.create_outgoing_msg(joe, "This outgoing message will be counted", channel=self.tel_channel)
 
         # now we have an inbound message and two outbounds
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
+        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
         self.assertEqual(200, response.status_code)
         self.assertEqual(1, response.context["message_stats"][0]["data"][-1]["count"])
 
@@ -683,7 +666,7 @@ class ChannelTest(TembaTest):
         # now let's create an ivr interaction
         self.create_incoming_msg(joe, "incoming ivr", channel=self.tel_channel, msg_type=Msg.TYPE_IVR)
         self.create_outgoing_msg(joe, "outgoing ivr", channel=self.tel_channel, msg_type=Msg.TYPE_IVR)
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
+        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
 
         self.assertEqual(4, len(response.context["message_stats"]))
         self.assertEqual(1, response.context["message_stats"][2]["data"][0]["count"])
@@ -1567,7 +1550,6 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
 
 class SyncEventTest(SmartminTest):
     def setUp(self):
-        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
         self.user = self.create_user("tito")
         self.org = Org.objects.create(
             name="Temba", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user
