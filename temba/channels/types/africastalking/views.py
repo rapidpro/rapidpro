@@ -48,10 +48,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
     def form_valid(self, form):
         user = self.request.user
-        org = user.get_org()
-
+        org = self.request.org
         data = form.cleaned_data
-
         config = dict(username=data["username"], api_key=data["api_key"], is_shared=data["is_shared"])
 
         self.object = Channel.create(

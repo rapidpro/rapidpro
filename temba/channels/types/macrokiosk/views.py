@@ -43,10 +43,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return data["country"]
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
-
         data = form.cleaned_data
-
         config = {
             Channel.CONFIG_USERNAME: data.get("username", None),
             Channel.CONFIG_PASSWORD: data.get("password", None),
@@ -54,7 +51,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_MACROKIOSK_SERVICE_ID: data.get("service_id", None),
         }
         self.object = Channel.add_config_external_channel(
-            org,
+            self.request.org,
             self.request.user,
             self.get_submitted_country(data),
             data["number"],

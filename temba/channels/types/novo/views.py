@@ -26,9 +26,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = NVClaimForm
 
     def form_valid(self, form):
-        user = self.request.user
         data = form.cleaned_data
-        org = user.get_org()
 
         from .type import NovoType
 
@@ -39,8 +37,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
 
         self.object = Channel.create(
-            org,
-            user,
+            self.request.org,
+            self.request.user,
             "TT",
             self.channel_type,
             name="Novo: %s" % data["shortcode"],

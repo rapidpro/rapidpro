@@ -1,11 +1,13 @@
 import ipaddress
 import json
 import socket
+from datetime import datetime
 from urllib import parse
 
 from django import forms
 from django.core.validators import URLValidator
 from django.forms import ValidationError
+from django.utils.dateparse import parse_datetime
 from django.utils.deconstruct import deconstructible
 from django.utils.translation import gettext_lazy as _
 
@@ -13,6 +15,37 @@ from django.utils.translation import gettext_lazy as _
 class JSONField(forms.Field):
     def to_python(self, value):
         return value
+
+
+class DateWidget(forms.DateTimeInput):
+    template_name = "utils/forms/datepicker.haml"
+    is_annotated = True
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        context["widget"]["type"] = self.input_type
+
+        if attrs.get("hide_label", False) and context.get("label", None):  # pragma: needs cover
+            del context["label"]
+        return context
+
+
+class TembaDateField(forms.DateField):
+    widget = DateWidget()
+
+
+class TembaDateTimeField(forms.DateTimeField):
+    widget = DateWidget()
+
+    def prepare_value(self, value):
+        if isinstance(value, datetime):
+            return str(value)
+        return value
+
+    def to_python(self, value):
+        if value:
+            return parse_datetime(value.strip())
+        return None
 
 
 class InputWidget(forms.TextInput):

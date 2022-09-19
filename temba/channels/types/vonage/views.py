@@ -264,9 +264,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
     form_class = Form
 
     def pre_process(self, *args, **kwargs):
-        org = Org.objects.get(id=self.request.user.get_org().id)
         try:
-            client = org.get_vonage_client()
+            client = self.request.org.get_vonage_client()
         except Exception:  # pragma: needs cover
             client = None
 
@@ -310,8 +309,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return numbers
 
     def claim_number(self, user, phone_number, country, role):
-        org = user.get_org()
-
+        org = self.request.org
         client = org.get_vonage_client()
         org_config = org.config
 
@@ -427,7 +425,7 @@ class SearchView(OrgPermsMixin, SmartFormView):
     permission = "channels.channel_claim"
 
     def form_valid(self, form, *args, **kwargs):
-        org = self.request.user.get_org()
+        org = self.request.org
         client = org.get_vonage_client()
         data = form.cleaned_data
 

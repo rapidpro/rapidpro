@@ -218,43 +218,16 @@ class ScheduleTest(TembaTest):
             self.assertEqual(tc["display"], sched.get_display(), f"display mismatch for {label}")
 
     def test_schedule_ui(self):
-        self.login(self.admin)
-
-        # test missing recipients
-        omnibox = omnibox_serialize(self.org, [], [], json_encode=True)
-        post_data = dict(text="message content", omnibox=omnibox, sender=self.channel.pk, schedule=True)
-        response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
-        self.assertContains(response, "At least one recipient is required")
-
-        # missing message
-        omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
-        post_data = dict(text="", omnibox=omnibox, sender=self.channel.pk, schedule=True)
-        response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
-        self.assertContains(response, "This field is required")
-
-        # finally create our scheduled broadcast
-        response = self.client.post(
-            reverse("msgs.broadcast_send"),
-            {"text": "A scheduled message to Joe", "omnibox": omnibox, "sender": self.channel.id, "schedule": True},
-            HTTP_X_PJAX=True,
+        schedule = Schedule.create_blank_schedule(self.org, self.admin)
+        bcast = self.create_broadcast(
+            self.admin,
+            "A scheduled message to Joe",
+            contacts=[self.joe],
+            schedule=schedule,
         )
-        self.assertIn("/broadcast/schedule_read", response["Temba-Success"])
-
-        # should have a schedule with no next fire
-        bcast = Broadcast.objects.get()
-        schedule = bcast.schedule
-
-        self.assertIsNone(schedule.next_fire)
-        self.assertEqual(Schedule.REPEAT_NEVER, schedule.repeat_period)
-        self.assertEqual(self.admin, schedule.modified_by)
-
-        # fetch our formax page
-        response = self.client.get(response["Temba-Success"])
-        self.assertContains(response, "id-schedule")
-        self.assertEqual(bcast, response.context["object"])
 
         # update our message
-        update_bcast_url = reverse("msgs.broadcast_update", args=[bcast.id])
+        update_bcast_url = reverse("msgs.broadcast_scheduled_update", args=[bcast.id])
 
         self.login(self.editor)
         self.client.post(
@@ -273,13 +246,13 @@ class ScheduleTest(TembaTest):
         start = pytz.utc.normalize(self.org.timezone.localize(start))
 
         # update the schedule
-        response = self.client.post(
+        self.client.post(
             reverse("schedules.schedule_update", args=[bcast.schedule.id]),
             {
                 "repeat_period": Schedule.REPEAT_WEEKLY,
                 "repeat_days_of_week": "W",
                 "start": "later",
-                "start_datetime": datetime_to_str(start, "%Y-%m-%d %H:%M", self.org.timezone),
+                "start_datetime": datetime_to_str(start, "%Y-%m-%dT%H:%MZ", timezone.utc),
             },
         )
 
@@ -303,27 +276,31 @@ class ScheduleTest(TembaTest):
         self.org.save()
         tz = self.org.timezone
 
-        omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
-
         self.login(self.admin)
-        post_data = dict(text="A scheduled message to Joe", omnibox=omnibox, sender=self.channel.pk, schedule=True)
-        self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
+        self.client.post(
+            reverse("msgs.broadcast_scheduled_create"),
+            {
+                "omnibox": omnibox_serialize(self.org, [], [self.joe], json_encode=True),
+                "text": "A scheduled message to Joe",
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "D",
+            },
+        )
 
         bcast = Broadcast.objects.get()
         sched = bcast.schedule
 
-        update_url = reverse("schedules.schedule_update", args=[sched.pk])
+        update_url = reverse("schedules.schedule_update", args=[sched.id])
 
         # way off into the future, but at 11pm NYT
         start_date = datetime(2050, 1, 3, 23, 0, 0, 0)
         start_date = tz.localize(start_date)
         start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
 
-        post_data = dict()
-        post_data["repeat_period"] = "D"
-        post_data["start"] = "later"
-        post_data["start_datetime"] = (datetime_to_str(start_date, "%Y-%m-%d %H:%M", self.org.timezone),)
-        self.client.post(update_url, post_data)
+        self.client.post(
+            update_url,
+            {"start_datetime": datetime_to_str(start_date, "%Y-%m-%dT%H:%MZ", timezone.utc), "repeat_period": "D"},
+        )
         sched = Schedule.objects.get(pk=sched.pk)
 
         # 11pm in NY should be 4am UTC the next day
@@ -336,7 +313,7 @@ class ScheduleTest(TembaTest):
         post_data = dict()
         post_data["repeat_period"] = "D"
         post_data["start"] = "later"
-        post_data["start_datetime"] = (datetime_to_str(start_date, "%Y-%m-%d %H:%M", self.org.timezone),)
+        post_data["start_datetime"] = (datetime_to_str(start_date, "%Y-%m-%dT%H:%MZ", timezone.utc),)
         self.client.post(update_url, post_data)
         sched = Schedule.objects.get(pk=sched.pk)
 
@@ -366,7 +343,7 @@ class ScheduleCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         def datepicker_fmt(d: datetime):
-            return datetime_to_str(d, "%Y-%m-%d %H:%M", self.org.timezone)
+            return datetime_to_str(d, "%Y-%m-%dT%H:%MZ", timezone.utc)
 
         today = timezone.now().replace(second=0, microsecond=0)
         yesterday = today - timedelta(days=1)
