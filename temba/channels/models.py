@@ -1228,15 +1228,6 @@ class ChannelLog(models.Model):
     elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
 
-    # TODO drop
-    description = models.CharField(max_length=255, null=True)
-    url = models.TextField(null=True)
-    method = models.CharField(max_length=16, null=True)
-    request = models.TextField(null=True)
-    response = models.TextField(null=True)
-    response_status = models.IntegerField(null=True)
-    request_time = models.IntegerField(null=True)
-
     @classmethod
     def from_response(cls, log_type, channel, response, created_on, ended_on, is_error=None):
         http_log = HttpLog.from_response(response, created_on, ended_on)

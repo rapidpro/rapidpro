@@ -862,7 +862,9 @@ class EventTest(TembaTest):
         msg_out = self.create_outgoing_msg(
             contact1, "Hello", channel=self.channel, status="E", quick_replies=("yes", "no")
         )
-        ChannelLog.objects.create(channel=self.channel, is_error=True, description="Boom", msg=msg_out)
+        ChannelLog.objects.create(
+            channel=self.channel, is_error=True, log_type=ChannelLog.LOG_TYPE_MSG_SEND, msg=msg_out
+        )
         msg_out.refresh_from_db()
 
         self.assertEqual(
@@ -1101,7 +1103,9 @@ class EventTest(TembaTest):
             contact_urn=contact.urns.all().first(),
             error_count=0,
         )
-        ChannelLog.objects.create(channel=self.channel, is_error=True, description="Boom", connection=call2)
+        ChannelLog.objects.create(
+            channel=self.channel, is_error=True, log_type=ChannelLog.LOG_TYPE_IVR_START, connection=call2
+        )
 
         self.assertEqual(
             {
