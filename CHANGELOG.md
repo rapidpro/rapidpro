@@ -1,3 +1,10 @@
+v7.5.48
+----------
+ * Stop recommending Android, always recommend Telegram
+ * Drop IVRCall proxy model and use ChannelConnection consistently
+ * Add migration to delete non-IVR channel connections
+ * Fix bug in user releasing and remove special superuser handling in favor of uniform treatment of staff users
+
 v7.5.47
 ----------
  * Switch to temba-datepicker
