@@ -11,7 +11,7 @@ from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, TembaTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 
 from .models import Trigger
 from .types import KeywordTriggerType
@@ -1395,3 +1395,26 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger3, trigger4]
         )
         self.assertListFetch(catchall_url, allow_viewers=True, allow_editors=True, context_objects=[trigger5])
+
+
+class DeleteBadMissedCallTriggersTest(MigrationTest):
+    app = "triggers"
+    migrate_from = "0024_alter_trigger_options"
+    migrate_to = "0025_delete_bad_missed_calls"
+
+    def setUpBeforeMigration(self, apps):
+        msg_flow = self.create_flow("Test M", flow_type=Flow.TYPE_MESSAGE)
+        ivr_flow = self.create_flow("Test V", flow_type=Flow.TYPE_VOICE)
+
+        self.trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, ivr_flow)
+        self.trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, msg_flow)
+        self.trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, ivr_flow)  # will be deleted
+
+    def test_migration(self):
+        self.trigger1.refresh_from_db()
+        self.trigger2.refresh_from_db()
+        self.trigger3.refresh_from_db()
+
+        self.assertTrue(self.trigger1.is_active)
+        self.assertTrue(self.trigger2.is_active)
+        self.assertFalse(self.trigger3.is_active)
