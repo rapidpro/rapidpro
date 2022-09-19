@@ -724,14 +724,13 @@ class ChannelTest(TembaTest):
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertEqual(200, response.status_code)
 
-        # one recommended channel (Mtarget in Rwanda)
-        self.assertEqual(len(response.context["recommended_channels"]), 2)
+        # 3 recommended channels for Rwanda
+        self.assertEqual(["AT", "MT", "TG"], [t.code for t in response.context["recommended_channels"]])
 
-        self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "T")
-        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "TMS")
-        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "NX")
-        self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "CT")
-        self.assertEqual(response.context["channel_types"]["PHONE"][4].code, "EX")
+        self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "CT")
+        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "EX")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "I2")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
         self.org.timezone = "Canada/Central"
         self.org.save()
@@ -739,16 +738,12 @@ class ChannelTest(TembaTest):
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertEqual(200, response.status_code)
 
-        self.assertEqual(len(response.context["recommended_channels"]), 3)
-        self.assertEqual(response.context["recommended_channels"][0].code, "T")
-        self.assertEqual(response.context["recommended_channels"][1].code, "TMS")
-        self.assertEqual(response.context["recommended_channels"][2].code, "NX")
+        self.assertEqual(["TG", "TMS", "T", "NX"], [t.code for t in response.context["recommended_channels"]])
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "CT")
         self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "EX")
         self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "I2")
-        self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "IB")
-        self.assertEqual(response.context["channel_types"]["PHONE"][4].code, "JS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
         with override_settings(ORG_LIMIT_DEFAULTS={"channels": 2}):
             response = self.client.get(reverse("channels.channel_claim"))
@@ -789,18 +784,18 @@ class ChannelTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # should see all channel types not for beta only and having a category
-        self.assertEqual(len(response.context["recommended_channels"]), 2)
+        self.assertEqual(["AT", "MT", "TG"], [t.code for t in response.context["recommended_channels"]])
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "AC")
-        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "T")
-        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "TMS")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-2].code, "YO")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "ZVS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "BM")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "BL")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "ZVW")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "TWA")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][3].code, "FBA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "DS")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "FBA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-2].code, "VK")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-1].code, "ZVW")
 
         self.admin.groups.add(Group.objects.get(name="Beta"))
 
@@ -808,19 +803,18 @@ class ChannelTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # should see all channel types having a category including beta only channel types
-        self.assertEqual(len(response.context["recommended_channels"]), 2)
+        self.assertEqual(["AT", "MT", "TG"], [t.code for t in response.context["recommended_channels"]])
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "AC")
-        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "T")
-        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "TMS")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-2].code, "YO")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "ZVS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "BM")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "BL")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "WA")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "WAC")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "D3")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][3].code, "ZVW")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][4].code, "TWA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "DS")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "FBA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-2].code, "WA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-1].code, "ZVW")
 
     def test_register_unsupported_android(self):
         # remove our explicit country so it needs to be derived from channels
