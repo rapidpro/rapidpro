@@ -714,60 +714,59 @@ class ExportTicketsTask(BaseExportTask):
             dict(label="Contact UUID", key="contact.uuid", field=None, urn_scheme=None),
         ]
 
-        # TODO
         # if the org is anon, get the contact id of the ticket
-        # if self.org.is_anon:
-        #     fields.append(dict(label="Contact ID", key="contact_id", field=None, urn_scheme=None))
-        fields.append(dict(label="Contact ID", key="contact_id", field=None, urn_scheme=None))
+        if self.org.is_anon:
+            fields.append(dict(label="Contact ID", key="contact_id", field=None, urn_scheme=None))
 
         fields.append(dict(label="URN Scheme", key="contact.urn.scheme", field=None, urn_scheme=None))
 
-        # TODO
         # if the org is NOT anon, get the urn value of the ticket
-        # if not self.org.is_anon:
-        #     fields.append(dict(label="URN Value", key="urn_value", field=None, urn_scheme=None))
-        fields.append(dict(label="URN Value", key="contact.urn.path", field=None, urn_scheme=None))
+        if not self.org.is_anon:
+            fields.append(dict(label="URN Value", key="contact.urn.path", field=None, urn_scheme=None))
 
         return fields
 
     def get_field_value(self, field: dict, ticket: Ticket):
-        if field["key"] == "uuid":
+        field_key = field["key"]
+
+        if field_key == "uuid":
             return ticket.uuid
-        elif field["key"] == "opened_on":
+        elif field_key == "opened_on":
             return ticket.opened_on
-        elif field["key"] == "closed_on":
+        elif field_key == "closed_on":
             return ticket.closed_on
-        elif field["key"] == "topic.name":
+        elif field_key == "topic.name":
             return ticket.topic.name if ticket.topic else None
-        elif field["key"] == "assignee.email":
+        elif field_key == "assignee.email":
             return ticket.assignee.email if ticket.assignee else None
-        elif field["key"] == "contact.uuid":
+        elif field_key == "contact.uuid":
             return ticket.contact.uuid if ticket.contact else None
-        elif field["key"] == "contact_id":
+        elif field_key == "contact_id":
             return ticket.contact_id
-        elif field["key"] == "contact.urn.scheme" or field["key"] == "contact.urn.path":            
+        elif field_key == "contact.urn.scheme" or field_key == "contact.urn.path":            
             ticket_contact_urn = {}
-            # get the urn(s) for the contact, ordered by max priority
+            
+            # get the urn(s) for the contact, ordered by (descending) max priority
             ticket_contact_urns = self.org.urns.filter(contact_id=ticket.contact_id).order_by('-priority').values()
+
             if(len(ticket_contact_urns) == 0):
                 # if there are zero urns, return None
                 return None
             elif(len(ticket_contact_urns) > 1):
-                # if there are multiple urns, get the urns for the max priority, ordered by min id
-                # TODO figure out why i'm getting an AttributeError: 'dict' object has no attribute 'priority'
-                max_priority = ticket_contact_urns[0].priority
+                # if there are multiple urns, get the urns for the max priority, ordered by (ascending) min id
+                ticket_contact_urn = ticket_contact_urns[0]
+                max_priority = ticket_contact_urn["priority"]
                 ticket_contact_urns_max_priority = ticket_contact_urns.filter(priority=max_priority).order_by('id').values()
                 ticket_contact_urn = ticket_contact_urns_max_priority[0]
             else:
                 ticket_contact_urn =  ticket_contact_urns[0]
-            # return the scheme or path value based on the key field
-            if field["key"] == "contact.urn.scheme":
-                # TODO figure out why i'm getting an AttributeError: 'dict' object has no attribute 'scheme'
-                scheme = 'tel' # ticket_contact_urn.get('scheme') # ticket_contact_urn['scheme'] # ticket_contact_urn.scheme
+            
+            # return the urn scheme or path value based on the key field
+            if field_key == "contact.urn.scheme":
+                scheme = ticket_contact_urn["scheme"]
                 return scheme
-            elif field["key"] == "contact.urn.path":
-                # TODO figure out why i'm getting an AttributeError: 'dict' object has no attribute 'path'
-                path = '+250701234567' # ticket_contact_urn.get('path') # ticket_contact_urn['path'] # ticket_contact_urn.path
+            elif field_key == "contact.urn.path":
+                path = ticket_contact_urn["path"]
                 return path
             else:
                 return None
