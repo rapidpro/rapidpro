@@ -11,7 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import CheckboxWidget, DateWidget, InputWidget, SelectMultipleWidget, SelectWidget
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,8 @@ class ComponentFormMixin(View):
 
         # don't replace the widget if it is already one of us
         if isinstance(
-            field.widget, (forms.widgets.HiddenInput, CheckboxWidget, InputWidget, SelectWidget, SelectMultipleWidget)
+            field.widget,
+            (forms.widgets.HiddenInput, CheckboxWidget, InputWidget, SelectWidget, SelectMultipleWidget, DateWidget),
         ):
             return field
 

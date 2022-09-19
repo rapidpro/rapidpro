@@ -15,13 +15,8 @@
     .fixed-wrapper(style="position:fixed;width:362px;margin-left:200px;margin-top:-10px")
       %temba-charcount
 
-
-    -if form.schedule
-      -render_field 'schedule'
-
     -if form.step_node
       -render_field 'step_node'
-  
 
     -if recipient_count
       -blocktrans trimmed count recipient_count as recipients
@@ -39,10 +34,6 @@
   {{ block.super }}
 
   :css
-    temba-checkbox {
-      width: 50%;
-    }
-    
     temba-completion {
       --textarea-height: 110px;
     }

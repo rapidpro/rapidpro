@@ -12,7 +12,7 @@
         -trans "Send History"
     %table.list(style='{% if not org_perms.msgs.broadcast_send %}margin-top:10px{% endif %}')
       %tbody
-        -for object in object_list
+        -for object in send_history
           %tr
             %td
               -with recipient_count=object.get_message_count

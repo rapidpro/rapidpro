@@ -35,11 +35,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = Form
 
     def form_valid(self, form):
-        user = self.request.user
-        org = user.get_org()
-
         data = form.cleaned_data
-
         config = {
             Channel.CONFIG_USERNAME: data["username"],
             Channel.CONFIG_PASSWORD: data["password"],
@@ -47,8 +43,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
 
         self.object = Channel.create(
-            org,
-            user,
+            self.request.org,
+            self.request.user,
             data["country"],
             self.channel_type,
             name="DMark Mobile: %s" % data["shortcode"],

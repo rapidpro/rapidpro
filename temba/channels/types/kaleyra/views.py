@@ -29,21 +29,15 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         from .type import CONFIG_ACCOUNT_SID, CONFIG_API_KEY
 
-        user = self.request.user
-        org = user.get_org()
-
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         data = form.cleaned_data
-
         config = {
             CONFIG_ACCOUNT_SID: data["account_sid"],
             CONFIG_API_KEY: data["api_key"],
         }
+
         self.object = Channel.create(
-            org,
-            user,
+            self.request.org,
+            self.request.user,
             data["country"],
             "KWA",
             name="Kaleyra WhatsApp: %s" % data["number"],

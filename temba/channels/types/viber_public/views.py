@@ -25,7 +25,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = Form
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
+        org = self.request.org
         auth_token = form.cleaned_data["auth_token"]
 
         response = requests.post("https://chatapi.viber.com/pa/get_account_info", json={"auth_token": auth_token})
