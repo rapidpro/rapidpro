@@ -827,14 +827,13 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.channel.role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
         self.channel.save()
 
-        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_VOICE)
-        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
-        flow3 = self.create_flow("Flow 3", flow_type=Flow.TYPE_MESSAGE)
+        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
+        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_MESSAGE)
 
         # flows that shouldn't appear as options
-        self.create_flow("Flow 4", flow_type=Flow.TYPE_BACKGROUND)
-        self.create_flow("Flow 5", is_system=True)
-        self.create_flow("Flow 6", org=self.org2)
+        self.create_flow("Flow 3", flow_type=Flow.TYPE_VOICE)
+        self.create_flow("Flow 4", is_system=True)
+        self.create_flow("Flow 5", org=self.org2)
 
         create_url = reverse("triggers.trigger_create_missed_call")
 
@@ -843,7 +842,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # flow options should be messaging and voice flows
-        self.assertEqual([flow1, flow2, flow3], list(response.context["form"].fields["flow"].queryset))
+        self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
 
         self.assertCreateSubmit(
             create_url,
