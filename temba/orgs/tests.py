@@ -3482,9 +3482,10 @@ class AnonOrgTest(TembaTest):
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_spa(self):
-        self.admin.is_staff = True
-        self.admin.save()
+        Group.objects.get(name="Beta").user_set.add(self.admin)
+
         self.login(self.admin)
+
         deep_link = reverse("spa.level_2", args=["tickets", "all", "open"])
         response = self.client.get(deep_link)
         self.assertEqual(200, response.status_code)
