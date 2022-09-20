@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("channels", "0148_alter_channelconnection_connection_type"),
+        ("channels", "0149_remove_channellog_description_and_more"),
     ]
 
     operations = [
