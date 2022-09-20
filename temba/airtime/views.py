@@ -78,5 +78,5 @@ class AirtimeCRUDL(SmartCRUDL):
             user = self.request.user
 
             context = super().get_context_data(**kwargs)
-            context["show_logs"] = not org.is_anon or user.is_superuser or user.is_staff
+            context["show_logs"] = not org.is_anon or user.is_staff
             return context

@@ -10,7 +10,7 @@ from urllib.parse import quote
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
 from django.core import mail
 from django.template import loader
 from django.test import RequestFactory
@@ -19,9 +19,10 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
 
+from temba.channels.models import ChannelConnection
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
-from temba.ivr.models import IVRCall
+from temba.flows.models import FlowSession
 from temba.msgs.models import Msg
 from temba.orgs.models import Org, OrgRole
 from temba.request_logs.models import HTTPLog
@@ -388,12 +389,6 @@ class ChannelTest(TembaTest):
         response = self.client.get(reverse("channels.channel_list"))
         self.assertRedirect(response, reverse("channels.channel_claim"))
 
-        # unless you're a superuser
-        self.login(self.superuser)
-        response = self.client.get(reverse("channels.channel_list"))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context["object_list"]), [])
-
         # re-activate one of the channels so org has a single channel
         self.tel_channel.is_active = True
         self.tel_channel.save()
@@ -402,12 +397,6 @@ class ChannelTest(TembaTest):
         self.login(self.user)
         response = self.client.get(reverse("channels.channel_list"))
         self.assertRedirect(response, reverse("channels.channel_read", args=[self.tel_channel.uuid]))
-
-        # unless you're a superuser
-        self.login(self.superuser)
-        response = self.client.get(reverse("channels.channel_list"))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context["object_list"]), [self.tel_channel])
 
         # re-activate other channel so org now has two channels
         self.twitter_channel.is_active = True
@@ -431,13 +420,6 @@ class ChannelTest(TembaTest):
         # visit page as a viewer
         self.login(self.user)
         response = self.client.get("/", follow=True)
-        self.assertNotIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
-        self.assertNotIn("delayed_syncevents", response.context, msg="Found delayed_syncevents in context")
-
-        # visit page as superuser
-        self.login(self.superuser)
-        response = self.client.get("/", follow=True)
-        # superusers doesn't have orgs thus cannot have both values
         self.assertNotIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
         self.assertNotIn("delayed_syncevents", response.context, msg="Found delayed_syncevents in context")
 
@@ -635,8 +617,10 @@ class ChannelTest(TembaTest):
         self.assertIn("delayed_sync_event", response.context_data.keys())
         self.assertIn("unsent_msgs_count", response.context_data.keys())
 
-        # with superuser
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
+        # as staff
+        response = self.fetch_protected(
+            reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.customer_support
+        )
         self.assertEqual(200, response.status_code)
 
         # now that we can access the channel, which messages do we display in the chart?
@@ -662,7 +646,7 @@ class ChannelTest(TembaTest):
         self.create_outgoing_msg(joe, "This outgoing message will be counted", channel=self.tel_channel)
 
         # now we have an inbound message and two outbounds
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
+        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
         self.assertEqual(200, response.status_code)
         self.assertEqual(1, response.context["message_stats"][0]["data"][-1]["count"])
 
@@ -683,7 +667,7 @@ class ChannelTest(TembaTest):
         # now let's create an ivr interaction
         self.create_incoming_msg(joe, "incoming ivr", channel=self.tel_channel, msg_type=Msg.TYPE_IVR)
         self.create_outgoing_msg(joe, "outgoing ivr", channel=self.tel_channel, msg_type=Msg.TYPE_IVR)
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
+        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
 
         self.assertEqual(4, len(response.context["message_stats"]))
         self.assertEqual(1, response.context["message_stats"][2]["data"][0]["count"])
@@ -740,14 +724,13 @@ class ChannelTest(TembaTest):
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertEqual(200, response.status_code)
 
-        # one recommended channel (Mtarget in Rwanda)
-        self.assertEqual(len(response.context["recommended_channels"]), 2)
+        # 3 recommended channels for Rwanda
+        self.assertEqual(["AT", "MT", "TG"], [t.code for t in response.context["recommended_channels"]])
 
-        self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "T")
-        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "TMS")
-        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "NX")
-        self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "CT")
-        self.assertEqual(response.context["channel_types"]["PHONE"][4].code, "EX")
+        self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "CT")
+        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "EX")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "I2")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
         self.org.timezone = "Canada/Central"
         self.org.save()
@@ -755,16 +738,12 @@ class ChannelTest(TembaTest):
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertEqual(200, response.status_code)
 
-        self.assertEqual(len(response.context["recommended_channels"]), 3)
-        self.assertEqual(response.context["recommended_channels"][0].code, "T")
-        self.assertEqual(response.context["recommended_channels"][1].code, "TMS")
-        self.assertEqual(response.context["recommended_channels"][2].code, "NX")
+        self.assertEqual(["TG", "TMS", "T", "NX"], [t.code for t in response.context["recommended_channels"]])
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "CT")
         self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "EX")
         self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "I2")
-        self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "IB")
-        self.assertEqual(response.context["channel_types"]["PHONE"][4].code, "JS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
         with override_settings(ORG_LIMIT_DEFAULTS={"channels": 2}):
             response = self.client.get(reverse("channels.channel_claim"))
@@ -805,18 +784,18 @@ class ChannelTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # should see all channel types not for beta only and having a category
-        self.assertEqual(len(response.context["recommended_channels"]), 2)
+        self.assertEqual(["AT", "MT", "TG"], [t.code for t in response.context["recommended_channels"]])
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "AC")
-        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "T")
-        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "TMS")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-2].code, "YO")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "ZVS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "BM")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "BL")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "ZVW")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "TWA")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][3].code, "FBA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "DS")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "FBA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-2].code, "VK")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-1].code, "ZVW")
 
         self.admin.groups.add(Group.objects.get(name="Beta"))
 
@@ -824,19 +803,18 @@ class ChannelTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # should see all channel types having a category including beta only channel types
-        self.assertEqual(len(response.context["recommended_channels"]), 2)
+        self.assertEqual(["AT", "MT", "TG"], [t.code for t in response.context["recommended_channels"]])
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "AC")
-        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "T")
-        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "TMS")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-2].code, "YO")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "ZVS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "BM")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "BL")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "WA")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "WAC")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "D3")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][3].code, "ZVW")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][4].code, "TWA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "DS")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "FBA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-2].code, "WA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-1].code, "ZVW")
 
     def test_register_unsupported_android(self):
         # remove our explicit country so it needs to be derived from channels
@@ -1567,7 +1545,6 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
 
 class SyncEventTest(SmartminTest):
     def setUp(self):
-        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
         self.user = self.create_user("tito")
         self.org = Org.objects.create(
             name="Temba", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user
@@ -1605,6 +1582,28 @@ class SyncEventTest(SmartminTest):
 
         # we shouldn't update country once the relayer is claimed
         self.assertEqual("RW", self.tel_channel.country)
+
+
+class ChannelConnectionTest(TembaTest):
+    def test_release(self):
+        flow = self.get_flow("ivr")
+        contact = self.create_contact("Jose", phone="+12065552000")
+
+        call1 = self.create_incoming_call(flow, contact)
+        call2 = self.create_incoming_call(flow, contact)
+
+        self.assertEqual(FlowSession.objects.count(), 2)
+        self.assertEqual(call1.channel_logs.count(), 1)
+        self.assertEqual(call2.channel_logs.count(), 1)
+
+        call2.release()
+
+        self.assertEqual(FlowSession.objects.count(), 1)
+
+        # call #1 unaffected
+        self.assertEqual(call1.channel_logs.count(), 1)
+        self.assertEqual(call2.channel_logs.count(), 0)
+        self.assertFalse(ChannelConnection.objects.filter(id=call2.id).exists())
 
 
 class ChannelAlertTest(TembaTest):
@@ -2218,7 +2217,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         call = self.create_incoming_call(ivr_flow, contact)
 
         # create failed call with an interaction log
-        self.create_incoming_call(ivr_flow, contact, status=IVRCall.STATUS_FAILED)
+        self.create_incoming_call(ivr_flow, contact, status=ChannelConnection.STATUS_FAILED)
 
         # create log for other org
         other_org_contact = self.create_contact("Hans", phone="+593979123456")
@@ -2310,7 +2309,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # if duration isn't set explicitly, it can be calculated
         call.started_on = datetime(2019, 8, 12, 11, 4, 0, 0, timezone.utc)
-        call.status = IVRCall.STATUS_IN_PROGRESS
+        call.status = ChannelConnection.STATUS_IN_PROGRESS
         call.duration = None
         call.save(update_fields=("started_on", "status", "duration"))
 
@@ -3026,49 +3025,40 @@ class CourierTest(TembaTest):
         self.assertEqual(response.content, b"this URL should be mapped to a Courier instance")
 
 
-class DropLegacyLogsMigrationTest(MigrationTest):
+class RemoveNonIVRConnectionsMigrationTest(MigrationTest):
     app = "channels"
-    migrate_from = "0144_channelconnection_log_uuids"
-    migrate_to = "0145_drop_legacy_logs"
+    migrate_from = "0146_alter_channellog_elapsed_ms_and_more"
+    migrate_to = "0147_remove_non_ivr_connections"
 
     def setUpBeforeMigration(self, apps):
-        Channel = apps.get_model("channels", "Channel")
-        ChannelLog = apps.get_model("channels", "ChannelLog")
+        contact = self.create_contact("Bob", phone="+1234567890")
 
-        channel = Channel.objects.create(
-            org_id=self.org.id,
-            channel_type="T",
-            created_by_id=self.admin.id,
-            modified_by_id=self.admin.id,
+        self.connection1 = ChannelConnection.objects.create(
+            org=self.org,
+            channel=self.channel,
+            contact=contact,
+            contact_urn=contact.urns.get(),
+            status=ChannelConnection.STATUS_WIRED,
+            connection_type="V",  # current code for IVR
         )
-
-        self.new_log = ChannelLog.objects.create(
-            uuid="0e853ebf-1347-4d00-8ee6-9c1043e32907",
-            channel=channel,
-            log_type="msg_send",
-            is_error=False,
-            http_logs=[
-                {
-                    "url": "https://api.telegram.org/65474/sendMessage",
-                    "status_code": 200,
-                    "request": "POST /65474/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nchat_id=3527065&reply_markup=%7B%22resize_keyboard%22%3Atrue%2C%22one_time_keyboard%22%3Atrue%2C%22keyboard%22%3A%5B%5B%7B%22text%22%3A%22blackjack%22%7D%2C%7B%22text%22%3A%22balance%22%7D%5D%5D%7D&text=Your+balance+is+now+%246.00.",
-                    "response": 'HTTP/1.1 200 OK\r\nContent-Length: 298\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: Content-Length,Content-Type,Date,Server,Connection\r\nConnection: keep-alive\r\nContent-Type: application/json\r\nDate: Tue, 11 Jun 2019 15:33:06 GMT\r\nServer: nginx/1.12.2\r\nStrict-Transport-Security: max-age=31536000; includeSubDomains; preload\r\n\r\n{"ok":true,"result":{"message_id":1440,"from":{"id":678777066,"is_bot":true,"first_name":"textit_staging","username":"textit_staging_bot"},"chat":{"id":3527065,"first_name":"Nic","last_name":"Pottier","username":"Nicpottier","type":"private"},"date":1560267186,"text":"Your balance is now $6.00."}}',
-                    "elapsed_ms": 12,
-                    "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
-                }
-            ],
+        self.connection2 = ChannelConnection.objects.create(
+            org=self.org,
+            channel=self.channel,
+            contact=contact,
+            contact_urn=contact.urns.get(),
+            status=ChannelConnection.STATUS_COMPLETED,
+            connection_type="F",  # legacy code for IVR
         )
-        self.legacy_log = ChannelLog.objects.create(
-            channel=channel,
-            description="Message Sent",
-            is_error=False,
-            url="https://api.telegram.org/65474/sendMessage",
-            response_status=200,
-            request="POST /65474/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nchat_id=3527065&reply_markup=%7B%22resize_keyboard%22%3Atrue%2C%22one_time_keyboard%22%3Atrue%2C%22keyboard%22%3A%5B%5B%7B%22text%22%3A%22blackjack%22%7D%2C%7B%22text%22%3A%22balance%22%7D%5D%5D%7D&text=Your+balance+is+now+%246.00.",
-            response='HTTP/1.1 200 OK\r\nContent-Length: 298\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: Content-Length,Content-Type,Date,Server,Connection\r\nConnection: keep-alive\r\nContent-Type: application/json\r\nDate: Tue, 11 Jun 2019 15:33:06 GMT\r\nServer: nginx/1.12.2\r\nStrict-Transport-Security: max-age=31536000; includeSubDomains; preload\r\n\r\n{"ok":true,"result":{"message_id":1440,"from":{"id":678777066,"is_bot":true,"first_name":"textit_staging","username":"textit_staging_bot"},"chat":{"id":3527065,"first_name":"Nic","last_name":"Pottier","username":"Nicpottier","type":"private"},"date":1560267186,"text":"Your balance is now $6.00."}}',
+        self.connection3 = ChannelConnection.objects.create(
+            org=self.org,
+            channel=self.channel,
+            contact=contact,
+            contact_urn=contact.urns.get(),
+            status=ChannelConnection.STATUS_ERRORED,
+            connection_type="U",
         )
 
     def test_migration(self):
-        self.assertTrue(ChannelLog.objects.filter(id=self.new_log.id).exists())
-        self.assertFalse(ChannelLog.objects.filter(id=self.legacy_log.id).exists())
+        self.assertTrue(ChannelConnection.objects.filter(id=self.connection1.id).exists())
+        self.assertTrue(ChannelConnection.objects.filter(id=self.connection2.id).exists())
+        self.assertFalse(ChannelConnection.objects.filter(id=self.connection3.id).exists())

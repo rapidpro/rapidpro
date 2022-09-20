@@ -22,11 +22,10 @@ from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.channels.models import Channel, ChannelConnection, ChannelEvent, ChannelLog
 from temba.contacts.search import SearchException, search_contacts
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowSession, FlowStart
-from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modifiers
 from temba.msgs.models import Broadcast, Msg, SystemLabel
@@ -2443,10 +2442,10 @@ class ContactTest(TembaTest):
         )
 
         # try adding some failed calls
-        call = IVRCall.objects.create(
+        call = ChannelConnection.objects.create(
             contact=self.joe,
-            status=IVRCall.STATUS_ERRORED,
-            error_reason=IVRCall.ERROR_NOANSWER,
+            status=ChannelConnection.STATUS_ERRORED,
+            error_reason=ChannelConnection.ERROR_NOANSWER,
             channel=self.channel,
             org=self.org,
             contact_urn=self.joe.urns.all().first(),
@@ -2593,13 +2592,6 @@ class ContactTest(TembaTest):
         # invalid UUID should return 404
         response = self.client.get(reverse("contacts.contact_history", args=["bad-uuid"]))
         self.assertEqual(response.status_code, 404)
-
-        # super users can view history of any contact
-        response = self.fetch_protected(url + "?limit=90", self.superuser)
-        self.assertEqual(90, len(response.context["events"]))
-
-        response = self.fetch_protected(reverse("contacts.contact_history", args=[hans.uuid]), self.superuser)
-        self.assertEqual(0, len(response.context["events"]))
 
         # add a new run
         (
@@ -2951,7 +2943,7 @@ class ContactTest(TembaTest):
 
         contact_no_name = self.create_contact(name=None, phone="678")
         read_url = reverse("contacts.contact_read", args=[contact_no_name.uuid])
-        response = self.fetch_protected(read_url, self.superuser)
+        response = self.fetch_protected(read_url, self.customer_support)
         self.assertEqual(contact_no_name, response.context["object"])
         self.client.logout()
 
@@ -3003,11 +2995,11 @@ class ContactTest(TembaTest):
         response = self.client.get(reverse("contacts.contact_read", args=["bad-uuid"]))
         self.assertEqual(response.status_code, 404)
 
-        # super users can view history of any contact
-        response = self.fetch_protected(reverse("contacts.contact_read", args=[self.joe.uuid]), self.superuser)
+        # staff can view history of any contact
+        response = self.fetch_protected(reverse("contacts.contact_read", args=[self.joe.uuid]), self.customer_support)
         self.assertEqual(response.status_code, 200)
         response = self.fetch_protected(
-            reverse("contacts.contact_read", args=[self.other_org_contact.uuid]), self.superuser
+            reverse("contacts.contact_read", args=[self.other_org_contact.uuid]), self.customer_support
         )
         self.assertEqual(response.status_code, 200)
 

@@ -135,7 +135,7 @@ class OrgMiddleware:
             org = Org.objects.filter(is_active=True, id=org_id).first()
 
             # only use if user actually belongs to this org
-            if org and (user.is_superuser or user.is_staff or org.has_user(user)):
+            if org and (user.is_staff or org.has_user(user)):
                 return org
 
         # otherwise if user only belongs to one org, we can use that
@@ -178,7 +178,7 @@ class LanguageMiddleware:
 
         user = request.user
 
-        if not user.is_authenticated or user.is_superuser:
+        if not user.is_authenticated:
             language = request.branding.get("language", settings.DEFAULT_LANGUAGE)
             translation.activate(language)
         else:

@@ -147,9 +147,6 @@ class OrgPermsMixin:
         if self.get_user().is_staff and self.org:
             return True
 
-        if self.get_user().is_superuser:
-            return True
-
         if self.get_user().is_anonymous:
             return False
 
@@ -1409,7 +1406,7 @@ class OrgCRUDL(SmartCRUDL):
                     }
                 )
 
-            if self.request.user.is_staff or self.request.user.is_superuser:
+            if self.request.user.is_staff:
                 menu.append(
                     self.create_menu_item(
                         menu_id="staff",
@@ -2686,10 +2683,7 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             if user.is_authenticated:
                 user_orgs = self.get_user_orgs()
-                if user.is_superuser:
-                    return HttpResponseRedirect(reverse("orgs.org_manage"))
-
-                elif user_orgs.count() == 1:
+                if user_orgs.count() == 1:
                     org = user_orgs[0]
                     self.request.session["org_id"] = org.id
                     self.request.org = org

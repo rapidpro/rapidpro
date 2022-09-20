@@ -44,7 +44,6 @@ from temba.utils.fields import SelectWidget
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
-from ..ivr.models import IVRCall
 from .models import (
     Alert,
     Channel,
@@ -66,11 +65,11 @@ def get_channel_read_url(channel):
 
 
 def channel_status_processor(request):
-    status = dict()
+    status = {}
     user = request.user
     org = request.org
 
-    if user.is_superuser or user.is_anonymous:
+    if user.is_anonymous:
         return status
 
     allowed = False
@@ -1381,23 +1380,11 @@ class ChannelCRUDL(SmartCRUDL):
             return reverse("channels.channel_read", args=[obj.uuid])
 
         def get_queryset(self, **kwargs):
-            queryset = super().get_queryset(**kwargs)
-
-            # org users see channels for their org, superuser sees all
-            if not self.request.user.is_superuser:
-                org = self.request.org
-                queryset = queryset.filter(org=org)
-
-            return queryset.filter(is_active=True)
+            return super().get_queryset(**kwargs).filter(org=self.request.org, is_active=True)
 
         def pre_process(self, *args, **kwargs):
-            # superuser sees things as they are
-            if self.request.user.is_superuser:
-                return super().pre_process(*args, **kwargs)
-
             # everybody else goes to a different page depending how many channels there are
-            org = self.request.org
-            channels = list(Channel.objects.filter(org=org, is_active=True))
+            channels = list(self.request.org.channels.filter(is_active=True).only("uuid"))
 
             if len(channels) == 0:
                 return HttpResponseRedirect(reverse("channels.channel_claim"))
@@ -1564,7 +1551,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         @cached_property
         def call(self):
-            return get_object_or_404(IVRCall, pk=self.kwargs["call_id"])
+            return get_object_or_404(ChannelConnection, pk=self.kwargs["call_id"])
 
         def build_content_menu(self, menu):
             menu.add_link(

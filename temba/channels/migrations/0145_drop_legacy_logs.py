@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def drop_legacy_logs(apps, schema_editor):
+def drop_legacy_logs(apps, schema_editor):  # pragma: no cover
     ChannelLog = apps.get_model("channels", "ChannelLog")
 
     num_deleted = 0
@@ -17,7 +17,7 @@ def drop_legacy_logs(apps, schema_editor):
         print(f" > Deleted {num_deleted} legacy channel logs")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

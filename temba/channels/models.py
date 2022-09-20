@@ -1652,11 +1652,8 @@ def get_alert_user():
 
 class ChannelConnection(models.Model):
     """
-    Base for IVR sessions which require a connection to specific channel
+    An IVR call
     """
-
-    TYPE_VOICE = "V"
-    TYPE_CHOICES = ((TYPE_VOICE, "Voice"),)
 
     DIRECTION_IN = "I"
     DIRECTION_OUT = "O"
@@ -1690,8 +1687,10 @@ class ChannelConnection(models.Model):
         (ERROR_MACHINE, _("Answering Machine")),  # the call went to an answering machine
     )
 
+    RETRY_CHOICES = ((-1, _("Never")), (30, _("After 30 minutes")), (60, _("After 1 hour")), (1440, _("After 1 day")))
+
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
-    connection_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
+    connection_type = models.CharField(max_length=1, default="V", null=True)
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
@@ -1711,19 +1710,6 @@ class ChannelConnection(models.Model):
     next_attempt = models.DateTimeField(null=True)
 
     log_uuids = ArrayField(models.UUIDField(), null=True)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        """ Since the FK is bound to ChannelConnection, when it initializes an instance from
-        DB we need to specify the class based on `connection_type` so we can access
-        all the methods the proxy model implements. """
-
-        if type(self) is ChannelConnection:
-            if self.connection_type == self.TYPE_VOICE:
-                from temba.ivr.models import IVRCall
-
-                self.__class__ = IVRCall
 
     def get_duration(self):
         """
@@ -1769,8 +1755,8 @@ class ChannelConnection(models.Model):
         indexes = [
             # used by mailroom to fetch calls that need to be retried
             models.Index(
-                name="channelconnection_ivr_to_retry",
+                name="channelconnection_to_retry",
                 fields=["next_attempt"],
-                condition=Q(connection_type="V", status__in=("Q", "E"), next_attempt__isnull=False),
+                condition=Q(status__in=("Q", "E"), next_attempt__isnull=False),
             )
         ]
