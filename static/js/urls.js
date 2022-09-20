@@ -32,7 +32,7 @@ window.urls = [
   { old: /\/org\/update\/(.*)/,                          new: /\/staff\/workspaces\/(.*)\/update/ },
 ];
 
-window.mapUrl = function (path, reverse) {  
+window.mapUrl = function (path, reverse) {
   var findDirection = reverse ? 'new' : 'old';
   var replaceDirection = reverse ? 'old' : 'new';
   for (var mapping of urls) {
