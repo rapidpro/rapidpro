@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("ivr", "0020_add_call"),
-        ("channels", "0148_alter_channelconnection_connection_type"),
+        ("channels", "0150_remove_channelconnection_connection_type"),
     ]
 
     operations = [
