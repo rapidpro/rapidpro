@@ -1088,10 +1088,8 @@ class FlowSession(models.Model):
     # the modality of this session
     session_type = models.CharField(max_length=1, choices=Flow.TYPE_CHOICES, default=Flow.TYPE_MESSAGE)
 
-    # the channel connection used for flow sessions over IVR
-    connection = models.OneToOneField(
-        "channels.ChannelConnection", on_delete=models.PROTECT, null=True, related_name="session"
-    )
+    # the call used for flow sessions over IVR
+    call = models.OneToOneField("ivr.Call", on_delete=models.PROTECT, null=True, related_name="session")
 
     # whether the contact has responded in this session
     responded = models.BooleanField(default=False)
@@ -1112,6 +1110,11 @@ class FlowSession(models.Model):
 
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
+
+    # deprecated
+    connection = models.OneToOneField(
+        "channels.ChannelConnection", on_delete=models.PROTECT, null=True, related_name="session"
+    )
 
     @property
     def output_json(self):
@@ -2031,8 +2034,8 @@ class FlowStart(models.Model):
         "campaigns.CampaignEvent", null=True, on_delete=models.PROTECT, related_name="flow_starts"
     )
 
-    # any channel connections associated with this flow start
-    connections = models.ManyToManyField(ChannelConnection, related_name="starts")
+    # any IVR calls associated with this flow start
+    calls = models.ManyToManyField("ivr.Call", related_name="starts")
 
     # the current status of this flow start
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
@@ -2059,6 +2062,9 @@ class FlowStart(models.Model):
 
     # the number of de-duped contacts that might be started, depending on options above
     contact_count = models.IntegerField(default=0, null=True)
+
+    # deprecated
+    connections = models.ManyToManyField(ChannelConnection, related_name="starts")
 
     @classmethod
     def create(
