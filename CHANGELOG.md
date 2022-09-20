@@ -1,3 +1,9 @@
+v7.5.50
+----------
+ * Drop no-longer used ChannelLog fields
+ * Drop Msg.logs (replaced by .log_uuids)
+ * Drop ChannelConnection.connection_type
+
 v7.5.49
 ----------
  * Fix test failing because python version changed
