@@ -1,6 +1,8 @@
 from datetime import date
 from unittest.mock import patch
+from openpyxl import load_workbook
 
+from django.conf import settings
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -10,6 +12,7 @@ from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 
 from .models import (
+    ExportTicketsTask,
     Team,
     Ticket,
     TicketCount,
@@ -506,7 +509,99 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             f"attachment; filename=ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx",
             response["Content-Disposition"],
         )
+    
+    def test_ticket_export_content_menu(self):
+        list_url = reverse("tickets.ticket_list")
+        self.assertContentMenu(list_url, self.user, ["Export"])
 
+    def test_ticket_export_request(self):
+        export_url = reverse("tickets.ticket_export")
+        self.login(self.admin)
+        response = self.client.get(export_url)
+        task = ExportTicketsTask.objects.all().order_by("-id").first()
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("application/ms-excel", response["Content-Type"])
+        self.assertEqual(f"attachment; filename={task.uuid}.xlsx", response["Content-Disposition"])
+
+    def test_ticket_export_org_columns(self):
+        # TODO do we need this?
+        self.clear_storage()
+        self.login(self.admin)
+
+        # get an anon org
+        org = self.orgs.filter(is_anon=False).first()        
+        # TODO how to "set" self to the org?
+        self.org = org
+        
+        # check results of sheet in workbook
+        export = self.request_ticket_export()
+        self.assertExcelSheet(
+            export[0],
+            [
+                # all columns except for "Contact ID" should be visible
+                # ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme","URN Value"],
+                ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "URN Scheme", "URN Value"]
+            ],
+            tz=org.timezone,
+        )
+
+    def test_ticket_export_anon_org_columns(self):
+        # TODO do we need this?
+        self.clear_storage()
+        self.login(self.admin)
+
+        # get an anon org
+        anon_org = self.orgs.filter(is_anon=True).first()        
+        # TODO how to "set" self to the org?
+        self.org = anon_org
+
+        # check results of sheet in workbook
+        export = self.request_ticket_export()
+        self.assertExcelSheet(
+            export[0],
+            [
+                # all columns except for "URN Value" should be visible
+                # ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme","URN Value"],
+                ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme"]
+            ],
+            tz=anon_org.timezone,
+        )
+
+    def test_ticket_export_rows(self):
+        # TODO do we need this?
+        self.clear_storage()
+        self.login(self.admin)
+        
+        # create a ticketer
+        # TODO self.user vs. self.admin ?
+        ticketer = Ticketer.create(self.org, self.admin, "internal", "Internal", {})
+        # create a topic
+        topic = Topic.create(self.org, self.admin, "General")
+        # create an assignee
+        # TODO self.user vs. self.admin ?
+        assignee = self.admin
+        # create some contacts...
+        # create a contact with one set of urns
+        contact_jamie = self.create_contact("Jamie Tartt", urns=["twitter:jamietarttshark"], fields={"gender": "Male", "age": 25})
+        # create a contact with multiple urns
+        contact_roy = self.create_contact("Roy Kent", urns=["tel:+1234567890","twitter:roykent"], fields={"gender": "Male", "age": 41})
+        # TODO create a contact with multiple urns that have the same max priority
+        # create some tickets...
+        # create an open ticket
+        self.create_ticket(ticketer, contact_jamie, body="Hi", topic=topic, assignee=self.admin, opened_on=timezone.now())
+        # create a closed ticket
+        self.create_ticket(ticketer, contact_roy, body="Hi", topic=topic, assignee=self.admin, opened_on=timezone.now(), closed_on=timezone.now())
+        # TODO create a ticket for another org
+
+        # check results of sheet in workbook
+
+    def request_ticket_export(self, query=""):
+        export_url = reverse("tickets.ticket_export")
+        self.client.post(export_url + query)
+        task = ExportTicketsTask.objects.all().order_by("-id").first()
+        filename = "%s/test_orgs/%d/ticket_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
+        workbook = load_workbook(filename=filename)
+        return workbook.worksheets
 
 class TicketerTest(TembaTest):
     @patch("temba.mailroom.client.MailroomClient.ticket_close")
