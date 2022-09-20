@@ -72,7 +72,7 @@ class Call(models.Model):
 
     log_uuids = ArrayField(models.UUIDField(), null=True)
 
-    def get_duration(self):
+    def get_duration(self) -> timedelta:
         """
         Either gets the set duration as reported by provider, or tries to calculate it
         """
@@ -84,7 +84,7 @@ class Call(models.Model):
         return timedelta(seconds=duration)
 
     @property
-    def status_display(self):
+    def status_display(self) -> str:
         """
         Gets the status/error_reason as display text, e.g. Wired, Errored (No Answer)
         """
@@ -95,7 +95,7 @@ class Call(models.Model):
 
     def get_session(self):
         """
-        There is a one-to-one relationship between flow sessions and connections, but as call can be null
+        There is a one-to-one relationship between flow sessions and call, but as call can be null
         it can throw an exception
         """
         try:
