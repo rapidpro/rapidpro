@@ -907,7 +907,7 @@ class ContactCRUDL(SmartCRUDL):
                 if obj.status != Contact.STATUS_ARCHIVED and self.has_org_perm("contacts.contact_archive"):
                     menu.add_url_post(_("Archive"), reverse("contacts.contact_archive", args=(obj.id,)))
 
-            if self.request.user.is_superuser or self.request.user.is_staff:
+            if self.request.user.is_staff:
                 menu.add_url_post(
                     _("Service"),
                     f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("contacts.contact_read", args=[obj.uuid])}',

@@ -33,12 +33,11 @@ from django.views.generic import FormView
 
 from temba import mailroom
 from temba.archives.models import Archive
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelConnection
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.contacts.search import SearchException, parse_query
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task, update_session_wait_expires
-from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import (
@@ -528,7 +527,7 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Retry call if unable to connect"),
                 help_text=_("Retries call three times for the chosen interval"),
                 initial=60,
-                choices=IVRCall.RETRY_CHOICES,
+                choices=ChannelConnection.RETRY_CHOICES,
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
             expires_after_minutes = forms.ChoiceField(
@@ -972,7 +971,7 @@ class FlowCRUDL(SmartCRUDL):
                 context["can_start"] = False
                 context["can_simulate"] = False
             else:
-                context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
+                context["mutable"] = self.has_org_perm("flows.flow_update")
                 context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
                 context["can_simulate"] = True
 
@@ -1056,8 +1055,7 @@ class FlowCRUDL(SmartCRUDL):
                 if self.has_org_perm("flows.flow_import_translation"):
                     menu.add_link(_("Import Translation"), reverse("flows.flow_import_translation", args=[obj.id]))
 
-            user = self.get_user()
-            if user.is_superuser or user.is_staff:
+            if self.request.user.is_staff:
                 menu.add_url_post(
                     _("Service"),
                     f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("flows.flow_editor", args=[obj.uuid])}',
