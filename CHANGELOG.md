@@ -1,3 +1,12 @@
+v7.5.49
+----------
+ * Fix test failing because python version changed
+ * Allow background flows for missed call triggers
+ * Different show url for spa and non-spa tickets
+ * Update editor to include fix for localizing categories for some splits
+ * Add data migration to delete existing missed call triggers for non-message flows
+ * Restrict Missed Call triggers to messaging flows
+
 v7.5.48
 ----------
  * Stop recommending Android, always recommend Telegram
