@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def remove_non_ivr_connections(apps, schema_editor):
+def remove_non_ivr_connections(apps, schema_editor):  # pragma: no cover
     ChannelConnection = apps.get_model("channels", "ChannelConnection")
 
     num_deleted = 0
@@ -20,7 +20,7 @@ def remove_non_ivr_connections(apps, schema_editor):
         print(f"Deleted {num_deleted} non-IVR channel connections")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

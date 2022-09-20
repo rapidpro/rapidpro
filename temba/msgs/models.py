@@ -542,9 +542,6 @@ class Msg(models.Model):
     metadata = JSONAsTextField(null=True, default=dict)
     log_uuids = ArrayField(models.UUIDField(), null=True)
 
-    # TODO drop
-    logs = ArrayField(models.UUIDField(), null=True)
-
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
         messages = cls.objects.filter(org=org)

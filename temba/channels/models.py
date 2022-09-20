@@ -1231,15 +1231,6 @@ class ChannelLog(models.Model):
     elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
 
-    # TODO drop
-    description = models.CharField(max_length=255, null=True)
-    url = models.TextField(null=True)
-    method = models.CharField(max_length=16, null=True)
-    request = models.TextField(null=True)
-    response = models.TextField(null=True)
-    response_status = models.IntegerField(null=True)
-    request_time = models.IntegerField(null=True)
-
     @classmethod
     def from_response(cls, log_type, channel, response, created_on, ended_on, is_error=None):
         http_log = HttpLog.from_response(response, created_on, ended_on)
@@ -1693,7 +1684,6 @@ class ChannelConnection(models.Model):
     RETRY_CHOICES = ((-1, _("Never")), (30, _("After 30 minutes")), (60, _("After 1 hour")), (1440, _("After 1 day")))
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
-    connection_type = models.CharField(max_length=1, default="V", null=True)
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
