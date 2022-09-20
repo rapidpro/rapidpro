@@ -156,7 +156,7 @@ class MissedCallTriggerType(TriggerType):
     slug = "missed_call"
     name = _("Missed Call")
     title = _("Missed Call Triggers")
-    allowed_flow_types = (Flow.TYPE_MESSAGE,)
+    allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
     form = Form
 
 

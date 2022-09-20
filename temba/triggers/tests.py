@@ -828,7 +828,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.channel.save()
 
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
-        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_MESSAGE)
+        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_BACKGROUND)
 
         # flows that shouldn't appear as options
         self.create_flow("Flow 3", flow_type=Flow.TYPE_VOICE)
