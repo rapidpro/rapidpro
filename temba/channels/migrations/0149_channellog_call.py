@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("ivr", "0020_initial"),
+        ("ivr", "0020_add_call"),
         ("channels", "0148_alter_channelconnection_connection_type"),
     ]
 

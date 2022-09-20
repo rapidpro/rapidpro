@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("ivr", "0020_initial"),
+        ("ivr", "0020_add_call"),
         ("flows", "0295_alter_exportflowresultstask_uuid_and_more"),
     ]
 

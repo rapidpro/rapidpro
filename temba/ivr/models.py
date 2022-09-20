@@ -114,10 +114,12 @@ class Call(models.Model):
 
     class Meta:
         indexes = [
+            # used to list calls in UI
+            models.Index(name="calls_org_created_on", fields=["org", "-created_on"]),
             # used by mailroom to fetch calls that need to be retried
             models.Index(
                 name="calls_to_retry",
                 fields=["next_attempt"],
                 condition=Q(status__in=("Q", "E"), next_attempt__isnull=False),
-            )
+            ),
         ]

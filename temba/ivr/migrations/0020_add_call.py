@@ -81,6 +81,10 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="call",
+            index=models.Index(fields=["org", "-created_on"], name="calls_org_created_on"),
+        ),
+        migrations.AddIndex(
+            model_name="call",
             index=models.Index(
                 condition=models.Q(("next_attempt__isnull", False), ("status__in", ("Q", "E"))),
                 fields=["next_attempt"],
