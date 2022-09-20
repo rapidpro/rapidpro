@@ -182,7 +182,12 @@
       updateTicketList();
       
       var path = `${folder}/${status}/${ticketUUID || ''}`;
-      var show = `/tickets/${path}`;
+
+      {% if is_spa %}
+        var show = `/tickets/${path}`;
+      {% else %}
+        var show = `/ticket/${path}`;
+      {% endif %}
 
       if (!show.endsWith("/")) {
         show += "/";
