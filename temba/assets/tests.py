@@ -79,7 +79,7 @@ class AssetTest(TembaTest):
         ticket_export_task.perform()
 
         response = self.ticket.get(
-            reverse("assets.download", kwargs=dict(type="ticket_export", pk=contact_export_task.pk))
+            reverse("assets.download", kwargs=dict(type="ticket_export", pk=ticket_export_task.pk))
         )
         self.assertContains(response, "Your download should start automatically", status_code=200)
 
