@@ -634,7 +634,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 [
                     t_jamie.uuid,
                     t_jamie.opened_on,
-                    '',
+                    "",
                     t_jamie.topic.name,
                     t_jamie.assignee.email,
                     t_jamie.contact.uuid,
@@ -678,7 +678,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 [
                     t_jamie.uuid,
                     t_jamie.opened_on,
-                    '',
+                    "",
                     t_jamie.topic.name,
                     t_jamie.assignee.email,
                     t_jamie.contact.uuid,

@@ -662,7 +662,9 @@ class ExportTicketsTask(BaseExportTask):
 
             # create a map of id:ticket to maintain order within each batch
             # TODO make sure removing the prefetch_related and using readonly don't cause performance issues
-            batch_tickets = Ticket.objects.filter(id__in=ticket_batch_ids) # .prefetch_related("org").using("readonly")
+            batch_tickets = Ticket.objects.filter(
+                id__in=ticket_batch_ids
+            )  # .prefetch_related("org").using("readonly")
             tickets_by_id = {t.id: t for t in batch_tickets}
 
             # for each batch of ticket ids...
