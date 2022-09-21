@@ -1698,38 +1698,17 @@ class ChannelConnection(models.Model):
 
     log_uuids = ArrayField(models.UUIDField(), null=True)
 
-    def get_duration(self):
-        """
-        Either gets the set duration as reported by provider, or tries to calculate it
-        """
-        duration = self.duration or 0
-
-        if not duration and self.status == self.STATUS_IN_PROGRESS and self.started_on:
-            duration = (timezone.now() - self.started_on).seconds
-
-        return timedelta(seconds=duration)
-
-    @property
-    def status_display(self):
-        """
-        Gets the status/error_reason as display text, e.g. Wired, Errored (No Answer)
-        """
-        status = self.get_status_display()
-        if self.status in (self.STATUS_ERRORED, self.STATUS_FAILED) and self.error_reason:
-            status += f" ({self.get_error_reason_display()})"
-        return status
-
-    def get_session(self):
+    def get_session(self):  # pragma: no cover
         """
         There is a one-to-one relationship between flow sessions and connections, but as connection can be null
         it can throw an exception
         """
         try:
             return self.session
-        except ObjectDoesNotExist:  # pragma: no cover
+        except ObjectDoesNotExist:
             return None
 
-    def release(self):
+    def release(self):  # pragma: no cover
         self.channel_logs.all().delete()
 
         session = self.get_session()

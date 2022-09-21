@@ -1174,11 +1174,11 @@ class Contact(LegacyUUIDMixin, SmartModel):
                     msg.delete()
 
                 # same thing goes for calls
-                for call in urn.calls.all():  # pragma: needs cover
+                for call in urn.calls.all():
                     call.release()
 
                 # same thing goes for connections
-                for conn in urn.connections.all():
+                for conn in urn.connections.all():  # pragma: needs cover
                     conn.release()
 
                 urn.release()
