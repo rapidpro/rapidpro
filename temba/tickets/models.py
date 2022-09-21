@@ -661,7 +661,8 @@ class ExportTicketsTask(BaseExportTask):
         for ticket_batch_ids in chunk_list(ticket_ids, 1000):
 
             # create a map of id:ticket to maintain order within each batch
-            batch_tickets = Ticket.objects.filter(id__in=ticket_batch_ids).prefetch_related("org").using("readonly")
+            # TODO make sure removing the prefetch_related and using readonly don't cause performance issues
+            batch_tickets = Ticket.objects.filter(id__in=ticket_batch_ids) # .prefetch_related("org").using("readonly")
             tickets_by_id = {t.id: t for t in batch_tickets}
 
             # for each batch of ticket ids...

@@ -515,14 +515,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("tickets.ticket_list")
         self.assertContentMenu(list_url, self.admin, ["Export"])
 
-    def request_ticket_export(self):
-        export_url = reverse("tickets.ticket_export")
-        self.client.post(export_url)
-        task = ExportTicketsTask.objects.all().order_by("-id").first()
-        filename = "%s/test_orgs/%d/ticket_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
-        workbook = load_workbook(filename=filename)
-        return workbook.worksheets
-
     def test_ticket_export_request(self):
         self.clear_storage()
         self.login(self.admin)
@@ -591,9 +583,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             "Roy Kent", urns=["tel:+1234567890", "twitter:roykent"], fields={"gender": "Male", "age": 41}
         )
         # create a contact with multiple urns that have the same max priority
+        # c_sam = self.create_contact("Sam Obisanya", urns=["twitter:nigerianprince", "tel:+9876543210"], fields={"gender": "Male", "age": 22})
         c_sam = self.create_contact("Sam Obisanya", fields={"gender": "Male", "age": 22})
         ContactURN.create(self.org, c_sam, "twitter:nigerianprince", priority=50)
-        ContactURN.create(self.org, c_sam, "tel:+1234567890", priority=50)
+        ContactURN.create(self.org, c_sam, "tel:+9876543210", priority=50)
         # create some tickets...
         # create an open ticket for jamie
         t_jamie = self.create_ticket(
@@ -612,7 +605,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # create a closed ticket for sam
         t_sam = self.create_ticket(
             ticketer,
-            c_roy,
+            c_sam,
             body="Yo",
             topic=topic,
             assignee=assignee,
@@ -625,6 +618,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_ticket(
             zendesk, self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2), "Stuff"
         )
+
+        print(self.org.tickets.all())
 
         # test ticket export for a regular org
         self.org.is_anon = False
@@ -639,7 +634,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 [
                     t_jamie.uuid,
                     t_jamie.opened_on,
-                    t_jamie.closed_on,
+                    '',
                     t_jamie.topic.name,
                     t_jamie.assignee.email,
                     t_jamie.contact.uuid,
@@ -654,7 +649,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     t_roy.assignee.email,
                     t_roy.contact.uuid,
                     "tel",
-                    "+1234567890",
+                    "1234567890",
                 ],
                 [
                     t_sam.uuid,
@@ -683,11 +678,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 [
                     t_jamie.uuid,
                     t_jamie.opened_on,
-                    t_jamie.closed_on,
+                    '',
                     t_jamie.topic.name,
                     t_jamie.assignee.email,
                     t_jamie.contact.uuid,
-                    t_jamie.contact.id,
+                    str(t_jamie.contact_id),
                     "twitter",
                 ],
                 [
@@ -697,7 +692,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     t_roy.topic.name,
                     t_roy.assignee.email,
                     t_roy.contact.uuid,
-                    t_roy.contact_id,
+                    str(t_roy.contact_id),
                     "tel",
                 ],
                 [
@@ -707,14 +702,13 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     t_sam.topic.name,
                     t_sam.assignee.email,
                     t_sam.contact.uuid,
-                    t_sam.contact_id,
+                    str(t_sam.contact_id),
                     "twitter",
                 ],
             ],
             tz=self.org.timezone,
         )
 
-    # for now, we only expect to exclude one column
     def get_ticket_export_columns(self):
         return [
             "UUID",
@@ -727,6 +721,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             "URN Scheme",
             "URN Value",
         ]
+
+    def request_ticket_export(self):
+        export_url = reverse("tickets.ticket_export")
+        self.client.post(export_url)
+        task = ExportTicketsTask.objects.all().order_by("-id").first()
+        filename = "%s/test_orgs/%d/ticket_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
+        workbook = load_workbook(filename=filename)
+        return workbook.worksheets
 
 
 class TicketerTest(TembaTest):
