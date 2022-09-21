@@ -7,7 +7,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.contacts.models import Contact
+from temba.contacts.models import Contact, ContactURN
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 
@@ -511,28 +511,28 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
     
     def test_ticket_export_content_menu(self):
+        self.clear_storage()
+        self.login(self.admin)
         list_url = reverse("tickets.ticket_list")
-        self.assertContentMenu(list_url, self.user, ["Export"])
+        self.assertContentMenu(list_url, self.admin, ["Export"])
 
     def test_ticket_export_request(self):
-        export_url = reverse("tickets.ticket_export")
+        self.clear_storage()
         self.login(self.admin)
+        export_url = reverse("tickets.ticket_export")
         response = self.client.get(export_url)
         task = ExportTicketsTask.objects.all().order_by("-id").first()
         self.assertEqual(200, response.status_code)
-        self.assertEqual("application/ms-excel", response["Content-Type"])
+        self.assertEqual("text/html; charset=utf-8", response["Content-Type"])
         self.assertEqual(f"attachment; filename={task.uuid}.xlsx", response["Content-Disposition"])
 
-    def test_ticket_export_org_columns(self):
-        # TODO do we need this?
+    def test_ticket_export_columns(self):
         self.clear_storage()
         self.login(self.admin)
 
-        # get an anon org
-        org = self.orgs.filter(is_anon=False).first()        
-        # TODO how to "set" self to the org?
-        self.org = org
-        
+        self.org.is_anon = False
+        self.org.save()
+
         # check results of sheet in workbook
         export = self.request_ticket_export()
         self.assertExcelSheet(
@@ -542,18 +542,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 # ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme","URN Value"],
                 ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "URN Scheme", "URN Value"]
             ],
-            tz=org.timezone,
+            tz=self.org.timezone,
         )
 
-    def test_ticket_export_anon_org_columns(self):
-        # TODO do we need this?
-        self.clear_storage()
-        self.login(self.admin)
-
-        # get an anon org
-        anon_org = self.orgs.filter(is_anon=True).first()        
-        # TODO how to "set" self to the org?
-        self.org = anon_org
+        self.org.is_anon = True
+        self.org.save()
 
         # check results of sheet in workbook
         export = self.request_ticket_export()
@@ -564,36 +557,78 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 # ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme","URN Value"],
                 ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme"]
             ],
-            tz=anon_org.timezone,
+            tz=self.org.timezone,
         )
 
     def test_ticket_export_rows(self):
-        # TODO do we need this?
         self.clear_storage()
         self.login(self.admin)
-        
+
         # create a ticketer
-        # TODO self.user vs. self.admin ?
         ticketer = Ticketer.create(self.org, self.admin, "internal", "Internal", {})
         # create a topic
-        topic = Topic.create(self.org, self.admin, "General")
+        # topic = Topic.create(self.org, self.admin, "General")
+        topic = self.org.topics.filter(name="General").first()
         # create an assignee
-        # TODO self.user vs. self.admin ?
         assignee = self.admin
         # create some contacts...
         # create a contact with one set of urns
-        contact_jamie = self.create_contact("Jamie Tartt", urns=["twitter:jamietarttshark"], fields={"gender": "Male", "age": 25})
-        # create a contact with multiple urns
-        contact_roy = self.create_contact("Roy Kent", urns=["tel:+1234567890","twitter:roykent"], fields={"gender": "Male", "age": 41})
-        # TODO create a contact with multiple urns that have the same max priority
+        c_jamie = self.create_contact("Jamie Tartt", urns=["twitter:jamietarttshark"], fields={"gender": "Male", "age": 25})
+        # create a contact with multiple urns that have different max priority
+        c_roy = self.create_contact("Roy Kent", urns=["tel:+1234567890","twitter:roykent"], fields={"gender": "Male", "age": 41})
+        # create a contact with multiple urns that have the same max priority
+        c_sam = self.create_contact("Sam Obisanya", fields={"gender": "Male", "age": 22})
+        ContactURN.create(self.org, c_sam, "twitter:nigerianprince", priority=50)
+        ContactURN.create(self.org, c_sam, "tel:+1234567890", priority=50)
         # create some tickets...
-        # create an open ticket
-        self.create_ticket(ticketer, contact_jamie, body="Hi", topic=topic, assignee=self.admin, opened_on=timezone.now())
-        # create a closed ticket
-        self.create_ticket(ticketer, contact_roy, body="Hi", topic=topic, assignee=self.admin, opened_on=timezone.now(), closed_on=timezone.now())
-        # TODO create a ticket for another org
+        # create an open ticket for jamie
+        t_jamie = self.create_ticket(ticketer, c_jamie, body="Hi", topic=topic, assignee=self.admin, opened_on=timezone.now())
+        # create a closed ticket for roy
+        t_roy = self.create_ticket(ticketer, c_roy, body="Hello", topic=topic, assignee=self.admin, opened_on=timezone.now(), closed_on=timezone.now())
+        # create a closed ticket for sam
+        t_sam = self.create_ticket(ticketer, c_roy, body="Yo", topic=topic, assignee=self.admin, opened_on=timezone.now(), closed_on=timezone.now())
+        
+        # create a ticketer and ticket on another org for rebecca
+        zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
+        t_rebecca = self.create_ticket(zendesk, self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2), "Stuff")
+
+        # test ticket export for a regular org
+        self.org.is_anon = False
+        self.org.save()
 
         # check results of sheet in workbook
+        export = self.request_ticket_export()
+        self.assertExcelSheet(
+            export[0],
+            [
+                # all columns except for "Contact ID" should be visible
+                # ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme","URN Value"],
+                ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "URN Scheme", "URN Value"]
+                [t_jamie.uuid, t_jamie.opened_on, t_jamie.closed_on, t_jamie.topic.name, t_jamie.assignee.email, t_jamie.contact.uuid, "twitter", "jamietarttshark"],
+                [t_roy.uuid, t_roy.opened_on, t_roy.closed_on, t_roy.topic.name, t_roy.assignee.email, t_roy.contact.uuid, "tel", "+1234567890"],
+                [t_sam.uuid, t_sam.opened_on, t_sam.closed_on, t_sam.topic.name, t_sam.assignee.email, t_sam.contact.uuid, "twitter", "nigerianprince"],
+            ],
+            tz=self.org.timezone,
+        )
+
+        # test ticket export for a regular org
+        self.org.is_anon = True
+        self.org.save()
+
+        # check results of sheet in workbook
+        export = self.request_ticket_export()
+        self.assertExcelSheet(
+            export[0],
+            [
+                # all columns except for "URN Value" should be visible
+                # ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme","URN Value"],
+                ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme"],
+                [t_jamie.uuid, t_jamie.opened_on, t_jamie.closed_on, t_jamie.topic.name, t_jamie.assignee.email, t_jamie.contact.uuid, t_jamie.contact.id, "twitter"],
+                [t_roy.uuid, t_roy.opened_on, t_roy.closed_on, t_roy.topic.name, t_roy.assignee.email, t_roy.contact.uuid, t_roy.contact_id, "tel"],
+                [t_sam.uuid, t_sam.opened_on, t_sam.closed_on, t_sam.topic.name, t_sam.assignee.email, t_sam.contact.uuid, t_sam.contact_id, "twitter"],
+            ],
+            tz=self.org.timezone,
+        )
 
     def request_ticket_export(self, query=""):
         export_url = reverse("tickets.ticket_export")
