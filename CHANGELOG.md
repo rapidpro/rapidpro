@@ -1,3 +1,7 @@
+v7.5.51
+----------
+ * Add new ivr.Call model to replace channels.ChannelConnection
+
 v7.5.50
 ----------
  * Drop no-longer used ChannelLog fields
