@@ -1,4 +1,3 @@
-import datetime
 import logging
 import time
 from abc import ABCMeta
@@ -23,7 +22,6 @@ from temba.utils import chunk_list
 from temba.utils.dates import date_range
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
-from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)

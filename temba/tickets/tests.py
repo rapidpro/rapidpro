@@ -587,7 +587,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # create some tickets...
         # create an open ticket for jamie
         t_jamie = self.create_ticket(
-            ticketer, c_jamie, body="Hi", topic=topic, assignee=self.admin, opened_on=timezone.now()
+            ticketer, c_jamie, body="Hi", topic=topic, assignee=assignee, opened_on=timezone.now()
         )
         # create a closed ticket for roy
         t_roy = self.create_ticket(
@@ -595,7 +595,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             c_roy,
             body="Hello",
             topic=topic,
-            assignee=self.admin,
+            assignee=assignee,
             opened_on=timezone.now(),
             closed_on=timezone.now(),
         )
@@ -605,14 +605,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             c_roy,
             body="Yo",
             topic=topic,
-            assignee=self.admin,
+            assignee=assignee,
             opened_on=timezone.now(),
             closed_on=timezone.now(),
         )
 
         # create a ticketer and ticket on another org for rebecca
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
-        t_rebecca = self.create_ticket(
+        self.create_ticket(
             zendesk, self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2), "Stuff"
         )
 
