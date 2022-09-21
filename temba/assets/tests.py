@@ -78,7 +78,7 @@ class AssetTest(TembaTest):
         ticket_export_task = ExportTicketsTask.create(self.org, self.admin)
         ticket_export_task.perform()
 
-        response = self.ticket.get(
+        response = self.client.get(
             reverse("assets.download", kwargs=dict(type="ticket_export", pk=ticket_export_task.pk))
         )
         self.assertContains(response, "Your download should start automatically", status_code=200)
