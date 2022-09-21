@@ -166,7 +166,9 @@ class TicketCRUDL(SmartCRUDL):
 
         def build_content_menu(self, menu):
             if self.has_org_perm("tickets.ticket_export"):
-                    menu.add_modax(_("Export"), "export-tickets", f"{reverse('tickets.ticket_export')}", title=_("Export Tickets"))
+                menu.add_modax(
+                    _("Export"), "export-tickets", f"{reverse('tickets.ticket_export')}", title=_("Export Tickets")
+                )
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()

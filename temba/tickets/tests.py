@@ -1,5 +1,6 @@
 from datetime import date
 from unittest.mock import patch
+
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -509,7 +510,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             f"attachment; filename=ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx",
             response["Content-Disposition"],
         )
-    
+
     def test_ticket_export_content_menu(self):
         self.clear_storage()
         self.login(self.admin)
@@ -572,24 +573,60 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         assignee = self.admin
         # create some contacts...
         # create a contact with one set of urns
-        c_jamie = self.create_contact("Jamie Tartt", urns=["twitter:jamietarttshark"], fields={"gender": "Male", "age": 25})
+        c_jamie = self.create_contact(
+            "Jamie Tartt", urns=["twitter:jamietarttshark"], fields={"gender": "Male", "age": 25}
+        )
         # create a contact with multiple urns that have different max priority
-        c_roy = self.create_contact("Roy Kent", urns=["tel:+1234567890","twitter:roykent"], fields={"gender": "Male", "age": 41})
+        c_roy = self.create_contact(
+            "Roy Kent", urns=["tel:+1234567890", "twitter:roykent"], fields={"gender": "Male", "age": 41}
+        )
         # create a contact with multiple urns that have the same max priority
         c_sam = self.create_contact("Sam Obisanya", fields={"gender": "Male", "age": 22})
         ContactURN.create(self.org, c_sam, "twitter:nigerianprince", priority=50)
         ContactURN.create(self.org, c_sam, "tel:+1234567890", priority=50)
         # create some tickets...
         # create an open ticket for jamie
-        t_jamie = self.create_ticket(ticketer, c_jamie, body="Hi", topic=topic, assignee=self.admin, opened_on=timezone.now())
+        t_jamie = self.create_ticket(
+            ticketer, c_jamie, body="Hi", topic=topic, assignee=self.admin, opened_on=timezone.now()
+        )
         # create a closed ticket for roy
-        t_roy = self.create_ticket(ticketer, c_roy, body="Hello", topic=topic, assignee=self.admin, opened_on=timezone.now(), closed_on=timezone.now())
+        t_roy = self.create_ticket(
+            ticketer,
+            c_roy,
+            body="Hello",
+            topic=topic,
+            assignee=self.admin,
+            opened_on=timezone.now(),
+            closed_on=timezone.now(),
+        )
         # create a closed ticket for sam
-        t_sam = self.create_ticket(ticketer, c_roy, body="Yo", topic=topic, assignee=self.admin, opened_on=timezone.now(), closed_on=timezone.now())
-        
+        t_sam = self.create_ticket(
+            ticketer,
+            c_roy,
+            body="Yo",
+            topic=topic,
+            assignee=self.admin,
+            opened_on=timezone.now(),
+            closed_on=timezone.now(),
+        )
+
         # create a ticketer and ticket on another org for rebecca
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
-        t_rebecca = self.create_ticket(zendesk, self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2), "Stuff")
+        t_rebecca = self.create_ticket(
+            zendesk, self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2), "Stuff"
+        )
+
+        ticket_export_columns = [
+            "UUID",
+            "Opened On",
+            "Closed On",
+            "Topic",
+            "Assigned To",
+            "Contact UUID",
+            "Contact ID",
+            "URN Scheme",
+            "URN Value",
+        ]
 
         # test ticket export for a regular org
         self.org.is_anon = False
@@ -600,12 +637,37 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertExcelSheet(
             export[0],
             [
-                # all columns except for "Contact ID" should be visible
-                # ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme","URN Value"],
-                ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "URN Scheme", "URN Value"]
-                [t_jamie.uuid, t_jamie.opened_on, t_jamie.closed_on, t_jamie.topic.name, t_jamie.assignee.email, t_jamie.contact.uuid, "twitter", "jamietarttshark"],
-                [t_roy.uuid, t_roy.opened_on, t_roy.closed_on, t_roy.topic.name, t_roy.assignee.email, t_roy.contact.uuid, "tel", "+1234567890"],
-                [t_sam.uuid, t_sam.opened_on, t_sam.closed_on, t_sam.topic.name, t_sam.assignee.email, t_sam.contact.uuid, "twitter", "nigerianprince"],
+                ticket_export_columns - "Contact ID",  # all columns except for "Contact ID" should be visible
+                [
+                    t_jamie.uuid,
+                    t_jamie.opened_on,
+                    t_jamie.closed_on,
+                    t_jamie.topic.name,
+                    t_jamie.assignee.email,
+                    t_jamie.contact.uuid,
+                    "twitter",
+                    "jamietarttshark",
+                ],
+                [
+                    t_roy.uuid,
+                    t_roy.opened_on,
+                    t_roy.closed_on,
+                    t_roy.topic.name,
+                    t_roy.assignee.email,
+                    t_roy.contact.uuid,
+                    "tel",
+                    "+1234567890",
+                ],
+                [
+                    t_sam.uuid,
+                    t_sam.opened_on,
+                    t_sam.closed_on,
+                    t_sam.topic.name,
+                    t_sam.assignee.email,
+                    t_sam.contact.uuid,
+                    "twitter",
+                    "nigerianprince",
+                ],
             ],
             tz=self.org.timezone,
         )
@@ -619,12 +681,37 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertExcelSheet(
             export[0],
             [
-                # all columns except for "URN Value" should be visible
-                # ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme","URN Value"],
-                ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme"],
-                [t_jamie.uuid, t_jamie.opened_on, t_jamie.closed_on, t_jamie.topic.name, t_jamie.assignee.email, t_jamie.contact.uuid, t_jamie.contact.id, "twitter"],
-                [t_roy.uuid, t_roy.opened_on, t_roy.closed_on, t_roy.topic.name, t_roy.assignee.email, t_roy.contact.uuid, t_roy.contact_id, "tel"],
-                [t_sam.uuid, t_sam.opened_on, t_sam.closed_on, t_sam.topic.name, t_sam.assignee.email, t_sam.contact.uuid, t_sam.contact_id, "twitter"],
+                ticket_export_columns - "URN Value",  # all columns except for "URN Value" should be visible
+                [
+                    t_jamie.uuid,
+                    t_jamie.opened_on,
+                    t_jamie.closed_on,
+                    t_jamie.topic.name,
+                    t_jamie.assignee.email,
+                    t_jamie.contact.uuid,
+                    t_jamie.contact.id,
+                    "twitter",
+                ],
+                [
+                    t_roy.uuid,
+                    t_roy.opened_on,
+                    t_roy.closed_on,
+                    t_roy.topic.name,
+                    t_roy.assignee.email,
+                    t_roy.contact.uuid,
+                    t_roy.contact_id,
+                    "tel",
+                ],
+                [
+                    t_sam.uuid,
+                    t_sam.opened_on,
+                    t_sam.closed_on,
+                    t_sam.topic.name,
+                    t_sam.assignee.email,
+                    t_sam.contact.uuid,
+                    t_sam.contact_id,
+                    "twitter",
+                ],
             ],
             tz=self.org.timezone,
         )
@@ -636,6 +723,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         filename = "%s/test_orgs/%d/ticket_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
         workbook = load_workbook(filename=filename)
         return workbook.worksheets
+
 
 class TicketerTest(TembaTest):
     @patch("temba.mailroom.client.MailroomClient.ticket_close")

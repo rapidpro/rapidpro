@@ -650,7 +650,7 @@ class ExportTicketsTask(BaseExportTask):
         fields = self.get_fields()
 
         # get the ticket ids, ordered by opened on
-        ticket_ids = self.org.tickets.order_by("opened_on").values_list('id', flat=True)
+        ticket_ids = self.org.tickets.order_by("opened_on").values_list("id", flat=True)
 
         # create the exporter
         exporter = TableExporter(self, "Ticket", [f["label"] for f in fields])
@@ -704,7 +704,7 @@ class ExportTicketsTask(BaseExportTask):
         return exporter.save_file()
 
     def get_fields(self):
-        
+
         fields = [
             dict(label="UUID", key="uuid", field=None, urn_scheme=None),
             dict(label="Opened On", key="opened_on", field=None, urn_scheme=None),
@@ -743,24 +743,26 @@ class ExportTicketsTask(BaseExportTask):
             return ticket.contact.uuid if ticket.contact else None
         elif field_key == "contact_id":
             return ticket.contact_id
-        elif field_key == "contact.urn.scheme" or field_key == "contact.urn.path":            
+        elif field_key == "contact.urn.scheme" or field_key == "contact.urn.path":
             ticket_contact_urn = {}
-            
-            # get the urn(s) for the contact, ordered by (descending) max priority
-            ticket_contact_urns = self.org.urns.filter(contact_id=ticket.contact_id).order_by('-priority').values()
 
-            if(len(ticket_contact_urns) == 0):
+            # get the urn(s) for the contact, ordered by (descending) max priority
+            ticket_contact_urns = self.org.urns.filter(contact_id=ticket.contact_id).order_by("-priority").values()
+
+            if len(ticket_contact_urns) == 0:
                 # if there are zero urns, return None
                 return None
-            elif(len(ticket_contact_urns) > 1):
+            elif len(ticket_contact_urns) > 1:
                 # if there are multiple urns, get the urns for the max priority, ordered by (ascending) min id
                 ticket_contact_urn = ticket_contact_urns[0]
                 max_priority = ticket_contact_urn["priority"]
-                ticket_contact_urns_max_priority = ticket_contact_urns.filter(priority=max_priority).order_by('id').values()
+                ticket_contact_urns_max_priority = (
+                    ticket_contact_urns.filter(priority=max_priority).order_by("id").values()
+                )
                 ticket_contact_urn = ticket_contact_urns_max_priority[0]
             else:
-                ticket_contact_urn =  ticket_contact_urns[0]
-            
+                ticket_contact_urn = ticket_contact_urns[0]
+
             # return the urn scheme or path value based on the key field
             if field_key == "contact.urn.scheme":
                 scheme = ticket_contact_urn["scheme"]
@@ -773,6 +775,7 @@ class ExportTicketsTask(BaseExportTask):
 
         else:
             return None
+
 
 @register_asset_store
 class TicketExportAssetStore(BaseExportAssetStore):
