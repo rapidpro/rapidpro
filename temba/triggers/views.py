@@ -210,8 +210,7 @@ class TriggerCRUDL(SmartCRUDL):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
 
         def derive_menu(self):
-
-            org = self.request.user.get_org()
+            org = self.request.org
             menu = []
 
             from .types import TYPES_BY_SLUG
@@ -334,7 +333,7 @@ class TriggerCRUDL(SmartCRUDL):
             groups = form.cleaned_data["groups"]
             exclude_groups = form.cleaned_data["exclude_groups"]
 
-            org = self.request.user.get_org()
+            org = self.request.org
             register_flow = Flow.create_join_group(org, self.request.user, join_group, send_msg, start_flow)
 
             Trigger.create(
@@ -363,7 +362,7 @@ class TriggerCRUDL(SmartCRUDL):
             repeat_days_of_week = cleaned_data["repeat_days_of_week"]
 
             schedule = Schedule.create_schedule(
-                user.get_org(), user, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
+                self.request.org, user, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
             )
 
             return {"schedule": schedule, "contacts": cleaned_data["contacts"]}
@@ -440,7 +439,7 @@ class TriggerCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            org = self.request.user.get_org()
+            org = self.request.org
             context["main_folders"] = self.get_main_folders(org)
             context["type_folders"] = self.get_type_folders(org)
             context["request_url"] = self.request.path
