@@ -11,7 +11,6 @@ from django.utils import timezone
 from temba.contacts.models import Contact, ContactURN
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
-from temba.utils.export import BaseExportTask
 
 from .models import (
     ExportTicketsTask,
