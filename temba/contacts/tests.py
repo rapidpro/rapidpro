@@ -1779,7 +1779,7 @@ class ContactTest(TembaTest):
         bcast2.save()
 
         self.assertEqual(1, group.contacts.all().count())
-        self.assertEqual(1, contact.connections.all().count())
+        self.assertEqual(1, contact.calls.all().count())
         self.assertEqual(2, contact.addressed_broadcasts.all().count())
         self.assertEqual(2, contact.urns.all().count())
         self.assertEqual(2, contact.runs.all().count())
@@ -1816,7 +1816,7 @@ class ContactTest(TembaTest):
 
         contact.refresh_from_db()
         self.assertEqual(0, group.contacts.all().count())
-        self.assertEqual(0, contact.connections.all().count())
+        self.assertEqual(0, contact.calls.all().count())
         self.assertEqual(0, contact.addressed_broadcasts.all().count())
         self.assertEqual(0, contact.urns.all().count())
         self.assertEqual(0, contact.runs.all().count())

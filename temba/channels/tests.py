@@ -2300,7 +2300,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(self.channel.get_error_log_count(), 4)  # error log count always includes IVR logs
 
         # check that IVR logs are displayed correctly
-        response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1")
+        response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?calls=1")
         self.assertContains(response, "15 seconds")
         self.assertContains(response, "2 results")
 
@@ -2315,9 +2315,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         call.save(update_fields=("started_on", "status", "duration"))
 
         with patch("django.utils.timezone.now", return_value=datetime(2019, 8, 12, 11, 4, 30, 0, timezone.utc)):
-            response = self.client.get(
-                reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1"
-            )
+            response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?calls=1")
             self.assertContains(response, "30 seconds")
 
     def test_redaction_for_telegram(self):

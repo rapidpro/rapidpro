@@ -906,7 +906,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for sync_event in self.sync_events.all():
             sync_event.release()
 
-        # interrupt any sessions using this channel as a connection
+        # interrupt any sessions using this channel for calls
         mailroom.queue_interrupt(self.org, channel=self)
 
         # save the FCM id before clearing
@@ -1017,13 +1017,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
 
     def get_ivr_log_count(self):
-        return (
-            ChannelLog.objects.filter(channel=self)
-            .exclude(connection=None)
-            .order_by("connection")
-            .distinct("connection")
-            .count()
-        )
+        return ChannelLog.objects.filter(channel=self).exclude(call=None).order_by("call").distinct("call").count()
 
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
