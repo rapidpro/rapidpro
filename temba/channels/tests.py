@@ -23,6 +23,7 @@ from temba.channels.models import ChannelConnection
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.flows.models import FlowSession
+from temba.ivr.models import Call
 from temba.msgs.models import Msg
 from temba.orgs.models import Org, OrgRole
 from temba.request_logs.models import HTTPLog
@@ -2123,7 +2124,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         log1 = call1.channel_logs.get()
         log2 = ChannelLog.objects.create(
             channel=self.channel,
-            connection=call1,
+            call=call1,
             log_type=ChannelLog.LOG_TYPE_IVR_START,
             is_error=False,
             http_logs=[
@@ -2217,7 +2218,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         call = self.create_incoming_call(ivr_flow, contact)
 
         # create failed call with an interaction log
-        self.create_incoming_call(ivr_flow, contact, status=ChannelConnection.STATUS_FAILED)
+        self.create_incoming_call(ivr_flow, contact, status=Call.STATUS_FAILED)
 
         # create log for other org
         other_org_contact = self.create_contact("Hans", phone="+593979123456")
@@ -2309,7 +2310,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # if duration isn't set explicitly, it can be calculated
         call.started_on = datetime(2019, 8, 12, 11, 4, 0, 0, timezone.utc)
-        call.status = ChannelConnection.STATUS_IN_PROGRESS
+        call.status = Call.STATUS_IN_PROGRESS
         call.duration = None
         call.save(update_fields=("started_on", "status", "duration"))
 
