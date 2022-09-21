@@ -11,6 +11,7 @@ from django.utils import timezone
 from temba.contacts.models import Contact, ContactURN
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
+from temba.utils.export import BaseExportTask
 
 from .models import (
     ExportTicketsTask,
@@ -512,24 +513,36 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_ticket_export_content_menu(self):
-        self.clear_storage()
-        self.login(self.admin)
         list_url = reverse("tickets.ticket_list")
         self.assertContentMenu(list_url, self.admin, ["Export"])
+
+    def request_ticket_export(self):
+        export_url = reverse("tickets.ticket_export")
+        self.client.post(export_url)
+        task = ExportTicketsTask.objects.all().order_by("-id").first()
+        filename = "%s/test_orgs/%d/ticket_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
+        workbook = load_workbook(filename=filename)
+        return workbook.worksheets
 
     def test_ticket_export_request(self):
         self.clear_storage()
         self.login(self.admin)
+
         export_url = reverse("tickets.ticket_export")
-        response = self.client.get(export_url)
-        task = ExportTicketsTask.objects.all().order_by("-id").first()
-        self.assertEqual(200, response.status_code)
+        response = self.client.post(export_url)
+
+        self.assertEqual(302, response.status_code)
         self.assertEqual("text/html; charset=utf-8", response["Content-Type"])
-        self.assertEqual(f"attachment; filename={task.uuid}.xlsx", response["Content-Disposition"])
 
     def test_ticket_export_columns(self):
         self.clear_storage()
         self.login(self.admin)
+
+        ticket_export_org_columns = self.get_ticket_export_columns()
+        ticket_export_org_columns.remove("Contact ID")
+
+        ticket_export_anon_org_columns = self.get_ticket_export_columns()
+        ticket_export_anon_org_columns.remove("URN Value")
 
         self.org.is_anon = False
         self.org.save()
@@ -538,11 +551,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         export = self.request_ticket_export()
         self.assertExcelSheet(
             export[0],
-            [
-                # all columns except for "Contact ID" should be visible
-                # ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme","URN Value"],
-                ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "URN Scheme", "URN Value"]
-            ],
+            [ticket_export_org_columns],  # all columns except for "Contact ID" should be visible
             tz=self.org.timezone,
         )
 
@@ -553,17 +562,19 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         export = self.request_ticket_export()
         self.assertExcelSheet(
             export[0],
-            [
-                # all columns except for "URN Value" should be visible
-                # ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme","URN Value"],
-                ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "Contact ID", "URN Scheme"]
-            ],
+            [ticket_export_anon_org_columns],  # all columns except for "URN Value" should be visible
             tz=self.org.timezone,
         )
 
     def test_ticket_export_rows(self):
         self.clear_storage()
         self.login(self.admin)
+
+        ticket_export_org_columns = self.get_ticket_export_columns()
+        ticket_export_org_columns.remove("Contact ID")
+
+        ticket_export_anon_org_columns = self.get_ticket_export_columns()
+        ticket_export_anon_org_columns.remove("URN Value")
 
         # create a ticketer
         ticketer = Ticketer.create(self.org, self.admin, "internal", "Internal", {})
@@ -616,18 +627,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             zendesk, self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2), "Stuff"
         )
 
-        ticket_export_columns = [
-            "UUID",
-            "Opened On",
-            "Closed On",
-            "Topic",
-            "Assigned To",
-            "Contact UUID",
-            "Contact ID",
-            "URN Scheme",
-            "URN Value",
-        ]
-
         # test ticket export for a regular org
         self.org.is_anon = False
         self.org.save()
@@ -637,7 +636,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertExcelSheet(
             export[0],
             [
-                ticket_export_columns - "Contact ID",  # all columns except for "Contact ID" should be visible
+                ticket_export_org_columns,  # all columns except for "Contact ID" should be visible
                 [
                     t_jamie.uuid,
                     t_jamie.opened_on,
@@ -681,7 +680,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertExcelSheet(
             export[0],
             [
-                ticket_export_columns - "URN Value",  # all columns except for "URN Value" should be visible
+                ticket_export_anon_org_columns,  # all columns except for "URN Value" should be visible
                 [
                     t_jamie.uuid,
                     t_jamie.opened_on,
@@ -716,13 +715,19 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             tz=self.org.timezone,
         )
 
-    def request_ticket_export(self, query=""):
-        export_url = reverse("tickets.ticket_export")
-        self.client.post(export_url + query)
-        task = ExportTicketsTask.objects.all().order_by("-id").first()
-        filename = "%s/test_orgs/%d/ticket_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
-        workbook = load_workbook(filename=filename)
-        return workbook.worksheets
+    # for now, we only expect to exclude one column
+    def get_ticket_export_columns(self):
+        return [
+            "UUID",
+            "Opened On",
+            "Closed On",
+            "Topic",
+            "Assigned To",
+            "Contact UUID",
+            "Contact ID",
+            "URN Scheme",
+            "URN Value",
+        ]
 
 
 class TicketerTest(TembaTest):

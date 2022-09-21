@@ -74,7 +74,7 @@ class BaseExportTask(TembaUUIDMixin, SmartModel):
         try:
             self.update_status(self.STATUS_PROCESSING)
 
-            print(f"Started perfoming {self.analytics_key} with ID {self.id}")
+            print(f"Started performing {self.analytics_key} with ID {self.id}")
 
             start = time.time()
 
