@@ -2407,7 +2407,9 @@ class ContactTest(TembaTest):
         failed = Msg.objects.filter(direction="O", contact=self.joe).last()
         failed.status = "F"
         failed.save(update_fields=("status",))
-        ChannelLog.objects.create(channel=failed.channel, msg=failed, is_error=True, description="It didn't send!!")
+        ChannelLog.objects.create(
+            channel=failed.channel, msg=failed, is_error=True, log_type=ChannelLog.LOG_TYPE_MSG_SEND
+        )
 
         # create an airtime transfer
         transfer = AirtimeTransfer.objects.create(
@@ -2453,7 +2455,9 @@ class ContactTest(TembaTest):
         )
 
         # create a channel log for this call
-        ChannelLog.objects.create(channel=self.channel, description="Its an ivr call", is_error=False, connection=call)
+        ChannelLog.objects.create(
+            channel=self.channel, log_type=ChannelLog.LOG_TYPE_IVR_START, is_error=False, connection=call
+        )
 
         # add a note to our open ticket
         ticket.events.create(

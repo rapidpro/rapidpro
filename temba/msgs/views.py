@@ -85,8 +85,7 @@ class InboxView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Smar
 
     def pre_process(self, request, *args, **kwargs):
         if self.system_label:
-            org = request.user.get_org()
-            self.queryset = SystemLabel.get_queryset(org, self.system_label)
+            self.queryset = SystemLabel.get_queryset(request.org, self.system_label)
 
     def get_queryset(self, **kwargs):
         qs = super().get_queryset(**kwargs)
@@ -106,10 +105,10 @@ class InboxView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Smar
         return qs
 
     def get_bulk_action_labels(self):
-        return self.get_user().get_org().msgs_labels.all()
+        return self.request.org.msgs_labels.filter(is_active=True)
 
     def get_context_data(self, **kwargs):
-        org = self.request.user.get_org()
+        org = self.request.org
         counts = SystemLabel.get_counts(org)
 
         label = self.derive_label()
@@ -522,10 +521,9 @@ class ExportForm(Form):
         ),
     )
 
-    def __init__(self, user, label, *args, **kwargs):
+    def __init__(self, org, label, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.user = user
-        org = self.user.get_org()
+
         self.fields["export_all"].choices = self.LABEL_CHOICES if label else self.SYSTEM_LABEL_CHOICES
         self.fields["groups"].queryset = ContactGroup.get_groups(org)
 
@@ -549,7 +547,7 @@ class MsgCRUDL(SmartCRUDL):
 
     class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):  # pragma: no cover
         def derive_menu(self):
-            org = self.request.user.get_org()
+            org = self.request.org
             counts = SystemLabel.get_counts(org)
 
             if self.request.GET.get("labels"):
@@ -649,7 +647,7 @@ class MsgCRUDL(SmartCRUDL):
             initial = super().derive_initial()
 
             # default to last 90 days in org timezone
-            tz = self.request.user.get_org().timezone
+            tz = self.request.org.timezone
             end = datetime.now(tz)
             start = end - timedelta(days=90)
 
@@ -682,7 +680,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             user = self.request.user
-            org = user.get_org()
+            org = self.request.org
 
             export_all = bool(int(form.cleaned_data["export_all"]))
             groups = form.cleaned_data["groups"]
@@ -742,7 +740,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             kwargs["label"] = self.derive_label()[1]
             return kwargs
 
@@ -793,7 +791,7 @@ class MsgCRUDL(SmartCRUDL):
             # stuff in any pending broadcasts
             context["pending_broadcasts"] = (
                 Broadcast.objects.filter(
-                    org=self.request.user.get_org(),
+                    org=self.request.org,
                     status__in=[Msg.STATUS_QUEUED, Msg.STATUS_INITIALIZING],
                     schedule=None,
                 )
