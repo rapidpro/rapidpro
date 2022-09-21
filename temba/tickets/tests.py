@@ -567,8 +567,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # create a ticketer
         ticketer = Ticketer.create(self.org, self.admin, "internal", "Internal", {})
         # create a topic
-        # topic = Topic.create(self.org, self.admin, "General")
-        topic = self.org.topics.filter(name="General").first()
+        topic = Topic.create(self.org, self.admin, "AFC Richmond")
         # create an assignee
         assignee = self.admin
         # create some contacts...
