@@ -2109,6 +2109,7 @@ class FlowStart(models.Model):
         with transaction.atomic():
             self.groups.clear()
             self.contacts.clear()
+            self.calls.clear()
             self.connections.clear()
             FlowRun.objects.filter(start=self).update(start=None)
             FlowStartCount.objects.filter(start=self).delete()
