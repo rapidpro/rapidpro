@@ -123,10 +123,10 @@ class ContactGroupForm(forms.ModelForm):
     preselected_contacts = forms.CharField(required=False, widget=forms.HiddenInput)
     group_query = forms.CharField(required=False, widget=forms.HiddenInput)
 
-    def __init__(self, user, *args, **kwargs):
-        self.user = user
-        self.org = user.get_org()
+    def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.org = org
 
     def clean_name(self):
         name = self.cleaned_data["name"]
@@ -322,7 +322,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
             return qs
 
     def get_bulk_action_labels(self):
-        return ContactGroup.get_groups(self.get_user().get_org(), manual_only=True)
+        return ContactGroup.get_groups(self.request.org, manual_only=True)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -391,11 +391,10 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
 
 
 class ContactForm(forms.ModelForm):
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs["user"]
-        self.org = self.user.get_org()
-        del kwargs["user"]
+    def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.org = org
 
         # add all URN scheme fields if org is not anon
         extra_fields = []
@@ -493,8 +492,8 @@ class UpdateContactForm(ContactForm):
         widget=SelectMultipleWidget(attrs={"placeholder": _("Select groups for this contact"), "searchable": True}),
     )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, org, *args, **kwargs):
+        super().__init__(org, *args, **kwargs)
 
         choices = [("", "No Preference")]
 
@@ -512,7 +511,7 @@ class UpdateContactForm(ContactForm):
         )
 
         self.fields["groups"].initial = self.instance.get_groups(manual_only=True)
-        self.fields["groups"].queryset = ContactGroup.get_groups(self.user.get_org(), manual_only=True)
+        self.fields["groups"].queryset = ContactGroup.get_groups(self.org, manual_only=True)
         self.fields["groups"].help_text = _("The groups which this contact belongs to")
 
     class Meta:
@@ -533,13 +532,12 @@ class ExportForm(Form):
         ),
     )
 
-    def __init__(self, user, *args, **kwargs):
+    def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.user = user
 
-        self.fields["group_memberships"].queryset = ContactGroup.get_groups(
-            self.user.get_org(), ready_only=True
-        ).order_by(Upper("name"))
+        self.fields["group_memberships"].queryset = ContactGroup.get_groups(org, ready_only=True).order_by(
+            Upper("name")
+        )
 
         self.fields["group_memberships"].help_text = _(
             "Include group membership only for these groups. " "(Leave blank to ignore group memberships)."
@@ -685,7 +683,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             return kwargs
 
         def form_invalid(self, form):  # pragma: needs cover
@@ -698,8 +696,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             user = self.request.user
-            org = user.get_org()
-
+            org = self.request.org
             group_uuid, search, redirect = self.derive_params()
 
             # is there already an export taking place?
@@ -1207,7 +1204,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self, *args, **kwargs):
             form_kwargs = super().get_form_kwargs(*args, **kwargs)
-            form_kwargs["user"] = self.request.user
+            form_kwargs["org"] = self.request.org
             return form_kwargs
 
         def get_form(self):
@@ -1253,7 +1250,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self, *args, **kwargs):
             form_kwargs = super().get_form_kwargs(*args, **kwargs)
-            form_kwargs["user"] = self.request.user
+            form_kwargs["org"] = self.request.org
             return form_kwargs
 
         def get_context_data(self, **kwargs):
@@ -1306,7 +1303,7 @@ class ContactCRUDL(SmartCRUDL):
     class UpdateFields(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.Form):
             contact_field = TembaChoiceField(
-                ContactField.user_fields.all(),
+                ContactField.user_fields.none(),
                 widget=SelectWidget(
                     attrs={"widget_only": True, "searchable": True, "placeholder": _("Select a field to update")}
                 ),
@@ -1317,9 +1314,9 @@ class ContactCRUDL(SmartCRUDL):
                 widget=InputWidget({"hide_label": True, "textarea": True}),
             )
 
-            def __init__(self, user, instance, *args, **kwargs):
+            def __init__(self, org, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                org = user.get_org()
+
                 self.fields["contact_field"].queryset = org.fields.filter(is_system=False, is_active=True)
 
         form_class = Form
@@ -1334,7 +1331,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             return kwargs
 
         def get_context_data(self, **kwargs):
@@ -1585,7 +1582,7 @@ class ContactGroupCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             return kwargs
 
     class Update(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
@@ -1602,7 +1599,7 @@ class ContactGroupCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             return kwargs
 
         def form_valid(self, form):
@@ -1915,24 +1912,24 @@ class ContactImportCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.derive_org()
+            kwargs["org"] = self.request.org
             return kwargs
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            org = self.derive_org()
+            org = self.request.org
             schemes = org.get_schemes(role=Channel.ROLE_SEND)
             schemes.add(URN.TEL_SCHEME)  # always show tel
             context["urn_schemes"] = [conf for conf in URN.SCHEME_CHOICES if conf[0] in schemes]
             context["explicit_clear"] = ContactImport.EXPLICIT_CLEAR
             context["max_records"] = ContactImport.MAX_RECORDS
-            context["org_country"] = self.org.default_country
+            context["org_country"] = org.default_country
             return context
 
         def pre_save(self, obj):
             obj = super().pre_save(obj)
-            obj.org = self.get_user().get_org()
+            obj.org = self.request.org
             obj.original_filename = self.form.cleaned_data["file"].name
             obj.mappings = self.form.mappings
             obj.num_records = self.form.num_records

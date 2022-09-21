@@ -89,7 +89,7 @@ class GlobalCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             self.object = Global.get_or_create(
-                self.request.user.get_org(),
+                self.request.org,
                 self.request.user,
                 key=Global.make_key(name=form.cleaned_data["name"]),
                 name=form.cleaned_data["name"],

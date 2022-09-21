@@ -26,7 +26,7 @@ from temba.flows.models import FlowSession
 from temba.msgs.models import Msg
 from temba.orgs.models import Org, OrgRole
 from temba.request_logs.models import HTTPLog
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.models import generate_uuid
@@ -3023,42 +3023,3 @@ class CourierTest(TembaTest):
         response = self.client.get(reverse("courier.t", args=[self.channel.uuid, "receive"]))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.content, b"this URL should be mapped to a Courier instance")
-
-
-class RemoveNonIVRConnectionsMigrationTest(MigrationTest):
-    app = "channels"
-    migrate_from = "0146_alter_channellog_elapsed_ms_and_more"
-    migrate_to = "0147_remove_non_ivr_connections"
-
-    def setUpBeforeMigration(self, apps):
-        contact = self.create_contact("Bob", phone="+1234567890")
-
-        self.connection1 = ChannelConnection.objects.create(
-            org=self.org,
-            channel=self.channel,
-            contact=contact,
-            contact_urn=contact.urns.get(),
-            status=ChannelConnection.STATUS_WIRED,
-            connection_type="V",  # current code for IVR
-        )
-        self.connection2 = ChannelConnection.objects.create(
-            org=self.org,
-            channel=self.channel,
-            contact=contact,
-            contact_urn=contact.urns.get(),
-            status=ChannelConnection.STATUS_COMPLETED,
-            connection_type="F",  # legacy code for IVR
-        )
-        self.connection3 = ChannelConnection.objects.create(
-            org=self.org,
-            channel=self.channel,
-            contact=contact,
-            contact_urn=contact.urns.get(),
-            status=ChannelConnection.STATUS_ERRORED,
-            connection_type="U",
-        )
-
-    def test_migration(self):
-        self.assertTrue(ChannelConnection.objects.filter(id=self.connection1.id).exists())
-        self.assertTrue(ChannelConnection.objects.filter(id=self.connection2.id).exists())
-        self.assertFalse(ChannelConnection.objects.filter(id=self.connection3.id).exists())

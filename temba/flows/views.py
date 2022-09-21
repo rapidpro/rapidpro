@@ -224,8 +224,7 @@ class FlowCRUDL(SmartCRUDL):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
 
         def derive_menu(self):
-
-            labels = FlowLabel.objects.filter(org=self.request.user.get_org(), parent=None).order_by("name")
+            labels = FlowLabel.objects.filter(org=self.request.org, parent=None).order_by("name")
 
             menu = []
             menu.append(self.create_menu_item(name=_("Active"), icon="flow", href="flows.flow_list"))
@@ -656,7 +655,7 @@ class FlowCRUDL(SmartCRUDL):
         def post_save(self, obj):
             keywords = set()
             user = self.request.user
-            org = user.get_org()
+            org = self.request.org
 
             if "keyword_triggers" in self.form.cleaned_data:
                 # get existing keyword triggers for this flow
@@ -707,7 +706,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["org_has_flows"] = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).count()
+            context["org_has_flows"] = self.request.org.flows.filter(is_active=True).exists()
             context["folders"] = self.get_folders()
             if self.is_spa():
                 context["labels_flat"] = self.get_flow_labels_flat()
@@ -730,7 +729,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_campaigns(self):
             from temba.campaigns.models import CampaignEvent
 
-            org = self.request.user.get_org()
+            org = self.request.org
             events = CampaignEvent.objects.filter(
                 campaign__org=org,
                 is_active=True,
@@ -756,14 +755,14 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
         def get_bulk_action_labels(self):
-            return self.get_user().get_org().flow_labels.all()
+            return self.request.org.flow_labels.filter(is_active=True)
 
         def get_flow_labels(self):
             labels = []
-            for label in FlowLabel.objects.filter(org=self.request.user.get_org(), parent=None):
+            for label in self.request.org.flow_labels.filter(is_active=True, parent=None):
                 labels.append(
                     dict(
-                        pk=label.pk,
+                        pk=label.id,
                         uuid=label.uuid,
                         label=label.name,
                         count=label.get_flows_count(),
@@ -774,7 +773,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_flow_labels_flat(self):
             labels = []
-            for label in FlowLabel.objects.filter(org=self.request.user.get_org()).order_by("name"):
+            for label in self.request.org.flow_labels.order_by("name"):
                 labels.append(
                     dict(
                         id=label.pk,
@@ -786,7 +785,7 @@ class FlowCRUDL(SmartCRUDL):
             return labels
 
         def get_folders(self):
-            org = self.request.user.get_org()
+            org = self.request.org
 
             return [
                 dict(
@@ -849,7 +848,7 @@ class FlowCRUDL(SmartCRUDL):
                 from temba.campaigns.models import Campaign
 
                 campaign_id = self.kwargs["campaign_id"]
-                self.campaign = Campaign.objects.filter(id=campaign_id, org=self.request.user.get_org()).first()
+                self.campaign = Campaign.objects.filter(id=campaign_id, org=self.request.org).first()
             return self.campaign
 
         def get_queryset(self, **kwargs):
@@ -859,7 +858,7 @@ class FlowCRUDL(SmartCRUDL):
                 campaign=self.get_campaign(), flow__is_archived=False, flow__is_system=False
             ).values("flow__id")
 
-            flows = Flow.objects.filter(id__in=flow_ids, org=self.request.user.get_org()).order_by("-modified_on")
+            flows = Flow.objects.filter(id__in=flow_ids, org=self.request.org).order_by("-modified_on")
             return flows
 
         def get_context_data(self, *args, **kwargs):
@@ -1065,14 +1064,14 @@ class FlowCRUDL(SmartCRUDL):
         class Form(forms.Form):
             language = forms.CharField(required=True)
 
-            def __init__(self, user, instance, *args, **kwargs):
-                self.user = user
-
+            def __init__(self, org, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+
+                self.org = org
 
             def clean_language(self):
                 data = self.cleaned_data["language"]
-                if data and data not in self.user.get_org().flow_languages:
+                if data and data not in self.org.flow_languages:
                     raise ValidationError(_("Not a valid language."))
 
                 return data
@@ -1082,7 +1081,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             return kwargs
 
         def form_valid(self, form):
@@ -1090,7 +1089,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.object.get_definition(), form.cleaned_data["language"]
             )
 
-            self.object.save_revision(self.get_user(), flow_def)
+            self.object.save_revision(self.request.user, flow_def)
 
             return HttpResponseRedirect(self.get_success_url())
 
@@ -1104,12 +1103,9 @@ class FlowCRUDL(SmartCRUDL):
                 widget=SelectWidget(),
             )
 
-            def __init__(self, user, instance, *args, **kwargs):
+            def __init__(self, org, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                org = user.get_org()
-
-                self.user = user
                 self.fields["language"].choices += languages.choices(codes=org.flow_languages)
 
         form_class = Form
@@ -1118,7 +1114,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             return kwargs
 
         def form_valid(self, form):
@@ -1161,7 +1157,7 @@ class FlowCRUDL(SmartCRUDL):
         class UploadForm(forms.Form):
             po_file = forms.FileField(label=_("PO translation file"), required=True)
 
-            def __init__(self, user, instance, *args, **kwargs):
+            def __init__(self, org, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
                 self.flow = instance
@@ -1197,10 +1193,9 @@ class FlowCRUDL(SmartCRUDL):
                 widget=SelectWidget(),
             )
 
-            def __init__(self, user, instance, *args, **kwargs):
+            def __init__(self, org, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                org = user.get_org()
                 lang_codes = list(org.flow_languages)
                 lang_codes.remove(instance.base_language)
 
@@ -1215,11 +1210,11 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             return kwargs
 
         def form_valid(self, form):
-            org = self.request.user.get_org()
+            org = self.request.org
             po_uuid = self.request.GET.get("po")
 
             if not po_uuid:
@@ -1246,7 +1241,7 @@ class FlowCRUDL(SmartCRUDL):
             if not po_uuid:
                 return None
 
-            org = self.request.user.get_org()
+            org = self.request.org
             po_data = gettext.po_load(org, po_uuid)
             return gettext.po_get_info(po_data)
 
@@ -1301,20 +1296,18 @@ class FlowCRUDL(SmartCRUDL):
                 widget=CheckboxWidget(),
             )
 
-            def __init__(self, user, *args, **kwargs):
+            def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.user = user
+
                 self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.user_fields.active_for_org(
-                    org=self.user.get_org()
+                    org=org
                 ).order_by(Lower("name"))
 
                 self.fields[ExportFlowResultsTask.GROUP_MEMBERSHIPS].queryset = ContactGroup.get_groups(
-                    self.user.get_org(), ready_only=True
+                    org, ready_only=True
                 ).order_by(Lower("name"))
 
-                self.fields[ExportFlowResultsTask.FLOWS].queryset = Flow.objects.filter(
-                    org=self.user.get_org(), is_active=True
-                )
+                self.fields[ExportFlowResultsTask.FLOWS].queryset = Flow.objects.filter(org=org, is_active=True)
 
             def clean(self):
                 cleaned_data = super().clean()
@@ -1349,7 +1342,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             return kwargs
 
         def derive_initial(self):
@@ -1364,7 +1357,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             user = self.request.user
-            org = user.get_org()
+            org = self.request.org
 
             # is there already an export taking place?
             existing = ExportFlowResultsTask.get_recent_unfinished(org)

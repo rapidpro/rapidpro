@@ -33,16 +33,14 @@ class BoundaryCRUDL(SmartCRUDL):
             # we didn't shortcut for some other reason, check that they have an
             # org
             if not response:
-                org = request.user.get_org()
-                if not org.country:
+                if not request.org.country:
                     messages.warning(request, _("You must select a country for your workspace."))
                     return HttpResponseRedirect(reverse("orgs.org_home"))
 
             return None
 
         def get_object(self, queryset=None):
-            org = self.request.user.get_org()
-            return org.country
+            return self.request.org.country
 
     class Geometry(OrgPermsMixin, SmartReadView):
         @classmethod
@@ -96,7 +94,7 @@ class BoundaryCRUDL(SmartCRUDL):
 
             # try to parse our body
             json_string = request.body
-            org = request.user.get_org()
+            org = request.org
 
             try:
                 boundary_update = json.loads(json_string)
@@ -111,7 +109,7 @@ class BoundaryCRUDL(SmartCRUDL):
             return JsonResponse(boundary_update, safe=False)
 
         def get(self, request, *args, **kwargs):
-            org = request.user.get_org()
+            org = request.org
             boundary = self.get_object()
 
             page_size = 25
