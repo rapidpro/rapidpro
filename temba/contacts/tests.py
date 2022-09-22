@@ -22,10 +22,11 @@ from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.channels.models import Channel, ChannelConnection, ChannelEvent, ChannelLog
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.search import SearchException, search_contacts
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowSession, FlowStart
+from temba.ivr.models import Call
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modifiers
 from temba.msgs.models import Broadcast, Msg, SystemLabel
@@ -1778,7 +1779,7 @@ class ContactTest(TembaTest):
         bcast2.save()
 
         self.assertEqual(1, group.contacts.all().count())
-        self.assertEqual(1, contact.connections.all().count())
+        self.assertEqual(1, contact.calls.all().count())
         self.assertEqual(2, contact.addressed_broadcasts.all().count())
         self.assertEqual(2, contact.urns.all().count())
         self.assertEqual(2, contact.runs.all().count())
@@ -1815,7 +1816,7 @@ class ContactTest(TembaTest):
 
         contact.refresh_from_db()
         self.assertEqual(0, group.contacts.all().count())
-        self.assertEqual(0, contact.connections.all().count())
+        self.assertEqual(0, contact.calls.all().count())
         self.assertEqual(0, contact.addressed_broadcasts.all().count())
         self.assertEqual(0, contact.urns.all().count())
         self.assertEqual(0, contact.runs.all().count())
@@ -2444,10 +2445,10 @@ class ContactTest(TembaTest):
         )
 
         # try adding some failed calls
-        call = ChannelConnection.objects.create(
+        call = Call.objects.create(
             contact=self.joe,
-            status=ChannelConnection.STATUS_ERRORED,
-            error_reason=ChannelConnection.ERROR_NOANSWER,
+            status=Call.STATUS_ERRORED,
+            error_reason=Call.ERROR_NOANSWER,
             channel=self.channel,
             org=self.org,
             contact_urn=self.joe.urns.all().first(),
@@ -2456,7 +2457,7 @@ class ContactTest(TembaTest):
 
         # create a channel log for this call
         ChannelLog.objects.create(
-            channel=self.channel, log_type=ChannelLog.LOG_TYPE_IVR_START, is_error=False, connection=call
+            channel=self.channel, log_type=ChannelLog.LOG_TYPE_IVR_START, is_error=False, call=call
         )
 
         # add a note to our open ticket
