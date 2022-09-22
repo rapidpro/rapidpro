@@ -1,3 +1,7 @@
+v7.5.53
+----------
+ * Add data migration to convert channel connections to calls
+
 v7.5.52
 ----------
  * Replace last non-API usages of User.get_org()
