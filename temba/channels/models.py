@@ -1217,6 +1217,9 @@ class ChannelLog(models.Model):
     uuid = models.UUIDField(default=uuid4)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
+    call = models.ForeignKey("ivr.Call", on_delete=models.PROTECT, related_name="channel_logs", null=True)
+
+    # deprecated
     connection = models.ForeignKey(
         "channels.ChannelConnection", on_delete=models.PROTECT, related_name="channel_logs", null=True
     )

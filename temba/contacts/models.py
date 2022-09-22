@@ -1173,6 +1173,10 @@ class Contact(LegacyUUIDMixin, SmartModel):
                 for msg in urn.msgs.all():
                     msg.delete()
 
+                # same thing goes for calls
+                for call in urn.calls.all():  # pragma: needs cover
+                    call.release()
+
                 # same thing goes for connections
                 for conn in urn.connections.all():
                     conn.release()
@@ -1188,6 +1192,9 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
             for session in self.sessions.all():
                 session.delete()
+
+            for call in self.calls.all():  # pragma: needs cover
+                call.release()
 
             for conn in self.connections.all():  # pragma: needs cover
                 conn.release()
