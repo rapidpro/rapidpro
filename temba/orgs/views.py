@@ -125,10 +125,7 @@ class OrgPermsMixin:
         return self.request.user
 
     def derive_org(self):
-        org = None
-        if not self.get_user().is_anonymous:
-            org = self.get_user().get_org()
-        return org
+        return self.request.org
 
     def has_org_perm(self, permission):
         if self.org:
@@ -188,8 +185,7 @@ class OrgObjPermsMixin(OrgPermsMixin):
         has_org_perm = super().has_org_perm(codename)
 
         if has_org_perm:
-            user = self.get_user()
-            return user.get_org() == self.get_object_org()
+            return self.request.org == self.get_object_org()
 
         return False
 
@@ -197,13 +193,13 @@ class OrgObjPermsMixin(OrgPermsMixin):
         has_perm = super().has_permission(request, *args, **kwargs)
 
         if has_perm:
-            user = self.get_user()
+            user = self.request.user
 
             # user has global permission
             if user.has_perm(self.permission):
                 return True
 
-            return user.get_org() == self.get_object_org()
+            return self.request.org == self.get_object_org()
 
         return False
 
@@ -272,7 +268,7 @@ class IntegrationViewMixin(OrgPermsMixin):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["integration_type"] = self.integration_type
-        context["integration_connected"] = self.integration_type.is_connected(self.request.user.get_org())
+        context["integration_connected"] = self.integration_type.is_connected(self.request.org)
         return context
 
 
@@ -673,7 +669,7 @@ class InferOrgMixin:
         return r"^%s/%s/$" % (path, action)
 
     def get_object(self, *args, **kwargs):
-        return self.request.user.get_org()
+        return self.request.org
 
 
 class UserCRUDL(SmartCRUDL):
@@ -930,13 +926,11 @@ class UserCRUDL(SmartCRUDL):
             if user.is_anonymous:
                 return False
 
-            org = user.get_org()
-
-            if org:
+            if request.org:
                 if not user.is_authenticated:  # pragma: needs cover
                     return False
 
-                if org.has_user(user):
+                if request.org.has_user(user):
                     return True
 
             return False  # pragma: needs cover
@@ -988,7 +982,7 @@ class UserCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
 
             brand = self.request.branding["name"]
-            user = self.get_user()
+            user = self.request.user
             secret_url = pyotp.TOTP(user.settings.otp_secret).provisioning_uri(user.username, issuer_name=brand)
             context["secret_url"] = secret_url
             return context
@@ -1061,7 +1055,7 @@ class UserCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["backup_tokens"] = self.get_user().backup_tokens.order_by("id")
+            context["backup_tokens"] = self.request.user.backup_tokens.order_by("id")
             return context
 
     class Account(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
@@ -1228,7 +1222,7 @@ class OrgCRUDL(SmartCRUDL):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
 
         def has_permission(self, request, *args, **kwargs):
-            if self.get_user().is_staff:
+            if self.request.user.is_staff:
                 return True
             return super().has_permission(request, *args, **kwargs)
 
@@ -1455,12 +1449,12 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.user.get_org()
+            kwargs["org"] = self.request.org
             return kwargs
 
         def form_valid(self, form):
             try:
-                org = self.request.user.get_org()
+                org = self.request.org
                 data = json.loads(form.cleaned_data["import_file"])
                 org.import_app(data, self.request.user, self.request.branding["link"])
             except Exception as e:
@@ -1668,7 +1662,7 @@ class OrgCRUDL(SmartCRUDL):
         def form_valid(self, form):
             disconnect = form.cleaned_data.get("disconnect", "false") == "true"
             user = self.request.user
-            org = user.get_org()
+            org = self.request.org
 
             if disconnect:
                 org.remove_vonage_account(user)
@@ -1965,7 +1959,7 @@ class OrgCRUDL(SmartCRUDL):
         def form_valid(self, form):
             disconnect = form.cleaned_data.get("disconnect", "false") == "true"
             user = self.request.user
-            org = user.get_org()
+            org = self.request.org
 
             if disconnect:
                 org.remove_smtp_config(user)
@@ -2504,7 +2498,7 @@ class OrgCRUDL(SmartCRUDL):
         # if we don't support multi orgs, go home
         def pre_process(self, request, *args, **kwargs):
             response = super().pre_process(request, *args, **kwargs)
-            if not response and not request.user.get_org().is_multi_org:
+            if not response and not request.org.is_multi_org:
                 return HttpResponseRedirect(reverse("orgs.org_home"))
             return response
 
@@ -2512,12 +2506,12 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org_id = self.request.GET.get("org")
-            context["parent"] = Org.objects.filter(id=org_id, parent=self.request.user.get_org()).first()
+            context["parent"] = Org.objects.filter(id=org_id, parent=self.request.org).first()
             return context
 
         def get_object(self, *args, **kwargs):
             org_id = self.request.GET.get("org")
-            return Org.objects.filter(id=org_id, parent=self.request.user.get_org()).first()
+            return Org.objects.filter(id=org_id, parent=self.request.org).first()
 
         def get_success_url(self):  # pragma: needs cover
             org_id = self.request.GET.get("org")
@@ -2638,7 +2632,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super().derive_initial()
-            parent = self.request.user.get_org()
+            parent = self.request.org
             initial["timezone"] = parent.timezone
             initial["date_format"] = parent.date_format
             return initial
@@ -3331,7 +3325,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            # context['channels'] = Channel.objects.filter(org=self.request.user.get_org(), is_active=True, parent=None).order_by("-role")
+            # context['channels'] = Channel.objects.filter(org=self.request.org, is_active=True, parent=None).order_by("-role")
             return context
 
         def add_channel_section(self, formax, channel):
@@ -3355,7 +3349,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # add the channel option if we have one
             user = self.request.user
-            org = user.get_org()
+            org = self.request.org
 
             shared_usage = org.parent and org.parent.has_shared_usage()
             if not shared_usage:
@@ -3515,7 +3509,7 @@ class OrgCRUDL(SmartCRUDL):
         def form_valid(self, form):
             disconnect = form.cleaned_data.get("disconnect", "false") == "true"
             user = self.request.user
-            org = user.get_org()
+            org = self.request.org
 
             if disconnect:
                 org.remove_twilio_account(user)
@@ -3595,10 +3589,7 @@ class OrgCRUDL(SmartCRUDL):
                 required=True, label=_("Credits"), help_text=_("How many credits to transfer"), widget=InputWidget()
             )
 
-            def __init__(self, *args, **kwargs):
-                org = kwargs["org"]
-                del kwargs["org"]
-
+            def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
                 self.fields["from_org"].queryset = Org.objects.filter(Q(parent=org) | Q(id=org.id)).order_by(
@@ -3628,13 +3619,13 @@ class OrgCRUDL(SmartCRUDL):
         permission = "orgs.org_transfer_credits"
 
         def has_permission(self, request, *args, **kwargs):
-            self.org = self.request.user.get_org()
+            self.org = self.request.org
             return self.request.user.has_perm(self.permission) or self.has_org_perm(self.permission)
 
         def get_form_kwargs(self):
-            form_kwargs = super().get_form_kwargs()
-            form_kwargs["org"] = self.get_object()
-            return form_kwargs
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.get_object()
+            return kwargs
 
         def form_valid(self, form):
             from_org = form.cleaned_data["from_org"]
@@ -3707,7 +3698,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.user.get_org()
+            kwargs["org"] = self.request.org
             return kwargs
 
         def derive_initial(self):
@@ -3793,18 +3784,18 @@ class TopUpCRUDL(SmartCRUDL):
 
     class Read(OrgPermsMixin, SmartReadView):
         def derive_queryset(self, **kwargs):  # pragma: needs cover
-            return TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by("-expires_on")
+            return TopUp.objects.filter(is_active=True, org=self.request.org).order_by("-expires_on")
 
     class List(OrgPermsMixin, SmartListView):
         def derive_queryset(self, **kwargs):
-            queryset = TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by("-expires_on")
+            queryset = TopUp.objects.filter(is_active=True, org=self.request.org).order_by("-expires_on")
             return queryset.annotate(
                 credits_remaining=ExpressionWrapper(F("credits") - Sum(F("topupcredits__used")), IntegerField())
             )
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["org"] = self.request.user.get_org()
+            context["org"] = self.request.org
 
             now = timezone.now()
             context["now"] = now
