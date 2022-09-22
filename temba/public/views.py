@@ -74,7 +74,7 @@ class Welcome(SmartTemplateView):
         context = super().get_context_data(**kwargs)
 
         user = self.request.user
-        org = user.get_org()
+        org = self.request.org
         brand = self.request.branding
 
         if org:

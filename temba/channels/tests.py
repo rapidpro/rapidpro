@@ -501,10 +501,8 @@ class ChannelTest(TembaTest):
         self.assertFalse(self.org2.channels.all())
 
         self.login(other_user)
+        self.client.post(reverse("orgs.org_choose"), dict(organization=self.org2.id))
 
-        other_user.set_org(self.org2)
-
-        self.assertEqual(self.org2, other_user.get_org())
         response = self.client.get("/", follow=True)
         self.assertNotIn("channel_type", response.context, msg="Found channel_type in context")
 
@@ -512,9 +510,6 @@ class ChannelTest(TembaTest):
 
         self.assertEqual(1, self.org.channels.filter(is_active=True).count())
         self.assertEqual(self.org, other_user.get_org())
-
-        response = self.client.get("/", follow=True)
-        # self.assertIn('channel_type', response.context)
 
     def sync(self, channel, *, cmds, signature=None, auto_add_fcm=True):
         # prepend FCM command if not included
