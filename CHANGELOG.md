@@ -1,3 +1,8 @@
+v7.5.52
+----------
+ * Replace last non-API usages of User.get_org()
+ * Use new call model in UI
+
 v7.5.51
 ----------
  * Add new ivr.Call model to replace channels.ChannelConnection

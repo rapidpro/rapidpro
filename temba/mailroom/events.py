@@ -8,8 +8,9 @@ from django.urls import reverse
 
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import EventFire
-from temba.channels.models import ChannelConnection, ChannelEvent
+from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowExit, FlowRun
+from temba.ivr.models import Call
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.tickets.models import Ticket, TicketEvent, Topic
@@ -153,7 +154,7 @@ class Event:
         }
 
     @classmethod
-    def from_ivr_call(cls, org: Org, user: User, obj: ChannelConnection) -> dict:
+    def from_ivr_call(cls, org: Org, user: User, obj: Call) -> dict:
         logs_url = None
         if obj.channel_logs.exists():
             logs_url = _url_for_user(
@@ -294,7 +295,7 @@ event_renderers = {
     EventFire: Event.from_event_fire,
     FlowExit: Event.from_flow_exit,
     FlowRun: Event.from_flow_run,
-    ChannelConnection: Event.from_ivr_call,
+    Call: Event.from_ivr_call,
     Msg: Event.from_msg,
     TicketEvent: Event.from_ticket_event,
 }
