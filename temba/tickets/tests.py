@@ -529,43 +529,41 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.clear_storage()
         self.login(self.admin)
 
-        ticket_export_org_columns = self.get_ticket_export_columns()
-        ticket_export_org_columns.remove("Contact ID")
-
-        ticket_export_anon_org_columns = self.get_ticket_export_columns()
-        ticket_export_anon_org_columns.remove("URN Value")
-
         self.org.is_anon = False
         self.org.save()
+
+        # all columns except for "Contact ID" should be visible
+        columns = self.get_ticket_export_columns()
+        columns.remove("Contact ID")
+        rows = [columns]
 
         # check results of sheet in workbook
         export = self.request_ticket_export()
         self.assertExcelSheet(
             export[0],
-            [ticket_export_org_columns],  # all columns except for "Contact ID" should be visible
+            rows,
             tz=self.org.timezone,
         )
 
         self.org.is_anon = True
         self.org.save()
 
+        # all columns except for "URN Value" should be visible
+        columns = self.get_ticket_export_columns()
+        columns.remove("URN Value")
+        rows = [columns]
+
         # check results of sheet in workbook
         export = self.request_ticket_export()
         self.assertExcelSheet(
             export[0],
-            [ticket_export_anon_org_columns],  # all columns except for "URN Value" should be visible
+            rows,
             tz=self.org.timezone,
         )
 
     def test_ticket_export_rows(self):
         self.clear_storage()
         self.login(self.admin)
-
-        ticket_export_org_columns = self.get_ticket_export_columns()
-        ticket_export_org_columns.remove("Contact ID")
-
-        ticket_export_anon_org_columns = self.get_ticket_export_columns()
-        ticket_export_anon_org_columns.remove("URN Value")
 
         # create a ticketer
         ticketer = Ticketer.create(self.org, self.admin, "internal", "Internal", {})
@@ -622,43 +620,48 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.is_anon = False
         self.org.save()
 
+        # all columns except for "Contact ID" should be visible
+        columns = self.get_ticket_export_columns()
+        columns.remove("Contact ID")
+        rows = [
+            columns,
+            [
+                t_jamie.uuid,
+                t_jamie.opened_on,
+                "",
+                t_jamie.topic.name,
+                t_jamie.assignee.email,
+                t_jamie.contact.uuid,
+                "twitter",
+                "jamietarttshark",
+            ],
+            [
+                t_roy.uuid,
+                t_roy.opened_on,
+                t_roy.closed_on,
+                t_roy.topic.name,
+                t_roy.assignee.email,
+                t_roy.contact.uuid,
+                "tel",
+                "+1234567890",
+            ],
+            [
+                t_sam.uuid,
+                t_sam.opened_on,
+                t_sam.closed_on,
+                t_sam.topic.name,
+                t_sam.assignee.email,
+                t_sam.contact.uuid,
+                "twitter",
+                "nigerianprince",
+            ],
+        ]
+
         # check results of sheet in workbook
         export = self.request_ticket_export()
         self.assertExcelSheet(
             export[0],
-            [
-                ticket_export_org_columns,  # all columns except for "Contact ID" should be visible
-                [
-                    t_jamie.uuid,
-                    t_jamie.opened_on,
-                    "",
-                    t_jamie.topic.name,
-                    t_jamie.assignee.email,
-                    t_jamie.contact.uuid,
-                    "twitter",
-                    "jamietarttshark",
-                ],
-                [
-                    t_roy.uuid,
-                    t_roy.opened_on,
-                    t_roy.closed_on,
-                    t_roy.topic.name,
-                    t_roy.assignee.email,
-                    t_roy.contact.uuid,
-                    "tel",
-                    "+1234567890",
-                ],
-                [
-                    t_sam.uuid,
-                    t_sam.opened_on,
-                    t_sam.closed_on,
-                    t_sam.topic.name,
-                    t_sam.assignee.email,
-                    t_sam.contact.uuid,
-                    "twitter",
-                    "nigerianprince",
-                ],
-            ],
+            rows,
             tz=self.org.timezone,
         )
 
@@ -666,45 +669,73 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.is_anon = True
         self.org.save()
 
+        # all columns except for "URN Value" should be visible
+        columns = self.get_ticket_export_columns()
+        columns.remove("URN Value")
+        rows = [
+            columns,
+            [
+                t_jamie.uuid,
+                t_jamie.opened_on,
+                "",
+                t_jamie.topic.name,
+                t_jamie.assignee.email,
+                t_jamie.contact.uuid,
+                t_jamie.contact_id,
+                "twitter",
+            ],
+            [
+                t_roy.uuid,
+                t_roy.opened_on,
+                t_roy.closed_on,
+                t_roy.topic.name,
+                t_roy.assignee.email,
+                t_roy.contact.uuid,
+                t_roy.contact_id,
+                "tel",
+            ],
+            [
+                t_sam.uuid,
+                t_sam.opened_on,
+                t_sam.closed_on,
+                t_sam.topic.name,
+                t_sam.assignee.email,
+                t_sam.contact.uuid,
+                t_sam.contact_id,
+                "twitter",
+            ],
+        ]
+
         # check results of sheet in workbook
         export = self.request_ticket_export()
         self.assertExcelSheet(
             export[0],
-            [
-                ticket_export_anon_org_columns,  # all columns except for "URN Value" should be visible
-                [
-                    t_jamie.uuid,
-                    t_jamie.opened_on,
-                    "",
-                    t_jamie.topic.name,
-                    t_jamie.assignee.email,
-                    t_jamie.contact.uuid,
-                    t_jamie.contact_id,
-                    "twitter",
-                ],
-                [
-                    t_roy.uuid,
-                    t_roy.opened_on,
-                    t_roy.closed_on,
-                    t_roy.topic.name,
-                    t_roy.assignee.email,
-                    t_roy.contact.uuid,
-                    t_roy.contact_id,
-                    "tel",
-                ],
-                [
-                    t_sam.uuid,
-                    t_sam.opened_on,
-                    t_sam.closed_on,
-                    t_sam.topic.name,
-                    t_sam.assignee.email,
-                    t_sam.contact.uuid,
-                    t_sam.contact_id,
-                    "twitter",
-                ],
-            ],
+            rows,
             tz=self.org.timezone,
         )
+
+        # # create a contact
+        # c_keeley = self.create_contact(
+        #     "KeeleyJones", urns=["twitter:kekejojo"], fields={"gender": "Female", "age": 22}
+        # )
+        # # create 10k tickets for keeley
+        # i = 0
+        # while i < 10000:
+        #     t_keeley = self.create_ticket(
+        #         ticketer, c_keeley, body="Hi", topic=topic, assignee=assignee, opened_on=timezone.now()
+        #     )
+        #     row = [t_keeley.uuid, t_keeley.opened_on, "", t_keeley.topic.name, t_keeley.assignee.email,
+        #             t_keeley.contact.uuid, t_keeley.contact_id,"twitter"]
+        #     rows.append(row)
+        #     i += 1
+
+        # # check results of sheet in workbook
+        # export = self.request_ticket_export()
+        # self.assertExcelSheet(
+        #     export[0],
+        #     rows,
+        #     tz=self.org.timezone,
+        # )
 
     def get_ticket_export_columns(self):
         return [

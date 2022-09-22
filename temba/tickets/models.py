@@ -661,7 +661,9 @@ class ExportTicketsTask(BaseExportTask):
         for ticket_batch_ids in chunk_list(ticket_ids, 1000):
 
             # TODO make sure removing the prefetch_related and using readonly don't cause performance issues
-            batch_tickets = Ticket.objects.filter(id__in=ticket_batch_ids).order_by("opened_on")  # .prefetch_related("org").using("readonly")
+            batch_tickets = Ticket.objects.filter(id__in=ticket_batch_ids).order_by(
+                "opened_on"
+            )  # .prefetch_related("org").using("readonly")
 
             # for each batch of ticket ids...
             for batch_ticket in batch_tickets:
