@@ -651,7 +651,7 @@ class ExportTicketsTask(BaseExportTask):
         ticket_ids = self.org.tickets.order_by("opened_on").values_list("id", flat=True)
 
         # create the exporter
-        exporter = TableExporter(self, "Ticket", [f["label"] for f in fields])
+        exporter = TableExporter(self, "Tickets", [f["label"] for f in fields])
 
         # init progress info to log every 10k tickets
         total_exported_tickets = 0
@@ -660,22 +660,16 @@ class ExportTicketsTask(BaseExportTask):
         # add tickets to the export in batches of 1k to limit memory usage
         for ticket_batch_ids in chunk_list(ticket_ids, 1000):
 
-            # create a map of id:ticket to maintain order within each batch
             # TODO make sure removing the prefetch_related and using readonly don't cause performance issues
-            batch_tickets = Ticket.objects.filter(
-                id__in=ticket_batch_ids
-            )  # .prefetch_related("org").using("readonly")
-            tickets_by_id = {t.id: t for t in batch_tickets}
+            batch_tickets = Ticket.objects.filter(id__in=ticket_batch_ids).order_by("opened_on")  # .prefetch_related("org").using("readonly")
 
             # for each batch of ticket ids...
-            for ticket_id in ticket_batch_ids:
-
-                ticket = tickets_by_id[ticket_id]
+            for batch_ticket in batch_tickets:
 
                 # get the field values aka row values
                 values = []
                 for field in fields:
-                    value = self.get_field_value(field, ticket)
+                    value = self.get_field_value(field, batch_ticket)
                     values.append(self.prepare_value(value))
 
                 # add row to the export

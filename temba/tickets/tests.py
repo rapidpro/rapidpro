@@ -579,11 +579,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             "Jamie Tartt", urns=["twitter:jamietarttshark"], fields={"gender": "Male", "age": 25}
         )
         # create a contact with multiple urns that have different max priority
-        c_roy = self.create_contact(
-            "Roy Kent", urns=["tel:+1234567890", "twitter:roykent"], fields={"gender": "Male", "age": 41}
-        )
+        c_roy = self.create_contact("Roy Kent", fields={"gender": "Male", "age": 41})
+        ContactURN.create(self.org, c_roy, "tel:+1234567890")
+        ContactURN.create(self.org, c_roy, "twitter:roykent")
         # create a contact with multiple urns that have the same max priority
-        # c_sam = self.create_contact("Sam Obisanya", urns=["twitter:nigerianprince", "tel:+9876543210"], fields={"gender": "Male", "age": 22})
         c_sam = self.create_contact("Sam Obisanya", fields={"gender": "Male", "age": 22})
         ContactURN.create(self.org, c_sam, "twitter:nigerianprince", priority=50)
         ContactURN.create(self.org, c_sam, "tel:+9876543210", priority=50)
@@ -619,8 +618,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             zendesk, self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2), "Stuff"
         )
 
-        print(self.org.tickets.all())
-
         # test ticket export for a regular org
         self.org.is_anon = False
         self.org.save()
@@ -649,7 +646,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     t_roy.assignee.email,
                     t_roy.contact.uuid,
                     "tel",
-                    "1234567890",
+                    "+1234567890",
                 ],
                 [
                     t_sam.uuid,
@@ -665,7 +662,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             tz=self.org.timezone,
         )
 
-        # test ticket export for a regular org
+        # test ticket export for an anon org
         self.org.is_anon = True
         self.org.save()
 
@@ -682,7 +679,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     t_jamie.topic.name,
                     t_jamie.assignee.email,
                     t_jamie.contact.uuid,
-                    str(t_jamie.contact_id),
+                    t_jamie.contact_id,
                     "twitter",
                 ],
                 [
@@ -692,7 +689,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     t_roy.topic.name,
                     t_roy.assignee.email,
                     t_roy.contact.uuid,
-                    str(t_roy.contact_id),
+                    t_roy.contact_id,
                     "tel",
                 ],
                 [
@@ -702,7 +699,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     t_sam.topic.name,
                     t_sam.assignee.email,
                     t_sam.contact.uuid,
-                    str(t_sam.contact_id),
+                    t_sam.contact_id,
                     "twitter",
                 ],
             ],

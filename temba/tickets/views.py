@@ -430,7 +430,7 @@ class TicketCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             user = self.request.user
-            org = user.get_org()
+            org = self.request.org
 
             # is there already an export taking place?
             existing = ExportTicketsTask.get_recent_unfinished(org)

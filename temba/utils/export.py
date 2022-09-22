@@ -138,14 +138,14 @@ class BaseExportTask(TembaUUIDMixin, SmartModel):
     def prepare_value(self, value):
         if value is None:
             return ""
+        if isinstance(value, (bool, int, float)):
+            return value
         elif isinstance(value, str):
             if value.startswith("="):  # escape = so value isn't mistaken for a formula
                 value = "'" + value
             return clean_string(value)
         elif isinstance(value, datetime):
             return value.astimezone(self.org.timezone).replace(microsecond=0, tzinfo=None)
-        elif isinstance(value, bool):
-            return value
         else:
             return clean_string(str(value))
 
