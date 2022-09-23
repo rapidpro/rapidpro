@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactURN
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests.base import AnonymousOrg
 from temba.utils.dates import datetime_to_timestamp
 
 from .models import (
@@ -525,6 +526,33 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
         self.assertEqual("text/html; charset=utf-8", response["Content-Type"])
 
+    def test_ticket_export_in_progress(self):
+        self.clear_storage()
+        self.login(self.admin)
+        export_url = reverse("tickets.ticket_export")
+
+        # create a dummy export task so that we won't be able to export
+        blocking_export = ExportTicketsTask.create(self.org, self.admin)
+        
+        response = self.client.post(export_url, {}, follow=True)
+        self.assertContains(response, "already an export in progress")
+
+        # ok mark that export as finished and try again
+        blocking_export.update_status(ExportTicketsTask.STATUS_COMPLETE)
+
+        response = self.client.post(export_url)
+        self.assertEqual(302, response.status_code)
+        self.assertEqual("text/html; charset=utf-8", response["Content-Type"])
+
+    def test_ticket_export_column_does_not_exist(self):
+        self.clear_storage()
+        self.login(self.admin)
+
+        field = dict(label="Blah", key="blah", field=None, urn_scheme=None)
+        value = ExportTicketsTask.get_field_value(self, field, None)
+
+        self.assertEqual(None, value)
+
     def test_ticket_export_columns(self):
         self.clear_storage()
         self.login(self.admin)
@@ -565,34 +593,39 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.clear_storage()
         self.login(self.admin)
 
-        # create a ticketer
+        # create some stuff that contacts and tickets need
         ticketer = Ticketer.create(self.org, self.admin, "internal", "Internal", {})
-        # create a topic
         topic = Topic.create(self.org, self.admin, "AFC Richmond")
-        # create an assignee
         assignee = self.admin
+
         # create some contacts...
+        # create a contact with no urns
+        nate = self.create_contact("Nathan Shelley", fields={"gender": "Male"})
         # create a contact with one set of urns
-        c_jamie = self.create_contact(
-            "Jamie Tartt", urns=["twitter:jamietarttshark"], fields={"gender": "Male", "age": 25}
-        )
+        jamie = self.create_contact("Jamie Tartt", fields={"gender": "Male", "age": 25})
+        ContactURN.create(self.org, jamie, "twitter:jamietarttshark")
         # create a contact with multiple urns that have different max priority
-        c_roy = self.create_contact("Roy Kent", fields={"gender": "Male", "age": 41})
-        ContactURN.create(self.org, c_roy, "tel:+1234567890")
-        ContactURN.create(self.org, c_roy, "twitter:roykent")
+        roy = self.create_contact("Roy Kent", fields={"gender": "Male", "age": 41})
+        ContactURN.create(self.org, roy, "tel:+1234567890")
+        ContactURN.create(self.org, roy, "twitter:roykent")
         # create a contact with multiple urns that have the same max priority
-        c_sam = self.create_contact("Sam Obisanya", fields={"gender": "Male", "age": 22})
-        ContactURN.create(self.org, c_sam, "twitter:nigerianprince", priority=50)
-        ContactURN.create(self.org, c_sam, "tel:+9876543210", priority=50)
+        sam = self.create_contact("Sam Obisanya", fields={"gender": "Male", "age": 22})
+        ContactURN.create(self.org, sam, "twitter:nigerianprince", priority=50)
+        ContactURN.create(self.org, sam, "tel:+9876543210", priority=50)
+
         # create some tickets...
+        # create an open ticket for nate
+        ticket1 = self.create_ticket(
+            ticketer, nate, body="Y'ello", topic=topic, assignee=assignee, opened_on=timezone.now()
+        )
         # create an open ticket for jamie
-        t_jamie = self.create_ticket(
-            ticketer, c_jamie, body="Hi", topic=topic, assignee=assignee, opened_on=timezone.now()
+        ticket2 = self.create_ticket(
+            ticketer, jamie, body="Hi", topic=topic, assignee=assignee, opened_on=timezone.now()
         )
         # create a closed ticket for roy
-        t_roy = self.create_ticket(
+        ticket3 = self.create_ticket(
             ticketer,
-            c_roy,
+            roy,
             body="Hello",
             topic=topic,
             assignee=assignee,
@@ -600,9 +633,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             closed_on=timezone.now(),
         )
         # create a closed ticket for sam
-        t_sam = self.create_ticket(
+        ticket4 = self.create_ticket(
             ticketer,
-            c_sam,
+            sam,
             body="Yo",
             topic=topic,
             assignee=assignee,
@@ -626,32 +659,44 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         rows = [
             columns,
             [
-                t_jamie.uuid,
-                t_jamie.opened_on,
+                
+                ticket1.uuid,
+                ticket1.opened_on,
                 "",
-                t_jamie.topic.name,
-                t_jamie.assignee.email,
-                t_jamie.contact.uuid,
+                ticket1.topic.name,
+                ticket1.assignee.email,
+                ticket1.contact.uuid,
+                "",
+                "",
+            ],
+            [
+                
+                ticket2.uuid,
+                ticket2.opened_on,
+                "",
+                ticket2.topic.name,
+                ticket2.assignee.email,
+                ticket2.contact.uuid,
                 "twitter",
                 "jamietarttshark",
             ],
             [
-                t_roy.uuid,
-                t_roy.opened_on,
-                t_roy.closed_on,
-                t_roy.topic.name,
-                t_roy.assignee.email,
-                t_roy.contact.uuid,
+                ticket3.uuid,
+                ticket3.opened_on,
+                ticket3.closed_on,
+                ticket3.topic.name,
+                ticket3.assignee.email,
+                ticket3.contact.uuid,
                 "tel",
                 "+1234567890",
             ],
             [
-                t_sam.uuid,
-                t_sam.opened_on,
-                t_sam.closed_on,
-                t_sam.topic.name,
-                t_sam.assignee.email,
-                t_sam.contact.uuid,
+                ticket4.uuid,
+                ticket4.opened_on,
+                ticket4.closed_on,
+                ticket4.topic.name,
+                ticket4.assignee.email,
+                ticket4.contact.uuid,
                 "twitter",
                 "nigerianprince",
             ],
@@ -664,78 +709,88 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             rows,
             tz=self.org.timezone,
         )
-
+        
         # test ticket export for an anon org
-        self.org.is_anon = True
-        self.org.save()
+        with AnonymousOrg(self.org):
 
-        # all columns except for "URN Value" should be visible
-        columns = self.get_ticket_export_columns()
-        columns.remove("URN Value")
-        rows = [
-            columns,
-            [
-                t_jamie.uuid,
-                t_jamie.opened_on,
-                "",
-                t_jamie.topic.name,
-                t_jamie.assignee.email,
-                t_jamie.contact.uuid,
-                t_jamie.contact_id,
-                "twitter",
-            ],
-            [
-                t_roy.uuid,
-                t_roy.opened_on,
-                t_roy.closed_on,
-                t_roy.topic.name,
-                t_roy.assignee.email,
-                t_roy.contact.uuid,
-                t_roy.contact_id,
-                "tel",
-            ],
-            [
-                t_sam.uuid,
-                t_sam.opened_on,
-                t_sam.closed_on,
-                t_sam.topic.name,
-                t_sam.assignee.email,
-                t_sam.contact.uuid,
-                t_sam.contact_id,
-                "twitter",
-            ],
-        ]
+            # all columns except for "URN Value" should be visible
+            columns = self.get_ticket_export_columns()
+            columns.remove("URN Value")
+            rows = [
+                columns,
+                [
+                    
+                    ticket1.uuid,
+                    ticket1.opened_on,
+                    "",
+                    ticket1.topic.name,
+                    ticket1.assignee.email,
+                    ticket1.contact.uuid,
+                    ticket1.contact_id,
+                    "",
+                ],
+                [
+                    ticket2.uuid,
+                    ticket2.opened_on,
+                    "",
+                    ticket2.topic.name,
+                    ticket2.assignee.email,
+                    ticket2.contact.uuid,
+                    ticket2.contact_id,
+                    "twitter",
+                ],
+                [
+                    ticket3.uuid,
+                    ticket3.opened_on,
+                    ticket3.closed_on,
+                    ticket3.topic.name,
+                    ticket3.assignee.email,
+                    ticket3.contact.uuid,
+                    ticket3.contact_id,
+                    "tel",
+                ],
+                [
+                    ticket4.uuid,
+                    ticket4.opened_on,
+                    ticket4.closed_on,
+                    ticket4.topic.name,
+                    ticket4.assignee.email,
+                    ticket4.contact.uuid,
+                    ticket4.contact_id,
+                    "twitter",
+                ],
+            ]
 
-        # check results of sheet in workbook
-        export = self.request_ticket_export()
-        self.assertExcelSheet(
-            export[0],
-            rows,
-            tz=self.org.timezone,
-        )
+            # check results of sheet in workbook
+            export = self.request_ticket_export()
+            self.assertExcelSheet(
+                export[0],
+                rows,
+                tz=self.org.timezone,
+            )
 
-        # # create a contact
-        # c_keeley = self.create_contact(
-        #     "KeeleyJones", urns=["twitter:kekejojo"], fields={"gender": "Female", "age": 22}
-        # )
-        # # create 10k tickets for keeley
-        # i = 0
-        # while i < 10000:
-        #     t_keeley = self.create_ticket(
-        #         ticketer, c_keeley, body="Hi", topic=topic, assignee=assignee, opened_on=timezone.now()
-        #     )
-        #     row = [t_keeley.uuid, t_keeley.opened_on, "", t_keeley.topic.name, t_keeley.assignee.email,
-        #             t_keeley.contact.uuid, t_keeley.contact_id,"twitter"]
-        #     rows.append(row)
-        #     i += 1
+            # create a contact
+            keeley = self.create_contact(
+                "Keeley Jones", urns=["twitter:kekejojo"], fields={"gender": "Female", "age": 22}
+            )
+            # create 10k tickets for keeley
+            i = 0
+            while i < 10000:
+                t_keeley = self.create_ticket(
+                    ticketer, keeley, body="Hi there", topic=topic, assignee=assignee, opened_on=timezone.now()
+                )
+                row = [t_keeley.uuid, t_keeley.opened_on, "", t_keeley.topic.name, t_keeley.assignee.email,
+                        t_keeley.contact.uuid, t_keeley.contact_id,"twitter"]
+                rows.append(row)
+                i += 1
 
-        # # check results of sheet in workbook
-        # export = self.request_ticket_export()
-        # self.assertExcelSheet(
-        #     export[0],
-        #     rows,
-        #     tz=self.org.timezone,
-        # )
+            # check results of sheet in workbook
+            export = self.request_ticket_export()
+            self.assertExcelSheet(
+                export[0],
+                rows,
+                tz=self.org.timezone,
+            )
 
     def get_ticket_export_columns(self):
         return [

@@ -658,20 +658,20 @@ class ExportTicketsTask(BaseExportTask):
         start = time.time()
 
         # add tickets to the export in batches of 1k to limit memory usage
-        for ticket_batch_ids in chunk_list(ticket_ids, 1000):
+        for ticket_chunk_ids in chunk_list(ticket_ids, 1000):
 
             # TODO make sure removing the prefetch_related and using readonly don't cause performance issues
-            batch_tickets = Ticket.objects.filter(id__in=ticket_batch_ids).order_by(
+            tickets = Ticket.objects.filter(id__in=ticket_chunk_ids).order_by(
                 "opened_on"
             )  # .prefetch_related("org").using("readonly")
 
             # for each batch of ticket ids...
-            for batch_ticket in batch_tickets:
+            for ticket in tickets:
 
                 # get the field values aka row values
                 values = []
                 for field in fields:
-                    value = self.get_field_value(field, batch_ticket)
+                    value = self.get_field_value(field, ticket)
                     values.append(self.prepare_value(value))
 
                 # add row to the export
@@ -764,11 +764,10 @@ class ExportTicketsTask(BaseExportTask):
             if field_key == "contact.urn.scheme":
                 scheme = ticket_contact_urn["scheme"]
                 return scheme
-            elif field_key == "contact.urn.path":
+            else:
+                # field_key == "contact.urn.path"::
                 path = ticket_contact_urn["path"]
                 return path
-            else:
-                return None
 
         else:
             return None
