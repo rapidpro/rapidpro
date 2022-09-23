@@ -1615,7 +1615,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class VonageAccount(SpaMixin, InferOrgMixin, ComponentFormMixin, OrgPermsMixin, SmartUpdateView):
+    class VonageAccount(InferOrgMixin, ComponentFormMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             api_key = forms.CharField(max_length=128, label=_("API Key"), required=False)
             api_secret = forms.CharField(max_length=128, label=_("API Secret"), required=False)
@@ -3193,7 +3193,8 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = ResthookForm
         success_message = ""
-        title = _("Zapier")
+        title = _("Resthooks")
+        success_url = "@orgs.org_resthooks"
 
         def get_form(self):
             form = super().get_form()
@@ -3295,6 +3296,14 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
+
+            twilio_client = org.get_twilio_client()
+            if twilio_client:  # pragma: needs cover
+                formax.add_section("twilio", reverse("orgs.org_twilio_account"), icon="icon-channel-twilio")
+
+            vonage_client = org.get_vonage_client()
+            if vonage_client:  # pragma: needs cover
+                formax.add_section("vonage", reverse("orgs.org_vonage_account"), icon="icon-vonage")
 
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user:

@@ -22,12 +22,11 @@ window.urls = [
   { old: /\/channels\/channel\/configuration\/(.*)\//,   new: /\/settings\/channels\/(.*)\/config\// },
   { old: /\/channels\/channel\/read\/(.*)/,              new: /\/settings\/channels\/(.*)/ },
   { old: /\/channels\/channel\/claim\//,                 new: /\/settings\/workspace\/new-channel\// },
-  { old: /\/channels\/types\/(.*)\/claim/,               new: /\/settings\/channel\/(.*)/ },
+  { old: /\/channels\/types\/(.*)\/claim/,               new: /\/settings\/workspace\/new-(.*)\// },
   { old: /\/classifier\/connect\//,                      new: /\/settings\/workspace\/new-classifier\// },
   { old: /\/classifiers\/types\/(.*)/,                   new: /\/settings\/classifiers\/types\/(.*)/ },
   { old: /\/httplog\/classifier\/(.*)\//,                new: /\/settings\/classifiers\/(.*)\/history\// },
   { old: /\/httplog\/read\/(.*)\//,                      new: /\/settings\/httplog\/(.*)\// },
-
   { old: /\/classifier\/read\/(.*)\//,                   new: /\/settings\/classifiers\/(.*)\// },
   { old: /\/org\/manage_accounts\/(.*)/,                 new: /\/settings\/logins/ },
   { old: /\/user\/account\//,                            new: /\/settings\/account/ },
