@@ -37,6 +37,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.contacts.models import URN
+from temba.ivr.models import Call
 from temba.msgs.models import Msg
 from temba.orgs.views import DependencyDeleteModal, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, countries, json
@@ -44,16 +45,7 @@ from temba.utils.fields import SelectWidget
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
-from .models import (
-    Alert,
-    Channel,
-    ChannelConnection,
-    ChannelCount,
-    ChannelEvent,
-    ChannelLog,
-    SyncEvent,
-    UnsupportedAndroidChannelError,
-)
+from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent, UnsupportedAndroidChannelError
 
 logger = logging.getLogger(__name__)
 
@@ -1417,7 +1409,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         @property
         def folder(self) -> str:
-            if self.request.GET.get("calls") or self.request.GET.get("connections"):
+            if self.request.GET.get("calls"):
                 return self.FOLDER_CALLS
             elif self.request.GET.get("others"):
                 return self.FOLDER_OTHERS
@@ -1458,17 +1450,17 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             if self.folder == self.FOLDER_CALLS:
-                logs = self.channel.logs.exclude(connection=None).values_list("connection_id", flat=True)
-                events = ChannelConnection.objects.filter(id__in=logs).order_by("-created_on")
+                logs = self.channel.logs.exclude(call=None).values_list("call_id", flat=True)
+                events = Call.objects.filter(id__in=logs).order_by("-created_on")
 
             elif self.folder == self.FOLDER_OTHERS:
-                events = self.channel.logs.filter(connection=None, msg=None).order_by("-created_on")
+                events = self.channel.logs.filter(call=None, msg=None).order_by("-created_on")
 
             else:
                 if self.folder == self.FOLDER_ERRORS:
-                    logs = self.channel.logs.filter(connection=None, is_error=True)
+                    logs = self.channel.logs.filter(call=None, is_error=True)
                 else:
-                    logs = self.channel.logs.filter(connection=None).exclude(msg=None)
+                    logs = self.channel.logs.filter(call=None).exclude(msg=None)
 
                 events = logs.order_by("-created_on").select_related(
                     "msg", "msg__contact", "msg__contact_urn", "channel", "channel__org"
@@ -1551,7 +1543,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         @cached_property
         def call(self):
-            return get_object_or_404(ChannelConnection, pk=self.kwargs["call_id"])
+            return get_object_or_404(Call, pk=self.kwargs["call_id"])
 
         def build_content_menu(self, menu):
             menu.add_link(
@@ -1563,7 +1555,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             return self.call.org
 
         def derive_queryset(self, **kwargs):
-            return super().derive_queryset(**kwargs).filter(connection=self.call).order_by("-created_on")
+            return super().derive_queryset(**kwargs).filter(call=self.call).order_by("-created_on")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
