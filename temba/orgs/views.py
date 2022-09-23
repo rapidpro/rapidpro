@@ -1096,13 +1096,14 @@ class MenuMixin(OrgPermsMixin):
     def create_divider(self):
         return {"type": "divider"}
 
-    def create_space(self):
+    def create_space(self):  # pragma: no cover
         return {"type": "space"}
 
-    def create_section(self, name, items=()):
+    def create_section(self, name, items=()):  # pragma: no cover
         return {"id": slugify(name), "name": name, "type": "section", "items": items}
 
-    def create_modax_button(self, name, href, icon=None, on_submit=None):
+    # TODO: Decide whether we want to keep this at all
+    def create_modax_button(self, name, href, icon=None, on_submit=None):  # pragma: no cover
         menu_item = {"id": slugify(name), "name": name, "type": "modax-button"}
         if href:
             if href[0] == "/":  # pragma: no cover

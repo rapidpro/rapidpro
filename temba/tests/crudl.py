@@ -227,22 +227,25 @@ class CRUDLTestMixin:
 
         return self.requestView(url, self.customer_support, checks=[StatusCode(200)])
 
-    def assertContentMenu(self, url: str, user, labels: list):
-        response = self.requestView(
-            url, user, checks=[StatusCode(200), ContentType("application/json")], HTTP_TEMBA_CONTENT_MENU=1
-        )
+    def assertContentMenu(self, url: str, user, labels: list, spa: bool = False):
+
+        headers = {"HTTP_TEMBA_CONTENT_MENU": 1}
+
+        if spa:
+            headers["HTTP_TEMBA_SPA"] = 1
+
+        response = self.requestView(url, user, checks=[StatusCode(200), ContentType("application/json")], **headers)
 
         self.assertEqual(labels, [item.get("label", "-") for item in response.json()["items"]])
 
         # for now menu is also stuffed into context in old gear links format
-        response = self.requestView(url, user, checks=[StatusCode(200)])
-        self.assertEqual(
-            labels,
-            [
-                i.get("title", "-")
-                for i in response.context["content_menu_buttons"] + response.context["content_menu_links"]
-            ],
-        )
+        headers = {}
+        if spa:
+            headers["HTTP_TEMBA_SPA"] = 1
+
+        response = self.requestView(url, user, checks=[StatusCode(200)], **headers)
+        links = response.context.get("content_menu_buttons", []) + response.context.get("content_menu_links", [])
+        self.assertEqual(labels, [i.get("title", "-") for i in links])
 
 
 class BaseCheck:
