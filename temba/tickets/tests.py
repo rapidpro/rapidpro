@@ -766,36 +766,36 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 tz=self.org.timezone,
             )
 
-            # create a contact
-            keeley = self.create_contact(
-                "Keeley Jones", urns=["twitter:kekejojo"], fields={"gender": "Female", "age": 22}
-            )
-            # create 10k tickets for keeley
-            i = 0
-            while i < 10000:
-                t_keeley = self.create_ticket(
-                    ticketer, keeley, body="Hi there", topic=topic, assignee=assignee, opened_on=timezone.now()
-                )
-                row = [
-                    t_keeley.uuid,
-                    t_keeley.opened_on,
-                    "",
-                    t_keeley.topic.name,
-                    t_keeley.assignee.email,
-                    t_keeley.contact.uuid,
-                    t_keeley.contact_id,
-                    "twitter",
-                ]
-                rows.append(row)
-                i += 1
+            # # create a contact
+            # keeley = self.create_contact(
+            #     "Keeley Jones", urns=["twitter:kekejojo"], fields={"gender": "Female", "age": 22}
+            # )
+            # # create 10k tickets for keeley
+            # i = 0
+            # while i < 10000:
+            #     t_keeley = self.create_ticket(
+            #         ticketer, keeley, body="Hi there", topic=topic, assignee=assignee, opened_on=timezone.now()
+            #     )
+            #     row = [
+            #         t_keeley.uuid,
+            #         t_keeley.opened_on,
+            #         "",
+            #         t_keeley.topic.name,
+            #         t_keeley.assignee.email,
+            #         t_keeley.contact.uuid,
+            #         t_keeley.contact_id,
+            #         "twitter",
+            #     ]
+            #     rows.append(row)
+            #     i += 1
 
-            # check results of sheet in workbook
-            export = self.request_ticket_export()
-            self.assertExcelSheet(
-                export[0],
-                rows,
-                tz=self.org.timezone,
-            )
+            # # check results of sheet in workbook
+            # export = self.request_ticket_export()
+            # self.assertExcelSheet(
+            #     export[0],
+            #     rows,
+            #     tz=self.org.timezone,
+            # )
 
     def get_ticket_export_columns(self):
         return [
