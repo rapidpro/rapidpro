@@ -236,7 +236,13 @@ class CRUDLTestMixin:
 
         # for now menu is also stuffed into context in old gear links format
         response = self.requestView(url, user, checks=[StatusCode(200)])
-        self.assertEqual(labels, [i.get("title", "-") for i in response.context["gear_links"]])
+        self.assertEqual(
+            labels,
+            [
+                i.get("title", "-")
+                for i in response.context["content_menu_buttons"] + response.context["content_menu_links"]
+            ],
+        )
 
 
 class BaseCheck:
