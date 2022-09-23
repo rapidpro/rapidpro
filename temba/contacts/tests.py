@@ -1829,7 +1829,7 @@ class ContactTest(TembaTest):
         self.assertEqual(0, TicketCount.get_all(self.org, Ticket.STATUS_CLOSED))
 
         # contact who used to own our urn had theirs released too
-        self.assertEqual(0, old_contact.connections.all().count())
+        self.assertEqual(0, old_contact.calls.all().count())
         self.assertEqual(0, old_contact.msgs.all().count())
 
         self.assertIsNone(contact.fields)

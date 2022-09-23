@@ -1111,7 +1111,7 @@ class FlowSession(models.Model):
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
 
-    # deprecated
+    # TODO: drop
     connection = models.OneToOneField(
         "channels.ChannelConnection", on_delete=models.PROTECT, null=True, related_name="session"
     )
@@ -1973,11 +1973,14 @@ class ResultsExportAssetStore(BaseExportAssetStore):
 
 
 class FlowStart(models.Model):
+    """
+    A queuable request to start contacts and groups in a flow
+    """
+
     STATUS_PENDING = "P"
     STATUS_STARTING = "S"
     STATUS_COMPLETE = "C"
     STATUS_FAILED = "F"
-
     STATUS_CHOICES = (
         (STATUS_PENDING, _("Pending")),
         (STATUS_STARTING, _("Starting")),
@@ -1990,7 +1993,6 @@ class FlowStart(models.Model):
     TYPE_API_ZAPIER = "Z"
     TYPE_FLOW_ACTION = "F"
     TYPE_TRIGGER = "T"
-
     TYPE_CHOICES = (
         (TYPE_MANUAL, "Manual"),
         (TYPE_API, "API"),
@@ -1999,28 +2001,15 @@ class FlowStart(models.Model):
         (TYPE_TRIGGER, "Trigger"),
     )
 
-    # the uuid of this start
     uuid = models.UUIDField(unique=True, default=uuid4)
-
-    # the org the flow belongs to
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_starts")
-
-    # the flow that should be started
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="starts")
-
-    # the type of start
     start_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
 
-    # the groups that should be considered for start in this flow
+    # who to start
     groups = models.ManyToManyField(ContactGroup)
-
-    # the individual contacts that should be considered for start in this flow
     contacts = models.ManyToManyField(Contact)
-
-    # the individual URNs that should be considered for start in this flow
     urns = ArrayField(models.TextField(), null=True)
-
-    # the query (if any) that should be used to select contacts to start
     query = models.TextField(null=True)
 
     # whether to restart contacts that have already participated in this flow
@@ -2063,7 +2052,7 @@ class FlowStart(models.Model):
     # the number of de-duped contacts that might be started, depending on options above
     contact_count = models.IntegerField(default=0, null=True)
 
-    # deprecated
+    # TODO: drop
     connections = models.ManyToManyField(ChannelConnection, related_name="starts")
 
     @classmethod
@@ -2110,7 +2099,6 @@ class FlowStart(models.Model):
             self.groups.clear()
             self.contacts.clear()
             self.calls.clear()
-            self.connections.clear()
             FlowRun.objects.filter(start=self).update(start=None)
             FlowStartCount.objects.filter(start=self).delete()
             self.delete()
