@@ -170,9 +170,19 @@ class ConvertConnectionsMigrationTest(MigrationTest):
         self.assertEqual(0, ChannelConnection.objects.count())
         self.assertEqual(3, Call.objects.count())
 
-        # channel logs and flow starts for connections gone, but for the call remain
-        self.assertEqual(1, ChannelLog.objects.count())
-        self.assertEqual(1, FlowStart.objects.count())
+        # channel logs have connection field cleared
+        self.assertEqual(2, ChannelLog.objects.count())
+        self.assertEqual(1, ChannelLog.objects.exclude(call=None).count())
+        self.assertEqual(0, ChannelLog.objects.exclude(connection=None).count())
+
+        # same for flow sessions
+        self.assertEqual(1, FlowSession.objects.count())
+        self.assertEqual(0, FlowSession.objects.exclude(connection=None).count())
+
+        # flow starts have connections removed
+        self.assertEqual(3, FlowStart.objects.count())
+        self.assertEqual(1, FlowStart.objects.exclude(calls=None).count())
+        self.assertEqual(0, FlowStart.objects.exclude(connections=None).count())
 
         self.assertTrue(Call.objects.filter(**self.call_kwargs).exists())
         self.assertTrue(Call.objects.filter(**self.conn1_kwargs).exists())
