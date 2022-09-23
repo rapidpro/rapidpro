@@ -1,3 +1,7 @@
+v7.5.55
+----------
+ * Really fix connection migration
+
 v7.5.54
 ----------
  * Fix migration to convert connections to calls
