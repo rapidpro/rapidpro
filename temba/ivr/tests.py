@@ -130,6 +130,19 @@ class ConvertConnectionsMigrationTest(MigrationTest):
         start2 = FlowStart.create(flow, self.admin, contacts=[self.contact1])
         start2.connections.add(conn1)
 
+        FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=self.contact1,
+            current_flow=flow,
+            status=FlowSession.STATUS_WAITING,
+            output_url="http://sessions.com/123.json",
+            wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, timezone.utc),
+            wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, timezone.utc),
+            wait_resume_on_expire=False,
+            connection=conn1,
+        )
+
         self.conn2_kwargs = dict(
             org=self.org,
             direction=Call.DIRECTION_OUT,
