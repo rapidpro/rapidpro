@@ -164,12 +164,13 @@ class TicketCRUDL(SmartCRUDL):
 
     class Menu(OrgPermsMixin, SmartTemplateView):
         def render_to_response(self, context, **response_kwargs):
+            org = self.request.org
             user = self.request.user
-            count_by_assignee = TicketCount.get_by_assignees(user.get_org(), [None, user], Ticket.STATUS_OPEN)
+            count_by_assignee = TicketCount.get_by_assignees(org, [None, user], Ticket.STATUS_OPEN)
             counts = {
                 MineFolder.slug: count_by_assignee[user],
                 UnassignedFolder.slug: count_by_assignee[None],
-                AllFolder.slug: TicketCount.get_all(user.get_org(), Ticket.STATUS_OPEN),
+                AllFolder.slug: TicketCount.get_all(org, Ticket.STATUS_OPEN),
             }
 
             menu = []
@@ -198,7 +199,7 @@ class TicketCRUDL(SmartCRUDL):
             return TicketFolder.from_slug(self.kwargs["folder"])
 
         def get_queryset(self, **kwargs):
-
+            org = self.request.org
             user = self.request.user
             status = Ticket.STATUS_OPEN if self.kwargs["status"] == "open" else Ticket.STATUS_CLOSED
             uuid = self.kwargs.get("uuid", None)
@@ -207,7 +208,7 @@ class TicketCRUDL(SmartCRUDL):
 
             # fetching new activity gets a different order later
             ordered = False if after else True
-            qs = self.folder.get_queryset(user.get_org(), user, ordered).filter(status=status)
+            qs = self.folder.get_queryset(org, user, ordered).filter(status=status)
 
             # all new activity
             after = int(self.request.GET.get("after", 0))
@@ -228,7 +229,7 @@ class TicketCRUDL(SmartCRUDL):
 
                 if count == self.paginate_by:
                     last_ticket = qs[len(qs) - 1]
-                    qs = self.folder.get_queryset(user.get_org(), user, ordered).filter(
+                    qs = self.folder.get_queryset(org, user, ordered).filter(
                         status=status, last_activity_on__gte=last_ticket.last_activity_on
                     )
 
@@ -359,7 +360,7 @@ class TicketCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.user.get_org()
+            kwargs["org"] = self.request.org
             return kwargs
 
         def derive_initial(self):
@@ -405,7 +406,7 @@ class TicketerCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["ticketer_types"] = [tt for tt in Ticketer.get_types() if tt.is_available_to(self.get_user())]
+            context["ticketer_types"] = [tt for tt in Ticketer.get_types() if tt.is_available_to(self.request.user)]
             return context
 
     class Read(OrgObjPermsMixin, SmartReadView):

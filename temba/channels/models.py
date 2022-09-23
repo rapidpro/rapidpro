@@ -906,7 +906,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for sync_event in self.sync_events.all():
             sync_event.release()
 
-        # interrupt any sessions using this channel as a connection
+        # interrupt any sessions using this channel for calls
         mailroom.queue_interrupt(self.org, channel=self)
 
         # save the FCM id before clearing
@@ -1017,13 +1017,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
 
     def get_ivr_log_count(self):
-        return (
-            ChannelLog.objects.filter(channel=self)
-            .exclude(connection=None)
-            .order_by("connection")
-            .distinct("connection")
-            .count()
-        )
+        return ChannelLog.objects.filter(channel=self).exclude(call=None).order_by("call").distinct("call").count()
 
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
@@ -1217,6 +1211,9 @@ class ChannelLog(models.Model):
     uuid = models.UUIDField(default=uuid4)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
+    call = models.ForeignKey("ivr.Call", on_delete=models.PROTECT, related_name="channel_logs", null=True)
+
+    # deprecated
     connection = models.ForeignKey(
         "channels.ChannelConnection", on_delete=models.PROTECT, related_name="channel_logs", null=True
     )
@@ -1701,38 +1698,17 @@ class ChannelConnection(models.Model):
 
     log_uuids = ArrayField(models.UUIDField(), null=True)
 
-    def get_duration(self):
-        """
-        Either gets the set duration as reported by provider, or tries to calculate it
-        """
-        duration = self.duration or 0
-
-        if not duration and self.status == self.STATUS_IN_PROGRESS and self.started_on:
-            duration = (timezone.now() - self.started_on).seconds
-
-        return timedelta(seconds=duration)
-
-    @property
-    def status_display(self):
-        """
-        Gets the status/error_reason as display text, e.g. Wired, Errored (No Answer)
-        """
-        status = self.get_status_display()
-        if self.status in (self.STATUS_ERRORED, self.STATUS_FAILED) and self.error_reason:
-            status += f" ({self.get_error_reason_display()})"
-        return status
-
-    def get_session(self):
+    def get_session(self):  # pragma: no cover
         """
         There is a one-to-one relationship between flow sessions and connections, but as connection can be null
         it can throw an exception
         """
         try:
             return self.session
-        except ObjectDoesNotExist:  # pragma: no cover
+        except ObjectDoesNotExist:
             return None
 
-    def release(self):
+    def release(self):  # pragma: no cover
         self.channel_logs.all().delete()
 
         session = self.get_session()

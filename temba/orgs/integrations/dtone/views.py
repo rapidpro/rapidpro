@@ -33,7 +33,7 @@ class AccountView(IntegrationFormaxView):
 
     def derive_initial(self):
         initial = super().derive_initial()
-        config = self.request.user.get_org().config
+        config = self.request.org.config
         initial["api_key"] = config.get(self.integration_type.CONFIG_KEY)
         initial["api_secret"] = config.get(self.integration_type.CONFIG_SECRET)
         initial["disconnect"] = "false"
@@ -41,7 +41,7 @@ class AccountView(IntegrationFormaxView):
 
     def form_valid(self, form):
         user = self.request.user
-        org = user.get_org()
+        org = self.request.org
         disconnect = form.cleaned_data.get("disconnect", "false") == "true"
         if disconnect:
             self.integration_type.disconnect(org, user)

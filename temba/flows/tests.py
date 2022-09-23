@@ -27,7 +27,7 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
@@ -5638,57 +5638,3 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
-
-
-class EnsureSessionEndedOnMigrationTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0291_flowrun_flows_run_active_or_waiting_has_session"
-    migrate_to = "0292_ensure_session_ended_on"
-
-    def setUpBeforeMigration(self, apps):
-        contact = self.create_contact("Bob", phone="+1234567890")
-
-        def create_session(status: str, ended_on):
-            uuid = uuid4()
-            return FlowSession.objects.create(
-                uuid=uuid,
-                org=self.org,
-                contact=contact,
-                status=status,
-                created_on=timezone.now(),
-                ended_on=ended_on,
-                wait_started_on=timezone.now(),
-                wait_expires_on=timezone.now() + timedelta(days=7),
-                wait_resume_on_expire=False,
-                output={"uuid": str(uuid)},
-            )
-
-        self.session1 = create_session(status=FlowSession.STATUS_WAITING, ended_on=None)
-        self.session2 = create_session(status=FlowSession.STATUS_COMPLETED, ended_on=None)
-        self.session3 = create_session(status=FlowSession.STATUS_INTERRUPTED, ended_on=None)
-        self.session4 = create_session(status=FlowSession.STATUS_EXPIRED, ended_on=None)
-        self.session5 = create_session(status=FlowSession.STATUS_FAILED, ended_on=None)
-
-        # a non-waiting session with an ended_on shouldn't be changed
-        self.session6 = create_session(
-            status=FlowSession.STATUS_FAILED, ended_on=datetime(2022, 7, 12, 11, 0, 0, 0, timezone.utc)
-        )
-
-    def test_migration(self):
-        self.session1.refresh_from_db()
-        self.assertIsNone(self.session1.ended_on)
-
-        self.session2.refresh_from_db()
-        self.assertIsNotNone(self.session2.ended_on)
-
-        self.session3.refresh_from_db()
-        self.assertIsNotNone(self.session3.ended_on)
-
-        self.session4.refresh_from_db()
-        self.assertIsNotNone(self.session4.ended_on)
-
-        self.session5.refresh_from_db()
-        self.assertIsNotNone(self.session5.ended_on)
-
-        self.session6.refresh_from_db()
-        self.assertEqual(datetime(2022, 7, 12, 11, 0, 0, 0, timezone.utc), self.session6.ended_on)  # unchanged

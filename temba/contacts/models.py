@@ -763,8 +763,8 @@ class Contact(LegacyUUIDMixin, SmartModel):
         """
         Gets this contact's history of messages, calls, runs etc in the given time window
         """
-        from temba.channels.models import ChannelConnection
         from temba.flows.models import FlowExit
+        from temba.ivr.models import Call
         from temba.mailroom.events import get_event_time
         from temba.tickets.models import TicketEvent
 
@@ -802,8 +802,8 @@ class Contact(LegacyUUIDMixin, SmartModel):
         )
 
         calls = (
-            ChannelConnection.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
-            .exclude(status__in=[ChannelConnection.STATUS_PENDING, ChannelConnection.STATUS_WIRED])
+            Call.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
+            .exclude(status__in=[Call.STATUS_PENDING, Call.STATUS_WIRED])
             .order_by("-created_on")
             .select_related("channel")[:limit]
         )
@@ -1173,8 +1173,12 @@ class Contact(LegacyUUIDMixin, SmartModel):
                 for msg in urn.msgs.all():
                     msg.delete()
 
+                # same thing goes for calls
+                for call in urn.calls.all():
+                    call.release()
+
                 # same thing goes for connections
-                for conn in urn.connections.all():
+                for conn in urn.connections.all():  # pragma: needs cover
                     conn.release()
 
                 urn.release()
@@ -1188,6 +1192,9 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
             for session in self.sessions.all():
                 session.delete()
+
+            for call in self.calls.all():  # pragma: needs cover
+                call.release()
 
             for conn in self.connections.all():  # pragma: needs cover
                 conn.release()

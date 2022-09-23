@@ -8,8 +8,9 @@ from django.test import override_settings
 from django.utils import timezone
 
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.channels.models import ChannelConnection, ChannelEvent, ChannelLog
+from temba.channels.models import ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun, FlowStart
+from temba.ivr.models import Call
 from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
@@ -1086,25 +1087,25 @@ class EventTest(TembaTest):
     def test_from_ivr_call(self):
         contact = self.create_contact("Jim", phone="0979111111")
 
-        call1 = ChannelConnection.objects.create(
+        call1 = Call.objects.create(
             org=self.org,
             contact=contact,
-            status=ChannelConnection.STATUS_IN_PROGRESS,
+            status=Call.STATUS_IN_PROGRESS,
             channel=self.channel,
             contact_urn=contact.urns.all().first(),
             error_count=0,
         )
-        call2 = ChannelConnection.objects.create(
+        call2 = Call.objects.create(
             org=self.org,
             contact=contact,
-            status=ChannelConnection.STATUS_ERRORED,
-            error_reason=ChannelConnection.ERROR_BUSY,
+            status=Call.STATUS_ERRORED,
+            error_reason=Call.ERROR_BUSY,
             channel=self.channel,
-            contact_urn=contact.urns.all().first(),
+            contact_urn=contact.urns.first(),
             error_count=0,
         )
         ChannelLog.objects.create(
-            channel=self.channel, is_error=True, log_type=ChannelLog.LOG_TYPE_IVR_START, connection=call2
+            channel=self.channel, is_error=True, log_type=ChannelLog.LOG_TYPE_IVR_START, call=call2
         )
 
         self.assertEqual(

@@ -39,7 +39,7 @@ class ConnectView(BaseConnectView):
         def clean_subdomain(self):
             from .type import ZendeskType
 
-            org = self.request.user.get_org()
+            org = self.request.org
             data = self.cleaned_data["subdomain"]
 
             if not re.match(r"^[\w\-]+", data):
@@ -125,7 +125,7 @@ class ConfigureView(ComponentFormMixin, ContentMenuMixin, OrgPermsMixin, SmartRe
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        return queryset.filter(org=self.get_user().get_org())
+        return queryset.filter(org=self.request.org)
 
     def build_content_menu(self, menu):
         if self.has_org_perm("tickets.ticket_list"):

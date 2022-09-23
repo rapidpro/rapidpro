@@ -23,6 +23,7 @@ from temba.channels.models import ChannelConnection
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.flows.models import FlowSession
+from temba.ivr.models import Call
 from temba.msgs.models import Msg
 from temba.orgs.models import Org, OrgRole
 from temba.request_logs.models import HTTPLog
@@ -500,10 +501,8 @@ class ChannelTest(TembaTest):
         self.assertFalse(self.org2.channels.all())
 
         self.login(other_user)
+        self.client.post(reverse("orgs.org_choose"), dict(organization=self.org2.id))
 
-        other_user.set_org(self.org2)
-
-        self.assertEqual(self.org2, other_user.get_org())
         response = self.client.get("/", follow=True)
         self.assertNotIn("channel_type", response.context, msg="Found channel_type in context")
 
@@ -511,9 +510,6 @@ class ChannelTest(TembaTest):
 
         self.assertEqual(1, self.org.channels.filter(is_active=True).count())
         self.assertEqual(self.org, other_user.get_org())
-
-        response = self.client.get("/", follow=True)
-        # self.assertIn('channel_type', response.context)
 
     def sync(self, channel, *, cmds, signature=None, auto_add_fcm=True):
         # prepend FCM command if not included
@@ -2123,7 +2119,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         log1 = call1.channel_logs.get()
         log2 = ChannelLog.objects.create(
             channel=self.channel,
-            connection=call1,
+            call=call1,
             log_type=ChannelLog.LOG_TYPE_IVR_START,
             is_error=False,
             http_logs=[
@@ -2217,7 +2213,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         call = self.create_incoming_call(ivr_flow, contact)
 
         # create failed call with an interaction log
-        self.create_incoming_call(ivr_flow, contact, status=ChannelConnection.STATUS_FAILED)
+        self.create_incoming_call(ivr_flow, contact, status=Call.STATUS_FAILED)
 
         # create log for other org
         other_org_contact = self.create_contact("Hans", phone="+593979123456")
@@ -2299,7 +2295,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(self.channel.get_error_log_count(), 4)  # error log count always includes IVR logs
 
         # check that IVR logs are displayed correctly
-        response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1")
+        response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?calls=1")
         self.assertContains(response, "15 seconds")
         self.assertContains(response, "2 results")
 
@@ -2309,14 +2305,12 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # if duration isn't set explicitly, it can be calculated
         call.started_on = datetime(2019, 8, 12, 11, 4, 0, 0, timezone.utc)
-        call.status = ChannelConnection.STATUS_IN_PROGRESS
+        call.status = Call.STATUS_IN_PROGRESS
         call.duration = None
         call.save(update_fields=("started_on", "status", "duration"))
 
         with patch("django.utils.timezone.now", return_value=datetime(2019, 8, 12, 11, 4, 30, 0, timezone.utc)):
-            response = self.client.get(
-                reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1"
-            )
+            response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?calls=1")
             self.assertContains(response, "30 seconds")
 
     def test_redaction_for_telegram(self):
