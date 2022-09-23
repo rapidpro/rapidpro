@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.channels.models import ChannelConnection, ChannelLog
-from temba.flows.models import FlowSession
+from temba.flows.models import FlowSession, FlowStart
 from temba.tests import MigrationTest, TembaTest
 from temba.utils.uuid import uuid4
 
@@ -88,6 +88,7 @@ class ConvertConnectionsMigrationTest(MigrationTest):
     def setUpBeforeMigration(self, apps):
         self.contact1 = self.create_contact("Bob", phone="+123456001")
         self.contact2 = self.create_contact("Jim", phone="+123456002")
+        flow = self.create_flow("Test")
 
         # create an existing call
         self.call_kwargs = dict(
@@ -100,7 +101,11 @@ class ConvertConnectionsMigrationTest(MigrationTest):
             external_id="CA0001",
             duration=15,
         )
-        Call.objects.create(**self.call_kwargs)
+        call1 = Call.objects.create(**self.call_kwargs)
+        ChannelLog.objects.create(channel=self.channel, call=call1, http_logs=[], errors=[])
+
+        start1 = FlowStart.create(flow, self.admin, contacts=[self.contact1])
+        start1.calls.add(call1)
 
         self.conn1_kwargs = dict(
             org=self.org,
@@ -119,7 +124,11 @@ class ConvertConnectionsMigrationTest(MigrationTest):
             error_count=0,
             next_attempt=None,
         )
-        ChannelConnection.objects.create(**self.conn1_kwargs)
+        conn1 = ChannelConnection.objects.create(**self.conn1_kwargs)
+        ChannelLog.objects.create(channel=self.channel, connection=conn1, http_logs=[], errors=[])
+
+        start2 = FlowStart.create(flow, self.admin, contacts=[self.contact1])
+        start2.connections.add(conn1)
 
         self.conn2_kwargs = dict(
             org=self.org,
@@ -138,12 +147,19 @@ class ConvertConnectionsMigrationTest(MigrationTest):
             error_count=1,
             next_attempt=datetime(2022, 1, 2, 16, 0, 0, 0, timezone.utc),
         )
-        ChannelConnection.objects.create(**self.conn2_kwargs)
+        conn2 = ChannelConnection.objects.create(**self.conn2_kwargs)
+
+        start3 = FlowStart.create(flow, self.admin, contacts=[self.contact1])
+        start3.connections.add(conn2)
 
     def test_migration(self):
         # all connections gone
         self.assertEqual(0, ChannelConnection.objects.count())
         self.assertEqual(3, Call.objects.count())
+
+        # channel logs and flow starts for connections gone, but for the call remain
+        self.assertEqual(1, ChannelLog.objects.count())
+        self.assertEqual(1, FlowStart.objects.count())
 
         self.assertTrue(Call.objects.filter(**self.call_kwargs).exists())
         self.assertTrue(Call.objects.filter(**self.conn1_kwargs).exists())
