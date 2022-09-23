@@ -1,3 +1,7 @@
+v7.5.56
+----------
+ * Really really fix connection migration
+
 v7.5.55
 ----------
  * Really fix connection migration
