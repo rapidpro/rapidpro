@@ -628,18 +628,6 @@ class ContactCRUDL(SmartCRUDL):
                     )
                 )
 
-            menu += [
-                self.create_divider(),
-                self.create_modax_button(
-                    name=_("New Contact"),
-                    href="contacts.contact_create",
-                ),
-                self.create_modax_button(
-                    name=_("New Group"),
-                    href="contacts.contactgroup_create",
-                ),
-            ]
-
             groups = (
                 ContactGroup.get_groups(org, ready_only=False)
                 .select_related("org")
@@ -870,13 +858,24 @@ class ContactCRUDL(SmartCRUDL):
                         "send-message",
                         f"{reverse('msgs.broadcast_send')}?c={obj.uuid}",
                         primary=True,
+                        as_button=True,
                     )
                 if self.has_org_perm("flows.flow_broadcast"):
-                    menu.add_modax(_("Start Flow"), "start-flow", f"{reverse('flows.flow_broadcast')}?c={obj.uuid}")
+                    menu.add_modax(
+                        _("Start Flow"),
+                        "start-flow",
+                        f"{reverse('flows.flow_broadcast')}?c={obj.uuid}",
+                        as_button=self.is_spa(),
+                        disabled=True,
+                    )
                 if self.has_org_perm("contacts.contact_open_ticket"):
                     menu.add_modax(
                         _("Open Ticket"), "open-ticket", reverse("contacts.contact_open_ticket", args=[obj.id])
                     )
+
+                if len(menu.groups[0]) > 0:
+                    menu.new_group()
+
                 if self.has_org_perm("contacts.contact_interrupt") and obj.current_flow:
                     menu.add_url_post(_("Interrupt"), reverse("contacts.contact_interrupt", args=(obj.id,)))
 
@@ -1073,12 +1072,24 @@ class ContactCRUDL(SmartCRUDL):
                             _("Create Smart Group"),
                             "create-smartgroup",
                             f"{reverse('contacts.contactgroup_create')}?search={quote_plus(search)}",
+                            as_button=True,
                         )
                 except SearchException:  # pragma: no cover
                     pass
 
+            if self.is_spa():
+                if self.has_org_perm("contacts.contact_create"):
+                    menu.add_modax(
+                        _("New Contact"), "new-contact", reverse("contacts.contact_create"), title=_("New Contact")
+                    )
+
+                if has_contactgroup_create_perm:
+                    menu.add_modax(
+                        _("New Group"), "new-group", reverse("contacts.contactgroup_create"), title=_("New Group")
+                    )
+
             if self.has_org_perm("contacts.contactfield_list") and not is_spa:
-                menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
+                menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"), as_button=True)
 
             if self.has_org_perm("contacts.contact_export"):
                 menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))

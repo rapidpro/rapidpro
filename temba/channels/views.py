@@ -1206,7 +1206,7 @@ class ChannelCRUDL(SmartCRUDL):
 
     class Claim(SpaMixin, OrgPermsMixin, SmartTemplateView):
 
-        title = _("Add Channel")
+        title = _("New Channel")
 
         def channel_types_groups(self):
             org = self.request.org

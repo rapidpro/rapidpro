@@ -1275,15 +1275,7 @@ class OrgCRUDL(SmartCRUDL):
                     )
 
                 menu.append(self.create_menu_item(name=_("Users"), icon="users", href="orgs.org_manage_accounts"))
-                menu.append(self.create_menu_item(name=_("Zapier"), icon="zapier", href="orgs.org_resthooks"))
-
-                menu.append(
-                    self.create_menu_item(
-                        name=_("Integrations"),
-                        icon="cord",
-                        href="channels.channel_claim",
-                    )
-                )
+                menu.append(self.create_menu_item(name=_("Resthooks"), icon="cloud", href="orgs.org_resthooks"))
 
                 if self.has_org_perm("channels.channel_read"):
                     from temba.channels.views import get_channel_read_url
@@ -1422,7 +1414,7 @@ class OrgCRUDL(SmartCRUDL):
             # Other Plugins:
             # Wit.ai, Luis, Bothub, ZenDesk, DT One, Chatbase, Prometheus, Zapier/Resthooks
 
-    class Import(NonAtomicMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class Import(SpaMixin, NonAtomicMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class FlowImportForm(Form):
             import_file = forms.FileField(help_text=_("The import file"))
             update = forms.BooleanField(help_text=_("Update all flows and campaigns"), required=False)
@@ -1564,7 +1556,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return non_single_buckets, singles
 
-    class TwilioConnect(ComponentFormMixin, ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class TwilioConnect(SpaMixin, ComponentFormMixin, ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class TwilioConnectForm(forms.Form):
             account_sid = forms.CharField(help_text=_("Your Twilio Account SID"), widget=InputWidget())
             account_token = forms.CharField(help_text=_("Your Twilio Account Token"), widget=InputWidget())
@@ -1622,7 +1614,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class VonageAccount(InferOrgMixin, ComponentFormMixin, OrgPermsMixin, SmartUpdateView):
+    class VonageAccount(SpaMixin, InferOrgMixin, ComponentFormMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             api_key = forms.CharField(max_length=128, label=_("API Key"), required=False)
             api_secret = forms.CharField(max_length=128, label=_("API Secret"), required=False)
@@ -1691,7 +1683,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
-    class VonageConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class VonageConnect(SpaMixin, ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class Form(forms.Form):
             api_key = forms.CharField(help_text=_("Your Vonage API key"), widget=InputWidget())
             api_secret = forms.CharField(help_text=_("Your Vonage API secret"), widget=InputWidget())
@@ -3279,6 +3271,24 @@ class OrgCRUDL(SmartCRUDL):
             ):
                 menu.add_modax(_("Transfer Credits"), "transfer-credits", reverse("orgs.org_transfer_credits"))
 
+            menu.add_link(_("New Channel"), reverse("channels.channel_claim"), as_button=True)
+
+            if self.has_org_perm("classifiers.classifier_connect"):
+                menu.add_link(_("New Classifier"), reverse("classifiers.classifier_connect"))
+            if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in org.get_branding().get("features", []):
+                menu.add_link(_("New Ticketing Service"), reverse("tickets.ticketer_connect"))
+
+            menu.new_group()
+
+            if self.has_org_perm("orgs.org_export"):
+                menu.add_link(_("Export"), reverse("orgs.org_export"))
+
+            if self.has_org_perm("orgs.org_import"):
+                menu.add_link(_("Import"), reverse("orgs.org_import"))
+
+            menu.new_group()
+            menu.add_link(_("Sign Out"), f"{reverse('users.user_logout')}?next={reverse('users.user_login')}")
+
         def derive_formax_sections(self, formax, context):
             org = self.request.org
 
@@ -3301,6 +3311,14 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_token"):
                 formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)
 
+            if self.has_org_perm("orgs.org_prometheus"):
+                formax.add_section("prometheus", reverse("orgs.org_prometheus"), icon="icon-prometheus", nobutton=True)
+
+            if self.has_org_perm("orgs.org_manage_integrations"):
+                for integration in IntegrationType.get_all():
+                    if integration.is_available_to(self.request.user):
+                        integration.management_ui(self.object, formax)
+
     class Home(SpaMixin, FormaxMixin, ContentMenuMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
 
@@ -3308,7 +3326,7 @@ class OrgCRUDL(SmartCRUDL):
             org = self.request.org
 
             if self.has_org_perm("channels.channel_claim"):
-                menu.add_link(_("Add Channel"), reverse("channels.channel_claim"))
+                menu.add_link(_("Add Channel"), reverse("channels.channel_claim"), as_button=True)
             if self.has_org_perm("classifiers.classifier_connect"):
                 menu.add_link(_("Add Classifier"), reverse("classifiers.classifier_connect"))
             if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in org.get_branding().get("features", []):

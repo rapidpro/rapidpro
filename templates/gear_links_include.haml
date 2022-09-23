@@ -13,48 +13,29 @@
     margin-left: 1em;
   }
 
--if gear_links
+-if content_menu_buttons or content_menu_links
 
-  -for link in gear_links
+  -for link in content_menu_buttons|add:content_menu_links
     -if link.modax
       %temba-modax{ header:'{{link.modax}}', endpoint:"{{link.href}}", id:"{{link.id}}"}
 
   #gear-container.flex.items-center.text-gray-700
-    -if gear_links|length == 1
-      -with link=gear_links|first
+      -for link in content_menu_buttons
         -if link.modax
           .button-light{onclick:'showModax("{{link.id}}")', class:'{{ link|gear_link_classes:True }}'}
             {{link.title}}
             %span{class:'gear-flag'}
               {{link.flag}}
-
         -else          
           .button-light{onclick:'{%if link.on_click%}{{link.on_click}}{% else %}goto(event){%endif%}', href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
             {{link.title}}
 
-    - else
-      -with link=gear_links|first
-        -if link.modax
-          .button-light{onclick:'javascript:showModax("{{link.id}}")', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
-            {{link.title}}
-              %span{class:'gear-flag'}
-                {{link.flag}}
-
-        -else
-          -if link.js_class
-            .button-light{onclick:'{%if link.on_click%}{{link.on_click}}{% else %}void(0);{%endif%}', href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
-              {{link.title}}
-
-          -else
-            .button-light{onclick:'{%if link.on_click%}{{link.on_click}}{% else %}goto(event){%endif%}', href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
-              {{link.title}}
-
-      .btn-group.gear-menu.ml-3
-        .button-light.p-icon.dropdown-toggle.text-center{ data-toggle:"dropdown" }
-          .icon-menu.text-gray-500(style="margin-left:-2px;margin-top:1px")
-        %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3{'role':'menu', 'aria-labelledby':'dlabel'}
-          -for link in gear_links
-            -if not forloop.first
+      -if content_menu_links
+        .btn-group.gear-menu.ml-3
+          .button-light.p-icon.dropdown-toggle.text-center{ data-toggle:"dropdown" }
+            .icon-menu.text-gray-500(style="margin-left:-2px;margin-top:1px")
+          %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3{'role':'menu', 'aria-labelledby':'dlabel'}
+            -for link in content_menu_links
               -if link.divider
                 %li.separator.-mx-4.border-b.my-3.border-gray-200
               -else

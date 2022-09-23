@@ -293,17 +293,28 @@ class ContentMenu:
     def new_group(self):
         self.groups.append([])
 
-    def add_link(self, label: str, url: str):
-        self.groups[-1].append({"type": "link", "label": label, "url": url})
+    def add_link(self, label: str, url: str, as_button: bool = False):
+        self.groups[-1].append({"type": "link", "label": label, "url": url, "as_button": as_button})
 
-    def add_js(self, label: str, on_click: str, link_class: str):
-        self.groups[-1].append({"type": "js", "label": label, "on_click": on_click, "link_class": link_class})
+    def add_js(self, label: str, on_click: str, link_class: str, as_button: bool = False):
+        self.groups[-1].append(
+            {"type": "js", "label": label, "on_click": on_click, "link_class": link_class, "as_button": as_button}
+        )
 
-    def add_url_post(self, label: str, url: str):
-        self.groups[-1].append({"type": "url_post", "label": label, "url": url})
+    def add_url_post(self, label: str, url: str, as_button: bool = False):
+        self.groups[-1].append({"type": "url_post", "label": label, "url": url, "as_button": as_button})
 
     def add_modax(
-        self, label: str, modal_id: str, url: str, *, title: str = None, on_submit: str = None, primary: bool = False
+        self,
+        label: str,
+        modal_id: str,
+        url: str,
+        *,
+        title: str = None,
+        on_submit: str = None,
+        primary: bool = False,
+        as_button: bool = False,
+        disabled: bool = False,
     ):
         self.groups[-1].append(
             {
@@ -314,6 +325,8 @@ class ContentMenu:
                 "title": title or label,
                 "on_submit": on_submit,
                 "primary": primary,
+                "as_button": as_button,
+                "disabled": disabled,
             }
         )
 
@@ -340,9 +353,20 @@ class ContentMenuMixin:
 
     # renderers to convert menu items to the legacy "gear-links" format
     gear_link_renderers = {
-        "link": lambda i: {"title": i["label"], "href": i["url"]},
-        "js": lambda i: {"title": i["label"], "on_click": i["on_click"], "js_class": i["link_class"], "href": "#"},
-        "url_post": lambda i: {"title": i["label"], "href": i["url"], "js_class": "posterize"},
+        "link": lambda i: {"title": i["label"], "href": i["url"], "as_button": i["as_button"]},
+        "js": lambda i: {
+            "title": i["label"],
+            "on_click": i["on_click"],
+            "js_class": i["link_class"],
+            "href": "#",
+            "as_button": i["as_button"],
+        },
+        "url_post": lambda i: {
+            "title": i["label"],
+            "href": i["url"],
+            "js_class": "posterize",
+            "as_button": i["as_button"],
+        },
         "modax": lambda i: {
             "id": i["modal_id"],
             "title": i["label"],
@@ -350,13 +374,26 @@ class ContentMenuMixin:
             "href": i["url"],
             "on_submit": i["on_submit"],
             "style": "button-primary" if i["primary"] else "",
+            "as_button": i["as_button"],
+            "disabled": i["disabled"],
         },
         "divider": lambda i: {"divider": True},
     }
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["gear_links"] = [self.gear_link_renderers[i["type"]](i) for i in self._get_content_menu()]
+        menu_links = []
+        menu_buttons = []
+
+        for item in self._get_content_menu():
+            rendered_item = self.gear_link_renderers[item["type"]](item)
+            if item.get("as_button", False):
+                menu_buttons.append(rendered_item)
+            else:
+                menu_links.append(rendered_item)
+
+        context["content_menu_buttons"] = menu_buttons
+        context["content_menu_links"] = menu_links
         return context
 
     def _get_content_menu(self):
