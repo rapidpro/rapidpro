@@ -533,7 +533,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create a dummy export task so that we won't be able to export
         blocking_export = ExportTicketsTask.create(self.org, self.admin)
-        
+
         response = self.client.post(export_url, {}, follow=True)
         self.assertContains(response, "already an export in progress")
 
@@ -659,7 +659,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         rows = [
             columns,
             [
-                
                 ticket1.uuid,
                 ticket1.opened_on,
                 "",
@@ -670,7 +669,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 "",
             ],
             [
-                
                 ticket2.uuid,
                 ticket2.opened_on,
                 "",
@@ -709,7 +707,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             rows,
             tz=self.org.timezone,
         )
-        
+
         # test ticket export for an anon org
         with AnonymousOrg(self.org):
 
@@ -719,7 +717,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             rows = [
                 columns,
                 [
-                    
                     ticket1.uuid,
                     ticket1.opened_on,
                     "",
@@ -779,8 +776,16 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 t_keeley = self.create_ticket(
                     ticketer, keeley, body="Hi there", topic=topic, assignee=assignee, opened_on=timezone.now()
                 )
-                row = [t_keeley.uuid, t_keeley.opened_on, "", t_keeley.topic.name, t_keeley.assignee.email,
-                        t_keeley.contact.uuid, t_keeley.contact_id,"twitter"]
+                row = [
+                    t_keeley.uuid,
+                    t_keeley.opened_on,
+                    "",
+                    t_keeley.topic.name,
+                    t_keeley.assignee.email,
+                    t_keeley.contact.uuid,
+                    t_keeley.contact_id,
+                    "twitter",
+                ]
                 rows.append(row)
                 i += 1
 
