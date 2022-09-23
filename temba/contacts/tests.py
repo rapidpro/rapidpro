@@ -81,7 +81,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         menu_url = reverse("contacts.contact_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
-        self.assertEqual(11, len(menu))
+        self.assertEqual(8, len(menu))
 
     @mock_mailroom
     def test_list(self, mr_mocks):

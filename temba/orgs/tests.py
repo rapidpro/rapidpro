@@ -3507,7 +3507,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
         self.login(self.admin)
         self.assertMenu(reverse("orgs.org_menu"), 7)
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 8)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 7)
 
         menu_url = reverse("orgs.org_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=True)
@@ -3569,7 +3569,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # make sure we have the appropriate number of sections
-        self.assertEqual(6, len(response.context["formax"].sections))
+        self.assertEqual(8, len(response.context["formax"].sections))
 
         # create a child org
         self.child_org = Org.objects.create(
@@ -3582,14 +3582,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(58):
             response = self.client.get(reverse("orgs.org_workspace"))
 
         # make sure we have the appropriate number of sections
         self.assertContains(response, "Transfer Credits")
 
         # should have an extra menu option for our child (and section header)
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 10)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 9)
 
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
