@@ -61,6 +61,9 @@
       // if our contact refreshes, refresh our pendingEvents
       var pending = document.querySelector("temba-contact-pending");
       pending.refresh();
+
+      var menu = document.querySelector("temba-menu");
+      menu.refresh();
     }
 
     function handleTicketsRefreshed(evt) {
