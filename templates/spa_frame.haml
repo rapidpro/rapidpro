@@ -53,7 +53,6 @@
       --button-shadow: rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.07) 0px 1px 1px 1px;
     }
 
-
     .list-buttons-container {
       --icon-color: #666;
     }
@@ -104,7 +103,6 @@
     .loading .title-text {
       opacity: 0;
     }
-    
 
     .spa-content {
       display: flex;
@@ -117,7 +115,6 @@
       background-repeat: no-repeat;
       background-image: linear-gradient(rgb(255, 255, 255) 0%, rgb(236, 236, 236) 75%);
     }
-
 
     .lp-frame .lp-nav-item {
       padding: 5px 10px !important;
@@ -170,7 +167,6 @@
       transition-delay: 200ms;
     }
 
-
     .empty {
       position: absolute;
       transition: all 200ms ease-in-out;
@@ -196,14 +192,9 @@
       transition: all 200ms ease-in;
     }
 
-    temba-alert {
-      
-    }
-
     .button-action {
       background: #fff;
     }
-
     
     .button-action:hover, #gear-container .button-light:hover, #gear-container .button-light.dropdown-toggle:hover, #gear-container .button-light.dropdown-toggle:hover .icon-menu {
       background: var(--color-primary-dark);
@@ -224,9 +215,6 @@
       margin-top: 4px;
       background: #fff;
     }
-
-
-
 
     @media only screen and (max-width: 850px) {
       .ticket-list {
@@ -281,7 +269,6 @@
     .spa-footer {
       margin-bottom: 2.5em;
       padding-top: 0.5em;
-
     }
 }
 
@@ -291,6 +278,7 @@
   %script(src="{{ STATIC_URL }}js/labels.js?4")
   %script(src="{{ STATIC_URL }}bower/highcharts/highcharts.js")
   %script(src="{{ STATIC_URL }}bower/highcharts/modules/drilldown.js")
+  %script(src="{{ STATIC_URL }}js/qrious.js")
 
   -include "full_page_script.haml"
 
@@ -333,36 +321,29 @@
           return;
         }
 
-        // we may have redirected
-        if (response.url) {
-          window.lastFetch = response.url;
-        }
-
         response.text().then(function (body){
           var containerEle = document.querySelector(container);
-          var scriptsEle = document.querySelector(".ajax-scripts");
 
-          // remove any existing children
-          while (containerEle.firstChild) {
-            containerEle.removeChild(containerEle.firstChild);
+          // if we are given an entire page, something bad has happened
+          if (body.indexOf("<html") > -1) {
+            return;
           }
 
-          while (scriptsEle.firstChild) {
-            scriptsEle.removeChild(scriptsEle.firstChild);
-          }
-
-          // TODO: Replace this with non-jquery replacement
-          $(containerEle).html(body);
+          setInnerHTML(containerEle, body);
 
           if (options) {
             if ('onSuccess' in options) {
               options['onSuccess']();
             }
           }
-          
+
+          // we may have redirected
+          if (response.url) {
+            window.lastFetch = response.url;
+          }
+
         });
       }).catch(function(e) {
-
         // canceled
       })
     }
