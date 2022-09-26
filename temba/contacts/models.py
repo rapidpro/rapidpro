@@ -597,16 +597,13 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
 
-    name = models.CharField(
-        verbose_name=_("Name"), max_length=128, blank=True, null=True, help_text=_("The name of this contact")
-    )
+    name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True)
 
     language = models.CharField(
         max_length=3,
         verbose_name=_("Language"),
         null=True,
         blank=True,
-        help_text=_("The preferred language for this contact"),
     )
 
     # custom field values for this contact, keyed by field UUID
@@ -1166,9 +1163,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
             # any urns currently owned by us
             for urn in self.urns.all():
-
-                # release any messages attached with each urn,
-                # these could include messages that began life
+                # release any messages attached with each urn, these could include messages that began life
                 # on a different contact
                 for msg in urn.msgs.all():
                     msg.delete()
@@ -1176,10 +1171,6 @@ class Contact(LegacyUUIDMixin, SmartModel):
                 # same thing goes for calls
                 for call in urn.calls.all():
                     call.release()
-
-                # same thing goes for connections
-                for conn in urn.connections.all():  # pragma: needs cover
-                    conn.release()
 
                 urn.release()
 
@@ -1195,9 +1186,6 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
             for call in self.calls.all():  # pragma: needs cover
                 call.release()
-
-            for conn in self.connections.all():  # pragma: needs cover
-                conn.release()
 
             # and any event fire history
             self.campaign_fires.all().delete()

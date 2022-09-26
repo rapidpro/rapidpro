@@ -1,3 +1,15 @@
+v7.5.56
+----------
+ * Really really fix connection migration
+
+v7.5.55
+----------
+ * Really fix connection migration
+
+v7.5.54
+----------
+ * Fix migration to convert connections to calls
+
 v7.5.53
 ----------
  * Add data migration to convert channel connections to calls

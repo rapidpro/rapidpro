@@ -19,8 +19,7 @@
                   {{ log.status_code|default:"" }}
 
         .time.text-xl.elapsed(class="{% if log.elapsed_ms > 3000%}log-error{%endif%}")
-          -if log.elapsed_ms > 0
-            {{ log.elapsed_ms|default:"0"|intcomma }} ms
+          {{ log.elapsed_ms|intcomma }} ms
 
       .flex-grow
       .flex

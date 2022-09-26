@@ -5,6 +5,9 @@ from django.db import migrations, transaction
 
 def convert_connections(apps, schema_editor):
     ChannelConnection = apps.get_model("channels", "ChannelConnection")
+    ChannelLog = apps.get_model("channels", "ChannelLog")
+    FlowStart = apps.get_model("flows", "FlowStart")
+    FlowSession = apps.get_model("flows", "FlowSession")
     Call = apps.get_model("ivr", "Call")
 
     num_converted = 0
@@ -37,6 +40,9 @@ def convert_connections(apps, schema_editor):
 
         with transaction.atomic():
             Call.objects.bulk_create(calls)
+            ChannelLog.objects.filter(connection__in=batch).update(connection=None)
+            FlowSession.objects.filter(connection__in=batch).update(connection=None)
+            FlowStart.connections.through.objects.filter(channelconnection__in=batch).delete()
             ChannelConnection.objects.filter(id__in=[c.id for c in batch]).delete()
 
         num_converted += len(batch)
