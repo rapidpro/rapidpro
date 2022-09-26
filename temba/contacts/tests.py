@@ -82,7 +82,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         menu_url = reverse("contacts.contact_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
-        self.assertEqual(11, len(menu))
+        self.assertEqual(8, len(menu))
 
     @mock_mailroom
     def test_list(self, mr_mocks):
@@ -227,7 +227,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(list_url)
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "archive", "send"], list(response.context["actions"]))
+
         self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
+        self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"], True)
 
         # TODO: group labeling as a feature is on probation
         # self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
@@ -481,13 +483,16 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContentMenu(
             read_url,
             self.editor,
-            ["Send Message", "Start Flow", "Open Ticket", "Edit", "Custom Fields"],
+            ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
         )
         self.assertContentMenu(
             read_url,
             self.admin,
-            ["Send Message", "Start Flow", "Open Ticket", "Edit", "Custom Fields"],
+            ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
         )
+
+        # check menu for spa
+        self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Edit"], True)
 
         # login as viewer
         self.login(self.user)

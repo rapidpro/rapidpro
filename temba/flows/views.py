@@ -246,21 +246,6 @@ class FlowCRUDL(SmartCRUDL):
             if label_items:
                 menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
 
-            menu += [
-                self.create_space(),
-                self.create_divider(),
-                self.create_modax_button(
-                    name=_("New Flow"),
-                    href="flows.flow_create",
-                ),
-            ]
-
-            menu.append(
-                self.create_modax_button(
-                    name=_("New Label"), href="flows.flowlabel_create", on_submit="handleCreateLabelModalSubmitted()"
-                )
-            )
-
             return menu
 
     class RecentContacts(OrgObjPermsMixin, SmartReadView):
@@ -806,6 +791,26 @@ class FlowCRUDL(SmartCRUDL):
             ]
 
         def build_content_menu(self, menu):
+            if self.is_spa():
+                if self.has_org_perm("flows.flow_create"):
+                    menu.add_modax(
+                        _("New Flow"),
+                        "new-flow",
+                        f"{reverse('flows.flow_create')}",
+                        title=_("New Flow"),
+                        primary=True,
+                        as_button=True,
+                    )
+
+                if self.has_org_perm("flows.flowlabel_create"):
+                    menu.add_modax(
+                        _("New Label"),
+                        "new-flow-label",
+                        f"{reverse('flows.flowlabel_create')}",
+                        title=_("New Label"),
+                        on_submit="handleCreateLabelModalSubmitted()",
+                    )
+
             if self.has_org_perm("orgs.org_import"):
                 menu.add_link(_("Import"), reverse("orgs.org_import"))
             if self.has_org_perm("orgs.org_export"):
@@ -1012,6 +1017,8 @@ class FlowCRUDL(SmartCRUDL):
                     "start-flow",
                     f"{reverse('flows.flow_broadcast', args=[])}?flow={obj.id}",
                     primary=True,
+                    as_button=True,
+                    disabled=True,
                 )
 
             if self.has_org_perm("flows.flow_results"):

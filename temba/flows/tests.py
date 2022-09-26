@@ -1723,7 +1723,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
         self.assertEqual(
-            ["Active", "Archived", "Labels", "space", "divider", "New Flow", "New Label"],
+            ["Active", "Archived", "Labels"],
             [m.get("name") or m.get("type") for m in menu],
         )
 
@@ -1873,6 +1873,11 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         user.last_name = "Contact"
         user.save()
         self.login(user)
+
+        self.assertContentMenu(reverse("flows.flow_list"), self.admin, ["Import", "Export"])
+        self.assertContentMenu(
+            reverse("flows.flow_list"), self.admin, ["New Flow", "New Label", "Import", "Export"], True
+        )
 
         # list, should have only one flow (the one created in setUp)
         response = self.client.get(reverse("flows.flow_list"))

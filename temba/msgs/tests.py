@@ -1657,6 +1657,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg1.refresh_from_db()
         self.assertEqual({label1, label3}, set(msg1.labels.all()))
 
+        self.assertContentMenu(inbox_url, self.user, ["Download"])
+        self.assertContentMenu(inbox_url, self.admin, ["New Label", "Download"], True)
+
     def test_flows(self):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
         msg1 = self.create_incoming_msg(contact1, "test 1", msg_type="F")
