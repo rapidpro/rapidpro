@@ -338,7 +338,7 @@ BRANDING = {
         "logo": "brands/rapidpro/logo.png",
         "allow_signups": True,
         "flow_types": ["M", "V", "B", "S"],  # see Flow.FLOW_TYPES
-        "features": ["locations", "ticketers", "classifier-luis", "classifier-wit", "classifier-bothub"],
+        "features": ["locations", "ticketers"],
         "tiers": dict(multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],

@@ -23,7 +23,7 @@ window.urls = [
   { old: /\/channels\/channel\/read\/(.*)/,              new: /\/settings\/channels\/(.*)/ },
   { old: /\/channels\/channel\/claim\//,                 new: /\/settings\/workspace\/new-channel\// },
   { old: /\/channels\/types\/(.*)\/claim/,               new: /\/settings\/workspace\/new-(.*)\// },
-  { old: /\/classifier\/connect\//,                      new: /\/settings\/workspace\/new-classifier\// },
+  { old: /\/classifier\/connect.*/,                      new: /\/settings\/workspace\/new-classifier\// },
   { old: /\/classifiers\/types\/(.*)/,                   new: /\/settings\/classifiers\/types\/(.*)/ },
   { old: /\/httplog\/classifier\/(.*)\//,                new: /\/settings\/classifiers\/(.*)\/history\// },
   { old: /\/httplog\/read\/(.*)\//,                      new: /\/settings\/httplog\/(.*)\// },
