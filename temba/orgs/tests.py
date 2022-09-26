@@ -3482,9 +3482,10 @@ class AnonOrgTest(TembaTest):
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_spa(self):
-        self.admin.is_staff = True
-        self.admin.save()
+        Group.objects.get(name="Beta").user_set.add(self.admin)
+
         self.login(self.admin)
+
         deep_link = reverse("spa.level_2", args=["tickets", "all", "open"])
         response = self.client.get(deep_link)
         self.assertEqual(200, response.status_code)
@@ -3499,7 +3500,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         home_url = reverse("orgs.org_home")
 
-        with self.assertNumQueries(23):
+        with self.assertNumQueries(24):
             response = self.client.get(home_url)
 
         self.assertEqual(200, response.status_code)
@@ -3582,7 +3583,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(58):
+        with self.assertNumQueries(59):
             response = self.client.get(reverse("orgs.org_workspace"))
 
         # make sure we have the appropriate number of sections
