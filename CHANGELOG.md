@@ -1,3 +1,9 @@
+v7.5.57
+----------
+ * Move status updates into update contact view
+ * Some teaks to rendering of channel logs
+ * Cleanup use of channelconnection in preparation for dropping
+
 v7.5.56
 ----------
  * Really really fix connection migration
