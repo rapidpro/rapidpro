@@ -16,7 +16,6 @@ from twilio.base.exceptions import TwilioRestException
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
-from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import Max, Q, Sum
 from django.db.models.signals import pre_save
@@ -1213,17 +1212,17 @@ class ChannelLog(models.Model):
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
     call = models.ForeignKey("ivr.Call", on_delete=models.PROTECT, related_name="channel_logs", null=True)
 
-    # deprecated
-    connection = models.ForeignKey(
-        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="channel_logs", null=True
-    )
-
     log_type = models.CharField(max_length=16, choices=LOG_TYPE_CHOICES)
     http_logs = models.JSONField(null=True)
     errors = models.JSONField(null=True)
     is_error = models.BooleanField(default=False)
     elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
+
+    # TODO: drop
+    connection = models.ForeignKey(
+        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="channel_logs", null=True
+    )
 
     @classmethod
     def from_response(cls, log_type, channel, response, created_on, ended_on, is_error=None):
@@ -1640,7 +1639,7 @@ def get_alert_user():
 
 class ChannelConnection(models.Model):
     """
-    An IVR call
+    TODO drop
     """
 
     DIRECTION_IN = "I"
@@ -1675,8 +1674,6 @@ class ChannelConnection(models.Model):
         (ERROR_MACHINE, _("Answering Machine")),  # the call went to an answering machine
     )
 
-    RETRY_CHOICES = ((-1, _("Never")), (30, _("After 30 minutes")), (60, _("After 1 hour")), (1440, _("After 1 day")))
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
@@ -1697,32 +1694,3 @@ class ChannelConnection(models.Model):
     next_attempt = models.DateTimeField(null=True)
 
     log_uuids = ArrayField(models.UUIDField(), null=True)
-
-    def get_session(self):  # pragma: no cover
-        """
-        There is a one-to-one relationship between flow sessions and connections, but as connection can be null
-        it can throw an exception
-        """
-        try:
-            return self.session
-        except ObjectDoesNotExist:
-            return None
-
-    def release(self):  # pragma: no cover
-        self.channel_logs.all().delete()
-
-        session = self.get_session()
-        if session:
-            session.delete()
-
-        self.delete()
-
-    class Meta:
-        indexes = [
-            # used by mailroom to fetch calls that need to be retried
-            models.Index(
-                name="channelconnection_to_retry",
-                fields=["next_attempt"],
-                condition=Q(status__in=("Q", "E"), next_attempt__isnull=False),
-            )
-        ]

@@ -1,5 +1,6 @@
 -for http_log in log.http_logs
-  -include "includes/http_log.haml" with log=http_log
+  .mb-4
+    -include "includes/http_log.haml" with log=http_log
 -if log.errors
   -for err in log.errors
     .p-4.shadow.bg-white.rounded-lg.my-4

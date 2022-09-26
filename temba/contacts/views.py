@@ -512,11 +512,10 @@ class UpdateContactForm(ContactForm):
 
         self.fields["groups"].initial = self.instance.get_groups(manual_only=True)
         self.fields["groups"].queryset = ContactGroup.get_groups(self.org, manual_only=True)
-        self.fields["groups"].help_text = _("The groups which this contact belongs to")
 
     class Meta:
         model = Contact
-        fields = ("name", "language", "groups")
+        fields = ("name", "status", "language", "groups")
         widgets = {
             "name": InputWidget(),
         }
@@ -563,9 +562,6 @@ class ContactCRUDL(SmartCRUDL):
         "update_fields_input",
         "export",
         "interrupt",
-        "block",
-        "restore",
-        "archive",
         "delete",
         "scheduled",
         "history",
@@ -895,13 +891,6 @@ class ContactCRUDL(SmartCRUDL):
                         f"{reverse('contacts.contact_update_fields', args=[obj.id])}",
                         on_submit="contactUpdated()",
                     )
-
-                if obj.status != Contact.STATUS_ACTIVE and self.has_org_perm("contacts.contact_restore"):
-                    menu.add_url_post(_("Activate"), reverse("contacts.contact_restore", args=(obj.id,)))
-                if obj.status != Contact.STATUS_BLOCKED and self.has_org_perm("contacts.contact_block"):
-                    menu.add_url_post(_("Block"), reverse("contacts.contact_block", args=(obj.id,)))
-                if obj.status != Contact.STATUS_ARCHIVED and self.has_org_perm("contacts.contact_archive"):
-                    menu.add_url_post(_("Archive"), reverse("contacts.contact_archive", args=(obj.id,)))
 
             if self.request.user.is_staff:
                 menu.add_url_post(
@@ -1235,7 +1224,7 @@ class ContactCRUDL(SmartCRUDL):
 
             Contact.create(obj.org, self.request.user, obj.name, language="", urns=urns, fields={}, groups=[])
 
-    class Update(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(SpaMixin, ComponentFormMixin, NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
         success_url = "uuid@contacts.contact_read"
         success_message = ""
@@ -1272,6 +1261,18 @@ class ContactCRUDL(SmartCRUDL):
         def form_valid(self, form):
             obj = self.get_object()
             data = form.cleaned_data
+            user = self.request.user
+
+            status = data.get("status")
+            if status and status != obj.status:
+                if status == Contact.STATUS_ACTIVE:
+                    obj.restore(user)
+                elif status == Contact.STATUS_ARCHIVED:
+                    obj.archive(user)
+                elif status == Contact.STATUS_BLOCKED:
+                    obj.block(user)
+                elif status == Contact.STATUS_STOPPED:
+                    obj.stop(user)
 
             mods = obj.update(data.get("name"), data.get("language"))
 
@@ -1446,45 +1447,6 @@ class ContactCRUDL(SmartCRUDL):
 
         def save(self, obj):
             obj.interrupt(self.request.user)
-            return obj
-
-    class Block(OrgObjPermsMixin, SmartUpdateView):
-        """
-        Block this contact
-        """
-
-        fields = ()
-        success_url = "uuid@contacts.contact_read"
-        success_message = ""
-
-        def save(self, obj):
-            obj.block(self.request.user)
-            return obj
-
-    class Restore(OrgObjPermsMixin, SmartUpdateView):
-        """
-        Restore this contact
-        """
-
-        fields = ()
-        success_url = "uuid@contacts.contact_read"
-        success_message = ""
-
-        def save(self, obj):
-            obj.restore(self.request.user)
-            return obj
-
-    class Archive(OrgObjPermsMixin, SmartUpdateView):
-        """
-        Archive this contact
-        """
-
-        fields = ()
-        success_url = "uuid@contacts.contact_read"
-        success_message = ""
-
-        def save(self, obj):
-            obj.archive(self.request.user)
             return obj
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartUpdateView):

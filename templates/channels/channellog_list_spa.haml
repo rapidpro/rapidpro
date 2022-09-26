@@ -21,7 +21,7 @@
     {{ channel }}
 
 -block subtitle
-  -trans "Logs are kept for the last 30 days."
+  -trans "Logs are kept for 3 days."
 
 -block content
 
@@ -41,15 +41,15 @@
               -if obj.msg
                 .hover-linked.truncate.w-64(onclick="goto(event)" href='{% url "channels.channellog_msg" obj.channel.uuid obj.msg.id %}')
                   {{obj.get_log_type_display}}
-              -elif obj.connection
-                .hover-linked.truncate.w-64(onclick="goto(event)" href='{% url "channels.channellog_call" obj.connection.channel.uuid obj.connection.id %}')
+              -elif obj.call
+                .hover-linked.truncate.w-64(onclick="goto(event)" href='{% url "channels.channellog_call" obj.channel.uuid obj.call.id %}')
                   {{obj.get_log_type_display}}
               -else
                 .hover-linked.truncate.w-64(onclick="goto(event)" href='{% url "channels.channellog_read" obj.id %}')
                   {{obj.get_log_type_display}}
             .elapsed.mx-2.text-right.mr-4.flex-grow
               %span
-                {{ obj.elapsed_ms|default:"0"|intcomma }}ms
+                {{ obj.elapsed_ms|intcomma }}ms
 
             .created_on.whitespace-nowrap(style='text-align: right' nowrap='true')
               {% format_datetime obj.created_on seconds=True %}

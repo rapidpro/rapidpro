@@ -1512,7 +1512,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         @cached_property
         def msg(self):
-            return get_object_or_404(Msg, pk=self.kwargs["msg_id"])
+            return get_object_or_404(Msg, id=self.kwargs["msg_id"])
 
         def build_content_menu(self, menu):
             if not self.is_spa():
@@ -1543,7 +1543,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         @cached_property
         def call(self):
-            return get_object_or_404(Call, pk=self.kwargs["call_id"])
+            return get_object_or_404(Call, id=self.kwargs["call_id"])
 
         def build_content_menu(self, menu):
             menu.add_link(
