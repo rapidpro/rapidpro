@@ -116,8 +116,6 @@ class ClassifierCRUDL(SmartCRUDL):
 
     class Connect(SpaMixin, OrgPermsMixin, SmartTemplateView):
         def get_context_data(self, **kwargs):
-            org = self.request.org
-            features = org.get_branding().get("features")
             context = super().get_context_data(**kwargs)
-            context["classifier_types"] = [t for t in Classifier.get_types() if f"classifier-{t.slug}" in features]
+            context["classifier_types"] = [t for t in Classifier.get_types()]
             return context
