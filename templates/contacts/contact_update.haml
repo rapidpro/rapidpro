@@ -1,4 +1,5 @@
 -extends 'includes/modax.html'
+-load smartmin
 
 -block modal-extra-style
   {{block.super}}
@@ -18,7 +19,6 @@
     temba-textinput[name='new_path'] {
       --temba-textinput-padding: 10px;
       margin-top:21px;
-      margin-left:5px;
       width:345px
     }
 
@@ -79,7 +79,16 @@
 
 -block fields
 
-  {{block.super}}
+  .flex
+    .flex-grow
+      -render_field 'name'
+    .ml-3.status(style="min-width:12em")
+      -render_field 'status'
+
+  -for field in fields
+    -if field != "name" and field != "status"
+      -render_field field
+
   // Manual option to add a new URN for this contact
   {% if not user_org.is_anon %}
     <div class="control-group {% if form.errors.new_path %}error{%endif%}">
@@ -88,7 +97,7 @@
           %temba-select#id-urn-scheme.w-96{name:'new_scheme', float:'left', label:'{{_("Add Connection")|escapejs}}', help_text:'{{_("Add a new way connect with this contact")|escapejs}}'}
             -for key, value in schemes
               <temba-option name='{{value}}' value='{{key}}' {% if form.data.new_scheme == key %}selected{%endif%}></temba-option>
-          %temba-textinput.flex-grow{name:'new_path', type:'text', value:'{{form.data.new_path}}'}
+          %temba-textinput.flex-grow.ml-3{name:'new_path', type:'text', value:'{{form.data.new_path}}'}
 
         -if form.errors.new_path
           .mt-2
