@@ -17,15 +17,15 @@
       %table.list.light.lined
         %thead
           %tr
-            %th Flow Event
-            %th.permission Remove
+            %th.header-label Flow Event
+            %th.remove Remove
 
         %tbody
           -if current_resthooks
             -for resthook in current_resthooks
               %tr
                 %td= resthook.resthook.slug
-                %td.resthook-check.permission
+                %td.resthook-check.remove
                   {{form|field:resthook.field}}
 
     .my-4
@@ -49,6 +49,14 @@
 
 -block extra-style
   :css
+
+    th.header-label {
+      width:100%;
+    }
+
+    th.remove {
+      text-align: right !important;
+    }
 
     #table-resthooks {
       margin: 10px 0px 10px 0px;

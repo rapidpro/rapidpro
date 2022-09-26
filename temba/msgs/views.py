@@ -158,6 +158,10 @@ class InboxView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Smar
         return context
 
     def build_content_menu(self, menu):
+        if self.is_spa():
+            if self.has_org_perm("msgs.label_create"):
+                menu.add_modax(_("New Label"), "new-msg-label", reverse("msgs.label_create"), title=_("New Label"))
+
         if self.allow_export and self.has_org_perm("msgs.msg_export"):
             menu.add_modax(_("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages"))
 
@@ -626,14 +630,6 @@ class MsgCRUDL(SmartCRUDL):
 
                 if label_items:
                     menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
-
-                menu.append(self.create_space())
-                menu.append(
-                    self.create_modax_button(
-                        name=_("New Label"),
-                        href="msgs.label_create",
-                    )
-                )
 
                 return menu
 
