@@ -654,16 +654,18 @@ class ExportTicketsTask(BaseExportTask):
         exporter = TableExporter(self, "Tickets", [f["label"] for f in fields])
 
         # init progress info to log every 10k tickets
-        total_exported_tickets = 0
+        total_exported = 0
         start = time.time()
 
         # add tickets to the export in batches of 1k to limit memory usage
         for ticket_chunk_ids in chunk_list(ticket_ids, 1000):
 
-            # TODO make sure removing the prefetch_related and using readonly don't cause performance issues
-            tickets = Ticket.objects.filter(id__in=ticket_chunk_ids).order_by(
-                "opened_on"
-            )  # .prefetch_related("org").using("readonly")
+            tickets = (
+                Ticket.objects.filter(id__in=ticket_chunk_ids)
+                .order_by("opened_on")
+                .prefetch_related("org")
+                .using("readonly")
+            )
 
             # for each batch of ticket ids...
             for ticket in tickets:
@@ -676,25 +678,22 @@ class ExportTicketsTask(BaseExportTask):
 
                 # add row to the export
                 exporter.write_row(values)
-                total_exported_tickets += 1
+                total_exported += 1
 
                 # get progress info and log every 10k tickets
-                if total_exported_tickets % ExportTicketsTask.LOG_PROGRESS_PER_ROWS == 0:
+                if total_exported % 1 == 0:  # pragma: no cover
+                    # if total_exported % ExportTicketsTask.LOG_PROGRESS_PER_ROWS == 0: # pragma: no cover
+                    percentage = total_exported * 100 // len(ticket_ids)
+                    f_total_exported = "{:,}".format(total_exported)
+                    f_total_tickets = "{:,}".format(len(ticket_ids))
                     elapsed = time.time() - start
-                    predicted = elapsed // (total_exported_tickets / len(ticket_ids))
-
-                    logger.info(
-                        "Export of %s tickets - %d%% (%s/%s) completed in %0.2fs (predicted %0.0fs)"
-                        % (
-                            self.org.name,
-                            total_exported_tickets * 100 // len(ticket_ids),
-                            "{:,}".format(total_exported_tickets),
-                            "{:,}".format(len(ticket_ids)),
-                            time.time() - start,
-                            predicted,
-                        )
+                    predicted = elapsed // (total_exported / len(ticket_ids))
+                    logger_info_msg = (
+                        f"Export of {self.org.name} tickets - "
+                        f"{percentage}% ({f_total_exported}/{f_total_tickets}) "
+                        f"completed in {elapsed}s (predicted {predicted}s)"
                     )
-
+                    logger.info(logger_info_msg)
                     self.modified_on = timezone.now()
                     self.save(update_fields=["modified_on"])
 

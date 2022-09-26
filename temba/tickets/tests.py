@@ -519,21 +519,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_ticket_export_request(self):
         self.clear_storage()
         self.login(self.admin)
-
-        export_url = reverse("tickets.ticket_export")
-        response = self.client.post(export_url)
-
-        self.assertEqual(302, response.status_code)
-        self.assertEqual("text/html; charset=utf-8", response["Content-Type"])
-
-    def test_ticket_export_in_progress(self):
-        self.clear_storage()
-        self.login(self.admin)
         export_url = reverse("tickets.ticket_export")
 
         # create a dummy export task so that we won't be able to export
         blocking_export = ExportTicketsTask.create(self.org, self.admin)
-
         response = self.client.post(export_url, {}, follow=True)
         self.assertContains(response, "already an export in progress")
 
@@ -544,22 +533,16 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
         self.assertEqual("text/html; charset=utf-8", response["Content-Type"])
 
-    def test_ticket_export_column_does_not_exist(self):
-        self.clear_storage()
-        self.login(self.admin)
-
-        field = dict(label="Blah", key="blah", field=None, urn_scheme=None)
-        value = ExportTicketsTask.get_field_value(self, field, None)
-
-        self.assertEqual(None, value)
-
     def test_ticket_export_columns(self):
         self.clear_storage()
         self.login(self.admin)
 
-        self.org.is_anon = False
-        self.org.save()
+        # create a dummy column that doesn't exist
+        field = dict(label="Blah", key="blah", field=None, urn_scheme=None)
+        value = ExportTicketsTask.get_field_value(self, field, None)
+        self.assertEqual(None, value)
 
+        # test ticket export for a regular org
         # all columns except for "Contact ID" should be visible
         columns = self.get_ticket_export_columns()
         columns.remove("Contact ID")
@@ -573,21 +556,20 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             tz=self.org.timezone,
         )
 
-        self.org.is_anon = True
-        self.org.save()
+        with AnonymousOrg(self.org):
+            # test ticket export for an anon org
+            # all columns except for "URN Value" should be visible
+            columns = self.get_ticket_export_columns()
+            columns.remove("URN Value")
+            rows = [columns]
 
-        # all columns except for "URN Value" should be visible
-        columns = self.get_ticket_export_columns()
-        columns.remove("URN Value")
-        rows = [columns]
-
-        # check results of sheet in workbook
-        export = self.request_ticket_export()
-        self.assertExcelSheet(
-            export[0],
-            rows,
-            tz=self.org.timezone,
-        )
+            # check results of sheet in workbook
+            export = self.request_ticket_export()
+            self.assertExcelSheet(
+                export[0],
+                rows,
+                tz=self.org.timezone,
+            )
 
     def test_ticket_export_rows(self):
         self.clear_storage()
@@ -650,9 +632,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # test ticket export for a regular org
-        self.org.is_anon = False
-        self.org.save()
-
         # all columns except for "Contact ID" should be visible
         columns = self.get_ticket_export_columns()
         columns.remove("Contact ID")
@@ -701,16 +680,17 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         ]
 
         # check results of sheet in workbook
-        export = self.request_ticket_export()
+        # needed when the request queries the read-only replica
+        with self.mockReadOnly(assert_models={Ticket}):
+            export = self.request_ticket_export()
         self.assertExcelSheet(
             export[0],
             rows,
             tz=self.org.timezone,
         )
 
-        # test ticket export for an anon org
         with AnonymousOrg(self.org):
-
+            # test ticket export for an anon org
             # all columns except for "URN Value" should be visible
             columns = self.get_ticket_export_columns()
             columns.remove("URN Value")
@@ -759,43 +739,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             ]
 
             # check results of sheet in workbook
-            export = self.request_ticket_export()
+            # needed when the request queries the read-only replica
+            with self.mockReadOnly(assert_models={Ticket}):
+                export = self.request_ticket_export()
             self.assertExcelSheet(
                 export[0],
                 rows,
                 tz=self.org.timezone,
             )
-
-            # # create a contact
-            # keeley = self.create_contact(
-            #     "Keeley Jones", urns=["twitter:kekejojo"], fields={"gender": "Female", "age": 22}
-            # )
-            # # create 10k tickets for keeley
-            # i = 0
-            # while i < 10000:
-            #     t_keeley = self.create_ticket(
-            #         ticketer, keeley, body="Hi there", topic=topic, assignee=assignee, opened_on=timezone.now()
-            #     )
-            #     row = [
-            #         t_keeley.uuid,
-            #         t_keeley.opened_on,
-            #         "",
-            #         t_keeley.topic.name,
-            #         t_keeley.assignee.email,
-            #         t_keeley.contact.uuid,
-            #         t_keeley.contact_id,
-            #         "twitter",
-            #     ]
-            #     rows.append(row)
-            #     i += 1
-
-            # # check results of sheet in workbook
-            # export = self.request_ticket_export()
-            # self.assertExcelSheet(
-            #     export[0],
-            #     rows,
-            #     tz=self.org.timezone,
-            # )
 
     def get_ticket_export_columns(self):
         return [
@@ -814,7 +765,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         export_url = reverse("tickets.ticket_export")
         self.client.post(export_url)
         task = ExportTicketsTask.objects.all().order_by("-id").first()
-        filename = "%s/test_orgs/%d/ticket_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
+        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/ticket_exports/{task.uuid}.xlsx"
         workbook = load_workbook(filename=filename)
         return workbook.worksheets
 
