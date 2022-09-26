@@ -438,10 +438,8 @@ class TicketCRUDL(SmartCRUDL):
             if existing:
                 messages.info(
                     self.request,
-                    _(
-                        "There is already an export in progress, started by %s. You must wait "
-                        "for that export to complete before starting another." % existing.created_by.username
-                    ),
+                    f"There is already an export in progress, started by {existing.created_by.username}. "
+                    f"You must wait for that export to complete before starting another.",
                 )
             else:
                 # generate the export
@@ -454,17 +452,15 @@ class TicketCRUDL(SmartCRUDL):
                 if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: no cover
                     messages.info(
                         self.request,
-                        _("We are preparing your export. We will e-mail you at %s when it is ready.")
-                        % self.request.user.username,
+                        f"We are preparing your export. We will e-mail you at {self.request.user.username} when it is ready.",
                     )
                 else:
                     dl_url = reverse("assets.download", kwargs=dict(type="ticket_export", pk=export.pk))
                     messages.info(
                         self.request,
-                        _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
+                        f"Export complete, you can find it here: {dl_url} (production users will get an email)",
                     )
 
-            # TODO comment on why this is needed
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover

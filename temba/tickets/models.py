@@ -653,10 +653,6 @@ class ExportTicketsTask(BaseExportTask):
         # create the exporter
         exporter = TableExporter(self, "Tickets", [f["label"] for f in fields])
 
-        # init progress info to log every 10k tickets
-        total_exported = 0
-        start = time.time()
-
         # add tickets to the export in batches of 1k to limit memory usage
         for ticket_chunk_ids in chunk_list(ticket_ids, 1000):
 
@@ -678,24 +674,6 @@ class ExportTicketsTask(BaseExportTask):
 
                 # add row to the export
                 exporter.write_row(values)
-                total_exported += 1
-
-                # get progress info and log every 10k tickets
-                if total_exported % 1 == 0:  # pragma: no cover
-                    # if total_exported % ExportTicketsTask.LOG_PROGRESS_PER_ROWS == 0: # pragma: no cover
-                    percentage = total_exported * 100 // len(ticket_ids)
-                    f_total_exported = "{:,}".format(total_exported)
-                    f_total_tickets = "{:,}".format(len(ticket_ids))
-                    elapsed = time.time() - start
-                    predicted = elapsed // (total_exported / len(ticket_ids))
-                    logger_info_msg = (
-                        f"Export of {self.org.name} tickets - "
-                        f"{percentage}% ({f_total_exported}/{f_total_tickets}) "
-                        f"completed in {elapsed}s (predicted {predicted}s)"
-                    )
-                    logger.info(logger_info_msg)
-                    self.modified_on = timezone.now()
-                    self.save(update_fields=["modified_on"])
 
         return exporter.save_file()
 
@@ -743,7 +721,7 @@ class ExportTicketsTask(BaseExportTask):
             ticket_contact_urn = {}
 
             # get the urn(s) for the contact, ordered by (descending) max priority
-            ticket_contact_urns = self.org.urns.filter(contact_id=ticket.contact_id).order_by("-priority").values()
+            ticket_contact_urns = ticket.contact.get_urns().values()
 
             if len(ticket_contact_urns) == 0:
                 # if there are zero urns, return None
@@ -764,7 +742,7 @@ class ExportTicketsTask(BaseExportTask):
                 scheme = ticket_contact_urn["scheme"]
                 return scheme
             else:
-                # field_key == "contact.urn.path"::
+                # field_key == "contact.urn.path":
                 path = ticket_contact_urn["path"]
                 return path
 
