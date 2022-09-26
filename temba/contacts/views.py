@@ -869,8 +869,7 @@ class ContactCRUDL(SmartCRUDL):
                         _("Open Ticket"), "open-ticket", reverse("contacts.contact_open_ticket", args=[obj.id])
                     )
 
-                if len(menu.groups[0]) > 0:
-                    menu.new_group()
+                menu.new_group()
 
                 if self.has_org_perm("contacts.contact_interrupt") and obj.current_flow:
                     menu.add_url_post(_("Interrupt"), reverse("contacts.contact_interrupt", args=(obj.id,)))
