@@ -471,10 +471,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
     @mock_mailroom
     def test_read(self, mr_mocks):
         joe = self.create_contact("Joe", phone="123")
-        other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
 
         read_url = reverse("contacts.contact_read", args=[joe.uuid])
-        block_url = reverse("contacts.contact_block", args=[joe.id])
 
         response = self.client.get(read_url)
         self.assertLoginRedirect(response)
@@ -483,12 +481,12 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContentMenu(
             read_url,
             self.editor,
-            ["Send Message", "Start Flow", "Open Ticket", "Edit", "Custom Fields", "Block", "Archive"],
+            ["Send Message", "Start Flow", "Open Ticket", "Edit", "Custom Fields"],
         )
         self.assertContentMenu(
             read_url,
             self.admin,
-            ["Send Message", "Start Flow", "Open Ticket", "Edit", "Custom Fields", "Block", "Archive"],
+            ["Send Message", "Start Flow", "Open Ticket", "Edit", "Custom Fields"],
         )
 
         # login as viewer
@@ -501,50 +499,10 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.admin)
 
         # block the contact
-        self.client.post(block_url, dict(id=joe.id))
+        joe.block(self.admin)
         self.assertTrue(Contact.objects.get(pk=joe.id, status="B"))
 
-        self.assertContentMenu(read_url, self.admin, ["Edit", "Custom Fields", "Activate", "Archive"])
-
-        # try unblocking now
-        response = self.client.get(read_url)
-        restore_url = reverse("contacts.contact_restore", args=[joe.id])
-        self.assertContains(response, restore_url)
-
-        self.client.post(restore_url, dict(id=joe.id))
-        self.assertTrue(Contact.objects.get(pk=joe.id, status="A"))
-
-        # can't block contacts from other orgs
-        response = self.client.post(reverse("contacts.contact_block", args=[other_org_contact.id]))
-        self.assertLoginRedirect(response)
-
-        # contact should be unchanged
-        other_org_contact.refresh_from_db()
-        self.assertEqual(Contact.STATUS_ACTIVE, other_org_contact.status)
-
-        # or restore...
-        other_org_contact.block(self.admin2)
-
-        response = self.client.post(reverse("contacts.contact_restore", args=[other_org_contact.id]))
-        self.assertLoginRedirect(response)
-
-        # contact should be unchanged
-        other_org_contact.refresh_from_db()
-        self.assertEqual(Contact.STATUS_BLOCKED, other_org_contact.status)
-
-        delete_url = reverse("contacts.contact_archive", args=[joe.id])
-
-        response = self.client.get(read_url)
-
-        self.assertNotContains(response, restore_url)
-        self.assertContains(response, delete_url)
-
-        # unstop option available for stopped contacts
-        joe.stop(self.user)
-        response = self.client.get(read_url)
-
-        self.assertContains(response, restore_url)
-        self.assertContains(response, delete_url)
+        self.assertContentMenu(read_url, self.admin, ["Edit", "Custom Fields"])
 
         # can't access a deleted contact
         joe.release(self.admin)
@@ -765,76 +723,6 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(general, ticket.topic)
         self.assertEqual("Help again", ticket.body)
         self.assertEqual(self.agent, ticket.assignee)
-
-    @mock_mailroom
-    def test_archive(self, mr_mocks):
-        contact = self.create_contact("Joe", phone="+593979000111")
-        other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
-
-        archive_url = reverse("contacts.contact_archive", args=[contact.id])
-
-        # can't archive if not logged in
-        response = self.client.post(archive_url, {"id": contact.id})
-        self.assertLoginRedirect(response)
-
-        self.login(self.user)
-
-        # can't archive if just regular user
-        response = self.client.post(archive_url, {"id": contact.id})
-        self.assertLoginRedirect(response)
-
-        self.login(self.admin)
-
-        response = self.client.post(archive_url, {"id": contact.id})
-        self.assertEqual(302, response.status_code)
-
-        contact.refresh_from_db()
-        self.assertEqual(Contact.STATUS_ARCHIVED, contact.status)
-
-        # can't archive contact in other org
-        archive_url = reverse("contacts.contact_restore", args=[other_org_contact.id])
-        response = self.client.post(archive_url, {"id": other_org_contact.id})
-        self.assertLoginRedirect(response)
-
-        # contact should be unchanged
-        other_org_contact.refresh_from_db()
-        self.assertEqual(Contact.STATUS_ACTIVE, other_org_contact.status)
-
-    @mock_mailroom
-    def test_restore(self, mr_mocks):
-        contact = self.create_contact("Joe", phone="+593979000111")
-        contact.stop(self.admin)
-        other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
-        other_org_contact.stop(self.admin2)
-
-        restore_url = reverse("contacts.contact_restore", args=[contact.id])
-
-        # can't restore if not logged in
-        response = self.client.post(restore_url, {"id": contact.id})
-        self.assertLoginRedirect(response)
-
-        self.login(self.user)
-
-        # can't restore if just regular user
-        response = self.client.post(restore_url, {"id": contact.id})
-        self.assertLoginRedirect(response)
-
-        self.login(self.admin)
-
-        response = self.client.post(restore_url, {"id": contact.id})
-        self.assertEqual(302, response.status_code)
-
-        contact.refresh_from_db()
-        self.assertEqual(Contact.STATUS_ACTIVE, contact.status)
-
-        # can't restore contact in other org
-        restore_url = reverse("contacts.contact_restore", args=[other_org_contact.id])
-        response = self.client.post(restore_url, {"id": other_org_contact.id})
-        self.assertLoginRedirect(response)
-
-        # contact should be unchanged
-        other_org_contact.refresh_from_db()
-        self.assertEqual(Contact.STATUS_STOPPED, other_org_contact.status)
 
     @mock_mailroom
     def test_interrupt(self, mr_mocks):
@@ -3057,6 +2945,21 @@ class ContactTest(TembaTest):
         self.assertEqual("Age", results["fields"][str(age.uuid)]["label"])
 
     @mock_mailroom
+    def test_update_status(self, mr_mocks):
+        self.login(self.admin)
+
+        self.assertEqual(Contact.STATUS_ACTIVE, self.joe.status)
+
+        for status, _ in Contact.STATUS_CHOICES:
+            self.client.post(
+                reverse("contacts.contact_update", args=[self.joe.id]),
+                {"status": status},
+            )
+
+            self.joe.refresh_from_db()
+            self.assertEqual(status, self.joe.status)
+
+    @mock_mailroom
     def test_update_and_list(self, mr_mocks):
         self.setUpLocations()
 
@@ -3251,7 +3154,8 @@ class ContactTest(TembaTest):
         response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
 
         self.assertEqual(
-            list(response.context["form"].fields.keys()), ["name", "groups", "urn__twitter__0", "urn__tel__1", "loc"]
+            list(response.context["form"].fields.keys()),
+            ["name", "status", "groups", "urn__twitter__0", "urn__tel__1", "loc"],
         )
         self.assertEqual(response.context["form"].initial["name"], "Joe Blow")
         self.assertEqual(response.context["form"].fields["urn__tel__1"].initial, "+250781111111")
@@ -3276,8 +3180,10 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Eastern Province")
 
         # update joe - change his tel URN
-        data = dict(name="Joe Blow", urn__tel__1="+250 783835665", order__urn__tel__1="0")
-        self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), data)
+        data = dict(
+            name="Joe Blow", urn__tel__1="+250 783835665", order__urn__tel__1="0", status=Contact.STATUS_ACTIVE
+        )
+        response = self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), data)
 
         # update the state contact field to something invalid
         self.client.post(
@@ -3294,7 +3200,13 @@ class ContactTest(TembaTest):
         self.assertIsNone(Contact.from_urn(self.org, "tel:+250781111111"))  # original tel is nobody now
 
         # update joe, change his number back
-        data = dict(name="Joe Blow", urn__tel__0="+250781111111", order__urn__tel__0="0", __field__location="Kigali")
+        data = dict(
+            name="Joe Blow",
+            urn__tel__0="+250781111111",
+            order__urn__tel__0="0",
+            __field__location="Kigali",
+            status=Contact.STATUS_ACTIVE,
+        )
         self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), data)
 
         # check that old URN is re-attached
@@ -3329,7 +3241,11 @@ class ContactTest(TembaTest):
 
         # update joe, add him to "Just Joe" group
         post_data = dict(
-            name="Joe Gashyantare", groups=[self.just_joe.id], urn__tel__0="+250781111111", urn__tel__1="+250786666666"
+            name="Joe Gashyantare",
+            groups=[self.just_joe.id],
+            urn__tel__0="+250781111111",
+            urn__tel__1="+250786666666",
+            status=Contact.STATUS_ACTIVE,
         )
 
         self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
@@ -3339,7 +3255,7 @@ class ContactTest(TembaTest):
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="+250786666666"))
 
         # remove him from this group "Just joe", and his second number
-        post_data = dict(name="Joe Gashyantare", urn__tel__0="+250781111111", groups=[])
+        post_data = dict(name="Joe Gashyantare", urn__tel__0="+250781111111", groups=[], status=Contact.STATUS_ACTIVE)
 
         self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
 
@@ -3358,7 +3274,7 @@ class ContactTest(TembaTest):
         self.assertNotIn("groups", response.context["form"].fields)
 
         # and that we can still update the contact
-        post_data = dict(name="Joe Bloggs", urn__tel__0="+250781111111")
+        post_data = dict(name="Joe Bloggs", urn__tel__0="+250781111111", status=Contact.STATUS_ACTIVE)
         self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
 
         self.joe = Contact.objects.get(pk=self.joe.pk)
@@ -3367,7 +3283,13 @@ class ContactTest(TembaTest):
         # add new urn for joe
         self.client.post(
             reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(name="Joey", urn__tel__0="+250781111111", new_scheme="ext", new_path="EXT123"),
+            dict(
+                name="Joey",
+                urn__tel__0="+250781111111",
+                new_scheme="ext",
+                new_path="EXT123",
+                status=Contact.STATUS_ACTIVE,
+            ),
         )
 
         urn = ContactURN.objects.filter(contact=self.joe, scheme="ext").first()
@@ -3377,7 +3299,13 @@ class ContactTest(TembaTest):
         # now try adding one that is invalid
         self.client.post(
             reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(name="Joey", urn__tel__0="+250781111111", new_scheme="mailto", new_path="malformed"),
+            dict(
+                name="Joey",
+                urn__tel__0="+250781111111",
+                new_scheme="mailto",
+                new_path="malformed",
+                status=Contact.STATUS_ACTIVE,
+            ),
         )
         self.assertIsNone(ContactURN.objects.filter(contact=self.joe, scheme="mailto").first())
 
@@ -3481,7 +3409,7 @@ class ContactTest(TembaTest):
         # Update with spa flag
         self.client.post(
             reverse("contacts.contact_update", args=[self.joe.id]),
-            {"name": "Joe Spa"},
+            {"name": "Joe Spa", "status": Contact.STATUS_ACTIVE},
             follow=True,
             HTTP_TEMBA_SPA=True,
         )
@@ -3505,7 +3433,13 @@ class ContactTest(TembaTest):
 
         response = self.client.post(
             reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(language="fra", name="Muller Awesome", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
+            dict(
+                language="fra",
+                name="Muller Awesome",
+                urn__tel__0="+250781111111",
+                urn__twitter__1="blow80",
+                status=Contact.STATUS_ACTIVE,
+            ),
         )
 
         self.assertFormError(

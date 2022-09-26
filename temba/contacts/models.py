@@ -597,16 +597,13 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
 
-    name = models.CharField(
-        verbose_name=_("Name"), max_length=128, blank=True, null=True, help_text=_("The name of this contact")
-    )
+    name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True)
 
     language = models.CharField(
         max_length=3,
         verbose_name=_("Language"),
         null=True,
         blank=True,
-        help_text=_("The preferred language for this contact"),
     )
 
     # custom field values for this contact, keyed by field UUID
