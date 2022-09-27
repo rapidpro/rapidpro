@@ -3482,9 +3482,10 @@ class AnonOrgTest(TembaTest):
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_spa(self):
-        self.admin.is_staff = True
-        self.admin.save()
+        Group.objects.get(name="Beta").user_set.add(self.admin)
+
         self.login(self.admin)
+
         deep_link = reverse("spa.level_2", args=["tickets", "all", "open"])
         response = self.client.get(deep_link)
         self.assertEqual(200, response.status_code)
@@ -3499,7 +3500,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         home_url = reverse("orgs.org_home")
 
-        with self.assertNumQueries(23):
+        with self.assertNumQueries(24):
             response = self.client.get(home_url)
 
         self.assertEqual(200, response.status_code)
@@ -3507,7 +3508,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
         self.login(self.admin)
         self.assertMenu(reverse("orgs.org_menu"), 7)
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 8)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 7)
 
         menu_url = reverse("orgs.org_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=True)
@@ -3569,7 +3570,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # make sure we have the appropriate number of sections
-        self.assertEqual(6, len(response.context["formax"].sections))
+        self.assertEqual(8, len(response.context["formax"].sections))
 
         # create a child org
         self.child_org = Org.objects.create(
@@ -3582,14 +3583,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(59):
             response = self.client.get(reverse("orgs.org_workspace"))
 
         # make sure we have the appropriate number of sections
         self.assertContains(response, "Transfer Credits")
 
         # should have an extra menu option for our child (and section header)
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 10)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 9)
 
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")

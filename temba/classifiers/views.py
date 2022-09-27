@@ -11,7 +11,7 @@ from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 from .models import Classifier
 
 
-class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
+class BaseConnectView(SpaMixin, ComponentFormMixin, OrgPermsMixin, SmartFormView):
     permission = "classifiers.classifier_connect"
     classifier_type = None
 
@@ -97,7 +97,7 @@ class ClassifierCRUDL(SmartCRUDL):
             queryset = super().get_queryset(**kwargs)
             return queryset.filter(org=self.request.org, is_active=True)
 
-    class Sync(OrgObjPermsMixin, SmartUpdateView):
+    class Sync(SpaMixin, OrgObjPermsMixin, SmartUpdateView):
         fields = ()
         success_url = "uuid@classifiers.classifier_read"
         success_message = ""
@@ -117,5 +117,5 @@ class ClassifierCRUDL(SmartCRUDL):
     class Connect(SpaMixin, OrgPermsMixin, SmartTemplateView):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["classifier_types"] = Classifier.get_types()
+            context["classifier_types"] = [t for t in Classifier.get_types()]
             return context

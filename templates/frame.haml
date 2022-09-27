@@ -15,7 +15,7 @@
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
-    -if user.is_staff
+    -if user.is_beta
       %script(src="{{ STATIC_URL }}js/urls.js")
 
       :javascript
@@ -213,7 +213,7 @@
         -include 'includes/nav.html'
 
     -block interface-option
-      -if user.is_staff
+      -if user.is_beta
         #preview.text-center.px-3.text-sm.py-1(style='background:rgba(0,0,0,.75);z-index:10000;position:fixed;bottom:0px;width:100%;color:#fff')
           Preview the
           %span.linked(onclick="switchToNewInterface()" style="color:#43b1ff")<

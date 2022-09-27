@@ -1,3 +1,10 @@
+v7.5.58
+----------
+ * Add twilio and vonage connection formax entries in new UI
+ * Update both main menu and content menus to align with new conventions
+ * Gate new UI by Beta group rather than staff
+ * Don't show new menu UIs until they're defined
+
 v7.5.57
 ----------
  * Move status updates into update contact view

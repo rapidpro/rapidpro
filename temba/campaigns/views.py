@@ -76,14 +76,6 @@ class CampaignCRUDL(SmartCRUDL):
                 )
             )
 
-            menu.append(self.create_divider())
-            menu.append(
-                self.create_modax_button(
-                    name=_("New Campaign"),
-                    href="campaigns.campaign_create",
-                )
-            )
-
             return menu
 
     class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
@@ -181,7 +173,7 @@ class CampaignCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-    class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+    class BaseList(SpaMixin, ContentMenuMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         fields = ("name", "group")
         default_template = "campaigns/campaign_list.html"
         default_order = ("-modified_on",)
@@ -225,6 +217,16 @@ class CampaignCRUDL(SmartCRUDL):
             qs = super().get_queryset(*args, **kwargs)
             qs = qs.filter(is_active=True, is_archived=False)
             return qs
+
+        def build_content_menu(self, menu):
+            if self.is_spa() and self.has_org_perm("campaigns.campaign_create"):
+                menu.add_modax(
+                    _("New Campaign"),
+                    "event-update",
+                    reverse("campaigns.campaign_create"),
+                    title=_("New Campaign"),
+                    as_button=True,
+                )
 
     class Archived(BaseList):
         fields = ("name",)
