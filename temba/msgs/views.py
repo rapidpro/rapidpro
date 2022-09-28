@@ -509,8 +509,8 @@ class ExportForm(Form):
 
     SYSTEM_LABEL_CHOICES = ((0, _("Just this folder")), (1, _("All messages")))
 
-    start_date = TembaDateField(required=False, label=_("Start Date"))
-    end_date = TembaDateField(required=False, label=_("End Date"))
+    start_date = TembaDateField(label=_("Start Date"))
+    end_date = TembaDateField(label=_("End Date"))
 
     export_all = forms.ChoiceField(
         choices=(), label=_("Selection"), initial=0, widget=SelectWidget(attrs={"widget_only": True})
@@ -536,10 +536,10 @@ class ExportForm(Form):
         start_date = cleaned_data.get("start_date")
         end_date = cleaned_data.get("end_date")
 
-        if start_date and start_date > date.today():  # pragma: needs cover
+        if start_date and start_date > date.today():
             raise forms.ValidationError(_("Start date can't be in the future."))
 
-        if end_date and start_date and end_date < start_date:  # pragma: needs cover
+        if end_date and start_date and end_date < start_date:
             raise forms.ValidationError(_("End date can't be before start date"))
 
         return cleaned_data
@@ -701,11 +701,11 @@ class MsgCRUDL(SmartCRUDL):
                 export = ExportMessagesTask.create(
                     org,
                     user,
+                    start_date=start_date,
+                    end_date=end_date,
                     system_label=system_label,
                     label=label,
                     groups=groups,
-                    start_date=start_date,
-                    end_date=end_date,
                 )
 
                 on_transaction_commit(lambda: export_messages_task.delay(export.id))

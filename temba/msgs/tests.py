@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import PropertyMock, patch
 
 import pytz
@@ -470,7 +470,6 @@ class MsgTest(TembaTest):
     def test_message_export_from_archives(self, mock_send_temba_email):
         export_url = reverse("msgs.msg_export")
 
-        self.clear_storage()
         self.login(self.admin)
 
         self.joe.name = "Jo\02e Blow"
@@ -577,7 +576,9 @@ class MsgTest(TembaTest):
         # export all visible messages (i.e. not msg3) using export_all param
         with self.assertNumQueries(30):
             with patch("temba.utils.s3.client", return_value=mock_s3):
-                workbook = request_export("?l=I", {"export_all": 1})
+                workbook = request_export(
+                    "?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-01"}
+                )
 
         self.assertExcelSheet(
             workbook.worksheets[0],
@@ -731,7 +732,10 @@ class MsgTest(TembaTest):
         )
 
         with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = request_export("?l=I", {"export_all": 1, "groups": [self.just_joe.id]})
+            workbook = request_export(
+                "?l=I",
+                {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28", "groups": [self.just_joe.id]},
+            )
 
         self.assertExcelSheet(
             workbook.worksheets[0],
@@ -826,7 +830,7 @@ class MsgTest(TembaTest):
         )
 
         with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = request_export("?l=S", {"export_all": 0})
+            workbook = request_export("?l=S", {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-01"})
 
         self.assertExcelSheet(
             workbook.worksheets[0],
@@ -864,7 +868,7 @@ class MsgTest(TembaTest):
         )
 
         with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = request_export("?l=X", {"export_all": 0})
+            workbook = request_export("?l=X", {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-01"})
 
         self.assertExcelSheet(
             workbook.worksheets[0],
@@ -902,7 +906,7 @@ class MsgTest(TembaTest):
         )
 
         with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = request_export("?l=W", {"export_all": 0})
+            workbook = request_export("?l=W", {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-01"})
 
         self.assertExcelSheet(
             workbook.worksheets[0],
@@ -940,7 +944,9 @@ class MsgTest(TembaTest):
         )
 
         with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = request_export(f"?l={label.uuid}", {"export_all": 0})
+            workbook = request_export(
+                f"?l={label.uuid}", {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-01"}
+            )
 
         self.assertExcelSheet(
             workbook.worksheets[0],
@@ -977,15 +983,20 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
+        self.clear_storage()
+
     @patch("temba.utils.email.send_temba_email")
     def test_message_export(self, mock_send_temba_email):
         export_url = reverse("msgs.msg_export")
 
-        self.clear_storage()
         self.login(self.admin)
 
         self.joe.name = "Jo\02e Blow"
         self.joe.save(update_fields=("name",))
+
+        # messages can't be older than org
+        self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=pytz.UTC)
+        self.org.save(update_fields=("created_on",))
 
         flow = self.create_flow("Color Flow")
         msg1 = self.create_incoming_msg(
@@ -1035,11 +1046,21 @@ class MsgTest(TembaTest):
         msg3.save()
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportMessagesTask.create(self.org, self.admin, SystemLabel.TYPE_INBOX)
+        blocking_export = ExportMessagesTask.create(
+            self.org,
+            self.admin,
+            start_date=date(2017, 1, 1),
+            end_date=date.today(),
+            system_label=SystemLabel.TYPE_INBOX,
+        )
 
         old_modified_on = blocking_export.modified_on
 
-        response = self.client.post(reverse("msgs.msg_export") + "?l=I", {"export_all": 1}, follow=True)
+        response = self.client.post(
+            export_url + "?l=I",
+            {"export_all": 1, "start_date": "2022-09-01", "end_date": "2022-09-28"},
+            follow=True,
+        )
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
@@ -1069,7 +1090,9 @@ class MsgTest(TembaTest):
 
                 with self.assertNumQueries(30):
                     self.assertExcelSheet(
-                        request_export("?l=I", {"export_all": 1}),
+                        request_export(
+                            "?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}
+                        ),
                         [
                             [
                                 "Date",
@@ -1217,7 +1240,7 @@ class MsgTest(TembaTest):
 
         # export just archived messages
         self.assertExcelSheet(
-            request_export("?l=A", {"export_all": 0}),
+            request_export("?l=A", {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-28"}),
             [
                 [
                     "Date",
@@ -1257,7 +1280,9 @@ class MsgTest(TembaTest):
 
         # try export with user label
         self.assertExcelSheet(
-            request_export("?l=%s" % label.uuid, {"export_all": 0}),
+            request_export(
+                "?l=%s" % label.uuid, {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-28"}
+            ),
             [
                 [
                     "Date",
@@ -1293,7 +1318,9 @@ class MsgTest(TembaTest):
 
         # try export with user label folder
         self.assertExcelSheet(
-            request_export("?l=%s" % folder.uuid, {"export_all": 0}),
+            request_export(
+                "?l=%s" % folder.uuid, {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-28"}
+            ),
             [
                 [
                     "Date",
@@ -1398,17 +1425,33 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        # check sending an invalid date
-        response = self.client.post(reverse("msgs.msg_export") + "?l=I", {"export_all": 1, "start_date": "xyz"})
-        self.assertEqual(response.status_code, 200)
+        # try to submit an invalid date (UI doesn't actually allow this)
+        response = self.client.post(export_url + "?l=I", {"export_all": 1, "start_date": "xyz"})
         self.assertFormError(response, "form", "start_date", "Enter a valid date.")
+
+        # try to submit without specifying dates (UI doesn't actually allow this)
+        response = self.client.post(export_url + "?l=I", {"export_all": 1})
+        self.assertFormError(response, "form", "start_date", "This field is required.")
+        self.assertFormError(response, "form", "end_date", "This field is required.")
+
+        # try to submit with start date in future
+        response = self.client.post(
+            export_url + "?l=I", {"export_all": 1, "start_date": "2200-01-01", "end_date": "2022-09-28"}
+        )
+        self.assertFormError(response, "form", "__all__", "Start date can't be in the future.")
+
+        # try to submit with start date > end date
+        response = self.client.post(
+            export_url + "?l=I", {"export_all": 1, "start_date": "2022-10-01", "end_date": "2022-09-01"}
+        )
+        self.assertFormError(response, "form", "__all__", "Start date can't be in the future.")
 
         # test as anon org to check that URNs don't end up in exports
         with AnonymousOrg(self.org):
             joe_anon_id = f"{self.joe.id:010d}"
 
             self.assertExcelSheet(
-                request_export("?l=I", {"export_all": 1}),
+                request_export("?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}),
                 [
                     [
                         "Date",
@@ -1540,9 +1583,14 @@ class MsgTest(TembaTest):
                 self.org.timezone,
             )
 
-        response = self.client.post(reverse("msgs.msg_export") + "?l=I&redirect=http://foo.me", {"export_all": 1})
+        response = self.client.post(
+            export_url + "?l=I&redirect=http://foo.me",
+            {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"},
+        )
         self.assertEqual(302, response.status_code)
         self.assertEqual("/msg/inbox/", response.url)
+
+        self.clear_storage()
 
     def test_big_ids(self):
         # create an incoming message with big id
@@ -2540,7 +2588,7 @@ class LabelTest(TembaTest):
         label2.toggle_label([msg1], add=True)
         label3.toggle_label([msg3], add=True)
 
-        ExportMessagesTask.create(self.org, self.admin, label=label1)
+        ExportMessagesTask.create(self.org, self.admin, start_date=date.today(), end_date=date.today(), label=label1)
 
         # can't release non-empty folder
         with self.assertRaises(AssertionError):
