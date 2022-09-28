@@ -3,7 +3,7 @@
 from django.db import migrations, transaction
 
 
-def convert_connections(apps, schema_editor):
+def convert_connections(apps, schema_editor):  # pragma: no cover
     ChannelConnection = apps.get_model("channels", "ChannelConnection")
     ChannelLog = apps.get_model("channels", "ChannelLog")
     FlowStart = apps.get_model("flows", "FlowStart")
@@ -49,7 +49,7 @@ def convert_connections(apps, schema_editor):
         print(f"Converted {num_converted} channel connections to calls")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

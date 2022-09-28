@@ -1219,11 +1219,6 @@ class ChannelLog(models.Model):
     elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
 
-    # TODO: drop
-    connection = models.ForeignKey(
-        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="channel_logs", null=True
-    )
-
     @classmethod
     def from_response(cls, log_type, channel, response, created_on, ended_on, is_error=None):
         http_log = HttpLog.from_response(response, created_on, ended_on)
@@ -1635,62 +1630,3 @@ def get_alert_user():
         user = User.objects.create_user("alert")
         user.groups.add(Group.objects.get(name="Service Users"))
         return user
-
-
-class ChannelConnection(models.Model):
-    """
-    TODO drop
-    """
-
-    DIRECTION_IN = "I"
-    DIRECTION_OUT = "O"
-    DIRECTION_CHOICES = ((DIRECTION_IN, _("Incoming")), (DIRECTION_OUT, _("Outgoing")))
-
-    STATUS_PENDING = "P"  # used for initial creation in database
-    STATUS_QUEUED = "Q"  # used when we need to throttle requests for new calls
-    STATUS_WIRED = "W"  # the call has been requested on the IVR provider
-    STATUS_IN_PROGRESS = "I"  # the call has been answered
-    STATUS_COMPLETED = "D"  # the call was completed successfully
-    STATUS_ERRORED = "E"  # temporary failure (will be retried)
-    STATUS_FAILED = "F"  # permanent failure
-    STATUS_CHOICES = (
-        (STATUS_PENDING, _("Pending")),
-        (STATUS_QUEUED, _("Queued")),
-        (STATUS_WIRED, _("Wired")),
-        (STATUS_IN_PROGRESS, _("In Progress")),
-        (STATUS_COMPLETED, _("Complete")),
-        (STATUS_ERRORED, _("Errored")),
-        (STATUS_FAILED, _("Failed")),
-    )
-
-    ERROR_PROVIDER = "P"
-    ERROR_BUSY = "B"
-    ERROR_NOANSWER = "N"
-    ERROR_MACHINE = "M"
-    ERROR_CHOICES = (
-        (ERROR_PROVIDER, _("Provider")),  # an API call to the IVR provider returned an error
-        (ERROR_BUSY, _("Busy")),  # the contact couldn't be called because they're busy
-        (ERROR_NOANSWER, _("No Answer")),  # the contact didn't answer the call
-        (ERROR_MACHINE, _("Answering Machine")),  # the call went to an answering machine
-    )
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
-    direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
-
-    channel = models.ForeignKey("Channel", on_delete=models.PROTECT, related_name="connections")
-    contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="connections")
-    contact_urn = models.ForeignKey("contacts.ContactURN", on_delete=models.PROTECT, related_name="connections")
-    external_id = models.CharField(max_length=255)  # e.g. Twilio call ID
-
-    created_on = models.DateTimeField(default=timezone.now)
-    modified_on = models.DateTimeField(default=timezone.now)
-    started_on = models.DateTimeField(null=True)
-    ended_on = models.DateTimeField(null=True)
-    duration = models.IntegerField(null=True)  # in seconds
-
-    error_reason = models.CharField(max_length=1, null=True, choices=ERROR_CHOICES)
-    error_count = models.IntegerField(default=0)
-    next_attempt = models.DateTimeField(null=True)
-
-    log_uuids = ArrayField(models.UUIDField(), null=True)
