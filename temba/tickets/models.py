@@ -1,6 +1,6 @@
 import logging
 from abc import ABCMeta
-from datetime import date, datetime
+from datetime import date
 
 import openpyxl
 
@@ -19,7 +19,7 @@ from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org, User, UserSettings
 from temba.utils import chunk_list
 from temba.utils.dates import date_range
-from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
+from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter, export_date_range
 from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
@@ -646,10 +646,7 @@ class ExportTicketsTask(BaseExportTask):
 
     def write_export(self):
         fields = self.get_fields()
-
-        tz = self.org.timezone
-        start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
-        end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
+        start_date, end_date = export_date_range(self.org, self.start_date, self.end_date)
 
         # get the ticket ids, filtered and ordered by opened on
         ticket_ids = (

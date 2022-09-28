@@ -33,7 +33,7 @@ from temba.orgs.models import DependencyMixin, Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
-from temba.utils.export import BaseExportAssetStore, BaseExportTask
+from temba.utils.export import BaseExportAssetStore, BaseExportTask, export_date_range
 from temba.utils.models import JSONAsTextField, JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
@@ -1804,10 +1804,7 @@ class ExportFlowResultsTask(BaseExportTask):
         total_runs_exported = 0
         temp_runs_exported = 0
         start = time.time()
-
-        tz = self.org.timezone
-        start_date = max(tz.localize(datetime.combine(self.start_date, datetime.min.time())), self.org.created_on)
-        end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
+        start_date, end_date = export_date_range(self.org, self.start_date, self.end_date)
 
         for batch in self._get_run_batches(start_date, end_date, flows, responded_only):
             self._write_runs(

@@ -2,7 +2,7 @@ import gc
 import logging
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from smartmin.models import SmartModel
 from xlsxlite.writer import XLSXBook
@@ -262,3 +262,14 @@ class BaseExportForm(forms.Form):
             raise forms.ValidationError(_("End date can't be before start date."))
 
         return cleaned_data
+
+
+def export_date_range(org, start: date, end: date) -> tuple:
+    """
+    Converts a date-based range to datetimes, with start clamped to no earlier than org created date.
+    """
+    tz = org.timezone
+    return (
+        max(tz.localize(datetime.combine(start, datetime.min.time())), org.created_on),
+        tz.localize(datetime.combine(end, datetime.max.time())),
+    )

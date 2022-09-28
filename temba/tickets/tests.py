@@ -1,6 +1,7 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
+import pytz
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -575,6 +576,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         export_url = reverse("tickets.ticket_export")
 
         self.login(self.admin)
+
+        # messages can't be older than org
+        self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=pytz.UTC)
+        self.org.save(update_fields=("created_on",))
 
         ticketer = Ticketer.create(self.org, self.admin, "internal", "Internal", {})
         topic = Topic.create(self.org, self.admin, "AFC Richmond")
