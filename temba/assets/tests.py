@@ -19,7 +19,9 @@ class AssetTest(TembaTest):
 
     def test_download(self):
         # create a message export
-        message_export_task = ExportMessagesTask.create(self.org, self.admin, SystemLabel.TYPE_INBOX)
+        message_export_task = ExportMessagesTask.create(
+            self.org, self.admin, start_date=date.today(), end_date=date.today(), system_label=SystemLabel.TYPE_INBOX
+        )
 
         response = self.client.get(
             reverse("assets.download", kwargs=dict(type="message_export", pk=message_export_task.pk))
@@ -105,7 +107,9 @@ class AssetTest(TembaTest):
 
     def test_stream(self):
         # create a message export
-        message_export_task = ExportMessagesTask.create(self.org, self.admin, SystemLabel.TYPE_INBOX)
+        message_export_task = ExportMessagesTask.create(
+            self.org, self.admin, start_date=date.today(), end_date=date.today(), system_label=SystemLabel.TYPE_INBOX
+        )
 
         # try as anon
         response = self.client.get(

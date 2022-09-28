@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 import pytz
 
@@ -168,7 +168,9 @@ class NotificationTest(TembaTest):
         self.assertTrue(self.editor.notifications.get(contact_export=export).is_seen)
 
     def test_message_export_finished(self):
-        export = ExportMessagesTask.create(self.org, self.editor, system_label="I")
+        export = ExportMessagesTask.create(
+            self.org, self.editor, start_date=date.today(), end_date=date.today(), system_label="I"
+        )
         export.perform()
 
         Notification.export_finished(export)

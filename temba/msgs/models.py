@@ -1221,17 +1221,14 @@ class ExportMessagesTask(BaseExportTask):
     groups = models.ManyToManyField(ContactGroup)
 
     label = models.ForeignKey(Label, on_delete=models.PROTECT, null=True)
-
     system_label = models.CharField(null=True, max_length=1)
 
-    start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
-
-    end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
+    start_date = models.DateField(null=True)
+    end_date = models.DateField(null=True)
 
     @classmethod
-    def create(cls, org, user, system_label=None, label=None, groups=(), start_date=None, end_date=None):
-        if label and system_label:  # pragma: no cover
-            raise ValueError("Can't specify both label and system label")
+    def create(cls, org, user, start_date, end_date, system_label=None, label=None, groups=()):
+        assert not (label and system_label), "can't specify both label and system label"
 
         export = cls.objects.create(
             org=org,
@@ -1284,14 +1281,8 @@ class ExportMessagesTask(BaseExportTask):
             contact_uuids = contact_uuids.union(set(group.contacts.only("uuid").values_list("uuid", flat=True)))
 
         tz = self.org.timezone
-
-        start_date = self.org.created_on
-        if self.start_date:
-            start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
-
-        end_date = timezone.now()
-        if self.end_date:
-            end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
+        start_date = max(tz.localize(datetime.combine(self.start_date, datetime.min.time())), self.org.created_on)
+        end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
 
         for batch in self._get_msg_batches(self.system_label, self.label, start_date, end_date, contact_uuids):
             self._write_msgs(book, batch)
@@ -1354,11 +1345,7 @@ class ExportMessagesTask(BaseExportTask):
         else:
             messages = Msg.get_messages(self.org)
 
-        if self.start_date:
-            messages = messages.filter(created_on__gte=start_date)
-
-        if self.end_date:
-            messages = messages.filter(created_on__lte=end_date)
+        messages = messages.filter(created_on__gte=start_date, created_on__lte=end_date)
 
         if self.groups.all():
             messages = messages.filter(contact__groups__in=self.groups.all())
