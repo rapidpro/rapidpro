@@ -1,5 +1,5 @@
 import logging
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 import iso8601
@@ -51,6 +51,7 @@ from temba.orgs.views import (
 )
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
+from temba.utils.export import BaseExportForm
 from temba.utils.fields import (
     CheckboxWidget,
     ContactSearchWidget,
@@ -60,7 +61,6 @@ from temba.utils.fields import (
     SelectMultipleWidget,
     SelectWidget,
     TembaChoiceField,
-    TembaDateField,
 )
 from temba.utils.text import slugify_with
 from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
@@ -1267,13 +1267,10 @@ class FlowCRUDL(SmartCRUDL):
             return {"language": self.po_info.language_code if self.po_info else ""}
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
-        class Form(forms.Form):
+        class Form(BaseExportForm):
             flows = forms.ModelMultipleChoiceField(
                 Flow.objects.filter(id__lt=0), required=True, widget=forms.MultipleHiddenInput()
             )
-
-            start_date = TembaDateField(label=_("Start Date"))
-            end_date = TembaDateField(label=_("End Date"))
 
             group_memberships = forms.ModelMultipleChoiceField(
                 queryset=ContactGroup.objects.none(),
@@ -1309,7 +1306,7 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             def __init__(self, org, *args, **kwargs):
-                super().__init__(*args, **kwargs)
+                super().__init__(org, *args, **kwargs)
 
                 self.fields["contact_fields"].queryset = ContactField.user_fields.active_for_org(org=org).order_by(
                     Lower("name")
@@ -1321,15 +1318,6 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean(self):
                 cleaned_data = super().clean()
-
-                start_date = cleaned_data.get("start_date")
-                end_date = cleaned_data.get("end_date")
-
-                if start_date and start_date > date.today():
-                    raise forms.ValidationError(_("Start date can't be in the future."))
-
-                if end_date and start_date and end_date < start_date:
-                    raise forms.ValidationError(_("End date can't be before start date."))
 
                 if (
                     ExportFlowResultsTask.CONTACT_FIELDS in cleaned_data
