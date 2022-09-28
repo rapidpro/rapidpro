@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 
 from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
@@ -20,7 +20,7 @@ from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin
 from temba.utils import json, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
-from temba.utils.fields import InputWidget, SelectWidget
+from temba.utils.fields import InputWidget, SelectWidget, TembaDateField
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import (
@@ -407,22 +407,41 @@ class TicketCRUDL(SmartCRUDL):
             return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
-        class ExportForm(forms.Form):
-            def __init__(self, user, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.user = user
+        class Form(forms.Form):
+            start_date = TembaDateField(label=_("Start Date"))
+            end_date = TembaDateField(label=_("End Date"))
 
-        form_class = ExportForm
+            def clean(self):
+                cleaned_data = super().clean()
+                start_date = cleaned_data.get("start_date")
+                end_date = cleaned_data.get("end_date")
+
+                if start_date and start_date > date.today():
+                    raise forms.ValidationError(_("Start date can't be in the future."))
+
+                if end_date and start_date and end_date < start_date:
+                    raise forms.ValidationError(_("End date can't be before start date."))
+
+                return cleaned_data
+
+        form_class = Form
         submit_button_name = "Export"
         success_url = "@tickets.ticket_list"
 
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
-            return kwargs
+        def derive_initial(self):
+            initial = super().derive_initial()
 
-        def form_invalid(self, form):  # pragma: needs cover
-            if "_format" in self.request.GET and self.request.GET["_format"] == "json":
+            # default to last 90 days in org timezone
+            tz = self.request.org.timezone
+            end = datetime.now(tz)
+            start = end - timedelta(days=90)
+
+            initial["end_date"] = end.date()
+            initial["start_date"] = start.date()
+            return initial
+
+        def form_invalid(self, form):
+            if "_format" in self.request.GET and self.request.GET["_format"] == "json":  # pragma: no cover
                 return HttpResponse(
                     json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
                 )
@@ -442,8 +461,9 @@ class TicketCRUDL(SmartCRUDL):
                     f"You must wait for that export to complete before starting another.",
                 )
             else:
-                # generate the export
-                export = ExportTicketsTask.create(org, user)
+                start_date = form.cleaned_data["start_date"]
+                end_date = form.cleaned_data["end_date"]
+                export = ExportTicketsTask.create(org, user, start_date, end_date)
 
                 # schedule the export job
                 on_transaction_commit(lambda: export_tickets_task.delay(export.pk))

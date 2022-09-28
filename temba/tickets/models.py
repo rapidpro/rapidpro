@@ -1,6 +1,6 @@
 import logging
 from abc import ABCMeta
-from datetime import date
+from datetime import date, datetime
 
 import openpyxl
 
@@ -637,24 +637,31 @@ class ExportTicketsTask(BaseExportTask):
     analytics_key = "ticket_export"
     notification_export_type = "ticket"
 
+    start_date = models.DateField()
+    end_date = models.DateField()
+
     @classmethod
-    def create(cls, org, user):
-        return cls.objects.create(org=org, created_by=user, modified_by=user)
+    def create(cls, org, user, start_date, end_date):
+        return cls.objects.create(org=org, start_date=start_date, end_date=end_date, created_by=user, modified_by=user)
 
     def write_export(self):
-
-        # get the fields aka column headers
         fields = self.get_fields()
 
-        # get the ticket ids, ordered by opened on
-        ticket_ids = self.org.tickets.order_by("opened_on").values_list("id", flat=True)
+        tz = self.org.timezone
+        start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
+        end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
 
-        # create the exporter
+        # get the ticket ids, filtered and ordered by opened on
+        ticket_ids = (
+            self.org.tickets.filter(opened_on__gte=start_date, opened_on__lte=end_date)
+            .order_by("opened_on")
+            .values_list("id", flat=True)
+        )
+
         exporter = TableExporter(self, "Tickets", [f["label"] for f in fields])
 
         # add tickets to the export in batches of 1k to limit memory usage
         for ticket_chunk_ids in chunk_list(ticket_ids, 1000):
-
             tickets = (
                 Ticket.objects.filter(id__in=ticket_chunk_ids)
                 .order_by("opened_on")
@@ -677,25 +684,24 @@ class ExportTicketsTask(BaseExportTask):
         return exporter.save_file()
 
     def get_fields(self):
-
         fields = [
-            dict(label="UUID", key="uuid", field=None, urn_scheme=None),
-            dict(label="Opened On", key="opened_on", field=None, urn_scheme=None),
-            dict(label="Closed On", key="closed_on", field=None, urn_scheme=None),
-            dict(label="Topic", key="topic.name", field=None, urn_scheme=None),
-            dict(label="Assigned To", key="assignee.email", field=None, urn_scheme=None),
-            dict(label="Contact UUID", key="contact.uuid", field=None, urn_scheme=None),
+            dict(label="UUID", key="uuid"),
+            dict(label="Opened On", key="opened_on"),
+            dict(label="Closed On", key="closed_on"),
+            dict(label="Topic", key="topic.name"),
+            dict(label="Assigned To", key="assignee.email"),
+            dict(label="Contact UUID", key="contact.uuid"),
         ]
 
         # if the org is anon, get the contact id of the ticket
         if self.org.is_anon:
-            fields.append(dict(label="Contact ID", key="contact_id", field=None, urn_scheme=None))
+            fields.append(dict(label="Contact ID", key="contact_id"))
 
-        fields.append(dict(label="URN Scheme", key="contact.urn.scheme", field=None, urn_scheme=None))
+        fields.append(dict(label="URN Scheme", key="contact.urn.scheme"))
 
         # if the org is NOT anon, get the urn value of the ticket
         if not self.org.is_anon:
-            fields.append(dict(label="URN Value", key="contact.urn.path", field=None, urn_scheme=None))
+            fields.append(dict(label="URN Value", key="contact.urn.path"))
 
         return fields
 

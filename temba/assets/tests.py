@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.test import override_settings
 from django.urls import reverse
 
@@ -75,7 +77,9 @@ class AssetTest(TembaTest):
         self.assertContains(response, "Your download should start automatically", status_code=200)
 
         # create ticket export and check that we can access it
-        ticket_export_task = ExportTicketsTask.create(self.org, self.admin)
+        ticket_export_task = ExportTicketsTask.create(
+            self.org, self.admin, start_date=date.today(), end_date=date.today()
+        )
         ticket_export_task.perform()
 
         response = self.client.get(
