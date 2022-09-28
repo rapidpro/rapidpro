@@ -1442,9 +1442,9 @@ class MsgTest(TembaTest):
 
         # try to submit with start date > end date
         response = self.client.post(
-            export_url + "?l=I", {"export_all": 1, "start_date": "2022-10-01", "end_date": "2022-09-01"}
+            export_url + "?l=I", {"export_all": 1, "start_date": "2022-09-01", "end_date": "2022-03-01"}
         )
-        self.assertFormError(response, "form", "__all__", "Start date can't be in the future.")
+        self.assertFormError(response, "form", "__all__", "End date can't be before start date.")
 
         # test as anon org to check that URNs don't end up in exports
         with AnonymousOrg(self.org):

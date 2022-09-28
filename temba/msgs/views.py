@@ -540,7 +540,7 @@ class ExportForm(Form):
             raise forms.ValidationError(_("Start date can't be in the future."))
 
         if end_date and start_date and end_date < start_date:
-            raise forms.ValidationError(_("End date can't be before start date"))
+            raise forms.ValidationError(_("End date can't be before start date."))
 
         return cleaned_data
 
