@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from urllib.parse import urlencode
 
 import iso8601
@@ -60,6 +60,7 @@ from temba.utils.fields import (
     SelectMultipleWidget,
     SelectWidget,
     TembaChoiceField,
+    TembaDateField,
 )
 from temba.utils.text import slugify_with
 from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
@@ -1266,10 +1267,13 @@ class FlowCRUDL(SmartCRUDL):
             return {"language": self.po_info.language_code if self.po_info else ""}
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
-        class ExportForm(forms.Form):
+        class Form(forms.Form):
             flows = forms.ModelMultipleChoiceField(
                 Flow.objects.filter(id__lt=0), required=True, widget=forms.MultipleHiddenInput()
             )
+
+            start_date = TembaDateField(label=_("Start Date"))
+            end_date = TembaDateField(label=_("End Date"))
 
             group_memberships = forms.ModelMultipleChoiceField(
                 queryset=ContactGroup.objects.none(),
@@ -1307,18 +1311,25 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.user_fields.active_for_org(
-                    org=org
-                ).order_by(Lower("name"))
-
-                self.fields[ExportFlowResultsTask.GROUP_MEMBERSHIPS].queryset = ContactGroup.get_groups(
-                    org, ready_only=True
-                ).order_by(Lower("name"))
-
-                self.fields[ExportFlowResultsTask.FLOWS].queryset = Flow.objects.filter(org=org, is_active=True)
+                self.fields["contact_fields"].queryset = ContactField.user_fields.active_for_org(org=org).order_by(
+                    Lower("name")
+                )
+                self.fields["group_memberships"].queryset = ContactGroup.get_groups(org, ready_only=True).order_by(
+                    Lower("name")
+                )
+                self.fields["flows"].queryset = Flow.objects.filter(org=org, is_active=True)
 
             def clean(self):
                 cleaned_data = super().clean()
+
+                start_date = cleaned_data.get("start_date")
+                end_date = cleaned_data.get("end_date")
+
+                if start_date and start_date > date.today():
+                    raise forms.ValidationError(_("Start date can't be in the future."))
+
+                if end_date and start_date and end_date < start_date:
+                    raise forms.ValidationError(_("End date can't be before start date."))
 
                 if (
                     ExportFlowResultsTask.CONTACT_FIELDS in cleaned_data
@@ -1344,7 +1355,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 return cleaned_data
 
-        form_class = ExportForm
+        form_class = Form
         submit_button_name = _("Download")
         success_url = "@flows.flow_list"
 
@@ -1354,11 +1365,21 @@ class FlowCRUDL(SmartCRUDL):
             return kwargs
 
         def derive_initial(self):
+            initial = super().derive_initial()
+
+            # default to last 90 days in org timezone
+            tz = self.request.org.timezone
+            end = datetime.now(tz)
+            start = end - timedelta(days=90)
+
+            initial["end_date"] = end.date()
+            initial["start_date"] = start.date()
+
             flow_ids = self.request.GET.get("ids", None)
             if flow_ids:  # pragma: needs cover
-                return {"flows": self.request.org.flows.filter(is_active=True, id__in=flow_ids.split(","))}
-            else:
-                return {}
+                initial["flows"] = self.request.org.flows.filter(is_active=True, id__in=flow_ids.split(","))
+
+            return initial
 
         def derive_exclude(self):
             return ["extra_urns"] if self.request.org.is_anon else []
@@ -1378,13 +1399,15 @@ class FlowCRUDL(SmartCRUDL):
                     ),
                 )
             else:
-                flows = form.cleaned_data[ExportFlowResultsTask.FLOWS]
+                flows = form.cleaned_data["flows"]
                 responded_only = form.cleaned_data[ExportFlowResultsTask.RESPONDED_ONLY]
 
                 export = ExportFlowResultsTask.create(
                     org,
                     user,
-                    flows,
+                    start_date=form.cleaned_data["start_date"],
+                    end_date=form.cleaned_data["end_date"],
+                    flows=flows,
                     contact_fields=form.cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS],
                     responded_only=responded_only,
                     extra_urns=form.cleaned_data.get(ExportFlowResultsTask.EXTRA_URNS, []),

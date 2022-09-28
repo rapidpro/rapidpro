@@ -203,6 +203,8 @@ class NotificationTest(TembaTest):
         export = ExportFlowResultsTask.create(
             self.org,
             self.editor,
+            start_date=date.today(),
+            end_date=date.today(),
             flows=[flow1, flow2],
             contact_fields=(),
             responded_only=True,
