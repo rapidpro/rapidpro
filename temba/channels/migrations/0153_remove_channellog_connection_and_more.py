@@ -8,6 +8,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("flows", "0297_remove_flowsession_connection_and_more"),
         ("channels", "0152_remove_channelconnection_channelconnection_to_retry"),
+        ("ivr", "0021_convert_connections"),
     ]
 
     operations = [

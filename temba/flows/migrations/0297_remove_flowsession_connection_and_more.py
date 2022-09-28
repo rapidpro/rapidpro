@@ -7,6 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("flows", "0296_flowsession_call_flowstart_calls"),
+        ("ivr", "0021_convert_connections"),
     ]
 
     operations = [
