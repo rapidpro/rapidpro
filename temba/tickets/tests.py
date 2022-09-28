@@ -648,8 +648,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "__all__", "Start date can't be in the future.")
 
         # try to submit with start date > end date
-        response = self.client.post(export_url, {"start_date": "2022-10-01", "end_date": "2022-09-01"})
-        self.assertFormError(response, "form", "__all__", "Start date can't be in the future.")
+        response = self.client.post(export_url, {"start_date": "2022-09-01", "end_date": "2022-03-01"})
+        self.assertFormError(response, "form", "__all__", "End date can't be before start date.")
 
         # check requesting export for last 90 days
         with self.mockReadOnly(assert_models={Ticket}):

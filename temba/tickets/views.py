@@ -420,7 +420,7 @@ class TicketCRUDL(SmartCRUDL):
                     raise forms.ValidationError(_("Start date can't be in the future."))
 
                 if end_date and start_date and end_date < start_date:
-                    raise forms.ValidationError(_("End date can't be before start date"))
+                    raise forms.ValidationError(_("End date can't be before start date."))
 
                 return cleaned_data
 
@@ -441,7 +441,7 @@ class TicketCRUDL(SmartCRUDL):
             return initial
 
         def form_invalid(self, form):
-            if "_format" in self.request.GET and self.request.GET["_format"] == "json":
+            if "_format" in self.request.GET and self.request.GET["_format"] == "json":  # pragma: no cover
                 return HttpResponse(
                     json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
                 )
