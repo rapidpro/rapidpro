@@ -534,7 +534,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("text/html; charset=utf-8", response["Content-Type"])
 
     def test_export_empty(self):
-        self.clear_storage()
         self.login(self.admin)
 
         # create a dummy column that doesn't exist
@@ -570,8 +569,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 tz=self.org.timezone,
             )
 
-    def test_export(self):
         self.clear_storage()
+
+    def test_export(self):
+        export_url = reverse("tickets.ticket_export")
+
         self.login(self.admin)
 
         ticketer = Ticketer.create(self.org, self.admin, "internal", "Internal", {})
@@ -635,6 +637,19 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_ticket(
             zendesk, self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2), "Stuff"
         )
+
+        # try to submit without specifying dates (UI doesn't actually allow this)
+        response = self.client.post(export_url, {})
+        self.assertFormError(response, "form", "start_date", "This field is required.")
+        self.assertFormError(response, "form", "end_date", "This field is required.")
+
+        # try to submit with start date in future
+        response = self.client.post(export_url, {"start_date": "2200-01-01", "end_date": "2022-09-28"})
+        self.assertFormError(response, "form", "__all__", "Start date can't be in the future.")
+
+        # try to submit with start date > end date
+        response = self.client.post(export_url, {"start_date": "2022-10-01", "end_date": "2022-09-01"})
+        self.assertFormError(response, "form", "__all__", "Start date can't be in the future.")
 
         # check requesting export for last 90 days
         with self.mockReadOnly(assert_models={Ticket}):
@@ -781,6 +796,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 ],
                 tz=self.org.timezone,
             )
+
+        self.clear_storage()
 
     def _request_ticket_export(self, start_date: date, end_date: date):
         export_url = reverse("tickets.ticket_export")
