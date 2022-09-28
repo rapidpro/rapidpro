@@ -727,7 +727,8 @@ class ExportTest(TembaTest):
     def test_prepare_value(self):
         self.assertEqual(self.task.prepare_value(None), "")
         self.assertEqual(self.task.prepare_value("=()"), "'=()")  # escape formulas
-        self.assertEqual(self.task.prepare_value(123), "123")
+        self.assertEqual(self.task.prepare_value(123), 123)
+        self.assertEqual(self.task.prepare_value(123.5), 123.5)
         self.assertEqual(self.task.prepare_value(True), True)
         self.assertEqual(self.task.prepare_value(False), False)
 

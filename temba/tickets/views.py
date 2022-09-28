@@ -3,9 +3,11 @@ from datetime import timedelta
 from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
 from django import forms
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db.models.aggregates import Max
-from django.http import JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -15,6 +17,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils import json, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
 from temba.utils.fields import InputWidget, SelectWidget
@@ -22,6 +25,7 @@ from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import (
     AllFolder,
+    ExportTicketsTask,
     MineFolder,
     Ticket,
     TicketCount,
@@ -30,6 +34,7 @@ from .models import (
     UnassignedFolder,
     export_ticket_stats,
 )
+from .tasks import export_tickets_task
 
 
 class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
@@ -87,9 +92,9 @@ class NoteForm(forms.ModelForm):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "folder", "note", "assign", "menu", "export_stats")
+    actions = ("list", "folder", "note", "assign", "menu", "export_stats", "export")
 
-    class List(SpaMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
+    class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
         A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
         """
@@ -158,6 +163,12 @@ class TicketCRUDL(SmartCRUDL):
                 context["nextUUID" if in_page else "uuid"] = uuid
 
             return context
+
+        def build_content_menu(self, menu):
+            if self.has_org_perm("tickets.ticket_export"):
+                menu.add_modax(
+                    _("Export"), "export-tickets", f"{reverse('tickets.ticket_export')}", title=_("Export Tickets")
+                )
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
@@ -394,6 +405,68 @@ class TicketCRUDL(SmartCRUDL):
             )
 
             return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
+
+    class Export(ModalMixin, OrgPermsMixin, SmartFormView):
+        class ExportForm(forms.Form):
+            def __init__(self, user, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.user = user
+
+        form_class = ExportForm
+        submit_button_name = "Export"
+        success_url = "@tickets.ticket_list"
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def form_invalid(self, form):  # pragma: needs cover
+            if "_format" in self.request.GET and self.request.GET["_format"] == "json":
+                return HttpResponse(
+                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
+                )
+            else:
+                return super().form_invalid(form)
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = self.request.org
+
+            # is there already an export taking place?
+            existing = ExportTicketsTask.get_recent_unfinished(org)
+            if existing:
+                messages.info(
+                    self.request,
+                    f"There is already an export in progress, started by {existing.created_by.username}. "
+                    f"You must wait for that export to complete before starting another.",
+                )
+            else:
+                # generate the export
+                export = ExportTicketsTask.create(org, user)
+
+                # schedule the export job
+                on_transaction_commit(lambda: export_tickets_task.delay(export.pk))
+
+                # display progress info message to user
+                if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: no cover
+                    messages.info(
+                        self.request,
+                        f"We are preparing your export. We will e-mail you at {self.request.user.username} when it is ready.",
+                    )
+                else:
+                    dl_url = reverse("assets.download", kwargs=dict(type="ticket_export", pk=export.pk))
+                    messages.info(
+                        self.request,
+                        f"Export complete, you can find it here: {dl_url} (production users will get an email)",
+                    )
+
+            if "HTTP_X_PJAX" not in self.request.META:
+                return HttpResponseRedirect(self.get_success_url())
+            else:  # pragma: no cover
+                response = self.render_modal_response(form)
+                response["REDIRECT"] = self.get_success_url()
+                return response
 
 
 class TicketerCRUDL(SmartCRUDL):

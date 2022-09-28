@@ -1,15 +1,20 @@
 from datetime import date
 from unittest.mock import patch
 
+from openpyxl import load_workbook
+
+from django.conf import settings
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.contacts.models import Contact
+from temba.contacts.models import Contact, ContactURN
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests.base import AnonymousOrg
 from temba.utils.dates import datetime_to_timestamp
 
 from .models import (
+    ExportTicketsTask,
     Team,
     Ticket,
     TicketCount,
@@ -506,6 +511,263 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             f"attachment; filename=ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx",
             response["Content-Disposition"],
         )
+
+    def test_ticket_export_content_menu(self):
+        list_url = reverse("tickets.ticket_list")
+        self.assertContentMenu(list_url, self.admin, ["Export"])
+
+    def test_ticket_export_request(self):
+        self.clear_storage()
+        self.login(self.admin)
+        export_url = reverse("tickets.ticket_export")
+
+        # create a dummy export task so that we won't be able to export
+        blocking_export = ExportTicketsTask.create(self.org, self.admin)
+        response = self.client.post(export_url, {}, follow=True)
+        self.assertContains(response, "already an export in progress")
+
+        # ok mark that export as finished and try again
+        blocking_export.update_status(ExportTicketsTask.STATUS_COMPLETE)
+
+        response = self.client.post(export_url)
+        self.assertEqual(302, response.status_code)
+        self.assertEqual("text/html; charset=utf-8", response["Content-Type"])
+
+    def test_ticket_export_columns(self):
+        self.clear_storage()
+        self.login(self.admin)
+
+        # create a dummy column that doesn't exist
+        field = dict(label="Blah", key="blah", field=None, urn_scheme=None)
+        value = ExportTicketsTask.get_field_value(self, field, None)
+        self.assertEqual(None, value)
+
+        # test ticket export for a regular org
+        # all columns except for "Contact ID" should be visible
+        columns = self.get_ticket_export_columns()
+        columns.remove("Contact ID")
+        rows = [columns]
+
+        # check results of sheet in workbook
+        export = self.request_ticket_export()
+        self.assertExcelSheet(
+            export[0],
+            rows,
+            tz=self.org.timezone,
+        )
+
+        with AnonymousOrg(self.org):
+            # test ticket export for an anon org
+            # all columns except for "URN Value" should be visible
+            columns = self.get_ticket_export_columns()
+            columns.remove("URN Value")
+            rows = [columns]
+
+            # check results of sheet in workbook
+            export = self.request_ticket_export()
+            self.assertExcelSheet(
+                export[0],
+                rows,
+                tz=self.org.timezone,
+            )
+
+    def test_ticket_export_rows(self):
+        self.clear_storage()
+        self.login(self.admin)
+
+        # create some stuff that contacts and tickets need
+        ticketer = Ticketer.create(self.org, self.admin, "internal", "Internal", {})
+        topic = Topic.create(self.org, self.admin, "AFC Richmond")
+        assignee = self.admin
+
+        # create some contacts...
+        # create a contact with no urns
+        nate = self.create_contact("Nathan Shelley", fields={"gender": "Male"})
+        # create a contact with one set of urns
+        jamie = self.create_contact("Jamie Tartt", fields={"gender": "Male", "age": 25})
+        ContactURN.create(self.org, jamie, "twitter:jamietarttshark")
+        # create a contact with multiple urns that have different max priority
+        roy = self.create_contact("Roy Kent", fields={"gender": "Male", "age": 41})
+        ContactURN.create(self.org, roy, "tel:+1234567890")
+        ContactURN.create(self.org, roy, "twitter:roykent")
+        # create a contact with multiple urns that have the same max priority
+        sam = self.create_contact("Sam Obisanya", fields={"gender": "Male", "age": 22})
+        ContactURN.create(self.org, sam, "twitter:nigerianprince", priority=50)
+        ContactURN.create(self.org, sam, "tel:+9876543210", priority=50)
+
+        # create some tickets...
+        # create an open ticket for nate
+        ticket1 = self.create_ticket(
+            ticketer, nate, body="Y'ello", topic=topic, assignee=assignee, opened_on=timezone.now()
+        )
+        # create an open ticket for jamie
+        ticket2 = self.create_ticket(
+            ticketer, jamie, body="Hi", topic=topic, assignee=assignee, opened_on=timezone.now()
+        )
+        # create a closed ticket for roy
+        ticket3 = self.create_ticket(
+            ticketer,
+            roy,
+            body="Hello",
+            topic=topic,
+            assignee=assignee,
+            opened_on=timezone.now(),
+            closed_on=timezone.now(),
+        )
+        # create a closed ticket for sam
+        ticket4 = self.create_ticket(
+            ticketer,
+            sam,
+            body="Yo",
+            topic=topic,
+            assignee=assignee,
+            opened_on=timezone.now(),
+            closed_on=timezone.now(),
+        )
+
+        # create a ticketer and ticket on another org for rebecca
+        zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
+        self.create_ticket(
+            zendesk, self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2), "Stuff"
+        )
+
+        # test ticket export for a regular org
+        # all columns except for "Contact ID" should be visible
+        columns = self.get_ticket_export_columns()
+        columns.remove("Contact ID")
+        rows = [
+            columns,
+            [
+                ticket1.uuid,
+                ticket1.opened_on,
+                "",
+                ticket1.topic.name,
+                ticket1.assignee.email,
+                ticket1.contact.uuid,
+                "",
+                "",
+            ],
+            [
+                ticket2.uuid,
+                ticket2.opened_on,
+                "",
+                ticket2.topic.name,
+                ticket2.assignee.email,
+                ticket2.contact.uuid,
+                "twitter",
+                "jamietarttshark",
+            ],
+            [
+                ticket3.uuid,
+                ticket3.opened_on,
+                ticket3.closed_on,
+                ticket3.topic.name,
+                ticket3.assignee.email,
+                ticket3.contact.uuid,
+                "tel",
+                "+1234567890",
+            ],
+            [
+                ticket4.uuid,
+                ticket4.opened_on,
+                ticket4.closed_on,
+                ticket4.topic.name,
+                ticket4.assignee.email,
+                ticket4.contact.uuid,
+                "twitter",
+                "nigerianprince",
+            ],
+        ]
+
+        # check results of sheet in workbook
+        # needed when the request queries the read-only replica
+        with self.mockReadOnly(assert_models={Ticket}):
+            export = self.request_ticket_export()
+        self.assertExcelSheet(
+            export[0],
+            rows,
+            tz=self.org.timezone,
+        )
+
+        with AnonymousOrg(self.org):
+            # test ticket export for an anon org
+            # all columns except for "URN Value" should be visible
+            columns = self.get_ticket_export_columns()
+            columns.remove("URN Value")
+            rows = [
+                columns,
+                [
+                    ticket1.uuid,
+                    ticket1.opened_on,
+                    "",
+                    ticket1.topic.name,
+                    ticket1.assignee.email,
+                    ticket1.contact.uuid,
+                    ticket1.contact_id,
+                    "",
+                ],
+                [
+                    ticket2.uuid,
+                    ticket2.opened_on,
+                    "",
+                    ticket2.topic.name,
+                    ticket2.assignee.email,
+                    ticket2.contact.uuid,
+                    ticket2.contact_id,
+                    "twitter",
+                ],
+                [
+                    ticket3.uuid,
+                    ticket3.opened_on,
+                    ticket3.closed_on,
+                    ticket3.topic.name,
+                    ticket3.assignee.email,
+                    ticket3.contact.uuid,
+                    ticket3.contact_id,
+                    "tel",
+                ],
+                [
+                    ticket4.uuid,
+                    ticket4.opened_on,
+                    ticket4.closed_on,
+                    ticket4.topic.name,
+                    ticket4.assignee.email,
+                    ticket4.contact.uuid,
+                    ticket4.contact_id,
+                    "twitter",
+                ],
+            ]
+
+            # check results of sheet in workbook
+            # needed when the request queries the read-only replica
+            with self.mockReadOnly(assert_models={Ticket}):
+                export = self.request_ticket_export()
+            self.assertExcelSheet(
+                export[0],
+                rows,
+                tz=self.org.timezone,
+            )
+
+    def get_ticket_export_columns(self):
+        return [
+            "UUID",
+            "Opened On",
+            "Closed On",
+            "Topic",
+            "Assigned To",
+            "Contact UUID",
+            "Contact ID",
+            "URN Scheme",
+            "URN Value",
+        ]
+
+    def request_ticket_export(self):
+        export_url = reverse("tickets.ticket_export")
+        self.client.post(export_url)
+        task = ExportTicketsTask.objects.all().order_by("-id").first()
+        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/ticket_exports/{task.uuid}.xlsx"
+        workbook = load_workbook(filename=filename)
+        return workbook.worksheets
 
 
 class TicketerTest(TembaTest):
