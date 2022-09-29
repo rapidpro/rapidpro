@@ -289,33 +289,49 @@ class MsgTest(TembaTest):
             },
         )
 
-    def test_delete(self):
-        # create some incoming messages
-        msg1 = self.create_incoming_msg(self.joe, "i'm having a problem", attachments=["image:http://a.jpg"])
-        msg2 = self.create_incoming_msg(self.frank, "ignore joe, he's a liar", attachments=["image:http://b.jpg"])
+    @patch("django.core.files.storage.default_storage.delete")
+    def test_delete(self, mock_storage_delete):
+        # create some messages
+        msg1 = self.create_incoming_msg(
+            self.joe,
+            "i'm having a problem",
+            attachments=[
+                r"audo/mp4:http://s3.com/attachments/1/a/b.jpg",
+                r"image/jpeg:http://s3.com/attachments/1/c/d%20e.jpg",
+            ],
+        )
+        msg2 = self.create_incoming_msg(self.frank, "ignore joe, he's a liar")
+        out1 = self.create_outgoing_msg(self.frank, "hi")
 
-        # create a channel logs for both
+        # can't soft delete outgoing messages
+        with self.assertRaises(AssertionError):
+            out1.delete(soft=True)
+
+        # create a channel logs for both incoming
         ChannelLog.objects.create(channel=self.channel, msg=msg1, is_error=False)
         ChannelLog.objects.create(channel=self.channel, msg=msg2, is_error=False)
 
         # we've used 2 credits
-        self.assertEqual(2, Msg.objects.all().count())
-        self.assertEqual(self.org._calculate_credits_used()[0], 2)
+        self.assertEqual(3, Msg.objects.all().count())
+        self.assertEqual(self.org._calculate_credits_used()[0], 3)
 
         # a soft delete should keep credits the same and clear text
         msg1.delete(soft=True)
         msg1.refresh_from_db()
-        self.assertEqual(2, Msg.objects.all().count())
-        self.assertEqual(self.org._calculate_credits_used()[0], 2)
+        self.assertEqual(3, Msg.objects.all().count())
+        self.assertEqual(self.org._calculate_credits_used()[0], 3)
         self.assertEqual(Msg.VISIBILITY_DELETED_BY_USER, msg1.visibility)
         self.assertEqual("", msg1.text)
         self.assertEqual([], msg1.attachments)
         self.assertEqual(1, msg1.channel_logs.count())  # logs still there
 
+        mock_storage_delete.assert_any_call("/attachments/1/a/b.jpg")
+        mock_storage_delete.assert_any_call("/attachments/1/c/d e.jpg")
+
         # test a hard delete as part of a contact removal
         msg2.delete()
-        self.assertEqual(1, Msg.objects.all().count())
-        self.assertEqual(self.org._calculate_credits_used()[0], 2)  # used credits unchanged
+        self.assertEqual(2, Msg.objects.all().count())
+        self.assertEqual(self.org._calculate_credits_used()[0], 3)  # used credits unchanged
         self.assertEqual(0, msg2.channel_logs.count())  # logs should be gone
 
     def test_get_sync_commands(self):
