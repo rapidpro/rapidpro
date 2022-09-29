@@ -145,8 +145,8 @@ class BaseExportTask(TembaUUIDMixin, SmartModel):
             return clean_string(value)
         elif isinstance(value, datetime):
             return value.astimezone(self.org.timezone).replace(microsecond=0, tzinfo=None)
-        else:
-            return clean_string(str(value))
+
+        raise ValueError(f"Unsupported type for excel export: {type(value)}")  # pragma: no cover
 
     def get_download_url(self) -> str:
         asset_store = get_asset_store(model=self.__class__)
