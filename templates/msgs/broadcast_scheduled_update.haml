@@ -10,6 +10,22 @@
 
 -block summary
   -include "includes/recipients.haml" with groups=broadcast.groups.all contacts=broadcast.contacts.all urns=broadcast.raw_urns
+  .flex
+    .schedule-summary.self-center
+      .mt-2
+        {{ object.get_text }}    
 
-  .mt-2
-    {{ object.get_text }}
+    .delete-broadcast.ml-8
+      .button-light(onclick="deleteScheduledMessage(event)" href="{% url 'msgs.broadcast_scheduled_delete' object.id %}")
+        -trans "Delete"
+    {% comment %} todo need to add delete confirm temba-dialog or modax {% endcomment %}
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    function deleteScheduledMessage(event) {
+      event.stopPropagation();
+      event.preventDefault();
+      handlePosterize(event.currentTarget);
+    }

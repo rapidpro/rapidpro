@@ -202,7 +202,7 @@ class BroadcastForm(forms.ModelForm):
 
 
 class BroadcastCRUDL(SmartCRUDL):
-    actions = ("scheduled", "scheduled_create", "scheduled_read", "scheduled_update", "send")
+    actions = ("scheduled", "scheduled_create", "scheduled_read", "scheduled_update", "scheduled_delete", "send")
     model = Broadcast
 
     class Scheduled(InboxView):
@@ -211,6 +211,11 @@ class BroadcastCRUDL(SmartCRUDL):
         fields = ("contacts", "msgs", "sent", "status")
         search_fields = ("text__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
+
+        # todo list view bulk delete action
+        # todo need to add delete confirm temba-dialog or modax
+        # def get_bulk_actions(self):
+        #     return ("delete") if self.has_org_perm("mgs.broadcast_scheduled_delete") else ()
 
         def build_content_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_scheduled_create"):
@@ -311,6 +316,17 @@ class BroadcastCRUDL(SmartCRUDL):
             context["send_history"] = self.get_object().children.order_by("-created_on")
             return context
 
+        # todo need to figure out why this is not displaying
+        # todo need to add delete confirm temba-dialog or modax
+        def build_content_menu(self, menu):
+            if self.has_org_perm("msgs.broadcast_scheduled_delete"):
+                menu.add_modax(
+                    _("Delete"),
+                    "delete-scheduled",
+                    reverse("mgs.broadcast_scheduled_delete"),
+                    title=_("Delete Scheduled Message"),
+                )
+
         def derive_formax_sections(self, formax, context):
             if self.has_org_perm("msgs.broadcast_scheduled_update"):
                 formax.add_section(
@@ -353,6 +369,25 @@ class BroadcastCRUDL(SmartCRUDL):
 
             broadcast.save()
             return broadcast
+    
+    class ScheduledDelete(OrgObjPermsMixin, ComponentFormMixin, SmartUpdateView):
+        form_class = BroadcastForm
+        fields = ("message", "omnibox")
+        field_config = {"restrict": {"label": ""}, "omnibox": {"label": ""}, "message": {"label": "", "help": ""}}
+        success_message = ""
+        success_url = "msgs.broadcast_scheduled"
+
+        def derive_initial(self):
+            org = self.object.org
+            results = [*self.object.groups.all(), *self.object.contacts.all()]
+            selected = omnibox_results_to_dict(org, results, version="2")
+            message = self.object.text[self.object.base_language]
+            return dict(message=message, omnibox=selected)
+
+        def delete(self, *args, **kwargs):
+            broadcast = self.object
+            broadcast.delete()
+            return
 
     class Send(OrgPermsMixin, ModalMixin, SmartFormView):
         class Form(Form):

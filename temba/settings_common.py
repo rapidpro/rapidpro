@@ -437,7 +437,7 @@ PERMISSIONS = {
     "globals.global": ("api", "unused"),
     "ivr.ivrcall": ("start",),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
-    "msgs.broadcast": ("api", "scheduled", "scheduled_create", "scheduled_read", "scheduled_update", "send"),
+    "msgs.broadcast": ("api", "scheduled", "scheduled_create", "scheduled_read", "scheduled_update", "scheduled_delete", "send"),
     "msgs.label": ("api", "delete_folder"),
     "msgs.media": ("upload", "list"),
     "msgs.msg": (
