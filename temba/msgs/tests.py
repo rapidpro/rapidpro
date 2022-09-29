@@ -558,11 +558,12 @@ class MsgTest(TembaTest):
             build_time=23425,
         )
 
-        msg2.delete()
-        msg3.delete()
-        msg4.delete()
-        msg5.delete()
-        msg6.delete()
+        with patch("django.core.files.storage.default_storage.delete"):
+            msg2.delete()
+            msg3.delete()
+            msg4.delete()
+            msg5.delete()
+            msg6.delete()
 
         # create an archive earlier than our flow created date so we check that it isn't included
         body, md5, size = jsonlgz_encode([msg7.as_archive_json()])
