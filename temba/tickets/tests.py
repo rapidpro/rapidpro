@@ -540,16 +540,23 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_export_empty(self):
         self.login(self.admin)
 
-        # create a dummy column that doesn't exist
-        field = dict(label="Blah", key="blah")
-        value = ExportTicketsTask.get_field_value(self, field, None)
-        self.assertEqual(None, value)
-
         # check results of sheet in workbook (no Contact ID column)
         export = self._request_ticket_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
         self.assertExcelSheet(
             export[0],
-            [["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "URN Scheme", "URN Value"]],
+            [
+                [
+                    "UUID",
+                    "Opened On",
+                    "Closed On",
+                    "Topic",
+                    "Assigned To",
+                    "Contact UUID",
+                    "Contact Name",
+                    "URN Scheme",
+                    "URN Value",
+                ]
+            ],
             tz=self.org.timezone,
         )
 
@@ -566,8 +573,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "Topic",
                         "Assigned To",
                         "Contact UUID",
-                        "Contact ID",
+                        "Contact Name",
                         "URN Scheme",
+                        "Anon Value",
                     ]
                 ],
                 tz=self.org.timezone,
@@ -661,13 +669,26 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "__all__", "End date can't be before start date.")
 
         # check requesting export for last 90 days
-        with self.mockReadOnly(assert_models={Ticket}):
-            export = self._request_ticket_export(start_date=today - timedelta(days=90), end_date=today)
+        with self.mockReadOnly(assert_models={Ticket, ContactURN}):
+            with self.assertNumQueries(33):
+                export = self._request_ticket_export(start_date=today - timedelta(days=90), end_date=today)
+
+        expected_headers = [
+            "UUID",
+            "Opened On",
+            "Closed On",
+            "Topic",
+            "Assigned To",
+            "Contact UUID",
+            "Contact Name",
+            "URN Scheme",
+            "URN Value",
+        ]
 
         self.assertExcelSheet(
             export[0],
             rows=[
-                ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "URN Scheme", "URN Value"],
+                expected_headers,
                 [
                     ticket1.uuid,
                     ticket1.opened_on,
@@ -675,6 +696,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     ticket1.topic.name,
                     ticket1.assignee.email,
                     ticket1.contact.uuid,
+                    "Nathan Shelley",
                     "",
                     "",
                 ],
@@ -685,6 +707,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     ticket2.topic.name,
                     ticket2.assignee.email,
                     ticket2.contact.uuid,
+                    "Jamie Tartt",
                     "twitter",
                     "jamietarttshark",
                 ],
@@ -695,6 +718,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     ticket3.topic.name,
                     ticket3.assignee.email,
                     ticket3.contact.uuid,
+                    "Roy Kent",
                     "tel",
                     "+1234567890",
                 ],
@@ -705,6 +729,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     ticket4.topic.name,
                     ticket4.assignee.email,
                     ticket4.contact.uuid,
+                    "Sam Obisanya",
                     "twitter",
                     "nigerianprince",
                 ],
@@ -713,13 +738,13 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # check requesting export for last 7 days
-        with self.mockReadOnly(assert_models={Ticket}):
+        with self.mockReadOnly(assert_models={Ticket, ContactURN}):
             export = self._request_ticket_export(start_date=today - timedelta(days=7), end_date=today)
 
         self.assertExcelSheet(
             export[0],
             rows=[
-                ["UUID", "Opened On", "Closed On", "Topic", "Assigned To", "Contact UUID", "URN Scheme", "URN Value"],
+                expected_headers,
                 [
                     ticket3.uuid,
                     ticket3.opened_on,
@@ -727,6 +752,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     ticket3.topic.name,
                     ticket3.assignee.email,
                     ticket3.contact.uuid,
+                    "Roy Kent",
                     "tel",
                     "+1234567890",
                 ],
@@ -737,6 +763,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     ticket4.topic.name,
                     ticket4.assignee.email,
                     ticket4.contact.uuid,
+                    "Sam Obisanya",
                     "twitter",
                     "nigerianprince",
                 ],
@@ -745,7 +772,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         with AnonymousOrg(self.org):
-            with self.mockReadOnly(assert_models={Ticket}):
+            with self.mockReadOnly(assert_models={Ticket, ContactURN}):
                 export = self._request_ticket_export(start_date=today - timedelta(days=90), end_date=today)
             self.assertExcelSheet(
                 export[0],
@@ -757,8 +784,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         "Topic",
                         "Assigned To",
                         "Contact UUID",
-                        "Contact ID",
+                        "Contact Name",
                         "URN Scheme",
+                        "Anon Value",
                     ],
                     [
                         ticket1.uuid,
@@ -767,8 +795,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         ticket1.topic.name,
                         ticket1.assignee.email,
                         ticket1.contact.uuid,
-                        ticket1.contact_id,
+                        "Nathan Shelley",
                         "",
+                        ticket1.contact.anon_display,
                     ],
                     [
                         ticket2.uuid,
@@ -777,8 +806,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         ticket2.topic.name,
                         ticket2.assignee.email,
                         ticket2.contact.uuid,
-                        ticket2.contact_id,
+                        "Jamie Tartt",
                         "twitter",
+                        ticket2.contact.anon_display,
                     ],
                     [
                         ticket3.uuid,
@@ -787,8 +817,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         ticket3.topic.name,
                         ticket3.assignee.email,
                         ticket3.contact.uuid,
-                        ticket3.contact_id,
+                        "Roy Kent",
                         "tel",
+                        ticket3.contact.anon_display,
                     ],
                     [
                         ticket4.uuid,
@@ -797,8 +828,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                         ticket4.topic.name,
                         ticket4.assignee.email,
                         ticket4.contact.uuid,
-                        ticket4.contact_id,
+                        "Sam Obisanya",
                         "twitter",
+                        ticket4.contact.anon_display,
                     ],
                 ],
                 tz=self.org.timezone,

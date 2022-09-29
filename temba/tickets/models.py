@@ -19,7 +19,7 @@ from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org, User, UserSettings
 from temba.utils import chunk_list
 from temba.utils.dates import date_range
-from temba.utils.export import BaseDateRangeExport, BaseExportAssetStore, TableExporter
+from temba.utils.export import BaseExportAssetStore, BaseWithContactExport, TableExporter
 from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
@@ -633,7 +633,7 @@ def export_ticket_stats(org: Org, since: date, until: date) -> openpyxl.Workbook
     return workbook
 
 
-class ExportTicketsTask(BaseDateRangeExport):
+class ExportTicketsTask(BaseWithContactExport):
     analytics_key = "ticket_export"
     notification_export_type = "ticket"
 
@@ -642,7 +642,7 @@ class ExportTicketsTask(BaseDateRangeExport):
         return cls.objects.create(org=org, start_date=start_date, end_date=end_date, created_by=user, modified_by=user)
 
     def write_export(self):
-        fields = self.get_fields()
+        headers = ["UUID", "Opened On", "Closed On", "Topic", "Assigned To"] + self._get_contact_headers()
         start_date, end_date = self._get_date_range()
 
         # get the ticket ids, filtered and ordered by opened on
@@ -652,101 +652,32 @@ class ExportTicketsTask(BaseDateRangeExport):
             .values_list("id", flat=True)
         )
 
-        exporter = TableExporter(self, "Tickets", [f["label"] for f in fields])
+        exporter = TableExporter(self, "Tickets", headers)
 
         # add tickets to the export in batches of 1k to limit memory usage
         for ticket_chunk_ids in chunk_list(ticket_ids, 1000):
             tickets = (
                 Ticket.objects.filter(id__in=ticket_chunk_ids)
                 .order_by("opened_on")
-                .prefetch_related("org")
+                .prefetch_related("org", "contact", "contact__org", "assignee", "topic")
                 .using("readonly")
             )
 
-            # for each batch of ticket ids...
+            Contact.bulk_urn_cache_initialize([t.contact for t in tickets], using="readonly")
+
             for ticket in tickets:
+                values = [
+                    str(ticket.uuid),
+                    ticket.opened_on,
+                    ticket.closed_on,
+                    ticket.topic.name,
+                    ticket.assignee.email if ticket.assignee else None,
+                ]
+                values += self._get_contact_columns(ticket.contact)
 
-                # get the field values aka row values
-                values = []
-                for field in fields:
-                    value = self.get_field_value(field, ticket)
-                    values.append(self.prepare_value(value))
-
-                # add row to the export
-                exporter.write_row(values)
+                exporter.write_row([self.prepare_value(v) for v in values])
 
         return exporter.save_file()
-
-    def get_fields(self):
-        fields = [
-            dict(label="UUID", key="uuid"),
-            dict(label="Opened On", key="opened_on"),
-            dict(label="Closed On", key="closed_on"),
-            dict(label="Topic", key="topic.name"),
-            dict(label="Assigned To", key="assignee.email"),
-            dict(label="Contact UUID", key="contact.uuid"),
-        ]
-
-        # if the org is anon, get the contact id of the ticket
-        if self.org.is_anon:
-            fields.append(dict(label="Contact ID", key="contact_id"))
-
-        fields.append(dict(label="URN Scheme", key="contact.urn.scheme"))
-
-        # if the org is NOT anon, get the urn value of the ticket
-        if not self.org.is_anon:
-            fields.append(dict(label="URN Value", key="contact.urn.path"))
-
-        return fields
-
-    def get_field_value(self, field: dict, ticket: Ticket):
-        field_key = field["key"]
-
-        if field_key == "uuid":
-            return ticket.uuid
-        elif field_key == "opened_on":
-            return ticket.opened_on
-        elif field_key == "closed_on":
-            return ticket.closed_on
-        elif field_key == "topic.name":
-            return ticket.topic.name if ticket.topic else None
-        elif field_key == "assignee.email":
-            return ticket.assignee.email if ticket.assignee else None
-        elif field_key == "contact.uuid":
-            return ticket.contact.uuid if ticket.contact else None
-        elif field_key == "contact_id":
-            return ticket.contact_id
-        elif field_key == "contact.urn.scheme" or field_key == "contact.urn.path":
-            ticket_contact_urn = {}
-
-            # get the urn(s) for the contact, ordered by (descending) max priority
-            ticket_contact_urns = ticket.contact.get_urns().values()
-
-            if len(ticket_contact_urns) == 0:
-                # if there are zero urns, return None
-                return None
-            elif len(ticket_contact_urns) > 1:
-                # if there are multiple urns, get the urns for the max priority, ordered by (ascending) min id
-                ticket_contact_urn = ticket_contact_urns[0]
-                max_priority = ticket_contact_urn["priority"]
-                ticket_contact_urns_max_priority = (
-                    ticket_contact_urns.filter(priority=max_priority).order_by("id").values()
-                )
-                ticket_contact_urn = ticket_contact_urns_max_priority[0]
-            else:
-                ticket_contact_urn = ticket_contact_urns[0]
-
-            # return the urn scheme or path value based on the key field
-            if field_key == "contact.urn.scheme":
-                scheme = ticket_contact_urn["scheme"]
-                return scheme
-            else:
-                # field_key == "contact.urn.path":
-                path = ticket_contact_urn["path"]
-                return path
-
-        else:
-            return None
 
 
 @register_asset_store

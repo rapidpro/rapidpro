@@ -181,6 +181,30 @@ class BaseDateRangeExport(BaseExportTask):
         abstract = True
 
 
+class BaseWithContactExport(BaseDateRangeExport):
+    def _get_contact_headers(self) -> list:
+        cols = ["Contact UUID", "Contact Name", "URN Scheme"]
+        if self.org.is_anon:
+            cols.append("Anon Value")
+        else:
+            cols.append("URN Value")
+
+        return cols
+
+    def _get_contact_columns(self, contact) -> list:
+        urn = contact.get_urn()
+        cols = [str(contact.uuid), contact.name, urn.scheme if urn else None]
+        if self.org.is_anon:
+            cols.append(contact.anon_display)
+        else:
+            cols.append(urn.path if urn else None)
+
+        return cols
+
+    class Meta:
+        abstract = True
+
+
 class TableExporter:
     """
     Class that abstracts out writing a table of data to a CSV or Excel file. This only works for exports that
