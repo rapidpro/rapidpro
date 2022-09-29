@@ -11,11 +11,11 @@ from temba.utils.fields import TembaDateField
 
 
 class BaseExportView(ModalMixin, OrgPermsMixin, SmartFormView):
-    class Form(forms.Form):
-        """
-        Base form for exports
-        """
+    """
+    Base modal view for exports
+    """
 
+    class Form(forms.Form):
         start_date = TembaDateField(label=_("Start Date"))
         end_date = TembaDateField(label=_("End Date"))
 

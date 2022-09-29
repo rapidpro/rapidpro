@@ -18,7 +18,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.db.models.functions.text import Lower
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -639,14 +639,6 @@ class MsgCRUDL(SmartCRUDL):
 
             return redirect or reverse("msgs.msg_inbox")
 
-        def form_invalid(self, form):  # pragma: needs cover
-            if "_format" in self.request.GET and self.request.GET["_format"] == "json":
-                return HttpResponse(
-                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
-                )
-            else:
-                return super().form_invalid(form)
-
         def form_valid(self, form):
             user = self.request.user
             org = self.request.org
@@ -700,12 +692,9 @@ class MsgCRUDL(SmartCRUDL):
 
             messages.success(self.request, self.derive_success_message())
 
-            if "HTTP_X_PJAX" not in self.request.META:
-                return HttpResponseRedirect(self.get_success_url())
-            else:  # pragma: no cover
-                response = self.render_modal_response(form)
-                response["REDIRECT"] = self.get_success_url()
-                return response
+            response = self.render_modal_response(form)
+            response["REDIRECT"] = self.get_success_url()
+            return response
 
     class Inbox(InboxView):
         title = _("Inbox")

@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db.models.aggregates import Max
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -17,7 +17,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import json, on_transaction_commit
+from temba.utils import on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
 from temba.utils.export.views import BaseExportView
@@ -410,14 +410,6 @@ class TicketCRUDL(SmartCRUDL):
     class Export(BaseExportView):
         success_url = "@tickets.ticket_list"
 
-        def form_invalid(self, form):
-            if "_format" in self.request.GET and self.request.GET["_format"] == "json":  # pragma: no cover
-                return HttpResponse(
-                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
-                )
-            else:
-                return super().form_invalid(form)
-
         def form_valid(self, form):
             org = self.request.org
             user = self.request.user
@@ -451,12 +443,9 @@ class TicketCRUDL(SmartCRUDL):
                         f"Export complete, you can find it here: {dl_url} (production users will get an email)",
                     )
 
-            if "HTTP_X_PJAX" not in self.request.META:
-                return HttpResponseRedirect(self.get_success_url())
-            else:  # pragma: no cover
-                response = self.render_modal_response(form)
-                response["REDIRECT"] = self.get_success_url()
-                return response
+            response = self.render_modal_response(form)
+            response["REDIRECT"] = self.get_success_url()
+            return response
 
 
 class TicketerCRUDL(SmartCRUDL):

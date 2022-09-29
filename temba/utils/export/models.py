@@ -15,7 +15,6 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.assets.models import BaseAssetStore, get_asset_store
-
 from temba.utils import analytics
 from temba.utils.models import TembaUUIDMixin
 from temba.utils.text import clean_string

@@ -1409,12 +1409,9 @@ class FlowCRUDL(SmartCRUDL):
                         _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
                     )
 
-            if "HTTP_X_PJAX" not in self.request.META:
-                return HttpResponseRedirect(self.get_success_url())
-            else:  # pragma: no cover
-                response = self.render_modal_response(form)
-                response["REDIRECT"] = self.get_success_url()
-                return response
+            response = self.render_modal_response(form)
+            response["REDIRECT"] = self.get_success_url()
+            return response
 
     class ActivityChart(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         """
