@@ -7,7 +7,6 @@ from datetime import date, datetime, timedelta
 from smartmin.models import SmartModel
 from xlsxlite.writer import XLSXBook
 
-from django import forms
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
@@ -16,11 +15,9 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.assets.models import BaseAssetStore, get_asset_store
-
-from . import analytics
-from .fields import TembaDateField
-from .models import TembaUUIDMixin
-from .text import clean_string
+from temba.utils import analytics
+from temba.utils.models import TembaUUIDMixin
+from temba.utils.text import clean_string
 
 logger = logging.getLogger(__name__)
 
@@ -234,34 +231,6 @@ def response_from_workbook(workbook, filename: str) -> HttpResponse:
     )
     response["Content-Disposition"] = f"attachment; filename={filename}"
     return response
-
-
-class BaseExportForm(forms.Form):
-    """
-    Base form for exports
-    """
-
-    start_date = TembaDateField(label=_("Start Date"))
-    end_date = TembaDateField(label=_("End Date"))
-
-    def __init__(self, org, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.org = org
-
-    def clean(self):
-        cleaned_data = super().clean()
-
-        start_date = cleaned_data.get("start_date")
-        end_date = cleaned_data.get("end_date")
-
-        if start_date and start_date > timezone.now().astimezone(self.org.timezone).date():
-            raise forms.ValidationError(_("Start date can't be in the future."))
-
-        if end_date and start_date and end_date < start_date:
-            raise forms.ValidationError(_("End date can't be before start date."))
-
-        return cleaned_data
 
 
 def export_date_range(org, start: date, end: date) -> tuple:

@@ -4037,7 +4037,7 @@ class ExportFlowResultsTest(TembaTest):
 
         with self.mockReadOnly(assert_models=readonly_models):
             response = self.client.post(reverse("flows.flow_export_results"), form)
-            self.assertEqual(response.status_code, 302)
+            self.assertModalResponse(response, redirect="/flow/")
 
         task = ExportFlowResultsTask.objects.order_by("-id").first()
         self.assertIsNotNone(task)
@@ -4166,8 +4166,10 @@ class ExportFlowResultsTest(TembaTest):
         response = self.client.post(
             reverse("flows.flow_export_results"),
             {"start_date": "2022-09-01", "end_date": "2022-09-28", "flows": [flow.id], "group_memberships": [devs.id]},
-            follow=True,
         )
+        self.assertModalResponse(response, redirect="/flow/")
+
+        response = self.client.get("/flow/")
         self.assertContains(response, "already an export in progress")
 
         # ok, mark that one as finished and try again
@@ -4196,7 +4198,7 @@ class ExportFlowResultsTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
-                with self.assertNumQueries(43):
+                with self.assertNumQueries(47):
                     workbook = self._export(
                         flow,
                         start_date=today - timedelta(days=7),
@@ -4337,7 +4339,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(45):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4409,7 +4411,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(47):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4590,7 +4592,7 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(54):
+        with self.assertNumQueries(58):
             workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
 
         tz = self.org.timezone
@@ -4677,7 +4679,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(34):
+        with self.assertNumQueries(38):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),

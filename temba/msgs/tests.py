@@ -568,13 +568,13 @@ class MsgTest(TembaTest):
         def request_export(query, data=None):
             with self.mockReadOnly():
                 response = self.client.post(export_url + query, data)
-            self.assertEqual(response.status_code, 302)
+            self.assertModalResponse(response, redirect="/msg/inbox/")
             task = ExportMessagesTask.objects.order_by("-id").first()
             filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
             return load_workbook(filename=filename)
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(30):
+        with self.assertNumQueries(34):
             with patch("temba.utils.s3.client", return_value=mock_s3):
                 workbook = request_export(
                     "?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-01"}
@@ -1059,8 +1059,10 @@ class MsgTest(TembaTest):
         response = self.client.post(
             export_url + "?l=I",
             {"export_all": 1, "start_date": "2022-09-01", "end_date": "2022-09-28"},
-            follow=True,
         )
+        self.assertModalResponse(response, redirect="/msg/inbox/")
+
+        response = self.client.get("/msg/inbox/")
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
@@ -1074,7 +1076,7 @@ class MsgTest(TembaTest):
         def request_export(query, data=None):
             with self.mockReadOnly(assert_models={Msg}):
                 response = self.client.post(export_url + query, data)
-            self.assertEqual(response.status_code, 302)
+            self.assertModalResponse(response, redirect="/msg/inbox/")
             task = ExportMessagesTask.objects.order_by("-id").first()
             filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
             workbook = load_workbook(filename=filename)
@@ -1088,7 +1090,7 @@ class MsgTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 5
 
-                with self.assertNumQueries(30):
+                with self.assertNumQueries(34):
                     self.assertExcelSheet(
                         request_export(
                             "?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}
@@ -1587,8 +1589,7 @@ class MsgTest(TembaTest):
             export_url + "?l=I&redirect=http://foo.me",
             {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"},
         )
-        self.assertEqual(302, response.status_code)
-        self.assertEqual("/msg/inbox/", response.url)
+        self.assertModalResponse(response, redirect="/msg/inbox/")
 
         self.clear_storage()
 
