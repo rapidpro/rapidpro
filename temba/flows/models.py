@@ -33,7 +33,7 @@ from temba.orgs.models import DependencyMixin, Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
-from temba.utils.export import BaseExportAssetStore, BaseExportTask, export_date_range
+from temba.utils.export import BaseDateRangeExport, BaseExportAssetStore
 from temba.utils.models import JSONAsTextField, JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
@@ -1668,7 +1668,7 @@ class FlowRunCount(SquashableModel):
         index_together = ("flow", "exit_type")
 
 
-class ExportFlowResultsTask(BaseExportTask):
+class ExportFlowResultsTask(BaseDateRangeExport):
     """
     Container for managing our export requests
     """
@@ -1686,6 +1686,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
     flows = models.ManyToManyField(Flow, related_name="exports", help_text=_("The flows to export"))
 
+    # TODO backfill, for now overridden from base class to make nullable
     start_date = models.DateField(null=True)
     end_date = models.DateField(null=True)
 
@@ -1804,7 +1805,7 @@ class ExportFlowResultsTask(BaseExportTask):
         total_runs_exported = 0
         temp_runs_exported = 0
         start = time.time()
-        start_date, end_date = export_date_range(self.org, self.start_date, self.end_date)
+        start_date, end_date = self._get_date_range()
 
         for batch in self._get_run_batches(start_date, end_date, flows, responded_only):
             self._write_runs(

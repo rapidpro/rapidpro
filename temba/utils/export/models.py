@@ -2,7 +2,7 @@ import gc
 import logging
 import os
 import time
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 from smartmin.models import SmartModel
 from xlsxlite.writer import XLSXBook
@@ -159,6 +159,28 @@ class BaseExportTask(TembaUUIDMixin, SmartModel):
         abstract = True
 
 
+class BaseDateRangeExport(BaseExportTask):
+    """
+    Base export class for exports that have a date range
+    """
+
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    def _get_date_range(self) -> tuple:
+        """
+        Gets the since > until datetimes of items to export
+        """
+        tz = self.org.timezone
+        return (
+            max(tz.localize(datetime.combine(self.start_date, datetime.min.time())), self.org.created_on),
+            tz.localize(datetime.combine(self.end_date, datetime.max.time())),
+        )
+
+    class Meta:
+        abstract = True
+
+
 class TableExporter:
     """
     Class that abstracts out writing a table of data to a CSV or Excel file. This only works for exports that
@@ -231,14 +253,3 @@ def response_from_workbook(workbook, filename: str) -> HttpResponse:
     )
     response["Content-Disposition"] = f"attachment; filename={filename}"
     return response
-
-
-def export_date_range(org, start: date, end: date) -> tuple:
-    """
-    Converts a date-based range to datetimes, with start clamped to no earlier than org created date.
-    """
-    tz = org.timezone
-    return (
-        max(tz.localize(datetime.combine(start, datetime.min.time())), org.created_on),
-        tz.localize(datetime.combine(end, datetime.max.time())),
-    )
