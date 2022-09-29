@@ -161,7 +161,7 @@ class BaseExportTask(TembaUUIDMixin, SmartModel):
 
 class BaseDateRangeExport(BaseExportTask):
     """
-    Base export class for exports that have a date range
+    Base export class for exports that have a date range.
     """
 
     start_date = models.DateField()
@@ -169,7 +169,7 @@ class BaseDateRangeExport(BaseExportTask):
 
     def _get_date_range(self) -> tuple:
         """
-        Gets the since > until datetimes of items to export
+        Gets the since > until datetimes of items to export.
         """
         tz = self.org.timezone
         return (
@@ -182,7 +182,14 @@ class BaseDateRangeExport(BaseExportTask):
 
 
 class BaseWithContactExport(BaseDateRangeExport):
+    """
+    Base export class for exports that are thing with an associated contact.
+    """
+
     def _get_contact_headers(self) -> list:
+        """
+        Gets the header values common to exports with contacts.
+        """
         cols = ["Contact UUID", "Contact Name", "URN Scheme"]
         if self.org.is_anon:
             cols.append("Anon Value")
@@ -191,13 +198,26 @@ class BaseWithContactExport(BaseDateRangeExport):
 
         return cols
 
-    def _get_contact_columns(self, contact) -> list:
-        urn = contact.get_urn()
-        cols = [str(contact.uuid), contact.name, urn.scheme if urn else None]
+    def _get_contact_columns(self, contact, urn: str = "") -> list:
+        """
+        Gets the column values for the given contact.
+        """
+        from temba.contacts.models import URN
+
+        if urn == "":
+            urn_obj = contact.get_urn()
+            urn_scheme, urn_path = (urn_obj.scheme, urn_obj.path) if urn_obj else (None, None)
+        elif urn is not None:
+            urn_scheme = URN.to_parts(urn)[0]
+            urn_path = URN.format(urn, international=False, formatted=False)
+        else:
+            urn_scheme, urn_path = None, None
+
+        cols = [str(contact.uuid), contact.name, urn_scheme]
         if self.org.is_anon:
             cols.append(contact.anon_display)
         else:
-            cols.append(urn.path if urn else None)
+            cols.append(urn_path)
 
         return cols
 
