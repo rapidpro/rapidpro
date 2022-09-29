@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from functools import cached_property
 from urllib.parse import quote_plus
 
@@ -40,6 +40,7 @@ from temba.orgs.views import (
 from temba.schedules.models import Schedule
 from temba.schedules.views import ScheduleFormMixin
 from temba.utils import analytics, json, on_transaction_commit
+from temba.utils.export import BaseExportForm
 from temba.utils.fields import (
     CompletionTextarea,
     InputWidget,
@@ -48,7 +49,6 @@ from temba.utils.fields import (
     OmniboxField,
     SelectMultipleWidget,
     SelectWidget,
-    TembaDateField,
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
@@ -504,13 +504,9 @@ class BroadcastCRUDL(SmartCRUDL):
             return obj
 
 
-class ExportForm(Form):
+class ExportForm(BaseExportForm):
     LABEL_CHOICES = ((0, _("Just this label")), (1, _("All messages")))
-
     SYSTEM_LABEL_CHOICES = ((0, _("Just this folder")), (1, _("All messages")))
-
-    start_date = TembaDateField(label=_("Start Date"))
-    end_date = TembaDateField(label=_("End Date"))
 
     export_all = forms.ChoiceField(
         choices=(), label=_("Selection"), initial=0, widget=SelectWidget(attrs={"widget_only": True})
@@ -526,23 +522,10 @@ class ExportForm(Form):
     )
 
     def __init__(self, org, label, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(org, *args, **kwargs)
 
         self.fields["export_all"].choices = self.LABEL_CHOICES if label else self.SYSTEM_LABEL_CHOICES
         self.fields["groups"].queryset = ContactGroup.get_groups(org)
-
-    def clean(self):
-        cleaned_data = super().clean()
-        start_date = cleaned_data.get("start_date")
-        end_date = cleaned_data.get("end_date")
-
-        if start_date and start_date > date.today():
-            raise forms.ValidationError(_("Start date can't be in the future."))
-
-        if end_date and start_date and end_date < start_date:
-            raise forms.ValidationError(_("End date can't be before start date."))
-
-        return cleaned_data
 
 
 class MsgCRUDL(SmartCRUDL):

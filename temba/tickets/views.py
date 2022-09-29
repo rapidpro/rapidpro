@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
@@ -19,8 +19,8 @@ from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import json, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
-from temba.utils.export import response_from_workbook
-from temba.utils.fields import InputWidget, SelectWidget, TembaDateField
+from temba.utils.export import BaseExportForm, response_from_workbook
+from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import (
@@ -407,26 +407,18 @@ class TicketCRUDL(SmartCRUDL):
             return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
-        class Form(forms.Form):
-            start_date = TembaDateField(label=_("Start Date"))
-            end_date = TembaDateField(label=_("End Date"))
-
-            def clean(self):
-                cleaned_data = super().clean()
-                start_date = cleaned_data.get("start_date")
-                end_date = cleaned_data.get("end_date")
-
-                if start_date and start_date > date.today():
-                    raise forms.ValidationError(_("Start date can't be in the future."))
-
-                if end_date and start_date and end_date < start_date:
-                    raise forms.ValidationError(_("End date can't be before start date."))
-
-                return cleaned_data
+        class Form(BaseExportForm):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
 
         form_class = Form
         submit_button_name = "Export"
         success_url = "@tickets.ticket_list"
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
+            return kwargs
 
         def derive_initial(self):
             initial = super().derive_initial()
