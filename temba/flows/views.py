@@ -10,7 +10,6 @@ from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
     SmartDeleteView,
-    SmartFormView,
     SmartListView,
     SmartReadView,
     SmartTemplateView,
@@ -51,7 +50,7 @@ from temba.orgs.views import (
 )
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
-from temba.utils.export import BaseExportForm
+from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
     CheckboxWidget,
     ContactSearchWidget,
@@ -1266,8 +1265,8 @@ class FlowCRUDL(SmartCRUDL):
         def derive_initial(self):
             return {"language": self.po_info.language_code if self.po_info else ""}
 
-    class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
-        class Form(BaseExportForm):
+    class ExportResults(BaseExportView):
+        class Form(BaseExportView.Form):
             flows = forms.ModelMultipleChoiceField(
                 Flow.objects.filter(id__lt=0), required=True, widget=forms.MultipleHiddenInput()
             )
@@ -1344,24 +1343,10 @@ class FlowCRUDL(SmartCRUDL):
                 return cleaned_data
 
         form_class = Form
-        submit_button_name = _("Download")
         success_url = "@flows.flow_list"
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
 
         def derive_initial(self):
             initial = super().derive_initial()
-
-            # default to last 90 days in org timezone
-            tz = self.request.org.timezone
-            end = datetime.now(tz)
-            start = end - timedelta(days=90)
-
-            initial["end_date"] = end.date()
-            initial["start_date"] = start.date()
 
             flow_ids = self.request.GET.get("ids", None)
             if flow_ids:  # pragma: needs cover

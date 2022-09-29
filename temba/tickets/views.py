@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
@@ -19,7 +19,8 @@ from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import json, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
-from temba.utils.export import BaseExportForm, response_from_workbook
+from temba.utils.export import response_from_workbook
+from temba.utils.export.views import BaseExportView
 from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
@@ -406,31 +407,8 @@ class TicketCRUDL(SmartCRUDL):
 
             return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
 
-    class Export(ModalMixin, OrgPermsMixin, SmartFormView):
-        class Form(BaseExportForm):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-        form_class = Form
-        submit_button_name = "Export"
+    class Export(BaseExportView):
         success_url = "@tickets.ticket_list"
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
-
-        def derive_initial(self):
-            initial = super().derive_initial()
-
-            # default to last 90 days in org timezone
-            tz = self.request.org.timezone
-            end = datetime.now(tz)
-            start = end - timedelta(days=90)
-
-            initial["end_date"] = end.date()
-            initial["start_date"] = start.date()
-            return initial
 
         def form_invalid(self, form):
             if "_format" in self.request.GET and self.request.GET["_format"] == "json":  # pragma: no cover
@@ -441,8 +419,8 @@ class TicketCRUDL(SmartCRUDL):
                 return super().form_invalid(form)
 
         def form_valid(self, form):
-            user = self.request.user
             org = self.request.org
+            user = self.request.user
 
             # is there already an export taking place?
             existing = ExportTicketsTask.get_recent_unfinished(org)

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from functools import cached_property
 from urllib.parse import quote_plus
 
@@ -40,7 +40,7 @@ from temba.orgs.views import (
 from temba.schedules.models import Schedule
 from temba.schedules.views import ScheduleFormMixin
 from temba.utils import analytics, json, on_transaction_commit
-from temba.utils.export import BaseExportForm
+from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
     CompletionTextarea,
     InputWidget,
@@ -504,30 +504,6 @@ class BroadcastCRUDL(SmartCRUDL):
             return obj
 
 
-class ExportForm(BaseExportForm):
-    LABEL_CHOICES = ((0, _("Just this label")), (1, _("All messages")))
-    SYSTEM_LABEL_CHOICES = ((0, _("Just this folder")), (1, _("All messages")))
-
-    export_all = forms.ChoiceField(
-        choices=(), label=_("Selection"), initial=0, widget=SelectWidget(attrs={"widget_only": True})
-    )
-
-    groups = forms.ModelMultipleChoiceField(
-        queryset=ContactGroup.objects.none(),
-        required=False,
-        label=_("Groups"),
-        widget=SelectMultipleWidget(
-            attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to include in your export")}
-        ),
-    )
-
-    def __init__(self, org, label, *args, **kwargs):
-        super().__init__(org, *args, **kwargs)
-
-        self.fields["export_all"].choices = self.LABEL_CHOICES if label else self.SYSTEM_LABEL_CHOICES
-        self.fields["groups"].queryset = ContactGroup.get_groups(org)
-
-
 class MsgCRUDL(SmartCRUDL):
     model = Msg
     actions = ("inbox", "flow", "archived", "menu", "outbox", "sent", "failed", "filter", "export")
@@ -616,23 +592,37 @@ class MsgCRUDL(SmartCRUDL):
 
                 return menu
 
-    class Export(ModalMixin, OrgPermsMixin, SmartFormView):
+    class Export(BaseExportView):
+        class Form(BaseExportView.Form):
+            LABEL_CHOICES = ((0, _("Just this label")), (1, _("All messages")))
+            SYSTEM_LABEL_CHOICES = ((0, _("Just this folder")), (1, _("All messages")))
 
-        form_class = ExportForm
-        submit_button_name = "Export"
+            export_all = forms.ChoiceField(
+                choices=(), label=_("Selection"), initial=0, widget=SelectWidget(attrs={"widget_only": True})
+            )
+
+            groups = forms.ModelMultipleChoiceField(
+                queryset=ContactGroup.objects.none(),
+                required=False,
+                label=_("Groups"),
+                widget=SelectMultipleWidget(
+                    attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to include in your export")}
+                ),
+            )
+
+            def __init__(self, org, label, *args, **kwargs):
+                super().__init__(org, *args, **kwargs)
+
+                self.fields["export_all"].choices = self.LABEL_CHOICES if label else self.SYSTEM_LABEL_CHOICES
+                self.fields["groups"].queryset = ContactGroup.get_groups(org)
+
+        form_class = Form
         success_url = "@msgs.msg_inbox"
 
-        def derive_initial(self):
-            initial = super().derive_initial()
-
-            # default to last 90 days in org timezone
-            tz = self.request.org.timezone
-            end = datetime.now(tz)
-            start = end - timedelta(days=90)
-
-            initial["end_date"] = end.date()
-            initial["start_date"] = start.date()
-            return initial
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["label"] = self.derive_label()[1]
+            return kwargs
 
         def derive_label(self):
             # label is either a UUID of a Label instance (36 chars) or a system label type code (1 char)
@@ -716,12 +706,6 @@ class MsgCRUDL(SmartCRUDL):
                 response = self.render_modal_response(form)
                 response["REDIRECT"] = self.get_success_url()
                 return response
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            kwargs["label"] = self.derive_label()[1]
-            return kwargs
 
     class Inbox(InboxView):
         title = _("Inbox")
