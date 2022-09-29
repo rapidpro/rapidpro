@@ -28,7 +28,7 @@ from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
-from temba.utils.export import BaseExportAssetStore, BaseExportTask, export_date_range
+from temba.utils.export import BaseDateRangeExport, BaseExportAssetStore
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import clean_string
@@ -1205,7 +1205,7 @@ class MsgIterator:
         return next(self._generator)
 
 
-class ExportMessagesTask(BaseExportTask):
+class ExportMessagesTask(BaseDateRangeExport):
     """
     Wrapper for handling exports of raw messages. This will export all selected messages in
     an Excel spreadsheet, adding sheets as necessary to fall within the guidelines of Excel 97
@@ -1223,6 +1223,7 @@ class ExportMessagesTask(BaseExportTask):
     label = models.ForeignKey(Label, on_delete=models.PROTECT, null=True)
     system_label = models.CharField(null=True, max_length=1)
 
+    # TODO backfill, for now overridden from base class to make nullable
     start_date = models.DateField(null=True)
     end_date = models.DateField(null=True)
 
@@ -1275,7 +1276,7 @@ class ExportMessagesTask(BaseExportTask):
         temp_msgs_exported = 0
 
         start = time.time()
-        start_date, end_date = export_date_range(self.org, self.start_date, self.end_date)
+        start_date, end_date = self._get_date_range()
 
         contact_uuids = set()
         for group in self.groups.all():
