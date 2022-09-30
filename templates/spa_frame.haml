@@ -619,31 +619,29 @@
       }
     }
 
-    function updatePageTitle(spaTitle) {
+    function updatePageTitle(force) {
 
-      // if were not given a title look in the page
-      if (!spaTitle) {
-        var titleDiv = document.querySelector(".spa-title #title-text");
-        if (titleDiv && titleDiv.innerText) {
-          spaTitle = titleDiv.innerText;
-        }
+      var spaTitle = "";
+      var titleDiv = document.querySelector(".spa-title #title-text");
+      if (titleDiv && titleDiv.innerText) {
+        spaTitle = titleDiv.innerText.trim();
       }
-      
-      // if we still dont have a title, ask the menu
-      if (!spaTitle) {
+
+      if (!spaTitle || force) {
         var menu = document.querySelector("temba-menu");
         if (menu) {
           var item = menu.getMenuItem();
           if (item) {
-            spaTitle = item.name;
+            spaTitle = item.verbose_name || item.name;
           }
+        }
+
+        if (spaTitle && titleDiv) {
+          titleDiv.innerText = spaTitle;
         }
       }
 
-      var title = document.querySelector("#title-text");
-      if (spaTitle && title) {
-        title.innerText = spaTitle;
-      }
+      // try and set our window title
       document.title = spaTitle || "";
     }
 
@@ -666,7 +664,6 @@
       
       updatePageTitle();
       var menu = document.querySelector("temba-menu");
-      // menu.refresh();
 
       document.querySelectorAll(".posterize").forEach(function(ele){
         ele.addEventListener("click", function(){ 
@@ -767,9 +764,8 @@
       if (selection.length > 1) {
         var section = selection[0];
         var name = `handle${section.charAt(0).toUpperCase()}${section.slice(1)}MenuChanged`;
-        var fn = window[name];
-        if (fn) {
-          fn(event);
+        if (this[name]) {
+          this[name](event);
         }
       }
     }

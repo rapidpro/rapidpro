@@ -228,8 +228,16 @@ class FlowCRUDL(SmartCRUDL):
             labels = FlowLabel.objects.filter(org=self.request.org, parent=None).order_by("name")
 
             menu = []
-            menu.append(self.create_menu_item(name=_("Active"), icon="flow", href="flows.flow_list"))
-            menu.append(self.create_menu_item(name=_("Archived"), icon="archive", href="flows.flow_archived"))
+            menu.append(
+                self.create_menu_item(
+                    name=_("Active"), verbose_name=_("Active Flows"), icon="flow", href="flows.flow_list"
+                )
+            )
+            menu.append(
+                self.create_menu_item(
+                    name=_("Archived"), verbose_name=_("Archived Flows"), icon="archive", href="flows.flow_archived"
+                )
+            )
 
             label_items = []
             for label in labels:

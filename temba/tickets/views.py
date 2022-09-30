@@ -113,21 +113,6 @@ class TicketCRUDL(SmartCRUDL):
                 return "tickets:activity", ""
             return "", ""
 
-        def derive_title(self):
-            if self.is_spa():
-                tickets = str(_("Tickets"))
-                folder = self.kwargs.get("folder")
-                if not folder:
-                    folder = MineFolder.slug
-
-                folder = TicketFolder.from_slug(folder)
-                name = folder.name
-                if not name.endswith(tickets):
-                    name = f"{name} {tickets}"
-                return name
-
-            return super().derive_title()
-
         @cached_property
         def tickets_path(self) -> tuple:
             """
@@ -206,6 +191,7 @@ class TicketCRUDL(SmartCRUDL):
                     {
                         "id": folder.slug,
                         "name": folder.name,
+                        "verbose_name": folder.verbose_name,
                         "icon": folder.icon,
                         "count": counts[folder.slug],
                     }

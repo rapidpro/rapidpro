@@ -109,19 +109,7 @@
       }     
 
       if (window.updatePageTitle) {
-        var title;
-
-        var item = menu.getMenuItem();
-
-        if (item && item.name) {
-          title = item.name;
-          // TODO: this is a hack to get "All Tickets" instead of "All" as a title
-          if (!title.endsWith("Tickets")) {
-            title += " Tickets"
-          }
-        }
-
-        updatePageTitle(title);
+        updatePageTitle(true);
       }
     }
 
