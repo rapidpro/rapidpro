@@ -1,8 +1,340 @@
 -extends "tickets/ticket_list.html"
 
+-load smartmin i18n contacts compress
+
+-block page-title
+  {{ title }}
+
+-block temba-store
+  -if not is_spa
+    %temba-store(
+      completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
+      fields="/api/v2/fields.json"
+      globals="/api/v2/globals.json"
+      groups="/api/v2/groups.json")
+
 -block extra-style
   {{block.super}}
   :css
+
+    .spa-footer {
+      margin-top: -1em;
+    }
     temba-select[name='ticket-status'] {
       margin-top: 0em !important;
     }
+    temba-select[name='ticket-status'] {
+      margin-top: -1em;
+    }
+    
+    temba-contact-chat {
+      transition: all 200ms ease-in-out;
+      transition-delay: 200ms;
+    }
+
+    .empty {
+      position: absolute;
+      transition: all 200ms ease-in-out;
+      transition-delay: 200ms;
+      opacity: 0;
+      padding: 3px 40px;
+    }
+
+    .empty h2 {
+      font-size: 36px;
+      margin-top: 16px;
+    }
+
+    .popper {
+      font-size: 48px;
+      display: inline;
+    }
+
+    temba-select[name='ticket-status'] {
+      margin-bottom: 1em;
+    }
+
+    .ticket-list {
+      flex-basis: 300px; 
+      flex-grow: 0; 
+      flex-shrink: 0;
+      transition: all 200ms ease-in;
+    }
+
+    temba-menu {
+      height: 100%;
+    }
+    
+    @media only screen and (max-width: 850px) {
+      .ticket-list {
+        flex-basis: 200px; 
+      }
+
+    }
+
+    @media only screen and (max-width: 768px) {
+      .ticket-list {
+        flex-basis: 125px; 
+      }
+      .widget-container {          
+        margin-top:16px !important;
+        padding-top:0px !important;
+        margin-bottom:-120px;
+        padding-bottom:120px;
+      }
+    }
+
+-block extra-script
+  {{ block.super }}
+    
+  :javascript
+    // current state
+    var folder = '{{folder}}';
+    var status = '{{status}}';
+    var ticketUUID = '{{uuid}}';
+    var initialTicket = '{{uuid}}';
+    var focusNext;
+
+    function handleTicketsMenuChanged(selection) {
+
+      var menu = selection.target;
+      var statusSelect = document.querySelector('temba-select[name="ticket-status"]');
+      var path = menu.getSelection();
+
+      var section = path[0];
+      var selection = path[1];
+
+      if (section == "tickets" && selection) {
+        ticketUUID = null;
+        focusNext = null;
+        if (folder !== selection) {
+          // whenever our menu changes, reset filter
+          statusSelect.setValue("open");
+          status = "open";
+          folder = selection;
+          updateTicketList();
+        }                    
+      }     
+
+      if (window.updatePageTitle) {
+        var title;
+
+        var item = menu.getMenuItem();
+
+        if (item && item.name) {
+          title = item.name;
+          // TODO: this is a hack to get "All Tickets" instead of "All" as a title
+          if (!title.endsWith("Tickets")) {
+            title += " Tickets"
+          }
+        }
+
+        updatePageTitle(title);
+      }
+    }
+
+    function updateTicketList() {      
+      var tickets = document.querySelector("temba-ticket-list");
+      var chat = document.querySelector("temba-contact-chat");
+
+      // if we have auto selecting, dont clear the chat
+      var ticketsEndpoint = `/ticket/folder/${folder}/${status}/${initialTicket || ''}`;
+      if (ticketsEndpoint != tickets.endpoint) {
+        if (!tickets.nextSelection) {
+          chat.contact = null;
+        }
+        
+        tickets.setEndpoint(ticketsEndpoint, focusNext);
+
+        // clear our ticket filter note if we have one
+        tickets.innerHTML = '';
+        focusNext = null;
+        ticketUUID = null;
+        initialTicket = null;
+      }
+    }
+
+
+    function handleStatusChanged(e) {
+      ticketUUID = null;
+      focusNext = null;
+      status = event.target.values[0].value
+      updateTicketList();
+    }
+
+    function clearFilter() {
+      ticketUUID = null;
+      initialTicket = null;
+      updateTicketList();
+    }
+
+    function handleContactChanged(event) {
+      var contact = event.target.getSelection();
+
+      var chat = document.querySelector("temba-contact-chat");
+      if (contact) {
+        chat.contact = contact.uuid;
+        chat.currentTicket = contact.ticket;
+
+        var filterNote = document.querySelector(".filter-note");
+        if (filterNote) {
+          filterNote.classList.remove("hidden");
+        }
+
+        if (contact) {
+          ticketUUID = contact.ticket.uuid;
+        } else {
+          ticketUUID = null;
+        }
+      } else {
+        chat.contact = null;
+        chat.currentTicket = null;
+        chat.currentContact = null;
+      }
+      
+      updateTicketList();
+      
+      var path = `${folder}/${status}/${ticketUUID || ''}`;
+
+      {% if is_spa %}
+        var show = `/tickets/${path}`;
+      {% else %}
+        var show = `/ticket/${path}`;
+      {% endif %}
+
+      if (!show.endsWith("/")) {
+        show += "/";
+      }
+
+      window.history.replaceState({ url: `/ticket/${path}`, show: show } ,"", show);
+      
+    }
+    
+    function handleContactHistoryUpdated(event) {
+      // tell our list to refresh since we know things happened
+      var tickets = document.querySelector("temba-ticket-list");
+      if (tickets) {
+        tickets.refresh();
+      }
+    }
+
+    function handleTicketsRefreshed(event) {
+      // var menu = document.querySelector('temba-menu');
+      var tickets = event.target;
+
+      // tell our chat to refresh since we know things are new in our list
+      var chat = document.querySelector("temba-contact-chat");
+      var empty = document.querySelector(".empty");
+
+      if (tickets.items.length > 0 || status == "closed") {
+        chat.style.opacity = '1';
+        chat.refresh();
+        empty.style.opacity = '0';
+      } else {
+        chat.style.opacity = '0';
+        empty.style.opacity = '1';
+      }
+
+      // menu.refresh();
+    }
+
+    function removeTicket(uuid) {
+      var tickets = document.querySelector("temba-ticket-list");
+      var chat = document.querySelector("temba-contact-chat");
+
+      chat.contactUUID = null;
+      chat.currentTicket = null;
+      chat.currentContact = null;
+      tickets.removeItem(uuid);
+    }
+    
+    function handleTicketUpdated(event) {
+      var ticket = event.detail.ticket;
+      var menu = document.querySelector('temba-menu');
+      var statusSelect = document.querySelector('temba-select[name="ticket-status"]');
+      var tickets = document.querySelector("temba-ticket-list");
+      var chat = document.querySelector("temba-contact-chat");
+      var folder = menu.selection[menu.selection.length - 1];
+      
+      // current agent took a ticket
+      if (ticket.assigned == 'self') {
+        menu.clickItem("mine");
+        updateTicketList();
+      } 
+      // unassigning an assigned ticket
+      else if (ticket.assigned != "self" && folder == "mine") {
+        removeTicket(ticket.uuid);
+      }
+      // assigning an unassigned ticket
+      else if (ticket.assigned && folder == "unassigned") {
+        removeTicket(ticket.uuid);
+      }
+
+      // ticket was reopened
+      else if (ticket.status == "open") {
+        chat.contactUUID = null;
+        chat.currentTicket = null;
+        chat.currentContact = null;
+        focusNext = ticket.uuid;
+        statusSelect.setSelection("open");
+      } 
+      // ticket was closed
+      else if (ticket.status == "closed") {
+        removeTicket(ticket.uuid);
+      } else {
+        tickets.refresh();
+      }
+
+      // menu.refresh();
+    }
+
+-block content
+  .flex.flex-col.overflow-y-auto.overflow-x-hidden.rounded-b-lg.p-8.-m-8.pb-4.flex-grow
+    .page.flex-grow.flex.flex-col.min-h-0
+      .flex.widget-container(style="{% if is_spa%}margin:0;padding:0;height:100%{%else%}height:100vh; margin-top:-121px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;{%endif%}")
+        -if not is_spa
+          .folders
+            %temba-menu(endpoint="{%url 'orgs.org_menu'%}" submenu="tickets" onchange="handleTicketsMenuChanged(event)" value="tickets/{{folder}}")
+        
+        .ticket-list.flex.flex-col(class="{% if is_spa%} {% else %}m-4 pt-4 mr-2{%endif%}")
+          %temba-select(name="ticket-status" onchange="handleStatusChanged(event)" value="{{status}}")
+            %temba-option(name="Open" value="open" icon="inbox")
+            %temba-option(name="Closed" value="closed" icon="check")
+
+          .flex.flex-grow(style="max-height:100%;")
+            -if uuid
+              %temba-ticket-list.flex-grow(agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status uuid %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+                .filter-note.m-2.hidden(style="text-align:center")
+                  .linked(onclick="clearFilter()")
+                    -trans "See more tickets"
+            -else
+              %temba-ticket-list.flex-grow(nextselection="{{nextUUID}}" agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+
+        .flex-grow.flex-col.flex.min-h-0(class="{% if is_spa %}ml-4{%else%}py-4 pb-4 pr-4{% endif %}")
+          .empty
+            -if has_tickets
+              %h2
+                .popper
+                  🎉
+
+                -blocktrans trimmed
+                  All done!
+              .mt-4
+                -blocktrans trimmed
+                  Nice work, there aren't any more tickets here that need your attention.
+
+            -else
+              %h2
+                -blocktrans trimmed
+                  Tickets
+
+              .mt-6
+                -blocktrans with name=brand.name trimmed
+                  {{name}} Tickets makes it easy to chat directly with your contacts.
+
+              .mt-4
+                -blocktrans trimmed
+                  Sometimes an automated chatbot isn't enough. When your contacts need to chat with a real person, you can use the
+                  Open Ticket action to open a new ticket.
+
+          %temba-contact-chat.shadow(agent="{{request.user.email}}" -temba-refreshed="handleContactHistoryUpdated" -temba-content-changed="handleTicketUpdated" monitor="true" toolbar="true")

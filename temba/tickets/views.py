@@ -16,7 +16,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import json, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
@@ -112,6 +112,21 @@ class TicketCRUDL(SmartCRUDL):
                 return "tickets:activity", ""
             return "", ""
 
+        def derive_title(self):
+            if self.is_spa():
+                tickets = str(_("Tickets"))
+                folder = self.kwargs.get("folder")
+                if not folder:
+                    folder = MineFolder.slug
+
+                folder = TicketFolder.from_slug(folder)
+                name = folder.name
+                if not name.endswith(tickets):
+                    name = f"{name} {tickets}"
+                return name
+
+            return super().derive_title()
+
         @cached_property
         def tickets_path(self) -> tuple:
             """
@@ -173,8 +188,8 @@ class TicketCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
 
-    class Menu(OrgPermsMixin, SmartTemplateView):
-        def render_to_response(self, context, **response_kwargs):
+    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
+        def derive_menu(self):
             org = self.request.org
             user = self.request.user
             count_by_assignee = TicketCount.get_by_assignees(org, [None, user], Ticket.STATUS_OPEN)
@@ -194,7 +209,7 @@ class TicketCRUDL(SmartCRUDL):
                         "count": counts[folder.slug],
                     }
                 )
-            return JsonResponse({"results": menu})
+            return menu
 
     class Folder(OrgPermsMixin, SmartTemplateView):
         permission = "tickets.ticket_list"
