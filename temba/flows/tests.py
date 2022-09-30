@@ -4564,7 +4564,7 @@ class ExportFlowResultsTest(TembaTest):
                     self.contact.uuid,
                     "Eric",
                     "tel",
-                    f"{self.contact.id:010d}",
+                    self.contact.anon_display,
                     run1.created_on,
                     run1.modified_on,
                     run1.exited_on,

@@ -1324,8 +1324,6 @@ class MsgTest(TembaTest):
 
         # test as anon org to check that URNs don't end up in exports
         with AnonymousOrg(self.org):
-            joe_anon_id = f"{self.joe.id:010d}"
-
             self.assertExcelSheet(
                 request_export("?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}),
                 [
@@ -1348,7 +1346,7 @@ class MsgTest(TembaTest):
                         msg1.contact.uuid,
                         "Joe Blow",
                         "tel",
-                        joe_anon_id,
+                        self.joe.anon_display,
                         "Color Flow",
                         "IN",
                         "hello 1",
@@ -1362,7 +1360,7 @@ class MsgTest(TembaTest):
                         msg2.contact.uuid,
                         "Joe Blow",
                         "tel",
-                        joe_anon_id,
+                        self.joe.anon_display,
                         "",
                         "IN",
                         "hello 2",
@@ -1376,7 +1374,7 @@ class MsgTest(TembaTest):
                         msg4.contact.uuid,
                         "Joe Blow",
                         "",
-                        joe_anon_id,
+                        self.joe.anon_display,
                         "",
                         "IN",
                         "hello 4",
@@ -1390,7 +1388,7 @@ class MsgTest(TembaTest):
                         msg5.contact.uuid,
                         "Joe Blow",
                         "tel",
-                        joe_anon_id,
+                        self.joe.anon_display,
                         "",
                         "IN",
                         "Media message",
@@ -1404,7 +1402,7 @@ class MsgTest(TembaTest):
                         msg6.contact.uuid,
                         "Joe Blow",
                         "tel",
-                        joe_anon_id,
+                        self.joe.anon_display,
                         "",
                         "OUT",
                         "Hey out 6",
@@ -1418,7 +1416,7 @@ class MsgTest(TembaTest):
                         msg7.contact.uuid,
                         "Joe Blow",
                         "tel",
-                        joe_anon_id,
+                        self.joe.anon_display,
                         "",
                         "OUT",
                         "Hey out 7",
@@ -1432,7 +1430,7 @@ class MsgTest(TembaTest):
                         msg8.contact.uuid,
                         "Joe Blow",
                         "tel",
-                        joe_anon_id,
+                        self.joe.anon_display,
                         "",
                         "OUT",
                         "Hey out 8",
@@ -1446,7 +1444,7 @@ class MsgTest(TembaTest):
                         msg9.contact.uuid,
                         "Joe Blow",
                         "tel",
-                        joe_anon_id,
+                        self.joe.anon_display,
                         "",
                         "OUT",
                         "Hey out 9",
