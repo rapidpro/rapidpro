@@ -33,7 +33,7 @@ from temba.orgs.models import DependencyMixin, Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
-from temba.utils.export import BaseDateRangeExport, BaseExportAssetStore
+from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
 from temba.utils.models import JSONAsTextField, JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
@@ -1668,7 +1668,7 @@ class FlowRunCount(SquashableModel):
         index_together = ("flow", "exit_type")
 
 
-class ExportFlowResultsTask(BaseDateRangeExport):
+class ExportFlowResultsTask(BaseItemWithContactExport):
     """
     Container for managing our export requests
     """
@@ -1717,17 +1717,10 @@ class ExportFlowResultsTask(BaseDateRangeExport):
         if show_submitted_by:
             columns.append("Submitted By")
 
-        columns.append("Contact UUID")
-        if self.org.is_anon:
-            columns.append("ID")
-            columns.append("Scheme")
-        else:
-            columns.append("URN")
+        columns += self._get_contact_headers()
 
         for extra_urn in extra_urn_columns:
             columns.append(extra_urn["label"])
-
-        columns.append("Name")
 
         for gr in groups:
             columns.append("Group:%s" % gr.name)
@@ -1922,20 +1915,12 @@ class ExportFlowResultsTask(BaseDateRangeExport):
                 results_by_key = {key: result for key, result in run_values.items()}
 
             # generate contact info columns
-            contact_values = [contact.uuid]
-
-            if self.org.is_anon:
-                contact_urns = contact.get_urns()
-                contact_values.append(f"{contact.id:010d}")
-                contact_values.append(contact_urns[0].scheme if contact_urns else "")
-            else:
-                contact_values.append(contact.get_urn_display(org=self.org, formatted=False))
+            contact_values = [self.prepare_value(c) for c in self._get_contact_columns(contact)]
 
             for extra_urn_column in extra_urn_columns:
                 urn_display = contact.get_urn_display(org=self.org, formatted=False, scheme=extra_urn_column["scheme"])
                 contact_values.append(urn_display)
 
-            contact_values.append(self.prepare_value(contact.name))
             contact_groups_ids = [g.id for g in contact.groups.all()]
             for gr in groups:
                 contact_values.append(gr.id in contact_groups_ids)

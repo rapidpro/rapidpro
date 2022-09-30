@@ -30,7 +30,7 @@ from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import chunk_list, format_number, on_transaction_commit
-from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
+from temba.utils.export import BaseExport, BaseExportAssetStore, TableExporter
 from temba.utils.models import JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
@@ -1823,7 +1823,7 @@ class ContactGroupCount(SquashableModel):
         return ContactGroupCount.objects.create(group=group, count=count)
 
 
-class ExportContactsTask(BaseExportTask):
+class ExportContactsTask(BaseExport):
     analytics_key = "contact_export"
     notification_export_type = "contact"
 
