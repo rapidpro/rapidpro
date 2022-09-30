@@ -15,10 +15,9 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.assets.models import BaseAssetStore, get_asset_store
-
-from . import analytics
-from .models import TembaUUIDMixin
-from .text import clean_string
+from temba.utils import analytics
+from temba.utils.models import TembaUUIDMixin
+from temba.utils.text import clean_string
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +154,28 @@ class BaseExportTask(TembaUUIDMixin, SmartModel):
 
     def get_notification_scope(self) -> str:
         return f"{self.notification_export_type}:{self.id}"
+
+    class Meta:
+        abstract = True
+
+
+class BaseDateRangeExport(BaseExportTask):
+    """
+    Base export class for exports that have a date range
+    """
+
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    def _get_date_range(self) -> tuple:
+        """
+        Gets the since > until datetimes of items to export
+        """
+        tz = self.org.timezone
+        return (
+            max(tz.localize(datetime.combine(self.start_date, datetime.min.time())), self.org.created_on),
+            tz.localize(datetime.combine(self.end_date, datetime.max.time())),
+        )
 
     class Meta:
         abstract = True

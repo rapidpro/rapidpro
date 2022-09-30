@@ -67,8 +67,16 @@ class AssetTest(TembaTest):
 
         # create flow results export and check that we can access it
         flow = self.create_flow("Test")
-        results_export_task = ExportFlowResultsTask.objects.create(
-            org=self.org, created_by=self.admin, modified_by=self.admin
+        results_export_task = ExportFlowResultsTask.create(
+            self.org,
+            self.admin,
+            start_date=date.today(),
+            end_date=date.today(),
+            flows=[flow],
+            contact_fields=(),
+            responded_only=False,
+            extra_urns=(),
+            group_memberships=(),
         )
         results_export_task.flows.add(flow)
         results_export_task.perform()

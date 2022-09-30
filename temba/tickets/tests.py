@@ -1,6 +1,7 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
+import pytz
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -523,15 +524,18 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         blocking_export = ExportTicketsTask.create(
             self.org, self.admin, start_date=date.today() - timedelta(days=7), end_date=date.today()
         )
-        response = self.client.post(export_url, {"start_date": "2022-06-28", "end_date": "2022-09-28"}, follow=True)
+        response = self.client.post(export_url, {"start_date": "2022-06-28", "end_date": "2022-09-28"})
+        self.assertModalResponse(response, redirect="/ticket/")
+
+        response = self.client.get("/ticket/")
         self.assertContains(response, "already an export in progress")
 
         # ok mark that export as finished and try again
         blocking_export.update_status(ExportTicketsTask.STATUS_COMPLETE)
 
         response = self.client.post(export_url, {"start_date": "2022-06-28", "end_date": "2022-09-28"})
-        self.assertEqual(302, response.status_code)
-        self.assertEqual("text/html; charset=utf-8", response["Content-Type"])
+        self.assertModalResponse(response, redirect="/ticket/")
+        self.assertEqual(2, ExportTicketsTask.objects.count())
 
     def test_export_empty(self):
         self.login(self.admin)
@@ -576,9 +580,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
+        # messages can't be older than org
+        self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=pytz.UTC)
+        self.org.save(update_fields=("created_on",))
+
         ticketer = Ticketer.create(self.org, self.admin, "internal", "Internal", {})
         topic = Topic.create(self.org, self.admin, "AFC Richmond")
         assignee = self.admin
+        today = timezone.now().astimezone(self.org.timezone).date()
 
         # create a contact with no urns
         nate = self.create_contact("Nathan Shelley", fields={"gender": "Male"})
@@ -653,7 +662,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check requesting export for last 90 days
         with self.mockReadOnly(assert_models={Ticket}):
-            export = self._request_ticket_export(start_date=date.today() - timedelta(days=90), end_date=date.today())
+            export = self._request_ticket_export(start_date=today - timedelta(days=90), end_date=today)
 
         self.assertExcelSheet(
             export[0],
@@ -705,7 +714,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check requesting export for last 7 days
         with self.mockReadOnly(assert_models={Ticket}):
-            export = self._request_ticket_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
+            export = self._request_ticket_export(start_date=today - timedelta(days=7), end_date=today)
 
         self.assertExcelSheet(
             export[0],
@@ -737,9 +746,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         with AnonymousOrg(self.org):
             with self.mockReadOnly(assert_models={Ticket}):
-                export = self._request_ticket_export(
-                    start_date=date.today() - timedelta(days=90), end_date=date.today()
-                )
+                export = self._request_ticket_export(start_date=today - timedelta(days=90), end_date=today)
             self.assertExcelSheet(
                 export[0],
                 [
