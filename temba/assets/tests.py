@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.test import override_settings
 from django.urls import reverse
 
@@ -17,7 +19,9 @@ class AssetTest(TembaTest):
 
     def test_download(self):
         # create a message export
-        message_export_task = ExportMessagesTask.create(self.org, self.admin, SystemLabel.TYPE_INBOX)
+        message_export_task = ExportMessagesTask.create(
+            self.org, self.admin, start_date=date.today(), end_date=date.today(), system_label=SystemLabel.TYPE_INBOX
+        )
 
         response = self.client.get(
             reverse("assets.download", kwargs=dict(type="message_export", pk=message_export_task.pk))
@@ -63,8 +67,16 @@ class AssetTest(TembaTest):
 
         # create flow results export and check that we can access it
         flow = self.create_flow("Test")
-        results_export_task = ExportFlowResultsTask.objects.create(
-            org=self.org, created_by=self.admin, modified_by=self.admin
+        results_export_task = ExportFlowResultsTask.create(
+            self.org,
+            self.admin,
+            start_date=date.today(),
+            end_date=date.today(),
+            flows=[flow],
+            contact_fields=(),
+            responded_only=False,
+            extra_urns=(),
+            group_memberships=(),
         )
         results_export_task.flows.add(flow)
         results_export_task.perform()
@@ -75,7 +87,9 @@ class AssetTest(TembaTest):
         self.assertContains(response, "Your download should start automatically", status_code=200)
 
         # create ticket export and check that we can access it
-        ticket_export_task = ExportTicketsTask.create(self.org, self.admin)
+        ticket_export_task = ExportTicketsTask.create(
+            self.org, self.admin, start_date=date.today(), end_date=date.today()
+        )
         ticket_export_task.perform()
 
         response = self.client.get(
@@ -101,7 +115,9 @@ class AssetTest(TembaTest):
 
     def test_stream(self):
         # create a message export
-        message_export_task = ExportMessagesTask.create(self.org, self.admin, SystemLabel.TYPE_INBOX)
+        message_export_task = ExportMessagesTask.create(
+            self.org, self.admin, start_date=date.today(), end_date=date.today(), system_label=SystemLabel.TYPE_INBOX
+        )
 
         # try as anon
         response = self.client.get(

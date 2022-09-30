@@ -15,20 +15,19 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.assets.models import BaseAssetStore, get_asset_store
-
-from . import analytics
-from .models import TembaUUIDMixin
-from .text import clean_string
+from temba.utils import analytics
+from temba.utils.models import TembaUUIDMixin
+from temba.utils.text import clean_string
 
 logger = logging.getLogger(__name__)
 
 
 class BaseExportAssetStore(BaseAssetStore):
     def is_asset_ready(self, asset):
-        return asset.status == BaseExportTask.STATUS_COMPLETE
+        return asset.status == BaseExport.STATUS_COMPLETE
 
 
-class BaseExportTask(TembaUUIDMixin, SmartModel):
+class BaseExport(TembaUUIDMixin, SmartModel):
     """
     Base class for export task models, i.e. contacts, messages and flow results
     """
@@ -146,8 +145,8 @@ class BaseExportTask(TembaUUIDMixin, SmartModel):
             return clean_string(value)
         elif isinstance(value, datetime):
             return value.astimezone(self.org.timezone).replace(microsecond=0, tzinfo=None)
-        else:
-            return clean_string(str(value))
+
+        raise ValueError(f"Unsupported type for excel export: {type(value)}")  # pragma: no cover
 
     def get_download_url(self) -> str:
         asset_store = get_asset_store(model=self.__class__)
@@ -155,6 +154,72 @@ class BaseExportTask(TembaUUIDMixin, SmartModel):
 
     def get_notification_scope(self) -> str:
         return f"{self.notification_export_type}:{self.id}"
+
+    class Meta:
+        abstract = True
+
+
+class BaseDateRangeExport(BaseExport):
+    """
+    Base export class for exports that have a date range.
+    """
+
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    def _get_date_range(self) -> tuple:
+        """
+        Gets the since > until datetimes of items to export.
+        """
+        tz = self.org.timezone
+        return (
+            max(tz.localize(datetime.combine(self.start_date, datetime.min.time())), self.org.created_on),
+            tz.localize(datetime.combine(self.end_date, datetime.max.time())),
+        )
+
+    class Meta:
+        abstract = True
+
+
+class BaseItemWithContactExport(BaseDateRangeExport):
+    """
+    Base export class for exports that are an item with an associated contact.
+    """
+
+    def _get_contact_headers(self) -> list:
+        """
+        Gets the header values common to exports with contacts.
+        """
+        cols = ["Contact UUID", "Contact Name", "URN Scheme"]
+        if self.org.is_anon:
+            cols.append("Anon Value")
+        else:
+            cols.append("URN Value")
+
+        return cols
+
+    def _get_contact_columns(self, contact, urn: str = "") -> list:
+        """
+        Gets the column values for the given contact.
+        """
+        from temba.contacts.models import URN
+
+        if urn == "":
+            urn_obj = contact.get_urn()
+            urn_scheme, urn_path = (urn_obj.scheme, urn_obj.path) if urn_obj else (None, None)
+        elif urn is not None:
+            urn_scheme = URN.to_parts(urn)[0]
+            urn_path = URN.format(urn, international=False, formatted=False)
+        else:
+            urn_scheme, urn_path = None, None
+
+        cols = [str(contact.uuid), contact.name, urn_scheme]
+        if self.org.is_anon:
+            cols.append(contact.anon_display)
+        else:
+            cols.append(urn_path)
+
+        return cols
 
     class Meta:
         abstract = True
@@ -196,7 +261,7 @@ class TableExporter:
         Writes the passed in row to our exporter, taking care of creating new sheets if necessary
         """
         # time for a new sheet? do it
-        if self.sheet_row > BaseExportTask.MAX_EXCEL_ROWS:
+        if self.sheet_row > BaseExport.MAX_EXCEL_ROWS:
             self._add_sheet()
 
         self.sheet.append_row(*values)

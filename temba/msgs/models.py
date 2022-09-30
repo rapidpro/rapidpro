@@ -24,11 +24,11 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
-from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
+from temba.contacts.models import Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
-from temba.utils.export import BaseExportAssetStore, BaseExportTask
+from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import clean_string
@@ -1205,7 +1205,7 @@ class MsgIterator:
         return next(self._generator)
 
 
-class ExportMessagesTask(BaseExportTask):
+class ExportMessagesTask(BaseItemWithContactExport):
     """
     Wrapper for handling exports of raw messages. This will export all selected messages in
     an Excel spreadsheet, adding sheets as necessary to fall within the guidelines of Excel 97
@@ -1221,17 +1221,15 @@ class ExportMessagesTask(BaseExportTask):
     groups = models.ManyToManyField(ContactGroup)
 
     label = models.ForeignKey(Label, on_delete=models.PROTECT, null=True)
-
     system_label = models.CharField(null=True, max_length=1)
 
-    start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
-
-    end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
+    # TODO backfill, for now overridden from base class to make nullable
+    start_date = models.DateField(null=True)
+    end_date = models.DateField(null=True)
 
     @classmethod
-    def create(cls, org, user, system_label=None, label=None, groups=(), start_date=None, end_date=None):
-        if label and system_label:  # pragma: no cover
-            raise ValueError("Can't specify both label and system label")
+    def create(cls, org, user, start_date, end_date, system_label=None, label=None, groups=()):
+        assert not (label and system_label), "can't specify both label and system label"
 
         export = cls.objects.create(
             org=org,
@@ -1257,20 +1255,11 @@ class ExportMessagesTask(BaseExportTask):
         book = XLSXBook()
         book.num_msgs_sheets = 0
 
-        book.headers = [
-            "Date",
-            "Contact UUID",
-            "Name",
-            "ID" if self.org.is_anon else "URN",
-            "URN Type",
-            "Flow",
-            "Direction",
-            "Text",
-            "Attachments",
-            "Status",
-            "Channel",
-            "Labels",
-        ]
+        book.headers = (
+            ["Date"]
+            + self._get_contact_headers()
+            + ["Flow", "Direction", "Text", "Attachments", "Status", "Channel", "Labels"]
+        )
 
         book.current_msgs_sheet = self._add_msgs_sheet(book)
 
@@ -1278,20 +1267,11 @@ class ExportMessagesTask(BaseExportTask):
         temp_msgs_exported = 0
 
         start = time.time()
+        start_date, end_date = self._get_date_range()
 
         contact_uuids = set()
         for group in self.groups.all():
             contact_uuids = contact_uuids.union(set(group.contacts.only("uuid").values_list("uuid", flat=True)))
-
-        tz = self.org.timezone
-
-        start_date = self.org.created_on
-        if self.start_date:
-            start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
-
-        end_date = timezone.now()
-        if self.end_date:
-            end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
 
         for batch in self._get_msg_batches(self.system_label, self.label, start_date, end_date, contact_uuids):
             self._write_msgs(book, batch)
@@ -1354,11 +1334,7 @@ class ExportMessagesTask(BaseExportTask):
         else:
             messages = Msg.get_messages(self.org)
 
-        if self.start_date:
-            messages = messages.filter(created_on__gte=start_date)
-
-        if self.end_date:
-            messages = messages.filter(created_on__lte=end_date)
+        messages = messages.filter(created_on__gte=start_date, created_on__lte=end_date)
 
         if self.groups.all():
             messages = messages.filter(contact__groups__in=self.groups.all())
@@ -1393,28 +1369,14 @@ class ExportMessagesTask(BaseExportTask):
             contact = contacts_by_uuid.get(msg["contact"]["uuid"])
             flow = msg.get("flow")
 
-            urn_scheme = URN.to_parts(msg["urn"])[0] if msg["urn"] else ""
-
-            # only show URN path if org isn't anon and there is a URN
-            if self.org.is_anon:  # pragma: needs cover
-                urn_path = f"{contact.id:010d}"
-                urn_scheme = ""
-            elif msg["urn"]:
-                urn_path = URN.format(msg["urn"], international=False, formatted=False)
-            else:
-                urn_path = ""
-
             if book.current_msgs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
                 book.current_msgs_sheet = self._add_msgs_sheet(book)
 
             self.append_row(
                 book.current_msgs_sheet,
-                [
-                    iso8601.parse_date(msg["created_on"]),
-                    msg["contact"]["uuid"],
-                    msg["contact"].get("name", ""),
-                    urn_path,
-                    urn_scheme,
+                [iso8601.parse_date(msg["created_on"])]
+                + self._get_contact_columns(contact, urn=msg["urn"])
+                + [
                     flow["name"] if flow else None,
                     msg["direction"].upper() if msg["direction"] else None,
                     msg["text"],

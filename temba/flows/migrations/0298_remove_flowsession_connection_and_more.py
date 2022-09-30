@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("flows", "0296_flowsession_call_flowstart_calls"),
+        ("flows", "0297_exportflowresultstask_end_date_and_more"),
         ("ivr", "0021_convert_connections"),
     ]
 

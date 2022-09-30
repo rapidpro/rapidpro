@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db.models.aggregates import Max
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -17,9 +17,10 @@ from django.utils.translation import gettext_lazy as _
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import json, on_transaction_commit
+from temba.utils import on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
+from temba.utils.export.views import BaseExportView
 from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
@@ -406,32 +407,12 @@ class TicketCRUDL(SmartCRUDL):
 
             return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
 
-    class Export(ModalMixin, OrgPermsMixin, SmartFormView):
-        class ExportForm(forms.Form):
-            def __init__(self, user, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.user = user
-
-        form_class = ExportForm
-        submit_button_name = "Export"
+    class Export(BaseExportView):
         success_url = "@tickets.ticket_list"
 
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
-            return kwargs
-
-        def form_invalid(self, form):  # pragma: needs cover
-            if "_format" in self.request.GET and self.request.GET["_format"] == "json":
-                return HttpResponse(
-                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
-                )
-            else:
-                return super().form_invalid(form)
-
         def form_valid(self, form):
-            user = self.request.user
             org = self.request.org
+            user = self.request.user
 
             # is there already an export taking place?
             existing = ExportTicketsTask.get_recent_unfinished(org)
@@ -442,8 +423,9 @@ class TicketCRUDL(SmartCRUDL):
                     f"You must wait for that export to complete before starting another.",
                 )
             else:
-                # generate the export
-                export = ExportTicketsTask.create(org, user)
+                start_date = form.cleaned_data["start_date"]
+                end_date = form.cleaned_data["end_date"]
+                export = ExportTicketsTask.create(org, user, start_date, end_date)
 
                 # schedule the export job
                 on_transaction_commit(lambda: export_tickets_task.delay(export.pk))
@@ -461,12 +443,9 @@ class TicketCRUDL(SmartCRUDL):
                         f"Export complete, you can find it here: {dl_url} (production users will get an email)",
                     )
 
-            if "HTTP_X_PJAX" not in self.request.META:
-                return HttpResponseRedirect(self.get_success_url())
-            else:  # pragma: no cover
-                response = self.render_modal_response(form)
-                response["REDIRECT"] = self.get_success_url()
-                return response
+            response = self.render_modal_response(form)
+            response["REDIRECT"] = self.get_success_url()
+            return response
 
 
 class TicketerCRUDL(SmartCRUDL):
