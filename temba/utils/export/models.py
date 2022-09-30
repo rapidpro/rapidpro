@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 
 class BaseExportAssetStore(BaseAssetStore):
     def is_asset_ready(self, asset):
-        return asset.status == BaseExportTask.STATUS_COMPLETE
+        return asset.status == BaseExport.STATUS_COMPLETE
 
 
-class BaseExportTask(TembaUUIDMixin, SmartModel):
+class BaseExport(TembaUUIDMixin, SmartModel):
     """
     Base class for export task models, i.e. contacts, messages and flow results
     """
@@ -159,7 +159,7 @@ class BaseExportTask(TembaUUIDMixin, SmartModel):
         abstract = True
 
 
-class BaseDateRangeExport(BaseExportTask):
+class BaseDateRangeExport(BaseExport):
     """
     Base export class for exports that have a date range.
     """
@@ -181,9 +181,9 @@ class BaseDateRangeExport(BaseExportTask):
         abstract = True
 
 
-class BaseWithContactExport(BaseDateRangeExport):
+class BaseItemWithContactExport(BaseDateRangeExport):
     """
-    Base export class for exports that are thing with an associated contact.
+    Base export class for exports that are an item with an associated contact.
     """
 
     def _get_contact_headers(self) -> list:
@@ -261,7 +261,7 @@ class TableExporter:
         Writes the passed in row to our exporter, taking care of creating new sheets if necessary
         """
         # time for a new sheet? do it
-        if self.sheet_row > BaseExportTask.MAX_EXCEL_ROWS:
+        if self.sheet_row > BaseExport.MAX_EXCEL_ROWS:
             self._add_sheet()
 
         self.sheet.append_row(*values)

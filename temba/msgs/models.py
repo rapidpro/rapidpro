@@ -28,7 +28,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
-from temba.utils.export import BaseExportAssetStore, BaseWithContactExport
+from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import clean_string
@@ -1205,7 +1205,7 @@ class MsgIterator:
         return next(self._generator)
 
 
-class ExportMessagesTask(BaseWithContactExport):
+class ExportMessagesTask(BaseItemWithContactExport):
     """
     Wrapper for handling exports of raw messages. This will export all selected messages in
     an Excel spreadsheet, adding sheets as necessary to fall within the guidelines of Excel 97

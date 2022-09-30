@@ -33,7 +33,7 @@ from temba.orgs.models import DependencyMixin, Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
-from temba.utils.export import BaseExportAssetStore, BaseWithContactExport
+from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
 from temba.utils.models import JSONAsTextField, JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
@@ -1668,7 +1668,7 @@ class FlowRunCount(SquashableModel):
         index_together = ("flow", "exit_type")
 
 
-class ExportFlowResultsTask(BaseWithContactExport):
+class ExportFlowResultsTask(BaseItemWithContactExport):
     """
     Container for managing our export requests
     """

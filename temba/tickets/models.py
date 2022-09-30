@@ -19,7 +19,7 @@ from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org, User, UserSettings
 from temba.utils import chunk_list
 from temba.utils.dates import date_range
-from temba.utils.export import BaseExportAssetStore, BaseWithContactExport, TableExporter
+from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport, TableExporter
 from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
@@ -633,7 +633,7 @@ def export_ticket_stats(org: Org, since: date, until: date) -> openpyxl.Workbook
     return workbook
 
 
-class ExportTicketsTask(BaseWithContactExport):
+class ExportTicketsTask(BaseItemWithContactExport):
     analytics_key = "ticket_export"
     notification_export_type = "ticket"
 
