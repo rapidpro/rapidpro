@@ -71,8 +71,6 @@ class VonageClient:
 
         if app_id:
             params["app_id"] = app_id
-            params["voiceCallbackType"] = "tel"
-            params["voiceCallbackValue"] = number
 
         self._with_retry(self.base.update_number, params=params)
 
