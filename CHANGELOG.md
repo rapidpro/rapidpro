@@ -1,3 +1,11 @@
+v7.5.59
+----------
+ * Delete attachments from storage when deleting messages
+ * Add base export class for exports with contact data
+ * Actually make date range required for message exports (currently just required in UI))
+ * Add date range filtering to ticket and results exports
+ * Add ticket export (only in new UI for now)
+
 v7.5.58
 ----------
  * Add twilio and vonage connection formax entries in new UI
