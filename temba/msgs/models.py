@@ -6,6 +6,7 @@ import time
 from array import array
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
+from urllib.parse import unquote, urlparse
 
 import iso8601
 import pytz
@@ -14,6 +15,7 @@ from xlsxlite.writer import XLSXBook
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
+from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.db.models import Prefetch, Q, Sum
@@ -404,6 +406,10 @@ class Attachment:
     def parse_all(cls, attachments):
         return [cls.parse(s) for s in attachments] if attachments else []
 
+    def delete(self):
+        parsed = urlparse(self.url)
+        default_storage.delete(unquote(parsed.path))
+
     def as_json(self):
         return {"content_type": self.content_type, "url": self.url}
 
@@ -774,6 +780,13 @@ class Msg(models.Model):
         Deletes this message. This can be soft if messages are being deleted from the UI, or hard in the case of
         contact or org removal.
         """
+
+        assert not soft or self.direction == Msg.DIRECTION_IN, "only incoming messages can be soft deleted"
+
+        if self.direction == Msg.DIRECTION_IN:
+            for attachment in self.get_attachments():
+                attachment.delete()
+
         if soft:
             self.labels.clear()
 
