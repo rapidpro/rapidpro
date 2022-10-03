@@ -1,3 +1,9 @@
+v7.5.61
+----------
+ * Fix claiming vonage channels for voice
+ * Better approach for page titles from the menu
+ * Fix layout for ticket menu in new ui
+
 v7.5.60
 ----------
  * Fix the flow results export modal
