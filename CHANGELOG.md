@@ -1,3 +1,7 @@
+v7.5.60
+----------
+ * Fix the flow results export modal
+
 v7.5.59
 ----------
  * Delete attachments from storage when deleting messages
