@@ -70,7 +70,6 @@ class InboxView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Smar
     paginate_by = 100
     default_order = ("-created_on", "-id")
     allow_export = False
-    show_channel_logs = False
     bulk_actions = ()
     bulk_action_permissions = {"resend": "msgs.broadcast_send", "delete": "msgs.msg_update"}
 
@@ -98,9 +97,6 @@ class InboxView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Smar
             distinct_on = (f.lstrip("-") for f in self.derive_ordering())
 
             qs = qs.filter(created_on__gte=last_90).distinct(*distinct_on)
-
-        if self.show_channel_logs:
-            qs = qs.prefetch_related("channel_logs")
 
         return qs
 
@@ -147,7 +143,6 @@ class InboxView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Smar
         )
         context["current_label"] = label
         context["export_url"] = self.derive_export_url()
-        context["show_channel_logs"] = self.show_channel_logs
         context["start_date"] = org.get_delete_date(archive_type=Archive.TYPE_MSG)
 
         # if refresh was passed in, increase it by our normal refresh time
@@ -740,7 +735,6 @@ class MsgCRUDL(SmartCRUDL):
         system_label = SystemLabel.TYPE_OUTBOX
         bulk_actions = ()
         allow_export = True
-        show_channel_logs = True
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -767,7 +761,6 @@ class MsgCRUDL(SmartCRUDL):
         system_label = SystemLabel.TYPE_SENT
         bulk_actions = ()
         allow_export = True
-        show_channel_logs = True
         default_order = ("-sent_on", "-id")
 
         def get_queryset(self, **kwargs):
@@ -779,7 +772,6 @@ class MsgCRUDL(SmartCRUDL):
         success_message = ""
         system_label = SystemLabel.TYPE_FAILED
         allow_export = True
-        show_channel_logs = True
 
         def get_bulk_actions(self):
             return () if self.request.org.is_suspended else ("resend",)

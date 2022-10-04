@@ -1,5 +1,5 @@
 -extends "msgs/message_box.haml"
--load smartmin sms temba compress contacts i18n humanize
+-load smartmin sms temba compress contacts i18n humanize channels
 
 -block spa-title
   #title-text
@@ -56,9 +56,7 @@
                     -block message_time
                       {% short_datetime object.created_on %}
 
-                  -if show_channel_logs and not user_org.is_anon or user.is_staff
-                    .inline-block.text-gray-400.linked.ml-3
-                      {% channel_log_link object %}
+                  {% channel_log_link object %}
 
           -if not object_list
             %tr.empty_list
