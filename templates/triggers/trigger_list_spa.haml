@@ -1,11 +1,13 @@
 -extends "smartmin/list.html"
 -load smartmin sms temba compress humanize i18n
 
--block page-title
-  {{ title }}
--block page-top
+        
+-block spa-title
+  #title-text
+
 -block content
 
+  // legacy requirement for bulk actions
   .page-title
 
   %form#search-form.mb-4(method="get")

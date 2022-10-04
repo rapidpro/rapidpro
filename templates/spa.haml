@@ -27,6 +27,7 @@
 
 
 -block page-header
+
   -if title or content_menu_buttons or content_menu_links
     .spa-title.no-menu.flex.items-center.mb-4
       .text-container.text-2xl.text-gray-700
@@ -38,9 +39,10 @@
         .h-0.border.border-gray-200
       
       -if content_menu_buttons or content_menu_links
-        -include "spa_page_menu.haml"
+        .over-everything(style="z-index:9000")
+          -include "spa_page_menu.haml"
 
-  -block subtitle
+    -block subtitle
 
 -block alert-messages
   -if user_org.is_suspended

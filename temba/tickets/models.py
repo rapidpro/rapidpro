@@ -354,6 +354,7 @@ class TicketFolder(metaclass=ABCMeta):
     slug = None
     name = None
     icon = None
+    verbose_name = None
 
     def get_queryset(self, org, user, ordered):
         qs = Ticket.objects.filter(org=org)
@@ -392,6 +393,7 @@ class UnassignedFolder(TicketFolder):
 
     slug = "unassigned"
     name = _("Unassigned")
+    verbose_name = _("Unassigned Tickets")
     icon = "mail"
 
     def get_queryset(self, org, user, ordered):
@@ -405,6 +407,7 @@ class AllFolder(TicketFolder):
 
     slug = "all"
     name = _("All")
+    verbose_name = _("All Tickets")
     icon = "archive"
 
     def get_queryset(self, org, user, ordered):

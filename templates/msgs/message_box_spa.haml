@@ -1,11 +1,15 @@
 -extends "msgs/message_box.haml"
 -load smartmin sms temba compress contacts i18n humanize
 
+-block spa-title
+  #title-text
+
 -block content
 
-  %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
-
+  // legacy requirement for bulk actions
   .page-title
+
+  %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
 
   .flex
     .flex-grow.self-end.items-end

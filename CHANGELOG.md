@@ -1,3 +1,25 @@
+v7.5.62
+----------
+ * Add attachment_fetch as new channel log type
+
+v7.5.61
+----------
+ * Fix claiming vonage channels for voice
+ * Better approach for page titles from the menu
+ * Fix layout for ticket menu in new ui
+
+v7.5.60
+----------
+ * Fix the flow results export modal
+
+v7.5.59
+----------
+ * Delete attachments from storage when deleting messages
+ * Add base export class for exports with contact data
+ * Actually make date range required for message exports (currently just required in UI))
+ * Add date range filtering to ticket and results exports
+ * Add ticket export (only in new UI for now)
+
 v7.5.58
 ----------
  * Add twilio and vonage connection formax entries in new UI

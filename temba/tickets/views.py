@@ -16,7 +16,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
@@ -174,8 +174,8 @@ class TicketCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
 
-    class Menu(OrgPermsMixin, SmartTemplateView):
-        def render_to_response(self, context, **response_kwargs):
+    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
+        def derive_menu(self):
             org = self.request.org
             user = self.request.user
             count_by_assignee = TicketCount.get_by_assignees(org, [None, user], Ticket.STATUS_OPEN)
@@ -191,11 +191,12 @@ class TicketCRUDL(SmartCRUDL):
                     {
                         "id": folder.slug,
                         "name": folder.name,
+                        "verbose_name": folder.verbose_name,
                         "icon": folder.icon,
                         "count": counts[folder.slug],
                     }
                 )
-            return JsonResponse({"results": menu})
+            return menu
 
     class Folder(OrgPermsMixin, SmartTemplateView):
         permission = "tickets.ticket_list"

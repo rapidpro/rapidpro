@@ -619,23 +619,29 @@
       }
     }
 
-    function updatePageTitle() {
-      var spaTitle = document.querySelector(".spa-title .title-text");
-      if (spaTitle) {
-        spaTitle = spaTitle.innerText;
+    function updatePageTitle(force) {
+
+      var spaTitle = "";
+      var titleDiv = document.querySelector(".spa-title #title-text");
+      if (titleDiv && titleDiv.innerText) {
+        spaTitle = titleDiv.innerText.trim();
       }
-      
-      if (!spaTitle) {
+
+      if (!spaTitle || force) {
         var menu = document.querySelector("temba-menu");
         if (menu) {
           var item = menu.getMenuItem();
-
           if (item) {
-            spaTitle = item.name;
+            spaTitle = item.verbose_name || item.name;
           }
+        }
+
+        if (spaTitle && titleDiv) {
+          titleDiv.innerText = spaTitle;
         }
       }
 
+      // try and set our window title
       document.title = spaTitle || "";
     }
 
@@ -658,7 +664,6 @@
       
       updatePageTitle();
       var menu = document.querySelector("temba-menu");
-      // menu.refresh();
 
       document.querySelectorAll(".posterize").forEach(function(ele){
         ele.addEventListener("click", function(){ 
@@ -744,8 +749,10 @@
     }
    
     function handleMenuChanged(event) {
+
       var selection = event.target.getSelection();
       var menuItem = event.target.getMenuItem();
+
       var body = document.querySelector(".spa-content");
       if (menuItem && menuItem.href) {
         var menu = document.querySelector("temba-menu");
@@ -757,9 +764,8 @@
       if (selection.length > 1) {
         var section = selection[0];
         var name = `handle${section.charAt(0).toUpperCase()}${section.slice(1)}MenuChanged`;
-        var fn = window[name];
-        if (fn) {
-          fn(event);
+        if (this[name]) {
+          this[name](event);
         }
       }
     }
