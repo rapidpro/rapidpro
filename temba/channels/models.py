@@ -1189,6 +1189,7 @@ class ChannelLog(models.Model):
     LOG_TYPE_IVR_CALLBACK = "ivr_callback"
     LOG_TYPE_IVR_STATUS = "ivr_status"
     LOG_TYPE_IVR_HANGUP = "ivr_hangup"
+    LOG_TYPE_ATTACHMENT_FETCH = "attachment_fetch"
     LOG_TYPE_TOKEN_REFRESH = "token_refresh"
     LOG_TYPE_PAGE_SUBSCRIBE = "page_subscribe"
     LOG_TYPE_CHOICES = (
@@ -1202,6 +1203,7 @@ class ChannelLog(models.Model):
         (LOG_TYPE_IVR_CALLBACK, _("IVR Callback")),
         (LOG_TYPE_IVR_STATUS, _("IVR Status")),
         (LOG_TYPE_IVR_HANGUP, _("IVR Hangup")),
+        (LOG_TYPE_ATTACHMENT_FETCH, _("Attachment Fetch")),
         (LOG_TYPE_TOKEN_REFRESH, _("Token Refresh")),
         (LOG_TYPE_PAGE_SUBSCRIBE, _("Page Subscribe")),
     )
@@ -1218,11 +1220,6 @@ class ChannelLog(models.Model):
     is_error = models.BooleanField(default=False)
     elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
-
-    # TODO: drop
-    connection = models.ForeignKey(
-        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="channel_logs", null=True
-    )
 
     @classmethod
     def from_response(cls, log_type, channel, response, created_on, ended_on, is_error=None):
