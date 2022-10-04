@@ -16,16 +16,22 @@ def channel_icon(channel):
     return channel.type.icon
 
 
-@register.inclusion_tag("channels/tags/channel_log_link.haml")
-def channel_log_link(obj):
-    obj_age = timezone.now() - obj.created_on
-    has_logs = obj_age < (settings.RETENTION_PERIODS["channellog"] - timedelta(hours=4))
+@register.inclusion_tag("channels/tags/channel_log_link.haml", takes_context=True)
+def channel_log_link(context, obj):
+    assert isinstance(obj, (Msg, Call)), "tag only supports Msg or Call instances"
 
-    if has_logs and isinstance(obj, Call):
-        logs_url = reverse("channels.channellog_call", args=[obj.channel.uuid, obj.id])
-    elif has_logs and isinstance(obj, Msg):
-        logs_url = reverse("channels.channellog_msg", args=[obj.channel.uuid, obj.id])
-    else:
-        logs_url = None
+    user = context["user"]
+    org = context["user_org"]
+    logs_url = None
+
+    if user.has_org_perm(org, "channels.channellog_read"):
+        obj_age = timezone.now() - obj.created_on
+        has_logs = obj_age < (settings.RETENTION_PERIODS["channellog"] - timedelta(hours=4))
+
+        if has_logs:
+            if isinstance(obj, Call):
+                logs_url = reverse("channels.channellog_call", args=[obj.channel.uuid, obj.id])
+            if isinstance(obj, Msg):
+                logs_url = reverse("channels.channellog_msg", args=[obj.channel.uuid, obj.id])
 
     return {"logs_url": logs_url}
