@@ -1,3 +1,7 @@
+v7.5.62
+----------
+ * Add attachment_fetch as new channel log type
+
 v7.5.61
 ----------
  * Fix claiming vonage channels for voice
