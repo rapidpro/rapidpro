@@ -1,3 +1,8 @@
+v7.5.64
+----------
+ * Add an unlinked call list page
+ * Show channel log links on more pages to more users
+
 v7.5.63
 ----------
  * Fix handling of relayer messages
