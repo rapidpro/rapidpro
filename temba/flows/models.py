@@ -33,7 +33,7 @@ from temba.orgs.models import DependencyMixin, Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
-from temba.utils.export import BaseExportAssetStore, BaseExportTask
+from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
 from temba.utils.models import JSONAsTextField, JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
@@ -1668,7 +1668,7 @@ class FlowRunCount(SquashableModel):
         index_together = ("flow", "exit_type")
 
 
-class ExportFlowResultsTask(BaseExportTask):
+class ExportFlowResultsTask(BaseItemWithContactExport):
     """
     Container for managing our export requests
     """
@@ -1680,17 +1680,22 @@ class ExportFlowResultsTask(BaseExportTask):
     GROUP_MEMBERSHIPS = "group_memberships"
     RESPONDED_ONLY = "responded_only"
     EXTRA_URNS = "extra_urns"
-    FLOWS = "flows"
 
     MAX_GROUP_MEMBERSHIPS_COLS = 25
     MAX_CONTACT_FIELDS_COLS = 10
 
     flows = models.ManyToManyField(Flow, related_name="exports", help_text=_("The flows to export"))
 
+    # TODO backfill, for now overridden from base class to make nullable
+    start_date = models.DateField(null=True)
+    end_date = models.DateField(null=True)
+
     config = JSONAsTextField(null=True, default=dict, help_text=_("Any configuration options for this flow export"))
 
     @classmethod
-    def create(cls, org, user, flows, contact_fields, responded_only, extra_urns, group_memberships):
+    def create(
+        cls, org, user, start_date, end_date, flows, contact_fields, responded_only, extra_urns, group_memberships
+    ):
         config = {
             ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
             ExportFlowResultsTask.RESPONDED_ONLY: responded_only,
@@ -1698,7 +1703,9 @@ class ExportFlowResultsTask(BaseExportTask):
             ExportFlowResultsTask.GROUP_MEMBERSHIPS: [g.id for g in group_memberships],
         }
 
-        export = cls.objects.create(org=org, created_by=user, modified_by=user, config=config)
+        export = cls.objects.create(
+            org=org, created_by=user, start_date=start_date, end_date=end_date, modified_by=user, config=config
+        )
         for flow in flows:
             export.flows.add(flow)
 
@@ -1710,17 +1717,10 @@ class ExportFlowResultsTask(BaseExportTask):
         if show_submitted_by:
             columns.append("Submitted By")
 
-        columns.append("Contact UUID")
-        if self.org.is_anon:
-            columns.append("ID")
-            columns.append("Scheme")
-        else:
-            columns.append("URN")
+        columns += self._get_contact_headers()
 
         for extra_urn in extra_urn_columns:
             columns.append(extra_urn["label"])
-
-        columns.append("Name")
 
         for gr in groups:
             columns.append("Group:%s" % gr.name)
@@ -1798,8 +1798,9 @@ class ExportFlowResultsTask(BaseExportTask):
         total_runs_exported = 0
         temp_runs_exported = 0
         start = time.time()
+        start_date, end_date = self._get_date_range()
 
-        for batch in self._get_run_batches(flows, responded_only):
+        for batch in self._get_run_batches(start_date, end_date, flows, responded_only):
             self._write_runs(
                 book,
                 batch,
@@ -1829,7 +1830,7 @@ class ExportFlowResultsTask(BaseExportTask):
         temp.flush()
         return temp, "xlsx"
 
-    def _get_run_batches(self, flows, responded_only):
+    def _get_run_batches(self, start_date, end_date, flows, responded_only: bool):
         logger.info(f"Results export #{self.id} for org #{self.org.id}: fetching runs from archives to export...")
 
         # firstly get runs from archives
@@ -1845,7 +1846,9 @@ class ExportFlowResultsTask(BaseExportTask):
         where = {"flow__uuid__in": flow_uuids}
         if responded_only:
             where["responded"] = True
-        records = Archive.iter_all_records(self.org, Archive.TYPE_FLOWRUN, after=earliest_created_on, where=where)
+        records = Archive.iter_all_records(
+            self.org, Archive.TYPE_FLOWRUN, after=max(earliest_created_on, start_date), before=end_date, where=where
+        )
         seen = set()
 
         for record_batch in chunk_list(records, 1000):
@@ -1856,7 +1859,11 @@ class ExportFlowResultsTask(BaseExportTask):
             yield matching
 
         # secondly get runs from database
-        runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on").using("readonly")
+        runs = (
+            FlowRun.objects.filter(created_on__gte=start_date, created_on__lte=end_date, flow__in=flows)
+            .order_by("modified_on")
+            .using("readonly")
+        )
         if responded_only:
             runs = runs.filter(responded=True)
         run_ids = array(str("l"), runs.values_list("id", flat=True))
@@ -1908,20 +1915,12 @@ class ExportFlowResultsTask(BaseExportTask):
                 results_by_key = {key: result for key, result in run_values.items()}
 
             # generate contact info columns
-            contact_values = [contact.uuid]
-
-            if self.org.is_anon:
-                contact_urns = contact.get_urns()
-                contact_values.append(f"{contact.id:010d}")
-                contact_values.append(contact_urns[0].scheme if contact_urns else "")
-            else:
-                contact_values.append(contact.get_urn_display(org=self.org, formatted=False))
+            contact_values = [self.prepare_value(c) for c in self._get_contact_columns(contact)]
 
             for extra_urn_column in extra_urn_columns:
                 urn_display = contact.get_urn_display(org=self.org, formatted=False, scheme=extra_urn_column["scheme"])
                 contact_values.append(urn_display)
 
-            contact_values.append(self.prepare_value(contact.name))
             contact_groups_ids = [g.id for g in contact.groups.all()]
             for gr in groups:
                 contact_values.append(gr.id in contact_groups_ids)

@@ -727,7 +727,8 @@ class ExportTest(TembaTest):
     def test_prepare_value(self):
         self.assertEqual(self.task.prepare_value(None), "")
         self.assertEqual(self.task.prepare_value("=()"), "'=()")  # escape formulas
-        self.assertEqual(self.task.prepare_value(123), "123")
+        self.assertEqual(self.task.prepare_value(123), 123)
+        self.assertEqual(self.task.prepare_value(123.5), 123.5)
         self.assertEqual(self.task.prepare_value(True), True)
         self.assertEqual(self.task.prepare_value(False), False)
 
@@ -754,7 +755,7 @@ class ExportTest(TembaTest):
 
             self.assertEqual(task2.status, ExportContactsTask.STATUS_FAILED)
 
-    @patch("temba.utils.export.BaseExportTask.MAX_EXCEL_ROWS", new_callable=PropertyMock)
+    @patch("temba.utils.export.BaseExport.MAX_EXCEL_ROWS", new_callable=PropertyMock)
     def test_tableexporter_xls(self, mock_max_rows):
         test_max_rows = 1500
         mock_max_rows.return_value = test_max_rows

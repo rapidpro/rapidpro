@@ -10,7 +10,6 @@ from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
     SmartDeleteView,
-    SmartFormView,
     SmartListView,
     SmartReadView,
     SmartTemplateView,
@@ -51,6 +50,7 @@ from temba.orgs.views import (
 )
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
+from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
     CheckboxWidget,
     ContactSearchWidget,
@@ -228,8 +228,16 @@ class FlowCRUDL(SmartCRUDL):
             labels = FlowLabel.objects.filter(org=self.request.org, parent=None).order_by("name")
 
             menu = []
-            menu.append(self.create_menu_item(name=_("Active"), icon="flow", href="flows.flow_list"))
-            menu.append(self.create_menu_item(name=_("Archived"), icon="archive", href="flows.flow_archived"))
+            menu.append(
+                self.create_menu_item(
+                    name=_("Active"), verbose_name=_("Active Flows"), icon="flow", href="flows.flow_list"
+                )
+            )
+            menu.append(
+                self.create_menu_item(
+                    name=_("Archived"), verbose_name=_("Archived Flows"), icon="archive", href="flows.flow_archived"
+                )
+            )
 
             label_items = []
             for label in labels:
@@ -1265,8 +1273,8 @@ class FlowCRUDL(SmartCRUDL):
         def derive_initial(self):
             return {"language": self.po_info.language_code if self.po_info else ""}
 
-    class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
-        class ExportForm(forms.Form):
+    class ExportResults(BaseExportView):
+        class Form(BaseExportView.Form):
             flows = forms.ModelMultipleChoiceField(
                 Flow.objects.filter(id__lt=0), required=True, widget=forms.MultipleHiddenInput()
             )
@@ -1305,17 +1313,15 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             def __init__(self, org, *args, **kwargs):
-                super().__init__(*args, **kwargs)
+                super().__init__(org, *args, **kwargs)
 
-                self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.user_fields.active_for_org(
-                    org=org
-                ).order_by(Lower("name"))
-
-                self.fields[ExportFlowResultsTask.GROUP_MEMBERSHIPS].queryset = ContactGroup.get_groups(
-                    org, ready_only=True
-                ).order_by(Lower("name"))
-
-                self.fields[ExportFlowResultsTask.FLOWS].queryset = Flow.objects.filter(org=org, is_active=True)
+                self.fields["contact_fields"].queryset = ContactField.user_fields.active_for_org(org=org).order_by(
+                    Lower("name")
+                )
+                self.fields["group_memberships"].queryset = ContactGroup.get_groups(org, ready_only=True).order_by(
+                    Lower("name")
+                )
+                self.fields["flows"].queryset = Flow.objects.filter(org=org, is_active=True)
 
             def clean(self):
                 cleaned_data = super().clean()
@@ -1344,21 +1350,17 @@ class FlowCRUDL(SmartCRUDL):
 
                 return cleaned_data
 
-        form_class = ExportForm
-        submit_button_name = _("Download")
+        form_class = Form
         success_url = "@flows.flow_list"
 
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
-
         def derive_initial(self):
+            initial = super().derive_initial()
+
             flow_ids = self.request.GET.get("ids", None)
             if flow_ids:  # pragma: needs cover
-                return {"flows": self.request.org.flows.filter(is_active=True, id__in=flow_ids.split(","))}
-            else:
-                return {}
+                initial["flows"] = self.request.org.flows.filter(is_active=True, id__in=flow_ids.split(","))
+
+            return initial
 
         def derive_exclude(self):
             return ["extra_urns"] if self.request.org.is_anon else []
@@ -1378,13 +1380,15 @@ class FlowCRUDL(SmartCRUDL):
                     ),
                 )
             else:
-                flows = form.cleaned_data[ExportFlowResultsTask.FLOWS]
+                flows = form.cleaned_data["flows"]
                 responded_only = form.cleaned_data[ExportFlowResultsTask.RESPONDED_ONLY]
 
                 export = ExportFlowResultsTask.create(
                     org,
                     user,
-                    flows,
+                    start_date=form.cleaned_data["start_date"],
+                    end_date=form.cleaned_data["end_date"],
+                    flows=flows,
                     contact_fields=form.cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS],
                     responded_only=responded_only,
                     extra_urns=form.cleaned_data.get(ExportFlowResultsTask.EXTRA_URNS, []),
@@ -1413,12 +1417,9 @@ class FlowCRUDL(SmartCRUDL):
                         _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
                     )
 
-            if "HTTP_X_PJAX" not in self.request.META:
-                return HttpResponseRedirect(self.get_success_url())
-            else:  # pragma: no cover
-                response = self.render_modal_response(form)
-                response["REDIRECT"] = self.get_success_url()
-                return response
+            response = self.render_modal_response(form)
+            response["REDIRECT"] = self.get_success_url()
+            return response
 
     class ActivityChart(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         """

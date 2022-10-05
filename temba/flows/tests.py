@@ -4005,6 +4005,8 @@ class ExportFlowResultsTest(TembaTest):
     def _export(
         self,
         flow,
+        start_date,
+        end_date,
         responded_only=False,
         contact_fields=None,
         extra_urns=(),
@@ -4017,6 +4019,8 @@ class ExportFlowResultsTest(TembaTest):
         self.login(self.admin)
 
         form = {
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
             "flows": [flow.id],
             "responded_only": responded_only,
             "extra_urns": extra_urns,
@@ -4033,7 +4037,7 @@ class ExportFlowResultsTest(TembaTest):
 
         with self.mockReadOnly(assert_models=readonly_models):
             response = self.client.post(reverse("flows.flow_export_results"), form)
-            self.assertEqual(response.status_code, 302)
+            self.assertModalResponse(response, redirect="/flow/")
 
         task = ExportFlowResultsTask.objects.order_by("-id").first()
         self.assertIsNotNone(task)
@@ -4043,6 +4047,9 @@ class ExportFlowResultsTest(TembaTest):
 
     @mock_mailroom
     def test_export_results(self, mr_mocks):
+        export_url = reverse("flows.flow_export_results")
+        today = timezone.now().astimezone(self.org.timezone).date()
+
         flow = self.get_flow("color_v13")
         flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
@@ -4147,8 +4154,8 @@ class ExportFlowResultsTest(TembaTest):
         ).session.runs.get()
 
         # check can't export anonymously
-        exported = self.client.get(reverse("flows.flow_export_results") + "?ids=%d" % flow.id)
-        self.assertEqual(302, exported.status_code)
+        response = self.client.get(export_url + "?ids=%d" % flow.id)
+        self.assertLoginRedirect(response)
 
         self.login(self.admin)
 
@@ -4157,8 +4164,12 @@ class ExportFlowResultsTest(TembaTest):
             org=self.org, created_by=self.admin, modified_by=self.admin
         )
         response = self.client.post(
-            reverse("flows.flow_export_results"), {"flows": [flow.id], "group_memberships": [devs.id]}, follow=True
+            reverse("flows.flow_export_results"),
+            {"start_date": "2022-09-01", "end_date": "2022-09-28", "flows": [flow.id], "group_memberships": [devs.id]},
         )
+        self.assertModalResponse(response, redirect="/flow/")
+
+        response = self.client.get("/flow/")
         self.assertContains(response, "already an export in progress")
 
         # ok, mark that one as finished and try again
@@ -4167,6 +4178,19 @@ class ExportFlowResultsTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
+        # try to submit without specifying dates (UI doesn't actually allow this)
+        response = self.client.post(export_url, {})
+        self.assertFormError(response, "form", "start_date", "This field is required.")
+        self.assertFormError(response, "form", "end_date", "This field is required.")
+
+        # try to submit with start date in future
+        response = self.client.post(export_url, {"start_date": "2200-01-01", "end_date": "2022-09-28"})
+        self.assertFormError(response, "form", "__all__", "Start date can't be in the future.")
+
+        # try to submit with start date > end date
+        response = self.client.post(export_url, {"start_date": "2022-09-01", "end_date": "2022-03-01"})
+        self.assertFormError(response, "form", "__all__", "End date can't be before start date.")
+
         with self.assertLogs("temba.flows.models", level="INFO") as captured_logger:
             with patch(
                 "temba.flows.models.ExportFlowResultsTask.LOG_PROGRESS_PER_ROWS", new_callable=PropertyMock
@@ -4174,8 +4198,13 @@ class ExportFlowResultsTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
-                with self.assertNumQueries(43):
-                    workbook = self._export(flow, group_memberships=[devs])
+                with self.assertNumQueries(47):
+                    workbook = self._export(
+                        flow,
+                        start_date=today - timedelta(days=7),
+                        end_date=today,
+                        group_memberships=[devs],
+                    )
 
                 self.assertEqual(len(captured_logger.output), 3)
                 self.assertTrue("fetching runs from archives to export" in captured_logger.output[0])
@@ -4194,15 +4223,16 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
-        self.assertEqual(11, len(list(sheet_runs.columns)))
+        self.assertEqual(12, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
             0,
             [
                 "Contact UUID",
-                "URN",
-                "Name",
+                "Contact Name",
+                "URN Scheme",
+                "URN Value",
                 "Group:Devs",
                 "Started",
                 "Modified",
@@ -4219,8 +4249,9 @@ class ExportFlowResultsTest(TembaTest):
             1,
             [
                 contact3_run1.contact.uuid,
-                "+250788123456",
                 "Norbert",
+                "tel",
+                "+250788123456",
                 False,
                 contact3_run1.created_on,
                 contact3_run1.modified_on,
@@ -4238,8 +4269,9 @@ class ExportFlowResultsTest(TembaTest):
             2,
             [
                 contact1_run1.contact.uuid,
-                "+250788382382",
                 "Eric",
+                "tel",
+                "+250788382382",
                 True,
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
@@ -4257,8 +4289,9 @@ class ExportFlowResultsTest(TembaTest):
             3,
             [
                 contact2_run1.contact.uuid,
-                "+250788383383",
                 "Nic",
+                "tel",
+                "+250788383383",
                 False,
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
@@ -4276,8 +4309,9 @@ class ExportFlowResultsTest(TembaTest):
             4,
             [
                 contact2_run2.contact.uuid,
-                "+250788383383",
                 "Nic",
+                "tel",
+                "+250788383383",
                 False,
                 contact2_run2.created_on,
                 contact2_run2.modified_on,
@@ -4295,8 +4329,9 @@ class ExportFlowResultsTest(TembaTest):
             5,
             [
                 contact1_run2.contact.uuid,
-                "+250788382382",
                 "Eric",
+                "tel",
+                "+250788382382",
                 True,
                 contact1_run2.created_on,
                 contact1_run2.modified_on,
@@ -4310,22 +4345,29 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(41):
-            workbook = self._export(flow, responded_only=True, group_memberships=(devs,))
+        with self.assertNumQueries(45):
+            workbook = self._export(
+                flow,
+                start_date=today - timedelta(days=7),
+                end_date=today,
+                responded_only=True,
+                group_memberships=(devs,),
+            )
 
         tz = self.org.timezone
         sheet_runs = workbook.worksheets[0]
 
         self.assertEqual(4, len(list(sheet_runs.rows)))  # header + 3 runs
-        self.assertEqual(11, len(list(sheet_runs.columns)))
+        self.assertEqual(12, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
             0,
             [
                 "Contact UUID",
-                "URN",
-                "Name",
+                "Contact Name",
+                "URN Scheme",
+                "URN Value",
                 "Group:Devs",
                 "Started",
                 "Modified",
@@ -4342,8 +4384,9 @@ class ExportFlowResultsTest(TembaTest):
             1,
             [
                 contact1_run1.contact.uuid,
-                "+250788382382",
                 "Eric",
+                "tel",
+                "+250788382382",
                 True,
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
@@ -4361,8 +4404,9 @@ class ExportFlowResultsTest(TembaTest):
             2,
             [
                 contact2_run1.contact.uuid,
-                "+250788383383",
                 "Nic",
+                "tel",
+                "+250788383383",
                 False,
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
@@ -4376,9 +4420,11 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(47):
             workbook = self._export(
                 flow,
+                start_date=today - timedelta(days=7),
+                end_date=today,
                 responded_only=True,
                 contact_fields=[age],
                 extra_urns=["twitter", "line"],
@@ -4390,17 +4436,18 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(4, len(list(sheet_runs.rows)))  # header + 3 runs
-        self.assertEqual(14, len(list(sheet_runs.columns)))
+        self.assertEqual(15, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
             0,
             [
                 "Contact UUID",
-                "URN",
+                "Contact Name",
+                "URN Scheme",
+                "URN Value",
                 "URN:Twitter",
                 "URN:Line",
-                "Name",
                 "Group:Devs",
                 "Field:Age",
                 "Started",
@@ -4418,10 +4465,11 @@ class ExportFlowResultsTest(TembaTest):
             1,
             [
                 contact1_run1.contact.uuid,
+                "Eric",
+                "tel",
                 "+250788382382",
                 "erictweets",
                 "",
-                "Eric",
                 True,
                 "36",
                 contact1_run1.created_on,
@@ -4437,7 +4485,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # test that we don't exceed the limit on rows per sheet
         with patch("temba.flows.models.ExportFlowResultsTask.MAX_EXCEL_ROWS", 4):
-            workbook = self._export(flow)
+            workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
             expected_sheets = [("Runs", 4), ("Runs (2)", 3)]
 
             for s, sheet in enumerate(workbook.worksheets):
@@ -4447,15 +4495,18 @@ class ExportFlowResultsTest(TembaTest):
         flow.is_archived = True
         flow.save()
 
-        workbook = self._export(flow)
+        workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
 
         (sheet_runs,) = workbook.worksheets
 
         # check runs sheet...
         self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
-        self.assertEqual(10, len(list(sheet_runs.columns)))
+        self.assertEqual(11, len(list(sheet_runs.columns)))
 
     def test_anon_org(self):
+        export_url = reverse("flows.flow_export_results")
+        today = timezone.now().astimezone(self.org.timezone).date()
+
         with AnonymousOrg(self.org):
             flow = self.get_flow("color_v13")
             flow_nodes = flow.get_definition()["nodes"]
@@ -4479,13 +4530,13 @@ class ExportFlowResultsTest(TembaTest):
 
             # we don't show URNs field
             self.login(self.admin)
-            response = self.client.get(reverse("flows.flow_export_results"))
+            response = self.client.get(export_url)
             self.assertEqual(
-                ["flows", "group_memberships", "contact_fields", "responded_only", "loc"],
+                ["start_date", "end_date", "flows", "group_memberships", "contact_fields", "responded_only", "loc"],
                 list(response.context["form"].fields.keys()),
             )
 
-            workbook = self._export(flow)
+            workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
             self.assertEqual(1, len(workbook.worksheets))
             sheet_runs = workbook.worksheets[0]
             self.assertExcelRow(
@@ -4493,9 +4544,9 @@ class ExportFlowResultsTest(TembaTest):
                 0,
                 [
                     "Contact UUID",
-                    "ID",
-                    "Scheme",
-                    "Name",
+                    "Contact Name",
+                    "URN Scheme",
+                    "Anon Value",
                     "Started",
                     "Modified",
                     "Exited",
@@ -4511,9 +4562,9 @@ class ExportFlowResultsTest(TembaTest):
                 1,
                 [
                     self.contact.uuid,
-                    f"{self.contact.id:010d}",
-                    "tel",
                     "Eric",
+                    "tel",
+                    self.contact.anon_display,
                     run1.created_on,
                     run1.modified_on,
                     run1.exited_on,
@@ -4528,6 +4579,7 @@ class ExportFlowResultsTest(TembaTest):
     def test_broadcast_only_flow(self):
         flow = self.get_flow("send_only_v13")
         send_node = flow.get_definition()["nodes"][0]
+        today = timezone.now().astimezone(self.org.timezone).date()
 
         for contact in [self.contact, self.contact2, self.contact3]:
             (
@@ -4551,19 +4603,21 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(54):
-            workbook = self._export(flow)
+        with self.assertNumQueries(58):
+            workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
 
         tz = self.org.timezone
 
         (sheet_runs,) = workbook.worksheets
 
         # check runs sheet...
-        self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 7)
+        self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
+        self.assertEqual(8, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
-            sheet_runs, 0, ["Contact UUID", "URN", "Name", "Started", "Modified", "Exited", "Run UUID"]
+            sheet_runs,
+            0,
+            ["Contact UUID", "Contact Name", "URN Scheme", "URN Value", "Started", "Modified", "Exited", "Run UUID"],
         )
 
         self.assertExcelRow(
@@ -4571,8 +4625,9 @@ class ExportFlowResultsTest(TembaTest):
             1,
             [
                 contact1_run1.contact.uuid,
-                "+250788382382",
                 "Eric",
+                "tel",
+                "+250788382382",
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
@@ -4585,8 +4640,9 @@ class ExportFlowResultsTest(TembaTest):
             2,
             [
                 contact2_run1.contact.uuid,
-                "+250788383383",
                 "Nic",
+                "tel",
+                "+250788383383",
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
                 contact2_run1.exited_on,
@@ -4599,8 +4655,9 @@ class ExportFlowResultsTest(TembaTest):
             3,
             [
                 contact3_run1.contact.uuid,
-                "+250788123456",
                 "Norbert",
+                "tel",
+                "+250788123456",
                 contact3_run1.created_on,
                 contact3_run1.modified_on,
                 contact3_run1.exited_on,
@@ -4613,8 +4670,9 @@ class ExportFlowResultsTest(TembaTest):
             4,
             [
                 contact1_run2.contact.uuid,
-                "+250788382382",
                 "Eric",
+                "tel",
+                "+250788382382",
                 contact1_run2.created_on,
                 contact1_run2.modified_on,
                 contact1_run2.exited_on,
@@ -4627,8 +4685,9 @@ class ExportFlowResultsTest(TembaTest):
             5,
             [
                 contact2_run2.contact.uuid,
-                "+250788383383",
                 "Nic",
+                "tel",
+                "+250788383383",
                 contact2_run2.created_on,
                 contact2_run2.modified_on,
                 contact2_run2.exited_on,
@@ -4638,19 +4697,29 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(34):
-            workbook = self._export(flow, responded_only=True, has_results=False)
+        with self.assertNumQueries(38):
+            workbook = self._export(
+                flow,
+                start_date=today - timedelta(days=7),
+                end_date=today,
+                responded_only=True,
+                has_results=False,
+            )
 
         (sheet_runs,) = workbook.worksheets
 
-        self.assertEqual(len(list(sheet_runs.rows)), 1)  # header; no resposes to a broadcast only flow
-        self.assertEqual(len(list(sheet_runs.columns)), 7)
+        self.assertEqual(1, len(list(sheet_runs.rows)), 1)  # header; no resposes to a broadcast only flow
+        self.assertEqual(8, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
-            sheet_runs, 0, ["Contact UUID", "URN", "Name", "Started", "Modified", "Exited", "Run UUID"]
+            sheet_runs,
+            0,
+            ["Contact UUID", "Contact Name", "URN Scheme", "URN Value", "Started", "Modified", "Exited", "Run UUID"],
         )
 
     def test_replaced_rulesets(self):
+        today = timezone.now().astimezone(self.org.timezone).date()
+
         favorites = self.get_flow("favorites_v13")
         flow_json = favorites.get_definition()
         flow_nodes = flow_json["nodes"]
@@ -4747,7 +4816,9 @@ class ExportFlowResultsTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        workbook = self._export(favorites, group_memberships=[devs])
+        workbook = self._export(
+            favorites, start_date=today - timedelta(days=7), end_date=today, group_memberships=[devs]
+        )
 
         tz = self.org.timezone
 
@@ -4755,15 +4826,16 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
-        self.assertEqual(17, len(list(sheet_runs.columns)))
+        self.assertEqual(18, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
             0,
             [
                 "Contact UUID",
-                "URN",
-                "Name",
+                "Contact Name",
+                "URN Scheme",
+                "URN Value",
                 "Group:Devs",
                 "Started",
                 "Modified",
@@ -4786,8 +4858,9 @@ class ExportFlowResultsTest(TembaTest):
             1,
             [
                 contact3_run1.contact.uuid,
-                "+250788123456",
                 "Norbert",
+                "tel",
+                "+250788123456",
                 False,
                 contact3_run1.created_on,
                 contact3_run1.modified_on,
@@ -4811,8 +4884,9 @@ class ExportFlowResultsTest(TembaTest):
             2,
             [
                 contact1_run1.contact.uuid,
-                "+250788382382",
                 "Eric",
+                "tel",
+                "+250788382382",
                 True,
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
@@ -4836,8 +4910,9 @@ class ExportFlowResultsTest(TembaTest):
             3,
             [
                 contact2_run1.contact.uuid,
-                "+250788383383",
                 "Nic",
+                "tel",
+                "+250788383383",
                 False,
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
@@ -4861,8 +4936,9 @@ class ExportFlowResultsTest(TembaTest):
             4,
             [
                 contact2_run2.contact.uuid,
-                "+250788383383",
                 "Nic",
+                "tel",
+                "+250788383383",
                 False,
                 contact2_run2.created_on,
                 contact2_run2.modified_on,
@@ -4886,8 +4962,9 @@ class ExportFlowResultsTest(TembaTest):
             5,
             [
                 contact1_run2.contact.uuid,
-                "+250788382382",
                 "Eric",
+                "tel",
+                "+250788382382",
                 True,
                 contact1_run2.created_on,
                 contact1_run2.modified_on,
@@ -4907,6 +4984,8 @@ class ExportFlowResultsTest(TembaTest):
         )
 
     def test_remove_control_characters(self):
+        today = timezone.now().astimezone(self.org.timezone).date()
+
         flow = self.get_flow("color_v13")
         flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
@@ -4930,7 +5009,7 @@ class ExportFlowResultsTest(TembaTest):
             .save()
         ).session.runs.get()
 
-        workbook = self._export(flow)
+        workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
         tz = self.org.timezone
         (sheet_runs,) = workbook.worksheets
 
@@ -4939,8 +5018,9 @@ class ExportFlowResultsTest(TembaTest):
             1,
             [
                 run1.contact.uuid,
-                "+250788382382",
                 "Eric",
+                "tel",
+                "+250788382382",
                 run1.created_on,
                 run1.modified_on,
                 "",
@@ -4953,6 +5033,8 @@ class ExportFlowResultsTest(TembaTest):
         )
 
     def test_from_archives(self):
+        today = timezone.now().astimezone(self.org.timezone).date()
+
         flow = self.get_flow("color_v13")
         flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
@@ -5061,7 +5143,7 @@ class ExportFlowResultsTest(TembaTest):
         mock_s3.put_object("test-bucket", "archive2.jsonl.gz", body)
 
         with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = self._export(flow)
+            workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
 
         tz = self.org.timezone
         (sheet_runs,) = workbook.worksheets
@@ -5074,8 +5156,9 @@ class ExportFlowResultsTest(TembaTest):
             1,
             [
                 contact1_run.contact.uuid,
-                "+250788382382",
                 "Eric",
+                "tel",
+                "+250788382382",
                 contact1_run.created_on,
                 contact1_run.modified_on,
                 "",
@@ -5091,8 +5174,9 @@ class ExportFlowResultsTest(TembaTest):
             2,
             [
                 contact2_run.contact.uuid,
-                "+250788383383",
                 "Nic",
+                "tel",
+                "+250788383383",
                 contact2_run.created_on,
                 contact2_run.modified_on,
                 contact2_run.exited_on,
@@ -5108,8 +5192,9 @@ class ExportFlowResultsTest(TembaTest):
             3,
             [
                 contact3_run.contact.uuid,
-                "+250788123456",
                 "Norbert",
+                "tel",
+                "+250788123456",
                 contact3_run.created_on,
                 contact3_run.modified_on,
                 "",
@@ -5122,6 +5207,8 @@ class ExportFlowResultsTest(TembaTest):
         )
 
     def test_surveyor_msgs(self):
+        today = timezone.now().astimezone(self.org.timezone).date()
+
         flow = self.get_flow("color_v13")
         flow.flow_type = Flow.TYPE_SURVEY
         flow.save()
@@ -5146,7 +5233,7 @@ class ExportFlowResultsTest(TembaTest):
             .save()
         ).session.runs.get()
 
-        workbook = self._export(flow)
+        workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
         tz = self.org.timezone
 
         (sheet_runs,) = workbook.worksheets
@@ -5160,8 +5247,9 @@ class ExportFlowResultsTest(TembaTest):
             [
                 "",
                 run.contact.uuid,
-                "+250788382382",
                 "Eric",
+                "tel",
+                "+250788382382",
                 run.created_on,
                 run.modified_on,
                 run.exited_on,
@@ -5177,7 +5265,7 @@ class ExportFlowResultsTest(TembaTest):
         run.submitted_by = self.admin
         run.save(update_fields=("submitted_by",))
 
-        workbook = self._export(flow)
+        workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
         tz = self.org.timezone
 
         (sheet_runs,) = workbook.worksheets
@@ -5189,8 +5277,9 @@ class ExportFlowResultsTest(TembaTest):
             [
                 "admin@nyaruka.com",
                 run.contact.uuid,
-                "+250788382382",
                 "Eric",
+                "tel",
+                "+250788382382",
                 run.created_on,
                 run.modified_on,
                 run.exited_on,
@@ -5203,17 +5292,18 @@ class ExportFlowResultsTest(TembaTest):
         )
 
     def test_no_responses(self):
+        today = timezone.now().astimezone(self.org.timezone).date()
         flow = self.get_flow("color_v13")
 
         self.assertEqual(flow.get_run_stats()["total"], 0)
 
-        workbook = self._export(flow, has_results=False)
+        workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today, has_results=False)
 
         self.assertEqual(len(workbook.worksheets), 1)
 
         # every sheet has only the head row
-        self.assertEqual(len(list(workbook.worksheets[0].rows)), 1)
-        self.assertEqual(len(list(workbook.worksheets[0].columns)), 10)
+        self.assertEqual(1, len(list(workbook.worksheets[0].rows)))
+        self.assertEqual(11, len(list(workbook.worksheets[0].columns)))
 
 
 class FlowLabelTest(TembaTest):

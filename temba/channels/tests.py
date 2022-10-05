@@ -1807,8 +1807,6 @@ class ChannelCountTest(TembaTest):
         self.assertEqual(assert_count, calculated_count)
 
     def test_daily_counts(self):
-        self.admin.set_org(self.org)
-
         # no channel counts
         self.assertFalse(ChannelCount.objects.all())
 
@@ -1820,38 +1818,42 @@ class ChannelCountTest(TembaTest):
         self.assertFalse(ChannelCount.objects.all())
 
         # incoming msg with a channel
-        msg = self.create_incoming_msg(contact, "Test Message")
-        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+        msg1 = self.create_incoming_msg(contact, "Test Message")
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, msg1.created_on.date())
 
         # insert another
-        msg = self.create_incoming_msg(contact, "Test Message")
-        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+        msg2 = self.create_incoming_msg(contact, "Test Message")
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
 
         # squash our counts
         squash_channelcounts()
 
         # same count
-        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
 
         # and only one channel count
         self.assertEqual(ChannelCount.objects.all().count(), 1)
 
-        # deleting a message doesn't decrement the count
-        msg.delete()
-        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+        # soft deleting a message doesn't decrement the count
+        msg2.delete(soft=True)
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
+
+        # nor hard deleting
+        msg2.delete(soft=False)
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
 
         ChannelCount.objects.all().delete()
 
         # ok, test outgoing now
-        msg = self.create_outgoing_msg(contact, "Real Message", channel=self.channel)
+        msg3 = self.create_outgoing_msg(contact, "Real Message", channel=self.channel)
         log = ChannelLog.objects.create(
-            channel=self.channel, msg=msg, log_type=ChannelLog.LOG_TYPE_MSG_SEND, is_error=True
+            channel=self.channel, msg=msg3, log_type=ChannelLog.LOG_TYPE_MSG_SEND, is_error=True
         )
 
         # squash our counts
         squash_channelcounts()
 
-        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg3.created_on.date())
         self.assertEqual(ChannelCount.objects.filter(count_type=ChannelCount.SUCCESS_LOG_TYPE).count(), 0)
         self.assertEqual(ChannelCount.objects.filter(count_type=ChannelCount.ERROR_LOG_TYPE).count(), 1)
 
@@ -1860,27 +1862,24 @@ class ChannelCountTest(TembaTest):
         self.assertEqual(0, self.channel.get_count([ChannelCount.ERROR_LOG_TYPE]))
 
         # deleting a message doesn't decrement the count
-        msg.delete(soft=True)
-        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
-
-        msg.delete()
-        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
+        msg3.delete()
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg3.created_on.date())
 
         ChannelCount.objects.all().delete()
 
         # incoming IVR
-        msg = self.create_incoming_msg(contact, "Test Message", msg_type=Msg.TYPE_IVR)
-        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
-        msg.delete()
-        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
+        msg4 = self.create_incoming_msg(contact, "Test Message", msg_type=Msg.TYPE_IVR)
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg4.created_on.date())
+        msg4.delete()
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg4.created_on.date())
 
         ChannelCount.objects.all().delete()
 
         # outgoing ivr
-        msg = self.create_outgoing_msg(contact, "Real Voice", msg_type=Msg.TYPE_IVR)
-        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
-        msg.delete()
-        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
+        msg5 = self.create_outgoing_msg(contact, "Real Voice", msg_type=Msg.TYPE_IVR)
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg5.created_on.date())
+        msg5.delete()
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg5.created_on.date())
 
         with patch("temba.channels.tasks.track") as mock:
             self.create_incoming_msg(contact, "Test Message")

@@ -1,6 +1,6 @@
 import io
 import smtplib
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import urlencode
@@ -905,8 +905,10 @@ class OrgDeleteTest(TembaNonAtomicTest):
         export = ExportFlowResultsTask.create(
             self.parent_org,
             self.admin,
-            [parent_flow],
-            [parent_field],
+            start_date=date.today(),
+            end_date=date.today(),
+            flows=[parent_flow],
+            contact_fields=[parent_field],
             responded_only=True,
             extra_urns=(),
             group_memberships=(),
@@ -915,8 +917,10 @@ class OrgDeleteTest(TembaNonAtomicTest):
         ExportFlowResultsTask.create(
             self.child_org,
             self.admin,
-            [child_flow],
-            [child_field],
+            start_date=date.today(),
+            end_date=date.today(),
+            flows=[child_flow],
+            contact_fields=[child_field],
             responded_only=True,
             extra_urns=(),
             group_memberships=(),
@@ -926,9 +930,23 @@ class OrgDeleteTest(TembaNonAtomicTest):
         Notification.export_finished(export)
         ExportContactsTask.create(self.child_org, self.admin, group=child_group)
 
-        export = ExportMessagesTask.create(self.parent_org, self.admin, label=parent_label, groups=[parent_group])
+        export = ExportMessagesTask.create(
+            self.parent_org,
+            self.admin,
+            start_date=date.today(),
+            end_date=date.today(),
+            label=parent_label,
+            groups=[parent_group],
+        )
         Notification.export_finished(export)
-        ExportMessagesTask.create(self.child_org, self.admin, label=child_label, groups=[child_group])
+        ExportMessagesTask.create(
+            self.child_org,
+            self.admin,
+            start_date=date.today(),
+            end_date=date.today(),
+            label=child_label,
+            groups=[child_group],
+        )
 
         def create_archive(org, period, rollup=None):
             file = f"{org.id}/archive{Archive.objects.all().count()}.jsonl.gz"
