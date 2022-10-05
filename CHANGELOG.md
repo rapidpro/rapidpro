@@ -1,3 +1,8 @@
+v7.5.63
+----------
+ * Fix handling of relayer messages
+ * Add missing email templates for ticket exports
+
 v7.5.62
 ----------
  * Add attachment_fetch as new channel log type
