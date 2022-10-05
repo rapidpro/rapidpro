@@ -44,7 +44,8 @@ def queue_msg_handling(msg):
 
     msg_task = {
         "org_id": msg.org_id,
-        "channel_id": msg.channel_id,
+        "channel_uuid": str(msg.channel.uuid),
+        "channel_type": msg.channel.channel_type,
         "contact_id": msg.contact_id,
         "msg_id": msg.id,
         "msg_uuid": str(msg.uuid),
