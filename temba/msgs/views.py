@@ -705,7 +705,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            return qs.prefetch_related("labels").select_related("contact")
+            return qs.prefetch_related("labels").select_related("contact", "channel")
 
     class Flow(InboxView):
         title = _("Flow Messages")
@@ -716,7 +716,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            return qs.prefetch_related("labels").select_related("contact")
+            return qs.prefetch_related("labels").select_related("contact", "channel")
 
     class Archived(InboxView):
         title = _("Archived")
@@ -727,7 +727,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            return qs.prefetch_related("labels").select_related("contact")
+            return qs.prefetch_related("labels").select_related("contact", "channel")
 
     class Outbox(InboxView):
         title = _("Outbox Messages")
@@ -753,7 +753,7 @@ class MsgCRUDL(SmartCRUDL):
             return context
 
         def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).select_related("contact")
+            return super().get_queryset(**kwargs).select_related("contact", "channel")
 
     class Sent(InboxView):
         title = _("Sent Messages")
@@ -764,7 +764,7 @@ class MsgCRUDL(SmartCRUDL):
         default_order = ("-sent_on", "-id")
 
         def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).select_related("contact")
+            return super().get_queryset(**kwargs).select_related("contact", "channel")
 
     class Failed(InboxView):
         title = _("Failed Outgoing Messages")
@@ -777,7 +777,7 @@ class MsgCRUDL(SmartCRUDL):
             return () if self.request.org.is_suspended else ("resend",)
 
         def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).select_related("contact")
+            return super().get_queryset(**kwargs).select_related("contact", "channel")
 
     class Filter(InboxView):
         template_name = "msgs/msg_filter.haml"
@@ -828,7 +828,7 @@ class MsgCRUDL(SmartCRUDL):
             qs = super().get_queryset(**kwargs)
             qs = self.label.filter_messages(qs).filter(visibility=Msg.VISIBILITY_VISIBLE)
 
-            return qs.prefetch_related("labels").select_related("contact")
+            return qs.prefetch_related("labels").select_related("contact", "channel")
 
 
 class BaseLabelForm(forms.ModelForm):

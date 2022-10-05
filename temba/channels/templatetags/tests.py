@@ -15,6 +15,7 @@ class ChannelsTest(TembaTest):
         msg = self.create_incoming_msg(joe, "Hi")
         call = self.create_incoming_call(flow, joe)
         old_msg = self.create_incoming_msg(joe, "Hi", created_on=timezone.now() - timedelta(days=7))
+        surveyor_msg = self.create_incoming_msg(joe, "Submitted", surveyor=True)
 
         call_logs_url = f"/channels/{self.channel.uuid}/logs/call/{call.id}/"
         msg_logs_url = f"/channels/{self.channel.uuid}/logs/msg/{msg.id}/"
@@ -35,7 +36,10 @@ class ChannelsTest(TembaTest):
             {"logs_url": None}, channel_log_link(Context({"user_org": self.org, "user": self.editor}), msg)
         )
 
-        # no log link for older message
+        # no log link for channel-less messages or older messages
+        self.assertEqual(
+            {"logs_url": None}, channel_log_link(Context({"user_org": self.org, "user": self.admin}), surveyor_msg)
+        )
         self.assertEqual(
             {"logs_url": None}, channel_log_link(Context({"user_org": self.org, "user": self.admin}), old_msg)
         )
