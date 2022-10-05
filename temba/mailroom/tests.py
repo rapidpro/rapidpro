@@ -500,7 +500,8 @@ class MailroomQueueTest(TembaTest):
                 "org_id": self.org.id,
                 "task": {
                     "org_id": self.org.id,
-                    "channel_id": self.channel.id,
+                    "channel_uuid": str(self.channel.uuid),
+                    "channel_type": self.channel.channel_type,
                     "contact_id": msg.contact_id,
                     "msg_id": msg.id,
                     "msg_uuid": str(msg.uuid),
