@@ -887,6 +887,22 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.clear_storage()
 
+    def test_export_with_too_many_fields(self):
+        export_url = reverse("tickets.ticket_export")
+        today = timezone.now().astimezone(self.org.timezone).date()
+        too_many_fields = [self.create_field(f"Field {i}", f"field{i}") for i in range(11)]
+
+        self.login(self.admin)
+        response = self.client.post(
+            export_url,
+            {
+                "start_date": today - timedelta(days=7),
+                "end_date": today,
+                "with_fields": [cf.id for cf in too_many_fields],
+            },
+        )
+        self.assertFormError(response, "form", "__all__", "You can only include up to 10 fields in your export.")
+
     def _request_ticket_export(self, start_date: date, end_date: date, with_fields=()):
         export_url = reverse("tickets.ticket_export")
         self.client.post(
