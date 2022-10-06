@@ -186,6 +186,10 @@ class BaseItemWithContactExport(BaseDateRangeExport):
     Base export class for exports that are an item with an associated contact.
     """
 
+    MAX_FIELDS_COLS = 10
+
+    with_fields = models.ManyToManyField("contacts.ContactField", related_name="%(class)s_exports")
+
     def _get_contact_headers(self) -> list:
         """
         Gets the header values common to exports with contacts.
@@ -195,6 +199,9 @@ class BaseItemWithContactExport(BaseDateRangeExport):
             cols.append("Anon Value")
         else:
             cols.append("URN Value")
+
+        for cf in self.with_fields.all():
+            cols.append("Field:%s" % cf.name)
 
         return cols
 
@@ -218,6 +225,9 @@ class BaseItemWithContactExport(BaseDateRangeExport):
             cols.append(contact.anon_display)
         else:
             cols.append(urn_path)
+
+        for cf in self.with_fields.all():
+            cols.append(contact.get_field_display(cf))
 
         return cols
 

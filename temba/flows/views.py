@@ -33,7 +33,7 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.models import URN, ContactField, ContactGroup
+from temba.contacts.models import URN, ContactGroup
 from temba.contacts.search import SearchException, parse_query
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task, update_session_wait_expires
@@ -1286,15 +1286,6 @@ class FlowCRUDL(SmartCRUDL):
                 widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Group memberships")}),
             )
 
-            contact_fields = forms.ModelMultipleChoiceField(
-                ContactField.user_fields.filter(id__lt=0),
-                required=False,
-                label=_("Fields"),
-                widget=SelectMultipleWidget(
-                    attrs={"placeholder": _("Optional: Fields to include"), "searchable": True}
-                ),
-            )
-
             extra_urns = forms.MultipleChoiceField(
                 required=False,
                 label=_("URNs"),
@@ -1315,9 +1306,6 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, org, *args, **kwargs):
                 super().__init__(org, *args, **kwargs)
 
-                self.fields["contact_fields"].queryset = ContactField.user_fields.active_for_org(org=org).order_by(
-                    Lower("name")
-                )
                 self.fields["group_memberships"].queryset = ContactGroup.get_groups(org, ready_only=True).order_by(
                     Lower("name")
                 )
@@ -1325,17 +1313,6 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean(self):
                 cleaned_data = super().clean()
-
-                if (
-                    ExportFlowResultsTask.CONTACT_FIELDS in cleaned_data
-                    and len(cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS])
-                    > ExportFlowResultsTask.MAX_CONTACT_FIELDS_COLS
-                ):  # pragma: needs cover
-                    raise forms.ValidationError(
-                        _(
-                            f"You can only include up to {ExportFlowResultsTask.MAX_CONTACT_FIELDS_COLS} contact fields in your export"
-                        )
-                    )
 
                 if (
                     ExportFlowResultsTask.GROUP_MEMBERSHIPS in cleaned_data
@@ -1389,7 +1366,7 @@ class FlowCRUDL(SmartCRUDL):
                     start_date=form.cleaned_data["start_date"],
                     end_date=form.cleaned_data["end_date"],
                     flows=flows,
-                    contact_fields=form.cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS],
+                    with_fields=form.cleaned_data["with_fields"],
                     responded_only=responded_only,
                     extra_urns=form.cleaned_data.get(ExportFlowResultsTask.EXTRA_URNS, []),
                     group_memberships=form.cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS],

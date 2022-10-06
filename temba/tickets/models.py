@@ -641,8 +641,12 @@ class ExportTicketsTask(BaseItemWithContactExport):
     notification_export_type = "ticket"
 
     @classmethod
-    def create(cls, org, user, start_date, end_date):
-        return cls.objects.create(org=org, start_date=start_date, end_date=end_date, created_by=user, modified_by=user)
+    def create(cls, org, user, start_date, end_date, with_fields):
+        export = cls.objects.create(
+            org=org, start_date=start_date, end_date=end_date, created_by=user, modified_by=user
+        )
+        export.with_fields.add(*with_fields)
+        return export
 
     def write_export(self):
         headers = ["UUID", "Opened On", "Closed On", "Topic", "Assigned To"] + self._get_contact_headers()
