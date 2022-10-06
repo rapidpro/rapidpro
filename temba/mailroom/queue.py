@@ -35,6 +35,7 @@ class BatchTask(Enum):
     POPULATE_DYNAMIC_GROUP = "populate_dynamic_group"
     SCHEDULE_CAMPAIGN_EVENT = "schedule_campaign_event"
     IMPORT_CONTACT_BATCH = "import_contact_batch"
+    INTERRUPT_CHANNEL = "interrupt_channel"
 
 
 def queue_msg_handling(msg):
@@ -155,6 +156,16 @@ def queue_contact_import_batch(batch):
     task = {"contact_import_batch_id": batch.id}
 
     _queue_batch_task(batch.contact_import.org.id, BatchTask.IMPORT_CONTACT_BATCH, task, DEFAULT_PRIORITY)
+
+
+def queue_interrupt_channel(org, channel):
+    """
+    Queues an interrupt channel task for handling by mailroom
+    """
+
+    task = {"channel_id": channel.id}
+
+    _queue_batch_task(org.id, BatchTask.INTERRUPT_CHANNEL, task, HIGH_PRIORITY)
 
 
 def queue_interrupt(org, *, contacts=None, channel=None, flow=None, session=None):
