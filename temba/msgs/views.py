@@ -210,10 +210,11 @@ class BroadcastCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_scheduled_create"):
                 menu.add_modax(
-                    _("Create"),
-                    "create-scheduled",
+                    _("Schedule Message"),
+                    "new-scheduled",
                     reverse("msgs.broadcast_scheduled_create"),
-                    title=_("Create Scheduled Message"),
+                    title=_("New Scheduled Message"),
+                    as_button=True,
                 )
 
         def get_queryset(self, **kwargs):
