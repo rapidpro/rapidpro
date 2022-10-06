@@ -33,6 +33,15 @@ class MockEventStream:
             yield event
 
 
+class MockPaginator:
+    def __init__(self, client, method: str):
+        self.client = client
+        self.method = method
+
+    def paginate(self, **kwargs):
+        return [getattr(self.client, self.method)(**kwargs)]
+
+
 class MockS3Client:
     """
     A mock of the boto S3 client
@@ -61,6 +70,14 @@ class MockS3Client:
 
         return {"DeleteMarker": False, "VersionId": "versionId", "RequestCharged": "requester"}
 
+    def delete_objects(self, Bucket: str, Delete: dict, **kwargs):
+        self.calls["delete_objects"].append(call(Bucket=Bucket, Delete=Delete, **kwargs))
+
+        for obj in Delete["Objects"]:
+            del self.objects[(Bucket, obj["Key"])]
+
+        return {"Deleted": Delete["Objects"], "RequestCharged": "requester"}
+
     def list_objects_v2(self, Bucket, Prefix, **kwargs):
         matches = []
         for o in self.objects.keys():
@@ -81,6 +98,9 @@ class MockS3Client:
                 records.append(record)
 
         return {"Payload": MockEventStream(records)}
+
+    def get_paginator(self, method: str):
+        return MockPaginator(self, method)
 
 
 def jsonlgz_encode(records: list) -> tuple:
