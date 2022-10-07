@@ -230,6 +230,7 @@ INSTALLED_APPS += (
     "weni.grpc.billing",
     "weni.grpc.statistic",
     "weni.internal",
+    "weni.ticketer_queues",
     # OIDC authentication
     "mozilla_django_oidc",
     "weni.auth",
