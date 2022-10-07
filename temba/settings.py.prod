@@ -131,6 +131,7 @@ COMPRESS_OFFLINE_CONTEXT = dict(
 MIDDLEWARE = tuple(m for m in MIDDLEWARE if "XFrameOptionsMiddleware" not in m)
 # Now, we can add ours (including csp)
 MIDDLEWARE += (
+    "corsheaders.middleware.CorsMiddleware",
     "elasticapm.contrib.django.middleware.TracingMiddleware",
     "elasticapm.contrib.django.middleware.Catch404Middleware",
     "csp.middleware.CSPMiddleware",
@@ -234,6 +235,7 @@ INSTALLED_APPS += (
     "weni.auth",
     # Templates (django-template-macros)
     "macros",
+    "corsheaders",
 )
 
 # SENTRY
@@ -443,3 +445,8 @@ if DISABLE_OIDC:
 WENI_REDIRECT_DEPRECATED_DOMAIN = env.bool("WENI_REDIRECT_DEPRECATED_DOMAIN", default=False)
 if WENI_REDIRECT_DEPRECATED_DOMAIN:
     MIDDLEWARE = ("temba.middleware.RedirectMiddleware",) + MIDDLEWARE
+
+
+# Cors Configuration
+CORS_ORIGIN_ALLOW_ALL = env.bool("CORS_ORIGIN_ALLOW_ALL", default=False)
+CORS_ORIGIN_WHITELIST = env.tuple("CORS_ORIGIN_WHITELIST", default=())

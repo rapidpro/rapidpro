@@ -7,4 +7,5 @@ weni-rp-apps@==1.0.26
 elasticsearch==7.13.4
 slack_sdk==3.17.0
 dulwich==0.20.45
+django-cors-headers@^3.8.0
 sentry-sdk==1.9.8
