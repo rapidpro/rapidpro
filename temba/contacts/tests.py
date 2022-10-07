@@ -437,11 +437,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
-        self.assertContains(response, "Edit Group")
-        self.assertContains(response, "Delete Group")
-        self.assertContentMenu(
-            group1_url, self.admin, ["Manage Fields", "Edit Group", "Export", "Usages", "Delete Group"]
-        )
+        self.assertContentMenu(group1_url, self.admin, ["Manage Fields", "Edit", "Export", "Usages", "Delete"])
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
 
@@ -454,8 +450,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([], list(response.context["object_list"]))
         self.assertEqual(["block", "archive"], list(response.context["actions"]))
         self.assertContains(response, "tickets &gt; 0")
-        self.assertNotContains(response, "Edit Group")
-        self.assertNotContains(response, "Delete Group")
+        self.assertContentMenu(open_tickets_url, self.admin, ["Manage Fields", "Export", "Usages"])
 
         # if a user tries to access a non-existent group, that's a 404
         response = self.requestView(reverse("contacts.contact_filter", args=["21343253"]), self.admin)

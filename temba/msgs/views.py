@@ -791,10 +791,18 @@ class MsgCRUDL(SmartCRUDL):
             if self.has_org_perm("msgs.msg_update"):
                 if self.label.is_folder():
                     menu.add_modax(
-                        _("Edit Folder"), "update-folder", reverse("msgs.label_update", args=[self.label.id])
+                        _("Edit"),
+                        "update-folder",
+                        reverse("msgs.label_update", args=[self.label.id]),
+                        title="Edit Folder",
                     )
                 else:
-                    menu.add_modax(_("Edit Label"), "update-label", reverse("msgs.label_update", args=[self.label.id]))
+                    menu.add_modax(
+                        _("Edit"),
+                        "update-label",
+                        reverse("msgs.label_update", args=[self.label.id]),
+                        title="Edit Label",
+                    )
 
             if self.has_org_perm("msgs.msg_export"):
                 menu.add_modax(
@@ -806,12 +814,18 @@ class MsgCRUDL(SmartCRUDL):
             if self.label.is_folder():
                 if self.has_org_perm("msgs.label_delete_folder"):
                     menu.add_modax(
-                        _("Delete Folder"), "delete-folder", reverse("msgs.label_delete_folder", args=[self.label.id])
+                        _("Delete"),
+                        "delete-folder",
+                        reverse("msgs.label_delete_folder", args=[self.label.id]),
+                        title="Delete Folder",
                     )
             else:
                 if self.has_org_perm("msgs.label_delete"):
                     menu.add_modax(
-                        _("Delete Label"), "delete-label", reverse("msgs.label_delete", args=[self.label.uuid])
+                        _("Delete"),
+                        "delete-label",
+                        reverse("msgs.label_delete", args=[self.label.uuid]),
+                        title="Delete Label",
                     )
 
         @classmethod

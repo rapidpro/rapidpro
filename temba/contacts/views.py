@@ -1153,9 +1153,7 @@ class ContactCRUDL(SmartCRUDL):
                 menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
 
             if not self.group.is_system and self.has_org_perm("contacts.contactgroup_update"):
-                menu.add_modax(
-                    _("Edit Group"), "edit-group", reverse("contacts.contactgroup_update", args=[self.group.id])
-                )
+                menu.add_modax(_("Edit"), "edit-group", reverse("contacts.contactgroup_update", args=[self.group.id]))
 
             if self.has_org_perm("contacts.contact_export"):
                 menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
@@ -1166,7 +1164,7 @@ class ContactCRUDL(SmartCRUDL):
 
             if not self.group.is_system and self.has_org_perm("contacts.contactgroup_delete"):
                 menu.add_modax(
-                    _("Delete Group"), "delete-group", reverse("contacts.contactgroup_delete", args=[self.group.uuid])
+                    _("Delete"), "delete-group", reverse("contacts.contactgroup_delete", args=[self.group.uuid])
                 )
 
         def get_bulk_actions(self):
