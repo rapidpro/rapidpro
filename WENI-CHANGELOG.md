@@ -1,3 +1,11 @@
+1.6.0-rapidpro-7.1.27
+----------
+* Bump weni-rp-apps from 1.0.26 to 1.0.27
+* connect wenichats ticketer integration
+* Enable CORS on Rapidpro
+* fix: sidemenu padding
+* Downgrade Sentry version from 1.9.9 to 1.9.8
+
 1.5.9-rapidpro-7.1.27
 ----------
 * Bump weni-rp-apps from 1.0.25 to 1.0.26
