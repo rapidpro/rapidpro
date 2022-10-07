@@ -186,8 +186,6 @@ class BaseItemWithContactExport(BaseDateRangeExport):
     Base export class for exports that are an item with an associated contact.
     """
 
-    MAX_FIELDS_COLS = 10
-
     with_fields = models.ManyToManyField("contacts.ContactField", related_name="%(class)s_exports")
 
     def _get_contact_headers(self) -> list:
