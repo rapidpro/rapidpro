@@ -641,7 +641,7 @@ class ExportTicketsTask(BaseItemWithContactExport):
     notification_export_type = "ticket"
 
     @classmethod
-    def create(cls, org, user, start_date, end_date, with_fields):
+    def create(cls, org, user, start_date, end_date, with_fields=()):
         export = cls.objects.create(
             org=org, start_date=start_date, end_date=end_date, created_by=user, modified_by=user
         )
