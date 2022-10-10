@@ -1,4 +1,3 @@
-import html
 from datetime import date, datetime, timedelta
 from unittest.mock import PropertyMock, patch
 
