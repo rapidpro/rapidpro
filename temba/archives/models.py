@@ -100,11 +100,12 @@ class Archive(models.Model):
 
         # find any remaining S3 files and remove them for this org
         s3_client = s3.client()
-        archive_files = s3_client.list_objects_v2(Bucket=settings.ARCHIVE_BUCKET, Prefix=f"{org.id}/").get(
-            "Contents", []
-        )
-        for archive_file in archive_files:
-            s3_client.delete_object(Bucket=settings.ARCHIVE_BUCKET, Key=archive_file["Key"])
+        paginator = s3_client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=settings.ARCHIVE_BUCKET, Prefix=f"{org.id}/"):
+            archive_objs = page.get("Contents", [])
+            s3_client.delete_objects(
+                Bucket=settings.ARCHIVE_BUCKET, Delete={"Objects": [{"Key": o["Key"]} for o in archive_objs]}
+            )
 
     def filename(self):
         url_parts = urlparse(self.url)

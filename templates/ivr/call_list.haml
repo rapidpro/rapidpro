@@ -1,0 +1,45 @@
+-extends "smartmin/list.html"
+-load i18n contacts channels
+
+-block table
+  %table.list.lined
+    %thead
+      %tr
+        %th
+          -trans "Direction"
+        %th
+          -trans "Contact"
+        %th
+          -trans "Channel"
+        %th
+          -trans "Status"
+        %th
+          -trans "Duration"
+        %th
+
+    %tbody
+      -for obj in object_list
+        %tr(class='{% cycle "row2" "row1" %}')
+          %td
+            {{ obj.get_direction_display }}
+          %td
+            %a(href="{% url 'contacts.contact_read' obj.contact.uuid %}")
+              {{ obj.contact|name_or_urn:user_org }}
+          %td
+            %a(href="{% url 'channels.channel_read' obj.channel.uuid %}")
+              {{ obj.channel.name }}
+          %td
+            {{ obj.status_display }}
+          %td
+            {{ obj.get_duration }}
+          %td
+            .flex.w-full.items-end.justify-end.pr-4
+              .time.whitespace-nowrap
+                {% short_datetime obj.created_on %}
+
+              {% channel_log_link obj %}
+  
+      -empty
+        %tr(colspan=6)
+          %td
+            -trans "No matching calls."
