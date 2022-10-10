@@ -297,7 +297,7 @@
 
       options = options || {};
 
-      // hijack any pjax requests made from spa pages and route the content there instead
+      // reroute any pjax requests made from spa pages and push the content there instead
       if (container == "#pjax" && document.querySelector(".spa-content")) {
         container = ".spa-content";
         options["headers"] = (options["headers"] || {})
@@ -326,6 +326,7 @@
 
           // if we are given an entire page, something bad has happened
           if (body.indexOf("<html") > -1) {
+            document.location = url;
             return;
           }
 
@@ -404,7 +405,7 @@
         }
       }
 
-      const request = {
+      var request = {
         headers: headers,
         type: type,
         url: url,
