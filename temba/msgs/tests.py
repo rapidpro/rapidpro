@@ -1,5 +1,5 @@
-from datetime import date, datetime, timedelta
 import html
+from datetime import date, datetime, timedelta
 from unittest.mock import PropertyMock, patch
 
 import pytz
@@ -2325,7 +2325,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         # fetch the delete modal
         response = self.client.get(delete_url)
         # print(f"delete_fetch_response={response}")
-        # print(f"delete_fetch_response_context_data={response.context_data}")        
+        # print(f"delete_fetch_response_context_data={response.context_data}")
         # TODO figure out why this isn't working
         # self.assertContains(response, "You are about to delete")
 
