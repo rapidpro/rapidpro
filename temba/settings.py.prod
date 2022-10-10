@@ -308,6 +308,7 @@ CELERY_BEAT_SCHEDULE["refresh-whatsapp-templates"] = {
 RETENTION_PERIODS.update(
     channellog=timedelta(hours=env.int("RETENTION_PERIODS_CHANNELLOG", default=48)),
     flowsession=timedelta(days=env.int("RETENTION_PERIODS_FLOWSESSION", default=7)),
+    httplog=timedelta(days=env.int("RETENTION_PERIODS_HTTPLOG", default=3)),
 )
 
 # Adds gRPC services
