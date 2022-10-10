@@ -500,8 +500,9 @@ class MailroomQueueTest(TembaTest):
                 "org_id": self.org.id,
                 "task": {
                     "org_id": self.org.id,
-                    "channel_uuid": str(self.channel.uuid),
-                    "channel_type": self.channel.channel_type,
+                    "channel_id": self.channel.id,
+                    "channel_uuid": str(self.channel.uuid),  # deprecated
+                    "channel_type": self.channel.channel_type,  # deprecated
                     "contact_id": msg.contact_id,
                     "msg_id": msg.id,
                     "msg_uuid": str(msg.uuid),

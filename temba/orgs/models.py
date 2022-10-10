@@ -1804,6 +1804,7 @@ class Org(SmartModel):
         self.exportcontactstasks.all().delete()
         self.exportmessagestasks.all().delete()
         self.exportflowresultstasks.all().delete()
+        self.exportticketstasks.all().delete()
 
         for label in self.msgs_labels.all():
             label.release(user)

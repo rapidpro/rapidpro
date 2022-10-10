@@ -9,7 +9,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.contacts.models import Contact, ContactURN
+from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.tests.base import AnonymousOrg
 from temba.utils.dates import datetime_to_timestamp
@@ -528,7 +528,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create a dummy export task so that we won't be able to export
         blocking_export = ExportTicketsTask.create(
-            self.org, self.admin, start_date=date.today() - timedelta(days=7), end_date=date.today()
+            self.org, self.admin, start_date=date.today() - timedelta(days=7), end_date=date.today(), with_fields=()
         )
         response = self.client.post(export_url, {"start_date": "2022-06-28", "end_date": "2022-09-28"})
         self.assertModalResponse(response, redirect="/ticket/")
@@ -593,6 +593,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         export_url = reverse("tickets.ticket_export")
 
         self.login(self.admin)
+
+        gender = self.create_field("gender", "Gender")
+        age = self.create_field("age", "Age", value_type=ContactField.TYPE_NUMBER)
 
         # messages can't be older than org
         self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=pytz.UTC)
@@ -676,7 +679,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check requesting export for last 90 days
         with self.mockReadOnly(assert_models={Ticket, ContactURN}):
-            with self.assertNumQueries(33):
+            with self.assertNumQueries(34):
                 export = self._request_ticket_export(start_date=today - timedelta(days=90), end_date=today)
 
         expected_headers = [
@@ -777,6 +780,46 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             tz=self.org.timezone,
         )
 
+        # check requesting with contact fields
+        with self.mockReadOnly(assert_models={Ticket, ContactURN}):
+            export = self._request_ticket_export(
+                start_date=today - timedelta(days=7), end_date=today, with_fields=(age, gender)
+            )
+
+        self.assertExcelSheet(
+            export[0],
+            rows=[
+                expected_headers + ["Field:Age", "Field:Gender"],
+                [
+                    ticket3.uuid,
+                    ticket3.opened_on,
+                    ticket3.closed_on,
+                    ticket3.topic.name,
+                    ticket3.assignee.email,
+                    ticket3.contact.uuid,
+                    "Roy Kent",
+                    "tel",
+                    "+1234567890",
+                    "41",
+                    "Male",
+                ],
+                [
+                    ticket4.uuid,
+                    ticket4.opened_on,
+                    ticket4.closed_on,
+                    ticket4.topic.name,
+                    ticket4.assignee.email,
+                    ticket4.contact.uuid,
+                    "Sam Obisanya",
+                    "twitter",
+                    "nigerianprince",
+                    "22",
+                    "Male",
+                ],
+            ],
+            tz=self.org.timezone,
+        )
+
         with AnonymousOrg(self.org):
             with self.mockReadOnly(assert_models={Ticket, ContactURN}):
                 export = self._request_ticket_export(start_date=today - timedelta(days=90), end_date=today)
@@ -844,9 +887,32 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.clear_storage()
 
-    def _request_ticket_export(self, start_date: date, end_date: date):
+    def test_export_with_too_many_fields(self):
         export_url = reverse("tickets.ticket_export")
-        self.client.post(export_url, {"start_date": start_date.isoformat(), "end_date": end_date.isoformat()})
+        today = timezone.now().astimezone(self.org.timezone).date()
+        too_many_fields = [self.create_field(f"Field {i}", f"field{i}") for i in range(11)]
+
+        self.login(self.admin)
+        response = self.client.post(
+            export_url,
+            {
+                "start_date": today - timedelta(days=7),
+                "end_date": today,
+                "with_fields": [cf.id for cf in too_many_fields],
+            },
+        )
+        self.assertFormError(response, "form", "__all__", "You can only include up to 10 fields in your export.")
+
+    def _request_ticket_export(self, start_date: date, end_date: date, with_fields=()):
+        export_url = reverse("tickets.ticket_export")
+        self.client.post(
+            export_url,
+            {
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "with_fields": [cf.id for cf in with_fields],
+            },
+        )
         task = ExportTicketsTask.objects.all().order_by("-id").first()
         filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/ticket_exports/{task.uuid}.xlsx"
         workbook = load_workbook(filename=filename)
