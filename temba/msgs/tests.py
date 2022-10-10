@@ -1846,8 +1846,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({msg1, msg6}, set(response.context_data["object_list"]))
 
         # check admin users see edit and delete options for labels and folders
-        self.assertContentMenu(folder_url, self.admin, ["Edit Folder", "Download", "Usages", "Delete Folder"])
-        self.assertContentMenu(label1_url, self.admin, ["Edit Label", "Download", "Usages", "Delete Label"])
+        self.assertContentMenu(folder_url, self.admin, ["Edit", "Download", "Usages", "Delete"])
+        self.assertContentMenu(label1_url, self.admin, ["Edit", "Download", "Usages", "Delete"])
 
 
 class BroadcastTest(TembaTest):
@@ -2189,7 +2189,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[])
         self.assertContentMenu(list_url, self.user, [])
-        self.assertContentMenu(list_url, self.admin, ["Create"])
+        self.assertContentMenu(list_url, self.admin, ["Schedule Message"])
 
         bc1 = self.create_broadcast(
             self.admin,
