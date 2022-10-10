@@ -1241,7 +1241,7 @@ class ExportMessagesTask(BaseItemWithContactExport):
     end_date = models.DateField(null=True)
 
     @classmethod
-    def create(cls, org, user, start_date, end_date, system_label=None, label=None, groups=()):
+    def create(cls, org, user, start_date, end_date, system_label=None, label=None, with_fields=(), groups=()):
         assert not (label and system_label), "can't specify both label and system label"
 
         export = cls.objects.create(
@@ -1253,6 +1253,7 @@ class ExportMessagesTask(BaseItemWithContactExport):
             created_by=user,
             modified_by=user,
         )
+        export.with_fields.add(*with_fields)
         export.groups.add(*groups)
         return export
 
