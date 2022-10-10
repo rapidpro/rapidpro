@@ -18,7 +18,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.db.models.functions.text import Lower
 from django.forms import Form
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -197,7 +197,7 @@ class BroadcastForm(forms.ModelForm):
 
 
 class BroadcastCRUDL(SmartCRUDL):
-    actions = ("scheduled", "scheduled_create", "scheduled_read", "scheduled_update", "send")
+    actions = ("scheduled", "scheduled_create", "scheduled_read", "scheduled_update", "scheduled_delete", "send")
     model = Broadcast
 
     class Scheduled(InboxView):
@@ -297,7 +297,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class ScheduledRead(SpaMixin, FormaxMixin, OrgObjPermsMixin, SmartReadView):
+    class ScheduledRead(SpaMixin, ContentMenuMixin, FormaxMixin, OrgObjPermsMixin, SmartReadView):
         def derive_title(self):
             return _("Scheduled Message")
 
@@ -305,6 +305,17 @@ class BroadcastCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["send_history"] = self.get_object().children.order_by("-created_on")
             return context
+
+        def build_content_menu(self, menu):
+            obj = self.get_object()
+
+            if self.has_org_perm("msgs.broadcast_scheduled_delete"):
+                menu.add_modax(
+                    _("Delete"),
+                    "delete-scheduled",
+                    reverse("msgs.broadcast_scheduled_delete", args=[obj.id]),
+                    title=_("Delete Scheduled Message"),
+                )
 
         def derive_formax_sections(self, formax, context):
             if self.has_org_perm("msgs.broadcast_scheduled_update"):
@@ -348,6 +359,31 @@ class BroadcastCRUDL(SmartCRUDL):
 
             broadcast.save()
             return broadcast
+
+    class ScheduledDelete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+
+        default_template = "smartmin/delete_confirm.html"
+        submit_button_name = _("Delete")
+        fields = ("id",)
+
+        def get_object_org(self):
+            # return self.get_object().campaign.org
+            return self.get_object().org
+
+        def post(self, request, *args, **kwargs):
+            self.object = self.get_object()
+            self.object.release()
+
+            redirect_url = self.get_redirect_url()
+            return HttpResponseRedirect(redirect_url)
+
+        def get_redirect_url(self):
+            # return reverse("campaigns.campaign_read", args=[self.object.campaign.uuid])
+            return reverse("msgs.broadcast_scheduled")
+
+        def get_cancel_url(self):  # pragma: needs cover
+            # return reverse("campaigns.campaign_read", args=[self.object.campaign.uuid])
+            return reverse("msgs.broadcast_scheduled_read", args=[self.object.id])
 
     class Send(OrgPermsMixin, ModalMixin, SmartFormView):
         class Form(Form):
