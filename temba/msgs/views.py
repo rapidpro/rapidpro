@@ -363,27 +363,18 @@ class BroadcastCRUDL(SmartCRUDL):
     class ScheduledDelete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
 
         default_template = "smartmin/delete_confirm.html"
-        submit_button_name = _("Delete")
+        cancel_url = "id@msgs.broadcast_scheduled_read"
+        success_url = "@msgs.broadcast_scheduled"
         fields = ("id",)
-
-        def get_object_org(self):
-            # return self.get_object().campaign.org
-            return self.get_object().org
+        submit_button_name = _("Delete")
 
         def post(self, request, *args, **kwargs):
             self.object = self.get_object()
+
             self.object.release()
-
-            redirect_url = self.get_redirect_url()
-            return HttpResponseRedirect(redirect_url)
-
-        def get_redirect_url(self):
-            # return reverse("campaigns.campaign_read", args=[self.object.campaign.uuid])
-            return reverse("msgs.broadcast_scheduled")
-
-        def get_cancel_url(self):  # pragma: needs cover
-            # return reverse("campaigns.campaign_read", args=[self.object.campaign.uuid])
-            return reverse("msgs.broadcast_scheduled_read", args=[self.object.id])
+            response = HttpResponse()
+            response["Temba-Success"] = self.get_success_url()
+            return response
 
     class Send(OrgPermsMixin, ModalMixin, SmartFormView):
         class Form(Form):
