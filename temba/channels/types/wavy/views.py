@@ -32,12 +32,11 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return "Brazil"
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
         data = form.cleaned_data
         config = {Channel.CONFIG_USERNAME: data["username"], Channel.CONFIG_AUTH_TOKEN: data["token"]}
 
         self.object = Channel.create(
-            org=org,
+            org=self.request.org,
             user=self.request.user,
             country=data["country"],
             channel_type=self.channel_type,

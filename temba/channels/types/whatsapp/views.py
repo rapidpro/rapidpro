@@ -111,11 +111,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             CONFIG_FB_TEMPLATE_LIST_DOMAIN,
         )
 
-        user = self.request.user
-        org = user.get_org()
-
         data = form.cleaned_data
-
         config = {
             Channel.CONFIG_BASE_URL: data["base_url"],
             Channel.CONFIG_USERNAME: data["username"],
@@ -131,8 +127,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             config[CONFIG_FB_TEMPLATE_API_VERSION] = data["facebook_template_list_api_version"]
 
         self.object = Channel.create(
-            org,
-            user,
+            self.request.org,
+            self.request.user,
             data["country"],
             self.channel_type,
             name="WhatsApp: %s" % data["number"],

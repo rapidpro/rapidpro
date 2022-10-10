@@ -30,7 +30,7 @@ from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import chunk_list, format_number, on_transaction_commit
-from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
+from temba.utils.export import BaseExport, BaseExportAssetStore, TableExporter
 from temba.utils.models import JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
@@ -61,6 +61,7 @@ class URN:
     JIOCHAT_SCHEME = "jiochat"
     LINE_SCHEME = "line"
     ROCKETCHAT_SCHEME = "rocketchat"
+    SLACK_SCHEME = "slack"
     TELEGRAM_SCHEME = "telegram"
     TEL_SCHEME = "tel"
     TWITTERID_SCHEME = "twitterid"
@@ -83,6 +84,7 @@ class URN:
         (JIOCHAT_SCHEME, _("JioChat Identifier")),
         (LINE_SCHEME, _("LINE Identifier")),
         (ROCKETCHAT_SCHEME, _("RocketChat Identifier")),
+        (SLACK_SCHEME, _("Slack Identifier")),
         (TELEGRAM_SCHEME, _("Telegram Identifier")),
         (TWITTERID_SCHEME, _("Twitter ID")),
         (TWITTER_SCHEME, _("Twitter Handle")),
@@ -595,16 +597,13 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
 
-    name = models.CharField(
-        verbose_name=_("Name"), max_length=128, blank=True, null=True, help_text=_("The name of this contact")
-    )
+    name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True)
 
     language = models.CharField(
         max_length=3,
         verbose_name=_("Language"),
         null=True,
         blank=True,
-        help_text=_("The preferred language for this contact"),
     )
 
     # custom field values for this contact, keyed by field UUID
@@ -676,11 +675,11 @@ class Contact(LegacyUUIDMixin, SmartModel):
             return None
 
     @property
-    def anon_identifier(self):
+    def anon_display(self):
         """
         The displayable identifier used in place of URNs for anonymous orgs
         """
-        return "%010d" % self.id
+        return f"{self.id:010}"
 
     @classmethod
     def get_status_counts(cls, org) -> dict:
@@ -762,7 +761,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         Gets this contact's history of messages, calls, runs etc in the given time window
         """
         from temba.flows.models import FlowExit
-        from temba.ivr.models import IVRCall
+        from temba.ivr.models import Call
         from temba.mailroom.events import get_event_time
         from temba.tickets.models import TicketEvent
 
@@ -800,8 +799,8 @@ class Contact(LegacyUUIDMixin, SmartModel):
         )
 
         calls = (
-            IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
-            .exclude(status__in=[IVRCall.STATUS_PENDING, IVRCall.STATUS_WIRED])
+            Call.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
+            .exclude(status__in=[Call.STATUS_PENDING, Call.STATUS_WIRED])
             .order_by("-created_on")
             .select_related("channel")[:limit]
         )
@@ -1164,16 +1163,14 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
             # any urns currently owned by us
             for urn in self.urns.all():
-
-                # release any messages attached with each urn,
-                # these could include messages that began life
+                # release any messages attached with each urn, these could include messages that began life
                 # on a different contact
                 for msg in urn.msgs.all():
                     msg.delete()
 
-                # same thing goes for connections
-                for conn in urn.connections.all():
-                    conn.release()
+                # same thing goes for calls
+                for call in urn.calls.all():
+                    call.release()
 
                 urn.release()
 
@@ -1187,8 +1184,8 @@ class Contact(LegacyUUIDMixin, SmartModel):
             for session in self.sessions.all():
                 session.delete()
 
-            for conn in self.connections.all():  # pragma: needs cover
-                conn.release()
+            for call in self.calls.all():  # pragma: needs cover
+                call.release()
 
             # and any event fire history
             self.campaign_fires.all().delete()
@@ -1270,7 +1267,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         if self.name:
             return self.name
         elif org.is_anon:
-            return self.anon_identifier
+            return self.anon_display
 
         return self.get_urn_display(org=org, formatted=formatted)
 
@@ -1421,26 +1418,26 @@ class ContactURN(models.Model):
 
         return self
 
-    def get_display(self, org=None, international=False, formatted=True):
+    def get_display(self, org=None, international: bool = False, formatted: bool = True) -> str:
         """
-        Gets a representation of the URN for display
+        Gets a representation of the URN for display, e.g. tel:+12345678901 becomes +1 234 567-8901
         """
-        if not org:
-            org = self.org
-
-        if org.is_anon:
+        if (org or self.org).is_anon:
             return self.ANON_MASK
 
         return URN.format(self.urn, international=international, formatted=formatted)
 
-    def api_urn(self):
+    def get_for_api(self) -> str:
+        """
+        Gets a representation for the API which will be scheme:path and will have the path redacted if the org is anon
+        """
         if self.org.is_anon:
             return URN.from_parts(self.scheme, self.ANON_MASK)
 
-        return URN.from_parts(self.scheme, self.path, display=self.display)
+        return URN.from_parts(self.scheme, self.path)
 
     @property
-    def urn(self):
+    def urn(self) -> str:
         """
         Returns a full representation of this contact URN as a string
         """
@@ -1826,7 +1823,7 @@ class ContactGroupCount(SquashableModel):
         return ContactGroupCount.objects.create(group=group, count=count)
 
 
-class ExportContactsTask(BaseExportTask):
+class ExportContactsTask(BaseExport):
     analytics_key = "contact_export"
     notification_export_type = "contact"
 

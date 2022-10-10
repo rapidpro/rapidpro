@@ -1,14 +1,10 @@
-import time
-
 import requests
 from django_redis import get_redis_connection
 
-from django.utils.http import urlencode
+from django.utils import timezone
 
-from temba.channels.models import ChannelLog
+from temba.channels.models import Channel, ChannelLog
 from temba.channels.types.jiochat.client import JioChatClient
-from temba.utils import json
-from temba.utils.http import HttpEvent
 
 
 class WeChatClient(JioChatClient):
@@ -24,6 +20,7 @@ class WeChatClient(JioChatClient):
 
     # we use GET for WeChat
     def refresh_access_token(self, channel_id):
+        channel = Channel.objects.get(id=channel_id)
         r = get_redis_connection()
         lock_name = self.token_refresh_lock % self.channel_uuid
 
@@ -31,30 +28,24 @@ class WeChatClient(JioChatClient):
             with r.lock(lock_name, timeout=30):
                 key = self.token_store_key % self.channel_uuid
 
-                data = {"grant_type": "client_credential", "appid": self.app_id, "secret": self.app_secret}
-                url = self.token_url
-
-                event = HttpEvent("GET", url + "?" + urlencode(data))
-                start = time.time()
-
-                response = requests.get(url, params=data, timeout=15)
-                event.status_code = response.status_code
+                start = timezone.now()
+                response = requests.get(
+                    self.token_url,
+                    params={"grant_type": "client_credential", "appid": self.app_id, "secret": self.app_secret},
+                    timeout=15,
+                )
 
                 if response.status_code != 200:
-                    event.response_body = response.content
-                    ChannelLog.log_channel_request(
-                        channel_id, f"Got non-200 response from {self.api_name}", event, start, True
+                    ChannelLog.from_response(
+                        ChannelLog.LOG_TYPE_TOKEN_REFRESH, channel, response, start, timezone.now()
                     )
                     return
 
                 response_json = response.json()
-                has_error = False
-                if response_json.get("errcode", -1) != 0:
-                    has_error = True
+                has_error = response_json.get("errcode", -1) != 0
 
-                event.response_body = json.dumps(response_json)
-                ChannelLog.log_channel_request(
-                    channel_id, f"Successfully fetched access token from {self.api_name}", event, start, has_error
+                ChannelLog.from_response(
+                    ChannelLog.LOG_TYPE_TOKEN_REFRESH, channel, response, start, timezone.now(), is_error=has_error
                 )
 
                 access_token = response_json.get("access_token", "")

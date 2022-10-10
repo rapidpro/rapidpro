@@ -259,7 +259,7 @@
         // TODO: migrate to API?
         revisions: '/flow/revisions/{{object.uuid}}/',
         recents: '/flow/recent_contacts/{{object.uuid}}/',
-        attachments: '/flow/upload_media/{{object.uuid}}/',
+        attachments: '{% url "msgs.media_upload" %}',
         languages: base + 'language',
         environment: base + 'environment',
         activity: '/flow/activity/{{object.uuid}}/',

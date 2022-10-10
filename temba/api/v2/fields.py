@@ -9,6 +9,7 @@ from temba.contacts.models import URN, Contact, ContactField as ContactFieldMode
 from temba.flows.models import Flow
 from temba.msgs.models import Label, Msg
 from temba.tickets.models import Ticket, Ticketer, Topic
+from temba.utils.uuid import is_uuid
 
 # default maximum number of items in a posted list or dict
 DEFAULT_MAX_LIST_ITEMS = 100
@@ -154,8 +155,18 @@ class TembaModelField(serializers.RelatedField):
         return manager.filter(**kwargs)
 
     def get_object(self, value):
-        query = Q()
+        # ignore lookup fields that can't be queryed with the given value
+        lookup_fields = []
         for lookup_field in self.lookup_fields:
+            if lookup_field != "uuid" or is_uuid(value):
+                lookup_fields.append(lookup_field)
+
+        # if we have no possible lookup fields left, there's no matching object
+        if not lookup_fields:
+            return None  # pragma: no cover
+
+        query = Q()
+        for lookup_field in lookup_fields:
             ignore_case = lookup_field in self.ignore_case_for_fields
             lookup = "%s__%s" % (lookup_field, "iexact" if ignore_case else "exact")
             query |= Q(**{lookup: value})
@@ -200,16 +211,27 @@ class ContactField(TembaModelField):
     model = Contact
     lookup_fields = ("uuid", "urns__urn")
 
-    def __init__(self, **kwargs):
-        self.with_urn = kwargs.pop("with_urn", False)
+    def __init__(self, as_summary=False, **kwargs):
+        self.as_summary = as_summary
         super().__init__(**kwargs)
 
     def to_representation(self, obj):
-        if self.with_urn and not self.context["org"].is_anon:
-            urn = obj.urns.first()
-            return {"uuid": obj.uuid, "urn": urn.identity if urn else None, "name": obj.name}
+        rep = {"uuid": str(obj.uuid), "name": obj.name}
+        org = self.context["org"]
 
-        return {"uuid": obj.uuid, "name": obj.name}
+        if self.as_summary:
+            urn = obj.get_urn()
+            if urn:
+                urn_str, urn_display = urn.get_for_api(), obj.get_urn_display() if not org.is_anon else None
+            else:
+                urn_str, urn_display = None, None
+
+            rep.update({"urn": urn_str, "urn_display": urn_display})
+
+            if org.is_anon:
+                rep["anon_display"] = obj.anon_display
+
+        return rep
 
     def get_queryset(self):
         return self.model.objects.filter(org=self.context["org"], is_active=True)

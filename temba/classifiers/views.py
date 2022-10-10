@@ -11,7 +11,7 @@ from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 from .models import Classifier
 
 
-class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
+class BaseConnectView(SpaMixin, ComponentFormMixin, OrgPermsMixin, SmartFormView):
     permission = "classifiers.classifier_connect"
     classifier_type = None
 
@@ -43,7 +43,7 @@ class ClassifierCRUDL(SmartCRUDL):
 
     class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
         def derive_menu(self):
-            org = self.request.user.get_org()
+            org = self.request.org
 
             menu = []
             if self.has_org_perm("classifiers.classifier_read"):
@@ -78,27 +78,30 @@ class ClassifierCRUDL(SmartCRUDL):
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
         def build_content_menu(self, menu):
-            menu.add_link(_("Log"), reverse("request_logs.httplog_classifier", args=[self.object.uuid]))
+            obj = self.get_object()
+
+            menu.add_link(_("Log"), reverse("request_logs.httplog_classifier", args=[obj.uuid]))
 
             if self.has_org_perm("classifiers.classifier_sync"):
-                menu.add_url_post(_("Sync"), reverse("classifiers.classifier_sync", args=[self.object.id]))
+                menu.add_url_post(_("Sync"), reverse("classifiers.classifier_sync", args=[obj.id]))
 
             if self.has_org_perm("classifiers.classifier_delete"):
                 menu.add_modax(
                     _("Delete"),
                     "classifier-delete",
-                    reverse("classifiers.classifier_delete", args=[self.object.uuid]),
+                    reverse("classifiers.classifier_delete", args=[obj.uuid]),
                     title=_("Delete Classifier"),
                 )
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
-            return queryset.filter(org=self.request.user.get_org(), is_active=True)
+            return queryset.filter(org=self.request.org, is_active=True)
 
-    class Sync(OrgObjPermsMixin, SmartUpdateView):
+    class Sync(SpaMixin, OrgObjPermsMixin, SmartUpdateView):
         fields = ()
         success_url = "uuid@classifiers.classifier_read"
         success_message = ""
+        title = _("Connect a Classifier")
 
         def post(self, *args, **kwargs):
             self.object = self.get_object()
@@ -114,5 +117,5 @@ class ClassifierCRUDL(SmartCRUDL):
     class Connect(SpaMixin, OrgPermsMixin, SmartTemplateView):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["classifier_types"] = Classifier.get_types()
+            context["classifier_types"] = [t for t in Classifier.get_types()]
             return context

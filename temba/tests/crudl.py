@@ -7,7 +7,7 @@ class CRUDLTestMixin:
     def get_test_users(self):
         return self.user, self.editor, self.agent, self.admin, self.admin2
 
-    def requestView(self, url, user, *, post_data=None, checks=()):
+    def requestView(self, url, user, *, post_data=None, checks=(), **kwargs):
         """
         Requests the given URL as a specific user and runs a set of checks
         """
@@ -24,7 +24,7 @@ class CRUDLTestMixin:
         for check in checks:
             check.pre_check(self, pre_msg_prefix)
 
-        response = self.client.post(url, post_data) if method == "POST" else self.client.get(url)
+        response = self.client.post(url, post_data, **kwargs) if method == "POST" else self.client.get(url, **kwargs)
 
         for check in checks:
             check.check(self, response, msg_prefix)
@@ -216,16 +216,36 @@ class CRUDLTestMixin:
         as_user(org2_admin, allowed=False)
         return as_user(admin, allowed=True)
 
-    def assertStaffOnly(self, url):
+    def assertStaffOnly(self, url: str):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
         self.requestView(url, None, checks=[LoginRedirect()])
+        self.requestView(url, agent, checks=[LoginRedirect()])
         self.requestView(url, viewer, checks=[LoginRedirect()])
         self.requestView(url, editor, checks=[LoginRedirect()])
         self.requestView(url, admin, checks=[LoginRedirect()])
 
-        self.requestView(url, self.superuser, checks=[StatusCode(200)])
-        self.requestView(url, self.customer_support, checks=[StatusCode(200)])
+        return self.requestView(url, self.customer_support, checks=[StatusCode(200)])
+
+    def assertContentMenu(self, url: str, user, labels: list, spa: bool = False):
+
+        headers = {"HTTP_TEMBA_CONTENT_MENU": 1}
+
+        if spa:
+            headers["HTTP_TEMBA_SPA"] = 1
+
+        response = self.requestView(url, user, checks=[StatusCode(200), ContentType("application/json")], **headers)
+
+        self.assertEqual(labels, [item.get("label", "-") for item in response.json()["items"]])
+
+        # for now menu is also stuffed into context in old gear links format
+        headers = {}
+        if spa:
+            headers["HTTP_TEMBA_SPA"] = 1
+
+        response = self.requestView(url, user, checks=[StatusCode(200)], **headers)
+        links = response.context.get("content_menu_buttons", []) + response.context.get("content_menu_links", [])
+        self.assertEqual(labels, [i.get("title", "-") for i in links])
 
 
 class BaseCheck:
@@ -380,11 +400,21 @@ class LoginRedirect(BaseCheck):
 
 
 class StatusCode(BaseCheck):
-    def __init__(self, status):
+    def __init__(self, status: int):
         self.status = status
 
     def check(self, test_cls, response, msg_prefix):
         test_cls.assertEqual(self.status, response.status_code, msg=f"{msg_prefix}: status code mismatch")
+
+
+class ContentType(BaseCheck):
+    def __init__(self, content_type: str):
+        self.content_type = content_type
+
+    def check(self, test_cls, response, msg_prefix):
+        test_cls.assertEqual(
+            self.content_type, response.headers["content-type"], msg=f"{msg_prefix}: content type mismatch"
+        )
 
 
 class LoginRedirectOr404(BaseCheck):

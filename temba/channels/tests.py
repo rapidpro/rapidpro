@@ -10,7 +10,7 @@ from urllib.parse import quote
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
 from django.core import mail
 from django.template import loader
 from django.test import RequestFactory
@@ -21,9 +21,10 @@ from django.utils.encoding import force_bytes
 
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
-from temba.ivr.models import IVRCall
+from temba.ivr.models import Call
 from temba.msgs.models import Msg
 from temba.orgs.models import Org, OrgRole
+from temba.request_logs.models import HTTPLog
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -108,21 +109,6 @@ class ChannelTest(TembaTest):
                 return
 
         raise Exception("Did not find '%s' cmd in response: '%s'" % (cmd_name, response.content))
-
-    def test_channel_read_with_customer_support(self):
-        self.login(self.customer_support)
-
-        response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
-        self.assertEqual(
-            [
-                {
-                    "type": "url_post",
-                    "label": "Service",
-                    "url": f"/org/service/?organization={self.tel_channel.org_id}&redirect_url=/channels/channel/read/{self.tel_channel.uuid}/",
-                }
-            ],
-            response.context["content_menu"],
-        )
 
     def test_deactivate(self):
         self.login(self.admin)
@@ -402,12 +388,6 @@ class ChannelTest(TembaTest):
         response = self.client.get(reverse("channels.channel_list"))
         self.assertRedirect(response, reverse("channels.channel_claim"))
 
-        # unless you're a superuser
-        self.login(self.superuser)
-        response = self.client.get(reverse("channels.channel_list"))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context["object_list"]), [])
-
         # re-activate one of the channels so org has a single channel
         self.tel_channel.is_active = True
         self.tel_channel.save()
@@ -416,12 +396,6 @@ class ChannelTest(TembaTest):
         self.login(self.user)
         response = self.client.get(reverse("channels.channel_list"))
         self.assertRedirect(response, reverse("channels.channel_read", args=[self.tel_channel.uuid]))
-
-        # unless you're a superuser
-        self.login(self.superuser)
-        response = self.client.get(reverse("channels.channel_list"))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context["object_list"]), [self.tel_channel])
 
         # re-activate other channel so org now has two channels
         self.twitter_channel.is_active = True
@@ -445,13 +419,6 @@ class ChannelTest(TembaTest):
         # visit page as a viewer
         self.login(self.user)
         response = self.client.get("/", follow=True)
-        self.assertNotIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
-        self.assertNotIn("delayed_syncevents", response.context, msg="Found delayed_syncevents in context")
-
-        # visit page as superuser
-        self.login(self.superuser)
-        response = self.client.get("/", follow=True)
-        # superusers doesn't have orgs thus cannot have both values
         self.assertNotIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
         self.assertNotIn("delayed_syncevents", response.context, msg="Found delayed_syncevents in context")
 
@@ -532,10 +499,8 @@ class ChannelTest(TembaTest):
         self.assertFalse(self.org2.channels.all())
 
         self.login(other_user)
+        self.client.post(reverse("orgs.org_choose"), dict(organization=self.org2.id))
 
-        other_user.set_org(self.org2)
-
-        self.assertEqual(self.org2, other_user.get_org())
         response = self.client.get("/", follow=True)
         self.assertNotIn("channel_type", response.context, msg="Found channel_type in context")
 
@@ -543,9 +508,6 @@ class ChannelTest(TembaTest):
 
         self.assertEqual(1, self.org.channels.filter(is_active=True).count())
         self.assertEqual(self.org, other_user.get_org())
-
-        response = self.client.get("/", follow=True)
-        # self.assertIn('channel_type', response.context)
 
     def sync(self, channel, *, cmds, signature=None, auto_add_fcm=True):
         # prepend FCM command if not included
@@ -649,8 +611,10 @@ class ChannelTest(TembaTest):
         self.assertIn("delayed_sync_event", response.context_data.keys())
         self.assertIn("unsent_msgs_count", response.context_data.keys())
 
-        # with superuser
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
+        # as staff
+        response = self.fetch_protected(
+            reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.customer_support
+        )
         self.assertEqual(200, response.status_code)
 
         # now that we can access the channel, which messages do we display in the chart?
@@ -676,7 +640,7 @@ class ChannelTest(TembaTest):
         self.create_outgoing_msg(joe, "This outgoing message will be counted", channel=self.tel_channel)
 
         # now we have an inbound message and two outbounds
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
+        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
         self.assertEqual(200, response.status_code)
         self.assertEqual(1, response.context["message_stats"][0]["data"][-1]["count"])
 
@@ -697,7 +661,7 @@ class ChannelTest(TembaTest):
         # now let's create an ivr interaction
         self.create_incoming_msg(joe, "incoming ivr", channel=self.tel_channel, msg_type=Msg.TYPE_IVR)
         self.create_outgoing_msg(joe, "outgoing ivr", channel=self.tel_channel, msg_type=Msg.TYPE_IVR)
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
+        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
 
         self.assertEqual(4, len(response.context["message_stats"]))
         self.assertEqual(1, response.context["message_stats"][2]["data"][0]["count"])
@@ -754,14 +718,13 @@ class ChannelTest(TembaTest):
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertEqual(200, response.status_code)
 
-        # one recommended channel (Mtarget in Rwanda)
-        self.assertEqual(len(response.context["recommended_channels"]), 2)
+        # 3 recommended channels for Rwanda
+        self.assertEqual(["AT", "MT", "TG"], [t.code for t in response.context["recommended_channels"]])
 
-        self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "T")
-        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "TMS")
-        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "NX")
-        self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "CT")
-        self.assertEqual(response.context["channel_types"]["PHONE"][4].code, "EX")
+        self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "CT")
+        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "EX")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "I2")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
         self.org.timezone = "Canada/Central"
         self.org.save()
@@ -769,16 +732,12 @@ class ChannelTest(TembaTest):
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertEqual(200, response.status_code)
 
-        self.assertEqual(len(response.context["recommended_channels"]), 3)
-        self.assertEqual(response.context["recommended_channels"][0].code, "T")
-        self.assertEqual(response.context["recommended_channels"][1].code, "TMS")
-        self.assertEqual(response.context["recommended_channels"][2].code, "NX")
+        self.assertEqual(["TG", "TMS", "T", "NX"], [t.code for t in response.context["recommended_channels"]])
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "CT")
         self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "EX")
         self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "I2")
-        self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "IB")
-        self.assertEqual(response.context["channel_types"]["PHONE"][4].code, "JS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
         with override_settings(ORG_LIMIT_DEFAULTS={"channels": 2}):
             response = self.client.get(reverse("channels.channel_claim"))
@@ -819,18 +778,18 @@ class ChannelTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # should see all channel types not for beta only and having a category
-        self.assertEqual(len(response.context["recommended_channels"]), 2)
+        self.assertEqual(["AT", "MT", "TG"], [t.code for t in response.context["recommended_channels"]])
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "AC")
-        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "T")
-        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "TMS")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-2].code, "YO")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "ZVS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "BM")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "BL")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "ZVW")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "TWA")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][3].code, "FBA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "DS")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "FBA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-2].code, "VK")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-1].code, "ZVW")
 
         self.admin.groups.add(Group.objects.get(name="Beta"))
 
@@ -838,19 +797,18 @@ class ChannelTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # should see all channel types having a category including beta only channel types
-        self.assertEqual(len(response.context["recommended_channels"]), 2)
+        self.assertEqual(["AT", "MT", "TG"], [t.code for t in response.context["recommended_channels"]])
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "AC")
-        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "T")
-        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "TMS")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-2].code, "YO")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "ZVS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "BM")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "BL")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "WA")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "WAC")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "D3")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][3].code, "ZVW")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][4].code, "TWA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "DS")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "FBA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-2].code, "WA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-1].code, "ZVW")
 
     def test_register_unsupported_android(self):
         # remove our explicit country so it needs to be derived from channels
@@ -1427,6 +1385,12 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             config={"send_url": "http://send.com"},
         )
 
+    def test_channel_read_as_customer_support(self):
+        read_url = reverse("channels.channel_read", args=[self.ex_channel.uuid])
+
+        # should see service button
+        self.assertContentMenu(read_url, self.customer_support, ["Settings", "Channel Log", "Service"])
+
     def test_configuration(self):
         config_url = reverse("channels.channel_configuration", args=[self.ex_channel.uuid])
 
@@ -1573,32 +1537,8 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(f"/channels/channel/read/{android.uuid}/", response["Temba-Success"])
 
 
-class ChannelEventCRUDLTest(TembaTest, CRUDLTestMixin):
-    def test_calls(self):
-        event1 = self.create_channel_event(
-            self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, extra={"duration": 60}
-        )
-        event2 = self.create_channel_event(self.channel, "tel:67890", ChannelEvent.TYPE_CALL_IN_MISSED)
-        self.create_channel_event(self.channel, "tel:456767", ChannelEvent.TYPE_UNKNOWN)
-
-        list_url = reverse("channels.channelevent_calls")
-
-        response = self.assertListFetch(
-            list_url, allow_viewers=True, allow_editors=True, context_objects=[event2, event1]
-        )
-
-        self.assertContains(response, "Missed Incoming Call")
-        self.assertContains(response, "Incoming Call (60 seconds)")
-
-        # can search by URN
-        self.assertListFetch(
-            list_url + "?search=678", allow_viewers=True, allow_editors=True, context_objects=[event2]
-        )
-
-
 class SyncEventTest(SmartminTest):
     def setUp(self):
-        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
         self.user = self.create_user("tito")
         self.org = Org.objects.create(
             name="Temba", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user
@@ -1867,8 +1807,6 @@ class ChannelCountTest(TembaTest):
         self.assertEqual(assert_count, calculated_count)
 
     def test_daily_counts(self):
-        self.admin.set_org(self.org)
-
         # no channel counts
         self.assertFalse(ChannelCount.objects.all())
 
@@ -1880,36 +1818,42 @@ class ChannelCountTest(TembaTest):
         self.assertFalse(ChannelCount.objects.all())
 
         # incoming msg with a channel
-        msg = self.create_incoming_msg(contact, "Test Message")
-        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+        msg1 = self.create_incoming_msg(contact, "Test Message")
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, msg1.created_on.date())
 
         # insert another
-        msg = self.create_incoming_msg(contact, "Test Message")
-        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+        msg2 = self.create_incoming_msg(contact, "Test Message")
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
 
         # squash our counts
         squash_channelcounts()
 
         # same count
-        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
 
         # and only one channel count
         self.assertEqual(ChannelCount.objects.all().count(), 1)
 
-        # deleting a message doesn't decrement the count
-        msg.delete()
-        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+        # soft deleting a message doesn't decrement the count
+        msg2.delete(soft=True)
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
+
+        # nor hard deleting
+        msg2.delete(soft=False)
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
 
         ChannelCount.objects.all().delete()
 
         # ok, test outgoing now
-        msg = self.create_outgoing_msg(contact, "Real Message", channel=self.channel)
-        log = ChannelLog.objects.create(channel=self.channel, msg=msg, description="Unable to send", is_error=True)
+        msg3 = self.create_outgoing_msg(contact, "Real Message", channel=self.channel)
+        log = ChannelLog.objects.create(
+            channel=self.channel, msg=msg3, log_type=ChannelLog.LOG_TYPE_MSG_SEND, is_error=True
+        )
 
         # squash our counts
         squash_channelcounts()
 
-        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg3.created_on.date())
         self.assertEqual(ChannelCount.objects.filter(count_type=ChannelCount.SUCCESS_LOG_TYPE).count(), 0)
         self.assertEqual(ChannelCount.objects.filter(count_type=ChannelCount.ERROR_LOG_TYPE).count(), 1)
 
@@ -1918,27 +1862,24 @@ class ChannelCountTest(TembaTest):
         self.assertEqual(0, self.channel.get_count([ChannelCount.ERROR_LOG_TYPE]))
 
         # deleting a message doesn't decrement the count
-        msg.delete(soft=True)
-        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
-
-        msg.delete()
-        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
+        msg3.delete()
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg3.created_on.date())
 
         ChannelCount.objects.all().delete()
 
         # incoming IVR
-        msg = self.create_incoming_msg(contact, "Test Message", msg_type=Msg.TYPE_IVR)
-        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
-        msg.delete()
-        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
+        msg4 = self.create_incoming_msg(contact, "Test Message", msg_type=Msg.TYPE_IVR)
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg4.created_on.date())
+        msg4.delete()
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg4.created_on.date())
 
         ChannelCount.objects.all().delete()
 
         # outgoing ivr
-        msg = self.create_outgoing_msg(contact, "Real Voice", msg_type=Msg.TYPE_IVR)
-        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
-        msg.delete()
-        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
+        msg5 = self.create_outgoing_msg(contact, "Real Voice", msg_type=Msg.TYPE_IVR)
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg5.created_on.date())
+        msg5.delete()
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg5.created_on.date())
 
         with patch("temba.channels.tasks.track") as mock:
             self.create_incoming_msg(contact, "Test Message")
@@ -1950,6 +1891,235 @@ class ChannelCountTest(TembaTest):
 
 
 class ChannelLogTest(TembaTest):
+    def test_get_display(self):
+        channel = self.create_channel("TG", "Telegram", "mybot")
+        contact = self.create_contact("Fred Jones", urns=["telegram:74747474"])
+        msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S")
+        log = ChannelLog.objects.create(
+            channel=channel,
+            msg=msg_out,
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
+            is_error=True,
+            http_logs=[
+                {
+                    "url": "https://telegram.com/send?to=74747474",
+                    "status_code": 400,
+                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                    "response": 'HTTP/2.0 200 OK\r\n\r\n{"to":"74747474","first_name":"Fred"}',
+                    "elapsed_ms": 263,
+                    "retries": 0,
+                    "created_on": "2022-08-17T14:07:30Z",
+                }
+            ],
+            errors=[{"message": "response not right", "code": ""}],
+        )
+
+        expected_unredacted = {
+            "description": "Message Send",
+            "http_logs": [
+                {
+                    "url": "https://telegram.com/send?to=74747474",
+                    "status_code": 400,
+                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                    "response": 'HTTP/2.0 200 OK\r\n\r\n{"to":"74747474","first_name":"Fred"}',
+                    "elapsed_ms": 263,
+                    "retries": 0,
+                    "created_on": "2022-08-17T14:07:30Z",
+                }
+            ],
+            "errors": [{"message": "response not right", "code": ""}],
+            "created_on": matchers.Datetime(),
+        }
+
+        expected_redacted = {
+            "description": "Message Send",
+            "http_logs": [
+                {
+                    "url": "https://telegram.com/send?to=********",
+                    "status_code": 400,
+                    "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
+                    "response": 'HTTP/2.0 200 OK\r\n\r\n{"to": "********", "first_name": "********"}',
+                    "elapsed_ms": 263,
+                    "retries": 0,
+                    "created_on": "2022-08-17T14:07:30Z",
+                }
+            ],
+            "errors": [{"message": "response n********", "code": ""}],
+            "created_on": matchers.Datetime(),
+        }
+
+        self.assertEqual(expected_unredacted, log.get_display(self.admin))
+        self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+
+        with AnonymousOrg(self.org):
+            self.assertEqual(expected_redacted, log.get_display(self.admin))
+            self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+
+    def test_get_display_timed_out(self):
+        channel = self.create_channel("TG", "Telegram", "mybot")
+        contact = self.create_contact("Fred Jones", urns=["telegram:74747474"])
+        msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S")
+        log = ChannelLog.objects.create(
+            channel=channel,
+            msg=msg_out,
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
+            is_error=True,
+            http_logs=[
+                {
+                    "url": "https://telegram.com/send?to=74747474",
+                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                    "elapsed_ms": 30001,
+                    "retries": 0,
+                    "created_on": "2022-08-17T14:07:30Z",
+                }
+            ],
+            errors=[{"message": "response not right", "code": ""}],
+        )
+
+        expected_unredacted = {
+            "description": "Message Send",
+            "http_logs": [
+                {
+                    "url": "https://telegram.com/send?to=74747474",
+                    "status_code": 0,
+                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                    "response": "",
+                    "elapsed_ms": 30001,
+                    "retries": 0,
+                    "created_on": "2022-08-17T14:07:30Z",
+                }
+            ],
+            "errors": [{"message": "response not right", "code": ""}],
+            "created_on": matchers.Datetime(),
+        }
+
+        expected_redacted = {
+            "description": "Message Send",
+            "http_logs": [
+                {
+                    "url": "https://telegram.com/send?to=********",
+                    "status_code": 0,
+                    "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
+                    "response": "********",
+                    "elapsed_ms": 30001,
+                    "retries": 0,
+                    "created_on": "2022-08-17T14:07:30Z",
+                }
+            ],
+            "errors": [{"message": "response n********", "code": ""}],
+            "created_on": matchers.Datetime(),
+        }
+
+        self.assertEqual(expected_unredacted, log.get_display(self.admin))
+        self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+
+        with AnonymousOrg(self.org):
+            self.assertEqual(expected_redacted, log.get_display(self.admin))
+            self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+
+
+class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
+    def test_msg(self):
+        contact = self.create_contact("Fred", phone="+12067799191")
+
+        msg1 = self.create_outgoing_msg(contact, "success message", status="D")
+        log1 = ChannelLog.objects.create(
+            channel=self.channel,
+            msg=msg1,
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/send1",
+                    "status_code": 200,
+                    "request": "POST https://foo.bar/send1\r\n\r\n{}",
+                    "response": "HTTP/1.0 200 OK\r\r\r\n",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+            errors=[],
+        )
+        log2 = ChannelLog.objects.create(
+            channel=self.channel,
+            msg=msg1,
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/send2",
+                    "status_code": 200,
+                    "request": "POST https://foo.bar/send2\r\n\r\n{}",
+                    "response": "HTTP/1.0 200 OK\r\r\r\n",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+            errors=[],
+        )
+
+        # create another msg and log that shouldn't be included
+        msg2 = self.create_outgoing_msg(contact, "success message", status="D")
+        ChannelLog.objects.create(
+            channel=self.channel,
+            msg=msg2,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/send3",
+                    "status_code": 200,
+                    "request": "POST https://foo.bar/send2\r\n\r\n{}",
+                    "response": "HTTP/1.0 200 OK\r\r\r\n",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+            errors=[],
+        )
+
+        msg1_url = reverse("channels.channellog_msg", args=[self.channel.uuid, msg1.id])
+
+        self.assertListFetch(
+            msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log2, log1]
+        )
+
+    def test_call(self):
+        contact = self.create_contact("Fred", phone="+12067799191")
+        flow = self.create_flow("IVR")
+
+        call1 = self.create_incoming_call(flow, contact)
+        log1 = call1.channel_logs.get()
+        log2 = ChannelLog.objects.create(
+            channel=self.channel,
+            call=call1,
+            log_type=ChannelLog.LOG_TYPE_IVR_START,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/call2",
+                    "status_code": 200,
+                    "request": "POST /send2\r\n\r\n{}",
+                    "response": "HTTP/1.0 200 OK\r\r\r\n",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+            errors=[],
+        )
+
+        # create another call and log that shouldn't be included
+        self.create_incoming_call(flow, contact)
+
+        call1_url = reverse("channels.channellog_call", args=[self.channel.uuid, call1.id])
+
+        self.assertListFetch(
+            call1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log2, log1]
+        )
+
     def test_views(self):
         self.channel.role = "CASR"
         self.channel.save(update_fields=("role",))
@@ -1975,21 +2145,42 @@ class ChannelLogTest(TembaTest):
         # create sent outgoing message with success channel log
         success_msg = self.create_outgoing_msg(contact, "success message", status="D")
         success_log = ChannelLog.objects.create(
-            channel=self.channel, msg=success_msg, description="Successfully Sent", is_error=False
+            channel=self.channel,
+            msg=success_msg,
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/send?msg=message",
+                    "status_code": 200,
+                    "request": "POST /send?msg=message\r\n\r\n{}",
+                    "response": 'HTTP/1.0 200 OK\r\r\r\n{"ok":true}',
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
         )
-        success_log.response = ""
-        success_log.request = "POST https://foo.bar/send?msg=failed+message"
-        success_log.save(update_fields=["request", "response"])
 
         # create failed outgoing message with error channel log
         failed_msg = self.create_outgoing_msg(contact, "failed message")
         failed_log = ChannelLog.objects.create(
             channel=failed_msg.channel,
             msg=failed_msg,
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=True,
-            description="Error Sending",
-            request="POST https://foo.bar/send?msg=failed+message",
-            response=json.dumps(dict(error="invalid credentials")),
+            http_logs=[
+                {
+                    "url": "https://foo.bar/send?msg=failed+message",
+                    "status_code": 400,
+                    "request": "POST /send?msg=failed+message\r\n\r\n{}",
+                    "response": "HTTP/1.0 200 OK\r\r\r\n",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+            errors=[{"message": "invalid credentials", "code": ""}],
         )
 
         # create call with an interaction log
@@ -1997,24 +2188,35 @@ class ChannelLogTest(TembaTest):
         call = self.create_incoming_call(ivr_flow, contact)
 
         # create failed call with an interaction log
-        self.create_incoming_call(ivr_flow, contact, status=IVRCall.STATUS_FAILED)
+        self.create_incoming_call(ivr_flow, contact, status=Call.STATUS_FAILED)
 
         # create log for other org
         other_org_contact = self.create_contact("Hans", phone="+593979123456")
         other_org_msg = self.create_outgoing_msg(other_org_contact, "hi", status="D")
         other_org_log = ChannelLog.objects.create(
-            channel=other_org_channel, msg=other_org_msg, description="Successfully Sent", is_error=False
+            channel=other_org_channel,
+            msg=other_org_msg,
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/send?msg=message",
+                    "status_code": 200,
+                    "request": "POST /send?msg=message\r\n\r\n{}",
+                    "response": 'HTTP/1.0 200 OK\r\r\r\n{"ok":true}',
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
         )
-        other_org_log.response = ""
-        other_org_log.request = "POST https://foo.bar/send?msg=failed+message"
-        other_org_log.save(update_fields=["request", "response"])
 
         # can't see the view without logging in
         list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
         response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
-        read_url = reverse("channels.channellog_read", args=[failed_log.channel.uuid, failed_log.id])
+        read_url = reverse("channels.channellog_read", args=[failed_log.id])
         response = self.client.get(read_url)
         self.assertLoginRedirect(response)
 
@@ -2025,7 +2227,7 @@ class ChannelLogTest(TembaTest):
         response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
-        read_url = reverse("channels.channellog_read", args=[failed_log.channel.uuid, failed_log.id])
+        read_url = reverse("channels.channellog_read", args=[failed_log.id])
         response = self.client.get(read_url)
         self.assertLoginRedirect(response)
 
@@ -2037,13 +2239,11 @@ class ChannelLogTest(TembaTest):
 
         # check our list page has both our channel logs
         response = self.client.get(list_url)
-        self.assertContains(response, "Successfully Sent")
-        self.assertContains(response, "Error Sending")
+        self.assertEqual([failed_log, success_log], list(response.context["object_list"]))
 
         # check error logs only
         response = self.client.get(list_url + "?errors=1")
-        self.assertNotContains(response, "Successfully Sent")
-        self.assertContains(response, "Error Sending")
+        self.assertEqual([failed_log], list(response.context["object_list"]))
 
         # view failed alone
         response = self.client.get(read_url)
@@ -2051,9 +2251,7 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "invalid credentials")
 
         # can't view log from other org
-        response = self.client.get(
-            reverse("channels.channellog_read", args=[other_org_log.channel.uuid, other_org_log.id])
-        )
+        response = self.client.get(reverse("channels.channellog_read", args=[other_org_log.id]))
         self.assertLoginRedirect(response)
 
         # disconnect our msg
@@ -2064,64 +2262,31 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "invalid credentials")
 
         # view success alone
-        response = self.client.get(
-            reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
-        )
-        self.assertContains(response, "Successfully Sent")
+        response = self.client.get(reverse("channels.channellog_read", args=[success_log.id]))
+        self.assertContains(response, "POST /send?msg=message")
+        self.assertContentMenu(reverse("channels.channellog_read", args=[success_log.id]), self.admin, ["Channel Log"])
 
         self.assertEqual(self.channel.get_success_log_count(), 2)
         self.assertEqual(self.channel.get_error_log_count(), 4)  # error log count always includes IVR logs
 
         # check that IVR logs are displayed correctly
-        response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1")
+        response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?calls=1")
         self.assertContains(response, "15 seconds")
         self.assertContains(response, "2 results")
 
         # make sure we can see the details of the IVR log
-        response = self.client.get(reverse("channels.channellog_connection", args=[call.id]))
+        response = self.client.get(reverse("channels.channellog_call", args=[self.channel.uuid, call.id]))
         self.assertContains(response, "{&quot;say&quot;: &quot;Hello&quot;}")
 
         # if duration isn't set explicitly, it can be calculated
         call.started_on = datetime(2019, 8, 12, 11, 4, 0, 0, timezone.utc)
-        call.status = IVRCall.STATUS_IN_PROGRESS
+        call.status = Call.STATUS_IN_PROGRESS
         call.duration = None
         call.save(update_fields=("started_on", "status", "duration"))
 
         with patch("django.utils.timezone.now", return_value=datetime(2019, 8, 12, 11, 4, 30, 0, timezone.utc)):
-            response = self.client.get(
-                reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1"
-            )
+            response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?calls=1")
             self.assertContains(response, "30 seconds")
-
-    def test_channellog_connection_anonymous(self):
-        contact = self.create_contact("Joe Blow", phone="123")
-        call = IVRCall.objects.create(
-            contact=contact,
-            status=IVRCall.STATUS_ERRORED,
-            error_reason=IVRCall.ERROR_NOANSWER,
-            channel=self.channel,
-            org=self.org,
-            contact_urn=contact.urns.all().first(),
-            error_count=0,
-        )
-        url = reverse("channels.channellog_connection", args=(call.pk,))
-
-        self.login(self.admin)
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(url)
-            # admin has no access
-            self.assertLoginRedirect(response)
-
-        self.login(self.customer_support)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(url)
-            # customer_support has access
-            self.assertEqual(response.status_code, 200)
 
     def test_redaction_for_telegram(self):
         urn = "telegram:3527065"
@@ -2129,22 +2294,28 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("TG", "Test TG Channel", "234567")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
-            description="Successfully Sent",
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
-            url=r"https://api.telegram.org/65474/sendMessage",
-            method="POST",
-            request="POST /65474/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nchat_id=3527065&reply_markup=%7B%22resize_keyboard%22%3Atrue%2C%22one_time_keyboard%22%3Atrue%2C%22keyboard%22%3A%5B%5B%7B%22text%22%3A%22blackjack%22%7D%2C%7B%22text%22%3A%22balance%22%7D%5D%5D%7D&text=Your+balance+is+now+%246.00.",
-            response='HTTP/1.1 200 OK\r\nContent-Length: 298\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: Content-Length,Content-Type,Date,Server,Connection\r\nConnection: keep-alive\r\nContent-Type: application/json\r\nDate: Tue, 11 Jun 2019 15:33:06 GMT\r\nServer: nginx/1.12.2\r\nStrict-Transport-Security: max-age=31536000; includeSubDomains; preload\r\n\r\n{"ok":true,"result":{"message_id":1440,"from":{"id":678777066,"is_bot":true,"first_name":"textit_staging","username":"textit_staging_bot"},"chat":{"id":3527065,"first_name":"Nic","last_name":"Pottier","username":"Nicpottier","type":"private"},"date":1560267186,"text":"Your balance is now $6.00."}}',
-            response_status=200,
+            http_logs=[
+                {
+                    "url": "https://api.telegram.org/65474/sendMessage",
+                    "status_code": 200,
+                    "request": "POST /65474/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nchat_id=3527065&reply_markup=%7B%22resize_keyboard%22%3Atrue%2C%22one_time_keyboard%22%3Atrue%2C%22keyboard%22%3A%5B%5B%7B%22text%22%3A%22blackjack%22%7D%2C%7B%22text%22%3A%22balance%22%7D%5D%5D%7D&text=Your+balance+is+now+%246.00.",
+                    "response": 'HTTP/1.1 200 OK\r\nContent-Length: 298\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: Content-Length,Content-Type,Date,Server,Connection\r\nConnection: keep-alive\r\nContent-Type: application/json\r\nDate: Tue, 11 Jun 2019 15:33:06 GMT\r\nServer: nginx/1.12.2\r\nStrict-Transport-Security: max-age=31536000; includeSubDomains; preload\r\n\r\n{"ok":true,"result":{"message_id":1440,"from":{"id":678777066,"is_bot":true,"first_name":"textit_staging","username":"textit_staging_bot"},"chat":{"id":3527065,"first_name":"Nic","last_name":"Pottier","username":"Nicpottier","type":"private"},"date":1560267186,"text":"Your balance is now $6.00."}}',
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
         )
 
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         # check list page shows un-redacted content for a regular org
         response = self.client.get(list_url)
@@ -2156,7 +2327,7 @@ class ChannelLogTest(TembaTest):
             response = self.client.get(list_url)
 
             self.assertContains(response, "3527065", count=0)
-            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
         # check read page shows un-redacted content for a regular org
         response = self.client.get(read_url)
@@ -2172,12 +2343,11 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "3527065", count=0)
             self.assertContains(response, "Nic", count=0)
             self.assertContains(response, "Pottier", count=0)
-            self.assertContains(response, ContactURN.ANON_MASK, count=9)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=8)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "3527065", count=3)
@@ -2185,11 +2355,11 @@ class ChannelLogTest(TembaTest):
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
             # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            # Contact.get_display does not check if user is staff
             self.assertContains(response, "3527065", count=2)
             self.assertContains(response, "Nic", count=2)
             self.assertContains(response, "Pottier", count=1)
-            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
     def test_redaction_for_telegram_with_invalid_json(self):
         urn = "telegram:3527065"
@@ -2197,24 +2367,30 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("TG", "Test TG Channel", "234567")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
-            description="Successfully Sent",
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
-            url=r"not important",
-            method="POST",
-            request=r"not important",
-            response='Content-Type: application/json\r\n\r\n{"bad_json":true, "first_name": "Nic"',
-            response_status=200,
+            http_logs=[
+                {
+                    "url": "https://api.telegram.org/65474/sendMessage",
+                    "status_code": 200,
+                    "request": "POST /65474/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nchat_id=3527065&reply_markup=%7B%22resize_keyboard%22%3Atrue%2C%22one_time_keyboard%22%3Atrue%2C%22keyboard%22%3A%5B%5B%7B%22text%22%3A%22blackjack%22%7D%2C%7B%22text%22%3A%22balance%22%7D%5D%5D%7D&text=Your+balance+is+now+%246.00.",
+                    "response": 'HTTP/1.1 200 OK\r\nContent-Length: 298\r\nContent-Type: application/json\r\n\r\n{"bad_json":true, "first_name": "Nic"',
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
         )
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
         response = self.client.get(read_url)
 
-        self.assertContains(response, "3527065", count=1)
+        self.assertContains(response, "3527065", count=2)
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
@@ -2224,21 +2400,20 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "Pottier", count=0)
 
             # everything is masked
-            self.assertContains(response, ContactURN.ANON_MASK, count=4)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
-        self.assertContains(response, "3527065", count=1)
+        self.assertContains(response, "3527065", count=2)
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
             self.assertContains(response, "Nic", count=1)
 
-            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
     def test_redaction_for_telegram_when_no_match(self):
         urn = "telegram:3527065"
@@ -2246,25 +2421,31 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("TG", "Test TG Channel", "234567")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
-            description="Successfully Sent",
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
-            url="There is no contact identifying information",
-            method="POST",
-            request='There is no contact identifying information\r\n\r\n{"json": "ok"}',
-            response='There is no contact identifying information\r\n\r\n{"json": "ok"}',
-            response_status=200,
+            http_logs=[
+                {
+                    "url": "https://api.telegram.org/There is no contact identifying information",
+                    "status_code": 200,
+                    "request": 'POST /65474/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\n{"json": "There is no contact identifying information"}',
+                    "response": 'HTTP/1.1 200 OK\r\nContent-Length: 298\r\nContent-Type: application/json\r\n\r\n{"json": "There is no contact identifying information"}',
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
         )
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "3527065", count=1)
-        self.assertContains(response, "There is no contact identifying information", count=3)
+        self.assertContains(response, "There is no contact identifying information", count=2)
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
@@ -2273,7 +2454,7 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "There is no contact identifying information", count=0)
 
             self.assertContains(response, "3527065", count=0)
-            self.assertContains(response, ContactURN.ANON_MASK, count=4)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
@@ -2284,9 +2465,9 @@ class ChannelLogTest(TembaTest):
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-            self.assertContains(response, "There is no contact identifying information", count=3)
+            self.assertContains(response, "There is no contact identifying information", count=2)
 
-            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
     def test_redaction_for_twitter(self):
         urn = "twitterid:767659860"
@@ -2294,22 +2475,28 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
-            description="Successfully Sent",
+            log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE,
             is_error=False,
-            url=r"https://textit.in/c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive",
-            method="POST",
-            request='POST /c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive HTTP/1.1\r\nHost: textit.in\r\nContent-Length: 1596\r\nContent-Type: application/json\r\nFinagle-Ctx-Com.twitter.finagle.deadline: 1560853608671000000 1560853611615000000\r\nFinagle-Ctx-Com.twitter.finagle.retries: 0\r\nFinagle-Http-Retryable-Request: \r\nX-Amzn-Trace-Id: Root=1-5d08bc68-de52174e83904d614a32a5c6\r\nX-B3-Flags: 2\r\nX-B3-Parentspanid: fe22fff79af84311\r\nX-B3-Sampled: false\r\nX-B3-Spanid: 86f3c3871ae31c2d\r\nX-B3-Traceid: fe22fff79af84311\r\nX-Forwarded-For: 199.16.157.173\r\nX-Forwarded-Port: 443\r\nX-Forwarded-Proto: https\r\nX-Twitter-Webhooks-Signature: sha256=CYVI5q7e7bzKufCD3GnZoJheSmjVRmNQo9uzO/gi4tA=\r\n\r\n{"for_user_id":"3753944237","direct_message_events":[{"type":"message_create","id":"1140928844112814089","created_timestamp":"1560853608526","message_create":{"target":{"recipient_id":"3753944237"},"sender_id":"767659860","message_data":{"text":"Briefly what will you be talking about and do you have any feature stories","entities":{"hashtags":[],"symbols":[],"user_mentions":[],"urls":[]}}}}],"users":{"767659860":{"id":"767659860","created_timestamp":"1345386861000","name":"Aaron Tumukunde","screen_name":"tumaaron","description":"Mathematics \u25a1 Media \u25a1 Real Estate \u25a1 And Jesus above all.","protected":false,"verified":false,"followers_count":167,"friends_count":485,"statuses_count":237,"profile_image_url":"http://pbs.twimg.com/profile_images/860380640029573120/HKuXgxR__normal.jpg","profile_image_url_https":"https://pbs.twimg.com/profile_images/860380640029573120/HKuXgxR__normal.jpg"},"3753944237":{"id":"3753944237","created_timestamp":"1443048916258","name":"Teheca","screen_name":"tehecaug","location":"Uganda","description":"We connect new mothers & parents to nurses for postnatal care. #Google LaunchPad Africa 2018, #UNFPA UpAccelerate 2017 #MasterCard Innovation exp 2017 #YCSUS18","url":"https://t.co/i0hcLRwEj7","protected":false,"verified":false,"followers_count":3369,"friends_count":4872,"statuses_count":1128,"profile_image_url":"http://pbs.twimg.com/profile_images/694638274204143616/Q4Mbg1tO_normal.png","profile_image_url_https":"https://pbs.twimg.com/profile_images/694638274204143616/Q4Mbg1tO_normal.png"}}}',
-            response='HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\n{"message":"Message Accepted","data":[{"type":"msg","channel_uuid":"5c70a767-f3dc-4a99-9323-4774f6432af5","msg_uuid":"6c26277d-7002-4489-9b7f-998d4be5d0db","text":"Briefly what will you be talking about and do you have any feature stories","urn":"twitterid:767659860#tumaaron","external_id":"1140928844112814089","received_on":"2019-06-18T10:26:48.526Z"}]}',
-            response_status=200,
+            http_logs=[
+                {
+                    "url": "https://textit.in/c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive",
+                    "status_code": 200,
+                    "request": 'POST /c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive HTTP/1.1\r\nHost: textit.in\r\nContent-Length: 1596\r\nContent-Type: application/json\r\nFinagle-Ctx-Com.twitter.finagle.deadline: 1560853608671000000 1560853611615000000\r\nFinagle-Ctx-Com.twitter.finagle.retries: 0\r\nFinagle-Http-Retryable-Request: \r\nX-Amzn-Trace-Id: Root=1-5d08bc68-de52174e83904d614a32a5c6\r\nX-B3-Flags: 2\r\nX-B3-Parentspanid: fe22fff79af84311\r\nX-B3-Sampled: false\r\nX-B3-Spanid: 86f3c3871ae31c2d\r\nX-B3-Traceid: fe22fff79af84311\r\nX-Forwarded-For: 199.16.157.173\r\nX-Forwarded-Port: 443\r\nX-Forwarded-Proto: https\r\nX-Twitter-Webhooks-Signature: sha256=CYVI5q7e7bzKufCD3GnZoJheSmjVRmNQo9uzO/gi4tA=\r\n\r\n{"for_user_id":"3753944237","direct_message_events":[{"type":"message_create","id":"1140928844112814089","created_timestamp":"1560853608526","message_create":{"target":{"recipient_id":"3753944237"},"sender_id":"767659860","message_data":{"text":"Briefly what will you be talking about and do you have any feature stories","entities":{"hashtags":[],"symbols":[],"user_mentions":[],"urls":[]}}}}],"users":{"767659860":{"id":"767659860","created_timestamp":"1345386861000","name":"Aaron Tumukunde","screen_name":"tumaaron","description":"Mathematics \u25a1 Media \u25a1 Real Estate \u25a1 And Jesus above all.","protected":false,"verified":false,"followers_count":167,"friends_count":485,"statuses_count":237,"profile_image_url":"http://pbs.twimg.com/profile_images/860380640029573120/HKuXgxR__normal.jpg","profile_image_url_https":"https://pbs.twimg.com/profile_images/860380640029573120/HKuXgxR__normal.jpg"},"3753944237":{"id":"3753944237","created_timestamp":"1443048916258","name":"Teheca","screen_name":"tehecaug","location":"Uganda","description":"We connect new mothers & parents to nurses for postnatal care. #Google LaunchPad Africa 2018, #UNFPA UpAccelerate 2017 #MasterCard Innovation exp 2017 #YCSUS18","url":"https://t.co/i0hcLRwEj7","protected":false,"verified":false,"followers_count":3369,"friends_count":4872,"statuses_count":1128,"profile_image_url":"http://pbs.twimg.com/profile_images/694638274204143616/Q4Mbg1tO_normal.png","profile_image_url_https":"https://pbs.twimg.com/profile_images/694638274204143616/Q4Mbg1tO_normal.png"}}}',
+                    "response": 'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\n{"message":"Message Accepted","data":[{"type":"msg","channel_uuid":"5c70a767-f3dc-4a99-9323-4774f6432af5","msg_uuid":"6c26277d-7002-4489-9b7f-998d4be5d0db","text":"Briefly what will you be talking about and do you have any feature stories","urn":"twitterid:767659860#tumaaron","external_id":"1140928844112814089","received_on":"2019-06-18T10:26:48.526Z"}]}',
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
         )
 
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         response = self.client.get(list_url)
 
@@ -2319,7 +2506,7 @@ class ChannelLogTest(TembaTest):
             response = self.client.get(list_url)
 
             self.assertContains(response, "767659860", count=0)
-            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
         response = self.client.get(read_url)
 
@@ -2333,12 +2520,11 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "767659860", count=0)
             self.assertContains(response, "Aaron Tumukunde", count=0)
             self.assertContains(response, "tumaaron", count=0)
-            self.assertContains(response, ContactURN.ANON_MASK, count=14)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=13)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "767659860", count=5)
@@ -2346,12 +2532,12 @@ class ChannelLogTest(TembaTest):
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
             # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            # Contact.get_display does not check if user is staff
             self.assertContains(response, "767659860", count=4)
             self.assertContains(response, "Aaron Tumukunde", count=1)
             self.assertContains(response, "tumaaron", count=2)
 
-            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
     def test_redaction_for_twitter_when_no_match(self):
         urn = "twitterid:767659860"
@@ -2359,25 +2545,31 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
-            description="Successfully Sent",
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
-            url="There is no contact identifying information",
-            method="POST",
-            request=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
-            response=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
-            response_status=200,
+            http_logs=[
+                {
+                    "url": "https://twitter.com/There is no contact identifying information",
+                    "status_code": 200,
+                    "request": 'POST /65474/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\n{"json": "There is no contact identifying information"}',
+                    "response": 'HTTP/1.1 200 OK\r\nContent-Length: 298\r\nContent-Type: application/json\r\n\r\n{"json": "There is no contact identifying information"}',
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
         )
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "767659860", count=1)
-        self.assertContains(response, "There is no contact identifying information", count=3)
+        self.assertContains(response, "There is no contact identifying information", count=2)
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
@@ -2386,7 +2578,7 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "There is no contact identifying information", count=0)
 
             self.assertContains(response, "767659860", count=0)
-            self.assertContains(response, ContactURN.ANON_MASK, count=4)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
@@ -2397,9 +2589,9 @@ class ChannelLogTest(TembaTest):
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-            self.assertContains(response, "There is no contact identifying information", count=3)
+            self.assertContains(response, "There is no contact identifying information", count=2)
 
-            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
     def test_redaction_for_facebook(self):
         urn = "facebook:2150393045080607"
@@ -2407,16 +2599,22 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("FB", "Test FB Channel", "54764868534")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
-            description="Successfully Sent",
+            log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE,
             is_error=False,
-            url=f"https://textit.in/c/fb/{channel.uuid}/receive",
-            method="POST",
-            request="""POST /c/fb/d1117754-f2ab-4348-9572-996ddc1959a8/receive HTTP/1.1\r\nHost: textit.in\r\nAccept: */*\r\nAccept-Encoding: deflate, gzip\r\nContent-Length: 314\r\nContent-Type: application/json\r\n\r\n{"object":"page","entry":[{"id":"311494332880244","time":1559102364444,"messaging":[{"sender":{"id":"2150393045080607"},"recipient":{"id":"311494332880244"},"timestamp":1559102363925,"message":{"mid":"ld5jgfQP8TLBX9FFc3AETshZgE6Zn5UjpY3vY00t3A_YYC2AYDM3quxaodTiHj7nK6lI_ds4WFUJlTmM2l5xoA","seq":0,"text":"hi"}}]}]}""",
-            response="""HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Type: application/json\r\n\r\n{"message":"Events Handled","data":[{"type":"msg","channel_uuid":"d1117754-f2ab-4348-9572-996ddc1959a8","msg_uuid":"55a3387b-f97e-4270-8157-7ba781a86411","text":"hi","urn":"facebook:2150393045080607","external_id":"ld5jgfQP8TLBX9FFc3AETshZgE6Zn5UjpY3vY00t3A_YYC2AYDM3quxaodTiHj7nK6lI_ds4WFUJlTmM2l5xoA","received_on":"2019-05-29T03:59:23.925Z"}]}""",
-            response_status=200,
+            http_logs=[
+                {
+                    "url": f"https://textit.in/c/fb/{channel.uuid}/receive",
+                    "status_code": 200,
+                    "request": """POST /c/fb/d1117754-f2ab-4348-9572-996ddc1959a8/receive HTTP/1.1\r\nHost: textit.in\r\nAccept: */*\r\nAccept-Encoding: deflate, gzip\r\nContent-Length: 314\r\nContent-Type: application/json\r\n\r\n{"object":"page","entry":[{"id":"311494332880244","time":1559102364444,"messaging":[{"sender":{"id":"2150393045080607"},"recipient":{"id":"311494332880244"},"timestamp":1559102363925,"message":{"mid":"ld5jgfQP8TLBX9FFc3AETshZgE6Zn5UjpY3vY00t3A_YYC2AYDM3quxaodTiHj7nK6lI_ds4WFUJlTmM2l5xoA","seq":0,"text":"hi"}}]}]}""",
+                    "response": """HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Type: application/json\r\n\r\n{"message":"Events Handled","data":[{"type":"msg","channel_uuid":"d1117754-f2ab-4348-9572-996ddc1959a8","msg_uuid":"55a3387b-f97e-4270-8157-7ba781a86411","text":"hi","urn":"facebook:2150393045080607","external_id":"ld5jgfQP8TLBX9FFc3AETshZgE6Zn5UjpY3vY00t3A_YYC2AYDM3quxaodTiHj7nK6lI_ds4WFUJlTmM2l5xoA","received_on":"2019-05-29T03:59:23.925Z"}]}""",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
         )
 
         self.login(self.admin)
@@ -2432,9 +2630,9 @@ class ChannelLogTest(TembaTest):
 
             self.assertContains(response, "2150393045080607", count=0)
             self.assertContains(response, "facebook:2150393045080607", count=0)
-            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         response = self.client.get(read_url)
 
@@ -2447,12 +2645,12 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "2150393045080607", count=0)
             self.assertContains(response, "facebook:", count=1)
 
-            self.assertContains(response, ContactURN.ANON_MASK, count=4)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         response = self.client.get(read_url)
 
@@ -2462,11 +2660,11 @@ class ChannelLogTest(TembaTest):
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
             # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            # Contact.get_display does not check if user is staff
             self.assertContains(response, "2150393045080607", count=2)
             self.assertContains(response, "facebook:", count=1)
 
-            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
     def test_redaction_for_facebook_when_no_match(self):
         # in this case we are paranoid and mask everything
@@ -2475,16 +2673,22 @@ class ChannelLogTest(TembaTest):
         channel = self.create_channel("FB", "Test FB Channel", "54764868534")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
-            description="Successfully Sent",
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
-            url="There is no contact identifying information",
-            method="POST",
-            request="""There is no contact identifying information""",
-            response="""There is no contact identifying information""",
-            response_status=200,
+            http_logs=[
+                {
+                    "url": "https://facebook.com/There is no contact identifying information",
+                    "status_code": 200,
+                    "request": 'POST /65474/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\n{"json": "There is no contact identifying information"}',
+                    "response": 'HTTP/1.1 200 OK\r\nContent-Length: 298\r\nContent-Type: application/json\r\n\r\n{"json": "There is no contact identifying information"}',
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
         )
 
         self.login(self.admin)
@@ -2497,9 +2701,9 @@ class ChannelLogTest(TembaTest):
         with AnonymousOrg(self.org):
             response = self.client.get(list_url)
 
-            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         response = self.client.get(read_url)
 
@@ -2512,7 +2716,7 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "There is no contact identifying information", count=0)
 
             self.assertContains(response, "2150393045080607", count=0)
-            self.assertContains(response, ContactURN.ANON_MASK, count=4)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
@@ -2523,33 +2727,39 @@ class ChannelLogTest(TembaTest):
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-            self.assertContains(response, "There is no contact identifying information", count=3)
+            self.assertContains(response, "There is no contact identifying information", count=2)
 
             # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
-            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+            # Contact.get_display does not check if user is staff
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
     def test_redaction_for_twilio(self):
         contact = self.create_contact("Fred Jones", phone="+593979099111")
         channel = self.create_channel("T", "Test Twilio Channel", "+12345")
         msg = self.create_outgoing_msg(contact, "Hi")
 
-        success_log = ChannelLog.objects.create(
+        ChannelLog.objects.create(
             channel=channel,
             msg=msg,
-            description="Status Updated",
+            log_type=ChannelLog.LOG_TYPE_MSG_STATUS,
             is_error=False,
-            url="https://textit.in/c/t/1234-5678/status?id=2466753&action=callback",
-            method="POST",
-            request="POST /c/t/1234-5678/status?id=86598533&action=callback HTTP/1.1\r\nHost: textit.in\r\nAccept: */*\r\nAccept-Encoding: gzip,deflate\r\nCache-Control: max-age=259200\r\nContent-Length: 237\r\nContent-Type: application/x-www-form-urlencoded; charset=utf-8\r\nUser-Agent: TwilioProxy/1.1\r\nX-Amzn-Trace-Id: Root=1-5d5a10b2-8c8b96c86d45a9c6bdc5f43c\r\nX-Forwarded-For: 54.210.179.19\r\nX-Forwarded-Port: 443\r\nX-Forwarded-Proto: https\r\nX-Twilio-Signature: sdgreh54hehrghssghh55=\r\n\r\nSmsSid=SM357343637&SmsStatus=delivered&MessageStatus=delivered&To=%2B593979099111&MessageSid=SM357343637&AccountSid=AC865965965&From=%2B253262278&ApiVersion=2010-04-01&ToCity=Quito&ToCountry=EC",
-            response='{"message":"Status Update Accepted","data":[{"type":"status","channel_uuid":"1234-5678","status":"D","msg_id":2466753}]}\n',
-            response_status=200,
+            http_logs=[
+                {
+                    "url": "https://textit.in/c/t/1234-5678/status?id=2466753&action=callback",
+                    "status_code": 200,
+                    "request": "POST /c/t/1234-5678/status?id=86598533&action=callback HTTP/1.1\r\nHost: textit.in\r\nAccept: */*\r\nAccept-Encoding: gzip,deflate\r\nCache-Control: max-age=259200\r\nContent-Length: 237\r\nContent-Type: application/x-www-form-urlencoded; charset=utf-8\r\nUser-Agent: TwilioProxy/1.1\r\nX-Amzn-Trace-Id: Root=1-5d5a10b2-8c8b96c86d45a9c6bdc5f43c\r\nX-Forwarded-For: 54.210.179.19\r\nX-Forwarded-Port: 443\r\nX-Forwarded-Proto: https\r\nX-Twilio-Signature: sdgreh54hehrghssghh55=\r\n\r\nSmsSid=SM357343637&SmsStatus=delivered&MessageStatus=delivered&To=%2B593979099111&MessageSid=SM357343637&AccountSid=AC865965965&From=%2B253262278&ApiVersion=2010-04-01&ToCity=Quito&ToCountry=EC",
+                    "response": '{"message":"Status Update Accepted","data":[{"type":"status","channel_uuid":"1234-5678","status":"D","msg_id":2466753}]}\n',
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
         )
 
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         # check list page shows un-redacted content for a regular org
         response = self.client.get(list_url)
@@ -2563,7 +2773,7 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "097 909 9111", count=0)
             self.assertContains(response, "979099111", count=0)
             self.assertContains(response, "Quito", count=0)
-            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
         # check read page shows un-redacted content for a regular org
         response = self.client.get(read_url)
@@ -2579,12 +2789,11 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "097 909 9111", count=0)
             self.assertContains(response, "979099111", count=0)
             self.assertContains(response, "Quito", count=0)
-            self.assertContains(response, ContactURN.ANON_MASK, count=5)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=4)
 
         # login as customer support, must see URNs
         self.login(self.customer_support)
 
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
         response = self.client.get(read_url)
 
         self.assertContains(response, "097 909 9111", count=1)
@@ -2594,11 +2803,11 @@ class ChannelLogTest(TembaTest):
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
             # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            # Contact.get_display does not check if user is staff
             self.assertContains(response, "097 909 9111", count=0)
             self.assertContains(response, "979099111", count=1)
             self.assertContains(response, "Quito", count=1)
-            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
     def test_channellog_hide_whatsapp_cloud(self):
         urn = "whatsapp:15128505839"
@@ -2609,11 +2818,13 @@ class ChannelLogTest(TembaTest):
         success_log = ChannelLog.objects.create(
             channel=channel,
             msg=msg,
-            description="Successfully Sent",
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
-            url=f"https://example.com/send/message?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}",
-            method="POST",
-            request=f"""
+            http_logs=[
+                {
+                    "url": f"https://example.com/send/message?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}",
+                    "status_code": 200,
+                    "request": f"""
 POST /send/message?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN} HTTP/1.1
 Host: example.com
 Accept: */*
@@ -2621,17 +2832,21 @@ Accept-Encoding: gzip;q=1.0,deflate;q=0.6,identity;q=0.3
 Content-Length: 343
 Content-Type: application/x-www-form-urlencoded
 User-Agent: SignalwireCallback/1.0
-Authorizatio: Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}
+Authorization: Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}
 
 MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5900db47e262&AccountSid=<redacted>&From=%2B15618981512&To=%2B15128505839&Body=Hi+Ben+Google+Voice%2C+Did+you+enjoy+your+stay+at+White+Bay+Villas%3F++Answer+with+Yes+or+No.+reply+STOP+to+opt-out.&NumMedia=0&NumSegments=1&MessageStatus=sent""",
-            response='{"success": true }',
-            response_status=200,
+                    "response": '{"success": true }',
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
         )
 
         self.login(self.admin)
 
         list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        read_url = reverse("channels.channellog_read", args=[success_log.channel.uuid, success_log.id])
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
 
         # check list page shows un-redacted content for a regular org
         response = self.client.get(list_url)
@@ -2639,8 +2854,8 @@ MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5
 
         response = self.client.get(read_url)
         self.assertNotContains(response, settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN)
-        self.assertContains(response, f"https://example.com/send/message?access_token={ContactURN.ANON_MASK}")
-        self.assertContains(response, f"Authorizatio: Bearer {ContactURN.ANON_MASK}")
+        self.assertContains(response, f"/send/message?access_token={HTTPLog.REDACT_MASK}")
+        self.assertContains(response, f"Authorization: Bearer {HTTPLog.REDACT_MASK}")
 
     def test_channellog_anonymous_org_no_msg(self):
         tw_urn = "15128505839"
@@ -2650,12 +2865,13 @@ MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5
         failed_log = ChannelLog.objects.create(
             channel=tw_channel,
             msg=None,
-            description="Channel Error",
+            log_type=ChannelLog.LOG_TYPE_MSG_STATUS,
             is_error=True,
-            url=f"https://textit.in/c/tw/{tw_channel.uuid}/status?action=callback&id=58027120",
-            method="POST",
-            request="""
-POST /c/tw/8388f8cd-658f-4fae-925e-ee0792588e68/status?action=callback&id=58027120 HTTP/1.1
+            http_logs=[
+                {
+                    "url": f"https://textit.in/c/tw/{tw_channel.uuid}/status?action=callback&id=58027120",
+                    "status_code": 200,
+                    "request": """POST /c/tw/8388f8cd-658f-4fae-925e-ee0792588e68/status?action=callback&id=58027120 HTTP/1.1
 Host: textit.in
 Accept: */*
 Accept-Encoding: gzip;q=1.0,deflate;q=0.6,identity;q=0.3
@@ -2664,21 +2880,22 @@ Content-Type: application/x-www-form-urlencoded
 User-Agent: SignalwireCallback/1.0
 
 MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5900db47e262&AccountSid=<redacted>&From=%2B15618981512&To=%2B15128505839&Body=Hi+Ben+Google+Voice%2C+Did+you+enjoy+your+stay+at+White+Bay+Villas%3F++Answer+with+Yes+or+No.+reply+STOP+to+opt-out.&NumMedia=0&NumSegments=1&MessageStatus=sent""",
-            response="""
-HTTP/1.1 400 Bad Request
+                    "response": """HTTP/1.1 400 Bad Request
 Content-Encoding: gzip
 Content-Type: application/json
 
-{"message":"Error","data":[{"type":"error","error":"missing request signature"}]}
-
-
-Error: missing request signature""",
-            response_status=400,
+{"message":"Error","data":[{"type":"error","error":"missing request signature"}]}""",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+            errors=[{"message": "missing request signature", "code": ""}],
         )
 
         self.login(self.admin)
 
-        read_url = reverse("channels.channellog_read", args=[failed_log.channel.uuid, failed_log.id])
+        read_url = reverse("channels.channellog_read", args=[failed_log.id])
 
         response = self.client.get(read_url)
 
@@ -2690,8 +2907,8 @@ Error: missing request signature""",
 
             self.assertContains(response, tw_urn, count=0)
 
-            # when we can't identify the contact, url, request and response objects are completely masked
-            self.assertContains(response, ContactURN.ANON_MASK, count=3)
+            # when we can't identify the contact, request, and response body
+            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
 
     def test_trim_task(self):
         contact = self.create_contact("Fred Jones", phone="12345")
@@ -2700,25 +2917,19 @@ Error: missing request signature""",
         ChannelLog.objects.create(
             channel=self.channel,
             msg=msg,
-            description="Successfully Sent",
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
-            url="htpp://example.com",
-            method="POST",
-            request='{"json": "ok"}',
-            response='{"json": "ok"}',
-            response_status=200,
+            http_logs=[],
+            errors=[],
             created_on=timezone.now() - timedelta(days=7),
         )
         l2 = ChannelLog.objects.create(
             channel=self.channel,
             msg=msg,
-            description="Successfully Sent",
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
-            url="htpp://example.com",
-            method="POST",
-            request='{"json": "ok"}',
-            response='{"json": "ok"}',
-            response_status=200,
+            http_logs=[],
+            errors=[],
             created_on=timezone.now() - timedelta(days=2),
         )
 

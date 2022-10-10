@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin
+from temba.utils.text import truncate
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -106,10 +107,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     raise Exception("Failed to subscribe to app for webhook events")
 
                 self.cleaned_data["page_access_token"] = page_access_token
-                self.cleaned_data["name"] = name
+                self.cleaned_data["name"] = truncate(name, Channel._meta.get_field("name").max_length)
 
+                # requires instagram_basic permission
+                # https://developers.facebook.com/docs/instagram-api/reference/page#read
                 url = f"https://graph.facebook.com/{page_id}?fields=instagram_business_account"
-                params = {"access_token": page_access_token}
+                params = {"access_token": auth_token}
 
                 response = requests.get(url, params=params)
 
@@ -139,7 +142,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return context
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
         page_id = form.cleaned_data["page_id"]
         page_access_token = form.cleaned_data["page_access_token"]
         name = form.cleaned_data["name"]
@@ -152,7 +154,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
 
         self.object = Channel.create(
-            org,
+            self.request.org,
             self.request.user,
             None,
             self.channel_type,
@@ -209,7 +211,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         return context
 
     def get_queryset(self):
-        return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="IG")
+        return self.request.org.channels.filter(is_active=True, channel_type="IG")
 
     def execute_action(self):
 

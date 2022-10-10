@@ -27,11 +27,9 @@ class ClaimView(AuthenticatedExternalClaimView):
         return "PH"
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
-
         data = form.cleaned_data
         self.object = Channel.add_config_external_channel(
-            org,
+            self.request.org,
             self.request.user,
             "PH",
             data["number"],

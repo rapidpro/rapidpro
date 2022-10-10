@@ -3,6 +3,8 @@ from datetime import timedelta
 from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
 from django import forms
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db.models.aggregates import Max
 from django.http import JsonResponse
@@ -14,14 +16,17 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils import on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
+from temba.utils.export.views import BaseExportView
 from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import (
     AllFolder,
+    ExportTicketsTask,
     MineFolder,
     Ticket,
     TicketCount,
@@ -30,6 +35,7 @@ from .models import (
     UnassignedFolder,
     export_ticket_stats,
 )
+from .tasks import export_tickets_task
 
 
 class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
@@ -87,9 +93,9 @@ class NoteForm(forms.ModelForm):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "folder", "note", "assign", "menu", "export_stats")
+    actions = ("list", "folder", "note", "assign", "menu", "export_stats", "export")
 
-    class List(SpaMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
+    class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
         A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
         """
@@ -159,17 +165,24 @@ class TicketCRUDL(SmartCRUDL):
 
             return context
 
+        def build_content_menu(self, menu):
+            if self.has_org_perm("tickets.ticket_export"):
+                menu.add_modax(
+                    _("Export"), "export-tickets", f"{reverse('tickets.ticket_export')}", title=_("Export Tickets")
+                )
+
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
 
-    class Menu(OrgPermsMixin, SmartTemplateView):
-        def render_to_response(self, context, **response_kwargs):
+    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):
+        def derive_menu(self):
+            org = self.request.org
             user = self.request.user
-            count_by_assignee = TicketCount.get_by_assignees(user.get_org(), [None, user], Ticket.STATUS_OPEN)
+            count_by_assignee = TicketCount.get_by_assignees(org, [None, user], Ticket.STATUS_OPEN)
             counts = {
                 MineFolder.slug: count_by_assignee[user],
                 UnassignedFolder.slug: count_by_assignee[None],
-                AllFolder.slug: TicketCount.get_all(user.get_org(), Ticket.STATUS_OPEN),
+                AllFolder.slug: TicketCount.get_all(org, Ticket.STATUS_OPEN),
             }
 
             menu = []
@@ -178,11 +191,12 @@ class TicketCRUDL(SmartCRUDL):
                     {
                         "id": folder.slug,
                         "name": folder.name,
+                        "verbose_name": folder.verbose_name,
                         "icon": folder.icon,
                         "count": counts[folder.slug],
                     }
                 )
-            return JsonResponse({"results": menu})
+            return menu
 
     class Folder(OrgPermsMixin, SmartTemplateView):
         permission = "tickets.ticket_list"
@@ -198,7 +212,7 @@ class TicketCRUDL(SmartCRUDL):
             return TicketFolder.from_slug(self.kwargs["folder"])
 
         def get_queryset(self, **kwargs):
-
+            org = self.request.org
             user = self.request.user
             status = Ticket.STATUS_OPEN if self.kwargs["status"] == "open" else Ticket.STATUS_CLOSED
             uuid = self.kwargs.get("uuid", None)
@@ -207,7 +221,7 @@ class TicketCRUDL(SmartCRUDL):
 
             # fetching new activity gets a different order later
             ordered = False if after else True
-            qs = self.folder.get_queryset(user.get_org(), user, ordered).filter(status=status)
+            qs = self.folder.get_queryset(org, user, ordered).filter(status=status)
 
             # all new activity
             after = int(self.request.GET.get("after", 0))
@@ -228,7 +242,7 @@ class TicketCRUDL(SmartCRUDL):
 
                 if count == self.paginate_by:
                     last_ticket = qs[len(qs) - 1]
-                    qs = self.folder.get_queryset(user.get_org(), user, ordered).filter(
+                    qs = self.folder.get_queryset(org, user, ordered).filter(
                         status=status, last_activity_on__gte=last_ticket.last_activity_on
                     )
 
@@ -359,7 +373,7 @@ class TicketCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.user.get_org()
+            kwargs["org"] = self.request.org
             return kwargs
 
         def derive_initial(self):
@@ -394,6 +408,47 @@ class TicketCRUDL(SmartCRUDL):
 
             return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
 
+    class Export(BaseExportView):
+        success_url = "@tickets.ticket_list"
+
+        def form_valid(self, form):
+            org = self.request.org
+            user = self.request.user
+
+            # is there already an export taking place?
+            existing = ExportTicketsTask.get_recent_unfinished(org)
+            if existing:
+                messages.info(
+                    self.request,
+                    f"There is already an export in progress, started by {existing.created_by.username}. "
+                    f"You must wait for that export to complete before starting another.",
+                )
+            else:
+                start_date = form.cleaned_data["start_date"]
+                end_date = form.cleaned_data["end_date"]
+                with_fields = form.cleaned_data["with_fields"]
+                export = ExportTicketsTask.create(org, user, start_date, end_date, with_fields)
+
+                # schedule the export job
+                on_transaction_commit(lambda: export_tickets_task.delay(export.pk))
+
+                # display progress info message to user
+                if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: no cover
+                    messages.info(
+                        self.request,
+                        f"We are preparing your export. We will e-mail you at {self.request.user.username} when it is ready.",
+                    )
+                else:
+                    dl_url = reverse("assets.download", kwargs=dict(type="ticket_export", pk=export.pk))
+                    messages.info(
+                        self.request,
+                        f"Export complete, you can find it here: {dl_url} (production users will get an email)",
+                    )
+
+            response = self.render_modal_response(form)
+            response["REDIRECT"] = self.get_success_url()
+            return response
+
 
 class TicketerCRUDL(SmartCRUDL):
     model = Ticketer
@@ -405,7 +460,7 @@ class TicketerCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["ticketer_types"] = [tt for tt in Ticketer.get_types() if tt.is_available_to(self.get_user())]
+            context["ticketer_types"] = [tt for tt in Ticketer.get_types() if tt.is_available_to(self.request.user)]
             return context
 
     class Read(OrgObjPermsMixin, SmartReadView):

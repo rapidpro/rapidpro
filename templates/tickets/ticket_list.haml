@@ -89,15 +89,8 @@
 
     function handleTicketsMenuChanged(selection) {
 
+      var menu = selection.target;
       var statusSelect = document.querySelector('temba-select[name="ticket-status"]');
-
-      // sometimes our main menu calls us before we are full loaded
-      if (!statusSelect) {
-        window.setTimeout(function(){ handleTicketsMenuChanged(selection)}, 500);
-        return;
-      }
-
-      var menu = document.querySelector('temba-menu');
       var path = menu.getSelection();
 
       var section = path[0];
@@ -116,15 +109,11 @@
       }     
 
       if (window.updatePageTitle) {
-        updatePageTitle();
+        updatePageTitle(true);
       }
     }
 
-    function updateTicketList() {
-      var app = document.location.pathname.indexOf('/ticket/') > -1 ? 'ticket' : 'tickets';
-      var url = `/${app}/${folder}/${status}/${ticketUUID || ''}`;
-      window.history.pushState({},"", url);
-
+    function updateTicketList() {      
       var tickets = document.querySelector("temba-ticket-list");
       var chat = document.querySelector("temba-contact-chat");
 
@@ -184,6 +173,21 @@
       }
       
       updateTicketList();
+      
+      var path = `${folder}/${status}/${ticketUUID || ''}`;
+
+      {% if is_spa %}
+        var show = `/tickets/${path}`;
+      {% else %}
+        var show = `/ticket/${path}`;
+      {% endif %}
+
+      if (!show.endsWith("/")) {
+        show += "/";
+      }
+
+      window.history.replaceState({ url: `/ticket/${path}`, show: show } ,"", show);
+      
     }
     
     function handleContactHistoryUpdated(event) {
@@ -266,9 +270,9 @@
 
 -block page-container
   -block content
-    .flex.flex-col(style="height:100%")
+    .flex.flex-col.overflow-hidden.flex-grow
       .page.flex-grow.flex.flex-col.min-h-0
-        .flex.widget-container(style="{% if is_spa%}margin:0;padding:0;height:100%{%else%}height:100vh; margin-top:-121px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;{%endif%}")
+        .flex.widget-container(style="height:100%")
           -if not is_spa
             .folders
               %temba-menu(endpoint="{%url 'orgs.org_menu'%}" submenu="tickets" onchange="handleTicketsMenuChanged(event)" value="tickets/{{folder}}")
@@ -280,12 +284,12 @@
 
             .flex.flex-grow(style="max-height:100%;")
               -if uuid
-                %temba-ticket-list(agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status uuid %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+                %temba-ticket-list.flex-grow(agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status uuid %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
                   .filter-note.m-2.hidden(style="text-align:center")
                     .linked(onclick="clearFilter()")
                       -trans "See more tickets"
               -else
-                %temba-ticket-list(nextselection="{{nextUUID}}" agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+                %temba-ticket-list.flex-grow(nextselection="{{nextUUID}}" agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
 
           .flex-grow.flex-col.flex.min-h-0(class="{% if is_spa %}ml-4{%else%}py-4 pb-4 pr-4{% endif %}")
             .empty
@@ -315,3 +319,7 @@
                     Open Ticket action to open a new ticket.
 
             %temba-contact-chat.shadow(agent="{{request.user.email}}" -temba-refreshed="handleContactHistoryUpdated" -temba-content-changed="handleTicketUpdated" monitor="true" toolbar="true")
+
+  -block footer
+    .mt-8
+      {{block.super}}

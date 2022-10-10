@@ -36,38 +36,29 @@
 
             %tbody
               -for obj in object_list
-                -if request.GET.others
-                  %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
-                    %td
+                %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
+                  %td
+                    -if obj.msg and obj.msg.contact
+                      .hover-linked(onclick="goto(event)" href='{% url "contacts.contact_read" obj.msg.contact.uuid %}')
+                        {{obj.msg.contact_urn.get_display}}
+                    -else
                       -trans "Channel interaction"
-                    %td.clickable
-                      .hover-linked(onclick="goto(event)" href='{% url "channels.channellog_read" obj.channel.uuid obj.id %}')
-                        {{obj.description}}
-                    %td
-                      %span
-                        {{ obj.request_time|default:"0"|intcomma }}ms
+                  %td
+                    -if obj.msg
+                      .hover-linked(onclick="goto(event)" href='{% url "channels.channellog_msg" obj.channel.uuid obj.msg.id %}')
+                        {{obj.get_log_type_display}}
+                    -elif obj.call
+                      .hover-linked(onclick="goto(event)" href='{% url "channels.channellog_call" obj.channel.uuid obj.call.id %}')
+                        {{obj.get_log_type_display}}
+                    -else
+                      .hover-linked(onclick="goto(event)" href='{% url "channels.channellog_read" obj.id %}')
+                        {{obj.get_log_type_display}}
+                  %td
+                    %span
+                      {{ obj.elapsed_ms|intcomma }}ms
 
-                    %td(style='text-align: right' nowrap='true')
-                      {% format_datetime obj.created_on seconds=True %}
-
-                -else
-                  %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
-                    %td
-                      -if obj.msg and obj.msg.contact
-
-                        .hover-linked(onclick="goto(event)" href='{% url "contacts.contact_read" obj.msg.contact.uuid %}')
-                          {{obj.msg.contact_urn.get_display}}
-                      -else
-                        -trans "Channel interaction"
-                    %td
-                      .hover-linked(onclick="goto(event)" href='{% url "channels.channellog_read" obj.channel.uuid obj.id %}')
-                        {{obj.description}}
-                    %td
-                      %span
-                        {{ obj.request_time|default:"0"|intcomma }}ms
-
-                    %td(style='text-align: right' nowrap='true')
-                      {% format_datetime obj.created_on seconds=True %}
+                  %td(style='text-align: right' nowrap='true')
+                    {% format_datetime obj.created_on seconds=True %}
 
           .flex.flex-col.mb-16
             -include "includes/pagination.haml"

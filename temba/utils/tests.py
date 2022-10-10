@@ -34,7 +34,6 @@ from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
 from .fields import NameValidator, validate_external_url
-from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .templatetags.temba import oxford, short_datetime
 from .text import (
@@ -189,13 +188,6 @@ class InitTest(TembaTest):
 
     def test_replace_non_characters(self):
         self.assertEqual(clean_string("Bangsa\ufddfBangsa"), "Bangsa\ufffdBangsa")
-
-    def test_http_headers(self):
-        headers = http_headers(extra={"Foo": "Bar"})
-        headers["Token"] = "123456"
-
-        self.assertEqual(headers, {"User-agent": "RapidPro", "Foo": "Bar", "Token": "123456"})
-        self.assertEqual(http_headers(), {"User-agent": "RapidPro"})  # check changes don't leak
 
     def test_generate_token(self):
         self.assertEqual(len(generate_token()), 8)
@@ -735,7 +727,8 @@ class ExportTest(TembaTest):
     def test_prepare_value(self):
         self.assertEqual(self.task.prepare_value(None), "")
         self.assertEqual(self.task.prepare_value("=()"), "'=()")  # escape formulas
-        self.assertEqual(self.task.prepare_value(123), "123")
+        self.assertEqual(self.task.prepare_value(123), 123)
+        self.assertEqual(self.task.prepare_value(123.5), 123.5)
         self.assertEqual(self.task.prepare_value(True), True)
         self.assertEqual(self.task.prepare_value(False), False)
 
@@ -762,7 +755,7 @@ class ExportTest(TembaTest):
 
             self.assertEqual(task2.status, ExportContactsTask.STATUS_FAILED)
 
-    @patch("temba.utils.export.BaseExportTask.MAX_EXCEL_ROWS", new_callable=PropertyMock)
+    @patch("temba.utils.export.BaseExport.MAX_EXCEL_ROWS", new_callable=PropertyMock)
     def test_tableexporter_xls(self, mock_max_rows):
         test_max_rows = 1500
         mock_max_rows.return_value = test_max_rows
@@ -821,7 +814,7 @@ class MiddlewareTest(TembaTest):
         response = self.client.get(reverse("public.public_index"))
         self.assertFalse(response.has_header("X-Temba-Org"))
 
-        self.login(self.superuser)
+        self.login(self.customer_support)
 
         response = self.client.get(reverse("public.public_index"))
         self.assertFalse(response.has_header("X-Temba-Org"))

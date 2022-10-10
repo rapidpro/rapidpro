@@ -19,8 +19,8 @@
 -block extra-script
   :javascript
     function contactUpdated() {
-      var groups = document.querySelector("temba-contact-groups");
-      groups.refresh();
+      var badges = document.querySelector("temba-contact-badges");
+      badges.refresh();
     }
 
     function handlePendingRefreshed(evt) {
@@ -58,9 +58,12 @@
       // pinned.classList.toggle("hidden", pinnedCount == 0);
       all.classList.toggle("hidden", pinnedCount > 0 && fieldCount-pinnedCount === 0);
 
-      // if our contact refershes, refresh our pendingEvents
+      // if our contact refreshes, refresh our pendingEvents
       var pending = document.querySelector("temba-contact-pending");
       pending.refresh();
+
+      var menu = document.querySelector("temba-menu");
+      menu.refresh();
     }
 
     function handleTicketsRefreshed(evt) {
@@ -77,7 +80,7 @@
 
     function handleTabChanged() {
       var tab = document.querySelector("temba-tabs").index;
-      window.history.replaceState(null, null, "?tab=" + tab);
+      window.history.replaceState({ url:"{% url 'contacts.contact_read' object.uuid %}", show: window.location.pathname + "?tab=" + tab }, "", "?tab=" + tab);
     }
 
     function handleFieldSearch(evt) {
@@ -85,11 +88,11 @@
     }
 
 -block spa-title
-  %temba-contact-name(contact="{{object.uuid}}" -temba-refreshed="handleContactRefreshed")
+  %temba-contact-name-fetch(contact="{{object.uuid}}" -temba-refreshed="handleContactRefreshed")
 
 -block subtitle
   .summary.-mt-2
-    %temba-contact-groups(contact="{{object.uuid}}")
+    %temba-contact-badges(contact="{{object.uuid}}")
     
 -block content
 
@@ -100,8 +103,8 @@
 
     %temba-tab(icon="grid" name='{{_("Fields")|escapejs}}')
       .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
-        %temba-contact-fields.pinned-fields.pb-4(contact="{{object.uuid}}" pinned="true" -temba-button-clicked="handleFieldSearch")
-        %temba-contact-fields.all-fields(contact="{{object.uuid}}" -temba-button-clicked="handleFieldSearch")
+        %temba-contact-fields.pinned-fields.pb-4(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" pinned="true" -temba-button-clicked="handleFieldSearch")
+        %temba-contact-fields.all-fields(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" -temba-button-clicked="handleFieldSearch")
           .no-fields.p-16.text-center(slot="empty")
             .text-xl.mb-4
               -trans "No Fields"

@@ -35,11 +35,11 @@
                       %a(href='{% url "contacts.contact_read" obj.contact.uuid %}')
                         {{ obj.contact_urn.get_display }}
                   %td.clickable
-                    %a(href='{% url "channels.channellog_connection" obj.id %}')><
+                    %a(href='{% url "channels.channellog_call" obj.channel.uuid obj.id %}')><
                       {{ obj.get_direction_display }}
 
                   %td.clickable.whitespace-nowrap(style="text-align: right")
-                    %a(href='{% url "channels.channellog_connection" obj.id %}')><
+                    %a(href='{% url "channels.channellog_call" obj.channel.uuid obj.id %}')><
                       -if obj.get_duration
                         {{ obj.get_duration|delta }}
                       -else

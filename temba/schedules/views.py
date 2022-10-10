@@ -5,16 +5,15 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import OrgObjPermsMixin
-from temba.utils.fields import InputWidget, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import DateWidget, SelectMultipleWidget, SelectWidget, TembaDateTimeField
 from temba.utils.views import ComponentFormMixin
 
 from .models import Schedule
 
 
 class ScheduleFormMixin(forms.Form):
-    start_datetime = forms.DateTimeField(
+    start_datetime = TembaDateTimeField(
         label=_("Start Time"),
-        widget=InputWidget(attrs={"datetimepicker": True, "placeholder": _("Select a date and time")}),
     )
     repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES, label=_("Repeat"), widget=SelectWidget())
     repeat_days_of_week = forms.MultipleChoiceField(
@@ -25,13 +24,18 @@ class ScheduleFormMixin(forms.Form):
         widget=SelectMultipleWidget(attrs=({"placeholder": _("Select days")})),
     )
 
-    def set_user(self, user):
+    def set_org(self, org):
         """
         Because this mixin is mixed with other forms it can't have a __init__ constructor that takes non standard Django
         forms args and kwargs, so we have to customize based on user after the form has been created.
         """
-        tz = user.get_org().timezone
-        self.fields["start_datetime"].help_text = _("First time this should happen in the %s timezone.") % tz
+
+        tz = org.timezone
+        start_datetime = self.fields["start_datetime"]
+        start_datetime.help_text = _("First time this should happen in the %s timezone.") % tz
+
+        # we want to edit schedules in the org's timezone
+        start_datetime.widget = DateWidget(attrs={"timezone": tz, "time": True})
 
     def clean_repeat_days_of_week(self):
         value = self.cleaned_data["repeat_days_of_week"]
@@ -60,13 +64,13 @@ class ScheduleCRUDL(SmartCRUDL):
 
     class Update(OrgObjPermsMixin, ComponentFormMixin, SmartUpdateView):
         class Form(forms.ModelForm, ScheduleFormMixin):
-            def __init__(self, user, *args, **kwargs):
+            def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
                 # we use a post with a blank date to mean unschedule
                 self.fields["start_datetime"].required = False
 
-                self.set_user(user)
+                self.set_org(org)
 
             def clean(self):
                 super().clean()
@@ -83,7 +87,7 @@ class ScheduleCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             return kwargs
 
         def derive_initial(self):
@@ -97,10 +101,11 @@ class ScheduleCRUDL(SmartCRUDL):
         def get_success_url(self):
             broadcast = self.get_object().get_broadcast()
             assert broadcast is not None
-            return reverse("msgs.broadcast_schedule_read", args=[broadcast.id])
+            return reverse("msgs.broadcast_scheduled_read", args=[broadcast.id])
 
         def save(self, *args, **kwargs):
             self.object.update_schedule(
+                self.request.user,
                 self.form.cleaned_data["start_datetime"],
                 self.form.cleaned_data["repeat_period"],
                 self.form.cleaned_data.get("repeat_days_of_week"),

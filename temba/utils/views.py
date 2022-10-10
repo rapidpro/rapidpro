@@ -3,7 +3,7 @@ from urllib.parse import quote
 
 from django import forms
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -11,7 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import CheckboxWidget, DateWidget, InputWidget, SelectMultipleWidget, SelectWidget
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +30,7 @@ class SpaMixin(View):
         return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
 
     def is_spa(self):
-        is_spa = "HTTP_TEMBA_SPA" in self.request.META
-        return is_spa
+        return "HTTP_TEMBA_SPA" in self.request.META
 
     def get_template_names(self):
         templates = super().get_template_names()
@@ -68,7 +67,8 @@ class ComponentFormMixin(View):
 
         # don't replace the widget if it is already one of us
         if isinstance(
-            field.widget, (forms.widgets.HiddenInput, CheckboxWidget, InputWidget, SelectWidget, SelectMultipleWidget)
+            field.widget,
+            (forms.widgets.HiddenInput, CheckboxWidget, InputWidget, SelectWidget, SelectMultipleWidget, DateWidget),
         ):
             return field
 
@@ -94,6 +94,15 @@ class ComponentFormMixin(View):
             field.widget = CheckboxWidget(attrs)
 
         return field
+
+
+class StaffOnlyMixin:
+    """
+    Views that only staff should be able to access
+    """
+
+    def has_permission(self, request, *args, **kwargs):
+        return self.request.user.is_staff
 
 
 class PostOnlyMixin(View):
@@ -153,8 +162,8 @@ class BulkActionMixin:
         """
         Handles a POSTed action form and returns the default GET response
         """
-        user = self.get_user()
-        org = user.get_org()
+        user = self.request.user
+        org = self.request.org
         form = BulkActionMixin.Form(
             self.get_bulk_actions(), self.get_queryset(), self.get_bulk_action_labels(), data=self.request.POST
         )
@@ -284,17 +293,28 @@ class ContentMenu:
     def new_group(self):
         self.groups.append([])
 
-    def add_link(self, label: str, url: str):
-        self.groups[-1].append({"type": "link", "label": label, "url": url})
+    def add_link(self, label: str, url: str, as_button: bool = False):
+        self.groups[-1].append({"type": "link", "label": label, "url": url, "as_button": as_button})
 
-    def add_js(self, label: str, on_click: str, link_class: str):
-        self.groups[-1].append({"type": "js", "label": label, "on_click": on_click, "link_class": link_class})
+    def add_js(self, label: str, on_click: str, link_class: str, as_button: bool = False):
+        self.groups[-1].append(
+            {"type": "js", "label": label, "on_click": on_click, "link_class": link_class, "as_button": as_button}
+        )
 
-    def add_url_post(self, label: str, url: str):
-        self.groups[-1].append({"type": "url_post", "label": label, "url": url})
+    def add_url_post(self, label: str, url: str, as_button: bool = False):
+        self.groups[-1].append({"type": "url_post", "label": label, "url": url, "as_button": as_button})
 
     def add_modax(
-        self, label: str, modal_id: str, url: str, *, title: str = None, on_submit: str = None, primary: bool = False
+        self,
+        label: str,
+        modal_id: str,
+        url: str,
+        *,
+        title: str = None,
+        on_submit: str = None,
+        primary: bool = False,
+        as_button: bool = False,
+        disabled: bool = False,
     ):
         self.groups[-1].append(
             {
@@ -305,6 +325,8 @@ class ContentMenu:
                 "title": title or label,
                 "on_submit": on_submit,
                 "primary": primary,
+                "as_button": as_button,
+                "disabled": disabled,
             }
         )
 
@@ -326,14 +348,25 @@ class ContentMenuMixin:
     """
     Mixin for views that have a content menu (hamburger icon with dropdown items)
 
-    TODO: rework legacy gear-link templates to use `content_menu` instead of `gear_links`
+    TODO: use component to read menu as JSON and then can stop putting menu (in legacy gear-links format) in context
     """
 
     # renderers to convert menu items to the legacy "gear-links" format
     gear_link_renderers = {
-        "link": lambda i: {"title": i["label"], "href": i["url"]},
-        "js": lambda i: {"title": i["label"], "on_click": i["on_click"], "js_class": i["link_class"], "href": "#"},
-        "url_post": lambda i: {"title": i["label"], "href": i["url"], "js_class": "posterize"},
+        "link": lambda i: {"title": i["label"], "href": i["url"], "as_button": i["as_button"]},
+        "js": lambda i: {
+            "title": i["label"],
+            "on_click": i["on_click"],
+            "js_class": i["link_class"],
+            "href": "#",
+            "as_button": i["as_button"],
+        },
+        "url_post": lambda i: {
+            "title": i["label"],
+            "href": i["url"],
+            "js_class": "posterize",
+            "as_button": i["as_button"],
+        },
         "modax": lambda i: {
             "id": i["modal_id"],
             "title": i["label"],
@@ -341,19 +374,38 @@ class ContentMenuMixin:
             "href": i["url"],
             "on_submit": i["on_submit"],
             "style": "button-primary" if i["primary"] else "",
+            "as_button": i["as_button"],
+            "disabled": i["disabled"],
         },
         "divider": lambda i: {"divider": True},
     }
 
     def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        menu_links = []
+        menu_buttons = []
+
+        for item in self._get_content_menu():
+            rendered_item = self.gear_link_renderers[item["type"]](item)
+            if item.get("as_button", False):
+                menu_buttons.append(rendered_item)
+            else:
+                menu_links.append(rendered_item)
+
+        context["content_menu_buttons"] = menu_buttons
+        context["content_menu_links"] = menu_links
+        return context
+
+    def _get_content_menu(self):
         menu = ContentMenu()
         self.build_content_menu(menu)
-        menu_items = menu.as_items()
-
-        context = super().get_context_data(**kwargs)
-        context["content_menu"] = menu_items
-        context["gear_links"] = [self.gear_link_renderers[i["type"]](i) for i in menu_items]
-        return context
+        return menu.as_items()
 
     def build_content_menu(self, menu: ContentMenu):  # pragma: no cover
         pass
+
+    def get(self, request, *args, **kwargs):
+        if "HTTP_TEMBA_CONTENT_MENU" in self.request.META:
+            return JsonResponse({"items": self._get_content_menu()})
+
+        return super().get(request, *args, **kwargs)

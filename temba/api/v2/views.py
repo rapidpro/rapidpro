@@ -10,6 +10,7 @@ from rest_framework.reverse import reverse
 from smartmin.views import SmartFormView, SmartTemplateView
 
 from django import forms
+from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.db.models import Prefetch, Q
 from django.http import HttpResponse, JsonResponse
@@ -40,7 +41,8 @@ from temba.orgs.models import OrgMembership, OrgRole, User
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import splitting_getlist, str_to_bool
-from temba.utils.uuid import is_uuid
+from temba.utils.s3 import public_file_storage
+from temba.utils.uuid import is_uuid, uuid4
 
 from ..models import SSLPermission
 from ..support import InvalidQueryError
@@ -2403,31 +2405,6 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         }
 
 
-class MediaEndpoint(BaseAPIView):
-    """
-    This endpoint allows you to submit media which can be embedded in flow steps.
-
-    ## Creating Media
-
-    By making a `POST` request to the endpoint you can add a new media files
-    """
-
-    parser_classes = (MultiPartParser, FormParser)
-    permission = "msgs.msg_api"
-
-    def post(self, request, format=None, *args, **kwargs):
-
-        org = self.request.user.get_org()
-        media_file = request.data.get("media_file", None)
-        extension = request.data.get("extension", None)
-
-        if media_file and extension:
-            location = org.save_media(media_file, extension)
-            return Response(dict(location=location), status=status.HTTP_201_CREATED)
-
-        return Response(dict(), status=status.HTTP_400_BAD_REQUEST)
-
-
 class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list messages in your account.
@@ -2564,7 +2541,11 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         # filter by label name/uuid (optional)
         label_ref = params.get("label")
         if label_ref:
-            label = Label.get_active_for_org(org).filter(Q(name=label_ref) | Q(uuid=label_ref)).first()
+            label_filter = Q(name=label_ref)
+            if is_uuid(label_ref):
+                label_filter |= Q(uuid=label_ref)
+
+            label = Label.get_active_for_org(org).filter(label_filter).first()
             if label:
                 queryset = queryset.filter(labels=label, visibility=Msg.VISIBILITY_VISIBLE)
             else:
@@ -3087,12 +3068,15 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
             Prefetch("flow", queryset=Flow.objects.only("uuid", "name", "base_language")),
-            Prefetch("contact", queryset=Contact.objects.only("uuid", "name", "language")),
-            Prefetch("contact__urns", ContactURN.objects.order_by("-priority", "id")),
+            Prefetch("contact", queryset=Contact.objects.only("uuid", "name", "language", "org")),
+            Prefetch("contact__org"),
             Prefetch("start", queryset=FlowStart.objects.only("uuid")),
         )
 
         return self.filter_before_after(queryset, "modified_on")
+
+    def prepare_for_serialization(self, object_list, using: str):
+        Contact.bulk_urn_cache_initialize([r.contact for r in object_list], using=using)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -3784,3 +3768,27 @@ class WorkspaceEndpoint(BaseAPIView):
             "url": reverse("api.v2.workspace"),
             "slug": "workspace-read",
         }
+
+
+class SurveyorAttachmentsEndpoint(BaseAPIView):
+    """
+    Undocumented endpoint used by Surveyor to submit response attachments.
+    """
+
+    parser_classes = (MultiPartParser, FormParser)
+    permission = "msgs.msg_api"
+
+    def post(self, request, format=None, *args, **kwargs):
+        org = self.request.user.get_org()
+        file = request.data.get("media_file", None)
+        extension = request.data.get("extension", None)
+
+        if file and extension:
+            uuid = uuid4()
+            path = f"{settings.STORAGE_ROOT_DIR}/{org.id}/surveyor_attachments/{str(uuid)[0:4]}/{uuid}.{extension}"
+            public_file_storage.save(path, file)
+            url = public_file_storage.url(path)
+
+            return Response({"location": url}, status=status.HTTP_201_CREATED)
+
+        return Response({}, status=status.HTTP_400_BAD_REQUEST)

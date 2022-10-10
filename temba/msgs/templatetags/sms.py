@@ -135,8 +135,3 @@ def attachment_button(attachment: str) -> dict:
         "url": url,
         "is_playable": content_type in PLAYABLE_CONTENT_TYPES,
     }
-
-
-@register.inclusion_tag("msgs/tags/channel_log_link.haml")
-def channel_log_link(msg):
-    return {"log": msg.get_last_log()}

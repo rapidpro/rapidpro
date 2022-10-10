@@ -5,7 +5,7 @@ from temba.campaigns.models import EventFire
 from temba.channels.models import ChannelEvent
 from temba.contacts.models import URN, ContactURN
 from temba.flows.models import FlowRun
-from temba.ivr.models import IVRCall
+from temba.ivr.models import Call
 from temba.mailroom.events import Event
 from temba.msgs.models import Msg
 
@@ -98,7 +98,7 @@ def name(contact, org):
     if contact.name:
         return contact.name
     elif org.is_anon:
-        return contact.anon_identifier
+        return contact.anon_display
     else:
         return MISSING_VALUE
 
@@ -124,13 +124,38 @@ def urn(contact, org):
 
 
 @register.filter
-def format_contact(contact, org):  # pragma: needs cover
-    return contact.get_display(org=org)
+def urn_icon(urn):
+    return URN_SCHEME_ICONS.get(urn.scheme, "")
 
 
 @register.filter
-def urn_icon(urn):
-    return URN_SCHEME_ICONS.get(urn.scheme, "")
+def msg_status_badge(msg) -> str:
+
+    display = {}
+
+    if msg.status == Msg.STATUS_DELIVERED:
+        display = {"background": "#efffe0", "icon": "check", "icon_color": "rgb(var(--success-rgb))"}
+
+    if msg.direction == Msg.DIRECTION_IN or msg.status == Msg.STATUS_WIRED:
+        display = {"background": "#f9f9f9", "icon": "check", "icon_color": "var(--color-primary-dark)"}
+
+    if msg.status == Msg.STATUS_ERRORED or msg.status == Msg.STATUS_FAILED:
+        display = {"background": "#fff4f4", "icon": "x", "icon_color": "var(--color-error)"}
+
+        # we are still working on errored messages, slightly different icon
+        if msg.status == Msg.STATUS_ERRORED:
+            display["icon"] = "refresh-cw"
+
+    if len(display) >= 3:
+        return mark_safe(
+            """
+            <div class="flex items-center flex-row p-1 rounded-lg" style="background:%(background)s">
+                <temba-icon name="%(icon)s" style="--icon-color:%(icon_color)s"></temba-icon>
+            </div>
+        """
+            % display
+        )
+    return ""
 
 
 @register.filter
@@ -187,7 +212,7 @@ def history_class(event: dict) -> str:
             classes.append("warning")
         elif event_type == Event.TYPE_WEBHOOK_CALLED and event["status"] != "success":
             classes.append("warning")
-        elif event_type == Event.TYPE_CALL_STARTED and event["status"] == IVRCall.STATUS_FAILED:
+        elif event_type == Event.TYPE_CALL_STARTED and event["status"] == Call.STATUS_FAILED:
             classes.append("warning")
         elif event_type == Event.TYPE_CAMPAIGN_FIRED and event["fired_result"] == EventFire.RESULT_SKIPPED:
             classes.append("skipped")

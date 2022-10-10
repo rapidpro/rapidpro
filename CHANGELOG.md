@@ -1,3 +1,296 @@
+v7.5.65
+----------
+ * Queue relayer messages with channel UUID and id
+ * No nouns for current object in menus except for New
+ * Add common contact field inclusion to exports
+ * Fix new scheduled message menu option
+ * Fix releasing other archive files to use proper pagination
+
+v7.5.64
+----------
+ * Add an unlinked call list page
+ * Show channel log links on more pages to more users
+
+v7.5.63
+----------
+ * Fix handling of relayer messages
+ * Add missing email templates for ticket exports
+
+v7.5.62
+----------
+ * Add attachment_fetch as new channel log type
+
+v7.5.61
+----------
+ * Fix claiming vonage channels for voice
+ * Better approach for page titles from the menu
+ * Fix layout for ticket menu in new ui
+
+v7.5.60
+----------
+ * Fix the flow results export modal
+
+v7.5.59
+----------
+ * Delete attachments from storage when deleting messages
+ * Add base export class for exports with contact data
+ * Actually make date range required for message exports (currently just required in UI))
+ * Add date range filtering to ticket and results exports
+ * Add ticket export (only in new UI for now)
+
+v7.5.58
+----------
+ * Add twilio and vonage connection formax entries in new UI
+ * Update both main menu and content menus to align with new conventions
+ * Gate new UI by Beta group rather than staff
+ * Don't show new menu UIs until they're defined
+
+v7.5.57
+----------
+ * Move status updates into update contact view
+ * Some teaks to rendering of channel logs
+ * Cleanup use of channelconnection in preparation for dropping
+
+v7.5.56
+----------
+ * Really really fix connection migration
+
+v7.5.55
+----------
+ * Really fix connection migration
+
+v7.5.54
+----------
+ * Fix migration to convert connections to calls
+
+v7.5.53
+----------
+ * Add data migration to convert channel connections to calls
+
+v7.5.52
+----------
+ * Replace last non-API usages of User.get_org()
+ * Use new call model in UI
+
+v7.5.51
+----------
+ * Add new ivr.Call model to replace channels.ChannelConnection
+
+v7.5.50
+----------
+ * Drop no-longer used ChannelLog fields
+ * Drop Msg.logs (replaced by .log_uuids)
+ * Drop ChannelConnection.connection_type
+
+v7.5.49
+----------
+ * Fix test failing because python version changed
+ * Allow background flows for missed call triggers
+ * Different show url for spa and non-spa tickets
+ * Update editor to include fix for localizing categories for some splits
+ * Add data migration to delete existing missed call triggers for non-message flows
+ * Restrict Missed Call triggers to messaging flows
+
+v7.5.48
+----------
+ * Stop recommending Android, always recommend Telegram
+ * Drop IVRCall proxy model and use ChannelConnection consistently
+ * Add migration to delete non-IVR channel connections
+ * Fix bug in user releasing and remove special superuser handling in favor of uniform treatment of staff users
+
+v7.5.47
+----------
+ * Switch to temba-datepicker
+
+v7.5.46
+----------
+ * Fix new UI messages menu
+
+v7.5.45
+----------
+ * Replace some occurences of User.get_org()
+ * Add new create modal for scheduled broadcasts
+
+v7.5.44
+----------
+ * Add data migration to cleanup counts for SystemLabel=Calls
+ * Tweak ordering of Msg menu sections
+ * Add slack channel
+
+v7.5.43
+----------
+ * Include config for mailroom test db channels
+ * Remove Calls from msgs section
+ * Update wording of Missed Call triggers to clarify they should only be used with Android channels
+ * Only show Missed Call trigger as option for workspaces with an Android channel
+ * Change ChannelType.is_available_to and is_recommended_to to include org
+
+v7.5.42
+----------
+ * Add data migration to delete legacy channel logs
+ * Drop support for channel logs in legacy format
+
+v7.5.41
+----------
+ * Fix temba-store
+
+v7.5.40
+----------
+ * Tweak forgot password success message
+
+v7.5.39
+----------
+ * Add log_uuids field to ChannelConnection, ChannelEvent and Msg
+ * Improve `trim_http_logs_task` performance by splitting the query
+
+v7.5.38
+----------
+ * Add codecov token to ci.yml
+ * Remove unnecessary maxdiff set in tests
+ * Fix to allow displaying logs that timed out
+ * Add HttpLog util and use to save channel logs in new format
+ * Add UUID to channel log and msgs
+
+v7.5.37
+----------
+ * Show servicing org
+
+v7.5.36
+----------
+ * Clean up chooser a smidge
+
+v7.5.35
+----------
+ * Add org-chooser
+ * Refresh channel logs
+ * Add channel uuid to call log url
+ * Fix history state on tickets and contacts  
+ * Update footer  
+ * Add download icons for archives  
+ * Fix create flow modal opener  
+ * Flow editor embed styling
+ * Updating copyright dates and TextIt name (dba of Nyaruka)
+
+v7.5.34
+----------
+ * Use elapsed_ms rather than request_time on channel log templates
+ * Update components (custom widths for temba-dialog, use anon_display where possible)
+ * Switch to temba-dialog based attachment viewer, remove previous libs
+ * Nicer collapsing on flow list columns
+ * Add overview charts for run results
+
+v7.5.33
+----------
+ * ChannelLogCRUDL.List should use get_description so that it works if log_type is set
+ * Tweak channel log types to match what courier now creates
+ * Check for tabs after timeouts, don't auto-collapse flows
+ * Add charts to analytics tab
+
+v7.5.32
+----------
+ * Update components with label fix
+
+v7.5.31
+----------
+ * Add flow results in new UI
+
+v7.5.30
+----------
+ * Remove steps for add WAC credit line to businesses
+
+v7.5.29
+----------
+ * Fix servicing of channel logs
+
+v7.5.28
+----------
+ * Stop writing to unused media name field
+ * Add missing C Msg failed reason
+ * Add anon-display field to API contact results if org is anon and make urn display null
+
+v7.5.27
+----------
+ * Revert change to Contact.Bulk_urn_cache_initialize to have it set org on contacts
+
+v7.5.26
+----------
+ * Don't set org on bulk initialized contacts
+
+v7.5.25
+----------
+ * Fix filtering on channel log call page
+ * Add anon_display and use that when org is anon instead of using urn_display for anon id
+ * Add urn_display to contact reference on serialized runs in API
+
+v7.5.24
+----------
+ * Fix missing service end button
+
+v7.5.23
+----------
+ * Update to latest floweditor
+ * Add new ChannelLog log type choices and make description nullable
+ * Fix more content menus so that they can be fetched as JSON and add more tests
+
+v7.5.22
+----------
+ * Remove unused policies.policy_read perm
+ * Replace all permission checking against Customer Support group with is_staff check on user
+
+v7.5.21
+----------
+ * Allow views with ContentMenuMixin to be fetched as JSON menu items using a header
+ * Add new fields to channel log model and start reading from them if they're set
+
+v7.5.20
+----------
+ * Update the links for line developers console on the line claim page
+ * Rework channel log details views into one generic one, one for messages, one for calls
+
+v7.5.19
+----------
+ * Rework channel log rendering to use common HTTPLog template
+ * Fix titles on channel, classifier and manage logins pages
+
+v7.5.18
+----------
+ * Workspace and user management in new UI
+
+v7.5.17
+----------
+ * Show send history of scheduled broadcasts in correct order
+ * Only show option to delete runs to users who have that perm, and give editors that perm
+ * Update deps
+
+v7.5.16
+----------
+ * Fixed zaper page title
+ * Validate channel name is not more than 64 characters
+ * Added 'authentication' to the temba anchor URL text
+
+v7.5.15
+----------
+ * Fix URL for media uploads which was previously conflicting with media directory
+
+v7.5.14
+----------
+ * Deprecate Media.name which can always be inferred from .path
+ * Improve cleaning of media filenames
+ * Convert legacy UUID fields on exports and labels
+ * Request instagram_basic permission for IG channels
+
+v7.5.11
+----------
+ * Don't allow creating of labels with parents or editing labels to have a parent
+ * Rework the undocumented media API endpoint to be more specific to surveyor attachments
+ * Add MediaCRUDL with upload and list endpoints
+ * Remove requiring instagram_basic permission
+
+v7.5.10
+----------
+ * Remove Media.is_ready, fix setting .status on alternates, add limit for upload size
+ * Rework ContentMenuMixin to put the menu in the context, and include new and legacy formats
+
 v7.5.9
 ----------
  * Add status field to Media, move primary index to UUID field

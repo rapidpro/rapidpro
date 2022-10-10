@@ -1,14 +1,12 @@
 -extends "smartmin/list.html"
 -load smartmin sms temba compress i18n humanize
 
--block page-title
-  -trans "Flows"
-
--block page-top
+-block spa-title
+  #title-text
 
 -block content
+  // legacy requirement for bulk actions
   .page-title
-
   -if org_perms.flows.flow_update
     %temba-modax#export-results{ header:'{% trans "Download Results" %}' }
     %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'flows.flowlabel_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
@@ -31,7 +29,6 @@
               -if org_perms.flows.flow_update
                 %th
               %th
-              %th
               %th.whitespace-nowrap
                 Runs / Completion
 
@@ -40,24 +37,25 @@
             %tr.object-row.select-row(onclick='handleRowClicked(event)' data-uuid="{{object.uuid}}" data-object-id="{{object.id}}")
 
               -if org_perms.flows.flow_update
-                %td.checkbox.object-row-checkbox(onclick="checkInner(event);")
+                %td.checkbox.object-row-checkbox(onclick="checkInner(event);" style="width:0px")
                   %temba-checkbox{onclick:"handleRowSelection(this)"}
 
-              %td.w-full
-                .flex.flex-wrap.flex-end
-                  .flex.inline.whitespace-nowrap
-                    -if object.flow_type == 'V'
-                      .icon-phone.mr-2.leading-snug
-                    -elif object.flow_type == 'S'
-                      .icon-mobile.mr-2.leading-snug
-                    .name.whitespace-normal
-                      {{ object.name }}
-
               %td
-                .whitespace-no-break.flex.items-center.ml-2.justify-end
-                  -for label in object.labels.all
-                    .lbl.linked.ml-2{ onclick:"goto(event)", data-id: '{{label.id}}', data-uuid: '{{label.uuid}}', href:"{% url 'flows.flow_filter' label.uuid%}"}
-                      {{label.name}}
+                .flex.items-center
+                  .flex-grow
+                    .flex.inline.whitespace-nowrap.flex-grow.items-center(style="max-width:80%")
+                      -if object.flow_type == 'V'
+                        .icon-phone.mr-2.leading-snug
+                      -elif object.flow_type == 'S'
+                        .icon-mobile.mr-2.leading-snug
+                      .name.truncate
+                        {{ object.name }}
+
+                  .whitespace-no-break.flex.items-center.ml-2.justify-end.flex-wrap
+                    -for label in object.labels.all
+                      .lbl.linked.ml-2.my-1{ onclick:"goto(event)", data-id: '{{label.id}}', data-uuid: '{{label.uuid}}', href:"{% url 'flows.flow_filter' label.uuid%}"}
+                        {{label.name}}
+
 
               %td
                 -if not object.is_archived
@@ -112,7 +110,7 @@
         refresh(function() { recheckIds(); }, true);
         var menu = document.querySelector("temba-menu");
         if (menu) {
-          window.setTimeout(function(){ menu.refresh()}, 2000);
+          menu.refresh();
         }
       }
 

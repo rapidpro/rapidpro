@@ -39,6 +39,18 @@ class VKTypeTest(TembaTest):
         data = {
             "community_access_token": token,
             "community_id": "123456",
+            "community_name": "Temba" * 20,
+            "callback_verification_string": "123456",
+        }
+
+        response = self.client.post(url, data, follow=True)
+        self.assertFormError(
+            response, "form", "community_name", "Ensure this value has at most 64 characters (it has 100)."
+        )
+
+        data = {
+            "community_access_token": token,
+            "community_id": "123456",
             "community_name": "Temba",
             "callback_verification_string": "123456",
         }

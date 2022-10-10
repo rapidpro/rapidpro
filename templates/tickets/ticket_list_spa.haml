@@ -1,4 +1,7 @@
 -extends "tickets/ticket_list.html"
+-load smartmin i18n contacts compress
+
+-block temba-store
 
 -block extra-style
   {{block.super}}
@@ -7,4 +10,62 @@
       margin-top: 0em !important;
     }
 
--block page-header
+    .spa-footer {
+      margin-top: -1em;
+    }
+
+
+-block spa-title
+  #title-text
+
+-block content
+
+  .flex.flex-col.overflow-y-auto.overflow-x-hidden.rounded-b-lg.p-8.-m-8.pb-4.flex-grow
+    .page.flex-grow.flex.flex-col.min-h-0
+      .flex.widget-container(style="{% if is_spa%}margin:0;padding:0;height:100%{%else%}height:100vh; margin-top:-121px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;{%endif%}")
+        -if not is_spa
+          .folders
+            %temba-menu(endpoint="{%url 'orgs.org_menu'%}" submenu="tickets" onchange="handleTicketsMenuChanged(event)" value="tickets/{{folder}}")
+        
+        .ticket-list.flex.flex-col(class="{% if is_spa%} {% else %}m-4 pt-4 mr-2{%endif%}")
+          %temba-select(name="ticket-status" onchange="handleStatusChanged(event)" value="{{status}}")
+            %temba-option(name="Open" value="open" icon="inbox")
+            %temba-option(name="Closed" value="closed" icon="check")
+
+          .flex.flex-grow(style="max-height:100%;")
+            -if uuid
+              %temba-ticket-list.flex-grow(agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status uuid %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+                .filter-note.m-2.hidden(style="text-align:center")
+                  .linked(onclick="clearFilter()")
+                    -trans "See more tickets"
+            -else
+              %temba-ticket-list.flex-grow(nextselection="{{nextUUID}}" agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+
+        .flex-grow.flex-col.flex.min-h-0(class="{% if is_spa %}ml-4{%else%}py-4 pb-4 pr-4{% endif %}")
+          .empty
+            -if has_tickets
+              %h2
+                .popper
+                  🎉
+
+                -blocktrans trimmed
+                  All done!
+              .mt-4
+                -blocktrans trimmed
+                  Nice work, there aren't any more tickets here that need your attention.
+
+            -else
+              %h2
+                -blocktrans trimmed
+                  Tickets
+
+              .mt-6
+                -blocktrans with name=brand.name trimmed
+                  {{name}} Tickets makes it easy to chat directly with your contacts.
+
+              .mt-4
+                -blocktrans trimmed
+                  Sometimes an automated chatbot isn't enough. When your contacts need to chat with a real person, you can use the
+                  Open Ticket action to open a new ticket.
+
+          %temba-contact-chat.shadow(agent="{{request.user.email}}" -temba-refreshed="handleContactHistoryUpdated" -temba-content-changed="handleTicketUpdated" monitor="true" toolbar="true")

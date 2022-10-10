@@ -10,7 +10,6 @@ from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
     SmartDeleteView,
-    SmartFormView,
     SmartListView,
     SmartReadView,
     SmartTemplateView,
@@ -34,13 +33,12 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.models import URN, ContactField, ContactGroup
+from temba.contacts.models import URN, ContactGroup
 from temba.contacts.search import SearchException, parse_query
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task, update_session_wait_expires
-from temba.ivr.models import IVRCall
+from temba.ivr.models import Call
 from temba.mailroom import FlowValidationException
-from temba.msgs.models import Media
 from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import (
     DependencyDeleteModal,
@@ -52,6 +50,7 @@ from temba.orgs.views import (
 )
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
+from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
     CheckboxWidget,
     ContactSearchWidget,
@@ -63,7 +62,7 @@ from temba.utils.fields import (
     TembaChoiceField,
 )
 from temba.utils.text import slugify_with
-from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin
+from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
 from .models import (
     ExportFlowResultsTask,
@@ -158,9 +157,8 @@ class FlowSessionCRUDL(SmartCRUDL):
     actions = ("json",)
     model = FlowSession
 
-    class Json(SmartReadView):
+    class Json(StaffOnlyMixin, SmartReadView):
         slug_url_kwarg = "uuid"
-        permission = "flows.flowsession_json"
 
         def get(self, request, *args, **kwargs):
             session = self.get_object()
@@ -212,7 +210,6 @@ class FlowCRUDL(SmartCRUDL):
         "revisions",
         "recent_contacts",
         "assets",
-        "upload_media",
     )
 
     model = Flow
@@ -228,12 +225,19 @@ class FlowCRUDL(SmartCRUDL):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
 
         def derive_menu(self):
-
-            labels = FlowLabel.objects.filter(org=self.request.user.get_org(), parent=None).order_by("name")
+            labels = FlowLabel.objects.filter(org=self.request.org, parent=None).order_by("name")
 
             menu = []
-            menu.append(self.create_menu_item(name=_("Active"), icon="flow", href="flows.flow_list"))
-            menu.append(self.create_menu_item(name=_("Archived"), icon="archive", href="flows.flow_archived"))
+            menu.append(
+                self.create_menu_item(
+                    name=_("Active"), verbose_name=_("Active Flows"), icon="flow", href="flows.flow_list"
+                )
+            )
+            menu.append(
+                self.create_menu_item(
+                    name=_("Archived"), verbose_name=_("Archived Flows"), icon="archive", href="flows.flow_archived"
+                )
+            )
 
             label_items = []
             for label in labels:
@@ -249,21 +253,6 @@ class FlowCRUDL(SmartCRUDL):
 
             if label_items:
                 menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
-
-            menu += [
-                self.create_space(),
-                self.create_divider(),
-                self.create_modax_button(
-                    name=_("New Flow"),
-                    href="flows.flow_create",
-                ),
-            ]
-
-            menu.append(
-                self.create_modax_button(
-                    name=_("New Label"), href="flows.flowlabel_create", on_submit="handleCreateLabelModalSubmitted()"
-                )
-            )
 
             return menu
 
@@ -531,7 +520,7 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Retry call if unable to connect"),
                 help_text=_("Retries call three times for the chosen interval"),
                 initial=60,
-                choices=IVRCall.RETRY_CHOICES,
+                choices=Call.RETRY_CHOICES,
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
             expires_after_minutes = forms.ChoiceField(
@@ -660,7 +649,7 @@ class FlowCRUDL(SmartCRUDL):
         def post_save(self, obj):
             keywords = set()
             user = self.request.user
-            org = user.get_org()
+            org = self.request.org
 
             if "keyword_triggers" in self.form.cleaned_data:
                 # get existing keyword triggers for this flow
@@ -701,13 +690,6 @@ class FlowCRUDL(SmartCRUDL):
 
             return obj
 
-    class UploadMedia(OrgObjPermsMixin, SmartUpdateView):
-        slug_url_kwarg = "uuid"
-
-        def post(self, request, *args, **kwargs):
-            media = Media.from_upload(self.request.org, self.request.user, self.request.FILES["file"])
-            return JsonResponse({"type": media.content_type, "url": media.url})
-
     class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, ContentMenuMixin, SmartListView):
         title = _("Flows")
         refresh = 10000
@@ -718,7 +700,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["org_has_flows"] = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).count()
+            context["org_has_flows"] = self.request.org.flows.filter(is_active=True).exists()
             context["folders"] = self.get_folders()
             if self.is_spa():
                 context["labels_flat"] = self.get_flow_labels_flat()
@@ -741,7 +723,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_campaigns(self):
             from temba.campaigns.models import CampaignEvent
 
-            org = self.request.user.get_org()
+            org = self.request.org
             events = CampaignEvent.objects.filter(
                 campaign__org=org,
                 is_active=True,
@@ -767,14 +749,14 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
         def get_bulk_action_labels(self):
-            return self.get_user().get_org().flow_labels.all()
+            return self.request.org.flow_labels.filter(is_active=True)
 
         def get_flow_labels(self):
             labels = []
-            for label in FlowLabel.objects.filter(org=self.request.user.get_org(), parent=None):
+            for label in self.request.org.flow_labels.filter(is_active=True, parent=None):
                 labels.append(
                     dict(
-                        pk=label.pk,
+                        pk=label.id,
                         uuid=label.uuid,
                         label=label.name,
                         count=label.get_flows_count(),
@@ -785,7 +767,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_flow_labels_flat(self):
             labels = []
-            for label in FlowLabel.objects.filter(org=self.request.user.get_org()).order_by("name"):
+            for label in self.request.org.flow_labels.order_by("name"):
                 labels.append(
                     dict(
                         id=label.pk,
@@ -797,7 +779,7 @@ class FlowCRUDL(SmartCRUDL):
             return labels
 
         def get_folders(self):
-            org = self.request.user.get_org()
+            org = self.request.org
 
             return [
                 dict(
@@ -817,6 +799,26 @@ class FlowCRUDL(SmartCRUDL):
             ]
 
         def build_content_menu(self, menu):
+            if self.is_spa():
+                if self.has_org_perm("flows.flow_create"):
+                    menu.add_modax(
+                        _("New Flow"),
+                        "new-flow",
+                        f"{reverse('flows.flow_create')}",
+                        title=_("New Flow"),
+                        primary=True,
+                        as_button=True,
+                    )
+
+                if self.has_org_perm("flows.flowlabel_create"):
+                    menu.add_modax(
+                        _("New Label"),
+                        "new-flow-label",
+                        f"{reverse('flows.flowlabel_create')}",
+                        title=_("New Label"),
+                        on_submit="handleCreateLabelModalSubmitted()",
+                    )
+
             if self.has_org_perm("orgs.org_import"):
                 menu.add_link(_("Import"), reverse("orgs.org_import"))
             if self.has_org_perm("orgs.org_export"):
@@ -860,7 +862,7 @@ class FlowCRUDL(SmartCRUDL):
                 from temba.campaigns.models import Campaign
 
                 campaign_id = self.kwargs["campaign_id"]
-                self.campaign = Campaign.objects.filter(id=campaign_id, org=self.request.user.get_org()).first()
+                self.campaign = Campaign.objects.filter(id=campaign_id, org=self.request.org).first()
             return self.campaign
 
         def get_queryset(self, **kwargs):
@@ -870,7 +872,7 @@ class FlowCRUDL(SmartCRUDL):
                 campaign=self.get_campaign(), flow__is_archived=False, flow__is_system=False
             ).values("flow__id")
 
-            flows = Flow.objects.filter(id__in=flow_ids, org=self.request.user.get_org()).order_by("-modified_on")
+            flows = Flow.objects.filter(id__in=flow_ids, org=self.request.org).order_by("-modified_on")
             return flows
 
         def get_context_data(self, *args, **kwargs):
@@ -884,51 +886,49 @@ class FlowCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
         def build_content_menu(self, menu):
-            label = FlowLabel.objects.get(uuid=self.kwargs["uuid"])
-
             if self.has_org_perm("flows.flow_update"):
                 menu.add_modax(
                     _("Edit"),
                     "update-label",
-                    f"{reverse('flows.flowlabel_update', args=[label.pk])}",
+                    f"{reverse('flows.flowlabel_update', args=[self.label.id])}",
                     title=_("Edit Label"),
                     primary=True,
                 )
 
             if self.has_org_perm("flows.flow_delete"):
                 menu.add_modax(
-                    _("Delete Label"), "delete-label", f"{reverse('flows.flowlabel_delete', args=[label.pk])}"
+                    _("Delete Label"), "delete-label", f"{reverse('flows.flowlabel_delete', args=[self.label.id])}"
                 )
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            context["current_label"] = self.derive_label()
+            context["current_label"] = self.label
             return context
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<uuid>[0-9a-f-]+)/$" % (path, action)
+            return r"^%s/%s/(?P<label_uuid>[0-9a-f-]+)/$" % (path, action)
 
         def derive_title(self, *args, **kwargs):
-            return self.derive_label().name
+            return self.label.name
 
         def get_object_org(self):
-            return FlowLabel.objects.get(uuid=self.kwargs["uuid"]).org
+            return self.label.org
 
-        def derive_label(self):
-            return FlowLabel.objects.get(uuid=self.kwargs["uuid"], org=self.request.user.get_org())
+        @cached_property
+        def label(self):
+            return FlowLabel.objects.get(uuid=self.kwargs["label_uuid"], org=self.request.org)
 
         def get_label_filter(self):
-            label = FlowLabel.objects.get(uuid=self.kwargs["uuid"])
-            children = label.children.all()
+            children = self.label.children.all()
             if children:  # pragma: needs cover
-                return [lb for lb in FlowLabel.objects.filter(parent=label)] + [label]
+                return [lb for lb in FlowLabel.objects.filter(parent=self.label)] + [self.label]
             else:
-                return [label]
+                return [self.label]
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.user.get_org()).order_by("-created_on")
+            qs = qs.filter(org=self.request.org).order_by("-created_on")
             qs = qs.filter(labels__in=self.get_label_filter(), is_archived=False).distinct()
 
             return qs
@@ -984,7 +984,7 @@ class FlowCRUDL(SmartCRUDL):
                 context["can_start"] = False
                 context["can_simulate"] = False
             else:
-                context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
+                context["mutable"] = self.has_org_perm("flows.flow_update")
                 context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
                 context["can_simulate"] = True
 
@@ -1017,79 +1017,77 @@ class FlowCRUDL(SmartCRUDL):
             return features
 
         def build_content_menu(self, menu):
-            flow = self.object
-            if (
-                flow.flow_type != Flow.TYPE_SURVEY
-                and self.has_org_perm("flows.flow_broadcast")
-                and not flow.is_archived
-            ):
+            obj = self.get_object()
+
+            if obj.flow_type != Flow.TYPE_SURVEY and self.has_org_perm("flows.flow_broadcast") and not obj.is_archived:
                 menu.add_modax(
                     _("Start Flow"),
                     "start-flow",
-                    f"{reverse('flows.flow_broadcast', args=[])}?flow={self.object.id}",
+                    f"{reverse('flows.flow_broadcast', args=[])}?flow={obj.id}",
                     primary=True,
+                    as_button=True,
+                    disabled=True,
                 )
 
             if self.has_org_perm("flows.flow_results"):
-                menu.add_link(_("Results"), reverse("flows.flow_results", args=[flow.uuid]))
+                menu.add_link(_("Results"), reverse("flows.flow_results", args=[obj.uuid]))
 
             menu.new_group()
 
-            if self.has_org_perm("flows.flow_update") and not flow.is_archived:
+            if self.has_org_perm("flows.flow_update") and not obj.is_archived:
                 menu.add_modax(
                     _("Edit"),
                     "edit-flow",
-                    f"{reverse('flows.flow_update', args=[self.object.pk])}",
+                    f"{reverse('flows.flow_update', args=[obj.id])}",
                     title=_("Edit Flow"),
                 )
 
             if self.has_org_perm("flows.flow_copy"):
-                menu.add_url_post(_("Copy"), reverse("flows.flow_copy", args=[flow.id]))
+                menu.add_url_post(_("Copy"), reverse("flows.flow_copy", args=[obj.id]))
 
             if self.has_org_perm("flows.flow_delete"):
                 menu.add_modax(
                     _("Delete"),
                     "delete-flow",
-                    reverse("flows.flow_delete", args=[self.object.uuid]),
+                    reverse("flows.flow_delete", args=[obj.uuid]),
                     title=_("Delete Flow"),
                 )
 
             menu.new_group()
 
             if self.has_org_perm("orgs.org_export"):
-                menu.add_link(_("Export Definition"), f"{reverse('orgs.org_export')}?flow={flow.id}")
+                menu.add_link(_("Export Definition"), f"{reverse('orgs.org_export')}?flow={obj.id}")
 
             # limit PO export/import to non-archived flows since mailroom doesn't know about archived flows
-            if not self.object.is_archived:
+            if not obj.is_archived:
                 if self.has_org_perm("flows.flow_export_translation"):
                     menu.add_modax(
                         _("Export Translation"),
                         "export-translation",
-                        reverse("flows.flow_export_translation", args=[self.object.pk]),
+                        reverse("flows.flow_export_translation", args=[obj.id]),
                     )
 
                 if self.has_org_perm("flows.flow_import_translation"):
-                    menu.add_link(_("Import Translation"), reverse("flows.flow_import_translation", args=[flow.id]))
+                    menu.add_link(_("Import Translation"), reverse("flows.flow_import_translation", args=[obj.id]))
 
-            user = self.get_user()
-            if user.is_superuser or user.is_staff:
+            if self.request.user.is_staff:
                 menu.add_url_post(
                     _("Service"),
-                    f'{reverse("orgs.org_service")}?organization={flow.org_id}&redirect_url={reverse("flows.flow_editor", args=[flow.uuid])}',
+                    f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("flows.flow_editor", args=[obj.uuid])}',
                 )
 
     class ChangeLanguage(OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.Form):
             language = forms.CharField(required=True)
 
-            def __init__(self, user, instance, *args, **kwargs):
-                self.user = user
-
+            def __init__(self, org, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+
+                self.org = org
 
             def clean_language(self):
                 data = self.cleaned_data["language"]
-                if data and data not in self.user.get_org().flow_languages:
+                if data and data not in self.org.flow_languages:
                     raise ValidationError(_("Not a valid language."))
 
                 return data
@@ -1099,7 +1097,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             return kwargs
 
         def form_valid(self, form):
@@ -1107,7 +1105,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.object.get_definition(), form.cleaned_data["language"]
             )
 
-            self.object.save_revision(self.get_user(), flow_def)
+            self.object.save_revision(self.request.user, flow_def)
 
             return HttpResponseRedirect(self.get_success_url())
 
@@ -1121,12 +1119,9 @@ class FlowCRUDL(SmartCRUDL):
                 widget=SelectWidget(),
             )
 
-            def __init__(self, user, instance, *args, **kwargs):
+            def __init__(self, org, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                org = user.get_org()
-
-                self.user = user
                 self.fields["language"].choices += languages.choices(codes=org.flow_languages)
 
         form_class = Form
@@ -1135,7 +1130,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             return kwargs
 
         def form_valid(self, form):
@@ -1178,7 +1173,7 @@ class FlowCRUDL(SmartCRUDL):
         class UploadForm(forms.Form):
             po_file = forms.FileField(label=_("PO translation file"), required=True)
 
-            def __init__(self, user, instance, *args, **kwargs):
+            def __init__(self, org, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
                 self.flow = instance
@@ -1214,10 +1209,9 @@ class FlowCRUDL(SmartCRUDL):
                 widget=SelectWidget(),
             )
 
-            def __init__(self, user, instance, *args, **kwargs):
+            def __init__(self, org, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                org = user.get_org()
                 lang_codes = list(org.flow_languages)
                 lang_codes.remove(instance.base_language)
 
@@ -1232,11 +1226,11 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
+            kwargs["org"] = self.request.org
             return kwargs
 
         def form_valid(self, form):
-            org = self.request.user.get_org()
+            org = self.request.org
             po_uuid = self.request.GET.get("po")
 
             if not po_uuid:
@@ -1263,7 +1257,7 @@ class FlowCRUDL(SmartCRUDL):
             if not po_uuid:
                 return None
 
-            org = self.request.user.get_org()
+            org = self.request.org
             po_data = gettext.po_load(org, po_uuid)
             return gettext.po_get_info(po_data)
 
@@ -1279,8 +1273,8 @@ class FlowCRUDL(SmartCRUDL):
         def derive_initial(self):
             return {"language": self.po_info.language_code if self.po_info else ""}
 
-    class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
-        class ExportForm(forms.Form):
+    class ExportResults(BaseExportView):
+        class Form(BaseExportView.Form):
             flows = forms.ModelMultipleChoiceField(
                 Flow.objects.filter(id__lt=0), required=True, widget=forms.MultipleHiddenInput()
             )
@@ -1290,15 +1284,6 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 label=_("Groups"),
                 widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Group memberships")}),
-            )
-
-            contact_fields = forms.ModelMultipleChoiceField(
-                ContactField.user_fields.filter(id__lt=0),
-                required=False,
-                label=_("Fields"),
-                widget=SelectMultipleWidget(
-                    attrs={"placeholder": _("Optional: Fields to include"), "searchable": True}
-                ),
             )
 
             extra_urns = forms.MultipleChoiceField(
@@ -1318,34 +1303,16 @@ class FlowCRUDL(SmartCRUDL):
                 widget=CheckboxWidget(),
             )
 
-            def __init__(self, user, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.user = user
-                self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.user_fields.active_for_org(
-                    org=self.user.get_org()
-                ).order_by(Lower("name"))
+            def __init__(self, org, *args, **kwargs):
+                super().__init__(org, *args, **kwargs)
 
-                self.fields[ExportFlowResultsTask.GROUP_MEMBERSHIPS].queryset = ContactGroup.get_groups(
-                    self.user.get_org(), ready_only=True
-                ).order_by(Lower("name"))
-
-                self.fields[ExportFlowResultsTask.FLOWS].queryset = Flow.objects.filter(
-                    org=self.user.get_org(), is_active=True
+                self.fields["group_memberships"].queryset = ContactGroup.get_groups(org, ready_only=True).order_by(
+                    Lower("name")
                 )
+                self.fields["flows"].queryset = Flow.objects.filter(org=org, is_active=True)
 
             def clean(self):
                 cleaned_data = super().clean()
-
-                if (
-                    ExportFlowResultsTask.CONTACT_FIELDS in cleaned_data
-                    and len(cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS])
-                    > ExportFlowResultsTask.MAX_CONTACT_FIELDS_COLS
-                ):  # pragma: needs cover
-                    raise forms.ValidationError(
-                        _(
-                            f"You can only include up to {ExportFlowResultsTask.MAX_CONTACT_FIELDS_COLS} contact fields in your export"
-                        )
-                    )
 
                 if (
                     ExportFlowResultsTask.GROUP_MEMBERSHIPS in cleaned_data
@@ -1360,28 +1327,24 @@ class FlowCRUDL(SmartCRUDL):
 
                 return cleaned_data
 
-        form_class = ExportForm
-        submit_button_name = _("Download")
+        form_class = Form
         success_url = "@flows.flow_list"
 
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
-            return kwargs
-
         def derive_initial(self):
+            initial = super().derive_initial()
+
             flow_ids = self.request.GET.get("ids", None)
             if flow_ids:  # pragma: needs cover
-                return {"flows": self.request.org.flows.filter(is_active=True, id__in=flow_ids.split(","))}
-            else:
-                return {}
+                initial["flows"] = self.request.org.flows.filter(is_active=True, id__in=flow_ids.split(","))
+
+            return initial
 
         def derive_exclude(self):
             return ["extra_urns"] if self.request.org.is_anon else []
 
         def form_valid(self, form):
             user = self.request.user
-            org = user.get_org()
+            org = self.request.org
 
             # is there already an export taking place?
             existing = ExportFlowResultsTask.get_recent_unfinished(org)
@@ -1394,14 +1357,16 @@ class FlowCRUDL(SmartCRUDL):
                     ),
                 )
             else:
-                flows = form.cleaned_data[ExportFlowResultsTask.FLOWS]
+                flows = form.cleaned_data["flows"]
                 responded_only = form.cleaned_data[ExportFlowResultsTask.RESPONDED_ONLY]
 
                 export = ExportFlowResultsTask.create(
                     org,
                     user,
-                    flows,
-                    contact_fields=form.cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS],
+                    start_date=form.cleaned_data["start_date"],
+                    end_date=form.cleaned_data["end_date"],
+                    flows=flows,
+                    with_fields=form.cleaned_data["with_fields"],
                     responded_only=responded_only,
                     extra_urns=form.cleaned_data.get(ExportFlowResultsTask.EXTRA_URNS, []),
                     group_memberships=form.cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS],
@@ -1429,12 +1394,9 @@ class FlowCRUDL(SmartCRUDL):
                         _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
                     )
 
-            if "HTTP_X_PJAX" not in self.request.META:
-                return HttpResponseRedirect(self.get_success_url())
-            else:  # pragma: no cover
-                response = self.render_modal_response(form)
-                response["REDIRECT"] = self.get_success_url()
-                return response
+            response = self.render_modal_response(form)
+            response["REDIRECT"] = self.get_success_url()
+            return response
 
     class ActivityChart(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         """
@@ -1606,16 +1568,18 @@ class FlowCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
         def build_content_menu(self, menu):
+            obj = self.get_object()
+
             if self.has_org_perm("flows.flow_update"):
                 menu.add_modax(
                     _("Download"),
                     "download-results",
-                    f"{reverse('flows.flow_export_results')}?ids={self.get_object().pk}",
+                    f"{reverse('flows.flow_export_results')}?ids={obj.id}",
                     title=_("Download Results"),
                 )
 
             if self.has_org_perm("flows.flow_editor"):
-                menu.add_link(_("Edit Flow"), reverse("flows.flow_editor", args=[self.get_object().uuid]))
+                menu.add_link(_("Edit Flow"), reverse("flows.flow_editor", args=[obj.uuid]))
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -2084,13 +2048,14 @@ class FlowLabelCRUDL(SmartCRUDL):
             return kwargs
 
         def derive_fields(self):
-            if FlowLabel.objects.filter(parent=self.get_object()):  # pragma: needs cover
+            # can't edit parent if this label is already a parent.. or didn't previously have a parent
+            if self.object.children.exists() or not self.object.parent:
                 return ("name",)
             else:
                 return ("name", "parent")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
-        fields = ("name", "parent", "flows")
+        fields = ("name", "flows")
         success_url = "hide"
         form_class = FlowLabelForm
         success_message = ""
@@ -2098,13 +2063,11 @@ class FlowLabelCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.user.get_org()
+            kwargs["org"] = self.request.org
             return kwargs
 
-        def pre_save(self, obj, *args, **kwargs):
-            obj = super().pre_save(obj, *args, **kwargs)
-            obj.org = self.request.user.get_org()
-            return obj
+        def save(self, obj):
+            self.object = FlowLabel.create(self.request.org, self.request.user, obj.name)
 
         def post_save(self, obj, *args, **kwargs):
             obj = super().post_save(obj, *args, **kwargs)
@@ -2113,8 +2076,7 @@ class FlowLabelCRUDL(SmartCRUDL):
             if self.form.cleaned_data["flows"]:  # pragma: needs cover
                 flow_ids = [int(f) for f in self.form.cleaned_data["flows"].split(",") if f.isdigit()]
 
-            flows = Flow.objects.filter(org=obj.org, is_active=True, pk__in=flow_ids)
-
+            flows = obj.org.flows.filter(is_active=True, id__in=flow_ids)
             if flows:  # pragma: needs cover
                 obj.toggle_label(flows, add=True)
 

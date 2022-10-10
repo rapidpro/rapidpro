@@ -25,9 +25,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = MGClaimForm
 
     def form_valid(self, form):
-        user = self.request.user
         data = form.cleaned_data
-        org = user.get_org()
 
         from .type import MessangiType
 
@@ -39,8 +37,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
 
         self.object = Channel.create(
-            org,
-            user,
+            self.request.org,
+            self.request.user,
             "JM",
             self.channel_type,
             name="Messangi: %s" % data["shortcode"],

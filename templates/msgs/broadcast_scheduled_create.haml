@@ -1,0 +1,44 @@
+-extends 'includes/modax.html'
+-load smartmin i18n
+
+-block fields
+  -if form.omnibox
+      -render_field 'omnibox'
+
+  -render_field 'text'
+  .fixed-wrapper(style="position:fixed;width:362px;margin-left:200px;margin-top:-10px")
+      %temba-charcount
+
+  -include 'includes/schedule_fields.haml' with form=form
+
+-block form-buttons
+  -if not blockers
+    %input.btn.btn-primary(type="submit" value="{{ submit_button_name }}")
+
+-block modal-extra-style
+  {{ block.super }}
+
+  :css
+    temba-completion {
+      --textarea-height: 110px;
+    }
+
+-block modal-script
+  {{ block.super }}
+
+  :javascript
+
+    var modalBody = getModax("#create-scheduled").shadowRoot;
+    var repeatPeriod = modalBody.querySelector("#id_repeat_period");
+    var repeatDays = modalBody.querySelector(".repeat-days-container");
+
+    if (repeatPeriod) {
+      repeatPeriod.addEventListener("change", function(event) {
+        var currentRepeat = event.currentTarget.values[0].value;
+        if (currentRepeat === 'W') {
+          repeatDays.classList.remove("hidden");
+        } else {
+          repeatDays.classList.add("hidden");
+        }
+      });
+    }

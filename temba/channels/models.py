@@ -1,9 +1,9 @@
 import logging
-import time
 from abc import ABCMeta
 from datetime import timedelta
 from enum import Enum
 from urllib.parse import quote_plus
+from uuid import uuid4
 from xml.sax.saxutils import escape
 
 import phonenumbers
@@ -16,7 +16,6 @@ from twilio.base.exceptions import TwilioRestException
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
-from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import Max, Q, Sum
 from django.db.models.signals import pre_save
@@ -30,6 +29,7 @@ from temba import mailroom
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, countries, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
+from temba.utils.http import HttpLog
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
 
@@ -94,7 +94,7 @@ class ChannelType(metaclass=ABCMeta):
     redact_response_keys = ()
     redact_values = ()
 
-    def is_available_to(self, user):
+    def is_available_to(self, org, user):
         """
         Determines whether this channel type is available to the given user considering the region and when not considering region, e.g. check timezone
         """
@@ -102,18 +102,16 @@ class ChannelType(metaclass=ABCMeta):
         region_aware_visible = True
 
         if self.available_timezones is not None:
-            timezone = user.get_org().timezone
-            region_aware_visible = timezone and str(timezone) in self.available_timezones
+            region_aware_visible = org.timezone and str(org.timezone) in self.available_timezones
 
         return region_aware_visible, region_ignore_visible
 
-    def is_recommended_to(self, user):
+    def is_recommended_to(self, org, user):
         """
         Determines whether this channel type is recommended to the given user.
         """
         if self.recommended_timezones is not None:
-            timezone = user.get_org().timezone
-            return timezone and str(timezone) in self.recommended_timezones
+            return org.timezone and str(org.timezone) in self.recommended_timezones
         else:
             return False
 
@@ -907,7 +905,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for sync_event in self.sync_events.all():
             sync_event.release()
 
-        # interrupt any sessions using this channel as a connection
+        # interrupt any sessions using this channel for calls
         mailroom.queue_interrupt(self.org, channel=self)
 
         # save the FCM id before clearing
@@ -1018,13 +1016,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
 
     def get_ivr_log_count(self):
-        return (
-            ChannelLog.objects.filter(channel=self)
-            .exclude(connection=None)
-            .order_by("connection")
-            .distinct("connection")
-            .count()
-        )
+        return ChannelLog.objects.filter(channel=self).exclude(call=None).order_by("call").distinct("call").count()
 
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
@@ -1154,6 +1146,8 @@ class ChannelEvent(models.Model):
     occurred_on = models.DateTimeField()
     created_on = models.DateTimeField(default=timezone.now)
 
+    log_uuids = ArrayField(models.UUIDField(), null=True)
+
     @classmethod
     def create_relayer_event(cls, channel, urn, event_type, occurred_on, extra=None):
         from temba.contacts.models import Contact
@@ -1182,108 +1176,128 @@ class ChannelEvent(models.Model):
 
 class ChannelLog(models.Model):
     """
-    A log of an call made to or from a channel
+    A log of an interaction with a channel
     """
 
+    LOG_TYPE_UNKNOWN = "unknown"
+    LOG_TYPE_MSG_SEND = "msg_send"
+    LOG_TYPE_MSG_STATUS = "msg_status"
+    LOG_TYPE_MSG_RECEIVE = "msg_receive"
+    LOG_TYPE_EVENT_RECEIVE = "event_receive"
+    LOG_TYPE_IVR_START = "ivr_start"
+    LOG_TYPE_IVR_INCOMING = "ivr_incoming"
+    LOG_TYPE_IVR_CALLBACK = "ivr_callback"
+    LOG_TYPE_IVR_STATUS = "ivr_status"
+    LOG_TYPE_IVR_HANGUP = "ivr_hangup"
+    LOG_TYPE_ATTACHMENT_FETCH = "attachment_fetch"
+    LOG_TYPE_TOKEN_REFRESH = "token_refresh"
+    LOG_TYPE_PAGE_SUBSCRIBE = "page_subscribe"
+    LOG_TYPE_CHOICES = (
+        (LOG_TYPE_UNKNOWN, _("Other Event")),
+        (LOG_TYPE_MSG_SEND, _("Message Send")),
+        (LOG_TYPE_MSG_STATUS, _("Message Status")),
+        (LOG_TYPE_MSG_RECEIVE, _("Message Receive")),
+        (LOG_TYPE_EVENT_RECEIVE, _("Event Receive")),
+        (LOG_TYPE_IVR_START, _("IVR Start")),
+        (LOG_TYPE_IVR_INCOMING, _("IVR Incoming")),
+        (LOG_TYPE_IVR_CALLBACK, _("IVR Callback")),
+        (LOG_TYPE_IVR_STATUS, _("IVR Status")),
+        (LOG_TYPE_IVR_HANGUP, _("IVR Hangup")),
+        (LOG_TYPE_ATTACHMENT_FETCH, _("Attachment Fetch")),
+        (LOG_TYPE_TOKEN_REFRESH, _("Token Refresh")),
+        (LOG_TYPE_PAGE_SUBSCRIBE, _("Page Subscribe")),
+    )
+
     id = models.BigAutoField(primary_key=True)
+    uuid = models.UUIDField(default=uuid4)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
-    connection = models.ForeignKey(
-        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="channel_logs", null=True
-    )
-    description = models.CharField(max_length=255)
+    call = models.ForeignKey("ivr.Call", on_delete=models.PROTECT, related_name="channel_logs", null=True)
+
+    log_type = models.CharField(max_length=16, choices=LOG_TYPE_CHOICES)
+    http_logs = models.JSONField(null=True)
+    errors = models.JSONField(null=True)
     is_error = models.BooleanField(default=False)
-    url = models.TextField(null=True)
-    method = models.CharField(max_length=16, null=True)
-    request = models.TextField(null=True)
-    response = models.TextField(null=True)
-    response_status = models.IntegerField(null=True)
+    elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
-    request_time = models.IntegerField(null=True)
 
     @classmethod
-    def log_channel_request(cls, channel_id, description, event, start, is_error=False):
-        request_time = 0 if not start else time.time() - start
-        request_time_ms = request_time * 1000
+    def from_response(cls, log_type, channel, response, created_on, ended_on, is_error=None):
+        http_log = HttpLog.from_response(response, created_on, ended_on)
+        is_error = is_error if is_error is not None else http_log.status_code >= 400
 
-        return ChannelLog.objects.create(
-            channel_id=channel_id,
-            request=str(event.request_body),
-            response=str(event.response_body),
-            url=event.url,
-            method=event.method,
+        return cls.objects.create(
+            uuid=uuid4(),
+            log_type=log_type,
+            channel=channel,
+            http_logs=[http_log.as_json()],
+            errors=[],
             is_error=is_error,
-            response_status=event.status_code,
-            description=description[:255],
-            request_time=request_time_ms,
+            elapsed_ms=http_log.elapsed_ms,
         )
 
-    def log_group(self):
-        if self.msg:
-            return ChannelLog.objects.filter(msg=self.msg).order_by("-created_on")
-
-        return ChannelLog.objects.filter(id=self.id)
-
-    def get_url_display(self, user, anon_mask):
-        """
-        Gets the URL as it should be displayed to the given user
-        """
-        redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
-
-        return self._get_display_value(user, self.url, anon_mask, redact_values=redact_values)
-
-    def get_request_display(self, user, anon_mask):
-        """
-        Gets the request trace as it should be displayed to the given user
-        """
-        redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_request_keys
-        redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
-
-        return self._get_display_value(
-            user, self.request, anon_mask, redact_keys=redact_keys, redact_values=redact_values
-        )
-
-    def get_response_display(self, user, anon_mask):
-        """
-        Gets the response trace as it should be displayed to the given user
-        """
-        redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_response_keys
-        redact_values = Channel.get_type_from_code(self.channel.channel_type).redact_values
-
-        return self._get_display_value(
-            user, self.response, anon_mask, redact_keys=redact_keys, redact_values=redact_values
-        )
-
-    def _get_display_value(self, user, original, mask, redact_keys=(), redact_values=()):
+    def _get_display_value(self, user, original, redact_keys=(), redact_values=()):
         """
         Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
         """
 
-        for secret_val in redact_values:
-            original = redact.text(original, secret_val, mask)
+        from temba.request_logs.models import HTTPLog
 
-        if not self.channel.org.is_anon or user.has_org_perm(self.channel.org, "contacts.contact_break_anon"):
+        for secret_val in redact_values:
+            original = redact.text(original, secret_val, HTTPLog.REDACT_MASK)
+
+        if not self.channel.org.is_anon or user.is_staff:
             return original
 
         # if this log doesn't have a msg then we don't know what to redact, so redact completely
         if not self.msg_id:
-            return mask
+            return original[:10] + HTTPLog.REDACT_MASK
 
         needle = self.msg.contact_urn.path
 
         if redact_keys:
-            redacted = redact.http_trace(original, needle, mask, redact_keys)
+            redacted = redact.http_trace(original, needle, HTTPLog.REDACT_MASK, redact_keys)
         else:
-            redacted = redact.text(original, needle, mask)
+            redacted = redact.text(original, needle, HTTPLog.REDACT_MASK)
 
         # if nothing was redacted, don't risk returning sensitive information we didn't find
         if original == redacted:
-            return mask
+            return original[:10] + HTTPLog.REDACT_MASK
 
         return redacted
 
-    def release(self):
-        self.delete()
+    def get_display(self, user) -> dict:
+        redact_values = self.channel.type.redact_values
+        redact_request_keys = self.channel.type.redact_request_keys
+        redact_response_keys = self.channel.type.redact_response_keys
+
+        def redact_http(log: dict) -> dict:
+            return {
+                "url": self._get_display_value(user, log["url"], redact_values=redact_values),
+                "status_code": log.get("status_code", 0),
+                "request": self._get_display_value(
+                    user, log["request"], redact_keys=redact_request_keys, redact_values=redact_values
+                ),
+                "response": self._get_display_value(
+                    user, log.get("response", ""), redact_keys=redact_response_keys, redact_values=redact_values
+                ),
+                "elapsed_ms": log["elapsed_ms"],
+                "retries": log["retries"],
+                "created_on": log["created_on"],
+            }
+
+        def redact_error(err: dict) -> dict:
+            return {
+                "message": self._get_display_value(user, err["message"], redact_values=redact_values),
+                "code": err["code"],
+            }
+
+        return {
+            "description": self.get_log_type_display(),
+            "http_logs": [redact_http(h) for h in (self.http_logs or [])],
+            "errors": [redact_error(e) for e in (self.errors or [])],
+            "created_on": self.created_on,
+        }
 
     class Meta:
         indexes = [
@@ -1622,11 +1636,8 @@ def get_alert_user():
 
 class ChannelConnection(models.Model):
     """
-    Base for IVR sessions which require a connection to specific channel
+    TODO drop
     """
-
-    TYPE_VOICE = "V"
-    TYPE_CHOICES = ((TYPE_VOICE, "Voice"),)
 
     DIRECTION_IN = "I"
     DIRECTION_OUT = "O"
@@ -1661,7 +1672,6 @@ class ChannelConnection(models.Model):
     )
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
-    connection_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
@@ -1680,72 +1690,4 @@ class ChannelConnection(models.Model):
     error_count = models.IntegerField(default=0)
     next_attempt = models.DateTimeField(null=True)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        """ Since the FK is bound to ChannelConnection, when it initializes an instance from
-        DB we need to specify the class based on `connection_type` so we can access
-        all the methods the proxy model implements. """
-
-        if type(self) is ChannelConnection:
-            if self.connection_type == self.TYPE_VOICE:
-                from temba.ivr.models import IVRCall
-
-                self.__class__ = IVRCall
-
-    def has_logs(self):
-        """
-        Returns whether this connection has any channel logs
-        """
-        return self.channel.is_active and self.channel_logs.count() > 0
-
-    def get_duration(self):
-        """
-        Either gets the set duration as reported by provider, or tries to calculate it
-        """
-        duration = self.duration or 0
-
-        if not duration and self.status == self.STATUS_IN_PROGRESS and self.started_on:
-            duration = (timezone.now() - self.started_on).seconds
-
-        return timedelta(seconds=duration)
-
-    @property
-    def status_display(self):
-        """
-        Gets the status/error_reason as display text, e.g. Wired, Errored (No Answer)
-        """
-        status = self.get_status_display()
-        if self.status in (self.STATUS_ERRORED, self.STATUS_FAILED) and self.error_reason:
-            status += f" ({self.get_error_reason_display()})"
-        return status
-
-    def get_session(self):
-        """
-        There is a one-to-one relationship between flow sessions and connections, but as connection can be null
-        it can throw an exception
-        """
-        try:
-            return self.session
-        except ObjectDoesNotExist:  # pragma: no cover
-            return None
-
-    def release(self):
-        for log in self.channel_logs.all():
-            log.release()
-
-        session = self.get_session()
-        if session:
-            session.delete()
-
-        self.delete()
-
-    class Meta:
-        indexes = [
-            # used by mailroom to fetch calls that need to be retried
-            models.Index(
-                name="channelconnection_ivr_to_retry",
-                fields=["next_attempt"],
-                condition=Q(connection_type="V", status__in=("Q", "E"), next_attempt__isnull=False),
-            )
-        ]
+    log_uuids = ArrayField(models.UUIDField(), null=True)

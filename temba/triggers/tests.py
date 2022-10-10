@@ -11,7 +11,7 @@ from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, TembaTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 
 from .models import Trigger
 from .types import KeywordTriggerType
@@ -481,11 +481,13 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # but a new conversation trigger can't be created with a suitable channel
         self.assertNotContains(response, create_new_convo_url)
 
-        # create a facebook channel
+        # create a facebook channel and delete our Android channel
         self.create_channel("FB", "Facebook Channel", "1234567")
+        self.channel.release(self.admin)
 
         response = self.client.get(create_url)
         self.assertContains(response, create_new_convo_url)
+        self.assertNotContains(response, create_missed_call_url)
 
     def test_create_keyword(self):
         create_url = reverse("triggers.trigger_create_keyword")
@@ -825,14 +827,13 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.channel.role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
         self.channel.save()
 
-        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_VOICE)
-        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
-        flow3 = self.create_flow("Flow 3", flow_type=Flow.TYPE_MESSAGE)
+        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
+        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_BACKGROUND)
 
         # flows that shouldn't appear as options
-        self.create_flow("Flow 4", flow_type=Flow.TYPE_BACKGROUND)
-        self.create_flow("Flow 5", is_system=True)
-        self.create_flow("Flow 6", org=self.org2)
+        self.create_flow("Flow 3", flow_type=Flow.TYPE_VOICE)
+        self.create_flow("Flow 4", is_system=True)
+        self.create_flow("Flow 5", org=self.org2)
 
         create_url = reverse("triggers.trigger_create_missed_call")
 
@@ -841,7 +842,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # flow options should be messaging and voice flows
-        self.assertEqual([flow1, flow2, flow3], list(response.context["form"].fields["flow"].queryset))
+        self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
 
         self.assertCreateSubmit(
             create_url,
@@ -1202,7 +1203,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(
             update_url,
             {
-                "start_datetime": "2021-06-24 12:00",
+                "start_datetime": "2021-06-24T10:00Z",
                 "repeat_period": "D",
                 "flow": flow1.id,
                 "groups": [group2.id],
@@ -1394,3 +1395,26 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger3, trigger4]
         )
         self.assertListFetch(catchall_url, allow_viewers=True, allow_editors=True, context_objects=[trigger5])
+
+
+class DeleteBadMissedCallTriggersTest(MigrationTest):
+    app = "triggers"
+    migrate_from = "0024_alter_trigger_options"
+    migrate_to = "0025_delete_bad_missed_calls"
+
+    def setUpBeforeMigration(self, apps):
+        msg_flow = self.create_flow("Test M", flow_type=Flow.TYPE_MESSAGE)
+        ivr_flow = self.create_flow("Test V", flow_type=Flow.TYPE_VOICE)
+
+        self.trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, ivr_flow)
+        self.trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, msg_flow)
+        self.trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, ivr_flow)  # will be deleted
+
+    def test_migration(self):
+        self.trigger1.refresh_from_db()
+        self.trigger2.refresh_from_db()
+        self.trigger3.refresh_from_db()
+
+        self.assertTrue(self.trigger1.is_active)
+        self.assertTrue(self.trigger2.is_active)
+        self.assertFalse(self.trigger3.is_active)

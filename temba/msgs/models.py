@@ -5,6 +5,8 @@ import re
 import time
 from array import array
 from datetime import datetime, timedelta
+from fnmatch import fnmatch
+from urllib.parse import unquote, urlparse
 
 import iso8601
 import pytz
@@ -13,6 +15,7 @@ from xlsxlite.writer import XLSXBook
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
+from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.db.models import Prefetch, Q, Sum
@@ -22,13 +25,13 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
+from temba.channels.models import Channel
+from temba.contacts.models import Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
-from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, TranslatableField
+from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
+from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
@@ -49,6 +52,9 @@ class Media(models.Model):
     An uploaded media file that can be used as an attachment on messages.
     """
 
+    ALLOWED_CONTENT_TYPES = ("image/*", "audio/*", "video/*", "application/pdf")
+    MAX_UPLOAD_SIZE = 1024 * 1024 * 25  # 25MB
+
     STATUS_PENDING = "P"
     STATUS_READY = "R"
     STATUS_FAILED = "F"
@@ -57,7 +63,6 @@ class Media(models.Model):
     uuid = models.UUIDField(default=uuid4, db_index=True, unique=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
     url = models.URLField(max_length=2048)
-    name = models.CharField(max_length=255)  # filename including extension
     content_type = models.CharField(max_length=255)
     path = models.CharField(max_length=2048)
     size = models.IntegerField(default=0)  # bytes
@@ -73,7 +78,14 @@ class Media(models.Model):
     created_on = models.DateTimeField(default=timezone.now)
 
     # TODO remove
-    is_ready = models.BooleanField(default=False, null=True)
+    name = models.CharField(max_length=255, null=True)
+
+    @classmethod
+    def is_allowed_type(cls, content_type: str) -> bool:
+        for allowed_type in cls.ALLOWED_CONTENT_TYPES:
+            if fnmatch(content_type, allowed_type):
+                return True
+        return False
 
     @classmethod
     def get_storage_path(cls, org, uuid, filename):
@@ -84,6 +96,16 @@ class Media(models.Model):
         return f"{settings.STORAGE_ROOT_DIR}/{org.id}/media/{str(uuid)[0:4]}/{uuid}/{filename}"
 
     @classmethod
+    def clean_name(cls, filename: str, content_type: str) -> str:
+        base_name, extension = os.path.splitext(filename)
+        base_name = re.sub(r"[^\w\-\[\]\(\) ]", "", base_name).strip()[:255] or "file"
+
+        if not extension or len(extension) < 2 or not extension[1:].isalnum():
+            extension = mimetypes.guess_extension(content_type) or ".bin"
+
+        return base_name + extension
+
+    @classmethod
     def from_upload(cls, org, user, file, process=True):
         """
         Creates a new media instance from a file upload.
@@ -91,19 +113,15 @@ class Media(models.Model):
 
         from .tasks import process_media_upload
 
-        base_name, extension = os.path.splitext(file.name)
+        assert cls.is_allowed_type(file.content_type), "unsupported content type"
 
-        # cleanup file name
-        base_name = re.sub(r"[^a-zA-Z0-9_ ]", "", base_name).strip()[:255] or "file"
-
-        if not extension:
-            extension = mimetypes.guess_extension(file.content_type) or ".bin"
+        filename = cls.clean_name(file.name, file.content_type)
 
         # browsers might send m4a files but correct MIME type is audio/mp4
-        if extension == ".m4a":
+        if filename.endswith(".m4a"):
             file.content_type = "audio/mp4"
 
-        media = cls._create(org, user, base_name + extension, file.content_type, file)
+        media = cls._create(org, user, filename, file.content_type, file)
 
         if process:
             on_transaction_commit(lambda: process_media_upload.delay(media.id))
@@ -111,7 +129,7 @@ class Media(models.Model):
         return media
 
     @classmethod
-    def create_alternate(cls, original, name: str, content_type: str, file, **kwargs):
+    def create_alternate(cls, original, filename: str, content_type: str, file, **kwargs):
         """
         Creates a new alternate media instance for the given original.
         """
@@ -119,18 +137,18 @@ class Media(models.Model):
         return cls._create(
             original.org,
             original.created_by,
-            name,
+            filename,
             content_type,
             file,
             original=original,
-            is_ready=True,
+            status=cls.STATUS_READY,
             **kwargs,
         )
 
     @classmethod
-    def _create(cls, org, user, name: str, content_type: str, file, **kwargs):
+    def _create(cls, org, user, filename: str, content_type: str, file, **kwargs):
         uuid = uuid4()
-        path = cls.get_storage_path(org, uuid, name)
+        path = cls.get_storage_path(org, uuid, filename)
         path = public_file_storage.save(path, file)
         size = public_file_storage.size(path)
 
@@ -138,7 +156,6 @@ class Media(models.Model):
             uuid=uuid,
             org=org,
             url=public_file_storage.url(path),
-            name=name,
             content_type=content_type,
             path=path,
             size=size,
@@ -146,10 +163,14 @@ class Media(models.Model):
             **kwargs,
         )
 
+    @property
+    def filename(self) -> str:
+        return os.path.basename(self.path)
+
     def process_upload(self):
         from .media import process_upload
 
-        assert not self.is_ready, "media file is already processed"
+        assert self.status == self.STATUS_PENDING, "media file is already processed"
         assert not self.original, "only original uploads can be processed"
 
         process_upload(self)
@@ -385,6 +406,10 @@ class Attachment:
     def parse_all(cls, attachments):
         return [cls.parse(s) for s in attachments] if attachments else []
 
+    def delete(self):
+        parsed = urlparse(self.url)
+        default_storage.delete(unquote(parsed.path))
+
     def as_json(self):
         return {"content_type": self.content_type, "url": self.url}
 
@@ -459,12 +484,14 @@ class Msg(models.Model):
     )
 
     FAILED_SUSPENDED = "S"
+    FAILED_CONTACT = "C"
     FAILED_LOOPING = "L"
     FAILED_ERROR_LIMIT = "E"
     FAILED_TOO_OLD = "O"
     FAILED_NO_DESTINATION = "D"
     FAILED_CHOICES = (
         (FAILED_SUSPENDED, _("Workspace suspended")),
+        (FAILED_CONTACT, _("Contact is no longer active")),
         (FAILED_LOOPING, _("Looping detected")),  # mailroom checks for this
         (FAILED_ERROR_LIMIT, _("Retry limit reached")),  # courier tried to send but it errored too many times
         (FAILED_TOO_OLD, _("Too old to send")),  # was queued for too long, would be confusing to send now
@@ -519,6 +546,7 @@ class Msg(models.Model):
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
 
     metadata = JSONAsTextField(null=True, default=dict)
+    log_uuids = ArrayField(models.UUIDField(), null=True)
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
@@ -570,7 +598,7 @@ class Msg(models.Model):
             "visibility": MsgReadSerializer.VISIBILITIES.get(self.visibility),
             "text": self.text,
             "attachments": [attachment.as_json() for attachment in Attachment.parse_all(self.attachments)],
-            "labels": [{"uuid": lb.uuid, "name": lb.name} for lb in self.labels.all()],
+            "labels": [{"uuid": str(lb.uuid), "name": lb.name} for lb in self.labels.all()],
             "created_on": self.created_on.isoformat(),
             "sent_on": self.sent_on.isoformat() if self.sent_on else None,
         }
@@ -640,15 +668,6 @@ class Msg(models.Model):
         Gets this message's attachments parsed into actual attachment objects
         """
         return Attachment.parse_all(self.attachments)
-
-    def get_last_log(self):
-        """
-        Gets the last channel log for this message. Performs sorting in Python to ease pre-fetching.
-        """
-        sorted_logs = None
-        if self.channel and self.channel.is_active:
-            sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
-        return sorted_logs[0] if sorted_logs else None
 
     def update(self, cmd):
         """
@@ -761,6 +780,13 @@ class Msg(models.Model):
         Deletes this message. This can be soft if messages are being deleted from the UI, or hard in the case of
         contact or org removal.
         """
+
+        assert not soft or self.direction == Msg.DIRECTION_IN, "only incoming messages can be soft deleted"
+
+        if self.direction == Msg.DIRECTION_IN:
+            for attachment in self.get_attachments():
+                attachment.delete()
+
         if soft:
             self.labels.clear()
 
@@ -769,8 +795,7 @@ class Msg(models.Model):
             self.visibility = Msg.VISIBILITY_DELETED_BY_USER
             self.save(update_fields=("text", "attachments", "visibility"))
         else:
-            for log in self.channel_logs.all():
-                log.release()
+            self.channel_logs.all().delete()
 
             super().delete()
 
@@ -862,7 +887,6 @@ class SystemLabel:
     TYPE_SENT = "S"
     TYPE_FAILED = "X"
     TYPE_SCHEDULED = "E"
-    TYPE_CALLS = "C"
 
     TYPE_CHOICES = (
         (TYPE_INBOX, "Inbox"),
@@ -872,7 +896,6 @@ class SystemLabel:
         (TYPE_SENT, "Sent"),
         (TYPE_FAILED, "Failed"),
         (TYPE_SCHEDULED, "Scheduled"),
-        (TYPE_CALLS, "Calls"),
     )
 
     @classmethod
@@ -914,8 +937,6 @@ class SystemLabel:
             )
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None).prefetch_related("groups", "contacts", "urns")
-        elif label_type == cls.TYPE_CALLS:
-            qs = ChannelEvent.objects.filter(event_type__in=ChannelEvent.CALL_TYPES)
         else:  # pragma: needs cover
             raise ValueError("Invalid label type: %s" % label_type)
 
@@ -989,7 +1010,7 @@ class SystemLabelCount(SquashableModel):
         index_together = ("org", "label_type")
 
 
-class Label(LegacyUUIDMixin, TembaModel, DependencyMixin):
+class Label(TembaModel, DependencyMixin):
     """
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.
@@ -1197,7 +1218,7 @@ class MsgIterator:
         return next(self._generator)
 
 
-class ExportMessagesTask(BaseExportTask):
+class ExportMessagesTask(BaseItemWithContactExport):
     """
     Wrapper for handling exports of raw messages. This will export all selected messages in
     an Excel spreadsheet, adding sheets as necessary to fall within the guidelines of Excel 97
@@ -1213,17 +1234,15 @@ class ExportMessagesTask(BaseExportTask):
     groups = models.ManyToManyField(ContactGroup)
 
     label = models.ForeignKey(Label, on_delete=models.PROTECT, null=True)
-
     system_label = models.CharField(null=True, max_length=1)
 
-    start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
-
-    end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
+    # TODO backfill, for now overridden from base class to make nullable
+    start_date = models.DateField(null=True)
+    end_date = models.DateField(null=True)
 
     @classmethod
-    def create(cls, org, user, system_label=None, label=None, groups=(), start_date=None, end_date=None):
-        if label and system_label:  # pragma: no cover
-            raise ValueError("Can't specify both label and system label")
+    def create(cls, org, user, start_date, end_date, system_label=None, label=None, with_fields=(), groups=()):
+        assert not (label and system_label), "can't specify both label and system label"
 
         export = cls.objects.create(
             org=org,
@@ -1234,6 +1253,7 @@ class ExportMessagesTask(BaseExportTask):
             created_by=user,
             modified_by=user,
         )
+        export.with_fields.add(*with_fields)
         export.groups.add(*groups)
         return export
 
@@ -1249,20 +1269,11 @@ class ExportMessagesTask(BaseExportTask):
         book = XLSXBook()
         book.num_msgs_sheets = 0
 
-        book.headers = [
-            "Date",
-            "Contact UUID",
-            "Name",
-            "ID" if self.org.is_anon else "URN",
-            "URN Type",
-            "Flow",
-            "Direction",
-            "Text",
-            "Attachments",
-            "Status",
-            "Channel",
-            "Labels",
-        ]
+        book.headers = (
+            ["Date"]
+            + self._get_contact_headers()
+            + ["Flow", "Direction", "Text", "Attachments", "Status", "Channel", "Labels"]
+        )
 
         book.current_msgs_sheet = self._add_msgs_sheet(book)
 
@@ -1270,20 +1281,11 @@ class ExportMessagesTask(BaseExportTask):
         temp_msgs_exported = 0
 
         start = time.time()
+        start_date, end_date = self._get_date_range()
 
         contact_uuids = set()
         for group in self.groups.all():
             contact_uuids = contact_uuids.union(set(group.contacts.only("uuid").values_list("uuid", flat=True)))
-
-        tz = self.org.timezone
-
-        start_date = self.org.created_on
-        if self.start_date:
-            start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
-
-        end_date = timezone.now()
-        if self.end_date:
-            end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
 
         for batch in self._get_msg_batches(self.system_label, self.label, start_date, end_date, contact_uuids):
             self._write_msgs(book, batch)
@@ -1346,11 +1348,7 @@ class ExportMessagesTask(BaseExportTask):
         else:
             messages = Msg.get_messages(self.org)
 
-        if self.start_date:
-            messages = messages.filter(created_on__gte=start_date)
-
-        if self.end_date:
-            messages = messages.filter(created_on__lte=end_date)
+        messages = messages.filter(created_on__gte=start_date, created_on__lte=end_date)
 
         if self.groups.all():
             messages = messages.filter(contact__groups__in=self.groups.all())
@@ -1385,28 +1383,14 @@ class ExportMessagesTask(BaseExportTask):
             contact = contacts_by_uuid.get(msg["contact"]["uuid"])
             flow = msg.get("flow")
 
-            urn_scheme = URN.to_parts(msg["urn"])[0] if msg["urn"] else ""
-
-            # only show URN path if org isn't anon and there is a URN
-            if self.org.is_anon:  # pragma: needs cover
-                urn_path = f"{contact.id:010d}"
-                urn_scheme = ""
-            elif msg["urn"]:
-                urn_path = URN.format(msg["urn"], international=False, formatted=False)
-            else:
-                urn_path = ""
-
             if book.current_msgs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
                 book.current_msgs_sheet = self._add_msgs_sheet(book)
 
             self.append_row(
                 book.current_msgs_sheet,
-                [
-                    iso8601.parse_date(msg["created_on"]),
-                    msg["contact"]["uuid"],
-                    msg["contact"].get("name", ""),
-                    urn_path,
-                    urn_scheme,
+                [iso8601.parse_date(msg["created_on"])]
+                + self._get_contact_columns(contact, urn=msg["urn"])
+                + [
                     flow["name"] if flow else None,
                     msg["direction"].upper() if msg["direction"] else None,
                     msg["text"],

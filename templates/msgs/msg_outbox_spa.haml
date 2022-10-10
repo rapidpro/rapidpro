@@ -1,5 +1,5 @@
 -extends "msgs/message_box_spa.html"
--load smartmin sms temba contacts i18n humanize
+-load smartmin sms temba contacts i18n humanize channels
 
 -block search-details
   .search-details
@@ -44,9 +44,7 @@
             %span.time
               {% short_datetime object.created_on %}
 
-            -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
-              .inline-block.text-gray-400.linked
-                {% channel_log_link object %}
+            {% channel_log_link object %}
 
       -if not object_list and not pending_broadcasts
         %tr.empty_list

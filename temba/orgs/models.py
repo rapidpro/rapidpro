@@ -15,7 +15,6 @@ import stripe
 import stripe.error
 from django_redis import get_redis_connection
 from packaging.version import Version
-from requests import Session
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
 from twilio.rest import Client as TwilioClient
@@ -24,8 +23,6 @@ from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User as AuthUser
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
-from django.core.files import File
-from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Count, F, Prefetch, Q, Sum
 from django.utils import timezone
@@ -42,7 +39,6 @@ from temba.utils.cache import get_cacheable_result
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, JSONField, SquashableModel
-from temba.utils.s3 import public_file_storage
 from temba.utils.text import generate_token, random_string
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
@@ -170,9 +166,6 @@ class User(AuthUser):
         """
         Gets the orgs in the given brands that this user has access to (i.e. a role in).
         """
-        if self.is_superuser:
-            return Org.objects.all()
-
         orgs = self.orgs.filter(is_active=True).order_by("name")
         if brands is not None:
             orgs = orgs.filter(brand__in=brands)
@@ -247,10 +240,6 @@ class User(AuthUser):
     def is_beta(self) -> bool:
         return self.groups.filter(name="Beta").exists()
 
-    @cached_property
-    def is_support(self) -> bool:
-        return self.groups.filter(name="Customer Support").exists()
-
     def get_org(self):
         """
         Gets the request org cached on the user. This should only be used where request.org can't be.
@@ -264,13 +253,13 @@ class User(AuthUser):
         """
         Determines if a user has the given permission in the given org.
         """
-        if self.is_superuser:
+        if self.is_staff:
             return True
 
         if self.is_anonymous:  # pragma: needs cover
             return False
 
-        # has it innately? (e.g. customer support)
+        # has it innately? e.g. Granter group
         if self.has_perm(permission):
             return True
 
@@ -316,7 +305,7 @@ class User(AuthUser):
             org.release(user, release_users=False)
 
         # remove user from all roles on any org for our brand
-        for org in user.get_orgs(brands=[brand]):
+        for org in self.get_orgs(brands=[brand]):
             org.remove_user(self)
 
     def __str__(self):
@@ -471,7 +460,6 @@ class Org(SmartModel):
         verbose_name=_("Plan"),
         max_length=16,
         default=settings.DEFAULT_PLAN,
-        help_text=_("What plan your organization is on"),
     )
     plan_start = models.DateTimeField(null=True)
     plan_end = models.DateTimeField(null=True)
@@ -557,7 +545,6 @@ class Org(SmartModel):
         max_length=128,
         default=settings.DEFAULT_BRAND,
         verbose_name=_("Brand"),
-        help_text=_("The brand used in emails"),
     )
 
     surveyor_password = models.CharField(
@@ -1125,7 +1112,7 @@ class Org(SmartModel):
 
     def has_user(self, user: User) -> bool:
         """
-        Returns whether the given user has a role in this org (only explicit roles, so doesn't include customer support)
+        Returns whether the given user has a role in this org (only explicit roles, so doesn't include staff)
         """
         return self.users.filter(id=user.id).exists()
 
@@ -1172,12 +1159,6 @@ class Org(SmartModel):
         if user not in self._user_role_cache:
             self._user_role_cache[user] = get_role()
         return self._user_role_cache[user]
-
-    def has_twilio_number(self):  # pragma: needs cover
-        return self.channels.filter(channel_type="T")
-
-    def has_vonage_number(self):  # pragma: needs cover
-        return self.channels.filter(channel_type="NX")
 
     def init_topups(self, topup_size=None):
         if topup_size:
@@ -1767,36 +1748,6 @@ class Org(SmartModel):
         if sample_flows:
             self.create_sample_flows(branding.get("api_link", ""))
 
-    def download_and_save_media(self, request, extension=None):  # pragma: needs cover
-        """
-        Given an HTTP Request object, downloads the file then saves it as media for the current org. If no extension
-        is passed it we attempt to extract it from the filename
-        """
-        s = Session()
-        prepped = s.prepare_request(request)
-        response = s.send(prepped)
-
-        if response.status_code == 200:
-            # download the content to a temp file
-            temp = NamedTemporaryFile(delete=True)
-            temp.write(response.content)
-            temp.flush()
-
-            # try to derive our extension from the filename if it wasn't passed in
-            if not extension:
-                url_parts = urlparse(request.url)
-                if url_parts.path:
-                    path_pieces = url_parts.path.rsplit(".")
-                    if len(path_pieces) > 1:
-                        extension = path_pieces[-1]
-
-        else:
-            raise Exception(
-                "Received non-200 response (%s) for request: %s" % (response.status_code, response.content)
-            )
-
-        return self.save_media(File(temp), extension)
-
     def get_delete_date(self, *, archive_type=Archive.TYPE_MSG):
         """
         Gets the most recent date for which data hasn't been deleted yet or None if no deletion has been done
@@ -1805,22 +1756,6 @@ class Org(SmartModel):
         archive = self.archives.filter(needs_deletion=False, archive_type=archive_type).order_by("-start_date").first()
         if archive:
             return archive.get_end_date()
-
-    def save_media(self, file, extension):
-        """
-        Saves the given file data with the extension and returns an absolute url to the result
-        """
-        random_file = str(uuid4())
-        random_dir = random_file[0:4]
-
-        filename = "%s/%s" % (random_dir, random_file)
-        if extension:
-            filename = "%s.%s" % (filename, extension)
-
-        path = "%s/%d/media/%s" % (settings.STORAGE_ROOT_DIR, self.pk, filename)
-        location = public_file_storage.save(path, file)
-
-        return f"{settings.STORAGE_URL}/{location}"
 
     def release(self, user, *, release_users=True):
         """
@@ -1869,6 +1804,7 @@ class Org(SmartModel):
         self.exportcontactstasks.all().delete()
         self.exportmessagestasks.all().delete()
         self.exportflowresultstasks.all().delete()
+        self.exportticketstasks.all().delete()
 
         for label in self.msgs_labels.all():
             label.release(user)

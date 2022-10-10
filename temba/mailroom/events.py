@@ -10,7 +10,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import EventFire
 from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowExit, FlowRun
-from temba.ivr.models import IVRCall
+from temba.ivr.models import Call
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.tickets.models import Ticket, TicketEvent, Topic
@@ -78,12 +78,11 @@ class Event:
         with an underscore.
         """
 
-        channel_log = obj.get_last_log()
-        logs_url = (
-            _url_for_user(org, user, "channels.channellog_read", args=[channel_log.channel.uuid, channel_log.id])
-            if channel_log
-            else None
-        )
+        logs_url = None
+        if obj.channel_logs.exists():
+            logs_url = _url_for_user(
+                org, user, "channels.channellog_msg", args=[obj.channel.uuid, obj.id], perm="channels.channellog_read"
+            )
 
         if obj.direction == Msg.DIRECTION_IN:
             return {
@@ -155,10 +154,12 @@ class Event:
         }
 
     @classmethod
-    def from_ivr_call(cls, org: Org, user: User, obj: IVRCall) -> dict:
-        logs_url = (
-            _url_for_user(org, user, "channels.channellog_connection", args=[obj.id]) if obj.has_logs() else None
-        )
+    def from_ivr_call(cls, org: Org, user: User, obj: Call) -> dict:
+        logs_url = None
+        if obj.channel_logs.exists():
+            logs_url = _url_for_user(
+                org, user, "channels.channellog_call", args=[obj.channel.uuid, obj.id], perm="channels.channellog_read"
+            )
 
         return {
             "type": cls.TYPE_CALL_STARTED,
@@ -234,8 +235,8 @@ class Event:
         }
 
 
-def _url_for_user(org: Org, user: User, view_name: str, args: list) -> str:
-    return reverse(view_name, args=args) if user.has_org_perm(org, view_name) else None
+def _url_for_user(org: Org, user: User, view_name: str, args: list, perm: str = None) -> str:
+    return reverse(view_name, args=args) if user.has_org_perm(org, perm or view_name) else None
 
 
 def _msg_in(obj) -> dict:
@@ -294,7 +295,7 @@ event_renderers = {
     EventFire: Event.from_event_fire,
     FlowExit: Event.from_flow_exit,
     FlowRun: Event.from_flow_run,
-    IVRCall: Event.from_ivr_call,
+    Call: Event.from_ivr_call,
     Msg: Event.from_msg,
     TicketEvent: Event.from_ticket_event,
 }

@@ -8,7 +8,7 @@ from django.urls import reverse
 
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
-from temba.tests import MockResponse, TembaTest
+from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
 from temba.utils.whatsapp.tasks import refresh_whatsapp_contacts, refresh_whatsapp_templates
 
 from ...models import Channel
@@ -23,7 +23,7 @@ from .type import (
 )
 
 
-class WhatsAppTypeTest(TembaTest):
+class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
     @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
     def test_claim(self, mock_health):
         mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "v2.35.2"}}')
@@ -474,40 +474,33 @@ class WhatsAppTypeTest(TembaTest):
             "foo_namespace",
         )
 
+        sync_url = reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid])
+        templates_url = reverse("channels.types.whatsapp.templates", args=[channel.uuid])
+
         self.login(self.admin)
-        # hit our template page
-        response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
+        response = self.client.get(templates_url)
+
         # should have our template translations
         self.assertContains(response, "Hello")
         self.assertContains(response, "Hi")
-        self.assertContains(response, reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
+        self.assertContentMenu(templates_url, self.admin, ["Sync Logs"])
 
         foo.is_active = False
         foo.save()
 
-        response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
+        response = self.client.get(templates_url)
         # should have our template translations
         self.assertContains(response, "Hello")
         self.assertNotContains(response, "Hi")
 
         # check if message templates link are in sync_logs view
-        response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
-        self.assertEqual(
-            [
-                {
-                    "type": "link",
-                    "label": "Message Templates",
-                    "url": reverse("channels.types.whatsapp.templates", args=[channel.uuid]),
-                }
-            ],
-            response.context["content_menu"],
-        )
+        self.assertContentMenu(sync_url, self.admin, ["Message Templates"])
 
         # sync logs and message templates not accessible by user from other org
         self.login(self.admin2)
-        response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
+        response = self.client.get(templates_url)
         self.assertEqual(404, response.status_code)
-        response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
+        response = self.client.get(sync_url)
         self.assertEqual(404, response.status_code)
 
     def test_check_health(self):

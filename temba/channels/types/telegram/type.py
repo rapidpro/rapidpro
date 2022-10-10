@@ -36,6 +36,9 @@ class TelegramType(ChannelType):
 
     redact_response_keys = {"first_name", "last_name", "username"}
 
+    def is_recommended_to(self, org, user):
+        return True  # because it's super simpler to setup, free, and works everywhere
+
     def activate(self, channel):
         config = channel.config
         bot = telegram.Bot(config["auth_token"])

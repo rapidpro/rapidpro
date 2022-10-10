@@ -45,10 +45,8 @@ class TwilioType(ChannelType):
         "CalledZip",
     )
 
-    def is_recommended_to(self, user):
-        org = user.get_org()
-        countrycode = timezone_to_country_code(org.timezone)
-        return countrycode in SUPPORTED_COUNTRIES
+    def is_recommended_to(self, org, user):
+        return timezone_to_country_code(org.timezone) in SUPPORTED_COUNTRIES
 
     def deactivate(self, channel):
         config = channel.config

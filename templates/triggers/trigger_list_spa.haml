@@ -1,18 +1,20 @@
 -extends "smartmin/list.html"
 -load smartmin sms temba compress humanize i18n
 
--block page-title
-  {{ title }}
--block page-top
+        
+-block spa-title
+  #title-text
+
 -block content
 
+  // legacy requirement for bulk actions
   .page-title
 
   %form#search-form.mb-4(method="get")
     %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
     -if request.REQUEST.status
       %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
-    %input.hide(type="submit")
+    %input.hidden(type="submit")
 
   .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
     -include "includes/short_pagination.haml"

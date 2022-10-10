@@ -1,4 +1,4 @@
--load contacts tz i18n
+-load contacts tz i18n temba
 
 -for run in runs
   <tr id="run_{{run.id}}" class="run exit-{{run.exit_type}}"
@@ -11,8 +11,9 @@
   >
     %td
       .details.nobreak
-        .remove.icon-close{ onclick: 'deleteRun({{run.id}});' }
-        {{run.modified_on}}
+        -if org_perms.flows.flowrun_delete
+          .remove.icon-close{ onclick: 'deleteRun({{run.id}});' }
+        {% format_datetime run.modified_on %}
 
     %td
       .details.breaks
@@ -20,7 +21,7 @@
           -if run.contact.name
             {{run.contact.name|truncatechars:100}}
           -else
-            {{ run.contact|format_contact:user_org }}
+            {{ run.contact|name_or_urn:user_org }}
 
     -for value in run.value_list
       %td

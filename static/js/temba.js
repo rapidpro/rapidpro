@@ -3,6 +3,34 @@ if (typeof console == 'undefined') {
     this.console = { log: function (msg) {} };
 }
 
+function downloadFile(evt, url) {
+    evt.stopPropagation();
+    evt.preventDefault();
+    window.open(url, "_download");
+}  
+
+function openWindow(evt, url, target) {
+    evt.stopPropagation();
+    evt.preventDefault();
+    window.open(url, target);
+}
+
+function showPreview(evt, ele) {
+    evt.stopPropagation();
+    evt.preventDefault();
+
+    var dialog = document.querySelector("#shared-dialog");
+    dialog.width = "initial";
+    dialog.primaryButtonName = null;
+    dialog.cancelButtonName = "Ok";
+
+    var container = document.createElement("div");
+    container.style = "text-align:center;line-height:0px;padding:0px";
+    container.innerHTML = ele.getAttribute("attachment");
+    dialog.body = container;
+    dialog.open = true;
+}
+
 function getModax(id) {
     var modax = document.querySelector(id);
     if (!modax) {

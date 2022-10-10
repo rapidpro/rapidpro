@@ -12,7 +12,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         community_access_token = forms.CharField(
             min_length=32, required=True, help_text=_("The Community Access Token")
         )
-        community_name = forms.CharField(required=True, help_text=_("The name of the Community"))
+        community_name = forms.CharField(required=True, max_length=64, help_text=_("The name of the Community"))
         community_id = forms.IntegerField(required=True, help_text=_("The Community ID"))
         callback_verification_string = forms.CharField(required=True, help_text=_("The callback verification string"))
 
@@ -21,7 +21,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         from .type import CONFIG_CALLBACK_VERIFICATION_STRING, CONFIG_COMMUNITY_NAME
 
-        org = self.request.user.get_org()
+        org = self.request.org
         community_access_token = form.cleaned_data["community_access_token"]
         community_name = form.cleaned_data["community_name"]
         community_id = form.cleaned_data["community_id"]

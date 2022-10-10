@@ -1,6 +1,16 @@
 -extends "smartmin/read.html"
 -load smartmin temba compress humanize channels i18n tz
 
+-block spa-title
+  %temba-urn(scheme="{{channel.schemes|first}}")
+  .flex.items-start.flex-col
+    .name
+      -if object.parent
+        {{ object.parent.name }}
+      -else
+        {{ object.name|default:object.get_address_display }}
+  
+
 -block title
   .flex.items-start.flex-col
     .name
@@ -210,18 +220,26 @@
                     -trans "IVR Messages"
                 %th
                   -trans "Recent Errors"
-                
+                %th
+                  -trans "Other"
             %tbody
               
               %tr
                 %td
-                  {{ msg_count|intcomma }}
+                  %temba-anchor(href='{% url "channels.channellog_list" channel.uuid %}')
+                    {{ msg_count|intcomma }}
 
                 -if ivr_count
                   %td
-                    {{ ivr_count|intcomma }}
+                    %temba-anchor(href='{% url "channels.channellog_list" channel.uuid %}?calls=1')
+                      {{ ivr_count|intcomma }}
                 %td
-                  {{ channel.get_error_log_count|intcomma }}
+                  %temba-anchor(href='{% url "channels.channellog_list" channel.uuid %}?errors=1')
+                    {{ channel.get_error_log_count|intcomma }}
+                %td.w-0.text-right
+                  .inline-block
+                    %temba-icon(onclick="goto(event, this)" clickable="true" name="log" href='{% url "channels.channellog_list" channel.uuid %}?others=1')
+
 
       .card.pt-8.flex-shrink-0
         %div#channel-chart
