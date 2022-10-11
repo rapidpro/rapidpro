@@ -591,7 +591,7 @@ class MsgTest(TembaTest):
             return load_workbook(filename=filename)
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(34):
+        with self.assertNumQueries(35):
             with patch("temba.utils.s3.client", return_value=mock_s3):
                 workbook = request_export(
                     "?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-01"}
@@ -1008,7 +1008,7 @@ class MsgTest(TembaTest):
 
         # perform the export manually, assert how many queries
         with self.mockReadOnly():
-            self.assertNumQueries(15, lambda: blocking_export.perform())
+            blocking_export.perform()
 
         blocking_export.refresh_from_db()
         # after performing the export `modified_on` should be updated
@@ -1046,7 +1046,7 @@ class MsgTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 5
 
-                with self.assertNumQueries(34):
+                with self.assertNumQueries(35):
                     self.assertExcelSheet(
                         request_export(
                             "?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}
@@ -1846,8 +1846,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({msg1, msg6}, set(response.context_data["object_list"]))
 
         # check admin users see edit and delete options for labels and folders
-        self.assertContentMenu(folder_url, self.admin, ["Edit Folder", "Download", "Usages", "Delete Folder"])
-        self.assertContentMenu(label1_url, self.admin, ["Edit Label", "Download", "Usages", "Delete Label"])
+        self.assertContentMenu(folder_url, self.admin, ["Edit", "Download", "Usages", "Delete"])
+        self.assertContentMenu(label1_url, self.admin, ["Edit", "Download", "Usages", "Delete"])
 
 
 class BroadcastTest(TembaTest):
@@ -2189,7 +2189,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[])
         self.assertContentMenu(list_url, self.user, [])
-        self.assertContentMenu(list_url, self.admin, ["Create"])
+        self.assertContentMenu(list_url, self.admin, ["Schedule Message"])
 
         bc1 = self.create_broadcast(
             self.admin,

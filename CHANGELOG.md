@@ -1,3 +1,11 @@
+v7.5.65
+----------
+ * Queue relayer messages with channel UUID and id
+ * No nouns for current object in menus except for New
+ * Add common contact field inclusion to exports
+ * Fix new scheduled message menu option
+ * Fix releasing other archive files to use proper pagination
+
 v7.5.64
 ----------
  * Add an unlinked call list page
