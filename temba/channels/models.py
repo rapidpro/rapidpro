@@ -879,6 +879,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         """
         Releases this channel making it inactive
         """
+        from temba.channels.tasks import interrupt_channel_task
 
         super().release(user)
 
@@ -905,8 +906,8 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for sync_event in self.sync_events.all():
             sync_event.release()
 
-        # interrupt the channel, any sessions using this channel for calls, fail pending/queued messages and clear courier messages
-        mailroom.queue_interrupt_channel(self.org, channel=self)
+        # delay mailroom task for 5 seconds, so mailroom assets cache expires
+        interrupt_channel_task.apply_async((self.id,), countdown=5)
 
         # save the FCM id before clearing
         registration_id = self.config.get(Channel.CONFIG_FCM_ID)
