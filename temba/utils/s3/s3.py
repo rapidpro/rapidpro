@@ -28,9 +28,13 @@ def client():  # pragma: no cover
 
     global _s3_client
     if not _s3_client:
-        session = boto3.Session(
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-        )
+        if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
+            session = boto3.Session(
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            )
+        else:
+            session = boto3.Session()
         _s3_client = session.client("s3", config=Config(retries={"max_attempts": 3}))
 
     return _s3_client
