@@ -690,20 +690,6 @@ class MailroomQueueTest(TembaTest):
             },
         )
 
-    def test_queue_interrupt_by_channel(self):
-        queue_interrupt(self.org, channel=self.channel)
-
-        self.assert_org_queued(self.org, "batch")
-        self.assert_queued_batch_task(
-            self.org,
-            {
-                "type": "interrupt_sessions",
-                "org_id": self.org.id,
-                "task": {"channel_ids": [self.channel.id]},
-                "queued_on": matchers.ISODate(),
-            },
-        )
-
     def test_queue_interrupt_by_flow(self):
         flow = self.get_flow("favorites")
         flow.archive(self.admin)
