@@ -879,6 +879,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         """
         Releases this channel making it inactive
         """
+        from temba.channels.tasks import interrupt_channel_task
 
         super().release(user)
 
@@ -905,8 +906,8 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for sync_event in self.sync_events.all():
             sync_event.release()
 
-        # interrupt any sessions using this channel for calls
-        mailroom.queue_interrupt(self.org, channel=self)
+        # delay mailroom task for 5 seconds, so mailroom assets cache expires
+        interrupt_channel_task.apply_async((self.id,), countdown=5)
 
         # save the FCM id before clearing
         registration_id = self.config.get(Channel.CONFIG_FCM_ID)
@@ -916,13 +917,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.modified_by = user
         self.is_active = False
         self.save(update_fields=("is_active", "config", "modified_by", "modified_on"))
-
-        # mark any messages in sending mode as failed for this channel
-        from temba.msgs.models import Msg
-
-        self.msgs.filter(
-            direction=Msg.DIRECTION_OUT, status__in=[Msg.STATUS_QUEUED, Msg.STATUS_PENDING, Msg.STATUS_ERRORED]
-        ).update(status=Msg.STATUS_FAILED)
 
         # trigger the orphaned channel
         if trigger_sync and self.is_android() and registration_id:

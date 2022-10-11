@@ -501,6 +501,8 @@ class MailroomQueueTest(TembaTest):
                 "task": {
                     "org_id": self.org.id,
                     "channel_id": self.channel.id,
+                    "channel_uuid": str(self.channel.uuid),  # deprecated
+                    "channel_type": self.channel.channel_type,  # deprecated
                     "contact_id": msg.contact_id,
                     "msg_id": msg.id,
                     "msg_uuid": str(msg.uuid),
@@ -657,6 +659,20 @@ class MailroomQueueTest(TembaTest):
             },
         )
 
+    def test_queue_interrupt_channel(self):
+        self.channel.release(self.admin)
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "interrupt_channel",
+                "org_id": self.org.id,
+                "task": {"channel_id": self.channel.id},
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
     def test_queue_interrupt_by_contacts(self):
         jim = self.create_contact("Jim", phone="+12065551212")
         bob = self.create_contact("Bob", phone="+12065551313")
@@ -670,20 +686,6 @@ class MailroomQueueTest(TembaTest):
                 "type": "interrupt_sessions",
                 "org_id": self.org.id,
                 "task": {"contact_ids": [jim.id, bob.id]},
-                "queued_on": matchers.ISODate(),
-            },
-        )
-
-    def test_queue_interrupt_by_channel(self):
-        self.channel.release(self.admin)
-
-        self.assert_org_queued(self.org, "batch")
-        self.assert_queued_batch_task(
-            self.org,
-            {
-                "type": "interrupt_sessions",
-                "org_id": self.org.id,
-                "task": {"channel_ids": [self.channel.id]},
                 "queued_on": matchers.ISODate(),
             },
         )

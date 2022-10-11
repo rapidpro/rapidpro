@@ -2,6 +2,8 @@ from django.urls import re_path
 
 from temba.utils.views import MailroomURLHandler
 
+from .views import CallCRUDL
+
 urlpatterns = [
     # register a Mailroom placeholder URL which will error if ever accessed directly
     re_path(
@@ -10,3 +12,5 @@ urlpatterns = [
         name="mailroom.ivr_handler",
     )
 ]
+
+urlpatterns += CallCRUDL().as_urlpatterns()

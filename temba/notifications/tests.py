@@ -206,7 +206,7 @@ class NotificationTest(TembaTest):
             start_date=date.today(),
             end_date=date.today(),
             flows=[flow1, flow2],
-            contact_fields=(),
+            with_fields=(),
             responded_only=True,
             extra_urns=(),
             group_memberships=(),

@@ -4008,7 +4008,7 @@ class ExportFlowResultsTest(TembaTest):
         start_date,
         end_date,
         responded_only=False,
-        contact_fields=None,
+        with_fields=None,
         extra_urns=(),
         group_memberships=None,
         has_results=True,
@@ -4025,13 +4025,13 @@ class ExportFlowResultsTest(TembaTest):
             "responded_only": responded_only,
             "extra_urns": extra_urns,
         }
-        if contact_fields:
-            form["contact_fields"] = [c.id for c in contact_fields]
+        if with_fields:
+            form["with_fields"] = [c.id for c in with_fields]
 
         if group_memberships:
             form["group_memberships"] = [g.id for g in group_memberships]
 
-        readonly_models = {FlowRun, ContactGroup, ContactField}
+        readonly_models = {FlowRun, ContactGroup}
         if has_results:
             readonly_models.add(Contact)
 
@@ -4198,7 +4198,7 @@ class ExportFlowResultsTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
-                with self.assertNumQueries(47):
+                with self.assertNumQueries(48):
                     workbook = self._export(
                         flow,
                         start_date=today - timedelta(days=7),
@@ -4345,7 +4345,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(45):
+        with self.assertNumQueries(46):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4420,13 +4420,13 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(47):
+        with self.assertNumQueries(48):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
                 end_date=today,
                 responded_only=True,
-                contact_fields=[age],
+                with_fields=[age],
                 extra_urns=["twitter", "line"],
                 group_memberships=[devs],
             )
@@ -4446,10 +4446,10 @@ class ExportFlowResultsTest(TembaTest):
                 "Contact Name",
                 "URN Scheme",
                 "URN Value",
+                "Field:Age",
                 "URN:Twitter",
                 "URN:Line",
                 "Group:Devs",
-                "Field:Age",
                 "Started",
                 "Modified",
                 "Exited",
@@ -4468,10 +4468,10 @@ class ExportFlowResultsTest(TembaTest):
                 "Eric",
                 "tel",
                 "+250788382382",
+                "36",
                 "erictweets",
                 "",
                 True,
-                "36",
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
@@ -4532,7 +4532,7 @@ class ExportFlowResultsTest(TembaTest):
             self.login(self.admin)
             response = self.client.get(export_url)
             self.assertEqual(
-                ["start_date", "end_date", "flows", "group_memberships", "contact_fields", "responded_only", "loc"],
+                ["start_date", "end_date", "with_fields", "flows", "group_memberships", "responded_only", "loc"],
                 list(response.context["form"].fields.keys()),
             )
 
@@ -4603,7 +4603,7 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(58):
+        with self.assertNumQueries(59):
             workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
 
         tz = self.org.timezone
@@ -4697,7 +4697,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(39):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),

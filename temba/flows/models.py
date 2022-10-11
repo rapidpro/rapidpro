@@ -1671,13 +1671,11 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
     analytics_key = "flowresult_export"
     notification_export_type = "results"
 
-    CONTACT_FIELDS = "contact_fields"
     GROUP_MEMBERSHIPS = "group_memberships"
     RESPONDED_ONLY = "responded_only"
     EXTRA_URNS = "extra_urns"
 
     MAX_GROUP_MEMBERSHIPS_COLS = 25
-    MAX_CONTACT_FIELDS_COLS = 10
 
     flows = models.ManyToManyField(Flow, related_name="exports", help_text=_("The flows to export"))
 
@@ -1689,10 +1687,9 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
 
     @classmethod
     def create(
-        cls, org, user, start_date, end_date, flows, contact_fields, responded_only, extra_urns, group_memberships
+        cls, org, user, start_date, end_date, flows, with_fields, responded_only, extra_urns, group_memberships
     ):
         config = {
-            ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
             ExportFlowResultsTask.RESPONDED_ONLY: responded_only,
             ExportFlowResultsTask.EXTRA_URNS: extra_urns,
             ExportFlowResultsTask.GROUP_MEMBERSHIPS: [g.id for g in group_memberships],
@@ -1701,12 +1698,12 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
         export = cls.objects.create(
             org=org, created_by=user, start_date=start_date, end_date=end_date, modified_by=user, config=config
         )
-        for flow in flows:
-            export.flows.add(flow)
+        export.with_fields.add(*with_fields)
+        export.flows.add(*flows)
 
         return export
 
-    def _get_runs_columns(self, extra_urn_columns, groups, contact_fields, result_fields, show_submitted_by=False):
+    def _get_runs_columns(self, extra_urn_columns, groups, result_fields, show_submitted_by=False):
         columns = []
 
         if show_submitted_by:
@@ -1719,9 +1716,6 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
 
         for gr in groups:
             columns.append("Group:%s" % gr.name)
-
-        for cf in contact_fields:
-            columns.append("Field:%s" % cf.name)
 
         columns.append("Started")
         columns.append("Modified")
@@ -1747,13 +1741,9 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
     def write_export(self):
         config = self.config
         responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
-        contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
         group_memberships = config.get(ExportFlowResultsTask.GROUP_MEMBERSHIPS, [])
 
-        contact_fields = (
-            ContactField.user_fields.active_for_org(org=self.org).filter(id__in=contact_field_ids).using("readonly")
-        )
         groups = ContactGroup.get_groups(self.org, ready_only=True).filter(id__in=group_memberships).using("readonly")
 
         # get all result saving nodes across all flows being exported
@@ -1778,7 +1768,7 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
 
         runs_columns = self._get_runs_columns(
-            extra_urn_columns, groups, contact_fields, result_fields, show_submitted_by=show_submitted_by
+            extra_urn_columns, groups, result_fields, show_submitted_by=show_submitted_by
         )
 
         book = XLSXBook()
@@ -1801,7 +1791,6 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
                 batch,
                 extra_urn_columns,
                 groups,
-                contact_fields,
                 show_submitted_by,
                 runs_columns,
                 result_fields,
@@ -1884,7 +1873,6 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
         runs,
         extra_urn_columns,
         groups,
-        contact_fields,
         show_submitted_by,
         runs_columns,
         result_fields,
@@ -1919,10 +1907,6 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
             contact_groups_ids = [g.id for g in contact.groups.all()]
             for gr in groups:
                 contact_values.append(gr.id in contact_groups_ids)
-
-            for cf in contact_fields:
-                field_value = contact.get_field_display(cf)
-                contact_values.append(self.prepare_value(field_value))
 
             # generate result columns for each ruleset
             result_values = []
