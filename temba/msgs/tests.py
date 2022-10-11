@@ -2315,37 +2315,15 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             groups=[self.joe_and_frank],
             schedule=schedule,
         )
-        # TODO remove when done debugging
-        # print(f"broadcast={broadcast}")
 
         delete_url = reverse("msgs.broadcast_scheduled_delete", args=[broadcast.id])
-        # TODO remove when done debugging
-        # print(f"delete_url={delete_url}")
 
         # fetch the delete modal
-        response = self.client.get(delete_url)
-        # TODO remove when done debugging
-        # print(f"delete_fetch_response={response}")
-        # print(f"delete_fetch_response_context_data={response.context_data}")
-        # TODO figure out why this isn't working
-        # self.assertContains(response, "You are about to delete")
-
-        # fetch the delete modal
-        response = self.assertDeleteFetch(delete_url, allow_editors=True)
-        # TODO remove when done debugging
-        # print(f"delete_fetch_response={response}")
-        # print(f"delete_fetch_response_context_data={response.context_data}")
-        # TODO figure out why this isn't working
-        # self.assertContains(response, "You are about to delete")
+        response = self.assertDeleteFetch(delete_url, allow_editors=True, as_modal=True)
+        self.assertContains(response, "You are about to delete")
 
         # submit the delete modal
         response = self.assertDeleteSubmit(delete_url, object_deleted=broadcast, success_status=200)
-        # TODO remove when done debugging
-        # print(f"delete_submit_response={response}")
-        # print(f"delete_submit_response_value={response.getvalue()}")
-        # print(f"delete_submit_response_items={response.items()}")
-        # TODO figure out why this is expecting "broadcast" and not "messages"
-        # or TODO figure out where "broadcast" is getting changed to "messages"
         self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
 
         broadcast = Broadcast.objects.filter(id=broadcast.id)

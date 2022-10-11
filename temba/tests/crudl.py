@@ -172,7 +172,9 @@ class CRUDLTestMixin:
         as_user(None, allowed=False)
         return as_user(admin, allowed=True)
 
-    def assertDeleteFetch(self, url, *, allow_viewers=False, allow_editors=False, allow_agents=False, status=200):
+    def assertDeleteFetch(
+        self, url, *, allow_viewers=False, allow_editors=False, allow_agents=False, status=200, as_modal=False
+    ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
         def as_user(user, allowed):
@@ -181,7 +183,10 @@ class CRUDLTestMixin:
             else:
                 checks = [LoginRedirect()]
 
-            return self.requestView(url, user, checks=checks)
+            if as_modal:
+                return self.requestView(url, user, checks=checks, HTTP_X_PJAX=True)
+            else:
+                return self.requestView(url, user, checks=checks)
 
         as_user(None, allowed=False)
         as_user(viewer, allowed=allow_viewers)
