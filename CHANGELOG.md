@@ -1,3 +1,7 @@
+v7.5.67
+----------
+ * Interrupt channel by mailroom task
+
 v7.5.66
 ----------
  * Remove need for jquery on spa in-page loads
