@@ -169,20 +169,16 @@ def queue_interrupt_channel(org, channel):
     _queue_batch_task(org.id, BatchTask.INTERRUPT_CHANNEL, task, HIGH_PRIORITY)
 
 
-def queue_interrupt(org, *, contacts=None, channel=None, flow=None, session=None):
+def queue_interrupt(org, *, contacts=None, flow=None, session=None):
     """
     Queues an interrupt task for handling by mailroom
     """
 
-    assert (
-        contacts or channel or flow or session
-    ), "must specify either a set of contacts or a channel or a flow or a session"
+    assert contacts or flow or session, "must specify either a set of contacts or a flow or a session"
 
     task = {}
     if contacts:
         task["contact_ids"] = [c.id for c in contacts]
-    if channel:
-        task["channel_ids"] = [channel.id]
     if flow:
         task["flow_ids"] = [flow.id]
     if session:
