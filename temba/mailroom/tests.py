@@ -659,6 +659,20 @@ class MailroomQueueTest(TembaTest):
             },
         )
 
+    def test_queue_interrupt_channel(self):
+        self.channel.release(self.admin)
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "interrupt_channel",
+                "org_id": self.org.id,
+                "task": {"channel_id": self.channel.id},
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
     def test_queue_interrupt_by_contacts(self):
         jim = self.create_contact("Jim", phone="+12065551212")
         bob = self.create_contact("Bob", phone="+12065551313")
@@ -677,7 +691,7 @@ class MailroomQueueTest(TembaTest):
         )
 
     def test_queue_interrupt_by_channel(self):
-        self.channel.release(self.admin)
+        queue_interrupt(self.org, channel=self.channel)
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
