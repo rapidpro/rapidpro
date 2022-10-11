@@ -697,7 +697,7 @@ class UserTest(TembaTest):
 
         # should contain both orgs
         self.assertContains(response, "Other Brand Org")
-        self.assertContains(response, "Temba")
+        self.assertContains(response, "Nyaruka")
         self.assertNotContains(response, "Trileet Inc")
 
         # choose it
