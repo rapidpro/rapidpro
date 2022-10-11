@@ -51,6 +51,7 @@ from temba.utils.fields import (
     SelectWidget,
 )
 from temba.utils.models import patch_queryset_count
+from temba.utils.text import truncate
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
 from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
@@ -363,11 +364,16 @@ class BroadcastCRUDL(SmartCRUDL):
 
     class ScheduledDelete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
 
-        default_template = "smartmin/delete_confirm.html"
         cancel_url = "id@msgs.broadcast_scheduled_read"
         success_url = "@msgs.broadcast_scheduled"
         fields = ("id",)
         submit_button_name = _("Delete")
+        display_text = ""
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["display_text"] = truncate(self.object.get_text(), 15)
+            return context
 
         def post(self, request, *args, **kwargs):
             self.object = self.get_object()
