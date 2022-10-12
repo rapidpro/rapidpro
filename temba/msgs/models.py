@@ -489,6 +489,7 @@ class Msg(models.Model):
     FAILED_ERROR_LIMIT = "E"
     FAILED_TOO_OLD = "O"
     FAILED_NO_DESTINATION = "D"
+    FAILED_CHANNEL_REMOVED = "R"
     FAILED_CHOICES = (
         (FAILED_SUSPENDED, _("Workspace suspended")),
         (FAILED_CONTACT, _("Contact is no longer active")),
@@ -496,6 +497,7 @@ class Msg(models.Model):
         (FAILED_ERROR_LIMIT, _("Retry limit reached")),  # courier tried to send but it errored too many times
         (FAILED_TOO_OLD, _("Too old to send")),  # was queued for too long, would be confusing to send now
         (FAILED_NO_DESTINATION, _("No suitable channel found")),  # no compatible channel + URN destination found
+        (FAILED_CHANNEL_REMOVED, _("Channel removed")),  # channel removed by user
     )
 
     MEDIA_GPS = "geo"
