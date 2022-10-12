@@ -2139,7 +2139,6 @@ class OrgCRUDL(SmartCRUDL):
     class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             parent = forms.IntegerField(required=False)
-            plan_end = forms.DateTimeField(required=False)
 
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -2183,8 +2182,6 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
                 fields = (
                     "name",
-                    "plan",
-                    "plan_end",
                     "brand",
                     "parent",
                     "is_anon",

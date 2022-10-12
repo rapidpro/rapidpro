@@ -4218,11 +4218,27 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # and can go to that org
         response = self.client.get(update_url)
         self.assertEqual(200, response.status_code)
-
-        # We should have the limits fields
-        self.assertEqual(18, len(response.context["form"].fields))
-        for elt in settings.ORG_LIMIT_DEFAULTS.keys():
-            self.assertIn(f"{elt}_limit", response.context["form"].fields.keys())
+        self.assertEqual(
+            [
+                "name",
+                "brand",
+                "parent",
+                "is_anon",
+                "is_multi_user",
+                "is_multi_org",
+                "is_suspended",
+                "is_flagged",
+                "channels_limit",
+                "fields_limit",
+                "globals_limit",
+                "groups_limit",
+                "labels_limit",
+                "teams_limit",
+                "topics_limit",
+                "loc",
+            ],
+            list(response.context["form"].fields.keys()),
+        )
 
         parent = Org.objects.create(
             name="Parent",
@@ -4233,85 +4249,48 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             modified_by=self.user,
         )
 
-        # change to the trial plan
+        # make some changes to our org
         response = self.client.post(
             update_url,
             {
                 "name": "Temba",
                 "brand": "rapidpro.io",
-                "plan": "TRIAL",
-                "plan_end": "",
-                "language": "",
-                "country": "",
-                "primary_language": "",
-                "timezone": pytz.timezone("Africa/Kigali"),
-                "config": "{}",
-                "date_format": "D",
                 "parent": parent.id,
-                "viewers": [self.user.id],
-                "editors": [self.editor.id],
-                "administrators": [self.admin.id],
-                "surveyors": [self.surveyor.id],
-                "surveyor_password": "",
-                "fields_limit": 300,
-                "groups_limit": 400,
+                "is_anon": False,
+                "is_multi_user": False,
+                "is_multi_org": False,
+                "is_suspended": False,
+                "is_flagged": False,
                 "channels_limit": 20,
+                "fields_limit": 300,
+                "globals_limit": "",
+                "groups_limit": 400,
+                "labels_limit": "",
+                "teams_limit": "",
+                "topics_limit": "",
             },
         )
         self.assertEqual(302, response.status_code)
 
         self.org.refresh_from_db()
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)  # uses default
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
         self.assertEqual(self.org.get_limit(Org.LIMIT_CHANNELS), 20)
 
-        # reset groups limit
-        post_data = {
-            "name": "Temba",
-            "brand": "rapidpro.io",
-            "plan": "TRIAL",
-            "plan_end": "",
-            "language": "",
-            "country": "",
-            "primary_language": "",
-            "timezone": pytz.timezone("Africa/Kigali"),
-            "config": "{}",
-            "date_format": "D",
-            "parent": parent.id,
-            "viewers": [self.user.id],
-            "editors": [self.editor.id],
-            "administrators": [self.admin.id],
-            "surveyors": [self.surveyor.id],
-            "surveyor_password": "",
-            "fields_limit": 300,
-            "groups_limit": "",
-            "channels_limit": "",
-        }
-
-        response = self.client.post(update_url, post_data)
-        self.assertEqual(302, response.status_code)
-
-        self.org.refresh_from_db()
-        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
-        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
-        self.assertEqual(self.org.get_limit(Org.LIMIT_CHANNELS), 10)
-
         # unflag org
-        post_data["action"] = "unflag"
-        self.client.post(update_url, post_data)
+        self.client.post(update_url, {"action": "unflag"})
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_flagged)
         self.assertEqual(parent, self.org.parent)
 
         # verify
-        post_data["action"] = "verify"
-        self.client.post(update_url, post_data)
+        self.client.post(update_url, {"action": "verify"})
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_verified())
 
         # flag org
-        post_data["action"] = "flag"
-        self.client.post(update_url, post_data)
+        self.client.post(update_url, {"action": "flag"})
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_flagged)
 
