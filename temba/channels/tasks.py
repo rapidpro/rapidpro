@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from celery import shared_task
 
+from temba import mailroom
 from temba.orgs.models import Org
 from temba.utils import chunk_list
 from temba.utils.analytics import track
@@ -52,6 +53,14 @@ def sync_old_seen_channels_task():
 def send_alert_task(alert_id, resolved):
     alert = Alert.objects.get(pk=alert_id)
     alert.send_email(resolved)
+
+
+@shared_task(track_started=True, name="interrupt_channel")
+def interrupt_channel_task(channel_id):
+    channel = Channel.objects.get(pk=channel_id)
+    # interrupt the channel, any sessions using this channel for calls,
+    # fail pending/queued messages and clear courier messages
+    mailroom.queue_interrupt_channel(channel.org, channel=channel)
 
 
 @nonoverlapping_task(track_started=True, name="trim_sync_events_task")

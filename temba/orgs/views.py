@@ -484,7 +484,7 @@ class OrgGrantForm(forms.ModelForm):
         fields = "__all__"
 
 
-class LoginView(SpaMixin, Login):
+class LoginView(Login):
     """
     Overrides the smartmin login view to redirect users with 2FA enabled to a second verification view.
     """

@@ -1,3 +1,12 @@
+v7.5.67
+----------
+ * Interrupt channel by mailroom task
+
+v7.5.66
+----------
+ * Remove need for jquery on spa in-page loads
+ * Remove key/secret hardcoding for boto session
+
 v7.5.65
 ----------
  * Queue relayer messages with channel UUID and id
