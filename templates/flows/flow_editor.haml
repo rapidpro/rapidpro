@@ -274,9 +274,13 @@
     };
 
     // wait for our component to load, then show the editor
-    document.addEventListener("temba-floweditor-loaded", function(){
+    if (window.showFlowEditor) {
       window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
-    });
+    } else {
+      document.addEventListener("temba-floweditor-loaded", function(){
+        window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
+      });
+    }
 
 -block page-container
 
