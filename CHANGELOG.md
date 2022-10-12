@@ -1,3 +1,21 @@
+v7.5.69
+----------
+ * Fix race on editor load
+
+v7.5.68
+----------
+ * Add failed reason for channel removed
+ * Remove no longer used channels option from interrupt_sessions task
+
+v7.5.67
+----------
+ * Interrupt channel by mailroom task
+
+v7.5.66
+----------
+ * Remove need for jquery on spa in-page loads
+ * Remove key/secret hardcoding for boto session
+
 v7.5.65
 ----------
  * Queue relayer messages with channel UUID and id
