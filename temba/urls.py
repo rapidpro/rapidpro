@@ -26,7 +26,6 @@ urlpatterns = [
     re_path(r"^", include("temba.locations.urls")),
     re_path(r"^", include("temba.msgs.urls")),
     re_path(r"^", include("temba.notifications.urls")),
-    re_path(r"^", include("temba.policies.urls")),
     re_path(r"^", include("temba.public.urls")),
     re_path(r"^", include("temba.request_logs.urls")),
     re_path(r"^", include("temba.schedules.urls")),
