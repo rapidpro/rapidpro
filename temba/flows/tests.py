@@ -4345,7 +4345,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(46):
+        with self.assertNumQueries(45):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4420,7 +4420,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(47):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4697,7 +4697,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(38):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
