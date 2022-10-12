@@ -1,3 +1,8 @@
+v7.5.68
+----------
+ * Add failed reason for channel removed
+ * Remove no longer used channels option from interrupt_sessions task
+
 v7.5.67
 ----------
  * Interrupt channel by mailroom task
