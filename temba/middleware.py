@@ -9,7 +9,6 @@ from django.utils import timezone, translation
 
 from temba.orgs.models import Org
 
-
 logger = logging.getLogger(__name__)
 
 
