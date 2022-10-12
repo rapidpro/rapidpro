@@ -95,7 +95,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         mr_mocks.contact_search('name != ""', contacts=[])
         smart = self.create_group("No Name", query='name = ""')
 
-        with self.assertNumQueries(29):
+        with self.assertNumQueries(28):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
@@ -2005,7 +2005,7 @@ class ContactTest(TembaTest):
         # error is swallowed and we show no results
         self.assertEqual([], omnibox_request("search=-123`213"))
 
-        with self.assertNumQueries(16):
+        with self.assertNumQueries(15):
             mock_search_contacts.side_effect = [
                 SearchResults(
                     query="",
@@ -2376,7 +2376,7 @@ class ContactTest(TembaTest):
         # fetch our contact history
         self.login(self.admin)
         with patch("temba.utils.s3.s3.client", return_value=self.mock_s3):
-            with self.assertNumQueries(34):
+            with self.assertNumQueries(33):
                 response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -4057,7 +4057,7 @@ class ContactFieldTest(TembaTest):
             self.create_contact_import(path)
 
         # no group specified, so will default to 'Active'
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(39):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
