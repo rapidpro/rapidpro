@@ -1,3 +1,7 @@
+v7.5.69
+----------
+ * Fix race on editor load
+
 v7.5.68
 ----------
  * Add failed reason for channel removed
