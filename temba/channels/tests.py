@@ -1386,7 +1386,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("channels.channel_read", args=[self.ex_channel.uuid])
 
         # should see service button
-        self.assertContentMenu(read_url, self.customer_support, ["Settings", "Channel Log", "Service"])
+        self.assertContentMenu(read_url, self.customer_support, ["Settings", "Channel Log", "-", "Service"])
 
     def test_configuration(self):
         config_url = reverse("channels.channel_configuration", args=[self.ex_channel.uuid])

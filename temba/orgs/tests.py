@@ -3567,14 +3567,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # we should have an option to flag
         self.assertContentMenu(
-            read_url, self.customer_support, ["Service", "Edit", "Topups", "Flag", "Verify", "Delete"]
+            read_url, self.customer_support, ["Edit", "Topups", "Flag", "Verify", "Delete", "-", "Service"]
         )
 
         # flag and content menu option should be inverted
         self.org.flag()
         response = self.client.get(read_url)
         self.assertContentMenu(
-            read_url, self.customer_support, ["Service", "Edit", "Topups", "Unflag", "Verify", "Delete"]
+            read_url, self.customer_support, ["Edit", "Topups", "Unflag", "Verify", "Delete", "-", "Service"]
         )
 
         # no menu for inactive orgs
