@@ -37,10 +37,3 @@
 
     .mt-6
       %input.button-primary(type="submit" value='{{_("Sign In")}}')
-
-  -if brand.allow_signups
-    .mt-6
-      -blocktrans trimmed
-        Don't have an account yet?
-      %a(href="/org/signup")
-        -trans "Sign up"
