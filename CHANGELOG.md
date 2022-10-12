@@ -1,3 +1,7 @@
+v7.5.71
+----------
+ * More appropriate login page, remove legacy textit code
+
 v7.5.70
 ----------
  * Fix which fields should be on org update modal
