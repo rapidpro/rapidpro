@@ -1,3 +1,7 @@
+v7.5.72
+----------
+ * Always put service menu options at end of menu in new group
+
 v7.5.71
 ----------
  * More appropriate login page, remove legacy textit code
