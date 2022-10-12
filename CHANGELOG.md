@@ -1,3 +1,8 @@
+v7.5.70
+----------
+ * Fix which fields should be on org update modal
+ * Honor brand config for signup
+
 v7.5.69
 ----------
  * Fix race on editor load
