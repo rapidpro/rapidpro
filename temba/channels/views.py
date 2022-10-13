@@ -852,6 +852,7 @@ class ChannelCRUDL(SmartCRUDL):
                 )
 
             if self.request.user.is_staff:
+                menu.new_group()
                 menu.add_url_post(
                     _("Service"),
                     f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("channels.channel_read", args=[obj.uuid])}',

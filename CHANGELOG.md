@@ -1,3 +1,25 @@
+v7.5.72
+----------
+ * Always put service menu options at end of menu in new group
+
+v7.5.71
+----------
+ * More appropriate login page, remove legacy textit code
+
+v7.5.70
+----------
+ * Fix which fields should be on org update modal
+ * Honor brand config for signup
+
+v7.5.69
+----------
+ * Fix race on editor load
+
+v7.5.68
+----------
+ * Add failed reason for channel removed
+ * Remove no longer used channels option from interrupt_sessions task
+
 v7.5.67
 ----------
  * Interrupt channel by mailroom task
