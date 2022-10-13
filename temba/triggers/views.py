@@ -300,18 +300,18 @@ class TriggerCRUDL(SmartCRUDL):
         def form_valid(self, form):
             user = self.request.user
             org = self.request.org
-            flow = form.cleaned_data["flow"]
+            flow = form.cleaned_data.get("flow")
             groups = form.cleaned_data["groups"]
             exclude_groups = form.cleaned_data["exclude_groups"]
+
+            create_kwargs = {"flow": flow, "groups": groups, "exclude_groups": exclude_groups}
+            create_kwargs.update(self.get_create_kwargs(user, form.cleaned_data))
 
             Trigger.create(
                 org,
                 user,
                 form.trigger_type.code,
-                flow,
-                groups=groups,
-                exclude_groups=exclude_groups,
-                **self.get_create_kwargs(user, form.cleaned_data),
+                **create_kwargs,
             )
 
             response = self.render_to_response(self.get_context_data(form=form))
@@ -372,6 +372,9 @@ class TriggerCRUDL(SmartCRUDL):
     class CreateInboundCall(BaseCreate):
         trigger_type = Trigger.TYPE_INBOUND_CALL
 
+        def get_create_kwargs(self, user, cleaned_data):
+            return {"flow": cleaned_data.get("voice_flow") or cleaned_data.get("msg_flow")}
+
     class CreateMissedCall(BaseCreate):
         trigger_type = Trigger.TYPE_MISSED_CALL
 
@@ -405,7 +408,15 @@ class TriggerCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super().derive_initial()
 
-            if self.object.trigger_type == Trigger.TYPE_SCHEDULE:
+            if self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
+                if self.object.flow.flow_type == Flow.TYPE_VOICE:
+                    initial["action"] = "answer"
+                    initial["voice_flow"] = self.object.flow
+                else:
+                    initial["action"] = "hangup"
+                    initial["msg_flow"] = self.object.flow
+
+            elif self.object.trigger_type == Trigger.TYPE_SCHEDULE:
                 schedule = self.object.schedule
                 days_of_the_week = list(schedule.repeat_days_of_week) if schedule.repeat_days_of_week else []
                 contacts = self.object.contacts.all()
@@ -417,7 +428,11 @@ class TriggerCRUDL(SmartCRUDL):
             return initial
 
         def form_valid(self, form):
-            if self.object.trigger_type == Trigger.TYPE_SCHEDULE:
+            if self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
+                voice_flow = form.cleaned_data.pop("voice_flow", None)
+                msg_flow = form.cleaned_data.pop("msg_flow", None)
+                self.object.flow = voice_flow or msg_flow
+            elif self.object.trigger_type == Trigger.TYPE_SCHEDULE:
                 self.object.schedule.update_schedule(
                     self.request.user,
                     form.cleaned_data["start_datetime"],
