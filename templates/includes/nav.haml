@@ -133,7 +133,7 @@
 
 #menu
   .flex-grow
-  -if org_perms.msgs.msg_inbox and not request.user.is_superuser
+  -if org_perms.msgs.msg_list and not request.user.is_superuser
     %a{href:"{% url 'msgs.msg_inbox' %}", class:"{% active request 'inbox|outbox|broadcast|call|msg/filter|msg/flow|msg/archived|failed' %}"}
       .circle
         .icon-bubble-3.icon-2

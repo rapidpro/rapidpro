@@ -62,6 +62,7 @@ class InboxView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Smar
     Base class for inbox views with message folders and labels listed by the side
     """
 
+    permission = "msgs.msg_list"
     refresh = 10000
     add_button = True
     system_label = None
