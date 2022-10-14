@@ -184,7 +184,6 @@ TEMPLATES = [
                 "temba.context_processors.branding",
                 "temba.context_processors.config",
                 "temba.orgs.context_processors.user_group_perms_processor",
-                "temba.channels.views.channel_status_processor",
                 "temba.orgs.context_processors.settings_includer",
                 "temba.orgs.context_processors.user_orgs_for_brand",
             ],
