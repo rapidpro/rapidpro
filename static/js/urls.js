@@ -31,10 +31,10 @@ window.urls = [
   { old: /\/org\/manage_accounts\/(.*)/,                 new: /\/settings\/logins/ },
   { old: /\/user\/account\//,                            new: /\/settings\/account/ },
   { old: /\/user\/two_factor_disable\//,                 new: /\/settings\/authentication\/2fa-disable/ },
-  { old: /\/user\/update\/(.*)/,                         new: /\/staff\/users\/(.*)/ },
   { old: /\/org\/export\//,                              new: /\/settings\/workspace\/export\// },
   { old: /\/org\/import\//,                              new: /\/settings\/workspace\/import\// },
-  { old: /\/org\/read\/(.*)/,                            new: /\/staff\/workspaces\/(.*)/ },
+  { old: /\/org\/read\/(.*)/,                            new: /\/staff\/workspace\/(.*)/ },
+  { old: /\/user\/update\/(.*)/,                         new: /\/staff\/user\/(.*)/ },
   { old: /\/org\/update\/(.*)/,                          new: /\/staff\/workspaces\/(.*)\/update/ },
 ];
 

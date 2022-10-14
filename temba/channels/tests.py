@@ -328,9 +328,6 @@ class ChannelTest(TembaTest):
         self.assertTrue(flow.has_issues)
         self.assertNotIn(channel1, flow.channel_dependencies.all())
 
-        # should have failed the pending and errored messages
-        self.assertEqual(2, self.org.msgs.filter(status="F").count())
-
         self.assertEqual(0, channel1.alerts.count())
         self.assertEqual(0, channel1.sync_events.count())
         self.assertEqual(0, channel1.triggers.filter(is_active=True).count())
@@ -339,9 +336,9 @@ class ChannelTest(TembaTest):
         self.assertEqual(
             {
                 "org_id": self.org.id,
-                "type": "interrupt_sessions",
+                "type": "interrupt_channel",
                 "queued_on": matchers.Datetime(),
-                "task": {"channel_ids": [channel1.id]},
+                "task": {"channel_id": channel1.id},
             },
             mr_mocks.queued_batch_tasks[-1],
         )
@@ -1389,7 +1386,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("channels.channel_read", args=[self.ex_channel.uuid])
 
         # should see service button
-        self.assertContentMenu(read_url, self.customer_support, ["Settings", "Channel Log", "Service"])
+        self.assertContentMenu(read_url, self.customer_support, ["Settings", "Channel Log", "-", "Service"])
 
     def test_configuration(self):
         config_url = reverse("channels.channel_configuration", args=[self.ex_channel.uuid])

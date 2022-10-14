@@ -5,7 +5,6 @@
   {{title}}
 
 -block content
-  %script(src="{{ STATIC_URL }}js/qrious.js")
   .card.-mt-1
     .flex.pt-6(style="max-width:30em;margin: 0 auto")
       .pl-2.pr-6
@@ -17,8 +16,6 @@
         %canvas#qr
     .flex.pt-4(style="max-width:30em;margin: 0 auto")
       {{ block.super }}
-
-
   
 -block form-buttons
   .mt-6.text-right
@@ -26,7 +23,6 @@
 
 -block extra-script
   {{ block.super }}
-  %script(src="{{ STATIC_URL }}js/qrious.js")
 
   :javascript
     (function() {

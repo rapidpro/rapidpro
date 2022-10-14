@@ -839,14 +839,14 @@ class MiddlewareTest(TembaTest):
 
     def test_language(self):
         def assert_text(text: str):
-            self.assertContains(self.client.get(reverse("public.public_index")), text)
+            self.assertContains(self.client.get(reverse("users.user_login")), text)
 
         # default is English
-        assert_text("Visually build nationally scalable mobile applications")
+        assert_text("Sign In")
 
         # can be overridden in Django settings
         with override_settings(DEFAULT_LANGUAGE="es"):
-            assert_text("Cree visualmente aplicaciones móviles")
+            assert_text("Ingresar")
 
         # if we have an authenticated user, their setting takes priority
         self.login(self.admin)
@@ -854,7 +854,7 @@ class MiddlewareTest(TembaTest):
         self.admin.settings.language = "fr"
         self.admin.settings.save(update_fields=("language",))
 
-        assert_text("Créez visuellement des applications mobiles")
+        assert_text("Se connecter")
 
 
 class LanguagesTest(TembaTest):

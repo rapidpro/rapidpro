@@ -484,7 +484,7 @@ class OrgGrantForm(forms.ModelForm):
         fields = "__all__"
 
 
-class LoginView(SpaMixin, Login):
+class LoginView(Login):
     """
     Overrides the smartmin login view to redirect users with 2FA enabled to a second verification view.
     """
@@ -1992,18 +1992,13 @@ class OrgCRUDL(SmartCRUDL):
             if not obj.is_active:
                 return
 
-            menu.add_url_post(
-                _("Service"),
-                f'{reverse("orgs.org_service")}?organization={obj.id}&redirect_url={reverse("msgs.msg_inbox", args=[])}',
+            menu.add_modax(
+                _("Edit"),
+                "update-workspace",
+                reverse("orgs.org_update", args=[obj.id]),
+                title=_("Edit Workspace"),
+                as_button=True,
             )
-
-            if self.request.user.is_staff:
-                menu.add_modax(
-                    _("Edit"),
-                    "update-workspace",
-                    reverse("orgs.org_update", args=[obj.id]),
-                    title=_("Edit Workspace"),
-                )
 
             menu.add_link(_("Topups"), f"{reverse('orgs.topup_manage')}?org={obj.id}")
 
@@ -2015,13 +2010,18 @@ class OrgCRUDL(SmartCRUDL):
             if not obj.is_verified():
                 menu.add_url_post(_("Verify"), f"{reverse('orgs.org_update', args=[obj.id])}?action=verify")
 
-            if self.request.user.is_staff:
-                menu.add_modax(
-                    _("Delete"),
-                    "delete-org",
-                    reverse("orgs.org_delete", args=[obj.id]),
-                    title=_("Delete Workspace"),
-                )
+            menu.add_modax(
+                _("Delete"),
+                "delete-org",
+                reverse("orgs.org_delete", args=[obj.id]),
+                title=_("Delete Workspace"),
+            )
+
+            menu.new_group()
+            menu.add_url_post(
+                _("Service"),
+                f'{reverse("orgs.org_service")}?organization={obj.id}&redirect_url={reverse("msgs.msg_inbox", args=[])}',
+            )
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -2139,7 +2139,6 @@ class OrgCRUDL(SmartCRUDL):
     class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             parent = forms.IntegerField(required=False)
-            plan_end = forms.DateTimeField(required=False)
 
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -2183,8 +2182,6 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
                 fields = (
                     "name",
-                    "plan",
-                    "plan_end",
                     "brand",
                     "parent",
                     "is_anon",

@@ -1,9 +1,20 @@
--extends "frame.haml"
+-extends "no_nav.haml"
 
 -load smartmin i18n
+
+-block extra-style
+  {{block.super}}
+  :css
+    input {
+      width: 100%;
+    }
+
+    .content-card {
+      width: 28em;
+    }
+
+
 -block content
-  .flex.justify-center
-    .w-128.p-12
-      .page-title
-        -block login-title
-      -block login-content
+  .page-title
+    -block login-title
+  -block login-content
