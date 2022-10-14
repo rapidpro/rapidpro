@@ -178,6 +178,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     Base class for contact list views with contact folders and groups listed by the side
     """
 
+    permission = "contacts.contact_list"
     system_group = None
     add_button = True
     paginate_by = 50
