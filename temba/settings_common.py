@@ -441,7 +441,7 @@ PERMISSIONS = {
         "scheduled_create",
         "scheduled_read",
         "scheduled_update",
-        "scheduled_delete",
+        "scheduled_deactivate",
         "send",
     ),
     "msgs.label": ("api", "delete_folder"),

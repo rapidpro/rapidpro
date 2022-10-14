@@ -381,7 +381,7 @@ class BroadcastCRUDL(SmartCRUDL):
             broadcast = self.object
             broadcast.is_active = False
             broadcast.save()
-            
+
             response = HttpResponse()
             response["Temba-Success"] = self.get_success_url()
             return response
