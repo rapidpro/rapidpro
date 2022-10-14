@@ -703,7 +703,7 @@ class MsgCRUDL(SmartCRUDL):
         title = _("Inbox")
         template_name = "msgs/message_box.haml"
         system_label = SystemLabel.TYPE_INBOX
-        bulk_actions = ("archive", "label", "send")
+        bulk_actions = ("archive", "label")
         allow_export = True
 
         def get_queryset(self, **kwargs):
@@ -714,7 +714,7 @@ class MsgCRUDL(SmartCRUDL):
         title = _("Flow Messages")
         template_name = "msgs/message_box.haml"
         system_label = SystemLabel.TYPE_FLOWS
-        bulk_actions = ("archive", "label", "send")
+        bulk_actions = ("archive", "label")
         allow_export = True
 
         def get_queryset(self, **kwargs):
@@ -725,7 +725,7 @@ class MsgCRUDL(SmartCRUDL):
         title = _("Archived")
         template_name = "msgs/msg_archived.haml"
         system_label = SystemLabel.TYPE_ARCHIVED
-        bulk_actions = ("restore", "label", "delete", "send")
+        bulk_actions = ("restore", "label", "delete")
         allow_export = True
 
         def get_queryset(self, **kwargs):
