@@ -1047,7 +1047,7 @@ class ContactCRUDL(SmartCRUDL):
         system_group = ContactGroup.TYPE_DB_ACTIVE
 
         def get_bulk_actions(self):
-            return ("block", "archive", "send") if self.has_org_perm("contacts.contact_update") else ()
+            return ("block", "archive", "send", "start-flow") if self.has_org_perm("contacts.contact_update") else ()
 
         def build_content_menu(self, menu):
             is_spa = "HTTP_TEMBA_SPA" in self.request.META
