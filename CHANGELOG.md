@@ -1,3 +1,9 @@
+v7.5.74
+----------
+ * Fix webhook list page to not show every call as an error
+ * Small styling tweaks for api docs
+ * Remove fields from msgs event payloads that are no longer used
+
 v7.5.73
 ----------
  * Update api docs to be nav agnostic  
