@@ -366,19 +366,23 @@ class BroadcastCRUDL(SmartCRUDL):
 
     class ScheduledDeactivate(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
 
+        # we create a frontend "delete" ux, but we actually just do a backend update
+        default_template = "broadcast_scheduled_deactivate.haml"
         cancel_url = "id@msgs.broadcast_scheduled_read"
         success_url = "@msgs.broadcast_scheduled"
         fields = ("id",)
         submit_button_name = _("Delete")
-        display_text = ""
+        # custom object name because broadcasts don't have a name field
+        object_name = ""
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["display_text"] = truncate(self.object.get_text(), 15)
+            context["object_name"] = truncate(self.object.get_text(), 15)
             return context
 
         def post(self, request, *args, **kwargs):
-            broadcast = self.object
+            broadcast = self.get_object()
+            # we don't actually delete, we just deactivate and save
             broadcast.is_active = False
             broadcast.save()
 

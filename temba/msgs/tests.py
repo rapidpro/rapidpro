@@ -2329,21 +2329,20 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             schedule=schedule,
         )
 
-        delete_url = reverse("msgs.broadcast_scheduled_deactivate", args=[broadcast.id])
+        deactivate_url = reverse("msgs.broadcast_scheduled_deactivate", args=[broadcast.id])
 
         # fetch the delete modal
-        response = self.assertDeleteFetch(delete_url, allow_editors=True, as_modal=True)
+        response = self.assertDeleteFetch(deactivate_url, allow_editors=True, as_modal=True)
         self.assertContains(response, "You are about to delete")
 
         # submit the delete modal
-        response = self.assertDeleteSubmit(delete_url, object_deleted=broadcast, success_status=200)
+        response = self.assertDeleteSubmit(deactivate_url, object_deactivated=broadcast, success_status=200)
         self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
 
-        broadcast = Broadcast.objects.filter(id=broadcast.id)
-        schedule = Schedule.objects.filter(id=schedule.id)
+        broadcast = Broadcast.objects.get(id=broadcast.id)
+        schedule = Schedule.objects.get(id=schedule.id)
 
-        self.assertFalse(broadcast.exists())
-        self.assertFalse(schedule.exists())
+        self.assertFalse(broadcast.is_active)
 
     def test_missing_contacts(self):
         self.login(self.editor)

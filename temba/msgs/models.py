@@ -878,6 +878,7 @@ class BroadcastMsgCount(SquashableModel):
 
         return sql, (distinct_set.broadcast_id,) * 2
 
+    # todo figure out if this is how to update the scheduled messages count in the left side nav bar
     @classmethod
     def get_count(cls, broadcast):
         return cls.sum(broadcast.counts.all())
@@ -998,6 +999,7 @@ class SystemLabelCount(SquashableModel):
 
         return sql, (distinct_set.org_id, distinct_set.label_type, distinct_set.is_archived) * 2
 
+    # todo figure out if this is how to update the scheduled messages count in the left side nav bar
     @classmethod
     def get_totals(cls, org):
         """
