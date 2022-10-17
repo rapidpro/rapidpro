@@ -942,41 +942,44 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
 
-            dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
-            prefix = "/dev" if dev_mode else settings.STATIC_URL
+            if not self.is_spa():
+                dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
+                prefix = "/dev" if dev_mode else settings.STATIC_URL
 
-            # get our list of assets to incude
-            scripts = []
-            styles = []
+                # get our list of assets to incude
+                scripts = []
+                styles = []
 
-            if dev_mode:  # pragma: no cover
-                response = requests.get("http://localhost:3000/asset-manifest.json")
-                data = response.json()
-            else:
-                with open("node_modules/@nyaruka/flow-editor/build/asset-manifest.json") as json_file:
-                    data = json.load(json_file)
+                if dev_mode:  # pragma: no cover
+                    response = requests.get("http://localhost:3000/asset-manifest.json")
+                    data = response.json()
+                else:
+                    with open("node_modules/@nyaruka/flow-editor/build/asset-manifest.json") as json_file:
+                        data = json.load(json_file)
 
-            for key, filename in data.get("files").items():
+                for key, filename in data.get("files").items():
 
-                # tack on our prefix for dev mode
-                filename = prefix + filename
+                    # tack on our prefix for dev mode
+                    filename = prefix + filename
 
-                # ignore precache manifest
-                if key.startswith("precache-manifest") or key.startswith("service-worker"):
-                    continue
+                    # ignore precache manifest
+                    if key.startswith("precache-manifest") or key.startswith("service-worker"):
+                        continue
 
-                # css files
-                if key.endswith(".css") and filename.endswith(".css"):
-                    styles.append(filename)
+                    # css files
+                    if key.endswith(".css") and filename.endswith(".css"):
+                        styles.append(filename)
 
-                # javascript
-                if key.endswith(".js") and filename.endswith(".js"):
-                    scripts.append(filename)
+                    # javascript
+                    if key.endswith(".js") and filename.endswith(".js"):
+                        scripts.append(filename)
+
+                context["scripts"] = scripts
+                context["styles"] = styles
+                context["dev_mode"] = dev_mode
 
             flow = self.object
 
-            context["scripts"] = scripts
-            context["styles"] = styles
             context["migrate"] = "migrate" in self.request.GET
 
             if flow.is_archived:
@@ -988,7 +991,6 @@ class FlowCRUDL(SmartCRUDL):
                 context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
                 context["can_simulate"] = True
 
-            context["dev_mode"] = dev_mode
             context["is_starting"] = flow.is_starting()
             context["feature_filters"] = json.dumps(self.get_features(flow.org))
             return context

@@ -16,6 +16,9 @@
 -block extra-style
   {{block.super}}
 
+  -for css in styles
+    %link(rel="stylesheet" type="text/css" href="{{css}}")
+
   :css
     temba-menu > div {
       display: none;
@@ -280,6 +283,10 @@
   %script(src="{{ STATIC_URL }}bower/highcharts/modules/drilldown.js")
   %script(src="{{ STATIC_URL }}js/qrious.js")
 
+  -for script in scripts
+    %script(type="text/javascript" src="{{script}}")
+
+
   -include "full_page_script.haml"
 
   :javascript
@@ -330,6 +337,12 @@
             return;
           }
 
+          // special care to unmount the editor
+          var editor = document.querySelector("#rp-flow-editor");
+          if (editor) {
+            window.unmountEditor(editor);
+          }
+          
           setInnerHTML(containerEle, body);
 
           if (options) {
