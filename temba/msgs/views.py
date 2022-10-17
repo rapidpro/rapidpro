@@ -218,7 +218,9 @@ class BroadcastCRUDL(SmartCRUDL):
                 )
 
         def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).select_related("org", "schedule")
+            qs = super().get_queryset(**kwargs).select_related("org", "schedule")
+            qs = qs.filter(is_active=True)
+            return qs
 
     class ScheduledCreate(OrgPermsMixin, ModalMixin, SmartFormView):
         class Form(ScheduleFormMixin, Form):
