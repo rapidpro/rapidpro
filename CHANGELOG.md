@@ -1,3 +1,12 @@
+v7.5.73
+----------
+ * Update api docs to be nav agnostic  
+ * Rewrite API Explorer to be vanilla javascript
+ * Use single permissions for all msg and contact list views
+ * Rework UI for incoming call triggers to allow selecting non-voice flows
+ * Remove send action from messages, add download results for flows
+ * Unload flow editor when navigating away
+
 v7.5.72
 ----------
  * Always put service menu options at end of menu in new group
