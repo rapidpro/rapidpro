@@ -38,9 +38,3 @@ class DiscordType(ChannelType):
     free_sending = True
 
     redact_response_keys = {"first_name", "last_name", "username"}
-
-    def activate(self, channel):
-        pass
-
-    def deactivate(self, channel):
-        pass
