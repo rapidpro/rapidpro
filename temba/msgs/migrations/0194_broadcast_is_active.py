@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0193_alter_msg_failed_reason'),
+        ("msgs", "0193_alter_msg_failed_reason"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='broadcast',
-            name='is_active',
+            model_name="broadcast",
+            name="is_active",
             field=models.BooleanField(default=True, null=True),
         ),
     ]
