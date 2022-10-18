@@ -1,5 +1,6 @@
 from django.db import migrations
 
+
 def update_broadcast_is_active(apps, schema_editor):  # pragma: no cover
     Broadcast = apps.get_model("msgs", "Broadcast")
 
@@ -14,13 +15,15 @@ def update_broadcast_is_active(apps, schema_editor):  # pragma: no cover
         num_updated += len(batch)
         print(f"Updated {num_updated} broadcasts without an is_active")
 
+
 def reverse(apps, schema_editor):  # pragma: no cover
     pass
+
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0194_broadcast_is_active'),
+        ("msgs", "0194_broadcast_is_active"),
     ]
 
     operations = [migrations.RunPython(update_broadcast_is_active, reverse)]
