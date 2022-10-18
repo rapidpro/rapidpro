@@ -42,6 +42,17 @@ class JustCallTypeTest(TembaTest):
                 response = self.client.post(url, post_data)
             self.assertFalse(Channel.objects.all())
 
+        with patch("requests.post") as mock_post:
+            mock_post.side_effect = [
+                MockResponse(200, '{""}'),
+                MockResponse(400, '{ "message": "Failed try again later." }'),
+            ]
+            with self.assertRaisesRegexp(
+                ValidationError, "Unable to add webhook to JustCall: Failed try again later."
+            ):
+                response = self.client.post(url, post_data)
+            self.assertFalse(Channel.objects.all())
+
         # success this time
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{""}')
