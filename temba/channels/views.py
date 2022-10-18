@@ -1086,7 +1086,7 @@ class ChannelCRUDL(SmartCRUDL):
                 default_error = dict(message=_("An error occured contacting the Facebook API"))
                 raise ValidationError(response_json.get("error", default_error)["message"])
 
-    class Delete(DependencyDeleteModal):
+    class Delete(DependencyDeleteModal, SpaMixin):
         cancel_url = "uuid@channels.channel_read"
         success_message = _("Your channel has been removed.")
         success_message_twilio = _(
@@ -1100,7 +1100,10 @@ class ChannelCRUDL(SmartCRUDL):
             if channel.parent:
                 return reverse("channels.channel_read", args=[channel.parent.uuid])
 
-            return reverse("orgs.org_home")
+            if self.is_spa():
+                return reverse("orgs.org_workspace")
+            else:
+                return reverse("orgs.org_home")
 
         def derive_submit_button_name(self):
             channel = self.get_object()
