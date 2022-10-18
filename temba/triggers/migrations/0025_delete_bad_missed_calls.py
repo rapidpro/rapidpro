@@ -4,7 +4,7 @@ from django.db import migrations
 from django.utils import timezone
 
 
-def delete_bad_missed_call_triggers(apps, schema_editor):
+def delete_bad_missed_call_triggers(apps, schema_editor):  # pragma: no cover
     Trigger = apps.get_model("triggers", "Trigger")
 
     num_deleted = (
@@ -16,7 +16,7 @@ def delete_bad_missed_call_triggers(apps, schema_editor):
     print(f"Deleted {num_deleted} missed-call triggers attached to non-message flows")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
