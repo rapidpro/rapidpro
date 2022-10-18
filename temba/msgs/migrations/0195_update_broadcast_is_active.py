@@ -5,7 +5,7 @@ def update_broadcast_is_active(apps, schema_editor):  # pragma: no cover
 
     num_updated = 0
     while True:
-        batch = list(Broadcast.objects.all()[:100])
+        batch = list(Broadcast.objects.all()[:1000])
         if not batch:
             break
 
