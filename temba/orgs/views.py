@@ -3341,7 +3341,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
 
-            if self.has_org_perm("orgs.org_country") and "locations" in org.get_branding().get("features", []):
+            if self.has_org_perm("orgs.org_country") and "locations" in settings.FEATURES:
                 formax.add_section("country", reverse("orgs.org_country"), icon="icon-location2")
 
             if self.has_org_perm("orgs.org_smtp_server"):
@@ -3472,7 +3472,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
 
-            if self.has_org_perm("orgs.org_country") and "locations" in org.get_branding().get("features", []):
+            if self.has_org_perm("orgs.org_country") and "locations" in settings.FEATURES:
                 formax.add_section("country", reverse("orgs.org_country"), icon="icon-location2")
 
             if self.has_org_perm("orgs.org_smtp_server"):

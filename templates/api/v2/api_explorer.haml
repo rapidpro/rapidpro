@@ -76,7 +76,7 @@
           .request-header.font-mono.mb-4
             <b class="font-bold">{{ endpoint.method }}</b>
             .whitespace-nowrap.text-sm(class="md:text-base md:inline")
-              {{brand.api_link}}{{ endpoint.url }}.json<span class="query-display"></span><br/>
+              {{brand.link}}{{ endpoint.url }}.json<span class="query-display"></span><br/>
             <b class="font-bold">Authorization:</b>
             .whitespace-nowrap.text-sm(class="md:text-base md:inline")
               Token {{ request.user.api_token }}
