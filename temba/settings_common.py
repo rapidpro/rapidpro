@@ -334,7 +334,6 @@ BRANDING = {
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "images/logo-dark.svg",
         "allow_signups": True,
-        "flow_types": ["M", "V", "B", "S"],  # see Flow.FLOW_TYPES
         "features": ["locations", "ticketers"],
         "tiers": dict(multi_user=0, multi_org=0),
         "bundles": [],
