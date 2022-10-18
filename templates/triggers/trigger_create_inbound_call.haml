@@ -1,5 +1,42 @@
 -extends 'smartmin/form.html'
--load i18n
+-load i18n smartmin
 
 -block summary
   -trans "Start a flow after receiving a call."
+
+-block fields 
+  -render_field "action"
+  .voice-flow-container(class="{% if form.action.value == 'hangup' %}hidden{%endif%}")
+    -render_field "voice_flow"
+  .msg-flow-container(class="{% if form.action.value == 'answer' %}hidden{%endif%}")
+    -render_field "msg_flow"
+  -render_field "groups"
+  -render_field "exclude_groups"
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    function addActionChangeHandler(root) {
+      var actionSelect = root.querySelector("temba-select[name='action']");
+      var voiceFlow = root.querySelector(".voice-flow-container");
+      var voiceFlowSelect = voiceFlow.querySelector("temba-select[name='voice_flow']");
+      var msgFlow = root.querySelector(".msg-flow-container");
+      var msgFlowSelect = msgFlow.querySelector("temba-select[name='msg_flow']");
+      actionSelect.addEventListener("change", function(evt) {
+        var selected = evt.target.values[0];
+        if (selected.value === "answer") {
+          msgFlow.classList.add("hidden");
+          msgFlowSelect.clear();
+          voiceFlow.classList.remove("hidden");
+        } else {
+          voiceFlow.classList.add("hidden");
+          voiceFlowSelect.clear();
+          msgFlow.classList.remove("hidden");
+        }
+      });
+    }
+
+    window.addEventListener("DOMContentLoaded", function() {
+      addActionChangeHandler(document) 
+    });

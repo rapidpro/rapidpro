@@ -1,28 +1,63 @@
 -extends 'includes/modax.html'
--load i18n temba smartmin humanize
+-load i18n smartmin
 
 -block fields
-  -if object.schedule
+  -if object.trigger_type == 'V'
+    -render_field "action"
+    .voice-flow-container(class="{% if form.action.value == 'hangup' %}hidden{%endif%}")
+      -render_field "voice_flow"
+    .msg-flow-container(class="{% if form.action.value == 'answer' %}hidden{%endif%}")
+      -render_field "msg_flow"
+    -render_field "groups"
+    -render_field "exclude_groups"
+
+  -elif object.trigger_type == 'S'
     -include 'includes/schedule_fields.haml' with form=form
     -render_field 'flow'
     -render_field 'groups'
     -render_field 'exclude_groups'
     -render_field 'contacts'
+
   -else
     {{ block.super }}
 
 -block modal-script
   {{ block.super }}
-  -if object.schedule
-    :javascript
-      var body = document.querySelector("#update-trigger").getBody();
-      var repeatPeriod = body.querySelector("#id_repeat_period");
-      var repeatDays = body.querySelector(".repeat-days-container");
-      repeatPeriod.addEventListener("change", function(event){
-        var currentRepeat = event.currentTarget.values[0].value;
-        if (currentRepeat === 'W') {
-          repeatDays.classList.remove("hidden");
-        } else {
-          repeatDays.classList.add("hidden");
-        }
-      });
+  :javascript
+    var body = document.querySelector("#update-trigger").getBody();
+
+    {% if object.trigger_type == 'V' %}
+
+    var actionSelect = body.querySelector("temba-select[name='action']");
+    var voiceFlow = body.querySelector(".voice-flow-container");
+    var voiceFlowSelect = voiceFlow.querySelector("temba-select[name='voice_flow']");
+    var msgFlow = body.querySelector(".msg-flow-container");
+    var msgFlowSelect = msgFlow.querySelector("temba-select[name='msg_flow']");
+    actionSelect.addEventListener("change", function(evt) {
+      var selected = evt.target.values[0];
+      if (selected.value === "answer") {
+        msgFlow.classList.add("hidden");
+        msgFlowSelect.clear();
+        voiceFlow.classList.remove("hidden");
+      } else {
+        voiceFlow.classList.add("hidden");
+        voiceFlowSelect.clear();
+        msgFlow.classList.remove("hidden");
+      }
+    });
+
+    {% elif object.trigger_type == 'S' %}
+
+    var repeatPeriod = body.querySelector("#id_repeat_period");
+    var repeatDays = body.querySelector(".repeat-days-container");
+    repeatPeriod.addEventListener("change", function(event){
+      var currentRepeat = event.currentTarget.values[0].value;
+      if (currentRepeat === 'W') {
+        repeatDays.classList.remove("hidden");
+      } else {
+        repeatDays.classList.add("hidden");
+      }
+    });
+
+    {% endif %}
+

@@ -226,7 +226,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # admins can see bulk actions
         response = self.client.get(list_url)
         self.assertEqual([frank, joe], list(response.context["object_list"]))
-        self.assertEqual(["block", "archive", "send"], list(response.context["actions"]))
+        self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
 
         self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
         self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"], True)
@@ -2376,7 +2376,7 @@ class ContactTest(TembaTest):
         # fetch our contact history
         self.login(self.admin)
         with patch("temba.utils.s3.s3.client", return_value=self.mock_s3):
-            with self.assertNumQueries(33):
+            with self.assertNumQueries(29):
                 response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -3008,7 +3008,7 @@ class ContactTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(list_url)
         self.assertEqual(list(response.context["object_list"]), [self.voldemort, self.billy, self.frank, self.joe])
-        self.assertEqual(response.context["actions"], ("block", "archive", "send"))
+        self.assertEqual(response.context["actions"], ("block", "archive", "send", "start-flow"))
 
         # this just_joe group has one contact and joe_and_frank group has two contacts
         self.assertEqual(len(self.just_joe.contacts.all()), 1)
@@ -3132,7 +3132,7 @@ class ContactTest(TembaTest):
         response = self.client.get(list_url)
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
-        self.assertEqual(response.context["actions"], ("block", "archive", "send"))
+        self.assertEqual(response.context["actions"], ("block", "archive", "send", "start-flow"))
         self.assertEqual(len(self.just_joe.contacts.all()), 0)
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 1)
 
