@@ -13,7 +13,7 @@ def convert_missed_call_triggers(apps, schema_editor):
     num_ignored, num_converted, num_deleted = 0, 0, 0
 
     missed_call_triggers = (
-        Trigger.objects.filter(trigger_type=TYPE_MISSED_CALL, is_active=True)
+        Trigger.objects.filter(trigger_type=TYPE_MISSED_CALL, is_active=True, is_archived=False)
         .select_related("org")
         .prefetch_related("groups")
     )
@@ -30,7 +30,9 @@ def convert_missed_call_triggers(apps, schema_editor):
         missed_group_ids = {g.id for g in missed.groups.all()}
 
         # if org has an incoming call trigger for the same groups, delete this trigger since it's not being called
-        incoming_call_triggers = missed.org.triggers.filter(trigger_type=TYPE_INBOUND_CALL, is_active=True)
+        incoming_call_triggers = missed.org.triggers.filter(
+            trigger_type=TYPE_INBOUND_CALL, is_active=True, is_archived=False
+        )
         shadowed_by = None
         for incoming in incoming_call_triggers:
             incoming_group_ids = {g.id for g in incoming.groups.all()}

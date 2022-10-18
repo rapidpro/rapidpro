@@ -1500,6 +1500,10 @@ class ConvertMissedCallTriggersTest(MigrationTest):
         org4 = create_org()
         self.trigger7 = Trigger.create(org4, self.admin2, Trigger.TYPE_MISSED_CALL, msg_flow)
 
+        # ignore archived triggers
+        org5 = create_org()
+        self.trigger8 = Trigger.create(org5, self.admin2, Trigger.TYPE_MISSED_CALL, msg_flow, is_archived=True)
+
     def test_migration(self):
         def assertTrigger(t, trigger_type: str, is_active: bool):
             t.refresh_from_db()
@@ -1513,3 +1517,4 @@ class ConvertMissedCallTriggersTest(MigrationTest):
         assertTrigger(self.trigger5, Trigger.TYPE_INBOUND_CALL, is_active=True)
         assertTrigger(self.trigger6, Trigger.TYPE_INBOUND_CALL, is_active=True)  # converted
         assertTrigger(self.trigger7, Trigger.TYPE_INBOUND_CALL, is_active=True)  # converted
+        assertTrigger(self.trigger8, Trigger.TYPE_MISSED_CALL, is_active=True)  # ignored, archived
