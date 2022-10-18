@@ -4,7 +4,6 @@ import requests
 
 from django.urls import reverse
 
-from temba.contacts.models import URN
 from temba.tests import TembaTest
 
 from ...models import Channel
@@ -86,12 +85,7 @@ class DiscordTypeTest(TembaTest):
             response.context["form"].errors["auth_token"][0],
         )
 
-        contact = self.create_contact("Discord User", urns=[URN.from_discord("750841288886321253")])
-
         # make sure we our discord channel satisfies as a send channel
-        response = self.client.get(reverse("contacts.contact_read", args=[contact.uuid]))
-        send_channel = response.context["send_channel"]
+        send_channel = self.org.get_send_channel()
         self.assertIsNotNone(send_channel)
         self.assertEqual(send_channel.channel_type, "DS")
-        # Release the channel. We don't test it separately, so this gives us full coverage
-        channel.release(self.admin)

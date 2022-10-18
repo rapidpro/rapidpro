@@ -72,11 +72,8 @@ class TelegramTypeTest(TembaTest):
             response.context["form"].errors["auth_token"][0],
         )
 
-        contact = self.create_contact("Telegram User", urns=["telegram:1234"])
-
         # make sure we our telegram channel satisfies as a send channel
-        response = self.client.get(reverse("contacts.contact_read", args=[contact.uuid]))
-        send_channel = response.context["send_channel"]
+        send_channel = self.org.get_send_channel()
         self.assertIsNotNone(send_channel)
         self.assertEqual(send_channel.channel_type, "TG")
 
