@@ -13,7 +13,7 @@
         %a(href="/")
           {{ brand.name }}
         %span.divider &raquo;
-        %a(href="{% url 'api.v2' %}")
+        %a(href="{% url 'api.v2' %}")<
           API v2
         %span.divider &raquo;
 
@@ -21,12 +21,12 @@
         %a.active(href="{% url 'api.v2.explorer' %}")
           -trans "Explorer"
 
+      <li style="flex-grow:1"></li>
       -if request.user.api_token
-        <li style="flex-grow:1"></li>
-        %li(style="color: #666")
+          %li(style="color: #666")
           API Token: {{ request.user.api_token }}
       -else
-        %li.pull-right 
+        %li
           -trans "Log in to get your API Token"
 
   .flex.justify-between.items-center.pb-1.mb-4.px-8(style="position: relative;")
@@ -180,10 +180,6 @@
     .card {
       padding: 0;
       margin: 1em 2em;
-    }
-
-    .no-nav-logo {
-      display: none;
     }
 
     .page-content {
