@@ -1,3 +1,9 @@
+v7.5.75
+----------
+ * Add Broadcast.is_active and set null=true and default=true
+ * Remove channel_status_processor context processor
+ * Add data migration to delete or convert missed call triggers
+
 v7.5.74
 ----------
  * Fix webhook list page to not show every call as an error
