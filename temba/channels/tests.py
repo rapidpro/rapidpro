@@ -13,17 +13,15 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
 from django.template import loader
-from django.test import RequestFactory
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
 
-from temba.channels.views import channel_status_processor
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.ivr.models import Call
 from temba.msgs.models import Msg
-from temba.orgs.models import Org, OrgRole
+from temba.orgs.models import Org
 from temba.request_logs.models import HTTPLog
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.triggers.models import Trigger
@@ -411,100 +409,6 @@ class ChannelTest(TembaTest):
         response = self.client.get(reverse("channels.channel_list"))
         self.assertContains(response, "Unknown")
         self.assertContains(response, "Android Phone")
-
-    def test_channel_status(self):
-        # visit page as a viewer
-        self.login(self.user)
-        response = self.client.get("/", follow=True)
-        self.assertNotIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
-        self.assertNotIn("delayed_syncevents", response.context, msg="Found delayed_syncevents in context")
-
-        # visit page as administrator
-        self.login(self.admin)
-        response = self.client.get("/", follow=True)
-
-        # there is not unsent nor delayed syncevents
-        self.assertNotIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
-        self.assertNotIn("delayed_syncevents", response.context, msg="Found delayed_syncevents in context")
-
-        # replace existing channels with a single Android device
-        Channel.objects.update(is_active=False)
-        channel = Channel.create(
-            self.org,
-            self.user,
-            None,
-            "A",
-            None,
-            "+250781112222",
-            config={Channel.CONFIG_FCM_ID: "asdf"},
-            secret="asdf",
-            created_on=(timezone.now() - timedelta(hours=2)),
-        )
-
-        response = self.client.get("/", Follow=True)
-        self.assertNotIn("delayed_syncevents", response.context)
-        self.assertNotIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
-
-        # simulate a sync in back in two hours
-        self.sync(
-            channel,
-            cmds=[
-                # device details status
-                dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="60", net="UMTS", pending=[], retry=[])
-            ],
-        )
-        sync_event = SyncEvent.objects.all()[0]
-        sync_event.created_on = timezone.now() - timedelta(hours=2)
-        sync_event.save()
-
-        response = self.client.get("/", Follow=True)
-        self.assertIn("delayed_syncevents", response.context)
-        self.assertNotIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
-
-        contact = self.create_contact("Bob", phone="+250788123123")
-
-        # add a message, just sent so shouldn't have delayed
-        msg = self.create_outgoing_msg(contact, "test", channel=channel)
-        response = self.client.get("/", Follow=True)
-        self.assertIn("delayed_syncevents", response.context)
-        self.assertNotIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
-
-        # but put it in the past
-        msg.delete()
-        with patch("django.utils.timezone.now", return_value=timezone.now() - timedelta(hours=3)):
-            self.create_outgoing_msg(contact, "test", channel=channel, status=Msg.STATUS_QUEUED)
-
-        response = self.client.get("/", Follow=True)
-        self.assertIn("delayed_syncevents", response.context)
-        self.assertIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
-
-        # if there is a successfully sent message after sms was created we do not consider it as delayed
-        with patch("django.utils.timezone.now", return_value=timezone.now() - timedelta(hours=2)):
-            success_msg = self.create_outgoing_msg(contact, "success-send", channel=channel)
-
-        success_msg.sent_on = timezone.now() - timedelta(hours=2)
-        success_msg.status = "S"
-        success_msg.save()
-        response = self.client.get("/", Follow=True)
-        self.assertIn("delayed_syncevents", response.context)
-        self.assertNotIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
-
-        # test that editors have the channel of the the org the are using
-        other_user = self.create_user("Other")
-        self.org2.add_user(other_user, OrgRole.ADMINISTRATOR)
-        self.org.add_user(other_user, OrgRole.EDITOR)
-        self.assertFalse(self.org2.channels.all())
-
-        self.login(other_user)
-        self.client.post(reverse("orgs.org_choose"), dict(organization=self.org2.id))
-
-        response = self.client.get("/", follow=True)
-        self.assertNotIn("channel_type", response.context, msg="Found channel_type in context")
-
-        other_user.set_org(self.org)
-
-        self.assertEqual(1, self.org.channels.filter(is_active=True).count())
-        self.assertEqual(self.org, other_user.get_org())
 
     def sync(self, channel, *, cmds, signature=None, auto_add_fcm=True):
         # prepend FCM command if not included
@@ -1325,33 +1229,6 @@ class ChannelTest(TembaTest):
         for response in responses:
             if "p_id" in response and response["p_id"] == p_id:
                 return response
-
-    def test_channel_status_processor(self):
-        request = RequestFactory().get("/")
-        request.user = self.admin
-        request.org = self.org
-
-        def get_context(channel_type, role):
-            Channel.objects.all().delete()
-            Channel.create(
-                self.org,
-                self.admin,
-                "RW",
-                channel_type,
-                None,
-                "1234",
-                config=dict(username="junebug-user", password="junebug-pass", send_url="http://example.org/"),
-                uuid="00000000-0000-0000-0000-000000001234",
-                role=role,
-            )
-            return channel_status_processor(request)
-
-        Channel.objects.all().delete()
-        no_channel_context = channel_status_processor(request)
-        self.assertFalse(no_channel_context["has_outgoing_channel"])
-
-        sms_context = get_context("JN", Channel.ROLE_SEND)
-        self.assertTrue(sms_context["has_outgoing_channel"])
 
 
 class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):

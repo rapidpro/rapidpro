@@ -782,27 +782,37 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_VOICE)
         flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
+        flow3 = self.create_flow("Flow 3", flow_type=Flow.TYPE_MESSAGE)
+        flow4 = self.create_flow("Flow 4", flow_type=Flow.TYPE_BACKGROUND)
         group1 = self.create_group("Group 1", contacts=[])
         group2 = self.create_group("Group 2", contacts=[])
 
         # flows that shouldn't appear as options
-        self.create_flow("Flow 3", flow_type=Flow.TYPE_MESSAGE)
-        self.create_flow("Flow 4", flow_type=Flow.TYPE_BACKGROUND)
         self.create_flow("Flow 5", is_system=True)
         self.create_flow("Flow 6", org=self.org2)
 
         create_url = reverse("triggers.trigger_create_inbound_call")
 
         response = self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=["flow", "groups", "exclude_groups"]
+            create_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["action", "voice_flow", "msg_flow", "groups", "exclude_groups"],
         )
 
-        # flow options should only be voice flows
-        self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
+        # check which flows appear in which fields
+        self.assertEqual([flow1, flow2], list(response.context["form"].fields["voice_flow"].queryset))
+        self.assertEqual([flow3, flow4], list(response.context["form"].fields["msg_flow"].queryset))
+
+        # which flow field is required depends on the action selected
+        self.assertCreateSubmit(
+            create_url, {"action": "answer"}, form_errors={"voice_flow": "This field is required."}
+        )
+        self.assertCreateSubmit(create_url, {"action": "hangup"}, form_errors={"msg_flow": "This field is required."})
 
         self.assertCreateSubmit(
             create_url,
-            {"flow": flow1.id, "groups": group1.id},
+            {"action": "answer", "voice_flow": flow1.id, "groups": group1.id},
             new_obj_query=Trigger.objects.filter(flow=flow1, trigger_type=Trigger.TYPE_INBOUND_CALL),
             success_status=200,
         )
@@ -810,14 +820,21 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # can't create another inbound call trigger for same group
         self.assertCreateSubmit(
             create_url,
-            {"flow": flow2.id, "groups": group1.id},
+            {"action": "answer", "voice_flow": flow2.id, "groups": group1.id},
+            form_errors={"__all__": "There already exists a trigger of this type with these options."},
+        )
+
+        # even if it's for a different type of flow
+        self.assertCreateSubmit(
+            create_url,
+            {"action": "hangup", "msg_flow": flow3.id, "groups": group1.id},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
         # but can for different group
         self.assertCreateSubmit(
             create_url,
-            {"flow": flow2.id, "groups": group2.id},
+            {"action": "answer", "voice_flow": flow2.id, "groups": group2.id},
             new_obj_query=Trigger.objects.filter(flow=flow2, trigger_type=Trigger.TYPE_INBOUND_CALL),
             success_status=200,
         )
@@ -1121,6 +1138,53 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
                 "keyword": "Must be a single word containing only letters and numbers, or a single emoji character."
             },
             object_unchanged=trigger,
+        )
+
+    def test_update_inbound_call(self):
+        flow1 = self.create_flow("Test 1", flow_type=Flow.TYPE_VOICE)
+        flow2 = self.create_flow("Test 2", flow_type=Flow.TYPE_VOICE)
+        flow3 = self.create_flow("Test 3", flow_type=Flow.TYPE_MESSAGE)
+        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow2)
+
+        update_url = reverse("triggers.trigger_update", args=[trigger.id])
+
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "action": "answer",
+                "voice_flow": flow2,
+                "msg_flow": None,
+                "groups": [],
+                "exclude_groups": [],
+            },
+        )
+
+        # switch to different voice flow
+        self.assertUpdateSubmit(update_url, {"action": "answer", "voice_flow": flow1.id})
+
+        trigger.refresh_from_db()
+        self.assertEqual(flow1, trigger.flow)
+
+        # switch to a message flow
+        self.assertUpdateSubmit(update_url, {"action": "hangup", "msg_flow": flow3.id})
+
+        trigger.refresh_from_db()
+        self.assertEqual(flow3, trigger.flow)
+
+        # check form shows correct initial values now
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "action": "hangup",
+                "voice_flow": None,
+                "msg_flow": flow3,
+                "groups": [],
+                "exclude_groups": [],
+            },
         )
 
     def test_update_schedule(self):

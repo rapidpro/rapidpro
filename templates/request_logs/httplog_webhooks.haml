@@ -24,7 +24,7 @@
 
     %tbody
       -for obj in object_list
-        %tr(class="{% if obj.is_error or not obj.is_healthy %}warning{% endif %}")
+        %tr(class="{% if obj.is_error %}warning{% endif %}")
           %td.clickable
             %a(href='{% url "flows.flow_editor" obj.flow.uuid %}')
               {{ obj.flow.name }}

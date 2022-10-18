@@ -88,7 +88,7 @@ class OrgContextProcessorTest(TembaTest):
     def test_group_perms_wrapper(self):
         perms = RolePermsWrapper(OrgRole.ADMINISTRATOR)
 
-        self.assertTrue(perms["msgs"]["msg_inbox"])
+        self.assertTrue(perms["msgs"]["msg_list"])
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertTrue(perms["orgs"]["org_country"])
         self.assertTrue(perms["orgs"]["org_manage_accounts"])
@@ -96,14 +96,14 @@ class OrgContextProcessorTest(TembaTest):
 
         perms = RolePermsWrapper(OrgRole.EDITOR)
 
-        self.assertTrue(perms["msgs"]["msg_inbox"])
+        self.assertTrue(perms["msgs"]["msg_list"])
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertFalse(perms["orgs"]["org_manage_accounts"])
         self.assertFalse(perms["orgs"]["org_delete"])
 
         perms = RolePermsWrapper(OrgRole.VIEWER)
 
-        self.assertTrue(perms["msgs"]["msg_inbox"])
+        self.assertTrue(perms["msgs"]["msg_list"])
         self.assertFalse(perms["contacts"]["contact_update"])
         self.assertFalse(perms["orgs"]["org_manage_accounts"])
         self.assertFalse(perms["orgs"]["org_delete"])
@@ -3601,7 +3601,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(59):
+        with self.assertNumQueries(23):
             response = self.client.get(reverse("orgs.org_workspace"))
 
         # make sure we have the appropriate number of sections
