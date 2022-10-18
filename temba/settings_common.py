@@ -339,7 +339,6 @@ BRANDING = {
         "title": _("Visually build nationally scalable mobile applications"),
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
         "credits": "Copyright &copy; 2012-2022 UNICEF, Nyaruka. All Rights Reserved.",
-        "support_widget": False,
     }
 }
 DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
