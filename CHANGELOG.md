@@ -1,3 +1,7 @@
+v7.5.76
+----------
+ * Tweak migration to convert missed call triggers to ignore archived triggers
+
 v7.5.75
 ----------
  * Add Broadcast.is_active and set null=true and default=true
