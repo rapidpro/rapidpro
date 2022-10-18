@@ -3306,7 +3306,7 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("classifiers.classifier_connect"):
                 menu.add_link(_("New Classifier"), reverse("classifiers.classifier_connect"))
-            if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in org.get_branding().get("features", []):
+            if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in settings.FEATURES:
                 menu.add_link(_("New Ticketing Service"), reverse("tickets.ticketer_connect"))
 
             menu.new_group()
@@ -3362,13 +3362,11 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Your Account")
 
         def build_content_menu(self, menu):
-            org = self.request.org
-
             if self.has_org_perm("channels.channel_claim"):
                 menu.add_link(_("Add Channel"), reverse("channels.channel_claim"), as_button=True)
             if self.has_org_perm("classifiers.classifier_connect"):
                 menu.add_link(_("Add Classifier"), reverse("classifiers.classifier_connect"))
-            if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in org.get_branding().get("features", []):
+            if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in settings.FEATURES:
                 menu.add_link(_("Add Ticketing Service"), reverse("tickets.ticketer_connect"))
 
             menu.new_group()
