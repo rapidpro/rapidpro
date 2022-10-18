@@ -679,7 +679,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check requesting export for last 90 days
         with self.mockReadOnly(assert_models={Ticket, ContactURN}):
-            with self.assertNumQueries(34):
+            with self.assertNumQueries(30):
                 export = self._request_ticket_export(start_date=today - timedelta(days=90), end_date=today)
 
         expected_headers = [

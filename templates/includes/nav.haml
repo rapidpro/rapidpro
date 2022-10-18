@@ -133,7 +133,7 @@
 
 #menu
   .flex-grow
-  -if org_perms.msgs.msg_inbox and not request.user.is_superuser
+  -if org_perms.msgs.msg_list and not request.user.is_superuser
     %a{href:"{% url 'msgs.msg_inbox' %}", class:"{% active request 'inbox|outbox|broadcast|call|msg/filter|msg/flow|msg/archived|failed' %}"}
       .circle
         .icon-bubble-3.icon-2
@@ -174,14 +174,6 @@
         .icon-ticket
       .title
         -trans "tickets"
-
-  -if org_perms.channels.channel_list or request.user.is_superuser
-    -if not has_outgoing_channel and org_perms.channels.channel_claim
-      %a{href:"{% url 'channels.channel_list' %}", class:"{% active request 'channels' %}"}
-        .circle
-          .icon-phone
-        .title
-          -trans "channels"
 
   -if request.user.is_staff
     -if not user_org
@@ -272,9 +264,3 @@
   .nav-alert
     -blocktrans trimmed
       Your active credits will expire soon, add credits to prevent interruption.
-
--elif unsent_msgs or delayed_syncevents
-  .nav-alert
-    %a{href:'{% url "orgs.org_home" %}'}
-      .icon-warning
-      -trans "Your phone is having difficulty relaying messages"
