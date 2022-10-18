@@ -1050,6 +1050,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.jasmin.JasminType",
     "temba.channels.types.jiochat.JioChatType",
     "temba.channels.types.junebug.JunebugType",
+    "temba.channels.types.justcall.JustCallType",
     "temba.channels.types.kaleyra.KaleyraType",
     "temba.channels.types.kannel.KannelType",
     "temba.channels.types.line.LineType",
