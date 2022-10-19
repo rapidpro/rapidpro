@@ -1,3 +1,20 @@
+v7.5.77
+----------
+ * Proper redirect when removing channels
+ * Fix api header when logged out
+ * Take features out of branding and make it deployment level and remove api_link
+ * Get rid of flow_types as a branding setting
+
+v7.5.76
+----------
+ * Tweak migration to convert missed call triggers to ignore archived triggers
+
+v7.5.75
+----------
+ * Add Broadcast.is_active and set null=true and default=true
+ * Remove channel_status_processor context processor
+ * Add data migration to delete or convert missed call triggers
+
 v7.5.74
 ----------
  * Fix webhook list page to not show every call as an error
