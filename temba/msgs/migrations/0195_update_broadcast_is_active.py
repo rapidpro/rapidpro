@@ -6,13 +6,14 @@ def update_broadcast_is_active(apps, schema_editor):  # pragma: no cover
 
     num_updated = 0
     while True:
-        batch = list(Broadcast.objects.all()[:1000])
-        if not batch:
+        batch_ids = list(Broadcast.objects.filter(is_active=None).values_list("id", flat=True)[:5000])
+
+        if not batch_ids:
             break
 
-        Broadcast.objects.filter(id__in=[b.id for b in batch]).update(is_active=True)
+        Broadcast.objects.filter(id__in=batch_ids).update(is_active=True)
 
-        num_updated += len(batch)
+        num_updated += len(batch_ids)
         print(f"Updated {num_updated} broadcasts without an is_active")
 
 
