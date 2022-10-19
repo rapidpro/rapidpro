@@ -1058,10 +1058,7 @@ class ChannelCRUDL(SmartCRUDL):
             if channel.parent:
                 return reverse("channels.channel_read", args=[channel.parent.uuid])
 
-            if self.is_spa():
-                return reverse("orgs.org_workspace")
-            else:
-                return reverse("orgs.org_home")
+            return reverse("orgs.org_workspace") if self.is_spa() else reverse("orgs.org_home")
 
         def derive_submit_button_name(self):
             channel = self.get_object()
