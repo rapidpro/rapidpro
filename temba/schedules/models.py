@@ -25,7 +25,6 @@ class Schedule(SmartModel):
     REPEAT_DAILY = "D"
     REPEAT_WEEKLY = "W"
     REPEAT_MONTHLY = "M"
-
     REPEAT_CHOICES = (
         (REPEAT_NEVER, _("Never")),
         (REPEAT_DAILY, _("Daily")),
@@ -56,13 +55,11 @@ class Schedule(SmartModel):
     # ordered in the same way as python's weekday function
     DAYS_OF_WEEK_OFFSET = "MTWRFSU"
 
-    # when this schedule will repeat
+    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="schedules")
     repeat_period = models.CharField(max_length=1, choices=REPEAT_CHOICES)
 
-    # the hour of the day this schedule will fire (in org timezone)
+    # the time of the day this schedule will fire (in org timezone)
     repeat_hour_of_day = models.IntegerField(null=True)
-
-    # the minute of the our this schedule will fire
     repeat_minute_of_hour = models.IntegerField(null=True)
 
     # the day of the month this will repeat on (only for monthly repeats, 1-31)
@@ -71,30 +68,18 @@ class Schedule(SmartModel):
     # what days of the week this will repeat on (only for weekly repeats) One of MTWRFSU
     repeat_days_of_week = models.CharField(null=True, max_length=7)
 
-    # when this schedule will next fire
     next_fire = models.DateTimeField(null=True)
-
-    # when this schedule was last fired
     last_fire = models.DateTimeField(null=True)
-
-    # the org this schedule belongs to
-    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="schedules")
-
-    @classmethod
-    def create_blank_schedule(cls, org, user):
-        return cls.create_schedule(org, user, None, cls.REPEAT_NEVER)
 
     @classmethod
     def create_schedule(cls, org, user, start_time, repeat_period, repeat_days_of_week=None, now=None):
         assert not repeat_days_of_week or set(repeat_days_of_week).issubset(cls.DAYS_OF_WEEK_OFFSET)
 
-        schedule = Schedule(repeat_period=repeat_period, created_by=user, modified_by=user, org=org)
+        schedule = cls(repeat_period=repeat_period, created_by=user, modified_by=user, org=org)
         schedule.update_schedule(user, start_time, repeat_period, repeat_days_of_week, now=now)
         return schedule
 
     def update_schedule(self, user, start_time, repeat_period, repeat_days_of_week, now=None):
-        assert self.org is not None
-
         if not now:
             now = timezone.now()
 
@@ -105,10 +90,6 @@ class Schedule(SmartModel):
             repeat_period = Schedule.REPEAT_NEVER
 
         self.repeat_period = repeat_period
-
-        # deprecated
-        self.status = None
-        self.repeat_days = None
 
         if repeat_period == Schedule.REPEAT_NEVER:
             self.repeat_minute_of_hour = None
@@ -220,8 +201,8 @@ class Schedule(SmartModel):
         self.modified_by = user
         self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
-    def __str__(self):
-        return f'Schedule[id={self.id} repeat="{self.get_display()}" next={str(self.next_fire)}]'
+    def __repr__(self):
+        return f'<Schedule: id={self.id} repeat="{self.get_display()}"  next={str(self.next_fire)}>'
 
     class Meta:
         indexes = [
