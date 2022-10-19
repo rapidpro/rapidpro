@@ -1,3 +1,7 @@
+v7.5.80
+----------
+ * Remove task to suspend topups orgs
+
 v7.5.79
 ----------
  * Add new indexes for scheduled broadcasts view and API endpoint
