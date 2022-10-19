@@ -3019,6 +3019,7 @@ class RemoveCallsCountsMigrationTest(MigrationTest):
         self.assertEqual(1, SystemLabelCount.objects.filter(label_type="F").count())
         self.assertEqual(0, SystemLabelCount.objects.filter(label_type="C").count())
 
+
 class UpdateBroadcastsIsActiveMigrationTest(MigrationTest):
     app = "msgs"
     migrate_from = "0194_broadcast_is_active"
