@@ -1464,7 +1464,7 @@ class Org(SmartModel):
         self.clear_credit_cache()
 
         # if we our suspended and have credits now, unsuspend ourselves
-        if self.is_suspended and self.get_credits_remaining() > 0:
+        if self.is_suspended and self.get_credits_remaining() > 0:  # pragma: no cover
             self.is_suspended = False
             self.save(update_fields=["is_suspended"])
 
