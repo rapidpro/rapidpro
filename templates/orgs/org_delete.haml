@@ -3,8 +3,8 @@
 
 -block fields
   .mb-4
-    -blocktrans trimmed with org=object.name date=delete_on
-      This will schedule deletion of <b>{{ org }}</b> on <b>{{ date }}</b>.
+    -blocktrans trimmed with org=object.name
+      You are about to delete <b>{{ org }}</b>.
 
   -blocktrans trimmed
     Are you sure you want to delete everything belonging to this workspace? This cannot be undone. Any logins which
