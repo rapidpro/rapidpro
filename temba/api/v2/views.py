@@ -597,6 +597,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     def filter_queryset(self, queryset):
         org = self.request.user.get_org()
+        queryset = queryset.filter(schedule=None)
 
         # filter by id (optional)
         broadcast_id = self.get_int_param("id")
@@ -613,7 +614,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                 Prefetch("urns", queryset=ContactURN.objects.only("scheme", "path", "display").order_by("id"))
             )
 
-        return self.filter(schedule=None).filter_before_after(queryset, "created_on")
+        return self.filter_before_after(queryset, "created_on")
 
     @classmethod
     def get_read_explorer(cls):

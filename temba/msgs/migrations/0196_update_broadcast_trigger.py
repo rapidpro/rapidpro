@@ -12,6 +12,10 @@ BEGIN
     RETURN 'E';
   END IF;
 
+  IF _broadcast.status = 'Q' AND _broadcast.is_active = TRUE THEN
+    RETURN 'O';
+  END IF;
+
   RETURN NULL; -- does not match any label
 END;
 $$ LANGUAGE plpgsql;
