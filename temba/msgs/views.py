@@ -207,6 +207,7 @@ class BroadcastCRUDL(SmartCRUDL):
         fields = ("contacts", "msgs", "sent", "status")
         search_fields = ("text__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
+        default_order = ("-created_on",)
 
         def build_content_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_scheduled_create"):
@@ -219,7 +220,12 @@ class BroadcastCRUDL(SmartCRUDL):
                 )
 
         def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).filter(is_active=True).select_related("org", "schedule")
+            return (
+                super()
+                .get_queryset(**kwargs)
+                .select_related("org", "schedule")
+                .prefetch_related("groups", "contacts", "urns")
+            )
 
     class ScheduledCreate(OrgPermsMixin, ModalMixin, SmartFormView):
         class Form(ScheduleFormMixin, Form):
