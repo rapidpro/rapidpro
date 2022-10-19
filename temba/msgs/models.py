@@ -387,7 +387,17 @@ class Broadcast(models.Model):
     class Meta:
         indexes = [
             # used by the broadcasts API endpoint
-            models.Index(name="msgs_broadcasts_org_created_id", fields=["org", "-created_on", "-id"]),
+            models.Index(
+                name="msgs_broadcasts_api",
+                fields=["org", "-created_on", "-id"],
+                condition=Q(schedule__isnull=True, is_active=True),
+            ),
+            # used by the scheduled broadcasts view
+            models.Index(
+                name="msgs_broadcasts_scheduled",
+                fields=["org", "-created_on"],
+                condition=Q(schedule__isnull=False, is_active=True),
+            ),
         ]
 
 
@@ -941,7 +951,7 @@ class SystemLabel:
                 direction=Msg.DIRECTION_OUT, visibility=Msg.VISIBILITY_VISIBLE, status=Msg.STATUS_FAILED
             )
         elif label_type == cls.TYPE_SCHEDULED:
-            qs = Broadcast.objects.exclude(schedule=None).prefetch_related("groups", "contacts", "urns")
+            qs = Broadcast.objects.filter(is_active=True).exclude(schedule=None)
         else:  # pragma: needs cover
             raise ValueError("Invalid label type: %s" % label_type)
 
