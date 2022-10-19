@@ -1,3 +1,8 @@
+v7.5.78
+----------
+ * Remove old crisp templates
+ * Added Broadcast.is_active backfill migration
+
 v7.5.77
 ----------
  * Proper redirect when removing channels
