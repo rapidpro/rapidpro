@@ -237,6 +237,8 @@ class Broadcast(models.Model):
     # whether this broadcast should send to all URNs for each contact
     send_all = models.BooleanField(default=False)
 
+    is_active = models.BooleanField(null=True, default=True)
+
     metadata = JSONAsTextField(null=True, default=dict)
 
     @classmethod

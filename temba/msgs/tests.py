@@ -1948,6 +1948,7 @@ class BroadcastTest(TembaTest):
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
         self.assertEqual("I", broadcast1.status)
+        self.assertEqual(True, broadcast1.is_active)
 
         with patch("temba.mailroom.queue_broadcast") as mock_queue_broadcast:
             broadcast1.send_async()
@@ -2980,3 +2981,42 @@ class RemoveCallsCountsMigrationTest(MigrationTest):
         self.assertEqual(2, SystemLabelCount.objects.filter(label_type="I").count())
         self.assertEqual(1, SystemLabelCount.objects.filter(label_type="F").count())
         self.assertEqual(0, SystemLabelCount.objects.filter(label_type="C").count())
+
+
+class UpdateBroadcastsIsActiveMigrationTest(MigrationTest):
+    app = "msgs"
+    migrate_from = "0194_broadcast_is_active"
+    migrate_to = "0195_update_broadcast_is_active"
+
+    def setUpBeforeMigration(self, apps):
+        self.joe = self.create_contact("Joe Blow", urns=["tel:+12025550149"])
+        self.frank = self.create_contact("Frank Blow", urns=["tel:+12025550195"])
+        self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
+
+        self.bc1 = self.create_broadcast(
+            self.admin,
+            "good morning",
+            contacts=[self.joe],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+        )
+        self.bc2 = self.create_broadcast(
+            self.admin,
+            "good evening",
+            contacts=[self.frank],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+        )
+
+        self.bc3 = self.create_broadcast(self.admin, "not scheduled", groups=[self.joe_and_frank])
+
+        self.bc4 = self.create_broadcast(
+            self.admin,
+            "good afternoon",
+            contacts=[self.frank],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+        )
+
+    def test_migration(self):
+        self.assertTrue(self.bc1.is_active)
+        self.assertTrue(self.bc2.is_active)
+        self.assertTrue(self.bc3.is_active)
+        self.assertTrue(self.bc4.is_active)

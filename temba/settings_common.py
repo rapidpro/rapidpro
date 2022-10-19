@@ -326,7 +326,6 @@ BRANDING = {
         "email": "join@rapidpro.io",
         "support_email": "support@rapidpro.io",
         "link": "https://app.rapidpro.io",
-        "api_link": "https://api.rapidpro.io",
         "docs_link": "http://docs.rapidpro.io",
         "domain": "app.rapidpro.io",
         "ticket_domain": "tickets.rapidpro.io",
@@ -334,18 +333,18 @@ BRANDING = {
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "images/logo-dark.svg",
         "allow_signups": True,
-        "flow_types": ["M", "V", "B", "S"],  # see Flow.FLOW_TYPES
-        "features": ["locations", "ticketers"],
         "tiers": dict(multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         "title": _("Visually build nationally scalable mobile applications"),
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
         "credits": "Copyright &copy; 2012-2022 UNICEF, Nyaruka. All Rights Reserved.",
-        "support_widget": False,
     }
 }
 DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
+
+FEATURES = {"locations", "ticketers"}
+
 
 # -----------------------------------------------------------------------------------
 # Permission Management
