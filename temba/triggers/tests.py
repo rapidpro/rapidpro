@@ -10,6 +10,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
+from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 
@@ -1461,24 +1462,59 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertListFetch(catchall_url, allow_viewers=True, allow_editors=True, context_objects=[trigger5])
 
 
-class DeleteBadMissedCallTriggersTest(MigrationTest):
+class ConvertMissedCallTriggersTest(MigrationTest):
     app = "triggers"
-    migrate_from = "0024_alter_trigger_options"
-    migrate_to = "0025_delete_bad_missed_calls"
+    migrate_from = "0025_delete_bad_missed_calls"
+    migrate_to = "0026_convert_missed_call_triggers"
 
     def setUpBeforeMigration(self, apps):
         msg_flow = self.create_flow("Test M", flow_type=Flow.TYPE_MESSAGE)
         ivr_flow = self.create_flow("Test V", flow_type=Flow.TYPE_VOICE)
 
+        def create_org():
+            return Org.objects.create(
+                name="My Org",
+                timezone=pytz.timezone("US/Pacific"),
+                brand="rapidpro.io",
+                created_by=self.customer_support,
+                modified_by=self.customer_support,
+            )
+
+        # self.org has an Android channel so its missed call trigger will be left as is
         self.trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, ivr_flow)
         self.trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, msg_flow)
-        self.trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, ivr_flow)  # will be deleted
+
+        # new orgs doesn't have an Android channel, its missed call trigger is shadowed by its incoming call trigger
+        org2 = create_org()
+        self.trigger3 = Trigger.create(org2, self.admin2, Trigger.TYPE_INBOUND_CALL, ivr_flow)
+        self.trigger4 = Trigger.create(org2, self.admin2, Trigger.TYPE_MISSED_CALL, msg_flow)
+
+        # but trigger is only considered shadowed if groups match - if not shadowed then it's converted
+        org3 = create_org()
+        org3_group1 = self.create_group("3-1", org=org3)
+        org3_group2 = self.create_group("3-2", org=org3)
+        self.trigger5 = Trigger.create(org3, self.admin2, Trigger.TYPE_INBOUND_CALL, ivr_flow, groups=(org3_group1,))
+        self.trigger6 = Trigger.create(org3, self.admin2, Trigger.TYPE_MISSED_CALL, msg_flow, groups=(org3_group2,))
+
+        # and if there are no incoming call triggers at all, then it's converted
+        org4 = create_org()
+        self.trigger7 = Trigger.create(org4, self.admin2, Trigger.TYPE_MISSED_CALL, msg_flow)
+
+        # ignore archived triggers
+        org5 = create_org()
+        self.trigger8 = Trigger.create(org5, self.admin2, Trigger.TYPE_MISSED_CALL, msg_flow, is_archived=True)
 
     def test_migration(self):
-        self.trigger1.refresh_from_db()
-        self.trigger2.refresh_from_db()
-        self.trigger3.refresh_from_db()
+        def assertTrigger(t, trigger_type: str, is_active: bool):
+            t.refresh_from_db()
+            self.assertEqual(trigger_type, t.trigger_type, "")
+            self.assertEqual(is_active, t.is_active)
 
-        self.assertTrue(self.trigger1.is_active)
-        self.assertTrue(self.trigger2.is_active)
-        self.assertFalse(self.trigger3.is_active)
+        assertTrigger(self.trigger1, Trigger.TYPE_INBOUND_CALL, is_active=True)
+        assertTrigger(self.trigger2, Trigger.TYPE_MISSED_CALL, is_active=True)  # ignored
+        assertTrigger(self.trigger3, Trigger.TYPE_INBOUND_CALL, is_active=True)
+        assertTrigger(self.trigger4, Trigger.TYPE_MISSED_CALL, is_active=False)  # deleted
+        assertTrigger(self.trigger5, Trigger.TYPE_INBOUND_CALL, is_active=True)
+        assertTrigger(self.trigger6, Trigger.TYPE_INBOUND_CALL, is_active=True)  # converted
+        assertTrigger(self.trigger7, Trigger.TYPE_INBOUND_CALL, is_active=True)  # converted
+        assertTrigger(self.trigger8, Trigger.TYPE_MISSED_CALL, is_active=True)  # ignored, archived
