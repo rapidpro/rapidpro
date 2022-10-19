@@ -2206,6 +2206,18 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.create_broadcast(self.admin, "not scheduled", groups=[self.joe_and_frank])
 
+        bc3 = self.create_broadcast(
+            self.admin,
+            "good afternoon",
+            contacts=[self.frank],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+        )
+
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[bc3, bc2, bc1])
+
+        bc3.is_active = False
+        bc3.save()
+
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[bc2, bc1])
 
         self.assertListFetch(list_url + "?search=MORN", allow_viewers=True, allow_editors=True, context_objects=[bc1])
