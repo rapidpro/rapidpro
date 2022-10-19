@@ -218,7 +218,8 @@ class ScheduleTest(TembaTest):
             self.assertEqual(tc["display"], sched.get_display(), f"display mismatch for {label}")
 
     def test_schedule_ui(self):
-        schedule = Schedule.create_blank_schedule(self.org, self.admin)
+        # you can no longer create blank schedules from the UI but they're still out there
+        schedule = Schedule.create_schedule(self.org, self.admin, None, Schedule.REPEAT_NEVER)
         bcast = self.create_broadcast(
             self.admin,
             "A scheduled message to Joe",
@@ -324,7 +325,7 @@ class ScheduleTest(TembaTest):
 class ScheduleCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_update(self):
         # create a scheduled broadcast
-        schedule = Schedule.create_blank_schedule(self.org, self.admin)
+        schedule = Schedule.create_schedule(self.org, self.admin, None, Schedule.REPEAT_NEVER)
         Broadcast.create(
             self.org,
             self.admin,
