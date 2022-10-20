@@ -224,6 +224,7 @@ class BroadcastCRUDL(SmartCRUDL):
             return (
                 super()
                 .get_queryset(**kwargs)
+                .filter(is_active=True)
                 .select_related("org", "schedule")
                 .prefetch_related("groups", "contacts", "urns")
             )
