@@ -2103,9 +2103,6 @@ class OrgCRUDL(SmartCRUDL):
         def dispatch(self, *args, **kwargs):
             return super().dispatch(*args, **kwargs)
 
-        def get_plan(self, obj):
-            return mark_safe(f"<div class='plan-name'>{obj.plan}</div>")
-
         def get_owner(self, obj):
             owner = obj.get_owner()
 
@@ -2555,11 +2552,8 @@ class OrgCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse("orgs.org_manage"))
 
     class SubOrgs(SpaMixin, ContentMenuMixin, MultiOrgMixin, InferOrgMixin, SmartListView):
-        link_fields = ()
+        fields = ("name", "contacts", "manage", "created_on")
         title = _("Workspaces")
-
-        def derive_fields(self):
-            return "name", "contacts", "manage", "created_on"
 
         def build_content_menu(self, menu):
             if self.has_org_perm("orgs.org_dashboard"):
