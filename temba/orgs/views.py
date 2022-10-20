@@ -1753,7 +1753,13 @@ class OrgCRUDL(SmartCRUDL):
             return HttpResponseRedirect(self.get_success_url())
 
     class Plan(InferOrgMixin, OrgPermsMixin, SmartReadView):
-        pass
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            org = self.request.org
+            context["plan"] = org.plan
+            context["plan_end"] = org.format_datetime(org.plan_end, show_time=False) if org.plan_end else None
+            return context
 
     class WhatsappCloudConnect(InferOrgMixin, OrgPermsMixin, SmartFormView):
         class WhatsappCloudConnectForm(forms.Form):
@@ -3407,21 +3413,13 @@ class OrgCRUDL(SmartCRUDL):
                 )
 
         def derive_formax_sections(self, formax, context):
-
             # add the channel option if we have one
             user = self.request.user
             org = self.request.org
 
-            shared_usage = org.parent and org.parent.has_shared_usage()
-            if not shared_usage:
-                # if we are on the topups plan, show our usual credits view
-                if org.plan == settings.TOPUP_PLAN:
-                    if self.has_org_perm("orgs.topup_list"):
-                        formax.add_section("topups", reverse("orgs.topup_list"), icon="icon-coins", action="link")
-
-                else:
-                    if self.has_org_perm("orgs.org_plan"):  # pragma: needs cover
-                        formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
+            if not (org.parent and org.plan == settings.WORKSPACE_PLAN):
+                if self.has_org_perm("orgs.org_plan"):
+                    formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 
             if self.has_org_perm("channels.channel_update"):
                 # get any channel thats not a delegate
@@ -3898,12 +3896,6 @@ class TopUpCRUDL(SmartCRUDL):
             topups.sort(key=cmp_to_key(compare))
             context["topups"] = topups
             return context
-
-        def get_template_names(self):
-            if "HTTP_X_FORMAX" in self.request.META:
-                return ["orgs/topup_list_summary.haml"]
-            else:
-                return super().get_template_names()
 
     class Create(StaffOnlyMixin, ComponentFormMixin, SmartCreateView):
         """
