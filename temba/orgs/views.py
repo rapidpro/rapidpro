@@ -1247,7 +1247,6 @@ class OrgCRUDL(SmartCRUDL):
         "resthooks",
         "service",
         "surveyor",
-        "transfer_credits",
         "smtp_server",
         "workspace",
     )
@@ -2104,7 +2103,7 @@ class OrgCRUDL(SmartCRUDL):
         def dispatch(self, *args, **kwargs):
             return super().dispatch(*args, **kwargs)
 
-        def get_plan(self, obj):  # pragma: needs cover
+        def get_plan(self, obj):
             return mark_safe(f"<div class='plan-name'>{obj.plan}</div>")
 
         def get_owner(self, obj):
@@ -2560,10 +2559,7 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Workspaces")
 
         def derive_fields(self):
-            if self.get_object().uses_topups:
-                return "credits", "name", "manage", "created_on"
-            else:
-                return "name", "contacts", "manage", "created_on"
+            return "name", "contacts", "manage", "created_on"
 
         def build_content_menu(self, menu):
             if self.has_org_perm("orgs.org_dashboard"):
@@ -2571,9 +2567,6 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_create_sub_org"):
                 menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_sub_org"))
-
-            if self.has_org_perm("orgs.org_transfer_credits") and self.get_object().uses_topups:
-                menu.add_modax(_("Transfer Credits"), "transfer-credits", reverse("orgs.org_transfer_credits"))
 
         def get_manage(self, obj):  # pragma: needs cover
             if obj == self.get_object():
@@ -2589,10 +2582,6 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_contacts(self, obj):
             return obj.get_contact_count()
-
-        def get_credits(self, obj):
-            credits = obj.get_credits_remaining()
-            return mark_safe(f'<div class="edit-org"><div class="num-credits">{format(credits, ",d")}</div></div>')
 
         def get_name(self, obj):
             org_type = "child"
@@ -3283,15 +3272,6 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Workspace")
 
         def build_content_menu(self, menu):
-            org = self.get_object()
-
-            if (
-                self.has_org_perm("orgs.org_transfer_credits")
-                and org.uses_topups
-                and Org.objects.filter(parent=org, is_active=True).exists()
-            ):
-                menu.add_modax(_("Transfer Credits"), "transfer-credits", reverse("orgs.org_transfer_credits"))
-
             menu.add_link(_("New Channel"), reverse("channels.channel_claim"), as_button=True)
 
             if self.has_org_perm("classifiers.classifier_connect"):
@@ -3605,78 +3585,6 @@ class OrgCRUDL(SmartCRUDL):
                 return self.request.org.children.get(id=int(self.request.GET.get("org")))
             except Org.DoesNotExist:
                 raise Http404(_("No such child workspace"))
-
-    class TransferCredits(MultiOrgMixin, ModalMixin, InferOrgMixin, SmartFormView):
-        class TransferForm(forms.Form):
-            class OrgChoiceField(forms.ModelChoiceField):
-                def label_from_instance(self, org):
-                    return "%s (%s)" % (org.name, "{:,}".format(org.get_credits_remaining()))
-
-            from_org = OrgChoiceField(
-                None,
-                required=True,
-                label=_("From Workspace"),
-                help_text=_("Select which workspace to take credits from"),
-                widget=SelectWidget(attrs={"searchable": True}),
-            )
-
-            to_org = OrgChoiceField(
-                None,
-                required=True,
-                label=_("To Workspace"),
-                help_text=_("Select which workspace to receive the credits"),
-                widget=SelectWidget(attrs={"searchable": True}),
-            )
-
-            amount = forms.IntegerField(
-                required=True, label=_("Credits"), help_text=_("How many credits to transfer"), widget=InputWidget()
-            )
-
-            def __init__(self, org, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                self.fields["from_org"].queryset = Org.objects.filter(Q(parent=org) | Q(id=org.id)).order_by(
-                    "-parent", "name", "id"
-                )
-                self.fields["to_org"].queryset = Org.objects.filter(Q(parent=org) | Q(id=org.id)).order_by(
-                    "-parent", "name", "id"
-                )
-
-            def clean(self):
-                cleaned_data = super().clean()
-
-                if "amount" in cleaned_data and "from_org" in cleaned_data:
-                    from_org = cleaned_data["from_org"]
-
-                    if cleaned_data["amount"] > from_org.get_credits_remaining():
-                        raise ValidationError(
-                            _(
-                                "Sorry, %(org_name)s doesn't have enough credits for this transfer. Pick a different workspace to transfer from or reduce the transfer amount."
-                            )
-                            % dict(org_name=from_org.name)
-                        )
-
-        success_url = "@orgs.org_sub_orgs"
-        form_class = TransferForm
-        fields = ("from_org", "to_org", "amount")
-        permission = "orgs.org_transfer_credits"
-
-        def has_permission(self, request, *args, **kwargs):
-            self.org = self.request.org
-            return self.request.user.has_perm(self.permission) or self.has_org_perm(self.permission)
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.get_object()
-            return kwargs
-
-        def form_valid(self, form):
-            from_org = form.cleaned_data["from_org"]
-            to_org = form.cleaned_data["to_org"]
-            amount = form.cleaned_data["amount"]
-
-            from_org.allocate_credits(from_org.created_by, to_org, amount)
-            return self.render_modal_response(form)
 
     class Country(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class CountryForm(forms.ModelForm):

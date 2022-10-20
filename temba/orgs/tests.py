@@ -3222,10 +3222,6 @@ class OrgTest(TembaTest):
         response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
         self.assertRedirect(response, reverse("orgs.org_home"))
 
-        # same thing with trying to transfer credits
-        response = self.client.get(reverse("orgs.org_transfer_credits"))
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
         # cant manage users either
         response = self.client.get(reverse("orgs.org_manage_accounts_sub_org"))
         self.assertRedirect(response, reverse("orgs.org_home"))
@@ -3242,16 +3238,6 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "Workspaces")
 
-        # and add topups
-        self.assertContains(response, reverse("orgs.org_transfer_credits"))
-
-        # but not if we don't use topups
-        Org.objects.filter(id=self.org.id).update(uses_topups=False)
-        response = self.client.get(reverse("orgs.org_sub_orgs"))
-        self.assertNotContains(response, reverse("orgs.org_transfer_credits"))
-
-        Org.objects.filter(id=self.org.id).update(uses_topups=True)
-
         # add a sub org
         response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
         self.assertRedirect(response, reverse("orgs.org_sub_orgs"))
@@ -3263,27 +3249,6 @@ class OrgTest(TembaTest):
         new_org = dict(name="A Second Org", timezone=self.org.timezone, date_format=self.org.date_format)
         response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
         self.assertEqual(302, response.status_code)
-
-        # load the transfer credit page
-        response = self.client.get(reverse("orgs.org_transfer_credits"))
-
-        # check that things are ordered correctly
-        orgs = list(response.context["form"]["from_org"].field._queryset)
-        self.assertEqual("A Second Org", orgs[1].name)
-        self.assertEqual("Sub Org", orgs[2].name)
-        self.assertEqual(200, response.status_code)
-
-        # try to transfer more than we have
-        post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=1500)
-        response = self.client.post(reverse("orgs.org_transfer_credits"), post_data)
-        self.assertContains(response, "Pick a different workspace to transfer from")
-
-        # now transfer some credits
-        post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=600)
-        response = self.client.post(reverse("orgs.org_transfer_credits"), post_data)
-
-        self.assertEqual(400, self.org.get_credits_remaining())
-        self.assertEqual(600, sub_org.get_credits_remaining())
 
         # we can reach the manage accounts page too now
         response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id))
@@ -3318,13 +3283,6 @@ class OrgTest(TembaTest):
         self.assertEqual("Africa/Nairobi", str(sub_org.timezone))
         self.assertEqual("Y", sub_org.date_format)
         self.assertEqual("es", sub_org.language)
-
-        # now we should see new topups on our sub org
-        session["org_id"] = sub_org.id
-        session.save()
-
-        response = self.client.get(reverse("orgs.topup_list"))
-        self.assertContains(response, "600 Credits")
 
         # if org doesn't exist, 404
         response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org=3464374")
@@ -3559,11 +3517,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(23):
+        with self.assertNumQueries(22):
             response = self.client.get(reverse("orgs.org_workspace"))
-
-        # make sure we have the appropriate number of sections
-        self.assertContains(response, "Transfer Credits")
 
         # should have an extra menu option for our child (and section header)
         self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 9)
@@ -4312,7 +4267,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(response.context["form"].errors)
 
     @mock_mailroom
-    def test_org_service(self, mr_mocks):
+    def test_service(self, mr_mocks):
         service_url = reverse("orgs.org_service")
 
         # without logging in, try to service our main org
@@ -4328,6 +4283,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # ok, log in as our cs rep
         self.login(self.customer_support)
+
+        # invalid org just redirects back to manage page
+        response = self.client.post(service_url, dict(organization=325253256))
+        self.assertRedirect(response, "/org/manage/")
 
         # then service our org
         response = self.client.post(service_url, dict(organization=self.org.id))
