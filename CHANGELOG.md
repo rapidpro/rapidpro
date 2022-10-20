@@ -1,3 +1,7 @@
+v7.5.82
+----------
+ * Add JustCall channel type
+
 v7.5.81
 ----------
  * Always show plan formax even for orgs on topups plan
