@@ -93,7 +93,6 @@ from .models import (
     User,
     get_stripe_credentials,
 )
-from .tasks import apply_topups_task
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -2042,8 +2041,6 @@ class OrgCRUDL(SmartCRUDL):
                 as_button=True,
             )
 
-            menu.add_link(_("Topups"), f"{reverse('orgs.topup_manage')}?org={obj.id}")
-
             if obj.is_flagged:
                 menu.add_url_post(_("Unflag"), f"{reverse('orgs.org_update', args=[obj.id])}?action=unflag")
             else:  # pragma: needs cover
@@ -2108,19 +2105,6 @@ class OrgCRUDL(SmartCRUDL):
             return super().dispatch(*args, **kwargs)
 
         def get_plan(self, obj):  # pragma: needs cover
-            if not obj.credits:  # pragma: needs cover
-                obj.credits = 0
-
-            if obj.plan == "topups":
-                return mark_safe(
-                    "<div class='num-credits inline-block'><a href='%s'>%s</a></div>%s"
-                    % (
-                        reverse("orgs.topup_manage") + "?org=%d" % obj.id,
-                        format(obj.credits, ",d"),
-                        self.get_used(obj),
-                    )
-                )
-
             return mark_safe(f"<div class='plan-name'>{obj.plan}</div>")
 
         def get_owner(self, obj):
@@ -3838,7 +3822,7 @@ class OrgCRUDL(SmartCRUDL):
 
 
 class TopUpCRUDL(SmartCRUDL):
-    actions = ("list", "create", "read", "manage", "update")
+    actions = ("list", "read")
     model = TopUp
 
     class Read(OrgPermsMixin, SmartReadView):
@@ -3896,66 +3880,6 @@ class TopUpCRUDL(SmartCRUDL):
             topups.sort(key=cmp_to_key(compare))
             context["topups"] = topups
             return context
-
-    class Create(StaffOnlyMixin, ComponentFormMixin, SmartCreateView):
-        """
-        This is only for root to be able to credit accounts.
-        """
-
-        fields = ("credits", "price", "comment")
-
-        def get_success_url(self):
-            return reverse("orgs.topup_manage") + ("?org=%d" % self.object.org.id)
-
-        def save(self, obj):
-            obj.org = Org.objects.get(pk=self.request.GET["org"])
-            return TopUp.create(obj.org, self.request.user, price=obj.price, credits=obj.credits)
-
-        def post_save(self, obj):
-            obj = super().post_save(obj)
-            apply_topups_task.delay(obj.org.id)
-            return obj
-
-    class Update(StaffOnlyMixin, ComponentFormMixin, SmartUpdateView):
-        fields = ("is_active", "price", "credits", "expires_on")
-
-        def get_success_url(self):
-            return reverse("orgs.topup_manage") + ("?org=%d" % self.object.org.id)
-
-        def post_save(self, obj):
-            obj = super().post_save(obj)
-            apply_topups_task.delay(obj.org.id)
-            return obj
-
-    class Manage(StaffOnlyMixin, SpaMixin, SmartListView):
-        """
-        This is only for root to be able to manage topups on an account
-        """
-
-        fields = ("credits", "price", "comment", "created_on", "expires_on")
-        success_url = "@orgs.org_manage"
-        default_order = "-expires_on"
-
-        def lookup_field_link(self, context, field, obj):
-            return reverse("orgs.topup_update", args=[obj.id])
-
-        def get_price(self, obj):
-            if obj.price:
-                return "$%.2f" % (obj.price / 100.0)
-            else:
-                return "-"
-
-        def get_credits(self, obj):
-            return format(obj.credits, ",d")
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["org"] = self.org
-            return context
-
-        def derive_queryset(self):
-            self.org = Org.objects.get(pk=self.request.GET["org"])
-            return self.org.topups.all()
 
 
 class StripeHandler(View):  # pragma: no cover

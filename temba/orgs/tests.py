@@ -2097,44 +2097,6 @@ class OrgTest(TembaTest):
         # and that we have the surveyor role
         self.assertEqual(OrgRole.SURVEYOR, self.org.get_user_role(User.objects.get(username="beastmode@seahawks.com")))
 
-    def test_topup_admin(self):
-        self.login(self.admin)
-
-        topup = self.org.topups.get()
-
-        # admins shouldn't be able to see the create / manage / update pages
-        manage_url = reverse("orgs.topup_manage") + "?org=%d" % self.org.id
-        self.assertRedirect(self.client.get(manage_url), "/users/login/")
-
-        create_url = reverse("orgs.topup_create") + "?org=%d" % self.org.id
-        self.assertRedirect(self.client.get(create_url), "/users/login/")
-
-        update_url = reverse("orgs.topup_update", args=[topup.pk])
-        self.assertRedirect(self.client.get(update_url), "/users/login/")
-
-        # log in as staff
-        self.login(self.customer_support)
-
-        # should list our one topup
-        response = self.client.get(manage_url)
-        self.assertEqual([topup], list(response.context["object_list"]))
-
-        # create a new one
-        response = self.client.post(create_url, {"price": "1000", "credits": "500", "comment": ""})
-        self.assertEqual(302, response.status_code)
-
-        self.assertEqual(2, self.org.topups.count())
-        self.assertEqual(1500, self.org.get_credits_remaining())
-
-        # update one of our topups
-        response = self.client.post(
-            update_url,
-            {"is_active": True, "price": "0", "credits": "5000", "comment": "", "expires_on": "2025-04-03 13:47:46"},
-        )
-        self.assertEqual(302, response.status_code)
-
-        self.assertEqual(5500, self.org.get_credits_remaining())
-
     def test_topup_model(self):
         topup = TopUp.create(self.org, self.admin, price=None, credits=1000)
 
@@ -3566,16 +3528,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, len(response.context["children"]))
 
         # we should have an option to flag
-        self.assertContentMenu(
-            read_url, self.customer_support, ["Edit", "Topups", "Flag", "Verify", "Delete", "-", "Service"]
-        )
+        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Flag", "Verify", "Delete", "-", "Service"])
 
         # flag and content menu option should be inverted
         self.org.flag()
         response = self.client.get(read_url)
-        self.assertContentMenu(
-            read_url, self.customer_support, ["Edit", "Topups", "Unflag", "Verify", "Delete", "-", "Service"]
-        )
+        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Unflag", "Verify", "Delete", "-", "Service"])
 
         # no menu for inactive orgs
         self.org.is_active = False
@@ -4388,30 +4346,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # make sure that contact's created on is our cs rep
         contact = Contact.objects.get(urns__path="+250788123123", org=self.org)
         self.assertEqual(self.customer_support, contact.created_by)
-
-        # make sure we can manage topups as well
-        TopUp.objects.create(
-            org=self.org,
-            price=100,
-            credits=1000,
-            expires_on=timezone.now() + timedelta(days=30),
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-
-        response = self.client.get(reverse("orgs.topup_manage") + "?org=%d" % self.org.id)
-
-        # i'd buy that for a dollar!
-        self.assertContains(response, "$1.00")
-        self.assertNotRedirect(response, "/users/login/")
-
-        # ok, now end our session
-        response = self.client.post(service_url, dict())
-        self.assertRedirect(response, "/org/manage/")
-
-        # can no longer go to inbox, asked to log in
-        response = self.client.get(reverse("msgs.msg_inbox"))
-        self.assertRedirect(response, "/users/login/")
 
     def test_languages(self):
         home_url = reverse("orgs.org_home")

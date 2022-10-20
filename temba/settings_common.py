@@ -485,7 +485,7 @@ PERMISSIONS = {
         "whatsapp_cloud_connect",
         "workspace",
     ),
-    "orgs.topup": ("manage",),
+    "orgs.topup": (),
     "request_logs.httplog": ("webhooks", "classifier", "ticketer"),
     "templates.template": ("api",),
     "tickets.ticket": ("api", "assign", "assignee", "menu", "note", "export_stats", "export"),
