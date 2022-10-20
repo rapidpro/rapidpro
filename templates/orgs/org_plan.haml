@@ -4,4 +4,10 @@
 -block summary
   .flex.items-center
     .flex-grow.mr-4
-      -trans "You are currently on the {{org.plan}} plan."
+      -if plan_end
+        -blocktrans trimmed with plan=plan plan_end=plan_end
+          You are currently on the <b>{{plan}}</b> plan which ends <b>{{plan_end}}</b>.
+      -else
+        -blocktrans trimmed with plan=plan
+          You are currently on the <b>{{plan}}</b> plan.
+      

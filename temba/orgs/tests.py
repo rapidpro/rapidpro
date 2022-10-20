@@ -3518,7 +3518,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         home_url = reverse("orgs.org_home")
 
-        with self.assertNumQueries(23):
+        with self.assertNumQueries(21):
             response = self.client.get(home_url)
 
         self.assertEqual(200, response.status_code)
