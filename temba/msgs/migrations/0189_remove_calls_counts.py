@@ -3,12 +3,12 @@
 from django.db import migrations
 
 
-def remove_call_counts(apps, schema_editor):
+def remove_call_counts(apps, schema_editor):  # pragma: no cover
     SystemLabelCount = apps.get_model("msgs", "SystemLabelCount")
     SystemLabelCount.objects.filter(label_type="C").delete()
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

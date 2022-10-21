@@ -1,3 +1,26 @@
+v7.5.82
+----------
+ * Add JustCall channel type
+
+v7.5.81
+----------
+ * Always show plan formax even for orgs on topups plan
+
+v7.5.80
+----------
+ * Remove task to suspend topups orgs
+
+v7.5.79
+----------
+ * Add new indexes for scheduled broadcasts view and API endpoint
+ * Update broadcast_on_change db trigger to check is_active
+ * Use database trigger to prevent status changes on flow sessions that go from exited to waiting
+
+v7.5.78
+----------
+ * Remove old crisp templates
+ * Added Broadcast.is_active backfill migration
+
 v7.5.77
 ----------
  * Proper redirect when removing channels

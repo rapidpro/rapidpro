@@ -339,7 +339,6 @@ BRANDING = {
         "title": _("Visually build nationally scalable mobile applications"),
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
         "credits": "Copyright &copy; 2012-2022 UNICEF, Nyaruka. All Rights Reserved.",
-        "support_widget": False,
     }
 }
 DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
@@ -476,7 +475,6 @@ PERMISSIONS = {
         "sub_orgs",
         "surveyor",
         "token",
-        "transfer_credits",
         "trial",
         "twilio_account",
         "twilio_connect",
@@ -486,7 +484,6 @@ PERMISSIONS = {
         "whatsapp_cloud_connect",
         "workspace",
     ),
-    "orgs.topup": ("manage",),
     "request_logs.httplog": ("webhooks", "classifier", "ticketer"),
     "templates.template": ("api",),
     "tickets.ticket": ("api", "assign", "assignee", "menu", "note", "export_stats", "export"),
@@ -623,7 +620,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_spa",
         "orgs.org_sub_orgs",
         "orgs.org_token",
-        "orgs.org_transfer_credits",
         "orgs.org_twilio_account",
         "orgs.org_twilio_connect",
         "orgs.org_two_factor",
@@ -930,7 +926,6 @@ CELERY_BEAT_SCHEDULE = {
     "squash-notificationcounts": {"task": "squash_notificationcounts", "schedule": timedelta(seconds=60)},
     "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
     "squash-ticketcounts": {"task": "squash_ticketcounts", "schedule": timedelta(seconds=60)},
-    "suspend-topup-orgs": {"task": "suspend_topup_orgs_task", "schedule": timedelta(hours=1)},
     "sync-classifier-intents": {"task": "sync_classifier_intents", "schedule": timedelta(seconds=300)},
     "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
     "track-org-channel-counts": {"task": "track_org_channel_counts", "schedule": crontab(hour=4, minute=0)},
@@ -1051,6 +1046,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.jasmin.JasminType",
     "temba.channels.types.jiochat.JioChatType",
     "temba.channels.types.junebug.JunebugType",
+    "temba.channels.types.justcall.JustCallType",
     "temba.channels.types.kaleyra.KaleyraType",
     "temba.channels.types.kannel.KannelType",
     "temba.channels.types.line.LineType",
