@@ -53,7 +53,16 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 number = phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
 
                 # ensure no other active channel has this number
-                if self.org.channels.filter(address=number, is_active=True).exclude(pk=channel.pk).exists():
+                if (
+                    self.org.channels.filter(
+                        address=number,
+                        is_active=True,
+                        schemes__overlap=list(self.channel_type.schemes),
+                        role=channel.role,
+                    )
+                    .exclude(pk=channel.pk)
+                    .exists()
+                ):
                     raise forms.ValidationError(
                         _("Another channel has this number. Please remove that channel first.")
                     )

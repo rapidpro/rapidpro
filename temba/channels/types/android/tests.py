@@ -98,6 +98,22 @@ class AndroidTypeTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response, "form", "phone_number", "Invalid phone number, try again.")
 
+        # Add a Dialog360 whatsapp channel and bulk sender channel that should not block us to claim an Android channel
+        channel = self.create_channel(
+            "D3",
+            "360Dialog channel",
+            address="+250788123123",
+            country="RW",
+            schemes=[URN.WHATSAPP_SCHEME],
+            config={
+                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
+                Channel.CONFIG_AUTH_TOKEN: "123456789",
+            },
+        )
+        Channel.create(
+            self.org, self.admin, "RW", "NX", "", "+250788123123", schemes=[URN.TEL_SCHEME], role=Channel.ROLE_SEND
+        )
+
         # claim our channel
         response = self.client.post(
             reverse("channels.types.android.claim"), dict(claim_code=android1.claim_code, phone_number="0788123123")
@@ -183,7 +199,7 @@ class AndroidTypeTest(TembaTest):
         self.assertNotEqual(android1.uuid, old_uuid)  # inactive channel now has new UUID
 
         # and we have a new Android channel with our UUID
-        android2 = Channel.objects.get(is_active=True)
+        android2 = Channel.objects.filter(is_active=True, channel_type="A").first()
         self.assertNotEqual(android2, android1)
         self.assertEqual(android2.uuid, "uuid")
 
@@ -286,7 +302,7 @@ class AndroidTypeTest(TembaTest):
         channel = Channel.objects.get(country="US")
         self.assertEqual(channel.address, "+12065551212")
 
-        self.assertEqual(Channel.objects.filter(org=self.org, is_active=True).count(), 2)
+        self.assertEqual(Channel.objects.filter(org=self.org, is_active=True).count(), 4)
 
         # normalize a URN with a fully qualified number
         normalized = URN.normalize_number("+12061112222", "")
