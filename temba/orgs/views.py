@@ -2036,13 +2036,6 @@ class OrgCRUDL(SmartCRUDL):
                 as_button=True,
             )
 
-            menu.add_modax(
-                _("Delete"),
-                "delete-workspace",
-                reverse("orgs.org_delete", args=[obj.id]),
-                title=_("Delete Workspace"),
-            )
-
             menu.add_link(_("Topups"), f"{reverse('orgs.topup_manage')}?org={obj.id}")
 
             if obj.is_flagged:
@@ -2058,6 +2051,7 @@ class OrgCRUDL(SmartCRUDL):
                 "delete-org",
                 reverse("orgs.org_delete", args=[obj.id]),
                 title=_("Delete Workspace"),
+                disabled=True,
             )
 
             menu.new_group()
@@ -2267,11 +2261,34 @@ class OrgCRUDL(SmartCRUDL):
             obj.limits = cleaned_data["limits"]
             return obj
 
-    class Delete(SpaMixin, OrgPermsMixin, ModalMixin, SmartDeleteView):
+    class Delete(SpaMixin, OrgObjPermsMixin, ModalMixin, SmartDeleteView):
         cancel_url = "id@orgs.org_update"
         success_url = "@orgs.org_workspace"
         fields = ("id",)
         submit_button_name = _("Delete")
+
+        def has_org_perm(self, codename):
+            # staff can delete primary orgs
+            if self.request.user.is_staff:
+                return True
+
+            # users can't delete the primary org
+            org = self.get_object()
+            if not org.parent:
+                return False
+
+            return super().has_org_perm(codename)
+
+        def has_permission(self, request, *args, **kwargs):
+            # staff can delete any org
+            if request.user.is_staff:
+                return True
+            return super().has_permission(request, *args, **kwargs)
+
+        def get_object_org(self):
+            # child orgs work in the context of their parent
+            org = self.get_object()
+            return org if not org.parent else org.parent
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -2488,6 +2505,7 @@ class OrgCRUDL(SmartCRUDL):
                             "delete-workspace",
                             reverse("orgs.org_delete", args=[self.object.id]),
                             title=_("Delete Workspace"),
+                            disabled=True,
                         )
 
             else:
