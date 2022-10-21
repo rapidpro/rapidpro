@@ -386,7 +386,7 @@ class BroadcastCRUDL(SmartCRUDL):
             broadcast = self.get_object()
             # we don't actually delete, we just deactivate and save
             broadcast.is_active = False
-            broadcast.save()
+            broadcast.save(update_fields=("is_active",))
 
             response = HttpResponse()
             response["Temba-Success"] = self.get_success_url()
