@@ -102,7 +102,7 @@ class OrgContextProcessorTest(TembaTest):
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertTrue(perms["orgs"]["org_country"])
         self.assertTrue(perms["orgs"]["org_manage_accounts"])
-        self.assertFalse(perms["orgs"]["org_delete"])
+        self.assertTrue(perms["orgs"]["org_delete"])
 
         perms = RolePermsWrapper(OrgRole.EDITOR)
 
