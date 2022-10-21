@@ -1,3 +1,80 @@
+v7.5.82
+----------
+ * Add JustCall channel type
+
+v7.5.81
+----------
+ * Always show plan formax even for orgs on topups plan
+
+v7.5.80
+----------
+ * Remove task to suspend topups orgs
+
+v7.5.79
+----------
+ * Add new indexes for scheduled broadcasts view and API endpoint
+ * Update broadcast_on_change db trigger to check is_active
+ * Use database trigger to prevent status changes on flow sessions that go from exited to waiting
+
+v7.5.78
+----------
+ * Remove old crisp templates
+ * Added Broadcast.is_active backfill migration
+
+v7.5.77
+----------
+ * Proper redirect when removing channels
+ * Fix api header when logged out
+ * Take features out of branding and make it deployment level and remove api_link
+ * Get rid of flow_types as a branding setting
+
+v7.5.76
+----------
+ * Tweak migration to convert missed call triggers to ignore archived triggers
+
+v7.5.75
+----------
+ * Add Broadcast.is_active and set null=true and default=true
+ * Remove channel_status_processor context processor
+ * Add data migration to delete or convert missed call triggers
+
+v7.5.74
+----------
+ * Fix webhook list page to not show every call as an error
+ * Small styling tweaks for api docs
+ * Remove fields from msgs event payloads that are no longer used
+
+v7.5.73
+----------
+ * Update api docs to be nav agnostic  
+ * Rewrite API Explorer to be vanilla javascript
+ * Use single permissions for all msg and contact list views
+ * Rework UI for incoming call triggers to allow selecting non-voice flows
+ * Remove send action from messages, add download results for flows
+ * Unload flow editor when navigating away
+
+v7.5.72
+----------
+ * Always put service menu options at end of menu in new group
+
+v7.5.71
+----------
+ * More appropriate login page, remove legacy textit code
+
+v7.5.70
+----------
+ * Fix which fields should be on org update modal
+ * Honor brand config for signup
+
+v7.5.69
+----------
+ * Fix race on editor load
+
+v7.5.68
+----------
+ * Add failed reason for channel removed
+ * Remove no longer used channels option from interrupt_sessions task
+
 v7.5.67
 ----------
  * Interrupt channel by mailroom task

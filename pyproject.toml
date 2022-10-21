@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "7.5.67"
+version = "7.5.82"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 license = "AGPL-3"
@@ -31,7 +31,7 @@ cryptography = "3.4.7"
 vonage = "2.5.2"
 pyfcm = "^1.5.1"
 pyotp = "2.4.1"
-python-telegram-bot = "^11.1.0"
+python-telegram-bot = "^13.14"
 sentry-sdk = "^1.0.0"
 stripe = "^2.56.0"
 twilio = "6.24.0"

@@ -25,7 +25,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest, mock_uuids
+from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 
@@ -591,7 +591,7 @@ class MsgTest(TembaTest):
             return load_workbook(filename=filename)
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(35):
+        with self.assertNumQueries(30):
             with patch("temba.utils.s3.client", return_value=mock_s3):
                 workbook = request_export(
                     "?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-01"}
@@ -1046,7 +1046,7 @@ class MsgTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 5
 
-                with self.assertNumQueries(35):
+                with self.assertNumQueries(30):
                     self.assertExcelSheet(
                         request_export(
                             "?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}
@@ -1521,7 +1521,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(29):
+        with self.assertNumQueries(24):
             self.client.get(inbox_url)
 
         response = self.assertListFetch(
@@ -1535,7 +1535,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "function refresh")
 
         self.assertEqual(20000, response.context["refresh"])
-        self.assertEqual(("archive", "label", "send"), response.context["actions"])
+        self.assertEqual(("archive", "label"), response.context["actions"])
         self.assertEqual({"count": 4, "label": "Inbox", "url": "/msg/inbox/"}, response.context["folders"][0])
 
         # test searching
@@ -1610,7 +1610,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             flows_url, allow_viewers=True, allow_editors=True, context_objects=[msg2, msg1]
         )
 
-        self.assertEqual(("archive", "label", "send"), response.context["actions"])
+        self.assertEqual(("archive", "label"), response.context["actions"])
 
     def test_archived(self):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
@@ -1627,14 +1627,14 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(29):
+        with self.assertNumQueries(24):
             self.client.get(archived_url)
 
         response = self.assertListFetch(
             archived_url + "?refresh=10000", allow_viewers=True, allow_editors=True, context_objects=[msg3, msg2, msg1]
         )
 
-        self.assertEqual(("restore", "label", "delete", "send"), response.context["actions"])
+        self.assertEqual(("restore", "label", "delete"), response.context["actions"])
         self.assertEqual({"count": 3, "label": "Archived", "url": "/msg/archived/"}, response.context["folders"][2])
 
         # test searching
@@ -1670,7 +1670,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(30):
+        with self.assertNumQueries(25):
             self.client.get(outbox_url)
 
         # messages sorted by created_on
@@ -1732,7 +1732,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(23):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
@@ -1763,7 +1763,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(23):
             self.client.get(failed_url)
 
         response = self.assertListFetch(
@@ -1948,6 +1948,7 @@ class BroadcastTest(TembaTest):
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
         self.assertEqual("I", broadcast1.status)
+        self.assertEqual(True, broadcast1.is_active)
 
         with patch("temba.mailroom.queue_broadcast") as mock_queue_broadcast:
             broadcast1.send_async()
@@ -2204,6 +2205,18 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
         )
         self.create_broadcast(self.admin, "not scheduled", groups=[self.joe_and_frank])
+
+        bc3 = self.create_broadcast(
+            self.admin,
+            "good afternoon",
+            contacts=[self.frank],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+        )
+
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[bc3, bc2, bc1])
+
+        bc3.is_active = False
+        bc3.save()
 
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[bc2, bc1])
 
@@ -2958,25 +2971,3 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         list_url = reverse("msgs.media_list")
 
         self.assertStaffOnly(list_url)
-
-
-class RemoveCallsCountsMigrationTest(MigrationTest):
-    app = "msgs"
-    migrate_from = "0188_alter_systemlabelcount_label_type"
-    migrate_to = "0189_remove_calls_counts"
-
-    def setUpBeforeMigration(self, apps):
-        def add_count(org, label_type: str):
-            SystemLabelCount.objects.create(org=org, label_type=label_type, is_archived=False, count=123)
-
-        add_count(self.org, "I")
-        add_count(self.org, "F")
-        add_count(self.org, "C")
-        add_count(self.org, "C")
-        add_count(self.org2, "I")
-        add_count(self.org2, "C")
-
-    def test_migration(self):
-        self.assertEqual(2, SystemLabelCount.objects.filter(label_type="I").count())
-        self.assertEqual(1, SystemLabelCount.objects.filter(label_type="F").count())
-        self.assertEqual(0, SystemLabelCount.objects.filter(label_type="C").count())

@@ -5,12 +5,9 @@ import traceback
 from io import StringIO
 
 from django.conf import settings
-from django.http import HttpResponseRedirect
-from django.urls import reverse
 from django.utils import timezone, translation
 
 from temba.orgs.models import Org
-from temba.policies.models import Policy
 
 logger = logging.getLogger(__name__)
 
@@ -79,23 +76,6 @@ class BrandingMiddleware:
             branding = settings.BRANDING.get(settings.DEFAULT_BRAND)
 
         return branding
-
-
-class ConsentMiddleware:  # pragma: no cover
-
-    REQUIRES_CONSENT = ("/msg", "/contact", "/flow", "/trigger", "/org/home", "/campaign", "/channel", "/welcome")
-
-    def __init__(self, get_response=None):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        if request.user and request.user.is_authenticated:
-            for path in ConsentMiddleware.REQUIRES_CONSENT:
-                if request.path.startswith(path):
-                    if Policy.get_policies_needing_consent(request.user):
-                        return HttpResponseRedirect(reverse("policies.policy_list") + "?next=" + request.path)
-        response = self.get_response(request)
-        return response
 
 
 class OrgMiddleware:

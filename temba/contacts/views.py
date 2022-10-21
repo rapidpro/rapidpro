@@ -178,6 +178,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     Base class for contact list views with contact folders and groups listed by the side
     """
 
+    permission = "contacts.contact_list"
     system_group = None
     add_button = True
     paginate_by = 50
@@ -896,6 +897,7 @@ class ContactCRUDL(SmartCRUDL):
                     )
 
             if self.request.user.is_staff:
+                menu.new_group()
                 menu.add_url_post(
                     _("Service"),
                     f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("contacts.contact_read", args=[obj.uuid])}',
@@ -1046,7 +1048,7 @@ class ContactCRUDL(SmartCRUDL):
         system_group = ContactGroup.TYPE_DB_ACTIVE
 
         def get_bulk_actions(self):
-            return ("block", "archive", "send") if self.has_org_perm("contacts.contact_update") else ()
+            return ("block", "archive", "send", "start-flow") if self.has_org_perm("contacts.contact_update") else ()
 
         def build_content_menu(self, menu):
             is_spa = "HTTP_TEMBA_SPA" in self.request.META

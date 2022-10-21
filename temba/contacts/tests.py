@@ -36,7 +36,6 @@ from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
     ESMockWithScroll,
-    MigrationTest,
     TembaNonAtomicTest,
     TembaTest,
     matchers,
@@ -95,7 +94,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         mr_mocks.contact_search('name != ""', contacts=[])
         smart = self.create_group("No Name", query='name = ""')
 
-        with self.assertNumQueries(29):
+        with self.assertNumQueries(28):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
@@ -226,7 +225,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # admins can see bulk actions
         response = self.client.get(list_url)
         self.assertEqual([frank, joe], list(response.context["object_list"]))
-        self.assertEqual(["block", "archive", "send"], list(response.context["actions"]))
+        self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
 
         self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
         self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"], True)
@@ -2005,7 +2004,7 @@ class ContactTest(TembaTest):
         # error is swallowed and we show no results
         self.assertEqual([], omnibox_request("search=-123`213"))
 
-        with self.assertNumQueries(16):
+        with self.assertNumQueries(15):
             mock_search_contacts.side_effect = [
                 SearchResults(
                     query="",
@@ -2032,7 +2031,7 @@ class ContactTest(TembaTest):
                 omnibox_request(query="", version="2"),
             )
 
-        with self.assertNumQueries(18):
+        with self.assertNumQueries(17):
             mock_search_contacts.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=QueryMetadata()),
                 SearchResults(
@@ -2067,7 +2066,7 @@ class ContactTest(TembaTest):
                 omnibox_request(query="search=250", version="2"),
             )
 
-        with self.assertNumQueries(16):
+        with self.assertNumQueries(15):
             mock_search_contacts.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=QueryMetadata()),
                 SearchResults(query="", total=0, contact_ids=[], metadata=QueryMetadata()),
@@ -2376,7 +2375,7 @@ class ContactTest(TembaTest):
         # fetch our contact history
         self.login(self.admin)
         with patch("temba.utils.s3.s3.client", return_value=self.mock_s3):
-            with self.assertNumQueries(34):
+            with self.assertNumQueries(29):
                 response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -3008,7 +3007,7 @@ class ContactTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(list_url)
         self.assertEqual(list(response.context["object_list"]), [self.voldemort, self.billy, self.frank, self.joe])
-        self.assertEqual(response.context["actions"], ("block", "archive", "send"))
+        self.assertEqual(response.context["actions"], ("block", "archive", "send", "start-flow"))
 
         # this just_joe group has one contact and joe_and_frank group has two contacts
         self.assertEqual(len(self.just_joe.contacts.all()), 1)
@@ -3132,7 +3131,7 @@ class ContactTest(TembaTest):
         response = self.client.get(list_url)
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
-        self.assertEqual(response.context["actions"], ("block", "archive", "send"))
+        self.assertEqual(response.context["actions"], ("block", "archive", "send", "start-flow"))
         self.assertEqual(len(self.just_joe.contacts.all()), 0)
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 1)
 
@@ -4057,7 +4056,7 @@ class ContactFieldTest(TembaTest):
             self.create_contact_import(path)
 
         # no group specified, so will default to 'Active'
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(39):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -4122,7 +4121,7 @@ class ContactFieldTest(TembaTest):
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(39):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -4183,7 +4182,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(39):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -4274,7 +4273,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(40):
             self.assertExcelSheet(
                 request_export("?g=%s" % group.uuid)[0],
                 [
@@ -4345,7 +4344,7 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(43):
+                    with self.assertNumQueries(42):
                         self.assertExcelSheet(
                             request_export("?s=name+has+adam+or+name+has+deng")[0],
                             [
@@ -4410,7 +4409,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(42):
+            with self.assertNumQueries(41):
                 self.assertExcelSheet(
                     request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [
@@ -6435,22 +6434,3 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
-
-
-class FixInvalidNamesTest(MigrationTest):
-    app = "contacts"
-    migrate_from = "0165_alter_contactfield_managers"
-    migrate_to = "0166_fix_invalid_names"
-
-    def setUpBeforeMigration(self, apps):
-        self.group1 = ContactGroup.objects.create(
-            org=self.org,
-            name='Say "Hi"\\ There',
-            is_system=False,
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-
-    def test_migration(self):
-        self.group1.refresh_from_db()
-        self.assertEqual("Say 'Hi'/ There", self.group1.name)

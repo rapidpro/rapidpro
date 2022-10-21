@@ -4198,7 +4198,7 @@ class ExportFlowResultsTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
-                with self.assertNumQueries(48):
+                with self.assertNumQueries(43):
                     workbook = self._export(
                         flow,
                         start_date=today - timedelta(days=7),
@@ -4345,7 +4345,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(46):
+        with self.assertNumQueries(41):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4420,7 +4420,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(43):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4603,7 +4603,7 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(59):
+        with self.assertNumQueries(54):
             workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
 
         tz = self.org.timezone
@@ -4697,7 +4697,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(34):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),

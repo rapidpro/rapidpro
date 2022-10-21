@@ -47,11 +47,8 @@ class JioChatTypeTest(TembaTest):
         self.assertContains(response, reverse("courier.jc", args=[channel.uuid]))
         self.assertContains(response, channel.config[Channel.CONFIG_SECRET])
 
-        contact = self.create_contact("JioChat User", urns=["jiochat:1234"])
-
         # make sure we our jiochat channel satisfies as a send channel
-        response = self.client.get(reverse("contacts.contact_read", args=[contact.uuid]))
-        send_channel = response.context["send_channel"]
+        send_channel = self.org.get_send_channel()
         self.assertIsNotNone(send_channel)
         self.assertEqual(send_channel.channel_type, "JC")
 

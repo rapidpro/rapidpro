@@ -90,20 +90,6 @@ def update_org_activity(now=None):
     OrgActivity.update_day(now)
 
 
-@nonoverlapping_task(
-    track_started=True, name="suspend_topup_orgs_task", lock_key="suspend_topup_orgs_task", lock_timeout=7200
-)
-def suspend_topup_orgs_task():
-    # for every org on a topup plan that isn't suspended, check they have credits, if not, suspend them
-    for org in Org.objects.filter(uses_topups=True, is_active=True, is_suspended=False):
-        if org.get_credits_remaining() <= 0:
-            org.clear_credit_cache()
-            if org.get_credits_remaining() <= 0:
-                org.is_suspended = True
-                org.plan_end = timezone.now()
-                org.save(update_fields=["is_suspended", "plan_end"])
-
-
 @nonoverlapping_task(track_started=True, name="delete_orgs_task", lock_key="delete_orgs_task", lock_timeout=7200)
 def delete_orgs_task():
     # for each org that was released over 7 days ago, delete it for real

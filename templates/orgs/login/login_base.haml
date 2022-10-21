@@ -1,68 +1,20 @@
--extends "frame.haml"
+-extends "no_nav.haml"
 
 -load smartmin i18n
 
 -block extra-style
   {{block.super}}
-
   :css
-    .backsplash {
-      transform: translateY(-3em) rotate(-10deg) scale(3);
-      box-shadow: 0px 0px 2px 0px rgba(0,0,0,.05);
-      transition: all 200ms linear;
-    }
-
-    .backsplash.stop {
-      box-shadow: 0px 0px 2px 4px rgba(0,0,0,.05);
-      transform: translateY(0em) rotate(-10deg) scale(3);
-    }
-
-    .login-card {
-      width: 32rem;
-      transform: translateY(4em) rotate(-2deg) scale(1.1);
-      transition: transform 200ms linear;
-      box-shadow: 0px 0px 0px 0.75em rgba(var(--primary-rgb), .2);
-    }
-
-    .login-card.stop {
-      transform: translateY(0em) rotate(0deg) scale(1);
-    }
-
     input {
       width: 100%;
     }
 
--block extra-script
-  {{block.super}}
-  :javascript
-    window.setTimeout(function(){
-      document.querySelector(".backsplash").classList.add("stop");
-      document.querySelector(".login-card").classList.add("stop");
-    }, 0);
-  
+    .content-card {
+      width: 28em;
+    }
 
--block header
 
--block page-container
-
-  .backsplash.bg-primary.w-full.h-40.absolute
-
-  .flex.flex-col.h-full
-    .top.flex-shrink.flex-grow.border-2
-
-    .middle.flex.flex-row.mb-10
-      .flex-grow
-      .card.login-card
-        -block logo
-        .page-title          
-          -block login-title
-        -block login-content
-      .flex-grow
-          
-    .bottom(style="flex-grow: 3")
-      .flex.flex-col.h-full
-        .flex-grow
-
-        .bottom
-          -block footer
-            {{block.super}}
+-block content
+  .page-title
+    -block login-title
+  -block login-content

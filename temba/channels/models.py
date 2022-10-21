@@ -816,7 +816,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         # if we have a successfully sent message, we're only interested a new failures since then. Note that we use id
         # here instead of created_on because we won't hit the outbox index if we use a range condition on created_on.
-        if latest_sent_message:
+        if latest_sent_message:  # pragma: needs cover
             messages = messages.filter(id__gt=latest_sent_message.id)
 
         return messages

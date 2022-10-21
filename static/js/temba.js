@@ -496,6 +496,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 var setInnerHTML = function(ele, html) {
+
     var scripts = ele.parentNode.querySelectorAll("script");
     scripts.forEach(function(script){
         script.parentNode.removeChild(script);
@@ -504,6 +505,9 @@ var setInnerHTML = function(ele, html) {
     ele.innerHTML = html;
 
     Array.from(ele.querySelectorAll("script")).forEach(function(oldScript) {
+
+        oldScript.parentNode.removeChild(oldScript);
+
         var newScript = document.createElement("script");
         Array.from(oldScript.attributes)
             .forEach(function(attr){ newScript.setAttribute(attr.name, attr.value) });

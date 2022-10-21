@@ -1464,7 +1464,7 @@ class Org(SmartModel):
         self.clear_credit_cache()
 
         # if we our suspended and have credits now, unsuspend ourselves
-        if self.is_suspended and self.get_credits_remaining() > 0:
+        if self.is_suspended and self.get_credits_remaining() > 0:  # pragma: no cover
             self.is_suspended = False
             self.save(update_fields=["is_suspended"])
 
@@ -1746,7 +1746,7 @@ class Org(SmartModel):
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
         if sample_flows:
-            self.create_sample_flows(branding.get("api_link", ""))
+            self.create_sample_flows(branding.get("link", ""))
 
     def get_delete_date(self, *, archive_type=Archive.TYPE_MSG):
         """

@@ -56,50 +56,6 @@ def get_channel_read_url(channel):
     return reverse("channels.channel_read", args=[channel.uuid])
 
 
-def channel_status_processor(request):
-    status = {}
-    user = request.user
-    org = request.org
-
-    if user.is_anonymous:
-        return status
-
-    allowed = False
-    if org:
-        allowed = user.has_org_perm(org, "channels.channel_claim")
-
-    if allowed:
-        # only care about channels that are older than an hour
-        cutoff = timezone.now() - timedelta(hours=1)
-        send_channel = org.get_send_channel()
-        call_channel = org.get_call_channel()
-
-        status["send_channel"] = send_channel
-        status["call_channel"] = call_channel
-        status["has_outgoing_channel"] = send_channel or call_channel
-
-        channels = org.channels.filter(is_active=True)
-        for channel in channels:
-
-            if channel.created_on > cutoff:
-                continue
-
-            if not channel.is_new():
-                # delayed out going messages
-                if channel.get_delayed_outgoing_messages().exists():
-                    status["unsent_msgs"] = True
-
-                # see if it hasn't synced in a while
-                if not channel.get_recent_syncs().exists():
-                    status["delayed_syncevents"] = True
-
-                # don't have to keep looking if they've both failed
-                if "delayed_syncevents" in status and "unsent_msgs" in status:
-                    break
-
-    return status
-
-
 def get_commands(channel, commands, sync_event=None):
     """
     Generates sync commands for all queued messages on the given channel
@@ -852,6 +808,7 @@ class ChannelCRUDL(SmartCRUDL):
                 )
 
             if self.request.user.is_staff:
+                menu.new_group()
                 menu.add_url_post(
                     _("Service"),
                     f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("channels.channel_read", args=[obj.uuid])}',
@@ -1047,6 +1004,8 @@ class ChannelCRUDL(SmartCRUDL):
             message_stats_table.reverse()
             context["message_stats_table"] = message_stats_table
 
+            context["delayed_syncevents"] = not channel.get_recent_syncs().exists()
+
             return context
 
     class FacebookWhitelist(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartModelActionView):
@@ -1085,7 +1044,7 @@ class ChannelCRUDL(SmartCRUDL):
                 default_error = dict(message=_("An error occured contacting the Facebook API"))
                 raise ValidationError(response_json.get("error", default_error)["message"])
 
-    class Delete(DependencyDeleteModal):
+    class Delete(DependencyDeleteModal, SpaMixin):
         cancel_url = "uuid@channels.channel_read"
         success_message = _("Your channel has been removed.")
         success_message_twilio = _(
@@ -1099,7 +1058,7 @@ class ChannelCRUDL(SmartCRUDL):
             if channel.parent:
                 return reverse("channels.channel_read", args=[channel.parent.uuid])
 
-            return reverse("orgs.org_home")
+            return reverse("orgs.org_workspace") if self.is_spa() else reverse("orgs.org_home")
 
         def derive_submit_button_name(self):
             channel = self.get_object()

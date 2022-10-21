@@ -1,4 +1,4 @@
-{% extends "frame.html" %}
+{% extends "no_nav.html" %}
 
 {% load rest_framework static %}
 {% load smartmin %}
@@ -12,6 +12,30 @@
     <link rel="stylesheet" type="text/css" href='{% static "css/codemirror.css" %}'/>
 
  <style>
+
+    .content-card {
+      width: 80%;
+    }
+
+    .content-main li {
+        margin: 0.4em 0em;
+    }
+
+    .content-main ul {
+        margin-top: 1em;
+        margin-bottom: 1em;
+    }
+
+    code {
+        padding:0.2em 0.5em;
+        font-size: 0.9em;
+    }
+
+    .card {
+      padding: 0;
+      margin: 1em 2em;
+    }
+
     .page-content {
          max-width: 100%;
     }
@@ -79,36 +103,59 @@
 
     ul, ol {
        padding: 0;
-        margin: 0 0 10px 25px;
+       margin: 0 0 10px 25px;
     }
+
 
     strong {
        font-weight: bold;
     }
+
+    .breadcrumb {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .token {
+        white-space: nowrap;
+    }
+
+
  </style>
 {% endblock %}
 
 {% block content %}
     {% block breadcrumbs %}
-    <ul class="breadcrumb -mt-12 mb-12">
+    <ul class="breadcrumb">
+        <li>
+            <a href="/">{{brand.name}}</a>
+            <span class="divider">&rsaquo;</span>
+        </li>
+
         {% for breadcrumb_name, breadcrumb_url in breadcrumblist %}
             <li>
-                <a href="{{ breadcrumb_url }}" {% if forloop.last %}class="active"{% endif %}>{% if forloop.first %}{{ brand.name }} API v2{% else %}{{ breadcrumb_name }}{% endif %}</a> {% if not forloop.last %}<span class="divider">&rsaquo;</span>{% endif %}
+                <a href="{{ breadcrumb_url }}" {% if forloop.last %}class="active"{% endif %}>{% if forloop.first %}API v2{% else %}{{ breadcrumb_name }}{% endif %}</a> {% if not forloop.last %}<span class="divider">&rsaquo;</span>{% endif %}
             </li>
         {% endfor %}
 
-        {% if request.user.api_token %}<li class="pull-right" style="color: #666">API Token: {{ request.user.api_token }}</li>{% else %}<li class="pull-right">Log in to get your API Token</li>{% endif %}
+        <li class="mr-4" style="flex-grow:1"></li>
+        {% if request.user.api_token %}<li class="token" style="color: #666">API Token: {{ request.user.api_token }}</li>{% else %}<li class="pull-right">Log in to get your API Token</li>{% endif %}
     </ul>
     {% endblock %}
 
     <!-- Content -->
-    <a class="button-primary pull-right" href='{% url "api.v2.explorer" %}' style="margin-left: 10px">API Explorer</a>
 
-    <div id="content">
+    <div id="content" class="px-8 pb-8">
+
         <div class="content-main">
-            <div class="page-title mb-8">{% if name == "Root" %}{{ brand.name }} API v2{% else %}{{ name }}{% endif %}</h1></div>
+            <div class="flex mb-8">
+                <div class="flex-grow page-title">{% if name == "Root" %}{{ brand.name }} API v2{% else %}{{ name }}{% endif %}</h1></div>
+                <a class="button-primary" href='{% url "api.v2.explorer" %}' style="margin-left: 10px">API Explorer</a>
+            </div>
+
             {{ description }}
         </div>
+
     </div>
 {% endblock %}
 

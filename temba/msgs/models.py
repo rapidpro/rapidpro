@@ -237,6 +237,8 @@ class Broadcast(models.Model):
     # whether this broadcast should send to all URNs for each contact
     send_all = models.BooleanField(default=False)
 
+    is_active = models.BooleanField(null=True, default=True)
+
     metadata = JSONAsTextField(null=True, default=dict)
 
     @classmethod
@@ -385,7 +387,17 @@ class Broadcast(models.Model):
     class Meta:
         indexes = [
             # used by the broadcasts API endpoint
-            models.Index(name="msgs_broadcasts_org_created_id", fields=["org", "-created_on", "-id"]),
+            models.Index(
+                name="msgs_broadcasts_api",
+                fields=["org", "-created_on", "-id"],
+                condition=Q(schedule__isnull=True, is_active=True),
+            ),
+            # used by the scheduled broadcasts view
+            models.Index(
+                name="msgs_broadcasts_scheduled",
+                fields=["org", "-created_on"],
+                condition=Q(schedule__isnull=False, is_active=True),
+            ),
         ]
 
 
@@ -489,6 +501,7 @@ class Msg(models.Model):
     FAILED_ERROR_LIMIT = "E"
     FAILED_TOO_OLD = "O"
     FAILED_NO_DESTINATION = "D"
+    FAILED_CHANNEL_REMOVED = "R"
     FAILED_CHOICES = (
         (FAILED_SUSPENDED, _("Workspace suspended")),
         (FAILED_CONTACT, _("Contact is no longer active")),
@@ -496,6 +509,7 @@ class Msg(models.Model):
         (FAILED_ERROR_LIMIT, _("Retry limit reached")),  # courier tried to send but it errored too many times
         (FAILED_TOO_OLD, _("Too old to send")),  # was queued for too long, would be confusing to send now
         (FAILED_NO_DESTINATION, _("No suitable channel found")),  # no compatible channel + URN destination found
+        (FAILED_CHANNEL_REMOVED, _("Channel removed")),  # channel removed by user
     )
 
     MEDIA_GPS = "geo"
@@ -936,7 +950,7 @@ class SystemLabel:
                 direction=Msg.DIRECTION_OUT, visibility=Msg.VISIBILITY_VISIBLE, status=Msg.STATUS_FAILED
             )
         elif label_type == cls.TYPE_SCHEDULED:
-            qs = Broadcast.objects.exclude(schedule=None).prefetch_related("groups", "contacts", "urns")
+            qs = Broadcast.objects.filter(is_active=True).exclude(schedule=None)
         else:  # pragma: needs cover
             raise ValueError("Invalid label type: %s" % label_type)
 

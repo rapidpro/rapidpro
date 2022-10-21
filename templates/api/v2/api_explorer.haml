@@ -1,38 +1,42 @@
-- extends "frame.html"
-- load smartmin i18n
+- extends "no_nav.html"
+-load smartmin i18n
 
-- block page-top
+-block page-top
 
 -block page-title
   {{ brand.name }} - API Explorer
 
 -block content
   -block breadcrumbs
-    %ul.breadcrumb.-mt-12.mb-12
+    %ul.breadcrumb
       %li
-        %a(href="{% url 'api.v2' %}")
-          {{ brand.name }} API v2
+        %a(href="/")
+          {{ brand.name }}
+        %span.divider &raquo;
+        %a(href="{% url 'api.v2' %}")<
+          API v2
         %span.divider &raquo;
 
-      %li
+      %li.mr-4
         %a.active(href="{% url 'api.v2.explorer' %}")
           -trans "Explorer"
 
+      <li style="flex-grow:1"></li>
       -if request.user.api_token
-        %li.pull-right(style="color: #666")
+          %li(style="color: #666")
           API Token: {{ request.user.api_token }}
       -else
-        %li.pull-right 
+        %li
           -trans "Log in to get your API Token"
 
-  .flex.justify-between.items-center.pb-1.mb-4(style="position: relative;")
+  .flex.justify-between.items-center.pb-1.mb-4.px-8(style="position: relative;")
     %h1.page-title.leading-tight API Explorer
     .bg-white.px-4.py-2.border-primary.border.text-primary.font-medium.rounded-lg All operations work against live data
 
   - for endpoint in endpoints
     .card.mt-4.hover-box
-      .cursor-pointer.endpoint-title(data-slug="{{ endpoint.slug }}" data-method="{{ endpoint.method }}")
-        .endpoint-description(class="md:hidden")
+      .cursor-pointer.endpoint-title(onclick="handleToggle(event)" data-slug="{{ endpoint.slug }}" data-method="{{ endpoint.method }}")
+        .endpoint-description.my-2(class="md:hidden")
           {{ endpoint.title }}
         .flex.items-center
           .endpoint-method.font-mono.rounded-lg(class="method-{{ endpoint.method|lower }}") {{ endpoint.method }}
@@ -72,7 +76,7 @@
           .request-header.font-mono.mb-4
             <b class="font-bold">{{ endpoint.method }}</b>
             .whitespace-nowrap.text-sm(class="md:text-base md:inline")
-              {{brand.api_link}}{{ endpoint.url }}.json<span class="query-display"></span><br/>
+              {{brand.link}}{{ endpoint.url }}.json<span class="query-display"></span><br/>
             <b class="font-bold">Authorization:</b>
             .whitespace-nowrap.text-sm(class="md:text-base md:inline")
               Token {{ request.user.api_token }}
@@ -81,7 +85,7 @@
               %label.control-label.self-start.pt-4.w-56.pr-6(class="md:text-right")
                 -trans "Query String"
               .flex-grow
-                %textarea.textinput.p-2.rounded.request-query(id="request-query-{{ endpoint.slug }}" rows="1" )<
+                %textarea.textinput.p-2.rounded.request-query(oninput="handleQueryInput(event)" id="request-query-{{ endpoint.slug }}" rows="1" )<
                   {{ endpoint.example.query }}
 
           -if endpoint.fields
@@ -98,7 +102,7 @@
               -trans "View Full Documentation"
 
           -if user.api_token
-            .button-primary(onclick='javascript:onRequest("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}.json")') {{ endpoint.method|upper }}
+            .button-primary(onclick='javascript:handleRequest("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}.json")') {{ endpoint.method|upper }}
           -else
             %span
               -trans "Log in to use the Explorer"
@@ -108,16 +112,16 @@
 -block extra-script
   {{ block.super }}
   :javascript
-    $(function() {
-        $(".endpoint-title").click(function(){
-          $(this).next(".endpoint").toggle();
-        });
+    function handleToggle(event) {
+      event.currentTarget.parentElement.classList.toggle("expanded");
+    }
 
-        $('.request-query').on("input", function(){
-          var query = ensureQueryPrefix($(this).val());
-          $(this).parents('.request-form').find('.query-display').text(query);
-        })
-    });
+    function handleQueryInput(event) {
+      var query = event.currentTarget.value;
+      query = ensureQueryPrefix(query);
+      var display = event.currentTarget.closest(".request-form").querySelector(".query-display");
+      display.innerText = query;
+    }
 
     function ensureQueryPrefix(query) {
       if (query && !query.startsWith('?')) {
@@ -127,45 +131,72 @@
       }
     }
 
-    function onRequest(slug, method, url) {
-      var queryEditor = $("#request-query-" + slug);
-      var bodyEditor = $("#request-body-" + slug);
+    function handleRequest(slug, method, url) {
+      var queryEditor = document.querySelector("#request-query-" + slug);
+      var bodyEditor = document.querySelector("#request-body-" + slug);
 
-      var query = queryEditor.length ? ensureQueryPrefix(queryEditor.val()) : '';
-      var body = bodyEditor.length ? bodyEditor.val() : null;
+      var query = queryEditor ? ensureQueryPrefix(queryEditor.value) : '';
+      var body = bodyEditor ? bodyEditor.value : '';
 
-      $("#result-" + slug).text("Requesting...");
+      var results = document.querySelector("#result-" + slug);
+      results.style.display = "block";
+      results.innerHTML = "Requesting...";
 
-      $.ajax({
-        type: method,
-        url: url + query,
-        data: body,
-        headers: {
-          Accept : "application/json; charset=utf-8; indent=4;",
-          "Content-Type": "application/json; charset=utf-8; indent=4;"
-        },
-        dataType: "text",
-        success: function(data, textStatus, xhr){
-          var trace = "HTTP/1.0 " + xhr.status + " " + textStatus.toUpperCase() + "\n" + data;
-          $("#result-" + slug).show().text(trace);
-        },
-        error: function(request, status, error){
-          var trace = "HTTP/1.0 " + request.status + " " + error + "\n" + request.responseText;
-          $("#result-" + slug).show().text(trace);
-        }
-      });
+      var store = document.querySelector("temba-store");
+
+      var headers = {
+        "Accept" : "application/json; charset=utf-8; indent=4;",
+        "Content-Type": "application/json; charset=utf-8; indent=4;"
+      }
+
+      if (method == "GET") {
+        store.getUrl(url+query, { "headers": headers }).then(function(response) {
+          console.log(response);
+          results.innerText =  "HTTP/1.0 " + response.status + " " + "\n" + response.body;
+        });
+      } else {
+        store.postUrl(url+query, body, headers).then(function(response) {
+          results.innerText = "HTTP/1.0 " + response.status + " " + "\n" + response.body;
+        });
+      }
     }
-
 
 -block extra-style
   {{ block.super }}
   :css
+    .content-card {
+      width: 80%;
+    }
+
+    .breadcrumb {
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    .token {
+        white-space: nowrap;
+    }
+    
+    .card {
+      padding: 0;
+      margin: 1em 2em;
+    }
+
     .page-content {
-         max-width: 100%;
+      max-width: 100%;
+    }
+
+    .expanded .endpoint {
+      display: block;
+    }
+
+    .endpoint-title {
+      padding: 1em;
     }
 
     .endpoint {
       display: none;
+      padding: 2em;
     }
 
     .method-get {

@@ -114,7 +114,7 @@
         }
       }
 
-      function exportFlows(){
+      function handleDownloadFlowResults(evt){
         var endpoint = '{% url "flows.flow_export_results" %}';
         var modal = document.querySelector("#export-results");
         var ids = getCheckedIds();
@@ -122,5 +122,8 @@
           modal.setAttribute("endpoint", endpoint + '?ids=' + ids);
         }
         modal.open = true;
+
+        evt.preventDefault();
+        evt.stopPropagation();
       }
     {% endif %}
