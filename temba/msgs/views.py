@@ -25,7 +25,6 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 
 from temba.archives.models import Archive
-from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.formax import FormaxMixin
 from temba.orgs.models import Org
@@ -41,15 +40,7 @@ from temba.schedules.models import Schedule
 from temba.schedules.views import ScheduleFormMixin
 from temba.utils import analytics, json, on_transaction_commit
 from temba.utils.export.views import BaseExportView
-from temba.utils.fields import (
-    CompletionTextarea,
-    InputWidget,
-    JSONField,
-    OmniboxChoice,
-    OmniboxField,
-    SelectMultipleWidget,
-    SelectWidget,
-)
+from temba.utils.fields import CompletionTextarea, InputWidget, JSONField, OmniboxChoice, OmniboxField, SelectWidget
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
@@ -609,20 +600,10 @@ class MsgCRUDL(SmartCRUDL):
                 choices=(), label=_("Selection"), initial=0, widget=SelectWidget(attrs={"widget_only": True})
             )
 
-            groups = forms.ModelMultipleChoiceField(
-                queryset=ContactGroup.objects.none(),
-                required=False,
-                label=_("Groups"),
-                widget=SelectMultipleWidget(
-                    attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to include in your export")}
-                ),
-            )
-
             def __init__(self, org, label, *args, **kwargs):
                 super().__init__(org, *args, **kwargs)
 
                 self.fields["export_all"].choices = self.LABEL_CHOICES if label else self.SYSTEM_LABEL_CHOICES
-                self.fields["groups"].queryset = ContactGroup.get_groups(org)
 
         form_class = Form
         success_url = "@msgs.msg_inbox"
@@ -652,7 +633,6 @@ class MsgCRUDL(SmartCRUDL):
             org = self.request.org
 
             export_all = bool(int(form.cleaned_data["export_all"]))
-            groups = form.cleaned_data["groups"]
             start_date = form.cleaned_data["start_date"]
             end_date = form.cleaned_data["end_date"]
             with_fields = form.cleaned_data["with_fields"]
@@ -680,7 +660,6 @@ class MsgCRUDL(SmartCRUDL):
                     system_label=system_label,
                     label=label,
                     with_fields=with_fields,
-                    groups=groups,
                 )
 
                 on_transaction_commit(lambda: export_messages_task.delay(export.id))

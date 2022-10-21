@@ -2,7 +2,6 @@ import logging
 import mimetypes
 import os
 import re
-import time
 from array import array
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
@@ -1245,8 +1244,6 @@ class ExportMessagesTask(BaseItemWithContactExport):
     analytics_key = "msg_export"
     notification_export_type = "message"
 
-    groups = models.ManyToManyField(ContactGroup)
-
     label = models.ForeignKey(Label, on_delete=models.PROTECT, null=True)
     system_label = models.CharField(null=True, max_length=1)
 
@@ -1255,7 +1252,7 @@ class ExportMessagesTask(BaseItemWithContactExport):
     end_date = models.DateField(null=True)
 
     @classmethod
-    def create(cls, org, user, start_date, end_date, system_label=None, label=None, with_fields=(), groups=()):
+    def create(cls, org, user, start_date, end_date, system_label=None, label=None, with_fields=()):
         assert not (label and system_label), "can't specify both label and system label"
 
         export = cls.objects.create(
@@ -1268,7 +1265,6 @@ class ExportMessagesTask(BaseItemWithContactExport):
             modified_by=user,
         )
         export.with_fields.add(*with_fields)
-        export.groups.add(*groups)
         return export
 
     def _add_msgs_sheet(self, book):
@@ -1282,49 +1278,30 @@ class ExportMessagesTask(BaseItemWithContactExport):
     def write_export(self):
         book = XLSXBook()
         book.num_msgs_sheets = 0
-
         book.headers = (
             ["Date"]
             + self._get_contact_headers()
             + ["Flow", "Direction", "Text", "Attachments", "Status", "Channel", "Labels"]
         )
-
         book.current_msgs_sheet = self._add_msgs_sheet(book)
 
-        total_msgs_exported = 0
-        temp_msgs_exported = 0
-
-        start = time.time()
         start_date, end_date = self._get_date_range()
 
-        contact_uuids = set()
-        for group in self.groups.all():
-            contact_uuids = contact_uuids.union(set(group.contacts.only("uuid").values_list("uuid", flat=True)))
+        logger.info(f"starting msgs export #{self.id} for org #{self.org.id}")
 
-        for batch in self._get_msg_batches(self.system_label, self.label, start_date, end_date, contact_uuids):
+        for batch in self._get_msg_batches(self.system_label, self.label, start_date, end_date):
             self._write_msgs(book, batch)
 
-            total_msgs_exported += len(batch)
-
-            # start logging
-            if (total_msgs_exported - temp_msgs_exported) > ExportMessagesTask.LOG_PROGRESS_PER_ROWS:
-                mins = (time.time() - start) / 60
-                logger.info(
-                    f"Msgs export #{self.id} for org #{self.org.id}: exported {total_msgs_exported} in {mins:.1f} mins"
-                )
-                temp_msgs_exported = total_msgs_exported
-
-                self.modified_on = timezone.now()
-                self.save(update_fields=["modified_on"])
+            # update modified_on so we can see if an export hangs
+            self.modified_on = timezone.now()
+            self.save(update_fields=("modified_on",))
 
         temp = NamedTemporaryFile(delete=True, suffix=".xlsx", mode="wb+")
         book.finalize(to_file=temp)
         temp.flush()
         return temp, "xlsx"
 
-    def _get_msg_batches(self, system_label, label, start_date, end_date, group_contacts):
-        logger.info(f"Msgs export #{self.id} for org #{self.org.id}: fetching msgs from archives to export...")
-
+    def _get_msg_batches(self, system_label, label, start_date, end_date):
         # firstly get msgs from archives
         from temba.archives.models import Archive
 
@@ -1349,9 +1326,6 @@ class ExportMessagesTask(BaseItemWithContactExport):
                 if last_created_on is None or last_created_on < created_on:
                     last_created_on = created_on
 
-                if group_contacts and record["contact"]["uuid"] not in group_contacts:
-                    continue
-
                 matching.append(record)
             yield matching
 
@@ -1364,23 +1338,16 @@ class ExportMessagesTask(BaseItemWithContactExport):
 
         messages = messages.filter(created_on__gte=start_date, created_on__lte=end_date)
 
-        if self.groups.all():
-            messages = messages.filter(contact__groups__in=self.groups.all())
-
         messages = messages.order_by("created_on").using("readonly")
         if last_created_on:
             messages = messages.filter(created_on__gt=last_created_on)
 
         all_message_ids = array(str("l"), messages.values_list("id", flat=True))
 
-        logger.info(
-            f"Msgs export #{self.id} for org #{self.org.id}: found {len(all_message_ids)} msgs in database to export"
-        )
-
         prefetch = Prefetch("labels", queryset=Label.objects.order_by("name"))
         for msg_batch in MsgIterator(
             all_message_ids,
-            order_by=["" "created_on"],
+            order_by=["created_on"],
             select_related=["contact", "contact_urn", "channel", "flow"],
             prefetch_related=[prefetch],
         ):
