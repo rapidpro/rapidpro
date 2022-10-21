@@ -2254,10 +2254,6 @@ class OrgCRUDL(SmartCRUDL):
         submit_button_name = _("Delete")
 
         def has_org_perm(self, codename):
-            # staff can delete primary orgs
-            if self.request.user.is_staff:
-                return True
-
             # users can't delete the primary org
             org = self.get_object()
             if not org.parent:
