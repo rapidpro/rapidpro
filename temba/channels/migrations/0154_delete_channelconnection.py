@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("channels", "0153_remove_channellog_connection_and_more"),
-        ("flows", "0298_remove_flowsession_connection_and_more"),
+        ("flows", "0300_remove_flowsession_connection_and_more"),
     ]
 
     operations = [

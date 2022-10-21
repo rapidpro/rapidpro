@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("contacts", "0169_alter_contact_language_alter_contact_name"),
-        ("flows", "0298_exportflowresultstask_with_fields"),
+        ("flows", "0297_exportflowresultstask_end_date_and_more"),
     ]
 
     operations = [
