@@ -1,4 +1,4 @@
--extends 'includes/modax.html'
+-extends 'utils/exports/modax.html'
 -load i18n smartmin
 
 -block pre-form
@@ -6,13 +6,3 @@
     -blocktrans trimmed
       Any tickets opened within the selected date range will be included. You may optionally
       include additional columns for fields for each contact.
-
--block fields
-  .flex
-    .start.flex-grow
-      -render_field 'start_date'
-    .px-1
-    .end.flex-grow
-      -render_field 'end_date'
-
-  -render_field 'with_fields'

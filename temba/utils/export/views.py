@@ -7,7 +7,7 @@ from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from temba.contacts.models import ContactField
+from temba.contacts.models import ContactField, ContactGroup
 from temba.orgs.views import ModalMixin, OrgPermsMixin
 from temba.utils.fields import SelectMultipleWidget, TembaDateField
 
@@ -19,6 +19,7 @@ class BaseExportView(ModalMixin, OrgPermsMixin, SmartFormView):
 
     class Form(forms.Form):
         MAX_FIELDS_COLS = 10
+        MAX_GROUPS_COLS = 10
 
         start_date = TembaDateField(label=_("Start Date"))
         end_date = TembaDateField(label=_("End Date"))
@@ -29,12 +30,23 @@ class BaseExportView(ModalMixin, OrgPermsMixin, SmartFormView):
             label=_("Fields"),
             widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Fields to include"), "searchable": True}),
         )
+        with_groups = forms.ModelMultipleChoiceField(
+            ContactGroup.objects.none(),
+            required=False,
+            label=_("Groups"),
+            widget=SelectMultipleWidget(
+                attrs={"placeholder": _("Optional: Group memberships to include"), "searchable": True}
+            ),
+        )
 
         def __init__(self, org, *args, **kwargs):
             super().__init__(*args, **kwargs)
 
             self.org = org
             self.fields["with_fields"].queryset = ContactField.user_fields.active_for_org(org=org).order_by(
+                Lower("name")
+            )
+            self.fields["with_groups"].queryset = ContactGroup.get_groups(org=org, ready_only=True).order_by(
                 Lower("name")
             )
 
@@ -44,6 +56,7 @@ class BaseExportView(ModalMixin, OrgPermsMixin, SmartFormView):
             start_date = cleaned_data.get("start_date")
             end_date = cleaned_data.get("end_date")
             with_fields = cleaned_data.get("with_fields")
+            with_groups = cleaned_data.get("with_groups")
 
             if start_date and start_date > timezone.now().astimezone(self.org.timezone).date():
                 raise forms.ValidationError(_("Start date can't be in the future."))
@@ -54,6 +67,11 @@ class BaseExportView(ModalMixin, OrgPermsMixin, SmartFormView):
             if with_fields and len(with_fields) > self.MAX_FIELDS_COLS:
                 raise forms.ValidationError(
                     _(f"You can only include up to {self.MAX_FIELDS_COLS} fields in your export.")
+                )
+
+            if with_groups and len(with_groups) > self.MAX_GROUPS_COLS:
+                raise forms.ValidationError(
+                    _(f"You can only include up to {self.MAX_GROUPS_COLS} groups in your export.")
                 )
 
             return cleaned_data
