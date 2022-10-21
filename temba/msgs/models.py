@@ -888,7 +888,6 @@ class BroadcastMsgCount(SquashableModel):
 
         return sql, (distinct_set.broadcast_id,) * 2
 
-    # todo figure out if this is how to update the scheduled messages count in the left side nav bar
     @classmethod
     def get_count(cls, broadcast):
         return cls.sum(broadcast.counts.all())

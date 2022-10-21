@@ -51,7 +51,6 @@ from temba.utils.fields import (
     SelectWidget,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.text import truncate
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
 from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
@@ -199,7 +198,7 @@ class BroadcastForm(forms.ModelForm):
 
 
 class BroadcastCRUDL(SmartCRUDL):
-    actions = ("scheduled", "scheduled_create", "scheduled_read", "scheduled_update", "scheduled_deactivate", "send")
+    actions = ("scheduled", "scheduled_create", "scheduled_read", "scheduled_update", "scheduled_delete", "send")
     model = Broadcast
 
     class Scheduled(MsgListView):
@@ -319,11 +318,11 @@ class BroadcastCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             obj = self.get_object()
 
-            if self.has_org_perm("msgs.broadcast_scheduled_deactivate"):
+            if self.has_org_perm("msgs.broadcast_scheduled_delete"):
                 menu.add_modax(
                     _("Delete"),
                     "delete-scheduled",
-                    reverse("msgs.broadcast_scheduled_deactivate", args=[obj.id]),
+                    reverse("msgs.broadcast_scheduled_delete", args=[obj.id]),
                     title=_("Delete Scheduled Message"),
                 )
 
@@ -370,20 +369,17 @@ class BroadcastCRUDL(SmartCRUDL):
             broadcast.save()
             return broadcast
 
-    class ScheduledDeactivate(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class ScheduledDelete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
 
         # we create a frontend "delete" ux, but we actually just do a backend update
-        default_template = "broadcast_scheduled_deactivate.haml"
+        default_template = "broadcast_scheduled_delete.haml"
         cancel_url = "id@msgs.broadcast_scheduled_read"
         success_url = "@msgs.broadcast_scheduled"
         fields = ("id",)
         submit_button_name = _("Delete")
-        # custom object name because broadcasts don't have a name field
-        object_name = ""
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["object_name"] = truncate(self.object.get_text(), 15)
             return context
 
         def post(self, request, *args, **kwargs):
