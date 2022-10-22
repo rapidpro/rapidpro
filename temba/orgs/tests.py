@@ -4093,7 +4093,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         delete_workspace = reverse("orgs.org_delete", args=[workspace.id])
 
         # choose the parent org, try to delete the workspace
-        self.assertDeleteFetch(delete_workspace, choose_org=self.org.id)
+        self.assertDeleteFetch(delete_workspace, choose_org=self.org)
 
         # schedule for deletion
         response = self.client.get(delete_workspace)

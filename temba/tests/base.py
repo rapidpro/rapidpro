@@ -163,7 +163,7 @@ class TembaTestMixin:
 
         if choose_org:
             session = self.client.session
-            session.update({"org_id": choose_org})
+            session.update({"org_id": choose_org.id})
             session.save()
 
     def import_file(self, filename, site="http://rapidpro.io", substitutions=None):
