@@ -1,3 +1,9 @@
+v7.5.83
+----------
+ * Update telegram library which doesn't work with Python 3.10
+ * Add user child workspace management
+ * Remove topup management views
+
 v7.5.82
 ----------
  * Add JustCall channel type
