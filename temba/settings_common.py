@@ -599,6 +599,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_country",
         "orgs.org_create_sub_org",
         "orgs.org_dashboard",
+        "orgs.org_delete",
         "orgs.org_download",
         "orgs.org_edit_sub_org",
         "orgs.org_edit",

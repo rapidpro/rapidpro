@@ -102,7 +102,7 @@ class OrgContextProcessorTest(TembaTest):
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertTrue(perms["orgs"]["org_country"])
         self.assertTrue(perms["orgs"]["org_manage_accounts"])
-        self.assertFalse(perms["orgs"]["org_delete"])
+        self.assertTrue(perms["orgs"]["org_delete"])
 
         perms = RolePermsWrapper(OrgRole.EDITOR)
 
@@ -4087,16 +4087,50 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
         self.assertContains(response, created_on.strftime("%H:%M").lower())
 
+    def test_delete(self):
+
+        workspace = Org.create_sub_org(self.org, "Child Workspace")
+        delete_workspace = reverse("orgs.org_delete", args=[workspace.id])
+
+        # choose the parent org, try to delete the workspace
+        self.assertDeleteFetch(delete_workspace, choose_org=self.org)
+
+        # schedule for deletion
+        response = self.client.get(delete_workspace)
+        self.assertContains(response, "You are about to delete the workspace <b>Child Workspace</b>")
+
+        # go through with it, redirects to main workspace page
+        response = self.client.post(delete_workspace)
+        self.assertEqual(reverse("orgs.org_workspace"), response["Temba-Success"])
+
+        workspace.refresh_from_db()
+        self.assertFalse(workspace.is_active)
+
+        # can't delete primary workspace
+        primary_delete = reverse("orgs.org_delete", args=[self.org.id])
+        response = self.client.get(primary_delete)
+        self.assertRedirect(response, "/users/login/")
+
+        response = self.client.post(primary_delete)
+        self.assertRedirect(response, "/users/login/")
+
+        self.login(self.customer_support)
+        primary_delete = reverse("orgs.org_delete", args=[self.org.id])
+        response = self.client.get(primary_delete)
+        self.assertContains(response, "You are about to delete the workspace <b>Nyaruka</b>")
+
+        response = self.client.post(primary_delete)
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_active)
+
     def test_administration(self):
         self.setUpLocations()
 
         manage_url = reverse("orgs.org_manage")
         update_url = reverse("orgs.org_update", args=[self.org.id])
-        delete_url = reverse("orgs.org_delete", args=[self.org.id])
 
         self.assertStaffOnly(manage_url)
         self.assertStaffOnly(update_url)
-        self.assertStaffOnly(delete_url)
 
         response = self.client.get(manage_url + "?filter=flagged")
         self.assertNotIn(self.org, response.context["object_list"])
@@ -4206,19 +4240,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.client.post(update_url, {"action": "flag"})
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_flagged)
-
-        # schedule for deletion
-        response = self.client.get(delete_url, {"id": self.org.id})
-        self.assertContains(response, "This will schedule deletion of <b>Temba</b>")
-
-        response = self.client.post(delete_url, {"id": self.org.id})
-        self.assertEqual(update_url, response["Temba-Success"])
-
-        self.org.refresh_from_db()
-        self.assertFalse(self.org.is_active)
-
-        response = self.client.get(update_url)
-        self.assertContains(response, "This workspace has been scheduled for deletion")
 
     def test_urn_schemes(self):
         # remove existing channels

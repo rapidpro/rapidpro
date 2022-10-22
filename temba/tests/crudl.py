@@ -7,7 +7,7 @@ class CRUDLTestMixin:
     def get_test_users(self):
         return self.user, self.editor, self.agent, self.admin, self.admin2
 
-    def requestView(self, url, user, *, post_data=None, checks=(), **kwargs):
+    def requestView(self, url, user, *, post_data=None, checks=(), choose_org=None, **kwargs):
         """
         Requests the given URL as a specific user and runs a set of checks
         """
@@ -19,7 +19,7 @@ class CRUDLTestMixin:
 
         self.client.logout()
         if user:
-            self.login(user)
+            self.login(user, True, choose_org)
 
         for check in checks:
             check.pre_check(self, pre_msg_prefix)
@@ -172,7 +172,9 @@ class CRUDLTestMixin:
         as_user(None, allowed=False)
         return as_user(admin, allowed=True)
 
-    def assertDeleteFetch(self, url, *, allow_viewers=False, allow_editors=False, allow_agents=False, status=200):
+    def assertDeleteFetch(
+        self, url, *, allow_viewers=False, allow_editors=False, allow_agents=False, status=200, choose_org=None
+    ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
         def as_user(user, allowed):
@@ -181,7 +183,7 @@ class CRUDLTestMixin:
             else:
                 checks = [LoginRedirect()]
 
-            return self.requestView(url, user, checks=checks)
+            return self.requestView(url, user, checks=checks, choose_org=choose_org)
 
         as_user(None, allowed=False)
         as_user(viewer, allowed=allow_viewers)

@@ -2053,6 +2053,7 @@ class OrgCRUDL(SmartCRUDL):
                 "delete-org",
                 reverse("orgs.org_delete", args=[obj.id]),
                 title=_("Delete Workspace"),
+                disabled=True,
             )
 
             menu.new_group()
@@ -2246,11 +2247,30 @@ class OrgCRUDL(SmartCRUDL):
             obj.limits = cleaned_data["limits"]
             return obj
 
-    class Delete(StaffOnlyMixin, SpaMixin, ModalMixin, SmartDeleteView):
+    class Delete(SpaMixin, OrgObjPermsMixin, ModalMixin, SmartDeleteView):
         cancel_url = "id@orgs.org_update"
-        success_url = "id@orgs.org_update"
+        success_url = "@orgs.org_workspace"
         fields = ("id",)
         submit_button_name = _("Delete")
+
+        def has_org_perm(self, codename):
+            # users can't delete the primary org
+            org = self.get_object()
+            if not org.parent:
+                return False
+
+            return super().has_org_perm(codename)
+
+        def has_permission(self, request, *args, **kwargs):
+            # staff can delete any org
+            if request.user.is_staff:
+                return True
+            return super().has_permission(request, *args, **kwargs)
+
+        def get_object_org(self):
+            # child orgs work in the context of their parent
+            org = self.get_object()
+            return org if not org.parent else org.parent
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -2441,7 +2461,13 @@ class OrgCRUDL(SmartCRUDL):
         success_url = "@orgs.org_manage_accounts"
         success_message = ""
         submit_button_name = _("Save Changes")
-        title = _("Manage Logins")
+        title = _("Users")
+
+        def derive_title(self):
+            if self.object.parent and self.is_spa():
+                return self.object.name
+            else:
+                return super().derive_title()
 
         def build_content_menu(self, menu):
             other_org = self.request.org.id != self.get_object().id
@@ -2454,6 +2480,16 @@ class OrgCRUDL(SmartCRUDL):
                         f"{reverse('orgs.org_edit_sub_org')}?org={self.object.id}",
                         title=_("Edit Workspace"),
                     )
+
+                    if self.has_org_perm("orgs.org_delete"):
+                        menu.add_modax(
+                            _("Delete"),
+                            "delete-workspace",
+                            reverse("orgs.org_delete", args=[self.object.id]),
+                            title=_("Delete Workspace"),
+                            disabled=True,
+                        )
+
             else:
                 if other_org:
                     menu.add_link(_("Workspaces"), reverse("orgs.org_sub_orgs"))
@@ -2556,10 +2592,11 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Workspaces")
 
         def build_content_menu(self, menu):
+            org = self.get_object()
             if self.has_org_perm("orgs.org_dashboard"):
                 menu.add_link(_("Dashboard"), reverse("dashboard.dashboard_home"))
 
-            if self.has_org_perm("orgs.org_create_sub_org"):
+            if self.has_org_perm("orgs.org_create_sub_org") and org.is_multi_org:
                 menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_sub_org"))
 
         def get_manage(self, obj):  # pragma: needs cover
@@ -2611,7 +2648,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class CreateSubOrg(NonAtomicMixin, MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
+    class CreateSubOrg(NonAtomicMixin, SpaMixin, MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
         class CreateOrgForm(forms.ModelForm):
             name = forms.CharField(
                 label=_("Workspace"), help_text=_("The name of your workspace"), widget=InputWidget()
@@ -2641,11 +2678,25 @@ class OrgCRUDL(SmartCRUDL):
         def form_valid(self, form):
             self.object = form.save(commit=False)
             parent = self.org
-            parent.create_sub_org(self.object.name, self.object.timezone, self.request.user)
+            child = parent.create_sub_org(self.object.name, self.object.timezone, self.request.user)
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
-                return self.render_modal_response()
+
+                success_url = self.get_success_url
+                if self.is_spa():
+                    success_url = f"{reverse('orgs.org_manage_accounts_sub_org')}?org={child.id}"
+
+                response = self.render_to_response(
+                    self.get_context_data(
+                        form=form,
+                        success_url=success_url,
+                        success_script=getattr(self, "success_script", None),
+                    )
+                )
+
+                response["Temba-Success"] = success_url
+                return response
 
     class Choose(SpaMixin, SmartFormView):
         class Form(forms.Form):
@@ -3272,6 +3323,8 @@ class OrgCRUDL(SmartCRUDL):
                 menu.add_link(_("New Classifier"), reverse("classifiers.classifier_connect"))
             if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in settings.FEATURES:
                 menu.add_link(_("New Ticketing Service"), reverse("tickets.ticketer_connect"))
+            if self.has_org_perm("orgs.org_create_sub_org") and self.request.org.is_multi_org:
+                menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_sub_org"))
 
             menu.new_group()
 
