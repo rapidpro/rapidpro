@@ -1,3 +1,7 @@
+v7.5.84
+----------
+ * No link fields on sub org page
+
 v7.5.83
 ----------
  * Update telegram library which doesn't work with Python 3.10
