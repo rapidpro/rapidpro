@@ -3512,6 +3512,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             timezone=pytz.timezone("Africa/Kigali"),
             country=self.org.country,
             brand=settings.DEFAULT_BRAND,
+            plan=settings.WORKSPACE_PLAN,
             created_by=self.user,
             modified_by=self.user,
             parent=self.org,
