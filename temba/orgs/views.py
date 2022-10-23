@@ -2590,6 +2590,7 @@ class OrgCRUDL(SmartCRUDL):
     class SubOrgs(SpaMixin, ContentMenuMixin, MultiOrgMixin, InferOrgMixin, SmartListView):
         fields = ("name", "contacts", "manage", "created_on")
         title = _("Workspaces")
+        link_fields = []
 
         def build_content_menu(self, menu):
             org = self.get_object()
