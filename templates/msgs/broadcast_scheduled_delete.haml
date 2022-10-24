@@ -1,0 +1,13 @@
+-extends "smartmin/delete_confirm.haml"
+-load smartmin sms temba i18n humanize
+
+-block modal
+  -block delete-message
+    -blocktrans trimmed
+      You are about to delete this scheduled message. There is no way to undo this. Are you sure?
+    
+  -block delete-form
+    %form(method="post")
+      -csrf_token
+      .hidden
+        %input(type="submit" value="{{submit_button_name|escapejs}}")

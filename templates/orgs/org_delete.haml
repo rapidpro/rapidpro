@@ -1,11 +1,35 @@
 -extends "includes/modax.html"
 -load i18n
 
+-block modal-extra-style
+  {{block.super}}
+
+  :css
+    .confirmation {
+      --color-focus: var(--color-error);
+      --color-widget-text: var(--color-error);
+      --widget-box-shadow-focused: var(--widget-box-shadow-focused-error);
+    }
+  
+  
+-block modal-script
+  {{block.super}}
+
+  :javascript
+    function handleConfirmationChange(evt) {
+      var confirmation = evt.currentTarget.value;
+      var modax = getModax("#delete-workspace");
+      modax.disabled = confirmation != "{{object.name|escapejs}}";
+    }
+
 -block fields
   .mb-4
-    -blocktrans trimmed with org=object.name date=delete_on
-      This will schedule deletion of <b>{{ org }}</b> on <b>{{ date }}</b>.
+    -blocktrans trimmed with org=object.name
+      You are about to delete the workspace <b>{{ org }}</b>. There is no going back, so please make sure you have exported everything you want to keep before continuing!
 
-  -blocktrans trimmed
-    Are you sure you want to delete everything belonging to this workspace? This cannot be undone. Any logins which
-    belong only to this workspace will also be deleted.
+  .my-4
+    -blocktrans trimmed
+      To confirm you are ready to delete everything, type your workspace name below.
+
+  .confirmation(style="width:60%")
+    %temba-textinput(placeholder="{{org.name|escapejs}}" oninput="handleConfirmationChange(event)")

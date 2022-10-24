@@ -1,3 +1,21 @@
+v7.5.85
+----------
+ * Remove unschedule option from scheduled broadcast read page
+ * Only show workspace children on settings menu
+ * Allow adding Android channel when its number is used on a WhatsApp channel
+ * Remove credit alert functionality
+ * Add scheduled message delete modal
+
+v7.5.84
+----------
+ * No link fields on sub org page
+
+v7.5.83
+----------
+ * Update telegram library which doesn't work with Python 3.10
+ * Add user child workspace management
+ * Remove topup management views
+
 v7.5.82
 ----------
  * Add JustCall channel type
