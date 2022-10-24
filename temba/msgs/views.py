@@ -198,7 +198,7 @@ class BroadcastForm(forms.ModelForm):
 
 
 class BroadcastCRUDL(SmartCRUDL):
-    actions = ("scheduled", "scheduled_create", "scheduled_read", "scheduled_update", "send")
+    actions = ("scheduled", "scheduled_create", "scheduled_read", "scheduled_update", "scheduled_delete", "send")
     model = Broadcast
 
     class Scheduled(MsgListView):
@@ -223,6 +223,7 @@ class BroadcastCRUDL(SmartCRUDL):
             return (
                 super()
                 .get_queryset(**kwargs)
+                .filter(is_active=True)
                 .select_related("org", "schedule")
                 .prefetch_related("groups", "contacts", "urns")
             )
@@ -305,7 +306,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             return self.render_modal_response(form)
 
-    class ScheduledRead(SpaMixin, FormaxMixin, OrgObjPermsMixin, SmartReadView):
+    class ScheduledRead(SpaMixin, ContentMenuMixin, FormaxMixin, OrgObjPermsMixin, SmartReadView):
         def derive_title(self):
             return _("Scheduled Message")
 
@@ -313,6 +314,17 @@ class BroadcastCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["send_history"] = self.get_object().children.order_by("-created_on")
             return context
+
+        def build_content_menu(self, menu):
+            obj = self.get_object()
+
+            if self.has_org_perm("msgs.broadcast_scheduled_delete"):
+                menu.add_modax(
+                    _("Delete"),
+                    "delete-scheduled",
+                    reverse("msgs.broadcast_scheduled_delete", args=[obj.id]),
+                    title=_("Delete Scheduled Message"),
+                )
 
         def derive_formax_sections(self, formax, context):
             if self.has_org_perm("msgs.broadcast_scheduled_update"):
@@ -356,6 +368,34 @@ class BroadcastCRUDL(SmartCRUDL):
 
             broadcast.save()
             return broadcast
+
+    class ScheduledDelete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+
+        default_template = "broadcast_scheduled_delete.haml"
+        cancel_url = "id@msgs.broadcast_scheduled_read"
+        success_url = "@msgs.broadcast_scheduled"
+        fields = ("id",)
+        submit_button_name = _("Delete")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            return context
+
+        def post(self, request, *args, **kwargs):
+            broadcast = self.get_object()
+            broadcast.modified_by = self.get_user()
+            broadcast.is_active = False
+            broadcast.save(
+                update_fields=(
+                    "modified_by",
+                    "modified_on",
+                    "is_active",
+                )
+            )
+
+            response = HttpResponse()
+            response["Temba-Success"] = self.get_success_url()
+            return response
 
     class Send(OrgPermsMixin, ModalMixin, SmartFormView):
         class Form(Form):

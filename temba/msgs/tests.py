@@ -2319,6 +2319,31 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(broadcast.base_language, "base")
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
+    def test_scheduled_delete(self):
+        self.login(self.editor)
+        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), "D", repeat_days_of_week="MWF")
+        broadcast = self.create_broadcast(
+            self.admin,
+            "Daily reminder",
+            groups=[self.joe_and_frank],
+            schedule=schedule,
+        )
+
+        delete_url = reverse("msgs.broadcast_scheduled_delete", args=[broadcast.id])
+
+        # fetch the delete modal
+        response = self.assertDeleteFetch(delete_url, allow_editors=True, as_modal=True)
+        self.assertContains(response, "You are about to delete")
+
+        # submit the delete modal
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=broadcast, success_status=200)
+        self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
+
+        broadcast = Broadcast.objects.get(id=broadcast.id)
+        schedule = Schedule.objects.get(id=schedule.id)
+
+        self.assertFalse(broadcast.is_active)
+
     def test_missing_contacts(self):
         self.login(self.editor)
 
