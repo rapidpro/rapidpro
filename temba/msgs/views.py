@@ -335,7 +335,7 @@ class BroadcastCRUDL(SmartCRUDL):
             if self.has_org_perm("schedules.schedule_update"):
                 formax.add_section(
                     "schedule",
-                    reverse("schedules.schedule_update", args=[self.object.schedule.pk]),
+                    reverse("schedules.schedule_update", args=[self.object.schedule.id]),
                     icon="icon-calendar",
                     action="formax",
                 )
