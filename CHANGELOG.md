@@ -1,3 +1,11 @@
+v7.5.85
+----------
+ * Remove unschedule option from scheduled broadcast read page
+ * Only show workspace children on settings menu
+ * Allow adding Android channel when its number is used on a WhatsApp channel
+ * Remove credit alert functionality
+ * Add scheduled message delete modal
+
 v7.5.84
 ----------
  * No link fields on sub org page
