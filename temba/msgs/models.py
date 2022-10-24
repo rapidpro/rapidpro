@@ -1356,13 +1356,13 @@ class ExportMessagesTask(BaseItemWithContactExport):
 
         for msg_batch in MsgIterator(
             all_message_ids,
-            order_by=["created_on"],
-            prefetch_related=[
-                Prefetch("channel", queryset=Channel.objects.only("uuid", "name")),
+            order_by=("created_on",),
+            select_related=("channel", "contact_urn"),
+            prefetch_related=(
                 Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
                 Prefetch("flow", queryset=Flow.objects.only("uuid", "name")),
                 Prefetch("labels", queryset=Label.objects.only("uuid", "name").order_by("name")),
-            ],
+            ),
         ):
             # convert this batch of msgs to same format as records in our archives
             yield [msg.as_archive_json() for msg in msg_batch]
@@ -1377,8 +1377,6 @@ class ExportMessagesTask(BaseItemWithContactExport):
             .using("readonly")
         )
         contacts_by_uuid = {str(c.uuid): c for c in contacts}
-
-        Contact.bulk_urn_cache_initialize(contacts, using="readonly")
 
         for msg in msgs:
             contact = contacts_by_uuid.get(msg["contact"]["uuid"])

@@ -50,29 +50,31 @@ class BaseExportView(ModalMixin, OrgPermsMixin, SmartFormView):
                 Lower("name")
             )
 
+        def clean_with_fields(self):
+            data = self.cleaned_data["with_fields"]
+            if data and len(data) > self.MAX_FIELDS_COLS:
+                raise forms.ValidationError(_(f"You can only include up to {self.MAX_FIELDS_COLS} fields."))
+
+            return data
+
+        def clean_with_groups(self):
+            data = self.cleaned_data["with_groups"]
+            if data and len(data) > self.MAX_GROUPS_COLS:
+                raise forms.ValidationError(_(f"You can only include up to {self.MAX_GROUPS_COLS} groups."))
+
+            return data
+
         def clean(self):
             cleaned_data = super().clean()
 
             start_date = cleaned_data.get("start_date")
             end_date = cleaned_data.get("end_date")
-            with_fields = cleaned_data.get("with_fields")
-            with_groups = cleaned_data.get("with_groups")
 
             if start_date and start_date > timezone.now().astimezone(self.org.timezone).date():
                 raise forms.ValidationError(_("Start date can't be in the future."))
 
             if end_date and start_date and end_date < start_date:
                 raise forms.ValidationError(_("End date can't be before start date."))
-
-            if with_fields and len(with_fields) > self.MAX_FIELDS_COLS:
-                raise forms.ValidationError(
-                    _(f"You can only include up to {self.MAX_FIELDS_COLS} fields in your export.")
-                )
-
-            if with_groups and len(with_groups) > self.MAX_GROUPS_COLS:
-                raise forms.ValidationError(
-                    _(f"You can only include up to {self.MAX_GROUPS_COLS} groups in your export.")
-                )
 
             return cleaned_data
 

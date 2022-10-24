@@ -891,10 +891,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.clear_storage()
 
-    def test_export_with_too_many_fields(self):
+    def test_export_with_too_many_fields_and_groups(self):
         export_url = reverse("tickets.ticket_export")
         today = timezone.now().astimezone(self.org.timezone).date()
         too_many_fields = [self.create_field(f"Field {i}", f"field{i}") for i in range(11)]
+        too_many_groups = [self.create_group(f"Group {i}", contacts=[]) for i in range(11)]
 
         self.login(self.admin)
         response = self.client.post(
@@ -903,9 +904,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 "start_date": today - timedelta(days=7),
                 "end_date": today,
                 "with_fields": [cf.id for cf in too_many_fields],
+                "with_groups": [cg.id for cg in too_many_groups],
             },
         )
-        self.assertFormError(response, "form", "__all__", "You can only include up to 10 fields in your export.")
+        self.assertFormError(response, "form", "with_fields", "You can only include up to 10 fields.")
+        self.assertFormError(response, "form", "with_groups", "You can only include up to 10 groups.")
 
     def _request_export(self, start_date: date, end_date: date, with_fields=(), with_groups=()):
         export_url = reverse("tickets.ticket_export")
