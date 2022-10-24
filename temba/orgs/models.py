@@ -1898,7 +1898,7 @@ class Org(SmartModel):
 
         # release our broadcasts
         for bcast in self.broadcast_set.filter(parent=None):
-            bcast.release()
+            bcast.delete(user, soft=False)
 
         # delete other related objects
         self.api_tokens.all().delete()
