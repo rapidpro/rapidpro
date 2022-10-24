@@ -1,5 +1,5 @@
 from datetime import date, datetime, timedelta
-from unittest.mock import PropertyMock, patch
+from unittest.mock import patch
 
 import pytz
 from openpyxl import load_workbook
@@ -738,91 +738,6 @@ class MsgTest(TembaTest):
         )
 
         with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = request_export(
-                "?l=I",
-                {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28", "groups": [self.just_joe.id]},
-            )
-
-        self.assertExcelSheet(
-            workbook.worksheets[0],
-            [
-                expected_headers,
-                [
-                    msg1.created_on,
-                    msg1.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "Color Flow",
-                    "IN",
-                    "hello 1",
-                    "",
-                    "handled",
-                    "Test Channel",
-                    "label1",
-                ],
-                [msg4.created_on, msg1.contact.uuid, "Joe Blow", "", "", "", "IN", "hello 4", "", "handled", "", ""],
-                [
-                    msg5.created_on,
-                    msg5.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    "IN",
-                    "Media message",
-                    "http://rapidpro.io/audio/sound.mp3",
-                    "handled",
-                    "Test Channel",
-                    "",
-                ],
-                [
-                    msg6.created_on,
-                    msg6.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    "OUT",
-                    "Hey out 6",
-                    "",
-                    "sent",
-                    "Test Channel",
-                    "",
-                ],
-                [
-                    msg8.created_on,
-                    msg8.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    "OUT",
-                    "Hey out 8",
-                    "",
-                    "errored",
-                    "Test Channel",
-                    "",
-                ],
-                [
-                    msg9.created_on,
-                    msg9.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    "OUT",
-                    "Hey out 9",
-                    "",
-                    "failed",
-                    "Test Channel",
-                    "",
-                ],
-            ],
-            self.org.timezone,
-        )
-
-        with patch("temba.utils.s3.client", return_value=mock_s3):
             workbook = request_export("?l=S", {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-01"})
 
         self.assertExcelSheet(
@@ -1039,140 +954,126 @@ class MsgTest(TembaTest):
         ]
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertLogs("temba.msgs.models", level="INFO") as captured_logger:
-            with patch(
-                "temba.msgs.models.ExportMessagesTask.LOG_PROGRESS_PER_ROWS", new_callable=PropertyMock
-            ) as log_info_threshold:
-                # make sure that we trigger logger
-                log_info_threshold.return_value = 5
-
-                with self.assertNumQueries(30):
-                    self.assertExcelSheet(
-                        request_export(
-                            "?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}
-                        ),
-                        [
-                            expected_headers,
-                            [
-                                msg1.created_on,
-                                msg1.contact.uuid,
-                                "Joe Blow",
-                                "tel",
-                                "123",
-                                "Color Flow",
-                                "IN",
-                                "hello 1",
-                                "",
-                                "handled",
-                                "Test Channel",
-                                "label1",
-                            ],
-                            [
-                                msg2.created_on,
-                                msg2.contact.uuid,
-                                "Joe Blow",
-                                "tel",
-                                "123",
-                                "",
-                                "IN",
-                                "hello 2",
-                                "",
-                                "handled",
-                                "Test Channel",
-                                "",
-                            ],
-                            [
-                                msg4.created_on,
-                                msg4.contact.uuid,
-                                "Joe Blow",
-                                "",
-                                "",
-                                "",
-                                "IN",
-                                "hello 4",
-                                "",
-                                "handled",
-                                "",
-                                "",
-                            ],
-                            [
-                                msg5.created_on,
-                                msg5.contact.uuid,
-                                "Joe Blow",
-                                "tel",
-                                "123",
-                                "",
-                                "IN",
-                                "Media message",
-                                "http://rapidpro.io/audio/sound.mp3",
-                                "handled",
-                                "Test Channel",
-                                "",
-                            ],
-                            [
-                                msg6.created_on,
-                                msg6.contact.uuid,
-                                "Joe Blow",
-                                "tel",
-                                "123",
-                                "",
-                                "OUT",
-                                "Hey out 6",
-                                "",
-                                "sent",
-                                "Test Channel",
-                                "",
-                            ],
-                            [
-                                msg7.created_on,
-                                msg7.contact.uuid,
-                                "Joe Blow",
-                                "tel",
-                                "123",
-                                "",
-                                "OUT",
-                                "Hey out 7",
-                                "",
-                                "delivered",
-                                "Test Channel",
-                                "",
-                            ],
-                            [
-                                msg8.created_on,
-                                msg8.contact.uuid,
-                                "Joe Blow",
-                                "tel",
-                                "123",
-                                "",
-                                "OUT",
-                                "Hey out 8",
-                                "",
-                                "errored",
-                                "Test Channel",
-                                "",
-                            ],
-                            [
-                                msg9.created_on,
-                                msg9.contact.uuid,
-                                "Joe Blow",
-                                "tel",
-                                "123",
-                                "",
-                                "OUT",
-                                "Hey out 9",
-                                "",
-                                "failed",
-                                "Test Channel",
-                                "",
-                            ],
-                        ],
-                        self.org.timezone,
-                    )
-
-                self.assertEqual(len(captured_logger.output), 3)
-                self.assertTrue("fetching msgs from archives to export" in captured_logger.output[0])
-                self.assertTrue("found 8 msgs in database to export" in captured_logger.output[1])
-                self.assertTrue("exported 8 in" in captured_logger.output[2])
+        with self.assertNumQueries(28):
+            self.assertExcelSheet(
+                request_export("?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}),
+                [
+                    expected_headers,
+                    [
+                        msg1.created_on,
+                        msg1.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        "123",
+                        "Color Flow",
+                        "IN",
+                        "hello 1",
+                        "",
+                        "handled",
+                        "Test Channel",
+                        "label1",
+                    ],
+                    [
+                        msg2.created_on,
+                        msg2.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        "123",
+                        "",
+                        "IN",
+                        "hello 2",
+                        "",
+                        "handled",
+                        "Test Channel",
+                        "",
+                    ],
+                    [
+                        msg4.created_on,
+                        msg4.contact.uuid,
+                        "Joe Blow",
+                        "",
+                        "",
+                        "",
+                        "IN",
+                        "hello 4",
+                        "",
+                        "handled",
+                        "",
+                        "",
+                    ],
+                    [
+                        msg5.created_on,
+                        msg5.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        "123",
+                        "",
+                        "IN",
+                        "Media message",
+                        "http://rapidpro.io/audio/sound.mp3",
+                        "handled",
+                        "Test Channel",
+                        "",
+                    ],
+                    [
+                        msg6.created_on,
+                        msg6.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        "123",
+                        "",
+                        "OUT",
+                        "Hey out 6",
+                        "",
+                        "sent",
+                        "Test Channel",
+                        "",
+                    ],
+                    [
+                        msg7.created_on,
+                        msg7.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        "123",
+                        "",
+                        "OUT",
+                        "Hey out 7",
+                        "",
+                        "delivered",
+                        "Test Channel",
+                        "",
+                    ],
+                    [
+                        msg8.created_on,
+                        msg8.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        "123",
+                        "",
+                        "OUT",
+                        "Hey out 8",
+                        "",
+                        "errored",
+                        "Test Channel",
+                        "",
+                    ],
+                    [
+                        msg9.created_on,
+                        msg9.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        "123",
+                        "",
+                        "OUT",
+                        "Hey out 9",
+                        "",
+                        "failed",
+                        "Test Channel",
+                        "",
+                    ],
+                ],
+                self.org.timezone,
+            )
 
         # check that notifications were created
         export = ExportMessagesTask.objects.order_by("id").last()

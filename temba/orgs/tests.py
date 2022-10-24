@@ -929,12 +929,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         ExportContactsTask.create(self.child_org, self.admin, group=child_group)
 
         export = ExportMessagesTask.create(
-            self.parent_org,
-            self.admin,
-            start_date=date.today(),
-            end_date=date.today(),
-            label=parent_label,
-            groups=[parent_group],
+            self.parent_org, self.admin, start_date=date.today(), end_date=date.today(), label=parent_label
         )
         Notification.export_finished(export)
         ExportMessagesTask.create(
@@ -943,7 +938,6 @@ class OrgDeleteTest(TembaNonAtomicTest):
             start_date=date.today(),
             end_date=date.today(),
             label=child_label,
-            groups=[child_group],
         )
 
         def create_archive(org, period, rollup=None):
