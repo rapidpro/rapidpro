@@ -371,7 +371,6 @@ class BroadcastCRUDL(SmartCRUDL):
 
     class ScheduledDelete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
 
-        # we create a frontend "delete" ux, but we actually just do a backend update
         default_template = "broadcast_scheduled_delete.haml"
         cancel_url = "id@msgs.broadcast_scheduled_read"
         success_url = "@msgs.broadcast_scheduled"
@@ -384,9 +383,15 @@ class BroadcastCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             broadcast = self.get_object()
-            # we don't actually delete, we just deactivate and save
+            broadcast.modified_by = self.get_user()
             broadcast.is_active = False
-            broadcast.save(update_fields=("is_active",))
+            broadcast.save(
+                update_fields=(
+                    "modified_by",
+                    "modified_on",
+                    "is_active",
+                )
+            )
 
             response = HttpResponse()
             response["Temba-Success"] = self.get_success_url()
