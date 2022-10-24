@@ -21,7 +21,8 @@
       :javascript
         window.STATIC_URL = "{{STATIC_URL}}";
         function loadNewInterface(force) {
-          var newUrl = mapUrl(window.location.pathname);
+          var location = window.location;
+          var newUrl = mapUrl(location.pathname + (location.search || ""));
           if (newUrl != window.location.pathname) {
             window.location = newUrl;
           } else { 
