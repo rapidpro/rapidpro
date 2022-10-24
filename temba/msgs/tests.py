@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, ContactURN
+from temba.contacts.models import URN, Contact, ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.msgs.models import (
     Attachment,
@@ -591,7 +591,7 @@ class MsgTest(TembaTest):
             return load_workbook(filename=filename)
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(30):
+        with self.assertNumQueries(39):
             with patch("temba.utils.s3.client", return_value=mock_s3):
                 workbook = request_export(
                     "?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-01"}
@@ -930,7 +930,7 @@ class MsgTest(TembaTest):
         self.assertNotEqual(old_modified_on, blocking_export.modified_on)
 
         def request_export(query, data=None):
-            with self.mockReadOnly(assert_models={Msg}):
+            with self.mockReadOnly(assert_models={Msg, Contact, ContactURN}):
                 response = self.client.post(export_url + query, data)
             self.assertModalResponse(response, redirect="/msg/inbox/")
             task = ExportMessagesTask.objects.order_by("-id").first()
@@ -954,7 +954,7 @@ class MsgTest(TembaTest):
         ]
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(31):
             self.assertExcelSheet(
                 request_export("?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}),
                 [

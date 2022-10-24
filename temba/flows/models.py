@@ -1,5 +1,4 @@
 import logging
-import time
 from array import array
 from collections import defaultdict
 from datetime import datetime
@@ -16,7 +15,7 @@ from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Max, Q, Sum
+from django.db.models import Max, Prefetch, Q, Sum
 from django.db.models.functions import Lower, TruncDate
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -1676,11 +1675,8 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
     analytics_key = "flowresult_export"
     notification_export_type = "results"
 
-    GROUP_MEMBERSHIPS = "group_memberships"
     RESPONDED_ONLY = "responded_only"
     EXTRA_URNS = "extra_urns"
-
-    MAX_GROUP_MEMBERSHIPS_COLS = 25
 
     flows = models.ManyToManyField(Flow, related_name="exports", help_text=_("The flows to export"))
 
@@ -1770,10 +1766,6 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
         book.current_runs_sheet = self._add_runs_sheet(book, runs_columns)
         book.current_msgs_sheet = None
 
-        # for tracking performance
-        total_runs_exported = 0
-        temp_runs_exported = 0
-        start = time.time()
         start_date, end_date = self._get_date_range()
 
         for batch in self._get_run_batches(start_date, end_date, flows, responded_only):
@@ -1786,18 +1778,8 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
                 result_fields,
             )
 
-            total_runs_exported += len(batch)
-
-            if (total_runs_exported - temp_runs_exported) > ExportFlowResultsTask.LOG_PROGRESS_PER_ROWS:
-                mins = (time.time() - start) / 60
-                logger.info(
-                    f"Results export #{self.id} for org #{self.org.id}: exported {total_runs_exported} in {mins:.1f} mins"
-                )
-
-                temp_runs_exported = total_runs_exported
-
-                self.modified_on = timezone.now()
-                self.save(update_fields=["modified_on"])
+            self.modified_on = timezone.now()
+            self.save(update_fields=("modified_on",))
 
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)
@@ -1849,8 +1831,11 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (
                 FlowRun.objects.filter(id__in=id_batch)
-                .select_related("contact", "flow")
                 .order_by("modified_on", "id")
+                .prefetch_related(
+                    Prefetch("contact", Contact.objects.only("uuid", "name")),
+                    Prefetch("flow", Flow.objects.only("uuid", "name")),
+                )
                 .using("readonly")
             )
 
@@ -1872,9 +1857,14 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
         # get all the contacts referenced in this batch
         contact_uuids = {r["contact"]["uuid"] for r in runs}
         contacts = (
-            Contact.objects.filter(org=self.org, uuid__in=contact_uuids).prefetch_related("groups").using("readonly")
+            Contact.objects.filter(org=self.org, uuid__in=contact_uuids)
+            .select_related("org")
+            .prefetch_related("groups")
+            .using("readonly")
         )
         contacts_by_uuid = {str(c.uuid): c for c in contacts}
+
+        Contact.bulk_urn_cache_initialize(contacts, using="readonly")
 
         for run in runs:
             contact = contacts_by_uuid.get(run["contact"]["uuid"])

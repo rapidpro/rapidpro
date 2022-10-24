@@ -74,9 +74,9 @@ class AssetTest(TembaTest):
             end_date=date.today(),
             flows=[flow],
             with_fields=(),
+            with_groups=(),
             responded_only=False,
             extra_urns=(),
-            group_memberships=(),
         )
         results_export_task.flows.add(flow)
         results_export_task.perform()
