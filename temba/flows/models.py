@@ -23,7 +23,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel, ChannelConnection
+from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts import search
 from temba.contacts.models import Contact, ContactField, ContactGroup
@@ -1111,11 +1111,6 @@ class FlowSession(models.Model):
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
 
-    # TODO: drop
-    connection = models.OneToOneField(
-        "channels.ChannelConnection", on_delete=models.PROTECT, null=True, related_name="session"
-    )
-
     @property
     def output_json(self):
         """
@@ -2034,9 +2029,6 @@ class FlowStart(models.Model):
 
     # the number of de-duped contacts that might be started, depending on options above
     contact_count = models.IntegerField(default=0, null=True)
-
-    # TODO: drop
-    connections = models.ManyToManyField(ChannelConnection, related_name="starts")
 
     @classmethod
     def create(
