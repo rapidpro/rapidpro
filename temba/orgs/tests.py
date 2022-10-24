@@ -64,19 +64,7 @@ from temba.triggers.models import Trigger
 from temba.utils import json, languages
 
 from .context_processors import RolePermsWrapper
-from .models import (
-    BackupToken,
-    CreditAlert,
-    Debit,
-    Invitation,
-    Org,
-    OrgActivity,
-    OrgMembership,
-    OrgRole,
-    TopUp,
-    TopUpCredits,
-    User,
-)
+from .models import BackupToken, Debit, Invitation, Org, OrgActivity, OrgMembership, OrgRole, TopUp, TopUpCredits, User
 from .tasks import delete_orgs_task, resume_failed_tasks, squash_topupcredits
 
 
@@ -102,7 +90,7 @@ class OrgContextProcessorTest(TembaTest):
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertTrue(perms["orgs"]["org_country"])
         self.assertTrue(perms["orgs"]["org_manage_accounts"])
-        self.assertFalse(perms["orgs"]["org_delete"])
+        self.assertTrue(perms["orgs"]["org_delete"])
 
         perms = RolePermsWrapper(OrgRole.EDITOR)
 
@@ -941,12 +929,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         ExportContactsTask.create(self.child_org, self.admin, group=child_group)
 
         export = ExportMessagesTask.create(
-            self.parent_org,
-            self.admin,
-            start_date=date.today(),
-            end_date=date.today(),
-            label=parent_label,
-            groups=[parent_group],
+            self.parent_org, self.admin, start_date=date.today(), end_date=date.today(), label=parent_label
         )
         Notification.export_finished(export)
         ExportMessagesTask.create(
@@ -955,7 +938,6 @@ class OrgDeleteTest(TembaNonAtomicTest):
             start_date=date.today(),
             end_date=date.today(),
             label=child_label,
-            groups=[child_group],
         )
 
         def create_archive(org, period, rollup=None):
@@ -3512,6 +3494,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             timezone=pytz.timezone("Africa/Kigali"),
             country=self.org.country,
             brand=settings.DEFAULT_BRAND,
+            plan=settings.WORKSPACE_PLAN,
             created_by=self.user,
             modified_by=self.user,
             parent=self.org,
@@ -4087,16 +4070,50 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
         self.assertContains(response, created_on.strftime("%H:%M").lower())
 
+    def test_delete(self):
+
+        workspace = Org.create_sub_org(self.org, "Child Workspace")
+        delete_workspace = reverse("orgs.org_delete", args=[workspace.id])
+
+        # choose the parent org, try to delete the workspace
+        self.assertDeleteFetch(delete_workspace, choose_org=self.org)
+
+        # schedule for deletion
+        response = self.client.get(delete_workspace)
+        self.assertContains(response, "You are about to delete the workspace <b>Child Workspace</b>")
+
+        # go through with it, redirects to main workspace page
+        response = self.client.post(delete_workspace)
+        self.assertEqual(reverse("orgs.org_workspace"), response["Temba-Success"])
+
+        workspace.refresh_from_db()
+        self.assertFalse(workspace.is_active)
+
+        # can't delete primary workspace
+        primary_delete = reverse("orgs.org_delete", args=[self.org.id])
+        response = self.client.get(primary_delete)
+        self.assertRedirect(response, "/users/login/")
+
+        response = self.client.post(primary_delete)
+        self.assertRedirect(response, "/users/login/")
+
+        self.login(self.customer_support)
+        primary_delete = reverse("orgs.org_delete", args=[self.org.id])
+        response = self.client.get(primary_delete)
+        self.assertContains(response, "You are about to delete the workspace <b>Nyaruka</b>")
+
+        response = self.client.post(primary_delete)
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_active)
+
     def test_administration(self):
         self.setUpLocations()
 
         manage_url = reverse("orgs.org_manage")
         update_url = reverse("orgs.org_update", args=[self.org.id])
-        delete_url = reverse("orgs.org_delete", args=[self.org.id])
 
         self.assertStaffOnly(manage_url)
         self.assertStaffOnly(update_url)
-        self.assertStaffOnly(delete_url)
 
         response = self.client.get(manage_url + "?filter=flagged")
         self.assertNotIn(self.org, response.context["object_list"])
@@ -4206,19 +4223,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.client.post(update_url, {"action": "flag"})
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_flagged)
-
-        # schedule for deletion
-        response = self.client.get(delete_url, {"id": self.org.id})
-        self.assertContains(response, "This will schedule deletion of <b>Temba</b>")
-
-        response = self.client.post(delete_url, {"id": self.org.id})
-        self.assertEqual(update_url, response["Temba-Success"])
-
-        self.org.refresh_from_db()
-        self.assertFalse(self.org.is_active)
-
-        response = self.client.get(update_url)
-        self.assertContains(response, "This workspace has been scheduled for deletion")
 
     def test_urn_schemes(self):
         # remove existing channels
@@ -5128,209 +5132,6 @@ class BulkExportTest(TembaTest):
         # even with the archived flag one deleted flows should not show up
         response = self.client.get("%s?archived=1" % reverse("orgs.org_export"))
         self.assertNotContains(response, "Register Patient")
-
-
-class CreditAlertTest(TembaTest):
-    @override_settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True)
-    def test_check_topup_expiration(self):
-        from .tasks import check_topup_expiration_task
-
-        # get the topup, it expires in a year by default
-        topup = self.org.topups.order_by("-expires_on").first()
-
-        # there are no credit alerts
-        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=CreditAlert.TYPE_EXPIRING))
-
-        # check if credit alerts should be created
-        check_topup_expiration_task()
-
-        # no alert since no expiring credits
-        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=CreditAlert.TYPE_EXPIRING))
-
-        # update topup to expire in 10 days
-        topup.expires_on = timezone.now() + timedelta(days=10)
-        topup.save(update_fields=("expires_on",))
-
-        # create another expiring topup, newer than the most recent one
-        TopUp.create(self.org, self.admin, 1000, 9876, expires_on=timezone.now() + timedelta(days=25))
-
-        # set the org to not use topups
-        Org.objects.filter(id=self.org.id).update(uses_topups=False)
-
-        # recheck the expiration
-        check_topup_expiration_task()
-
-        # no alert since we don't use topups
-        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=CreditAlert.TYPE_EXPIRING))
-
-        # switch batch and recalculate again
-        Org.objects.filter(id=self.org.id).update(uses_topups=True)
-        check_topup_expiration_task()
-
-        # expiring credit alert created and email sent
-        self.assertEqual(
-            CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_EXPIRING).count(), 1
-        )
-
-        self.assertEqual(len(mail.outbox), 1)
-
-        # email sent
-        sent_email = mail.outbox[0]
-        self.assertEqual(1, len(sent_email.to))
-        self.assertIn("RapidPro workspace for Nyaruka", sent_email.body)
-        self.assertIn("expiring credits in less than one month.", sent_email.body)
-
-        # check topup expiration, it should no create a new one, because last one is still active
-        check_topup_expiration_task()
-
-        # no new alrets, and no new emails have been sent
-        self.assertEqual(
-            CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_EXPIRING).count(), 1
-        )
-        self.assertEqual(len(mail.outbox), 1)
-
-        # reset alerts, this is normal procedure after someone adds a new topup
-        CreditAlert.reset_for_org(self.org)
-        self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
-
-        # check topup expiration, it should create a new topup alert email
-        check_topup_expiration_task()
-
-        self.assertEqual(
-            CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_EXPIRING).count(), 1
-        )
-        self.assertEqual(len(mail.outbox), 2)
-
-    def test_creditalert_sendemail_all_org_admins(self):
-        # add some administrators to the org
-        self.org.add_user(self.user, OrgRole.ADMINISTRATOR)
-        self.org.add_user(self.surveyor, OrgRole.ADMINISTRATOR)
-
-        # create a CreditAlert
-        creditalert = CreditAlert.objects.create(
-            org=self.org, alert_type=CreditAlert.TYPE_EXPIRING, created_by=self.admin, modified_by=self.admin
-        )
-        with self.settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True):
-            creditalert.send_email()
-
-            self.assertEqual(len(mail.outbox), 1)
-
-            sent_email = mail.outbox[0]
-            self.assertIn("RapidPro workspace for Nyaruka", sent_email.body)
-
-            # this email has been sent to multiple recipients
-            self.assertListEqual(
-                sent_email.recipients(), ["admin@nyaruka.com", "surveyor@nyaruka.com", "viewer@nyaruka.com"]
-            )
-
-    def test_creditalert_sendemail_no_org_admins(self):
-        # remove administrators from org
-        self.org.users.clear()
-
-        # create a CreditAlert
-        creditalert = CreditAlert.objects.create(
-            org=self.org, alert_type=CreditAlert.TYPE_EXPIRING, created_by=self.admin, modified_by=self.admin
-        )
-        with self.settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True):
-            creditalert.send_email()
-
-            # no emails have been sent
-            self.assertEqual(len(mail.outbox), 0)
-
-    def test_check_org_credits(self):
-        self.joe = self.create_contact("Joe Blow", phone="123")
-        self.create_outgoing_msg(self.joe, "Hello")
-        with self.settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True):
-            with patch("temba.orgs.models.Org.get_credits_remaining") as mock_get_credits_remaining:
-                mock_get_credits_remaining.return_value = -1
-
-                # no alert yet
-                self.assertFalse(CreditAlert.objects.all())
-
-                CreditAlert.check_org_credits()
-
-                # one alert created and sent
-                self.assertEqual(
-                    1,
-                    CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_OVER).count(),
-                )
-                self.assertEqual(1, len(mail.outbox))
-
-                # alert email is for out of credits type
-                sent_email = mail.outbox[0]
-                self.assertEqual(len(sent_email.to), 1)
-                self.assertIn("RapidPro workspace for Nyaruka", sent_email.body)
-                self.assertIn("is out of credit.", sent_email.body)
-
-                # no new alert if one is sent and no new email
-                CreditAlert.check_org_credits()
-                self.assertEqual(
-                    1,
-                    CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_OVER).count(),
-                )
-                self.assertEqual(1, len(mail.outbox))
-
-                # reset alerts
-                CreditAlert.reset_for_org(self.org)
-                self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
-
-                # can resend a new alert
-                CreditAlert.check_org_credits()
-                self.assertEqual(
-                    1,
-                    CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_OVER).count(),
-                )
-                self.assertEqual(2, len(mail.outbox))
-
-                mock_get_credits_remaining.return_value = 10
-
-                with patch("temba.orgs.models.Org.has_low_credits") as mock_has_low_credits:
-                    mock_has_low_credits.return_value = True
-
-                    self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=CreditAlert.TYPE_LOW))
-
-                    CreditAlert.check_org_credits()
-
-                    # low credit alert created and email sent
-                    self.assertEqual(
-                        1,
-                        CreditAlert.objects.filter(
-                            is_active=True, org=self.org, alert_type=CreditAlert.TYPE_LOW
-                        ).count(),
-                    )
-                    self.assertEqual(3, len(mail.outbox))
-
-                    # email sent
-                    sent_email = mail.outbox[2]
-                    self.assertEqual(len(sent_email.to), 1)
-                    self.assertIn("RapidPro workspace for Nyaruka", sent_email.body)
-                    self.assertIn("is running low on credits", sent_email.body)
-
-                    # no new alert if one is sent and no new email
-                    CreditAlert.check_org_credits()
-                    self.assertEqual(
-                        1,
-                        CreditAlert.objects.filter(
-                            is_active=True, org=self.org, alert_type=CreditAlert.TYPE_LOW
-                        ).count(),
-                    )
-                    self.assertEqual(3, len(mail.outbox))
-
-                    # reset alerts
-                    CreditAlert.reset_for_org(self.org)
-                    self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
-
-                    # can resend a new alert
-                    CreditAlert.check_org_credits()
-                    self.assertEqual(
-                        1,
-                        CreditAlert.objects.filter(
-                            is_active=True, org=self.org, alert_type=CreditAlert.TYPE_LOW
-                        ).count(),
-                    )
-                    self.assertEqual(4, len(mail.outbox))
-
-                    mock_has_low_credits.return_value = False
 
 
 class StripeCreditsTest(TembaTest):

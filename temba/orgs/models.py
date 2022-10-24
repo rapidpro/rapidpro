@@ -1457,9 +1457,6 @@ class Org(SmartModel):
                 msg_ids = [item.id for item in items if isinstance(item, Msg)]
                 Msg.objects.filter(id__in=msg_ids).update(topup=topup)
 
-        # deactive all our credit alerts
-        CreditAlert.reset_for_org(self)
-
         # any time we've reapplied topups, lets invalidate our credit cache too
         self.clear_credit_cache()
 
@@ -2277,7 +2274,7 @@ class TopUpCredits(SquashableModel):
 
 class CreditAlert(SmartModel):
     """
-    Tracks when we have sent alerts to organization admins about low credits.
+    TODO remove
     """
 
     TYPE_OVER = "O"
@@ -2288,94 +2285,6 @@ class CreditAlert(SmartModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="credit_alerts")
 
     alert_type = models.CharField(max_length=1, choices=TYPES)
-
-    @classmethod
-    def trigger_credit_alert(cls, org, alert_type):
-        # don't create a new alert if there is already an alert of this type for the org
-        if org.credit_alerts.filter(is_active=True, alert_type=alert_type).exists():
-            return
-
-        logging.info(f"triggering {alert_type} credits alert type for {org.name}")
-
-        admin = org.get_admins().first()
-
-        if admin:
-            # Otherwise, create our alert objects and trigger our event
-            alert = CreditAlert.objects.create(org=org, alert_type=alert_type, created_by=admin, modified_by=admin)
-
-            alert.send_alert()
-
-    def send_alert(self):
-        from .tasks import send_alert_email_task
-
-        send_alert_email_task(self.id)
-
-    def send_email(self):
-        admin_emails = [admin.email for admin in self.org.get_admins().order_by("email")]
-
-        if len(admin_emails) == 0:
-            return
-
-        branding = self.org.get_branding()
-        subject = _("%(name)s Credits Alert") % branding
-        template = "orgs/email/alert_email"
-        to_email = admin_emails
-
-        context = dict(org=self.org, now=timezone.now(), branding=branding, alert=self, customer=self.created_by)
-        context["subject"] = subject
-
-        send_template_email(to_email, subject, template, context, branding)
-
-    @classmethod
-    def reset_for_org(cls, org):
-        org.credit_alerts.filter(is_active=True).update(is_active=False)
-
-    @classmethod
-    def check_org_credits(cls):
-        from temba.msgs.models import Msg
-
-        # all active orgs in the last hour
-        active_orgs = Msg.objects.filter(created_on__gte=timezone.now() - timedelta(hours=1), org__uses_topups=True)
-        active_orgs = active_orgs.order_by("org").distinct("org")
-
-        for msg in active_orgs:
-            org = msg.org
-
-            # does this org have less than 0 messages?
-            org_remaining_credits = org.get_credits_remaining()
-            org_low_credits = org.has_low_credits()
-
-            if org_remaining_credits <= 0:
-                CreditAlert.trigger_credit_alert(org, CreditAlert.TYPE_OVER)
-            elif org_low_credits:  # pragma: needs cover
-                CreditAlert.trigger_credit_alert(org, CreditAlert.TYPE_LOW)
-
-    @classmethod
-    def check_topup_expiration(cls):
-        """
-        Triggers an expiring credit alert for any org that has its last
-        active topup expiring in the next 30 days and still has available credits
-        """
-
-        # get the ids of the last to expire topup, with credits, for each org
-        final_topups = (
-            TopUp.objects.filter(is_active=True, org__is_active=True, org__uses_topups=True, credits__gt=0)
-            .order_by("org_id", "-expires_on")
-            .distinct("org_id")
-            .values_list("id", flat=True)
-        )
-
-        # figure out which of those have credits remaining, and will expire in next 30 days
-        expiring_final_topups = (
-            TopUp.objects.filter(id__in=final_topups)
-            .annotate(used_credits=Sum("topupcredits__used"))
-            .filter(expires_on__gt=timezone.now(), expires_on__lte=(timezone.now() + timedelta(days=30)))
-            .filter(Q(used_credits__lt=F("credits")) | Q(used_credits=None))
-            .select_related("org")
-        )
-
-        for topup in expiring_final_topups:
-            CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)
 
 
 class BackupToken(models.Model):

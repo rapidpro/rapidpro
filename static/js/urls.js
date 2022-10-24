@@ -28,7 +28,7 @@ window.urls = [
   { old: /\/httplog\/classifier\/(.*)\//,                new: /\/settings\/classifiers\/(.*)\/history\// },
   { old: /\/httplog\/read\/(.*)\//,                      new: /\/settings\/httplog\/(.*)\// },
   { old: /\/classifier\/read\/(.*)\//,                   new: /\/settings\/classifiers\/(.*)\// },
-  { old: /\/org\/manage_accounts\/(.*)/,                 new: /\/settings\/logins/ },
+  { old: /\/org\/manage_accounts\/(.*)/,                 new: /\/settings\/users/ },
   { old: /\/user\/account\//,                            new: /\/settings\/account/ },
   { old: /\/user\/two_factor_disable\//,                 new: /\/settings\/authentication\/2fa-disable/ },
   { old: /\/org\/export\//,                              new: /\/settings\/workspace\/export\// },
@@ -36,6 +36,9 @@ window.urls = [
   { old: /\/org\/read\/(.*)/,                            new: /\/staff\/workspace\/(.*)/ },
   { old: /\/user\/update\/(.*)/,                         new: /\/staff\/user\/(.*)/ },
   { old: /\/org\/update\/(.*)/,                          new: /\/staff\/workspaces\/(.*)\/update/ },
+  { old: /\/org\/home\//,                                new: /\/settings\/workspace\// },
+  { old: /\/org\/manage_accounts_sub_org\/\?org=(.*)/,   new: /\/settings\/(.*)\// },
+
 ];
 
 window.mapUrl = function (path, reverse) {
