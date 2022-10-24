@@ -1,3 +1,8 @@
+v7.5.86
+----------
+ * Remove no-loner used credit alert email templates
+ * Drop ChannelConnection
+
 v7.5.85
 ----------
  * Remove unschedule option from scheduled broadcast read page
