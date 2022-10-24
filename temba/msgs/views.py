@@ -370,28 +370,14 @@ class BroadcastCRUDL(SmartCRUDL):
             return broadcast
 
     class ScheduledDelete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-
         default_template = "broadcast_scheduled_delete.haml"
         cancel_url = "id@msgs.broadcast_scheduled_read"
         success_url = "@msgs.broadcast_scheduled"
         fields = ("id",)
         submit_button_name = _("Delete")
 
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            return context
-
         def post(self, request, *args, **kwargs):
-            broadcast = self.get_object()
-            broadcast.modified_by = self.get_user()
-            broadcast.is_active = False
-            broadcast.save(
-                update_fields=(
-                    "modified_by",
-                    "modified_on",
-                    "is_active",
-                )
-            )
+            self.get_object().delete(self.request.user, soft=True)
 
             response = HttpResponse()
             response["Temba-Success"] = self.get_success_url()

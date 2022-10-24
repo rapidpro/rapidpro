@@ -333,19 +333,27 @@ class Broadcast(models.Model):
 
         return self.text[self.base_language]  # should always be a base language translation
 
-    def release(self):
-        for child in self.children.all():
-            child.release()
+    def delete(self, user, *, soft: bool):
+        if soft:
+            assert self.schedule, "can only soft delete scheduled broadcasts"
 
-        for msg in self.msgs.all():
-            msg.delete()
+            self.modified_by = user
+            self.modified_on = timezone.now()
+            self.is_active = False
+            self.save(update_fields=("modified_by", "modified_on", "is_active"))
+        else:
+            for child in self.children.all():
+                child.delete(user, soft=False)
 
-        BroadcastMsgCount.objects.filter(broadcast=self).delete()
+            for msg in self.msgs.all():
+                msg.delete()
 
-        self.delete()
+            BroadcastMsgCount.objects.filter(broadcast=self).delete()
 
-        if self.schedule:
-            self.schedule.delete()
+            super().delete()
+
+            if self.schedule:
+                self.schedule.delete()
 
     def update_recipients(self, *, groups=None, contacts=None, urns: list[str] = None):
         """

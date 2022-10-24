@@ -1960,11 +1960,21 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual(2, broadcast2.msgs.count())
 
-        broadcast1.release()
-        broadcast2.release()
+        self.assertEqual(2, Broadcast.objects.count())
+        self.assertEqual(2, Msg.objects.count())
+        self.assertEqual(1, Schedule.objects.count())
 
-        self.assertEqual(0, Msg.objects.count())
+        broadcast1.delete(self.admin, soft=True)
+
+        self.assertEqual(2, Broadcast.objects.count())
+        self.assertEqual(2, Msg.objects.count())
+        self.assertEqual(1, Schedule.objects.count())
+
+        broadcast1.delete(self.admin, soft=False)
+        broadcast2.delete(self.admin, soft=False)
+
         self.assertEqual(0, Broadcast.objects.count())
+        self.assertEqual(0, Msg.objects.count())
         self.assertEqual(0, Schedule.objects.count())
 
         with self.assertRaises(AssertionError):
