@@ -6,8 +6,6 @@ from unittest.mock import patch
 from urllib.parse import urlencode
 
 import pytz
-import stripe
-import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
 from smartmin.users.models import FailedLogin, RecoveryToken
@@ -15,7 +13,6 @@ from smartmin.users.models import FailedLogin, RecoveryToken
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
-from django.core.exceptions import ValidationError
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -55,7 +52,6 @@ from temba.tests import (
     mock_mailroom,
 )
 from temba.tests.engine import MockSessionWriter
-from temba.tests.requests import mock_object
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.tickets.models import Ticketer
@@ -2160,14 +2156,6 @@ class OrgTest(TembaTest):
 
         # should say we have a 1,000 credits too
         self.assertContains(response, "1,000 Credits")
-
-        # our receipt should show that the topup was free
-        with patch("stripe.Charge.retrieve") as stripe:
-            stripe.return_value = ""
-            response = self.client.get(
-                reverse("orgs.topup_read", args=[TopUp.objects.filter(org=self.org).first().pk])
-            )
-            self.assertContains(response, "1,000 Credits")
 
     def test_topups(self):
 
@@ -5132,195 +5120,6 @@ class BulkExportTest(TembaTest):
         # even with the archived flag one deleted flows should not show up
         response = self.client.get("%s?archived=1" % reverse("orgs.org_export"))
         self.assertNotContains(response, "Register Patient")
-
-
-class StripeCreditsTest(TembaTest):
-    @patch("stripe.Customer.create")
-    @patch("stripe.Charge.create")
-    @override_settings(SEND_EMAILS=True)
-    def test_add_credits(self, charge_create, customer_create):
-        customer_create.return_value = mock_object("Customer", id="stripe-cust-1")
-        charge_create.return_value = mock_object(
-            "Charge",
-            id="stripe-charge-1",
-            card=mock_object("Card", last4="1234", type="Visa", name="Rudolph"),
-        )
-
-        settings.BRANDING[settings.DEFAULT_BRAND]["bundles"] = (dict(cents="2000", credits=1000, feature=""),)
-
-        self.assertTrue(1000, self.org.get_credits_total())
-        self.org.add_credits("2000", "stripe-token", self.admin)
-        self.assertTrue(2000, self.org.get_credits_total())
-
-        # assert we saved our charge info
-        topup = self.org.topups.last()
-        self.assertEqual("stripe-charge-1", topup.stripe_charge)
-
-        # and we saved our stripe customer info
-        org = Org.objects.get(id=self.org.id)
-        self.assertEqual("stripe-cust-1", org.stripe_customer)
-
-        # assert we sent our confirmation emai
-        self.assertEqual(1, len(mail.outbox))
-        email = mail.outbox[0]
-        self.assertEqual("RapidPro Receipt", email.subject)
-        self.assertIn("Rudolph", email.body)
-        self.assertIn("Visa", email.body)
-        self.assertIn("$20", email.body)
-
-        # turn off email receipts and do it again, shouldn't get a receipt
-        with override_settings(SEND_RECEIPTS=False):
-            self.org.add_credits("2000", "stripe-token", self.admin)
-
-            # no new emails
-            self.assertEqual(1, len(mail.outbox))
-
-    @patch("stripe.Customer.create")
-    @patch("stripe.Charge.create")
-    @override_settings(SEND_EMAILS=True)
-    def test_add_btc_credits(self, charge_create, customer_create):
-        customer_create.return_value = mock_object("Customer", id="stripe-cust-1")
-        charge_create.return_value = mock_object(
-            "Charge",
-            id="stripe-charge-1",
-            card=None,
-            source=mock_object("Source", bitcoin=mock_object("Bitcoin", address="abcde")),
-        )
-
-        settings.BRANDING[settings.DEFAULT_BRAND]["bundles"] = (dict(cents="2000", credits=1000, feature=""),)
-
-        self.org.add_credits("2000", "stripe-token", self.admin)
-        self.assertTrue(2000, self.org.get_credits_total())
-
-        # assert we saved our charge info
-        topup = self.org.topups.last()
-        self.assertEqual("stripe-charge-1", topup.stripe_charge)
-
-        # and we saved our stripe customer info
-        org = Org.objects.get(id=self.org.id)
-        self.assertEqual("stripe-cust-1", org.stripe_customer)
-
-        # assert we sent our confirmation emai
-        self.assertEqual(1, len(mail.outbox))
-        email = mail.outbox[0]
-        self.assertEqual("RapidPro Receipt", email.subject)
-        self.assertIn("bitcoin", email.body)
-        self.assertIn("abcde", email.body)
-        self.assertIn("$20", email.body)
-
-    @patch("stripe.Customer.create")
-    def test_add_credits_fail(self, customer_create):
-        customer_create.side_effect = ValueError("Invalid customer token")
-
-        with self.assertRaises(ValidationError):
-            self.org.add_credits("2000", "stripe-token", self.admin)
-
-        # assert no email was sent
-        self.assertEqual(0, len(mail.outbox))
-
-        # and no topups created
-        self.assertEqual(1, self.org.topups.all().count())
-        self.assertEqual(1000, self.org.get_credits_total())
-
-    def test_add_credits_invalid_bundle(self):
-
-        with self.assertRaises(ValidationError):
-            self.org.add_credits("-10", "stripe-token", self.admin)
-
-        # assert no email was sent
-        self.assertEqual(0, len(mail.outbox))
-
-        # and no topups created
-        self.assertEqual(1, self.org.topups.all().count())
-        self.assertEqual(1000, self.org.get_credits_total())
-
-    @patch("stripe.Customer.create")
-    @patch("stripe.Customer.retrieve")
-    @patch("stripe.Charge.create")
-    @override_settings(SEND_EMAILS=True)
-    def test_add_credits_existing_customer(self, charge_create, customer_retrieve, customer_create):
-        self.admin2 = self.create_user("admin2@nyaruka.com")
-        self.org.add_user(self.admin2, OrgRole.ADMINISTRATOR)
-
-        self.org.stripe_customer = "stripe-cust-1"
-        self.org.save()
-
-        class MockCard:
-            def __init__(self):
-                self.id = "stripe-card-1"
-
-            def delete(self):
-                pass
-
-        class MockCards:
-            def __init__(self):
-                self.throw = False
-
-            def list(self):
-                return mock_object("MockCardData", data=[MockCard(), MockCard()])
-
-            def create(self, card):
-                if self.throw:
-                    raise stripe.error.CardError("Card declined", None, 400)
-                else:
-                    return MockCard()
-
-        class MockCustomer:
-            def __init__(self, id, email):
-                self.id = id
-                self.email = email
-                self.cards = MockCards()
-
-            def save(self):
-                pass
-
-        customer_retrieve.return_value = MockCustomer(id="stripe-cust-1", email=self.admin.email)
-        customer_create.return_value = MockCustomer(id="stripe-cust-2", email=self.admin2.email)
-
-        charge_create.return_value = mock_object(
-            "Charge",
-            id="stripe-charge-1",
-            card=mock_object("Card", last4="1234", type="Visa", name="Rudolph"),
-        )
-
-        settings.BRANDING[settings.DEFAULT_BRAND]["bundles"] = (dict(cents="2000", credits=1000, feature=""),)
-
-        self.org.add_credits("2000", "stripe-token", self.admin)
-        self.assertTrue(2000, self.org.get_credits_total())
-
-        # assert we saved our charge info
-        topup = self.org.topups.last()
-        self.assertEqual("stripe-charge-1", topup.stripe_charge)
-
-        # and we saved our stripe customer info
-        org = Org.objects.get(id=self.org.id)
-        self.assertEqual("stripe-cust-1", org.stripe_customer)
-
-        # assert we sent our confirmation email
-        self.assertEqual(1, len(mail.outbox))
-        email = mail.outbox[0]
-        self.assertEqual("RapidPro Receipt", email.subject)
-        self.assertIn("Rudolph", email.body)
-        self.assertIn("Visa", email.body)
-        self.assertIn("$20", email.body)
-
-        # try with an invalid card
-        customer_retrieve.return_value.cards.throw = True
-        try:
-            self.org.add_credits("2000", "stripe-token", self.admin)
-            self.fail("should have thrown")
-        except ValidationError as e:
-            self.assertEqual(
-                "Sorry, your card was declined, please contact your provider or try another card.", e.message
-            )
-
-        # do it again with a different user, should create a new stripe customer
-        self.org.add_credits("2000", "stripe-token", self.admin2)
-        self.assertTrue(4000, self.org.get_credits_total())
-
-        # should have a different customer now
-        org = Org.objects.get(id=self.org.id)
-        self.assertEqual("stripe-cust-2", org.stripe_customer)
 
 
 class OrgActivityTest(TembaTest):

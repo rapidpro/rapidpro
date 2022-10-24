@@ -11,8 +11,6 @@ from urllib.parse import quote, urlencode, urlparse
 import pycountry
 import pyotp
 import pytz
-import stripe
-import stripe.error
 from django_redis import get_redis_connection
 from packaging.version import Version
 from smartmin.models import SmartModel
@@ -22,7 +20,6 @@ from twilio.rest import Client as TwilioClient
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User as AuthUser
 from django.contrib.postgres.fields import ArrayField
-from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Count, F, Prefetch, Q, Sum
 from django.utils import timezone
@@ -32,7 +29,6 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.archives.models import Archive
-from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary
 from temba.utils import chunk_list, json, languages
 from temba.utils.cache import get_cacheable_result
@@ -1489,133 +1485,6 @@ class Org(SmartModel):
 
         self.save(update_fields=("is_multi_user", "is_multi_org"))
 
-    def get_stripe_customer(self):  # pragma: no cover
-        # We can't test stripe in unit tests since it requires javascript tokens to be generated
-        if not self.stripe_customer:
-            return None
-
-        try:
-            stripe.api_key = get_stripe_credentials()[1]
-            customer = stripe.Customer.retrieve(self.stripe_customer)
-            return customer
-        except Exception as e:
-            logger.error(f"Could not get Stripe customer: {str(e)}", exc_info=True)
-            return None
-
-    def get_bundles(self):
-        return get_brand_bundles(self.get_branding())
-
-    def add_credits(self, bundle, token, user):
-        # look up our bundle
-        bundle_map = get_bundle_map(self.get_bundles())
-        if bundle not in bundle_map:
-            raise ValidationError(_("Invalid bundle: %s, cannot upgrade.") % bundle)
-        bundle = bundle_map[bundle]
-
-        # adds credits to this org
-        stripe.api_key = get_stripe_credentials()[1]
-
-        # our actual customer object
-        customer = self.get_stripe_customer()
-
-        # 3 possible cases
-        # 1. we already have a stripe customer and the token matches it
-        # 2. we already have a stripe customer, but they have just added a new card, we need to use that one
-        # 3. we don't have a customer, so we need to create a new customer and use that card
-
-        validation_error = None
-
-        # for our purposes, #1 and #2 are treated the same, we just always update the default card
-        try:
-
-            if not customer or customer.email != user.email:
-                # then go create a customer object for this user
-                customer = stripe.Customer.create(card=token, email=user.email, description="{ org: %d }" % self.pk)
-
-                stripe_customer = customer.id
-                self.stripe_customer = stripe_customer
-                self.save()
-
-            # update the stripe card to the one they just entered
-            else:
-                # remove existing cards
-                # TODO: this is all a bit wonky because we are using the Stripe JS widget..
-                # if we instead used on our mechanism to display / edit cards we could be a bit smarter
-                existing_cards = [c for c in customer.cards.list().data]
-                for card in existing_cards:
-                    card.delete()
-
-                card = customer.cards.create(card=token)
-
-                customer.default_card = card.id
-                customer.save()
-
-                stripe_customer = customer.id
-
-            charge = stripe.Charge.create(
-                amount=bundle["cents"], currency="usd", customer=stripe_customer, description=bundle["description"]
-            )
-
-            remaining = self.get_credits_remaining()
-
-            # create our top up
-            topup = TopUp.create(self, user, price=bundle["cents"], credits=bundle["credits"], stripe_charge=charge.id)
-
-            context = dict(
-                description=bundle["description"],
-                charge_id=charge.id,
-                charge_date=timezone.now().strftime("%b %e, %Y"),
-                amount=bundle["dollars"],
-                credits=bundle["credits"],
-                remaining=remaining,
-                org=self.name,
-            )
-
-            # card
-            if getattr(charge, "card", None):
-                context["cc_last4"] = charge.card.last4
-                context["cc_type"] = charge.card.type
-                context["cc_name"] = charge.card.name
-
-            # bitcoin
-            else:
-                context["cc_type"] = "bitcoin"
-                context["cc_name"] = charge.source.bitcoin.address
-
-            branding = self.get_branding()
-
-            subject = _("%(name)s Receipt") % branding
-            template = "orgs/email/receipt_email"
-            to_email = user.email
-
-            context["customer"] = user
-            context["branding"] = branding
-            context["subject"] = subject
-
-            if settings.SEND_RECEIPTS:
-                send_template_email(to_email, subject, template, context, branding)
-
-            # apply our new topups
-            from .tasks import apply_topups_task
-
-            apply_topups_task.delay(self.id)
-
-            return topup
-
-        except stripe.error.CardError as e:
-            logger.warning(f"Error adding credits to org: {str(e)}", exc_info=True)
-            validation_error = _("Sorry, your card was declined, please contact your provider or try another card.")
-
-        except Exception as e:
-            logger.error(f"Error adding credits to org: {str(e)}", exc_info=True)
-
-            validation_error = _(
-                "Sorry, we were unable to process your payment, please try again later or contact us."
-            )
-
-        if validation_error is not None:
-            raise ValidationError(validation_error)
-
     def account_value(self):
         """
         How much has this org paid to date in dollars?
@@ -1937,16 +1806,6 @@ class Org(SmartModel):
         return self.name
 
 
-def get_stripe_credentials():
-    public_key = os.environ.get(
-        "STRIPE_PUBLIC_KEY", getattr(settings, "STRIPE_PUBLIC_KEY", "MISSING_STRIPE_PUBLIC_KEY")
-    )
-    private_key = os.environ.get(
-        "STRIPE_PRIVATE_KEY", getattr(settings, "STRIPE_PRIVATE_KEY", "MISSING_STRIPE_PRIVATE_KEY")
-    )
-    return (public_key, private_key)
-
-
 class OrgMembership(models.Model):
     org = models.ForeignKey(Org, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -2060,7 +1919,7 @@ class TopUp(SmartModel):
     )
 
     @classmethod
-    def create(cls, org, user, price, credits, stripe_charge=None, expires_on=None):
+    def create(cls, org, user, price, credits, expires_on=None):
         """
         Creates a new topup
         """
@@ -2073,7 +1932,6 @@ class TopUp(SmartModel):
             price=price,
             credits=credits,
             expires_on=expires_on,
-            stripe_charge=stripe_charge,
             created_by=user,
             modified_by=user,
         )
@@ -2174,14 +2032,6 @@ class TopUp(SmartModel):
         # mark this topup as inactive
         self.is_active = False
         self.save()
-
-    def get_stripe_charge(self):  # pragma: needs cover
-        try:
-            stripe.api_key = get_stripe_credentials()[1]
-            return stripe.Charge.retrieve(self.stripe_charge)
-        except Exception as e:
-            logger.error(f"Could not get Stripe charge: {str(e)}", exc_info=True)
-            return None
 
     def get_used(self):
         """

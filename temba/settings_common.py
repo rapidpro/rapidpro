@@ -184,7 +184,6 @@ TEMPLATES = [
                 "temba.context_processors.branding",
                 "temba.context_processors.config",
                 "temba.orgs.context_processors.user_group_perms_processor",
-                "temba.orgs.context_processors.settings_includer",
                 "temba.orgs.context_processors.user_orgs_for_brand",
             ],
             "loaders": [
@@ -334,7 +333,6 @@ BRANDING = {
         "logo": "images/logo-dark.svg",
         "allow_signups": True,
         "tiers": dict(multi_user=0, multi_org=0),
-        "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         "title": _("Visually build nationally scalable mobile applications"),
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
