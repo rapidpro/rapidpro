@@ -7,6 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("channels", "0152_remove_channelconnection_channelconnection_to_retry"),
+        ("ivr", "0021_convert_connections"),
     ]
 
     operations = [
