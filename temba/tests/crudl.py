@@ -173,7 +173,15 @@ class CRUDLTestMixin:
         return as_user(admin, allowed=True)
 
     def assertDeleteFetch(
-        self, url, *, allow_viewers=False, allow_editors=False, allow_agents=False, status=200, choose_org=None, as_modal=False
+        self,
+        url,
+        *,
+        allow_viewers=False,
+        allow_editors=False,
+        allow_agents=False,
+        status=200,
+        choose_org=None,
+        as_modal=False,
     ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
