@@ -132,21 +132,7 @@ class BaseExport(TembaUUIDMixin, SmartModel):
         return cls.get_unfinished().filter(org=org, created_on__gt=day_ago).order_by("created_on").last()
 
     def append_row(self, sheet, values):
-        sheet.append_row(*[self.prepare_value(v) for v in values])
-
-    def prepare_value(self, value):
-        if value is None:
-            return ""
-        if isinstance(value, (bool, int, float)):
-            return value
-        elif isinstance(value, str):
-            if value.startswith("="):  # escape = so value isn't mistaken for a formula
-                value = "'" + value
-            return clean_string(value)
-        elif isinstance(value, datetime):
-            return value.astimezone(self.org.timezone).replace(microsecond=0, tzinfo=None)
-
-        raise ValueError(f"Unsupported type for excel export: {type(value)}")  # pragma: no cover
+        sheet.append_row(*[prepare_value(v, self.org.timezone) for v in values])
 
     def get_download_url(self) -> str:
         asset_store = get_asset_store(model=self.__class__)
@@ -242,20 +228,34 @@ class BaseItemWithContactExport(BaseDateRangeExport):
         abstract = True
 
 
-class TableExporter:
+def prepare_value(value, tz=None):
     """
-    Class that abstracts out writing a table of data to a CSV or Excel file. This only works for exports that
-    have a single sheet (as CSV's don't have sheets) but takes care of writing to a CSV in the case
-    where there are more than 16384 columns, which Excel doesn't support.
+    Converts a value into the format we want to write into an Excel cell
+    """
+    if value is None:
+        return ""
+    if isinstance(value, (bool, int, float)):
+        return value
+    elif isinstance(value, str):
+        if value.startswith("="):  # escape = so value isn't mistaken for a formula
+            value = "'" + value
+        return clean_string(value)
+    elif isinstance(value, datetime):
+        return value.astimezone(tz).replace(microsecond=0, tzinfo=None)
 
-    When writing to an Excel sheet, this also takes care of creating different sheets every 1048576
-    rows, as again, Excel file only support that many per sheet.
+    raise ValueError(f"Unsupported type for excel export: {type(value)}")
+
+
+class MultiSheetExporter:
+    """
+    Utility to aid writing a stream of rows which may exceed the 1048576 limit on rows per sheet, and require adding
+    new sheets.
     """
 
-    def __init__(self, task, sheet_name, columns):
-        self.task = task
-        self.columns = columns
-        self.sheet_name = sheet_name
+    def __init__(self, base_sheet_name: str, headers: list, tz):
+        self.base_sheet_name = base_sheet_name
+        self.headers = headers
+        self.tz = tz
 
         self.current_sheet = 0
         self.current_row = 0
@@ -268,21 +268,22 @@ class TableExporter:
         self.sheet_number += 1
 
         # add our sheet
-        self.sheet = self.workbook.add_sheet("%s %d" % (self.sheet_name, self.sheet_number))
-        self.sheet.append_row(*self.columns)
-
+        self.sheet = self.workbook.add_sheet(f"{self.base_sheet_name} {self.sheet_number}")
+        self.sheet.append_row(*self.headers)
         self.sheet_row = 2
 
     def write_row(self, values):
         """
         Writes the passed in row to our exporter, taking care of creating new sheets if necessary
         """
+
+        assert len(values) == len(self.headers), "need same number of column values as column headers"
+
         # time for a new sheet? do it
         if self.sheet_row > BaseExport.MAX_EXCEL_ROWS:
             self._add_sheet()
 
-        self.sheet.append_row(*values)
-
+        self.sheet.append_row(*[prepare_value(v, self.tz) for v in values])
         self.sheet_row += 1
 
     def save_file(self):
@@ -291,7 +292,6 @@ class TableExporter:
         """
         gc.collect()  # force garbage collection
 
-        print("Writing Excel workbook...")
         temp_file = NamedTemporaryFile(delete=False, suffix=".xlsx", mode="wb+")
         self.workbook.finalize(to_file=temp_file)
         temp_file.flush()
