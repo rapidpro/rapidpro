@@ -207,9 +207,9 @@ class NotificationTest(TembaTest):
             end_date=date.today(),
             flows=[flow1, flow2],
             with_fields=(),
+            with_groups=(),
             responded_only=True,
             extra_urns=(),
-            group_memberships=(),
         )
         export.perform()
 

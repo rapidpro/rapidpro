@@ -21,7 +21,6 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Max, Min, Sum
-from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.encoding import force_str
@@ -33,7 +32,7 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.models import URN, ContactGroup
+from temba.contacts.models import URN
 from temba.contacts.search import SearchException, parse_query
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task, update_session_wait_expires
@@ -1277,13 +1276,6 @@ class FlowCRUDL(SmartCRUDL):
                 Flow.objects.filter(id__lt=0), required=True, widget=forms.MultipleHiddenInput()
             )
 
-            group_memberships = forms.ModelMultipleChoiceField(
-                queryset=ContactGroup.objects.none(),
-                required=False,
-                label=_("Groups"),
-                widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Group memberships")}),
-            )
-
             extra_urns = forms.MultipleChoiceField(
                 required=False,
                 label=_("URNs"),
@@ -1304,26 +1296,7 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, org, *args, **kwargs):
                 super().__init__(org, *args, **kwargs)
 
-                self.fields["group_memberships"].queryset = ContactGroup.get_groups(org, ready_only=True).order_by(
-                    Lower("name")
-                )
                 self.fields["flows"].queryset = Flow.objects.filter(org=org, is_active=True)
-
-            def clean(self):
-                cleaned_data = super().clean()
-
-                if (
-                    ExportFlowResultsTask.GROUP_MEMBERSHIPS in cleaned_data
-                    and len(cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS])
-                    > ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS
-                ):  # pragma: needs cover
-                    raise forms.ValidationError(
-                        _(
-                            f"You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
-                        )
-                    )
-
-                return cleaned_data
 
         form_class = Form
         success_url = "@flows.flow_list"
@@ -1365,9 +1338,9 @@ class FlowCRUDL(SmartCRUDL):
                     end_date=form.cleaned_data["end_date"],
                     flows=flows,
                     with_fields=form.cleaned_data["with_fields"],
+                    with_groups=form.cleaned_data["with_groups"],
                     responded_only=responded_only,
                     extra_urns=form.cleaned_data.get(ExportFlowResultsTask.EXTRA_URNS, []),
-                    group_memberships=form.cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS],
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 
