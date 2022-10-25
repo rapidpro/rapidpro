@@ -1872,7 +1872,7 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
                 results_by_key = {key: result for key, result in run_values.items()}
 
             # generate contact info columns
-            contact_values = [self.prepare_value(c) for c in self._get_contact_columns(contact)]
+            contact_values = self._get_contact_columns(contact)
 
             for extra_urn_column in extra_urn_columns:
                 urn_display = contact.get_urn_display(org=self.org, formatted=False, scheme=extra_urn_column["scheme"])
@@ -1880,7 +1880,7 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
 
             # generate result columns for each ruleset
             result_values = []
-            for n, result_field in enumerate(result_fields):
+            for result_field in result_fields:
                 node_result = {}
                 # check the result by ruleset label if the flow is the same
                 if result_field["flow_uuid"] == run["flow"]["uuid"]:

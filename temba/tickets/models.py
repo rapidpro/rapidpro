@@ -19,7 +19,7 @@ from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org, User, UserSettings
 from temba.utils import chunk_list
 from temba.utils.dates import date_range
-from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport, TableExporter
+from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport, MultiSheetExporter
 from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
@@ -660,7 +660,7 @@ class ExportTicketsTask(BaseItemWithContactExport):
             .values_list("id", flat=True)
         )
 
-        exporter = TableExporter(self, "Tickets", headers)
+        exporter = MultiSheetExporter("Tickets", headers, self.org.timezone)
 
         # add tickets to the export in batches of 1k to limit memory usage
         for batch_ids in chunk_list(ticket_ids, 1000):
@@ -683,7 +683,7 @@ class ExportTicketsTask(BaseItemWithContactExport):
                 ]
                 values += self._get_contact_columns(ticket.contact)
 
-                exporter.write_row([self.prepare_value(v) for v in values])
+                exporter.write_row(values)
 
             self.modified_on = timezone.now()
             self.save(update_fields=("modified_on",))
