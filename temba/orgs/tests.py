@@ -903,9 +903,9 @@ class OrgDeleteTest(TembaNonAtomicTest):
             end_date=date.today(),
             flows=[parent_flow],
             with_fields=[parent_field],
+            with_groups=(),
             responded_only=True,
             extra_urns=(),
-            group_memberships=(),
         )
         Notification.export_finished(export)
         ExportFlowResultsTask.create(
@@ -915,9 +915,9 @@ class OrgDeleteTest(TembaNonAtomicTest):
             end_date=date.today(),
             flows=[child_flow],
             with_fields=[child_field],
+            with_groups=(),
             responded_only=True,
             extra_urns=(),
-            group_memberships=(),
         )
 
         export = ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)

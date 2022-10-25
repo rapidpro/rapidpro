@@ -547,7 +547,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(self.admin)
 
         # check results of sheet in workbook (no Contact ID column)
-        export = self._request_ticket_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
+        export = self._request_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
         self.assertExcelSheet(
             export[0],
             [
@@ -568,7 +568,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         with AnonymousOrg(self.org):
             # anon org doesn't see URN value column
-            export = self._request_ticket_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
+            export = self._request_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
             self.assertExcelSheet(
                 export[0],
                 [
@@ -622,6 +622,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         sam = self.create_contact("Sam Obisanya", fields={"gender": "Male", "age": 22})
         ContactURN.create(self.org, sam, "twitter:nigerianprince", priority=50)
         ContactURN.create(self.org, sam, "tel:+9876543210", priority=50)
+
+        testers = self.create_group("Testers", contacts=[nate, roy])
 
         # create an open ticket for nate, opened 30 days ago
         ticket1 = self.create_ticket(
@@ -679,8 +681,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check requesting export for last 90 days
         with self.mockReadOnly(assert_models={Ticket, ContactURN}):
-            with self.assertNumQueries(30):
-                export = self._request_ticket_export(start_date=today - timedelta(days=90), end_date=today)
+            with self.assertNumQueries(33):
+                export = self._request_export(start_date=today - timedelta(days=90), end_date=today)
 
         expected_headers = [
             "UUID",
@@ -748,7 +750,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check requesting export for last 7 days
         with self.mockReadOnly(assert_models={Ticket, ContactURN}):
-            export = self._request_ticket_export(start_date=today - timedelta(days=7), end_date=today)
+            export = self._request_export(start_date=today - timedelta(days=7), end_date=today)
 
         self.assertExcelSheet(
             export[0],
@@ -780,16 +782,16 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             tz=self.org.timezone,
         )
 
-        # check requesting with contact fields
+        # check requesting with contact fields and groups
         with self.mockReadOnly(assert_models={Ticket, ContactURN}):
-            export = self._request_ticket_export(
-                start_date=today - timedelta(days=7), end_date=today, with_fields=(age, gender)
+            export = self._request_export(
+                start_date=today - timedelta(days=7), end_date=today, with_fields=(age, gender), with_groups=(testers,)
             )
 
         self.assertExcelSheet(
             export[0],
             rows=[
-                expected_headers + ["Field:Age", "Field:Gender"],
+                expected_headers + ["Field:Age", "Field:Gender", "Group:Testers"],
                 [
                     ticket3.uuid,
                     ticket3.opened_on,
@@ -802,6 +804,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     "+1234567890",
                     "41",
                     "Male",
+                    True,
                 ],
                 [
                     ticket4.uuid,
@@ -815,6 +818,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     "nigerianprince",
                     "22",
                     "Male",
+                    False,
                 ],
             ],
             tz=self.org.timezone,
@@ -822,7 +826,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         with AnonymousOrg(self.org):
             with self.mockReadOnly(assert_models={Ticket, ContactURN}):
-                export = self._request_ticket_export(start_date=today - timedelta(days=90), end_date=today)
+                export = self._request_export(start_date=today - timedelta(days=90), end_date=today)
             self.assertExcelSheet(
                 export[0],
                 [
@@ -887,10 +891,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.clear_storage()
 
-    def test_export_with_too_many_fields(self):
+    def test_export_with_too_many_fields_and_groups(self):
         export_url = reverse("tickets.ticket_export")
         today = timezone.now().astimezone(self.org.timezone).date()
         too_many_fields = [self.create_field(f"Field {i}", f"field{i}") for i in range(11)]
+        too_many_groups = [self.create_group(f"Group {i}", contacts=[]) for i in range(11)]
 
         self.login(self.admin)
         response = self.client.post(
@@ -899,11 +904,13 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 "start_date": today - timedelta(days=7),
                 "end_date": today,
                 "with_fields": [cf.id for cf in too_many_fields],
+                "with_groups": [cg.id for cg in too_many_groups],
             },
         )
-        self.assertFormError(response, "form", "__all__", "You can only include up to 10 fields in your export.")
+        self.assertFormError(response, "form", "with_fields", "You can only include up to 10 fields.")
+        self.assertFormError(response, "form", "with_groups", "You can only include up to 10 groups.")
 
-    def _request_ticket_export(self, start_date: date, end_date: date, with_fields=()):
+    def _request_export(self, start_date: date, end_date: date, with_fields=(), with_groups=()):
         export_url = reverse("tickets.ticket_export")
         self.client.post(
             export_url,
@@ -911,6 +918,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 "start_date": start_date.isoformat(),
                 "end_date": end_date.isoformat(),
                 "with_fields": [cf.id for cf in with_fields],
+                "with_groups": [cf.id for cf in with_groups],
             },
         )
         task = ExportTicketsTask.objects.all().order_by("-id").first()

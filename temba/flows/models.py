@@ -1,5 +1,4 @@
 import logging
-import time
 from array import array
 from collections import defaultdict
 from datetime import datetime
@@ -16,14 +15,14 @@ from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Max, Q, Sum
+from django.db.models import Max, Prefetch, Q, Sum
 from django.db.models.functions import Lower, TruncDate
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel, ChannelConnection
+from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts import search
 from temba.contacts.models import Contact, ContactField, ContactGroup
@@ -1111,11 +1110,6 @@ class FlowSession(models.Model):
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
 
-    # TODO: drop
-    connection = models.OneToOneField(
-        "channels.ChannelConnection", on_delete=models.PROTECT, null=True, related_name="session"
-    )
-
     @property
     def output_json(self):
         """
@@ -1676,11 +1670,8 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
     analytics_key = "flowresult_export"
     notification_export_type = "results"
 
-    GROUP_MEMBERSHIPS = "group_memberships"
     RESPONDED_ONLY = "responded_only"
     EXTRA_URNS = "extra_urns"
-
-    MAX_GROUP_MEMBERSHIPS_COLS = 25
 
     flows = models.ManyToManyField(Flow, related_name="exports", help_text=_("The flows to export"))
 
@@ -1691,24 +1682,18 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
     config = JSONAsTextField(null=True, default=dict, help_text=_("Any configuration options for this flow export"))
 
     @classmethod
-    def create(
-        cls, org, user, start_date, end_date, flows, with_fields, responded_only, extra_urns, group_memberships
-    ):
-        config = {
-            ExportFlowResultsTask.RESPONDED_ONLY: responded_only,
-            ExportFlowResultsTask.EXTRA_URNS: extra_urns,
-            ExportFlowResultsTask.GROUP_MEMBERSHIPS: [g.id for g in group_memberships],
-        }
+    def create(cls, org, user, start_date, end_date, flows, with_fields, with_groups, responded_only, extra_urns):
+        config = {ExportFlowResultsTask.RESPONDED_ONLY: responded_only, ExportFlowResultsTask.EXTRA_URNS: extra_urns}
 
         export = cls.objects.create(
             org=org, created_by=user, start_date=start_date, end_date=end_date, modified_by=user, config=config
         )
-        export.with_fields.add(*with_fields)
         export.flows.add(*flows)
-
+        export.with_fields.add(*with_fields)
+        export.with_groups.add(*with_groups)
         return export
 
-    def _get_runs_columns(self, extra_urn_columns, groups, result_fields, show_submitted_by=False):
+    def _get_runs_columns(self, extra_urn_columns, result_fields, show_submitted_by=False):
         columns = []
 
         if show_submitted_by:
@@ -1718,9 +1703,6 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
 
         for extra_urn in extra_urn_columns:
             columns.append(extra_urn["label"])
-
-        for gr in groups:
-            columns.append("Group:%s" % gr.name)
 
         columns.append("Started")
         columns.append("Modified")
@@ -1747,9 +1729,6 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
         config = self.config
         responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
-        group_memberships = config.get(ExportFlowResultsTask.GROUP_MEMBERSHIPS, [])
-
-        groups = ContactGroup.get_groups(self.org, ready_only=True).filter(id__in=group_memberships).using("readonly")
 
         # get all result saving nodes across all flows being exported
         show_submitted_by = False
@@ -1772,9 +1751,7 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
                 label = f"URN:{extra_urn.capitalize()}"
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
 
-        runs_columns = self._get_runs_columns(
-            extra_urn_columns, groups, result_fields, show_submitted_by=show_submitted_by
-        )
+        runs_columns = self._get_runs_columns(extra_urn_columns, result_fields, show_submitted_by=show_submitted_by)
 
         book = XLSXBook()
         book.num_runs_sheets = 0
@@ -1784,10 +1761,6 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
         book.current_runs_sheet = self._add_runs_sheet(book, runs_columns)
         book.current_msgs_sheet = None
 
-        # for tracking performance
-        total_runs_exported = 0
-        temp_runs_exported = 0
-        start = time.time()
         start_date, end_date = self._get_date_range()
 
         for batch in self._get_run_batches(start_date, end_date, flows, responded_only):
@@ -1795,24 +1768,13 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
                 book,
                 batch,
                 extra_urn_columns,
-                groups,
                 show_submitted_by,
                 runs_columns,
                 result_fields,
             )
 
-            total_runs_exported += len(batch)
-
-            if (total_runs_exported - temp_runs_exported) > ExportFlowResultsTask.LOG_PROGRESS_PER_ROWS:
-                mins = (time.time() - start) / 60
-                logger.info(
-                    f"Results export #{self.id} for org #{self.org.id}: exported {total_runs_exported} in {mins:.1f} mins"
-                )
-
-                temp_runs_exported = total_runs_exported
-
-                self.modified_on = timezone.now()
-                self.save(update_fields=["modified_on"])
+            self.modified_on = timezone.now()
+            self.save(update_fields=("modified_on",))
 
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)
@@ -1864,8 +1826,11 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (
                 FlowRun.objects.filter(id__in=id_batch)
-                .select_related("contact", "flow")
                 .order_by("modified_on", "id")
+                .prefetch_related(
+                    Prefetch("contact", Contact.objects.only("uuid", "name")),
+                    Prefetch("flow", Flow.objects.only("uuid", "name")),
+                )
                 .using("readonly")
             )
 
@@ -1877,7 +1842,6 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
         book,
         runs,
         extra_urn_columns,
-        groups,
         show_submitted_by,
         runs_columns,
         result_fields,
@@ -1888,9 +1852,14 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
         # get all the contacts referenced in this batch
         contact_uuids = {r["contact"]["uuid"] for r in runs}
         contacts = (
-            Contact.objects.filter(org=self.org, uuid__in=contact_uuids).prefetch_related("groups").using("readonly")
+            Contact.objects.filter(org=self.org, uuid__in=contact_uuids)
+            .select_related("org")
+            .prefetch_related("groups")
+            .using("readonly")
         )
         contacts_by_uuid = {str(c.uuid): c for c in contacts}
+
+        Contact.bulk_urn_cache_initialize(contacts, using="readonly")
 
         for run in runs:
             contact = contacts_by_uuid.get(run["contact"]["uuid"])
@@ -1908,10 +1877,6 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
             for extra_urn_column in extra_urn_columns:
                 urn_display = contact.get_urn_display(org=self.org, formatted=False, scheme=extra_urn_column["scheme"])
                 contact_values.append(urn_display)
-
-            contact_groups_ids = [g.id for g in contact.groups.all()]
-            for gr in groups:
-                contact_values.append(gr.id in contact_groups_ids)
 
             # generate result columns for each ruleset
             result_values = []
@@ -2034,9 +1999,6 @@ class FlowStart(models.Model):
 
     # the number of de-duped contacts that might be started, depending on options above
     contact_count = models.IntegerField(default=0, null=True)
-
-    # TODO: drop
-    connections = models.ManyToManyField(ChannelConnection, related_name="starts")
 
     @classmethod
     def create(

@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, ContactURN
+from temba.contacts.models import URN, Contact, ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.msgs.models import (
     Attachment,
@@ -591,7 +591,7 @@ class MsgTest(TembaTest):
             return load_workbook(filename=filename)
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(30):
+        with self.assertNumQueries(34):
             with patch("temba.utils.s3.client", return_value=mock_s3):
                 workbook = request_export(
                     "?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-01"}
@@ -847,8 +847,14 @@ class MsgTest(TembaTest):
 
         self.login(self.admin)
 
+        age = self.create_field("age", "Age")
+        bob = self.create_contact("Bob", urns=["telegram:234567"], fields={"age": 40})
+        devs = self.create_group("Devs", [bob])
+
         self.joe.name = "Jo\02e Blow"
         self.joe.save(update_fields=("name",))
+
+        telegram = self.create_channel("TG", "Telegram", "765432")
 
         # messages can't be older than org
         self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=pytz.UTC)
@@ -858,8 +864,12 @@ class MsgTest(TembaTest):
         msg1 = self.create_incoming_msg(
             self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC), flow=flow
         )
-        msg2 = self.create_incoming_msg(self.joe, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC))
-        msg3 = self.create_incoming_msg(self.joe, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC))
+        msg2 = self.create_incoming_msg(
+            bob, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC), channel=telegram
+        )
+        msg3 = self.create_incoming_msg(
+            bob, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC), channel=telegram
+        )
 
         # inbound message that looks like a surveyor message
         msg4 = self.create_incoming_msg(
@@ -879,7 +889,11 @@ class MsgTest(TembaTest):
             self.joe, "Hey out 6", status=Msg.STATUS_SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC)
         )
         msg7 = self.create_outgoing_msg(
-            self.joe, "Hey out 7", status=Msg.STATUS_DELIVERED, created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC)
+            bob,
+            "Hey out 7",
+            status=Msg.STATUS_DELIVERED,
+            created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC),
+            channel=telegram,
         )
         msg8 = self.create_outgoing_msg(
             self.joe, "Hey out 8", status=Msg.STATUS_ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC)
@@ -930,7 +944,7 @@ class MsgTest(TembaTest):
         self.assertNotEqual(old_modified_on, blocking_export.modified_on)
 
         def request_export(query, data=None):
-            with self.mockReadOnly(assert_models={Msg}):
+            with self.mockReadOnly(assert_models={Msg, Contact}):
                 response = self.client.post(export_url + query, data)
             self.assertModalResponse(response, redirect="/msg/inbox/")
             task = ExportMessagesTask.objects.order_by("-id").first()
@@ -954,7 +968,7 @@ class MsgTest(TembaTest):
         ]
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(32):
             self.assertExcelSheet(
                 request_export("?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}),
                 [
@@ -976,15 +990,15 @@ class MsgTest(TembaTest):
                     [
                         msg2.created_on,
                         msg2.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        "123",
+                        "Bob",
+                        "telegram",
+                        "234567",
                         "",
                         "IN",
                         "hello 2",
                         "",
                         "handled",
-                        "Test Channel",
+                        "Telegram",
                         "",
                     ],
                     [
@@ -1032,15 +1046,15 @@ class MsgTest(TembaTest):
                     [
                         msg7.created_on,
                         msg7.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        "123",
+                        "Bob",
+                        "telegram",
+                        "234567",
                         "",
                         "OUT",
                         "Hey out 7",
                         "",
                         "delivered",
-                        "Test Channel",
+                        "Telegram",
                         "",
                     ],
                     [
@@ -1092,15 +1106,15 @@ class MsgTest(TembaTest):
                 [
                     msg3.created_on,
                     msg3.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
+                    "Bob",
+                    "telegram",
+                    "234567",
                     "",
                     "IN",
                     "hello 3",
                     "",
                     "handled",
-                    "Test Channel",
+                    "Telegram",
                     "",
                 ],
             ],
@@ -1161,24 +1175,42 @@ class MsgTest(TembaTest):
             self.org.timezone,
         )
 
-        # try export with groups and date range
+        # try export with a date range, a field and a group
         export_data = {
             "export_all": 1,
-            "groups": [self.just_joe.id],
             "start_date": msg5.created_on.strftime("%Y-%m-%d"),
             "end_date": msg7.created_on.strftime("%Y-%m-%d"),
+            "with_fields": [age.id],
+            "with_groups": [devs.id],
         }
 
         self.assertExcelSheet(
             request_export("?l=I", export_data),
             [
-                expected_headers,
+                [
+                    "Date",
+                    "Contact UUID",
+                    "Contact Name",
+                    "URN Scheme",
+                    "URN Value",
+                    "Field:Age",
+                    "Group:Devs",
+                    "Flow",
+                    "Direction",
+                    "Text",
+                    "Attachments",
+                    "Status",
+                    "Channel",
+                    "Labels",
+                ],
                 [
                     msg5.created_on,
                     msg5.contact.uuid,
                     "Joe Blow",
                     "tel",
                     "123",
+                    "",
+                    False,
                     "",
                     "IN",
                     "Media message",
@@ -1194,6 +1226,8 @@ class MsgTest(TembaTest):
                     "tel",
                     "123",
                     "",
+                    False,
+                    "",
                     "OUT",
                     "Hey out 6",
                     "",
@@ -1204,15 +1238,17 @@ class MsgTest(TembaTest):
                 [
                     msg7.created_on,
                     msg7.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
+                    "Bob",
+                    "telegram",
+                    "234567",
+                    "40",
+                    True,
                     "",
                     "OUT",
                     "Hey out 7",
                     "",
                     "delivered",
-                    "Test Channel",
+                    "Telegram",
                     "",
                 ],
             ],
@@ -1276,15 +1312,15 @@ class MsgTest(TembaTest):
                     [
                         msg2.created_on,
                         msg2.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        self.joe.anon_display,
+                        "Bob",
+                        "telegram",
+                        bob.anon_display,
                         "",
                         "IN",
                         "hello 2",
                         "",
                         "handled",
-                        "Test Channel",
+                        "Telegram",
                         "",
                     ],
                     [
@@ -1332,15 +1368,15 @@ class MsgTest(TembaTest):
                     [
                         msg7.created_on,
                         msg7.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        self.joe.anon_display,
+                        "Bob",
+                        "telegram",
+                        bob.anon_display,
                         "",
                         "OUT",
                         "Hey out 7",
                         "",
                         "delivered",
-                        "Test Channel",
+                        "Telegram",
                         "",
                     ],
                     [
