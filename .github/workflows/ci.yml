@@ -7,7 +7,7 @@ jobs:
       python-version: "3.9.x"
       postgis-version: "3.1"
       node-version: "10"
-      elastic-version: "7.17.7"
+      elastic-version: "7.17.6"
       rpindexer-version: "7.5.0"
       mailroom-version: "7.5.27"
       DJANGO_SETTINGS_MODULE: temba.settings_ci
