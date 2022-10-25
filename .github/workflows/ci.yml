@@ -8,9 +8,9 @@ jobs:
       postgis-version: "3.1"
       redis-version: "5.0.6"
       node-version: "10"
-      elastic-version: "7.17.2"
-      rpindexer-version: "7.3.7"
-      mailroom-version: "7.3.18"
+      elastic-version: "7.17.7"
+      rpindexer-version: "7.5.0"
+      mailroom-version: "7.5.27"
       DJANGO_SETTINGS_MODULE: temba.settings_ci
     strategy:
       matrix:
