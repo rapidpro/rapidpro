@@ -641,11 +641,12 @@ class ExportTicketsTask(BaseItemWithContactExport):
     notification_export_type = "ticket"
 
     @classmethod
-    def create(cls, org, user, start_date, end_date, with_fields=()):
+    def create(cls, org, user, start_date, end_date, with_fields=(), with_groups=()):
         export = cls.objects.create(
             org=org, start_date=start_date, end_date=end_date, created_by=user, modified_by=user
         )
         export.with_fields.add(*with_fields)
+        export.with_groups.add(*with_groups)
         return export
 
     def write_export(self):
@@ -662,11 +663,11 @@ class ExportTicketsTask(BaseItemWithContactExport):
         exporter = TableExporter(self, "Tickets", headers)
 
         # add tickets to the export in batches of 1k to limit memory usage
-        for ticket_chunk_ids in chunk_list(ticket_ids, 1000):
+        for batch_ids in chunk_list(ticket_ids, 1000):
             tickets = (
-                Ticket.objects.filter(id__in=ticket_chunk_ids)
+                Ticket.objects.filter(id__in=batch_ids)
                 .order_by("opened_on")
-                .prefetch_related("org", "contact", "contact__org", "assignee", "topic")
+                .prefetch_related("org", "contact", "contact__org", "contact__groups", "assignee", "topic")
                 .using("readonly")
             )
 
@@ -683,6 +684,9 @@ class ExportTicketsTask(BaseItemWithContactExport):
                 values += self._get_contact_columns(ticket.contact)
 
                 exporter.write_row([self.prepare_value(v) for v in values])
+
+            self.modified_on = timezone.now()
+            self.save(update_fields=("modified_on",))
 
         return exporter.save_file()
 

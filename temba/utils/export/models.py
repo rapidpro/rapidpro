@@ -187,6 +187,7 @@ class BaseItemWithContactExport(BaseDateRangeExport):
     """
 
     with_fields = models.ManyToManyField("contacts.ContactField", related_name="%(class)s_exports")
+    with_groups = models.ManyToManyField("contacts.ContactGroup", related_name="%(class)s_exports")
 
     def _get_contact_headers(self) -> list:
         """
@@ -200,6 +201,9 @@ class BaseItemWithContactExport(BaseDateRangeExport):
 
         for cf in self.with_fields.all():
             cols.append("Field:%s" % cf.name)
+
+        for cg in self.with_groups.all():
+            cols.append("Group:%s" % cg.name)
 
         return cols
 
@@ -226,6 +230,11 @@ class BaseItemWithContactExport(BaseDateRangeExport):
 
         for cf in self.with_fields.all():
             cols.append(contact.get_field_display(cf))
+
+        memberships = set(contact.groups.all())
+
+        for cg in self.with_groups.all():
+            cols.append(cg in memberships)
 
         return cols
 

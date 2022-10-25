@@ -1260,7 +1260,7 @@ class ExportMessagesTask(BaseItemWithContactExport):
     end_date = models.DateField(null=True)
 
     @classmethod
-    def create(cls, org, user, start_date, end_date, system_label=None, label=None, with_fields=()):
+    def create(cls, org, user, start_date, end_date, system_label=None, label=None, with_fields=(), with_groups=()):
         assert not (label and system_label), "can't specify both label and system label"
 
         export = cls.objects.create(
@@ -1273,6 +1273,7 @@ class ExportMessagesTask(BaseItemWithContactExport):
             modified_by=user,
         )
         export.with_fields.add(*with_fields)
+        export.with_groups.add(*with_groups)
         return export
 
     def _add_msgs_sheet(self, book):
@@ -1310,9 +1311,10 @@ class ExportMessagesTask(BaseItemWithContactExport):
         return temp, "xlsx"
 
     def _get_msg_batches(self, system_label, label, start_date, end_date):
-        # firstly get msgs from archives
         from temba.archives.models import Archive
+        from temba.flows.models import Flow
 
+        # firstly get msgs from archives
         where = {"visibility": "visible"}
         if system_label:
             visibility, direction, msg_type, statuses = SystemLabel.get_archive_attributes(system_label)
@@ -1352,12 +1354,15 @@ class ExportMessagesTask(BaseItemWithContactExport):
 
         all_message_ids = array(str("l"), messages.values_list("id", flat=True))
 
-        prefetch = Prefetch("labels", queryset=Label.objects.order_by("name"))
         for msg_batch in MsgIterator(
             all_message_ids,
-            order_by=["created_on"],
-            select_related=["contact", "contact_urn", "channel", "flow"],
-            prefetch_related=[prefetch],
+            order_by=("created_on",),
+            select_related=("channel", "contact_urn"),
+            prefetch_related=(
+                Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
+                Prefetch("flow", queryset=Flow.objects.only("uuid", "name")),
+                Prefetch("labels", queryset=Label.objects.only("uuid", "name").order_by("name")),
+            ),
         ):
             # convert this batch of msgs to same format as records in our archives
             yield [msg.as_archive_json() for msg in msg_batch]
@@ -1365,7 +1370,12 @@ class ExportMessagesTask(BaseItemWithContactExport):
     def _write_msgs(self, book, msgs):
         # get all the contacts referenced in this batch
         contact_uuids = {m["contact"]["uuid"] for m in msgs}
-        contacts = Contact.objects.filter(org=self.org, uuid__in=contact_uuids)
+        contacts = (
+            Contact.objects.filter(org=self.org, uuid__in=contact_uuids)
+            .select_related("org")
+            .prefetch_related("groups")
+            .using("readonly")
+        )
         contacts_by_uuid = {str(c.uuid): c for c in contacts}
 
         for msg in msgs:

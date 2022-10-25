@@ -427,7 +427,10 @@ class TicketCRUDL(SmartCRUDL):
                 start_date = form.cleaned_data["start_date"]
                 end_date = form.cleaned_data["end_date"]
                 with_fields = form.cleaned_data["with_fields"]
-                export = ExportTicketsTask.create(org, user, start_date, end_date, with_fields)
+                with_groups = form.cleaned_data["with_groups"]
+                export = ExportTicketsTask.create(
+                    org, user, start_date, end_date, with_fields=with_fields, with_groups=with_groups
+                )
 
                 # schedule the export job
                 on_transaction_commit(lambda: export_tickets_task.delay(export.pk))

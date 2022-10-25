@@ -662,6 +662,7 @@ class MsgCRUDL(SmartCRUDL):
             start_date = form.cleaned_data["start_date"]
             end_date = form.cleaned_data["end_date"]
             with_fields = form.cleaned_data["with_fields"]
+            with_groups = form.cleaned_data["with_groups"]
 
             system_label, label = (None, None) if export_all else self.derive_label()
 
@@ -686,6 +687,7 @@ class MsgCRUDL(SmartCRUDL):
                     system_label=system_label,
                     label=label,
                     with_fields=with_fields,
+                    with_groups=with_groups,
                 )
 
                 on_transaction_commit(lambda: export_messages_task.delay(export.id))

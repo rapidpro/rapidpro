@@ -4,7 +4,7 @@ import io
 import os
 import re
 from datetime import datetime, timedelta
-from unittest.mock import PropertyMock, patch
+from unittest.mock import patch
 
 import pytz
 from django_redis import get_redis_connection
@@ -22,7 +22,7 @@ from temba.api.models import Resthook
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.classifiers.models import Classifier
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
@@ -4009,8 +4009,8 @@ class ExportFlowResultsTest(TembaTest):
         end_date,
         responded_only=False,
         with_fields=None,
+        with_groups=(),
         extra_urns=(),
-        group_memberships=None,
         has_results=True,
     ):
         """
@@ -4027,13 +4027,13 @@ class ExportFlowResultsTest(TembaTest):
         }
         if with_fields:
             form["with_fields"] = [c.id for c in with_fields]
+        if with_groups:
+            form["with_groups"] = [g.id for g in with_groups]
 
-        if group_memberships:
-            form["group_memberships"] = [g.id for g in group_memberships]
-
-        readonly_models = {FlowRun, ContactGroup}
+        readonly_models = {FlowRun}
         if has_results:
             readonly_models.add(Contact)
+            readonly_models.add(ContactURN)
 
         with self.mockReadOnly(assert_models=readonly_models):
             response = self.client.post(reverse("flows.flow_export_results"), form)
@@ -4165,7 +4165,7 @@ class ExportFlowResultsTest(TembaTest):
         )
         response = self.client.post(
             reverse("flows.flow_export_results"),
-            {"start_date": "2022-09-01", "end_date": "2022-09-28", "flows": [flow.id], "group_memberships": [devs.id]},
+            {"start_date": "2022-09-01", "end_date": "2022-09-28", "flows": [flow.id], "with_groups": [devs.id]},
         )
         self.assertModalResponse(response, redirect="/flow/")
 
@@ -4191,25 +4191,13 @@ class ExportFlowResultsTest(TembaTest):
         response = self.client.post(export_url, {"start_date": "2022-09-01", "end_date": "2022-03-01"})
         self.assertFormError(response, "form", "__all__", "End date can't be before start date.")
 
-        with self.assertLogs("temba.flows.models", level="INFO") as captured_logger:
-            with patch(
-                "temba.flows.models.ExportFlowResultsTask.LOG_PROGRESS_PER_ROWS", new_callable=PropertyMock
-            ) as log_info_threshold:
-                # make sure that we trigger logger
-                log_info_threshold.return_value = 1
-
-                with self.assertNumQueries(43):
-                    workbook = self._export(
-                        flow,
-                        start_date=today - timedelta(days=7),
-                        end_date=today,
-                        group_memberships=[devs],
-                    )
-
-                self.assertEqual(len(captured_logger.output), 3)
-                self.assertTrue("fetching runs from archives to export" in captured_logger.output[0])
-                self.assertTrue("found 5 runs in database to export" in captured_logger.output[1])
-                self.assertTrue("exported 5 in" in captured_logger.output[2])
+        with self.assertNumQueries(44):
+            workbook = self._export(
+                flow,
+                start_date=today - timedelta(days=7),
+                end_date=today,
+                with_groups=[devs],
+            )
 
         # check that notifications were created
         export = ExportFlowResultsTask.objects.order_by("id").last()
@@ -4345,13 +4333,13 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(44):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
                 end_date=today,
                 responded_only=True,
-                group_memberships=(devs,),
+                with_groups=(devs,),
             )
 
         tz = self.org.timezone
@@ -4420,15 +4408,15 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(46):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
                 end_date=today,
-                responded_only=True,
                 with_fields=[age],
+                with_groups=[devs],
+                responded_only=True,
                 extra_urns=["twitter", "line"],
-                group_memberships=[devs],
             )
 
         tz = self.org.timezone
@@ -4447,9 +4435,9 @@ class ExportFlowResultsTest(TembaTest):
                 "URN Scheme",
                 "URN Value",
                 "Field:Age",
+                "Group:Devs",
                 "URN:Twitter",
                 "URN:Line",
-                "Group:Devs",
                 "Started",
                 "Modified",
                 "Exited",
@@ -4469,9 +4457,9 @@ class ExportFlowResultsTest(TembaTest):
                 "tel",
                 "+250788382382",
                 "36",
+                True,
                 "erictweets",
                 "",
-                True,
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
@@ -4532,7 +4520,7 @@ class ExportFlowResultsTest(TembaTest):
             self.login(self.admin)
             response = self.client.get(export_url)
             self.assertEqual(
-                ["start_date", "end_date", "with_fields", "flows", "group_memberships", "responded_only", "loc"],
+                ["start_date", "end_date", "with_fields", "with_groups", "flows", "responded_only", "loc"],
                 list(response.context["form"].fields.keys()),
             )
 
@@ -4603,7 +4591,7 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(54):
+        with self.assertNumQueries(56):
             workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
 
         tz = self.org.timezone
@@ -4697,7 +4685,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(34):
+        with self.assertNumQueries(35):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4816,9 +4804,7 @@ class ExportFlowResultsTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        workbook = self._export(
-            favorites, start_date=today - timedelta(days=7), end_date=today, group_memberships=[devs]
-        )
+        workbook = self._export(favorites, start_date=today - timedelta(days=7), end_date=today, with_groups=[devs])
 
         tz = self.org.timezone
 

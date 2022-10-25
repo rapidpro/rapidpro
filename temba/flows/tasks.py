@@ -11,7 +11,7 @@ from django.utils.timesince import timesince
 
 from celery import shared_task
 
-from temba.contacts.models import ContactField
+from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import chunk_list
 from temba.utils.celery import nonoverlapping_task
 
@@ -53,7 +53,8 @@ def export_flow_results_task(export_id):
     Export a flow to a file and e-mail a link to the user
     """
     ExportFlowResultsTask.objects.select_related("org", "created_by").prefetch_related(
-        Prefetch("with_fields", ContactField.objects.order_by("name"))
+        Prefetch("with_fields", ContactField.objects.order_by("name")),
+        Prefetch("with_groups", ContactGroup.objects.order_by("name")),
     ).get(id=export_id).perform()
 
 

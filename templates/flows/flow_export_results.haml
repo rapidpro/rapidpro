@@ -1,4 +1,4 @@
--extends 'includes/modax.html'
+-extends 'utils/exports/modax.html'
 -load i18n smartmin
 
 -block pre-form
@@ -10,15 +10,8 @@
 -block fields
   -render_field 'flows'
 
-  .flex
-    .start.flex-grow
-      -render_field 'start_date'
-    .px-1
-    .end.flex-grow
-      -render_field 'end_date'
-  
-  -render_field 'with_fields'
-  -render_field 'group_memberships'
+  {{block.super}}
+
   -if form.fields.extra_urns
     -render_field 'extra_urns'
   -render_field 'responded_only'
