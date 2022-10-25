@@ -49,6 +49,8 @@ class InitTest(TembaTest):
         self.assertEqual("1.0 Pb", sizeof_fmt(1024**5))
         self.assertEqual("1.0 Eb", sizeof_fmt(1024**6))
         self.assertEqual("1.0 Zb", sizeof_fmt(1024**7))
+        self.assertEqual("1.0 Yb", sizeof_fmt(1024**8))
+        self.assertEqual("1024.0 Yb", sizeof_fmt(1024**9))
 
     def test_str_to_bool(self):
         self.assertFalse(str_to_bool(None))

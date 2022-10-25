@@ -26,7 +26,7 @@ from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
-from temba.utils import extract_constants, json, on_transaction_commit
+from temba.utils import json, on_transaction_commit
 from temba.utils.fields import NameValidator
 
 from . import fields
@@ -245,7 +245,7 @@ class BroadcastWriteSerializer(WriteSerializer):
 
 
 class ChannelEventReadSerializer(ReadSerializer):
-    TYPES = extract_constants(ChannelEvent.TYPE_CONFIG)
+    TYPES = {t[0]: t[2] for t in ChannelEvent.TYPE_CONFIG}
 
     type = serializers.SerializerMethodField()
     contact = fields.ContactField()
