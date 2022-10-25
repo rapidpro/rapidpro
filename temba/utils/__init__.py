@@ -1,5 +1,3 @@
-import locale
-import resource
 from itertools import islice
 
 from django.conf import settings
@@ -52,17 +50,6 @@ def sizeof_fmt(num, suffix="b"):
     return "%.1f %s%s" % (num, "Y", suffix)
 
 
-def prepped_request_to_str(prepped):
-    """
-    Graciously cribbed from http://stackoverflow.com/a/23816211
-    """
-    return "{}\n{}\n\n{}".format(
-        prepped.method + " " + prepped.url,
-        "\n".join("{}: {}".format(k, v) for k, v in prepped.headers.items()),
-        prepped.body,
-    )
-
-
 def splitting_getlist(request, name, default=None):
     """
     Used for backward compatibility in the API where some list params can be provided as comma separated values
@@ -84,20 +71,6 @@ def chunk_list(iterable, size):
     while item:
         yield item
         item = list(islice(it, size))
-
-
-def print_max_mem_usage(msg=None):
-    """
-    Prints the maximum RAM used by the process thus far.
-    """
-    if msg is None:
-        msg = "Max usage: "
-
-    locale.setlocale(locale.LC_ALL, "")
-    print("")
-    print("=" * 80)
-    print(msg + locale.format("%d", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, grouping=True))
-    print("=" * 80)
 
 
 def on_transaction_commit(func):

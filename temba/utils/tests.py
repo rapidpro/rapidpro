@@ -34,82 +34,12 @@ from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
 from .fields import NameValidator, validate_external_url
-from .locks import LockNotAcquiredException, NonBlockingLock
 from .templatetags.temba import oxford, short_datetime
-from .text import (
-    clean_string,
-    decode_base64,
-    decode_stream,
-    generate_token,
-    random_string,
-    slugify_with,
-    truncate,
-    unsnakify,
-)
+from .text import clean_string, decode_stream, generate_token, random_string, slugify_with, truncate, unsnakify
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
 
 class InitTest(TembaTest):
-    def test_decode_base64(self):
-
-        self.assertEqual("This test\nhas a newline", decode_base64("This test\nhas a newline"))
-
-        self.assertEqual(
-            "Please vote NO on the confirmation of Gorsuch.",
-            decode_base64("Please vote NO on the confirmation of Gorsuch."),
-        )
-
-        # length not multiple of 4
-        self.assertEqual(
-            "The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play)",
-            decode_base64(
-                "The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play)"
-            ),
-        )
-
-        # end not match base64 characteres
-        self.assertEqual(
-            "The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play) by a player discarding all of their cards!!???",
-            decode_base64(
-                "The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play) by a player discarding all of their cards!!???"
-            ),
-        )
-
-        self.assertEqual(
-            "Bannon Explains The World ...\n\u201cThe Camp of the Saints",
-            decode_base64("QmFubm9uIEV4cGxhaW5zIFRoZSBXb3JsZCAuLi4K4oCcVGhlIENhbXAgb2YgdGhlIFNhaW50c+KA\r"),
-        )
-
-        self.assertEqual(
-            "the sweat, the tears and the sacrifice of working America",
-            decode_base64("dGhlIHN3ZWF0LCB0aGUgdGVhcnMgYW5kIHRoZSBzYWNyaWZpY2Ugb2Ygd29ya2luZyBBbWVyaWNh\r"),
-        )
-
-        self.assertIn(
-            "I find them to be friendly",
-            decode_base64(
-                "Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg=="
-            ),
-        )
-
-        # not 50% ascii letters
-        self.assertEqual(
-            "8J+YgvCfmITwn5iA8J+YhvCfkY3wn5ii8J+Yn/CfmK3wn5it4pi677iP8J+YjPCfmInwn5iK8J+YivCfmIrwn5iK8J+YivCfmIrwn5iK8J+ko/CfpKPwn6Sj8J+ko/CfpKNvaw==",
-            decode_base64(
-                "8J+YgvCfmITwn5iA8J+YhvCfkY3wn5ii8J+Yn/CfmK3wn5it4pi677iP8J+YjPCfmInwn5iK8J+YivCfmIrwn5iK8J+YivCfmIrwn5iK8J+ko/CfpKPwn6Sj8J+ko/CfpKNvaw=="
-            ),
-        )
-
-        with patch("temba.utils.text.Counter") as mock_decode:
-            mock_decode.side_effect = Exception("blah")
-
-            self.assertEqual(
-                "Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg==",
-                decode_base64(
-                    "Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg=="
-                ),
-            )
-
     def test_sizeof_fmt(self):
         self.assertEqual("512.0 b", sizeof_fmt(512))
         self.assertEqual("1.0 Kb", sizeof_fmt(1024))
@@ -951,29 +881,6 @@ class MatchersTest(TembaTest):
         self.assertEqual({"a": "b"}, matchers.Dict())
         self.assertNotEqual(None, matchers.Dict())
         self.assertNotEqual([], matchers.Dict())
-
-
-class NonBlockingLockTest(TestCase):
-    def test_nonblockinglock(self):
-        with NonBlockingLock(redis=get_redis_connection(), name="test_nonblockinglock", timeout=5) as lock:
-            # we are able to get the initial lock
-            self.assertTrue(lock.acquired)
-
-            with NonBlockingLock(redis=get_redis_connection(), name="test_nonblockinglock", timeout=5) as lock:
-                # but we are not able to get it the second time
-                self.assertFalse(lock.acquired)
-                # we need to terminate the execution
-                lock.exit_if_not_locked()
-
-        def raise_exception():
-            with NonBlockingLock(redis=get_redis_connection(), name="test_nonblockinglock", timeout=5) as lock:
-                if not lock.acquired:
-                    raise LockNotAcquiredException
-
-                raise Exception
-
-        # any other exceptions are handled as usual
-        self.assertRaises(Exception, raise_exception)
 
 
 class JSONTest(TestCase):
