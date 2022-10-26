@@ -21,7 +21,6 @@ exclude_lines =
 omit =
     */gen/*
     */tests*
-    *__init__*
     *settings*
     temba/*/management/commands/*
 
