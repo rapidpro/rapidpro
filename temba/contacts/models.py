@@ -30,7 +30,7 @@ from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import chunk_list, format_number, on_transaction_commit
-from temba.utils.export import BaseExport, BaseExportAssetStore, TableExporter
+from temba.utils.export import BaseExport, BaseExportAssetStore, MultiSheetExporter
 from temba.utils.models import JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
@@ -1924,7 +1924,9 @@ class ExportContactsTask(BaseExport):
             contact_ids = group.contacts.order_by("name", "id").values_list("id", flat=True)
 
         # create our exporter
-        exporter = TableExporter(self, "Contact", [f["label"] for f in fields] + [g["label"] for g in group_fields])
+        exporter = MultiSheetExporter(
+            "Contact", [f["label"] for f in fields] + [g["label"] for g in group_fields], self.org.timezone
+        )
 
         total_exported_contacts = 0
         start = time.time()
@@ -1946,8 +1948,7 @@ class ExportContactsTask(BaseExport):
 
                 values = []
                 for field in fields:
-                    value = self.get_field_value(field, contact)
-                    values.append(self.prepare_value(value))
+                    values.append(self.get_field_value(field, contact))
 
                 group_values = []
                 if include_group_memberships:

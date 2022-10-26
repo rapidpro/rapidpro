@@ -1,15 +1,13 @@
 import copy
 import datetime
 import io
-import os
 from collections import OrderedDict
 from datetime import date
 from decimal import Decimal
-from unittest.mock import PropertyMock, patch
+from unittest.mock import patch
 
 import pytz
 from django_redis import get_redis_connection
-from openpyxl import load_workbook
 
 from django.conf import settings
 from django.forms import ValidationError
@@ -20,7 +18,7 @@ from django.utils import timezone, translation
 from celery.app.task import Task
 
 from temba.campaigns.models import Campaign
-from temba.contacts.models import Contact, ExportContactsTask
+from temba.contacts.models import Contact
 from temba.flows.models import Flow
 from temba.tests import TembaTest, matchers
 from temba.triggers.models import Trigger
@@ -32,7 +30,6 @@ from .cache import get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
-from .export import TableExporter
 from .fields import NameValidator, validate_external_url
 from .templatetags.temba import oxford, short_datetime
 from .text import clean_string, decode_stream, generate_token, random_string, slugify_with, truncate, unsnakify
@@ -645,100 +642,6 @@ class CeleryTest(TembaTest):
         mock_redis_get.assert_called_once_with("celery-task-lock:test_task1")
         self.assertEqual(mock_redis_lock.call_count, 0)
         self.assertEqual(task_calls, ["1-11-12", "2-21-22", "3-31-32"])
-
-
-class ExportTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.group = self.create_group("New contacts", [])
-        self.task = ExportContactsTask.objects.create(
-            org=self.org, group=self.group, created_by=self.admin, modified_by=self.admin
-        )
-
-    def test_prepare_value(self):
-        self.assertEqual(self.task.prepare_value(None), "")
-        self.assertEqual(self.task.prepare_value("=()"), "'=()")  # escape formulas
-        self.assertEqual(self.task.prepare_value(123), 123)
-        self.assertEqual(self.task.prepare_value(123.5), 123.5)
-        self.assertEqual(self.task.prepare_value(True), True)
-        self.assertEqual(self.task.prepare_value(False), False)
-
-        dt = pytz.timezone("Africa/Nairobi").localize(datetime.datetime(2017, 2, 7, 15, 41, 23, 123_456))
-        self.assertEqual(self.task.prepare_value(dt), datetime.datetime(2017, 2, 7, 14, 41, 23, 0))
-
-    def test_task_status(self):
-        self.assertEqual(self.task.status, ExportContactsTask.STATUS_PENDING)
-
-        self.task.perform()
-
-        self.assertEqual(self.task.status, ExportContactsTask.STATUS_COMPLETE)
-
-        task2 = ExportContactsTask.objects.create(
-            org=self.org, group=self.group, created_by=self.admin, modified_by=self.admin
-        )
-
-        # if task throws exception, will be marked as failed
-        with patch.object(task2, "write_export") as mock_write_export:
-            mock_write_export.side_effect = ValueError("Problem!")
-
-            with self.assertRaises(Exception):
-                task2.perform()
-
-            self.assertEqual(task2.status, ExportContactsTask.STATUS_FAILED)
-
-    @patch("temba.utils.export.BaseExport.MAX_EXCEL_ROWS", new_callable=PropertyMock)
-    def test_tableexporter_xls(self, mock_max_rows):
-        test_max_rows = 1500
-        mock_max_rows.return_value = test_max_rows
-
-        cols = []
-        for i in range(32):
-            cols.append("Column %d" % i)
-
-        extra_cols = []
-        for i in range(16):
-            extra_cols.append("Extra Column %d" % i)
-
-        exporter = TableExporter(self.task, "test", cols + extra_cols)
-
-        values = []
-        for i in range(32):
-            values.append("Value %d" % i)
-
-        extra_values = []
-        for i in range(16):
-            extra_values.append("Extra Value %d" % i)
-
-        # write out 1050000 rows, that'll make two sheets
-        for i in range(test_max_rows + 200):
-            exporter.write_row(values + extra_values)
-
-        temp_file, file_ext = exporter.save_file()
-        workbook = load_workbook(filename=temp_file.name)
-
-        self.assertEqual(2, len(workbook.worksheets))
-
-        # check our sheet 1 values
-        sheet1 = workbook.worksheets[0]
-
-        rows = tuple(sheet1.rows)
-
-        self.assertEqual(cols + extra_cols, [cell.value for cell in rows[0]])
-        self.assertEqual(values + extra_values, [cell.value for cell in rows[1]])
-
-        self.assertEqual(test_max_rows, len(list(sheet1.rows)))
-        self.assertEqual(32 + 16, len(list(sheet1.columns)))
-
-        sheet2 = workbook.worksheets[1]
-        rows = tuple(sheet2.rows)
-        self.assertEqual(cols + extra_cols, [cell.value for cell in rows[0]])
-        self.assertEqual(values + extra_values, [cell.value for cell in rows[1]])
-
-        self.assertEqual(200 + 2, len(list(sheet2.rows)))
-        self.assertEqual(32 + 16, len(list(sheet2.columns)))
-
-        os.unlink(temp_file.name)
 
 
 class MiddlewareTest(TembaTest):
