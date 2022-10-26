@@ -1994,7 +1994,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             call1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log2, log1]
         )
 
-    def test_views(self):
+    def test_read_and_list(self):
         self.channel.role = "CASR"
         self.channel.save(update_fields=("role",))
 
@@ -2064,6 +2064,24 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         # create failed call with an interaction log
         self.create_incoming_call(ivr_flow, contact, status=Call.STATUS_FAILED)
 
+        # create a non-message, non-call other log
+        other_log = ChannelLog.objects.create(
+            channel=self.channel,
+            log_type=ChannelLog.LOG_TYPE_PAGE_SUBSCRIBE,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/page",
+                    "status_code": 400,
+                    "request": "POST /send?msg=failed+message\r\n\r\n{}",
+                    "response": "HTTP/1.0 200 OK\r\r\r\n",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+        )
+
         # create log for other org
         other_org_contact = self.create_contact("Hans", phone="+593979123456")
         other_org_msg = self.create_outgoing_msg(other_org_contact, "hi", status="D")
@@ -2085,8 +2103,9 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             ],
         )
 
-        # can't see the view without logging in
         list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
+
+        # can't see the view without logging in
         response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
@@ -2097,7 +2116,6 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         # same if logged in as other admin
         self.login(self.admin2)
 
-        list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
         response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
@@ -2124,6 +2142,10 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "failed+message")
         self.assertContains(response, "invalid credentials")
 
+        # check other logs only
+        response = self.client.get(list_url + "?others=1")
+        self.assertEqual([other_log], list(response.context["object_list"]))
+
         # can't view log from other org
         response = self.client.get(reverse("channels.channellog_read", args=[other_org_log.id]))
         self.assertLoginRedirect(response)
@@ -2140,7 +2162,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "POST /send?msg=message")
         self.assertContentMenu(reverse("channels.channellog_read", args=[success_log.id]), self.admin, ["Channel Log"])
 
-        self.assertEqual(self.channel.get_success_log_count(), 2)
+        self.assertEqual(self.channel.get_success_log_count(), 3)
         self.assertEqual(self.channel.get_error_log_count(), 4)  # error log count always includes IVR logs
 
         # check that IVR logs are displayed correctly
