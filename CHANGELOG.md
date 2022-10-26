@@ -1,3 +1,11 @@
+v7.5.87
+----------
+ * Remove unused segment and intercom dependencies
+ * Remove unused utils code
+ * Update TableExporter to prepare values so individual tasks don't have to
+ * Update versions of mailroom etc that we use for testing
+ * Add configurable group membership columns to message, ticket and results exports (WIP)
+
 v7.5.86
 ----------
  * Remove no-loner used credit alert email templates
