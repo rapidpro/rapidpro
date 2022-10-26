@@ -29,7 +29,6 @@ from temba import mailroom
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, countries, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
-from temba.utils.http import HttpLog
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
 
@@ -1214,21 +1213,6 @@ class ChannelLog(models.Model):
     is_error = models.BooleanField(default=False)
     elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
-
-    @classmethod
-    def from_response(cls, log_type, channel, response, created_on, ended_on, is_error=None):
-        http_log = HttpLog.from_response(response, created_on, ended_on)
-        is_error = is_error if is_error is not None else http_log.status_code >= 400
-
-        return cls.objects.create(
-            uuid=uuid4(),
-            log_type=log_type,
-            channel=channel,
-            http_logs=[http_log.as_json()],
-            errors=[],
-            is_error=is_error,
-            elapsed_ms=http_log.elapsed_ms,
-        )
 
     def _get_display_value(self, user, original, redact_keys=(), redact_values=()):
         """
