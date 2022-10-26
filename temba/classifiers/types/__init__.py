@@ -12,11 +12,11 @@ def register_classifier_type(type_class):
     """
     global TYPES
 
-    if not type_class.slug:
+    if not type_class.slug:  # pragma: no cover
         type_class.slug = type_class.__module__.split(".")[-2]
 
-    if type_class.slug in TYPES:  # pragma: no cover
-        raise ValueError("More than one classifier type with slug: %s" % type_class.slug)
+    assert type_class.slug not in TYPES, f"classifier type slug {type_class.slug} already taken"
+
     TYPES[type_class.slug] = type_class()
 
 
