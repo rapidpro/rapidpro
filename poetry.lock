@@ -10,24 +10,6 @@ python-versions = ">=3.6"
 vine = ">=5.0.0"
 
 [[package]]
-name = "analytics-python"
-version = "1.4.0"
-description = "The hassle-free way to integrate analytics into any python application."
-category = "main"
-optional = false
-python-versions = "*"
-
-[package.dependencies]
-backoff = "1.10.0"
-monotonic = ">=1.5"
-python-dateutil = ">2.1"
-requests = ">=2.7,<3.0"
-six = ">=1.5"
-
-[package.extras]
-test = ["mock (==2.0.0)", "pylint (==1.9.3)", "flake8 (==3.7.9)"]
-
-[[package]]
 name = "apscheduler"
 version = "3.6.3"
 description = "In-process task scheduler with Cron-like capabilities"
@@ -63,14 +45,6 @@ python-versions = ">=3.7"
 
 [package.extras]
 tests = ["pytest", "pytest-asyncio", "mypy (>=0.800)"]
-
-[[package]]
-name = "backoff"
-version = "1.10.0"
-description = "Function decoration for backoff and retry"
-category = "main"
-optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
 name = "beautifulsoup4"
@@ -645,14 +619,6 @@ perf = ["ipython"]
 docs = ["rst.linker (>=1.9)", "jaraco.packaging (>=9)", "sphinx"]
 
 [[package]]
-name = "inflection"
-version = "0.5.1"
-description = "A port of Ruby on Rails inflector to Python"
-category = "main"
-optional = false
-python-versions = ">=3.5"
-
-[[package]]
 name = "iptools"
 version = "0.7.0"
 description = "Python utilites for manipulating IPv4 and IPv6 addresses"
@@ -756,14 +722,6 @@ name = "mccabe"
 version = "0.6.1"
 description = "McCabe checker, plugin for flake8"
 category = "dev"
-optional = false
-python-versions = "*"
-
-[[package]]
-name = "monotonic"
-version = "1.6"
-description = "An implementation of time.monotonic() for Python 2 & < 3.3"
-category = "main"
 optional = false
 python-versions = "*"
 
@@ -1025,21 +983,6 @@ optional = false
 python-versions = "*"
 
 [package.dependencies]
-six = "*"
-
-[[package]]
-name = "python-intercom"
-version = "3.1.0"
-description = "Intercom API wrapper"
-category = "main"
-optional = false
-python-versions = "*"
-
-[package.dependencies]
-certifi = "*"
-inflection = "*"
-pytz = "*"
-requests = "*"
 six = "*"
 
 [[package]]
@@ -1456,20 +1399,12 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "6235ba1ee30629990481972f91400416344e50e050b0ccea8dfde7fb21363305"
+content-hash = "af3fb07c47c38fc8786a9c8b84322dfd7ac1779ce8910c8a21e9f40d04a88ded"
 
 [metadata.files]
 amqp = []
-analytics-python = [
-    {file = "analytics-python-1.4.0.tar.gz", hash = "sha256:a65141ab6e47db396f5bc5708b1db93ff9a99882d81fe808228afd5ebb6dfe5f"},
-    {file = "analytics_python-1.4.0-py2.py3-none-any.whl", hash = "sha256:3bff972beeb8a3f26607ccd9153484aa4f12eeeea4a693be685bf45aa66ddf99"},
-]
 apscheduler = []
 asgiref = []
-backoff = [
-    {file = "backoff-1.10.0-py2.py3-none-any.whl", hash = "sha256:5e73e2cbe780e1915a204799dba0a01896f45f4385e636bcca7a0614d879d0cd"},
-    {file = "backoff-1.10.0.tar.gz", hash = "sha256:b8fba021fac74055ac05eb7c7bfce4723aedde6cd0a504e5326bcb0bdd6d19a4"},
-]
 beautifulsoup4 = []
 billiard = [
     {file = "billiard-3.6.4.0-py3-none-any.whl", hash = "sha256:87103ea78fa6ab4d5c751c4909bcff74617d985de7fa8b672cf8618afd5a875b"},
@@ -1646,10 +1581,6 @@ gunicorn = [
 ]
 idna = []
 importlib-metadata = []
-inflection = [
-    {file = "inflection-0.5.1-py2.py3-none-any.whl", hash = "sha256:f38b2b640938a4f35ade69ac3d053042959b62a0f1076a5bbaa1b9526605a8a2"},
-    {file = "inflection-0.5.1.tar.gz", hash = "sha256:1a29730d366e996aaacffb2f1f1cb9593dc38e2ddd30c91250c6dde09ea9b417"},
-]
 iptools = [
     {file = "iptools-0.7.0-py2.py3-none-any.whl", hash = "sha256:a91fc7478fd795ac6b2d47c869fb46db7666ffec817bcb0560ef119e204237f0"},
     {file = "iptools-0.7.0.tar.gz", hash = "sha256:118a4f638bb5fa0123df56fe3be703b112a689167539bcc194f8698ccdd9e2ea"},
@@ -1675,10 +1606,6 @@ markdown = []
 mccabe = [
     {file = "mccabe-0.6.1-py2.py3-none-any.whl", hash = "sha256:ab8a6258860da4b6677da4bd2fe5dc2c659cff31b3ee4f7f5d64e79735b80d42"},
     {file = "mccabe-0.6.1.tar.gz", hash = "sha256:dd8d182285a0fe56bace7f45b5e7d1a6ebcbf524e8f3bd87eb0f125271b8831f"},
-]
-monotonic = [
-    {file = "monotonic-1.6-py2.py3-none-any.whl", hash = "sha256:68687e19a14f11f26d140dd5c86f3dba4bf5df58003000ed467e0e2a69bca96c"},
-    {file = "monotonic-1.6.tar.gz", hash = "sha256:3a55207bcfed53ddd5c5bae174524062935efed17792e9de2ad0205ce9ad63f7"},
 ]
 mypy-extensions = [
     {file = "mypy_extensions-0.4.3-py2.py3-none-any.whl", hash = "sha256:090fedd75945a69ae91ce1303b5824f428daf5a028d2f6ab8a299250a846f15d"},
@@ -1807,9 +1734,6 @@ pysocks = [
 ]
 python-dateutil = [
     {file = "python-dateutil-2.2.tar.gz", hash = "sha256:eec865307ebe7f329a6a9945c15453265a449cdaaf3710340828a1934d53e468"},
-]
-python-intercom = [
-    {file = "python-intercom-3.1.0.tar.gz", hash = "sha256:77df3573228128a0ad1b9fcd469404813248f5864221717e082f959c5a6f28fc"},
 ]
 python-magic = []
 python-telegram-bot = []

@@ -12,7 +12,7 @@ def register_type(type_class):
     """
     global TYPES
 
-    if not type_class.slug:
+    if not type_class.slug:  # pragma: no cover
         type_class.slug = type_class.__module__.split(".")[-2]
 
     assert type_class.slug not in TYPES, f"type slug {type_class.slug} already taken"

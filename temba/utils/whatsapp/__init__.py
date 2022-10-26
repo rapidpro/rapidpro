@@ -21,5 +21,5 @@ def update_api_version(channel):
         channel.save()
     except requests.RequestException as e:
         HTTPLog.from_exception(HTTPLog.WHATSAPP_CHECK_HEALTH, e, start, channel=channel)
-    except Exception as e:
+    except Exception as e:  # pragma: no cover
         logger.error(f"Error retrieving WhatsApp API version: {str(e)}", exc_info=True)
