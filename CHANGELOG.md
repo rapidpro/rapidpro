@@ -1,3 +1,8 @@
+v7.5.88
+----------
+ * Remove the token refresh tasks for jiochat and wechat channels as courier does this on demand
+ * Remove Stripe and bundles functionality
+
 v7.5.87
 ----------
  * Remove unused segment and intercom dependencies
