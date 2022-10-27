@@ -4,8 +4,7 @@ import random
 import smtplib
 import string
 from collections import OrderedDict
-from datetime import datetime, timedelta
-from decimal import Decimal
+from datetime import timedelta
 from email.utils import parseaddr
 from functools import cmp_to_key
 from urllib.parse import parse_qs, quote, unquote, urlparse
@@ -53,7 +52,6 @@ from django.utils.safestring import mark_safe
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import View
 
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
@@ -83,17 +81,7 @@ from temba.utils.views import (
     StaffOnlyMixin,
 )
 
-from .models import (
-    BackupToken,
-    IntegrationType,
-    Invitation,
-    Org,
-    OrgCache,
-    OrgRole,
-    TopUp,
-    User,
-    get_stripe_credentials,
-)
+from .models import BackupToken, IntegrationType, Invitation, Org, OrgCache, OrgRole, TopUp, User
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -3837,88 +3825,3 @@ class TopUpCRUDL(SmartCRUDL):
             topups.sort(key=cmp_to_key(compare))
             context["topups"] = topups
             return context
-
-
-class StripeHandler(View):  # pragma: no cover
-    """
-    Handles WebHook events from Stripe.  We are interested as to when invoices are
-    charged by Stripe so we can send the user an invoice email.
-    """
-
-    @csrf_exempt
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return HttpResponse("ILLEGAL METHOD")
-
-    def post(self, request, *args, **kwargs):
-        import stripe
-
-        from temba.orgs.models import Org, TopUp
-
-        # stripe delivers a JSON payload
-        stripe_data = json.loads(request.body)
-
-        # but we can't trust just any response, so lets go look up this event
-        stripe.api_key = get_stripe_credentials()[1]
-        event = stripe.Event.retrieve(stripe_data["id"])
-
-        if not event:
-            return HttpResponse("Ignored, no event")
-
-        if not event.livemode:
-            return HttpResponse("Ignored, test event")
-
-        # we only care about invoices being paid or failing
-        if event.type == "charge.succeeded" or event.type == "charge.failed":
-            charge = event.data.object
-            charge_date = datetime.fromtimestamp(charge.created)
-            description = charge.description
-            amount = "$%s" % (Decimal(charge.amount) / Decimal(100)).quantize(Decimal(".01"))
-
-            # look up our customer
-            customer = stripe.Customer.retrieve(charge.customer)
-
-            # and our org
-            org = Org.objects.filter(stripe_customer=customer.id).first()
-            if not org:
-                return HttpResponse("Ignored, no org for customer")
-
-            # look up the topup that matches this charge
-            topup = TopUp.objects.filter(stripe_charge=charge.id).first()
-            if topup and event.type == "charge.failed":
-                topup.rollback()
-                topup.save()
-
-            # we know this org, trigger an event for a payment succeeding
-            if org.get_admins().exists():
-                if event.type == "charge_succeeded":
-                    track = "temba.charge_succeeded"
-                else:
-                    track = "temba.charge_failed"
-
-                context = dict(
-                    description=description,
-                    invoice_id=charge.id,
-                    invoice_date=charge_date.strftime("%b %e, %Y"),
-                    amount=amount,
-                    org=org.name,
-                )
-
-                if getattr(charge, "card", None):
-                    context["cc_last4"] = charge.card.last4
-                    context["cc_type"] = charge.card.type
-                    context["cc_name"] = charge.card.name
-
-                else:
-                    context["cc_type"] = "bitcoin"
-                    context["cc_name"] = charge.source.bitcoin.address
-
-                admin = org.get_admins().first()
-
-                analytics.track(admin, track, context)
-                return HttpResponse("Event '%s': %s" % (track, context))
-
-        # empty response, 200 lets Stripe know we handled it
-        return HttpResponse("Ignored, uninteresting event")

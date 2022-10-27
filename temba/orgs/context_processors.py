@@ -1,7 +1,5 @@
 from collections import defaultdict
 
-from .models import get_stripe_credentials
-
 
 class RolePermsWrapper:
     """
@@ -49,10 +47,3 @@ def user_group_perms_processor(request):
         context["org_perms"] = RolePermsWrapper(role)
 
     return context
-
-
-def settings_includer(request):
-    """
-    Includes a few settings that we always want in our context
-    """
-    return dict(STRIPE_PUBLIC_KEY=get_stripe_credentials()[0])
