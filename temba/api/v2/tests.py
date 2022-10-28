@@ -3542,7 +3542,7 @@ class EndpointsTest(TembaTest):
                 "primary_language": None,
                 "timezone": "Africa/Kigali",
                 "date_style": "day_first",
-                "credits": {"used": 0, "remaining": 1000},
+                "credits": {"used": -1, "remaining": -1},
                 "anon": False,
             },
         )
@@ -3560,7 +3560,7 @@ class EndpointsTest(TembaTest):
                 "primary_language": "eng",
                 "timezone": "Africa/Kigali",
                 "date_style": "day_first",
-                "credits": {"used": 0, "remaining": 1000},
+                "credits": {"used": -1, "remaining": -1},
                 "anon": False,
             },
         )

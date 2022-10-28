@@ -3749,7 +3749,6 @@ class WorkspaceEndpoint(BaseAPIView):
             "primary_language": "eng",
             "timezone": "Africa/Kigali",
             "date_style": "day_first",
-            "credits": {"used": 121433, "remaining": 3452},
             "anon": false
         }
     """
