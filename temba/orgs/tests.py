@@ -3194,22 +3194,6 @@ class OrgTest(TembaTest):
         response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}")
         self.assertEqual(404, response.status_code)
 
-    def test_account_value(self):
-
-        # base value
-        self.assertEqual(self.org.account_value(), 0.0)
-
-        # add a topup
-        TopUp.objects.create(
-            org=self.org,
-            price=123,
-            credits=1001,
-            expires_on=timezone.now() + timedelta(days=30),
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-        self.assertAlmostEqual(self.org.account_value(), 1.23)
-
     @patch("temba.msgs.tasks.export_messages_task.delay")
     @patch("temba.flows.tasks.export_flow_results_task.delay")
     @patch("temba.contacts.tasks.export_contacts_task.delay")
