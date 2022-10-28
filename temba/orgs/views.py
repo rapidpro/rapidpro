@@ -2665,7 +2665,12 @@ class OrgCRUDL(SmartCRUDL):
             return initial
 
         def form_valid(self, form):
-            child = self.org.create_child(self.request.user, form.cleaned_data["name"], form.cleaned_data["timezone"])
+            child = self.org.create_child(
+                self.request.user,
+                form.cleaned_data["name"],
+                timezone=form.cleaned_data["timezone"],
+                date_format=form.cleaned_data["date_format"],
+            )
 
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())

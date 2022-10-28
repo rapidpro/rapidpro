@@ -563,7 +563,10 @@ class Org(SmartModel):
 
             return unique_slug
 
-    def create_child(self, user, name, timezone=None):
+    def create_child(self, user, name: str, timezone, date_format: str):
+        """
+        Creates a new child workspace with this as its parent
+        """
         assert self.is_multi_org, "only multi-org enabled orgs can create children"
         assert not self.parent_id, "child orgs can't create children"
 
@@ -583,7 +586,8 @@ class Org(SmartModel):
 
         org = Org.objects.create(
             name=name,
-            timezone=timezone or self.timezone,
+            timezone=timezone,
+            date_format=date_format,
             language=self.language,
             flow_languages=self.flow_languages,
             brand=self.brand,
