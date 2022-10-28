@@ -49,7 +49,6 @@ ORG_CREDITS_USED_CACHE_KEY = "org:%d:cache:credits_used"
 ORG_ACTIVE_TOPUP_KEY = "org:%d:cache:active_topup"
 ORG_ACTIVE_TOPUP_REMAINING = "org:%d:cache:credits_remaining:%d"
 ORG_CREDIT_EXPIRING_CACHE_KEY = "org:%d:cache:credits_expiring_soon"
-ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = "org:%d:cache:low_credits_threshold"
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
@@ -645,7 +644,6 @@ class Org(SmartModel):
             ORG_CREDIT_EXPIRING_CACHE_KEY % self.pk,
             ORG_CREDITS_USED_CACHE_KEY % self.pk,
             ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk,
-            ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk,
             ORG_ACTIVE_TOPUP_KEY % self.pk,
             *active_topup_keys,
         )
@@ -1178,26 +1176,6 @@ class Org(SmartModel):
                     exc_info=True,
                     extra=dict(definition=json.loads(samples)),
                 )
-
-    def has_low_credits(self):
-        return self.get_credits_remaining() <= self.get_low_credits_threshold()
-
-    def get_low_credits_threshold(self):
-        """
-        Get the credits number to consider as low threshold to this org
-        """
-        return get_cacheable_result(
-            ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk, self._calculate_low_credits_threshold
-        )
-
-    def _calculate_low_credits_threshold(self):
-        now = timezone.now()
-        unexpired_topups = self.topups.filter(is_active=True, expires_on__gte=now)
-
-        active_topup_credits = [topup.credits for topup in unexpired_topups if topup.get_remaining() > 0]
-        last_topup_credits = sum(active_topup_credits)
-
-        return int(last_topup_credits * 0.15), self.get_credit_ttl()
 
     def get_credits_total(self, force_dirty=False):
         """
