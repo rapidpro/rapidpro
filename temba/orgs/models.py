@@ -563,49 +563,49 @@ class Org(SmartModel):
 
             return unique_slug
 
-    def create_sub_org(self, name, timezone=None, created_by=None):
-        if self.is_multi_org:
-            if not timezone:
-                timezone = self.timezone
+    def create_child(self, user, name: str, timezone, date_format: str):
+        """
+        Creates a new child workspace with this as its parent
+        """
+        assert self.is_multi_org, "only multi-org enabled orgs can create children"
+        assert not self.parent_id, "child orgs can't create children"
 
-            if not created_by:
-                created_by = self.created_by
+        # generate a unique slug
+        slug = Org.get_unique_slug(name)
 
-            # generate a unique slug
-            slug = Org.get_unique_slug(name)
+        brand = settings.BRANDING[self.brand]
+        plan = brand.get("default_plan", settings.DEFAULT_PLAN)
 
-            brand = settings.BRANDING[self.brand]
-            plan = brand.get("default_plan", settings.DEFAULT_PLAN)
+        # if parent is on topups keep using those
+        if self.plan == settings.TOPUP_PLAN:
+            plan = settings.TOPUP_PLAN
 
-            # if parent is on topups keep using those
-            if self.plan == settings.TOPUP_PLAN:
-                plan = settings.TOPUP_PLAN
+        # shared usage always uses the workspace plan
+        if self.has_shared_usage():
+            plan = settings.WORKSPACE_PLAN
 
-            # shared usage always uses the workspace plan
-            if self.has_shared_usage():
-                plan = settings.WORKSPACE_PLAN
+        org = Org.objects.create(
+            name=name,
+            timezone=timezone,
+            date_format=date_format,
+            language=self.language,
+            flow_languages=self.flow_languages,
+            brand=self.brand,
+            parent=self,
+            slug=slug,
+            created_by=user,
+            modified_by=user,
+            plan=plan,
+            is_multi_user=self.is_multi_user,
+            is_multi_org=False,
+        )
 
-            org = Org.objects.create(
-                name=name,
-                timezone=timezone,
-                language=self.language,
-                flow_languages=self.flow_languages,
-                brand=self.brand,
-                parent=self,
-                slug=slug,
-                created_by=created_by,
-                modified_by=created_by,
-                plan=plan,
-                is_multi_user=self.is_multi_user,
-                is_multi_org=False,
-            )
+        org.add_user(user, OrgRole.ADMINISTRATOR)
 
-            org.add_user(created_by, OrgRole.ADMINISTRATOR)
+        # initialize our org, but without any credits
+        org.initialize(branding=org.get_branding(), topup_size=0)
 
-            # initialize our org, but without any credits
-            org.initialize(branding=org.get_branding(), topup_size=0)
-
-            return org
+        return org
 
     def get_branding(self):
         from temba.middleware import BrandingMiddleware
