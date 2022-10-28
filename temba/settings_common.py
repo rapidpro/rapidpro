@@ -449,7 +449,6 @@ PERMISSIONS = {
         "account",
         "accounts",
         "api",
-        "clear_cache",
         "country",
         "create_login",
         "create_sub_org",

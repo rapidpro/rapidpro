@@ -80,7 +80,7 @@ from temba.utils.views import (
     StaffOnlyMixin,
 )
 
-from .models import BackupToken, IntegrationType, Invitation, Org, OrgCache, OrgRole, User
+from .models import BackupToken, IntegrationType, Invitation, Org, OrgRole, User
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -1219,7 +1219,6 @@ class OrgCRUDL(SmartCRUDL):
         "update",
         "country",
         "languages",
-        "clear_cache",
         "twilio_connect",
         "twilio_account",
         "vonage_account",
@@ -3751,15 +3750,3 @@ class OrgCRUDL(SmartCRUDL):
         def has_permission(self, request, *args, **kwargs):
             self.org = self.derive_org()
             return self.request.user.has_perm("orgs.org_country") or self.has_org_perm("orgs.org_country")
-
-    class ClearCache(SmartUpdateView):  # pragma: no cover
-        fields = ("id",)
-        success_message = None
-        success_url = "id@orgs.org_update"
-
-        def pre_process(self, request, *args, **kwargs):
-            cache = OrgCache(int(request.POST["cache"]))
-            num_deleted = self.get_object().clear_caches([cache])
-            self.success_message = _("Cleared %(name)s cache for this workspace (%(count)d keys)") % dict(
-                name=cache.name, count=num_deleted
-            )

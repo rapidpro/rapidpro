@@ -380,15 +380,6 @@ class OrgLock(Enum):
     credits = 1
 
 
-class OrgCache(Enum):
-    """
-    Org-level cache types
-    """
-
-    display = 1
-    credits = 2
-
-
 class Org(SmartModel):
     """
     An Org can have several users and is the main component that holds all Flows, Messages, Contacts, etc. Orgs
