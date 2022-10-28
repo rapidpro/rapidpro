@@ -2654,6 +2654,10 @@ class OrgCRUDL(SmartCRUDL):
         form_class = Form
         success_url = "@orgs.org_sub_orgs"
 
+        def pre_process(self, request, *args, **kwargs):
+            if not self.request.org.is_multi_org or self.request.org.parent:
+                return HttpResponseRedirect(reverse("orgs.org_home"))
+
         def derive_initial(self):
             initial = super().derive_initial()
             initial["timezone"] = self.request.org.timezone

@@ -3832,8 +3832,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         home_url = reverse("orgs.org_home")
         create_child_url = reverse("orgs.org_create_child")
 
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
-        self.org.reset_capabilities()
+        self.org.is_multi_org = False
+        self.org.save(update_fields=("is_multi_org",))
 
         self.login(self.admin, choose_org=self.org)
 
