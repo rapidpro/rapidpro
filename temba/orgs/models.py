@@ -1450,15 +1450,6 @@ class Org(SmartModel):
 
         self.save(update_fields=("is_multi_user", "is_multi_org"))
 
-    def account_value(self):
-        """
-        How much has this org paid to date in dollars?
-        """
-        paid = TopUp.objects.filter(org=self).aggregate(paid=Sum("price"))["paid"]
-        if not paid:
-            paid = 0
-        return paid / 100
-
     def generate_dependency_graph(self, include_campaigns=True, include_triggers=False, include_archived=False):
         """
         Generates a dict of all exportable flows and campaigns for this org with each object's immediate dependencies
