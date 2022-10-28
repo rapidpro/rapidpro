@@ -1225,7 +1225,7 @@ class OrgCRUDL(SmartCRUDL):
         "vonage_connect",
         "plan",
         "sub_orgs",
-        "create_sub_org",
+        "create_child",
         "export",
         "import",
         "plivo_connect",
@@ -2584,8 +2584,8 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_dashboard"):
                 menu.add_link(_("Dashboard"), reverse("dashboard.dashboard_home"))
 
-            if self.has_org_perm("orgs.org_create_sub_org") and org.is_multi_org:
-                menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_sub_org"))
+            if self.has_org_perm("orgs.org_create_child") and org.is_multi_org and not org.parent:
+                menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_child"))
 
         def get_manage(self, obj):  # pragma: needs cover
             if obj == self.get_object():
@@ -2606,7 +2606,7 @@ class OrgCRUDL(SmartCRUDL):
             org_type = "child"
             if not obj.parent:
                 org_type = "parent"
-            if self.has_org_perm("orgs.org_create_sub_org") and obj.parent:  # pragma: needs cover
+            if self.has_org_perm("orgs.org_edit_sub_org") and obj.parent:  # pragma: needs cover
                 return mark_safe(
                     f"<temba-modax header={_('Update')} endpoint={reverse('orgs.org_edit_sub_org')}?org={obj.id} ><div class='{org_type}-org-name linked'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div></temba-modax>"
                 )
@@ -2636,8 +2636,8 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class CreateSubOrg(NonAtomicMixin, SpaMixin, MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
-        class CreateOrgForm(forms.ModelForm):
+    class CreateChild(NonAtomicMixin, SpaMixin, MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
+        class Form(forms.ModelForm):
             name = forms.CharField(
                 label=_("Workspace"), help_text=_("The name of your workspace"), widget=InputWidget()
             )
@@ -2648,30 +2648,26 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = "__all__"
+                fields = ("name", "date_format", "timezone")
                 widgets = {"date_format": SelectWidget()}
 
-        fields = ("name", "date_format", "timezone")
-        form_class = CreateOrgForm
+        form_class = Form
         success_url = "@orgs.org_sub_orgs"
-        permission = "orgs.org_create_sub_org"
 
         def derive_initial(self):
             initial = super().derive_initial()
-            parent = self.request.org
-            initial["timezone"] = parent.timezone
-            initial["date_format"] = parent.date_format
+            initial["timezone"] = self.request.org.timezone
+            initial["date_format"] = self.request.org.date_format
             return initial
 
         def form_valid(self, form):
-            self.object = form.save(commit=False)
-            parent = self.org
-            child = parent.create_sub_org(self.object.name, self.object.timezone, self.request.user)
+            child = self.org.create_child(self.request.user, form.cleaned_data["name"], form.cleaned_data["timezone"])
+
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
 
-                success_url = self.get_success_url
+                success_url = self.get_success_url()
                 if self.is_spa():
                     success_url = f"{reverse('orgs.org_manage_accounts_sub_org')}?org={child.id}"
 
@@ -3305,14 +3301,16 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Workspace")
 
         def build_content_menu(self, menu):
+            obj = self.request.org
+
             menu.add_link(_("New Channel"), reverse("channels.channel_claim"), as_button=True)
 
             if self.has_org_perm("classifiers.classifier_connect"):
                 menu.add_link(_("New Classifier"), reverse("classifiers.classifier_connect"))
             if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in settings.FEATURES:
                 menu.add_link(_("New Ticketing Service"), reverse("tickets.ticketer_connect"))
-            if self.has_org_perm("orgs.org_create_sub_org") and self.request.org.is_multi_org:
-                menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_sub_org"))
+            if self.has_org_perm("orgs.org_create_child") and obj.is_multi_org and not obj.parent:
+                menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_child"))
 
             menu.new_group()
 

@@ -2910,14 +2910,13 @@ class OrgTest(TembaTest):
             import_flows=1, multi_user=100_000, multi_org=1_000_000
         )
         self.org.reset_capabilities()
-        self.assertIsNone(self.org.create_sub_org("Sub Org A"))
         self.assertFalse(self.org.is_multi_user)
         self.assertFalse(self.org.is_multi_org)
 
         # not enough credits, but tiers disabled
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(import_flows=0, multi_user=0, multi_org=0)
         self.org.reset_capabilities()
-        self.assertIsNotNone(self.org.create_sub_org("Sub Org A"))
+        self.assertIsNotNone(self.org.create_child(self.admin, "Sub Org A"))
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
@@ -2927,7 +2926,7 @@ class OrgTest(TembaTest):
         )
         TopUp.create(self.org, self.admin, price=100, credits=1_000_000)
         self.org.clear_credit_cache()
-        self.assertIsNotNone(self.org.create_sub_org("Sub Org B"))
+        self.assertIsNotNone(self.org.create_child(self.admin, "Sub Org B"))
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
@@ -2935,7 +2934,7 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["shared_plans"] = ["my_shared_plan"]
         self.org.plan = "my_shared_plan"
         self.org.save()
-        sub_org_c = self.org.create_sub_org("Sub Org C")
+        sub_org_c = self.org.create_child(self.admin, "Sub Org C")
         self.assertEqual(sub_org_c.plan, settings.WORKSPACE_PLAN)
 
         with override_settings(DEFAULT_PLAN="other"):
@@ -2943,7 +2942,7 @@ class OrgTest(TembaTest):
             self.org.plan = settings.TOPUP_PLAN
             self.org.save()
             self.org.reset_capabilities()
-            sub_org_d = self.org.create_sub_org("Sub Org D")
+            sub_org_d = self.org.create_child(self.admin, "Sub Org D")
             self.assertIsNotNone(sub_org_d)
             self.assertEqual(sub_org_d.plan, settings.TOPUP_PLAN)
 
@@ -2967,38 +2966,35 @@ class OrgTest(TembaTest):
 
         self.assertEqual(self.org.api_rates, {"v2.contacts": "10000/hour"})
 
-    def test_sub_orgs_management(self):
+    def test_child_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
         self.org.reset_capabilities()
 
-        sub_org = self.org.create_sub_org("Sub Org")
-
-        # we won't create sub orgs if the org isn't the proper level
-        self.assertIsNone(sub_org)
+        # error if a non-multi-org enabled org tries to create a child
+        with self.assertRaises(AssertionError):
+            self.org.create_child(self.admin, "Sub Org")
 
         # lower the tier and try again
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
         self.org.reset_capabilities()
-        sub_org = self.org.create_sub_org("Sub Org")
+        sub_org = self.org.create_child(self.admin, "Sub Org")
 
         # suborg has been created
         self.assertIsNotNone(sub_org)
 
-        # suborgs can create suborgs
-        self.assertIsNotNone(sub_org.create_sub_org("Grandchild Org"))
-
         # we should be linked to our parent with the same brand
         self.assertEqual(self.org, sub_org.parent)
         self.assertEqual(self.org.brand, sub_org.brand)
+        self.assertEqual(self.admin, sub_org.created_by)
 
         # default values should be the same as parent
         self.assertEqual(self.org.timezone, sub_org.timezone)
-        self.assertEqual(self.org.created_by, sub_org.created_by)
 
         # our sub account should have zero credits
         self.assertEqual(0, sub_org.get_credits_remaining())
 
-        self.login(self.admin)
+        self.login(self.admin, choose_org=self.org)
+
         response = self.client.get(reverse("orgs.org_edit"))
         self.assertEqual(200, response.status_code)
         self.assertEqual(len(response.context["sub_orgs"]), 1)
@@ -3019,7 +3015,7 @@ class OrgTest(TembaTest):
 
         # lower the tier and try again
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
-        sub_org = self.org.create_sub_org("Sub Org")
+        sub_org = self.org.create_child(self.admin, "Sub Org")
 
         # send a message as sub_org
         self.create_channel(
@@ -3094,105 +3090,6 @@ class OrgTest(TembaTest):
 
         self.assertEqual(1999, sub_org.get_credits_remaining())
         self.assertEqual(0, self.org.get_credits_remaining())
-
-    def test_edit_sub_org(self):
-        self.login(self.admin)
-
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
-        self.org.reset_capabilities()
-
-        # set our org on the session
-        session = self.client.session
-        session["org_id"] = self.org.id
-        session.save()
-
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertNotContains(response, "Manage Workspaces")
-
-        # attempting to manage orgs should redirect
-        response = self.client.get(reverse("orgs.org_sub_orgs"))
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        # creating a new sub org should also redirect
-        response = self.client.get(reverse("orgs.org_create_sub_org"))
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        # make sure posting is gated too
-        new_org = dict(name="Sub Org", timezone=self.org.timezone, date_format=self.org.date_format)
-        response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        # cant manage users either
-        response = self.client.get(reverse("orgs.org_manage_accounts_sub_org"))
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        # zero out our tier
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
-        self.org.reset_capabilities()
-        self.assertTrue(self.org.is_multi_org)
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Manage Workspaces")
-
-        # now we can manage our orgs
-        response = self.client.get(reverse("orgs.org_sub_orgs"))
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Workspaces")
-
-        # add a sub org
-        response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
-        self.assertRedirect(response, reverse("orgs.org_sub_orgs"))
-        sub_org = Org.objects.filter(name="Sub Org").first()
-        self.assertIsNotNone(sub_org)
-        self.assertEqual(OrgRole.ADMINISTRATOR, sub_org.get_user_role(self.admin))
-
-        # create a second org to test sorting
-        new_org = dict(name="A Second Org", timezone=self.org.timezone, date_format=self.org.date_format)
-        response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
-        self.assertEqual(302, response.status_code)
-
-        # we can reach the manage accounts page too now
-        response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id))
-        self.assertEqual(200, response.status_code)
-
-        headers = {"HTTP_TEMBA_SPA": 1}
-        response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id), **headers)
-        self.assertContains(response, "Edit Workspace")
-
-        # edit our sub org's details
-        response = self.client.post(
-            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
-            {"name": "New Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
-        )
-
-        sub_org.refresh_from_db()
-        self.assertEqual("New Sub Org Name", sub_org.name)
-
-        self.assertEqual(response.url, "/org/sub_orgs/")
-
-        # edit our sub org's details in a spa view
-        response = self.client.post(
-            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
-            {"name": "Spa Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
-            **headers,
-        )
-
-        self.assertEqual(response.url, f"/org/manage_accounts_sub_org/?org={sub_org.id}")
-
-        sub_org.refresh_from_db()
-        self.assertEqual("Spa Sub Org Name", sub_org.name)
-        self.assertEqual("Africa/Nairobi", str(sub_org.timezone))
-        self.assertEqual("Y", sub_org.date_format)
-        self.assertEqual("es", sub_org.language)
-
-        # if org doesn't exist, 404
-        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org=3464374")
-        self.assertEqual(404, response.status_code)
-
-        self.login(self.admin2)
-
-        # same if it's not a child of the request org
-        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}")
-        self.assertEqual(404, response.status_code)
 
     def test_account_value(self):
 
@@ -3848,6 +3745,110 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         user = User.objects.get(username="myal@wr.org")
         self.assertTrue(user.check_password("Password123"))
 
+    def test_create_child(self):
+        home_url = reverse("orgs.org_home")
+        create_child_url = reverse("orgs.org_create_child")
+
+        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
+        self.org.reset_capabilities()
+
+        self.login(self.admin, choose_org=self.org)
+
+        response = self.client.get(home_url)
+        self.assertNotContains(response, "Manage Workspaces")
+
+        # attempting to manage orgs should redirect
+        response = self.client.get(reverse("orgs.org_sub_orgs"))
+        self.assertRedirect(response, home_url)
+
+        # creating a new sub org should also redirect
+        response = self.client.get(create_child_url)
+        self.assertRedirect(response, home_url)
+
+        # make sure posting is gated too
+        response = self.client.post(
+            create_child_url,
+            {"name": "Sub Org", "timezone": self.org.timezone, "date_format": self.org.date_format},
+        )
+        self.assertRedirect(response, home_url)
+
+        # cant manage users either
+        response = self.client.get(reverse("orgs.org_manage_accounts_sub_org"))
+        self.assertRedirect(response, home_url)
+
+        # zero out our tier
+        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
+        self.org.reset_capabilities()
+        self.assertTrue(self.org.is_multi_org)
+        response = self.client.get(home_url)
+        self.assertContains(response, "Manage Workspaces")
+
+        # now we can manage our orgs
+        response = self.client.get(reverse("orgs.org_sub_orgs"))
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Workspaces")
+
+        # add a sub org
+        response = self.client.post(
+            create_child_url,
+            {"name": "Sub Org", "timezone": self.org.timezone, "date_format": self.org.date_format},
+        )
+        self.assertRedirect(response, reverse("orgs.org_sub_orgs"))
+        sub_org = Org.objects.filter(name="Sub Org").first()
+        self.assertIsNotNone(sub_org)
+        self.assertEqual(OrgRole.ADMINISTRATOR, sub_org.get_user_role(self.admin))
+
+        # create a second org to test sorting
+        response = self.client.post(
+            create_child_url,
+            {"name": "A Second Org", "timezone": self.org.timezone, "date_format": self.org.date_format},
+        )
+        self.assertEqual(302, response.status_code)
+
+        # we can reach the manage accounts page too now
+        response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id))
+        self.assertEqual(200, response.status_code)
+
+        headers = {"HTTP_TEMBA_SPA": 1}
+        response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id), **headers)
+        self.assertContains(response, "Edit Workspace")
+
+        # edit our sub org's details
+        response = self.client.post(
+            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
+            {"name": "New Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+        )
+
+        sub_org.refresh_from_db()
+        self.assertEqual("New Sub Org Name", sub_org.name)
+
+        self.assertEqual(response.url, "/org/sub_orgs/")
+
+        # edit our sub org's details in a spa view
+        response = self.client.post(
+            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
+            {"name": "Spa Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+            **headers,
+        )
+
+        self.assertEqual(response.url, f"/org/manage_accounts_sub_org/?org={sub_org.id}")
+
+        sub_org.refresh_from_db()
+        self.assertEqual("Spa Sub Org Name", sub_org.name)
+        self.assertEqual("Africa/Nairobi", str(sub_org.timezone))
+        self.assertEqual("Y", sub_org.date_format)
+        self.assertEqual("es", sub_org.language)
+
+        # if org doesn't exist, 404
+        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org=3464374")
+        self.assertEqual(404, response.status_code)
+
+        self.login(self.admin2)
+
+        # same if it's not a child of the request org
+        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}")
+        self.assertEqual(404, response.status_code)
+
     def test_choose(self):
         choose_url = reverse("orgs.org_choose")
 
@@ -3989,8 +3990,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, created_on.strftime("%H:%M").lower())
 
     def test_delete(self):
-
-        workspace = Org.create_sub_org(self.org, "Child Workspace")
+        workspace = self.org.create_child(self.admin, "Child Workspace")
         delete_workspace = reverse("orgs.org_delete", args=[workspace.id])
 
         # choose the parent org, try to delete the workspace
@@ -5062,7 +5062,7 @@ class OrgActivityTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["shared_plans"] = ["my_shared_plan"]
         self.org.plan = "my_shared_plan"
         self.org.save()
-        workspace = self.org.create_sub_org("Workspace")
+        workspace = self.org.create_child(self.admin, "Workspace")
         self.assertEqual(workspace.plan, settings.WORKSPACE_PLAN)
 
         mark = self.create_contact("Mark S", phone="+12065551212", org=workspace)
