@@ -2136,27 +2136,6 @@ class OrgTest(TembaTest):
 
         self.assertEqual(300, self.org.get_low_credits_threshold())
 
-    def test_topup_decrementing(self):
-        self.contact = self.create_contact("Joe", phone="+250788123123")
-
-        self.create_incoming_msg(self.contact, "Orange")
-
-        # check our credits
-        self.login(self.admin)
-        response = self.client.get(reverse("orgs.org_home"))
-
-        # We now show org plan
-        # self.assertContains(response, "<b>999</b>")
-
-        # view our topups
-        response = self.client.get(reverse("orgs.topup_list"))
-
-        # and that we have 999 credits left on our topup
-        self.assertContains(response, "999\n")
-
-        # should say we have a 1,000 credits too
-        self.assertContains(response, "1,000 Credits")
-
     def test_topups(self):
 
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
@@ -3408,7 +3387,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         home_url = reverse("orgs.org_home")
 
-        with self.assertNumQueries(21):
+        with self.assertNumQueries(13):
             response = self.client.get(home_url)
 
         self.assertEqual(200, response.status_code)

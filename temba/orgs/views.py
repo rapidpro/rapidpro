@@ -6,7 +6,6 @@ import string
 from collections import OrderedDict
 from datetime import timedelta
 from email.utils import parseaddr
-from functools import cmp_to_key
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import iso8601
@@ -40,7 +39,7 @@ from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
-from django.db.models import ExpressionWrapper, F, IntegerField, Q, Sum
+from django.db.models import Q, Sum
 from django.forms import Form
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import resolve_url
@@ -81,7 +80,7 @@ from temba.utils.views import (
     StaffOnlyMixin,
 )
 
-from .models import BackupToken, IntegrationType, Invitation, Org, OrgCache, OrgRole, TopUp, User
+from .models import BackupToken, IntegrationType, Invitation, Org, OrgCache, OrgRole, User
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -3764,64 +3763,3 @@ class OrgCRUDL(SmartCRUDL):
             self.success_message = _("Cleared %(name)s cache for this workspace (%(count)d keys)") % dict(
                 name=cache.name, count=num_deleted
             )
-
-
-class TopUpCRUDL(SmartCRUDL):
-    actions = ("list", "read")
-    model = TopUp
-
-    class Read(OrgPermsMixin, SmartReadView):
-        def derive_queryset(self, **kwargs):  # pragma: needs cover
-            return TopUp.objects.filter(is_active=True, org=self.request.org).order_by("-expires_on")
-
-    class List(OrgPermsMixin, SmartListView):
-        def derive_queryset(self, **kwargs):
-            queryset = TopUp.objects.filter(is_active=True, org=self.request.org).order_by("-expires_on")
-            return queryset.annotate(
-                credits_remaining=ExpressionWrapper(F("credits") - Sum(F("topupcredits__used")), IntegerField())
-            )
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["org"] = self.request.org
-
-            now = timezone.now()
-            context["now"] = now
-            context["expiration_period"] = now + timedelta(days=30)
-
-            # show our topups in a meaningful order
-            topups = list(self.get_queryset())
-
-            def compare(topup1, topup2):  # pragma: no cover
-
-                # non expired first
-                now = timezone.now()
-                if topup1.expires_on > now and topup2.expires_on <= now:
-                    return -1
-                elif topup2.expires_on > now and topup1.expires_on <= now:
-                    return 1
-
-                # then push those without credits remaining to the bottom
-                if topup1.credits_remaining is None:
-                    topup1.credits_remaining = topup1.credits
-
-                if topup2.credits_remaining is None:
-                    topup2.credits_remaining = topup2.credits
-
-                if topup1.credits_remaining and not topup2.credits_remaining:
-                    return -1
-                elif topup2.credits_remaining and not topup1.credits_remaining:
-                    return 1
-
-                # sor the rest by their expiration date
-                if topup1.expires_on > topup2.expires_on:
-                    return -1
-                elif topup1.expires_on < topup2.expires_on:
-                    return 1
-
-                # if we end up with the same expiration, show the oldest first
-                return topup2.id - topup1.id
-
-            topups.sort(key=cmp_to_key(compare))
-            context["topups"] = topups
-            return context
