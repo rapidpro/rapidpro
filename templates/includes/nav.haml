@@ -249,18 +249,3 @@
         .icon-user
       .title
         -trans "sign in"
-
--if user_org and user_org.has_low_credits and not user.is_superuser
-  -if user_org.get_credits_remaining <= 0
-    .nav-alert.interrupted
-      %a{href:'{% url "orgs.topup_list" %}'}
-        {% blocktrans %}You are out of credits, add more to resume your service{% endblocktrans %}
-  -else
-    .nav-alert
-      %a{href:'{% url "orgs.topup_list" %}'}
-        {% blocktrans count credits=user_org.get_credits_remaining %}You have {{ credits }} credit remaining, add credits to prevent interruption{%plural%}You have {{ credits }} credits remaining, add credits to prevent interruption{% endblocktrans %}</a>
-
--elif user_org and user_org.has_expiring_credits and not user.is_superuser
-  .nav-alert
-    -blocktrans trimmed
-      Your active credits will expire soon, add credits to prevent interruption.
