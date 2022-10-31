@@ -11,6 +11,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
+from temba.utils.text import truncate
 from temba.utils.views import ContentMenuMixin
 
 from ...models import Channel
@@ -150,6 +151,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         message_template_namespace = form.cleaned_data["message_template_namespace"]
         pin = str(randint(100000, 999999))
 
+        name = truncate(f"{number} - {verified_name}", 64)
+
         config = {
             "wa_number": number,
             "wa_verified_name": verified_name,
@@ -204,7 +207,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.request.user,
             None,
             self.channel_type,
-            name=f"{number} - {verified_name}",
+            name=name,
             address=phone_number_id,
             config=config,
             tps=80,
