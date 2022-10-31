@@ -1,3 +1,9 @@
+v7.5.90
+----------
+ * Update flow editor
+ * Remove unused fields from ChannelType
+ * Allow non-beta users to add WeChat channels
+
 v7.5.89
 ----------
  * Properly truncate the channel name when claiming a WAC channel
