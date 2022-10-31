@@ -1,3 +1,12 @@
+v7.5.89
+----------
+ * Properly truncate the channel name when claiming a WAC channel
+ * Fix not saving selected date format to new child org
+ * Add redirect from org_create_child if org has a parent
+ * Remove unused Org.get_account_value
+ * Don't allow creation of child orgs within child orgs
+ * Remove low credit checking code
+
 v7.5.88
 ----------
  * Remove the token refresh tasks for jiochat and wechat channels as courier does this on demand
