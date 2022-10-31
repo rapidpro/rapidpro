@@ -77,13 +77,10 @@ class ChannelType(metaclass=ABCMeta):
 
     max_length = -1
     max_tps = None
-    attachment_support = False
     free_sending = False
     quick_reply_text_size = 20
 
     extra_links = None
-
-    ivr_protocol = None
 
     # Whether this channel should be activated in the a celery task, useful to turn off if there's a chance for errors
     # during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
@@ -165,12 +162,6 @@ class ChannelType(metaclass=ABCMeta):
         """
         Called when a trigger that is bound to a channel of this type is being released.
         """
-
-    def has_attachment_support(self, channel):
-        """
-        Whether the given channel instance supports message attachments
-        """
-        return self.attachment_support
 
     def get_configuration_context_dict(self, channel):
         return dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)

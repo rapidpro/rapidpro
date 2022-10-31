@@ -36,7 +36,6 @@ class FacebookAppType(ChannelType):
 
     schemes = [URN.FACEBOOK_SCHEME]
     max_length = 2000
-    attachment_support = True
     free_sending = True
 
     def get_urls(self):

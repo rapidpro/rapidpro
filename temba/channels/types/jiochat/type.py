@@ -27,7 +27,6 @@ class JioChatType(ChannelType):
 
     schemes = [URN.JIOCHAT_SCHEME]
     max_length = 1600
-    attachment_support = False
     free_sending = True
 
     configuration_blurb = _(

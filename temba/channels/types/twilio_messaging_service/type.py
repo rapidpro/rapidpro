@@ -45,7 +45,5 @@ class TwilioMessagingServiceType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
-    attachment_support = True
-
     def is_recommended_to(self, org, user):
         return timezone_to_country_code(org.timezone) in SUPPORTED_COUNTRIES

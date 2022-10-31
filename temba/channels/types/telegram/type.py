@@ -31,7 +31,6 @@ class TelegramType(ChannelType):
 
     schemes = [URN.TELEGRAM_SCHEME]
     max_length = 1600
-    attachment_support = True
     free_sending = True
 
     redact_response_keys = {"first_name", "last_name", "username"}

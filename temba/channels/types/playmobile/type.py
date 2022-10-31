@@ -27,8 +27,6 @@ class PlayMobileType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 160
 
-    attachment_support = False
-
     configuration_blurb = _(
         "To finish configuring your Play Mobile connection you'll need to notify Play Mobile of the following URL."
     )

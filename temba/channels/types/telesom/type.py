@@ -25,7 +25,6 @@ class TelesomType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 160
-    attachment_support = False
 
     configuration_blurb = _(
         "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL "

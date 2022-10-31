@@ -107,7 +107,6 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         self.assertEqual("RW", channel.country)
         self.assertEqual("WA", channel.channel_type)
         self.assertEqual(45, channel.tps)
-        self.assertTrue(channel.type.has_attachment_support(channel))
 
         # test activating the channel
         with patch("requests.patch") as mock_patch:
@@ -299,7 +298,6 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         self.assertEqual("RW", channel.country)
         self.assertEqual("WA", channel.channel_type)
         self.assertEqual(45, channel.tps)
-        self.assertTrue(channel.type.has_attachment_support(channel))
 
     @patch("requests.get")
     def test_get_api_templates(self, mock_get):

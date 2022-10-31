@@ -23,7 +23,6 @@ class Hub9Type(ChannelType):
 
     schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
     max_length = 1600
-    attachment_support = False
 
     show_public_addresses = True
 
