@@ -1,3 +1,7 @@
+v7.5.91
+----------
+ * Remove outdated contributor files
+
 v7.5.90
 ----------
  * Update flow editor
