@@ -26,7 +26,6 @@ class HighConnectionType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 1500
-    attachment_support = False
 
     configuration_blurb = _(
         "To finish configuring your connection you'll need to notify HighConnection of the following URL for incoming "

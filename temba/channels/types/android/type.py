@@ -26,7 +26,6 @@ class AndroidType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = -1
-    attachment_support = False
     free_sending = False
     show_config_page = False
 

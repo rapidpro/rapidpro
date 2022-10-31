@@ -28,8 +28,6 @@ class SMSCentralType(ChannelType):
     max_length = 1600
     max_tps = 1
 
-    attachment_support = False
-
     configuration_blurb = _(
         "To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL."
     )

@@ -66,8 +66,6 @@ class VonageType(ChannelType):
     max_length = 1600
     max_tps = 1
 
-    ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO
-
     configuration_blurb = _(
         "Your Vonage configuration URLs are as follows. These should have been set up automatically when claiming your "
         "number, but if not you can set them from your Vonage dashboard."
