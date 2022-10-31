@@ -33,8 +33,6 @@ class MessangiType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 150
 
-    attachment_support = False
-
     configuration_blurb = _(
         "To finish configuring your Messangi connection you'll need to set the following callback URLs on your Messangi"
         " account."

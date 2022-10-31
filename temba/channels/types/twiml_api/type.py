@@ -35,8 +35,6 @@ class TwimlAPIType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
-    attachment_support = True
-
     ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML
 
     claim_view = ClaimView

@@ -37,7 +37,6 @@ class Dialog360Type(ChannelType):
 
     schemes = [URN.WHATSAPP_SCHEME]
     max_length = 4096
-    attachment_support = True
 
     def get_urls(self):
         return [

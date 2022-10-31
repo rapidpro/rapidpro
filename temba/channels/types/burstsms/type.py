@@ -33,7 +33,6 @@ class BurstSMSType(ChannelType):
     category = ChannelType.Category.PHONE
     schemes = [URN.TEL_SCHEME]
     max_length = 613
-    attachment_support = False
 
     claim_view = AuthenticatedExternalClaimView
     claim_view_kwargs = {

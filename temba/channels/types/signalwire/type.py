@@ -77,8 +77,6 @@ class SignalWireType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
-    attachment_support = True
-
     async_activation = False
 
     configuration_blurb = _("Your SignalWire channel is now connected.")

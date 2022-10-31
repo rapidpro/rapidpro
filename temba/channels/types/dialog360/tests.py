@@ -60,7 +60,6 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
         self.assertEqual("RW", channel.country)
         self.assertEqual("D3", channel.channel_type)
         self.assertEqual(45, channel.tps)
-        self.assertTrue(channel.type.has_attachment_support(channel))
 
         # test activating the channel
         with patch("requests.post") as mock_post:

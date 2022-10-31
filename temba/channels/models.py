@@ -77,7 +77,6 @@ class ChannelType(metaclass=ABCMeta):
 
     max_length = -1
     max_tps = None
-    attachment_support = False
     free_sending = False
     quick_reply_text_size = 20
 
@@ -165,12 +164,6 @@ class ChannelType(metaclass=ABCMeta):
         """
         Called when a trigger that is bound to a channel of this type is being released.
         """
-
-    def has_attachment_support(self, channel):
-        """
-        Whether the given channel instance supports message attachments
-        """
-        return self.attachment_support
 
     def get_configuration_context_dict(self, channel):
         return dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
