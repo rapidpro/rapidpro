@@ -13,7 +13,6 @@ class WeChatType(ChannelType):
 
     code = "WC"
     category = ChannelType.Category.SOCIAL_MEDIA
-    beta_only = True
 
     courier_url = r"^wc/(?P<uuid>[a-z0-9\-]+)/?$"
 

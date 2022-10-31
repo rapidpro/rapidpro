@@ -15,7 +15,7 @@ class WeChatTypeTest(TembaTest):
 
         # check that claim page URL appears on claim list page
         response = self.client.get(reverse("channels.channel_claim"))
-        self.assertNotContains(response, url)
+        self.assertContains(response, url)
 
         # try to claim a channel
         response = self.client.get(url)
@@ -49,7 +49,7 @@ class WeChatTypeTest(TembaTest):
         self.assertContains(response, "10.10.10.10")
         self.assertContains(response, "172.16.20.30")
 
-        # make sure we our jiochat channel satisfies as a send channel
+        # make sure we our WeChat channel satisfies as a send channel
         send_channel = self.org.get_send_channel()
         self.assertIsNotNone(send_channel)
         self.assertEqual(send_channel.channel_type, "WC")
