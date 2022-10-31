@@ -26,8 +26,6 @@ class StartType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
-    attachment_support = False
-
     configuration_blurb = _(
         "To finish configuring your Start connection you'll need to notify Start of the following receiving URL."
     )

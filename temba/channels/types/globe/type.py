@@ -26,7 +26,6 @@ class GlobeType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 160
-    attachment_support = False
 
     configuration_blurb = _(
         "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your "

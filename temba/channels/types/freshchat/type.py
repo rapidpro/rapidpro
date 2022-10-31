@@ -25,7 +25,6 @@ class FreshChatType(ChannelType):
     claim_view = ClaimView
 
     schemes = [URN.FRESHCHAT_SCHEME]
-    attachment_support = True
     free_sending = True
 
     configuration_blurb = _(

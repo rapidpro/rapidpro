@@ -27,5 +27,3 @@ class KannelType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
-
-    attachment_support = False

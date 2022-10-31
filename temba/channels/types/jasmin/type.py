@@ -25,7 +25,6 @@ class JasminType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
-    attachment_support = False
 
     configuration_blurb = _(
         "As a last step you'll need to configure Jasmin to call the following URL for MO (incoming) messages."

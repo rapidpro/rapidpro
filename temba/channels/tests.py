@@ -689,7 +689,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "DS")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "FBA")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-2].code, "VK")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-2].code, "WC")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-1].code, "ZVW")
 
         self.admin.groups.add(Group.objects.get(name="Beta"))

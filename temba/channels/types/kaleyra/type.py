@@ -28,7 +28,6 @@ class KaleyraType(ChannelType):
 
     schemes = [URN.WHATSAPP_SCHEME]
     max_length = 4096
-    attachment_support = True
 
     configuration_blurb = _(
         "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra "
