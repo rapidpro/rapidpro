@@ -1,6 +1,6 @@
 import io
 import smtplib
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import urlencode
@@ -4055,6 +4055,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "name",
                 "brand",
                 "parent",
+                "plan",
+                "plan_end",
                 "is_anon",
                 "is_multi_user",
                 "is_multi_org",
@@ -4088,6 +4090,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "name": "Temba",
                 "brand": "rapidpro.io",
                 "parent": parent.id,
+                "plan": "unicef",
+                "plan_end": "2027-12-31T00:00Z",
                 "is_anon": False,
                 "is_multi_user": False,
                 "is_multi_org": False,
@@ -4105,6 +4109,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
 
         self.org.refresh_from_db()
+        self.assertEqual(parent, self.org.parent)
+        self.assertEqual("unicef", self.org.plan)
+        self.assertEqual(datetime(2027, 12, 31, 0, 0, 0, 0, timezone.utc), self.org.plan_end)
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)  # uses default
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
@@ -4114,7 +4121,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.client.post(update_url, {"action": "unflag"})
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_flagged)
-        self.assertEqual(parent, self.org.parent)
 
         # verify
         self.client.post(update_url, {"action": "verify"})
