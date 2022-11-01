@@ -657,7 +657,7 @@ class UserTest(TembaTest):
         self.assertEqual("admin@nyaruka.com", self.admin.email)
 
         # but she should be removed from org
-        self.assertFalse(self.admin.get_orgs(brands=[settings.DEFAULT_BRAND]).exists())
+        self.assertFalse(self.admin.get_orgs(brand="rapidpro.io").exists())
 
         # now lets release her from the branded org
         self.admin.release(self.customer_support, brand="some-other-brand.com")
@@ -676,7 +676,7 @@ class UserTest(TembaTest):
         branded_org = Org.objects.create(
             name="Other Brand Org",
             timezone=pytz.timezone("Africa/Kigali"),
-            brand="custom-brand.org",
+            brand="custom-brand.io",
             created_by=self.admin,
             modified_by=self.admin,
         )
@@ -688,6 +688,7 @@ class UserTest(TembaTest):
 
         # check our choose page
         response = self.client.get(reverse("orgs.org_choose"), SERVER_NAME="custom-brand.org")
+        self.assertEqual("custom-brand.io", response.context["request"].branding["host"])
 
         # should contain both orgs
         self.assertContains(response, "Other Brand Org")
@@ -2124,8 +2125,7 @@ class OrgTest(TembaTest):
         self.assertEqual(15, self.org.get_credits_used())
 
     def test_topups(self):
-
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
+        settings.BRANDS[0]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
         self.org.is_multi_org = False
         self.org.is_multi_user = False
         self.org.save(update_fields=["is_multi_user", "is_multi_org"])
@@ -2900,21 +2900,19 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
-        del settings.BRANDING[settings.DEFAULT_BRAND]["tiers"]
+        del settings.BRANDS[0]["tiers"]
         self.org.reset_capabilities()
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
         # not enough credits with tiers enabled
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
-            import_flows=1, multi_user=100_000, multi_org=1_000_000
-        )
+        settings.BRANDS[0]["tiers"] = dict(import_flows=1, multi_user=100_000, multi_org=1_000_000)
         self.org.reset_capabilities()
         self.assertFalse(self.org.is_multi_user)
         self.assertFalse(self.org.is_multi_org)
 
         # not enough credits, but tiers disabled
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(import_flows=0, multi_user=0, multi_org=0)
+        settings.BRANDS[0]["tiers"] = dict(import_flows=0, multi_user=0, multi_org=0)
         self.org.reset_capabilities()
         self.assertIsNotNone(
             self.org.create_child(self.admin, "Sub Org A", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
@@ -2923,9 +2921,7 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_org)
 
         # tiers enabled, but enough credits
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
-            import_flows=1, multi_user=100_000, multi_org=1_000_000
-        )
+        settings.BRANDS[0]["tiers"] = dict(import_flows=1, multi_user=100_000, multi_org=1_000_000)
         TopUp.create(self.org, self.admin, price=100, credits=1_000_000)
         self.org.clear_credit_cache()
         self.assertIsNotNone(
@@ -2935,14 +2931,14 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_org)
 
         # if we are a shared plan, our sub orgs should be created with the workspace plan
-        settings.BRANDING[settings.DEFAULT_BRAND]["shared_plans"] = ["my_shared_plan"]
+        settings.BRANDS[0]["shared_plans"] = ["my_shared_plan"]
         self.org.plan = "my_shared_plan"
         self.org.save()
         sub_org_c = self.org.create_child(self.admin, "Sub Org C", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
         self.assertEqual(sub_org_c.plan, settings.WORKSPACE_PLAN)
 
         with override_settings(DEFAULT_PLAN="other"):
-            settings.BRANDING[settings.DEFAULT_BRAND]["default_plan"] = "other"
+            settings.BRANDS[0]["default_plan"] = "other"
             self.org.plan = settings.TOPUP_PLAN
             self.org.save()
             self.org.reset_capabilities()
@@ -2971,7 +2967,7 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.api_rates, {"v2.contacts": "10000/hour"})
 
     def test_child_management(self):
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
+        settings.BRANDS[0]["tiers"] = dict(multi_org=1_000_000)
         self.org.reset_capabilities()
 
         # error if a non-multi-org enabled org tries to create a child
@@ -2979,7 +2975,7 @@ class OrgTest(TembaTest):
             self.org.create_child(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
 
         # lower the tier and try again
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
+        settings.BRANDS[0]["tiers"] = dict(multi_org=0)
         self.org.reset_capabilities()
         sub_org = self.org.create_child(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
 
@@ -3018,7 +3014,7 @@ class OrgTest(TembaTest):
         newer_topup = TopUp.create(self.org, self.admin, price=0, credits=1000, expires_on=expires)
 
         # lower the tier and try again
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
+        settings.BRANDS[0]["tiers"] = dict(multi_org=0)
         sub_org = self.org.create_child(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
 
         # send a message as sub_org
@@ -5047,7 +5043,7 @@ class OrgActivityTest(TembaTest):
         now = timezone.now()
 
         # give us a shared plan
-        settings.BRANDING[settings.DEFAULT_BRAND]["shared_plans"] = ["my_shared_plan"]
+        settings.BRANDS[0]["shared_plans"] = ["my_shared_plan"]
         self.org.plan = "my_shared_plan"
         self.org.save()
         workspace = self.org.create_child(self.admin, "Workspace", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)

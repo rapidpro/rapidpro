@@ -1921,7 +1921,7 @@ class OrgCRUDL(SmartCRUDL):
 
                         admin_emails = [admin.email for admin in self.instance.get_admins().order_by("email")]
 
-                        branding = self.instance.get_branding()
+                        branding = self.instance.branding
                         subject = _("%(name)s SMTP configuration test") % branding
                         body = (
                             _(
@@ -2712,7 +2712,7 @@ class OrgCRUDL(SmartCRUDL):
         }
 
         def get_user_orgs(self):
-            return self.request.user.get_orgs(brands=self.request.branding.get("keys"))
+            return self.request.user.get_orgs(brand=self.request.branding["host"])
 
         def get_success_url(self):
             role = self.request.org.get_user_role(self.request.user)
@@ -3154,7 +3154,7 @@ class OrgCRUDL(SmartCRUDL):
             ):  # pragma: needs cover
                 obj.add_user(self.request.user, OrgRole.ADMINISTRATOR)
 
-            obj.initialize(branding=obj.get_branding(), topup_size=self.get_welcome_size())
+            obj.initialize(branding=obj.branding, topup_size=self.get_welcome_size())
 
             return obj
 
@@ -3299,7 +3299,7 @@ class OrgCRUDL(SmartCRUDL):
             token = self.get_token(org)
             if token:
                 context["prometheus_token"] = token.key
-                context["prometheus_url"] = f"https://{org.get_branding()['domain']}/mr/org/{org.uuid}/metrics"
+                context["prometheus_url"] = f"https://{org.branding['domain']}/mr/org/{org.uuid}/metrics"
 
             return context
 

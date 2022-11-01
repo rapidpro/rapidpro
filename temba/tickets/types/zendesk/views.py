@@ -65,8 +65,7 @@ class ConnectView(BaseConnectView):
         return super(ConnectView, self).get(request, *args, **kwargs)
 
     def get_absolute_url(self):
-        brand = self.org.get_branding()
-        return f"https://{brand['domain']}{reverse('tickets.types.zendesk.connect')}"
+        return f"https://{self.org.branding['domain']}{reverse('tickets.types.zendesk.connect')}"
 
     def get_success_url(self):
         return reverse("tickets.types.zendesk.configure", args=[self.object.uuid])

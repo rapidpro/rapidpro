@@ -313,11 +313,14 @@ DEFAULT_PLAN = TOPUP_PLAN
 # -----------------------------------------------------------------------------------
 # Branding Configuration
 # -----------------------------------------------------------------------------------
-BRANDING = {
-    "rapidpro.io": {
+BRANDS = [
+    {
+        "host": "rapidpro.io",
+        "aliases": [],
         "slug": "rapidpro",
         "name": "RapidPro",
         "org": "UNICEF",
+        "domain": "app.rapidpro.io",
         "colors": dict(primary="#0c6596"),
         "styles": ["brands/rapidpro/font/style.css"],
         "default_plan": TOPUP_PLAN,
@@ -326,7 +329,6 @@ BRANDING = {
         "support_email": "support@rapidpro.io",
         "link": "https://app.rapidpro.io",
         "docs_link": "http://docs.rapidpro.io",
-        "domain": "app.rapidpro.io",
         "ticket_domain": "tickets.rapidpro.io",
         "favico": "brands/rapidpro/rapidpro.ico",
         "splash": "brands/rapidpro/splash.jpg",
@@ -338,7 +340,7 @@ BRANDING = {
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
         "credits": "Copyright &copy; 2012-2022 UNICEF, Nyaruka. All Rights Reserved.",
     }
-}
+]
 DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
 
 FEATURES = {"locations", "ticketers"}
@@ -978,7 +980,7 @@ COMPRESS_OFFLINE = False
 
 # build up our offline compression context based on available brands
 COMPRESS_OFFLINE_CONTEXT = []
-for brand in BRANDING.values():
+for brand in BRANDS:
     context = dict(STATIC_URL=STATIC_URL, base_template="frame.html", debug=False, testing=False)
     context["brand"] = dict(slug=brand["slug"], styles=brand["styles"])
     COMPRESS_OFFLINE_CONTEXT.append(context)

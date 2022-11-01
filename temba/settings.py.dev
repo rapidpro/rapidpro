@@ -20,7 +20,8 @@ STORAGE_URL = "http://localhost:8000/media"
 # Add a custom brand for development
 # -----------------------------------------------------------------------------------
 
-custom = copy.deepcopy(BRANDING["rapidpro.io"])
+custom = copy.deepcopy(BRANDS[0])
+custom["host"] = "custom-brand.io"
 custom["aliases"] = ["custom-brand.org"]
 custom["name"] = "Custom Brand"
 custom["slug"] = "custom"
@@ -29,33 +30,25 @@ custom["domain"] = "custom-brand.io"
 custom["email"] = "join@custom-brand.io"
 custom["support_email"] = "support@custom-brand.io"
 custom["allow_signups"] = True
-BRANDING["custom-brand.io"] = custom
+BRANDS.append(custom)
 
-# make another copy as an alternate domain for custom-domain
-custom2 = copy.deepcopy(custom)
-custom2["aliases"] = ["custom-brand.io"]
-custom2["domain"] = "custom-brand.org"
-custom2["email"] = "join@custom-brand.org"
-custom2["support_email"] = "support@custom-brand.org"
-BRANDING["custom-brand.org"] = custom2
-
-custom3 = copy.deepcopy(BRANDING["rapidpro.io"])
-custom3["aliases"] = ["no-topups.org"]
-custom3["name"] = "No Topups"
-custom3["slug"] = "notopups"
-custom3["org"] = "NoTopups"
-custom3["domain"] = "no-topups.org"
-custom3["email"] = "join@no-topups.org"
-custom3["support_email"] = "support@no-topups.org"
-custom3["allow_signups"] = True
-custom3["welcome_topup"] = 0
-custom3["default_plan"] = "trial"
-BRANDING["no-topups.org"] = custom3
+no_topups = copy.deepcopy(BRANDS[0])
+no_topups["host"] = "no-topups.org"
+no_topups["name"] = "No Topups"
+no_topups["slug"] = "notopups"
+no_topups["org"] = "NoTopups"
+no_topups["domain"] = "no-topups.org"
+no_topups["email"] = "join@no-topups.org"
+no_topups["support_email"] = "support@no-topups.org"
+no_topups["allow_signups"] = True
+no_topups["welcome_topup"] = 0
+no_topups["default_plan"] = "trial"
+BRANDS.append(no_topups)
 
 # set our domain on our brands to our tunnel domain if set
 localhost_domain = os.environ.get("LOCALHOST_TUNNEL_DOMAIN")
 if localhost_domain is not None:
-    for b in BRANDING.values():
+    for b in BRANDS:
         b["domain"] = localhost_domain
 
 # allow all hosts in dev
