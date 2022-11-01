@@ -2186,13 +2186,12 @@ def get_flow_user(org):
     if not __flow_users:
         __flow_users = {}
 
-    branding = org.get_branding()
-    username = "%s_flow" % branding["slug"]
+    username = "%s_flow" % org.branding["slug"]
     flow_user = __flow_users.get(username)
 
     # not cached, let's look it up
     if not flow_user:
-        email = branding["support_email"]
+        email = org.branding["support_email"]
         flow_user = User.objects.filter(username=username).first()
         if flow_user:  # pragma: needs cover
             __flow_users[username] = flow_user

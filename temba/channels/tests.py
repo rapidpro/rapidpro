@@ -1501,9 +1501,9 @@ class ChannelClaimTest(TembaTest):
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
         self.channel.save()
 
-        branding = copy.deepcopy(settings.BRANDING)
-        branding["rapidpro.io"]["from_email"] = "support@mybrand.com"
-        with self.settings(BRANDING=branding):
+        brands = copy.deepcopy(settings.BRANDS)
+        brands[0]["from_email"] = "support@mybrand.com"
+        with self.settings(BRANDS=brands):
             check_channels_task()
 
             # should have created one alert
@@ -1518,7 +1518,7 @@ class ChannelClaimTest(TembaTest):
                 org=self.channel.org,
                 channel=self.channel,
                 now=timezone.now(),
-                branding=self.channel.org.get_branding(),
+                branding=self.channel.org.branding,
                 last_seen=self.channel.last_seen,
                 sync=alert.sync_event,
             )
@@ -1551,7 +1551,7 @@ class ChannelClaimTest(TembaTest):
             org=self.channel.org,
             channel=self.channel,
             now=timezone.now(),
-            branding=self.channel.org.get_branding(),
+            branding=self.channel.org.branding,
             last_seen=self.channel.last_seen,
             sync=alert.sync_event,
         )

@@ -8,6 +8,7 @@ from django.conf import settings
 from django.utils import timezone, translation
 
 from temba.orgs.models import Org
+from temba.utils.brands import get_branding_by_host
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class BrandingMiddleware:
 
     def __call__(self, request):
         """
-        Check for any branding options based on the current host
+        Set branding for this request based on the current host
         """
 
         host = "localhost"
@@ -43,39 +44,21 @@ class BrandingMiddleware:
         except Exception as e:  # pragma: needs cover
             logger.error(f"Could not get host: {host}, {str(e)}", exc_info=True)
 
-        request.branding = BrandingMiddleware.get_branding_for_host(host)
+        request.branding = self.get_branding_for_host(host)
 
-        response = self.get_response(request)
-        return response
+        return self.get_response(request)
 
     @classmethod
-    def get_branding_for_host(cls, host):
-        brand_key = host
-
+    def get_branding_for_host(cls, host: str) -> dict:
         # ignore subdomains
-        if len(brand_key.split(".")) > 2:  # pragma: needs cover
-            brand_key = ".".join(brand_key.split(".")[-2:])
+        if len(host.split(".")) > 2:  # pragma: needs cover
+            host = ".".join(host.split(".")[-2:])
 
         # prune off the port
-        if ":" in brand_key:
-            brand_key = brand_key[0 : brand_key.rindex(":")]
+        if ":" in host:
+            host = host[0 : host.rindex(":")]
 
-        # override with site specific branding if we have that
-        branding = settings.BRANDING.get(brand_key, None)
-
-        if branding:
-            branding["brand"] = brand_key
-
-            # derive the keys for our brand based on our aliases
-            if "aliases" in branding:
-                branding["keys"] = [brand_key] + branding["aliases"]
-            else:
-                branding["keys"] = [brand_key]
-        else:
-            # if that brand isn't configured, use the default
-            branding = settings.BRANDING.get(settings.DEFAULT_BRAND)
-
-        return branding
+        return get_branding_by_host(host)
 
 
 class OrgMiddleware:

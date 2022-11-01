@@ -1181,7 +1181,7 @@ class ChannelCRUDL(SmartCRUDL):
             org = self.request.org
 
             context["org_timezone"] = str(org.timezone)
-            context["brand"] = org.get_branding()
+            context["brand"] = org.branding
 
             channel_count, org_limit = Channel.get_org_limit_progress(org)
             context["total_count"] = channel_count

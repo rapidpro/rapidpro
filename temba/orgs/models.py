@@ -31,6 +31,7 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.locations.models import AdminBoundary
 from temba.utils import chunk_list, json, languages
+from temba.utils.brands import get_branding_by_slug
 from temba.utils.cache import get_cacheable_result
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
@@ -157,13 +158,15 @@ class User(AuthUser):
     def name(self) -> str:
         return self.get_full_name()
 
-    def get_orgs(self, *, brands=None, roles=None):
+    def get_orgs(self, *, brand: str = None, roles=None):
         """
         Gets the orgs in the given brands that this user has access to (i.e. a role in).
         """
         orgs = self.orgs.filter(is_active=True).order_by("name")
-        if brands is not None:
-            orgs = orgs.filter(brand__in=brands)
+        if brand:
+            # TODO update orgs to use brand slug rather than a host then we can just filter on `brand=brand`
+            branding = get_branding_by_slug(brand)
+            orgs = orgs.filter(brand__in=[brand] + branding["hosts"])
         if roles is not None:
             orgs = orgs.filter(orgmembership__user=self, orgmembership__role_code__in=[r.code for r in roles])
 
@@ -174,7 +177,7 @@ class User(AuthUser):
         Gets the orgs in the given brands where this user is the only user.
         """
         owned_orgs = []
-        for org in self.get_orgs(brands=[brand] if brand else None):
+        for org in self.get_orgs(brand=brand):
             if not org.users.exclude(id=self.id).exists():
                 owned_orgs.append(org)
         return owned_orgs
@@ -300,7 +303,7 @@ class User(AuthUser):
             org.release(user, release_users=False)
 
         # remove user from all roles on any org for our brand
-        for org in self.get_orgs(brands=[brand]):
+        for org in self.get_orgs(brand=brand):
             org.remove_user(self)
 
     def __str__(self):
@@ -573,8 +576,7 @@ class Org(SmartModel):
         # generate a unique slug
         slug = Org.get_unique_slug(name)
 
-        brand = settings.BRANDING[self.brand]
-        plan = brand.get("default_plan", settings.DEFAULT_PLAN)
+        plan = self.branding.get("default_plan", settings.DEFAULT_PLAN)
 
         # if parent is on topups keep using those
         if self.plan == settings.TOPUP_PLAN:
@@ -603,20 +605,19 @@ class Org(SmartModel):
         org.add_user(user, OrgRole.ADMINISTRATOR)
 
         # initialize our org, but without any credits
-        org.initialize(branding=org.get_branding(), topup_size=0)
+        org.initialize(branding=org.branding, topup_size=0)
 
         return org
 
-    def get_branding(self):
-        from temba.middleware import BrandingMiddleware
-
-        return BrandingMiddleware.get_branding_for_host(self.brand)
+    @cached_property
+    def branding(self):
+        return get_branding_by_slug(self.brand)
 
     def get_brand_domain(self):
-        return self.get_branding()["domain"]
+        return self.branding["domain"]
 
     def has_shared_usage(self):
-        return self.plan in self.get_branding().get("shared_plans", [])
+        return self.plan in self.branding.get("shared_plans", [])
 
     def lock_on(self, lock):
         """
@@ -1446,10 +1447,10 @@ class Org(SmartModel):
         Using our topups and brand settings, figures out whether this org should be multi-user and multi-org. We never
         disable one of these capabilities, but will turn it on for those that qualify via credits
         """
-        if self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("multi_org", 0):
+        if self.get_purchased_credits() >= self.branding.get("tiers", {}).get("multi_org", 0):
             self.is_multi_org = True
 
-        if self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("multi_user", 0):
+        if self.get_purchased_credits() >= self.branding.get("tiers", {}).get("multi_user", 0):
             self.is_multi_user = True
 
         self.save(update_fields=("is_multi_user", "is_multi_org"))
@@ -1555,12 +1556,11 @@ class Org(SmartModel):
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.contacts.models import ContactField, ContactGroup
-        from temba.middleware import BrandingMiddleware
         from temba.tickets.models import Ticketer, Topic
 
         with transaction.atomic():
             if not branding:
-                branding = BrandingMiddleware.get_branding_for_host("")
+                branding = get_branding_by_slug(settings.DEFAULT_BRAND)
 
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
@@ -1832,15 +1832,14 @@ class Invitation(SmartModel):
         if not self.email:  # pragma: needs cover
             return
 
-        branding = self.org.get_branding()
-        subject = _("%(name)s Invitation") % branding
+        subject = _("%(name)s Invitation") % self.org.branding
         template = "orgs/email/invitation_email"
         to_email = self.email
 
-        context = dict(org=self.org, now=timezone.now(), branding=branding, invitation=self)
+        context = dict(org=self.org, now=timezone.now(), branding=self.org.branding, invitation=self)
         context["subject"] = subject
 
-        send_template_email(to_email, subject, template, context, branding)
+        send_template_email(to_email, subject, template, context, self.org.branding)
 
 
 class TopUp(SmartModel):
