@@ -30,6 +30,9 @@ class HttpLogTest(TembaTest):
             self.wfile.write(b'{"ok": true}')
             return
 
+        def version_string(self):
+            return "HttpLogTest/1.0"
+
         def date_time_string(self, timestamp=None):
             return "Fri, 26 Aug 2022 18:25:56 GMT"
 
@@ -59,7 +62,7 @@ class HttpLogTest(TembaTest):
             log.request,
         )
         self.assertEqual(
-            'HTTP/1.0 200 OK\r\nServer: BaseHTTP/0.6 Python/3.9.13\r\nDate: Fri, 26 Aug 2022 18:25:56 GMT\r\nContent-type: application/json\r\n\r\n{"ok": true}',
+            'HTTP/1.0 200 OK\r\nServer: HttpLogTest/1.0\r\nDate: Fri, 26 Aug 2022 18:25:56 GMT\r\nContent-type: application/json\r\n\r\n{"ok": true}',
             log.response,
         )
         self.assertEqual(0, log.retries)
