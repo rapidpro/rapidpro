@@ -1,3 +1,8 @@
+v7.5.92
+----------
+ * Create cla.yml
+ * Rework branding to not require modifying what is in the settings
+
 v7.5.91
 ----------
  * Remove outdated contributor files
