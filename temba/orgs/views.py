@@ -2112,7 +2112,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs).filter(is_active=True)
 
-            # TODO update orgs to use only brand slugs
+            # TODO update orgs to use brand slugs rather than hosts
             qs = qs.filter(brand__in=[self.request.branding["slug"]] + self.request.branding["hosts"])
 
             obj_filter = self.request.GET.get("filter")
