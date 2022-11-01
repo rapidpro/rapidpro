@@ -688,7 +688,7 @@ class UserTest(TembaTest):
 
         # check our choose page
         response = self.client.get(reverse("orgs.org_choose"), SERVER_NAME="custom-brand.org")
-        self.assertEqual("custom-brand.io", response.context["request"].branding["host"])
+        self.assertEqual("custom", response.context["request"].branding["slug"])
 
         # should contain both orgs
         self.assertContains(response, "Other Brand Org")

@@ -24,7 +24,7 @@ class RolePermsWrapper:
 
 def user_orgs_for_brand(request):
     if request.user.is_authenticated:
-        user_orgs = request.user.get_orgs(brand=request.branding)
+        user_orgs = request.user.get_orgs(brand=request.branding["slug"])
         return {"user_orgs": user_orgs}
     return {}
 

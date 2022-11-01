@@ -660,20 +660,20 @@ class MiddlewareTest(TembaTest):
         self.assertEqual(response["X-Temba-Org"], str(self.org.id))
 
     def test_branding(self):
-        def assert_branding(request_host, brand_host):
+        def assert_branding(request_host, brand: str):
             response = self.client.get(reverse("public.public_index"), HTTP_HOST=request_host)
             self.assertEqual(
-                brand_host, response.context["request"].branding["host"], f"brand mismatch for host {request_host}"
+                brand, response.context["request"].branding["slug"], f"brand mismatch for host {request_host}"
             )
 
-        assert_branding("localhost", "rapidpro.io")  # uses default
-        assert_branding("localhost:8888", "rapidpro.io")  # port stripped
-        assert_branding("rapidpro.io", "rapidpro.io")
-        assert_branding("app.rapidpro.io", "rapidpro.io")  # subdomains ignored
-        assert_branding("custom-brand.io", "custom-brand.io")
-        assert_branding("subdomain.custom-brand.io", "custom-brand.io")
-        assert_branding("custom-brand.org", "custom-brand.io")  # by alias
-        assert_branding("api.custom-brand.org", "custom-brand.io")  # by alias
+        assert_branding("localhost", "rapidpro")  # uses default
+        assert_branding("localhost:8888", "rapidpro")  # port stripped
+        assert_branding("rapidpro.io", "rapidpro")
+        assert_branding("app.rapidpro.io", "rapidpro")  # subdomains ignored
+        assert_branding("custom-brand.io", "custom")
+        assert_branding("subdomain.custom-brand.io", "custom")
+        assert_branding("custom-brand.org", "custom")  # by alias
+        assert_branding("api.custom-brand.org", "custom")  # by alias
 
     def test_redirect(self):
         self.assertNotRedirect(self.client.get(reverse("public.public_index")), None)

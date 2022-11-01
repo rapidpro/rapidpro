@@ -315,10 +315,9 @@ DEFAULT_PLAN = TOPUP_PLAN
 # -----------------------------------------------------------------------------------
 BRANDS = [
     {
-        "host": "rapidpro.io",
-        "aliases": [],
         "slug": "rapidpro",
         "name": "RapidPro",
+        "hosts": ["rapidpro.io"],
         "org": "UNICEF",
         "domain": "app.rapidpro.io",
         "colors": dict(primary="#0c6596"),

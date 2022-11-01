@@ -31,7 +31,7 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.locations.models import AdminBoundary
 from temba.utils import chunk_list, json, languages
-from temba.utils.brands import get_branding
+from temba.utils.brands import get_branding_by_slug
 from temba.utils.cache import get_cacheable_result
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
@@ -164,7 +164,9 @@ class User(AuthUser):
         """
         orgs = self.orgs.filter(is_active=True).order_by("name")
         if brand:
-            orgs = orgs.filter(brand=brand)
+            # TODO update orgs to use brand slug rather than a host then we can just filter on `brand=brand`
+            branding = get_branding_by_slug(brand)
+            orgs = orgs.filter(brand__in=[brand] + branding["hosts"])
         if roles is not None:
             orgs = orgs.filter(orgmembership__user=self, orgmembership__role_code__in=[r.code for r in roles])
 
@@ -609,7 +611,7 @@ class Org(SmartModel):
 
     @cached_property
     def branding(self):
-        return get_branding(self.brand)
+        return get_branding_by_slug(self.brand)
 
     def get_brand_domain(self):
         return self.branding["domain"]
@@ -1554,12 +1556,11 @@ class Org(SmartModel):
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.contacts.models import ContactField, ContactGroup
-        from temba.middleware import BrandingMiddleware
         from temba.tickets.models import Ticketer, Topic
 
         with transaction.atomic():
             if not branding:
-                branding = BrandingMiddleware.get_branding_for_host("")
+                branding = get_branding_by_slug(settings.DEFAULT_BRAND)
 
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
