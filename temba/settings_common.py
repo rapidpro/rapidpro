@@ -340,7 +340,7 @@ BRANDS = [
         "credits": "Copyright &copy; 2012-2022 UNICEF, Nyaruka. All Rights Reserved.",
     }
 ]
-DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
+DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro")
 
 FEATURES = {"locations", "ticketers"}
 

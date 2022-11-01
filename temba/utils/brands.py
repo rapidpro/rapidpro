@@ -20,5 +20,5 @@ def get_branding_by_slug(slug: str) -> dict:
         if slug == brand["slug"]:
             return brand
 
-    # TODO update orgs and DEFAULT_BRAND to use brand slugs rather than hosts
+    # TODO update orgs to use brand slugs rather than hosts
     return get_branding_by_host(slug)
