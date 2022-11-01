@@ -14,7 +14,7 @@ def get_branding_by_host(host: str) -> dict:
 
 def get_branding_by_slug(slug: str) -> dict:
     """
-    Returns the branding for the given host or alias
+    Returns the branding for the given slug
     """
     for brand in settings.BRANDS:
         if slug == brand["slug"]:
