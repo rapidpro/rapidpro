@@ -15,13 +15,14 @@
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
-    -if user.is_staff
+    -if user.is_beta
       %script(src="{{ STATIC_URL }}js/urls.js")
 
       :javascript
         window.STATIC_URL = "{{STATIC_URL}}";
         function loadNewInterface(force) {
-          var newUrl = mapUrl(window.location.pathname);
+          var location = window.location;
+          var newUrl = mapUrl(location.pathname + (location.search || ""));
           if (newUrl != window.location.pathname) {
             window.location = newUrl;
           } else { 
@@ -173,7 +174,7 @@
   
   -block temba-store
     
-    -if user.is_authenticated and org
+    -if user.is_authenticated and user_org
       %temba-store(
         completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
         fields="/api/v2/fields.json"
@@ -213,7 +214,7 @@
         -include 'includes/nav.html'
 
     -block interface-option
-      -if user.is_staff
+      -if user.is_beta
         #preview.text-center.px-3.text-sm.py-1(style='background:rgba(0,0,0,.75);z-index:10000;position:fixed;bottom:0px;width:100%;color:#fff')
           Preview the
           %span.linked(onclick="switchToNewInterface()" style="color:#43b1ff")<
@@ -283,10 +284,7 @@
               presentation of the below copyright, please contact us at legal@textit.com 
               to discuss attribution requirements for this software.
             -->
-            Copyright © 2012-2022 TextIt, UNICEF. All rights reserved.
-            
-            <div style="font-size:.8em;margin: 0em 0.75em;display:inline-block">|</div><a style="color:#bbb" href="/policy">Privacy</a>
-    
+            Copyright © 2012-2022 TextIt, UNICEF. All rights reserved.    
 
   -trans 'Delete' as title
   %temba-dialog#general-delete-confirmation.hidden{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}

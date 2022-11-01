@@ -5,12 +5,9 @@ import traceback
 from io import StringIO
 
 from django.conf import settings
-from django.http import HttpResponseRedirect
-from django.urls import reverse
 from django.utils import timezone, translation
 
 from temba.orgs.models import Org
-from temba.policies.models import Policy
 
 logger = logging.getLogger(__name__)
 
@@ -81,23 +78,6 @@ class BrandingMiddleware:
         return branding
 
 
-class ConsentMiddleware:  # pragma: no cover
-
-    REQUIRES_CONSENT = ("/msg", "/contact", "/flow", "/trigger", "/org/home", "/campaign", "/channel", "/welcome")
-
-    def __init__(self, get_response=None):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        if request.user and request.user.is_authenticated:
-            for path in ConsentMiddleware.REQUIRES_CONSENT:
-                if request.path.startswith(path):
-                    if Policy.get_policies_needing_consent(request.user):
-                        return HttpResponseRedirect(reverse("policies.policy_list") + "?next=" + request.path)
-        response = self.get_response(request)
-        return response
-
-
 class OrgMiddleware:
     """
     Determines the current org for this request and sets it on the user object on the request
@@ -135,7 +115,7 @@ class OrgMiddleware:
             org = Org.objects.filter(is_active=True, id=org_id).first()
 
             # only use if user actually belongs to this org
-            if org and (user.is_superuser or user.is_staff or org.has_user(user)):
+            if org and (user.is_staff or org.has_user(user)):
                 return org
 
         # otherwise if user only belongs to one org, we can use that
@@ -178,7 +158,7 @@ class LanguageMiddleware:
 
         user = request.user
 
-        if not user.is_authenticated or user.is_superuser:
+        if not user.is_authenticated:
             language = request.branding.get("language", settings.DEFAULT_LANGUAGE)
             translation.activate(language)
         else:

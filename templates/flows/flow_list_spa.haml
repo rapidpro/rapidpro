@@ -1,14 +1,12 @@
 -extends "smartmin/list.html"
 -load smartmin sms temba compress i18n humanize
 
--block page-title
-  -trans "Flows"
-
--block page-top
+-block spa-title
+  #title-text
 
 -block content
+  // legacy requirement for bulk actions
   .page-title
-
   -if org_perms.flows.flow_update
     %temba-modax#export-results{ header:'{% trans "Download Results" %}' }
     %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'flows.flowlabel_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
@@ -112,11 +110,11 @@
         refresh(function() { recheckIds(); }, true);
         var menu = document.querySelector("temba-menu");
         if (menu) {
-          window.setTimeout(function(){ menu.refresh()}, 2000);
+          menu.refresh();
         }
       }
 
-      function exportFlows(){
+      function handleDownloadFlowResults(evt){
         var endpoint = '{% url "flows.flow_export_results" %}';
         var modal = document.querySelector("#export-results");
         var ids = getCheckedIds();
@@ -124,5 +122,8 @@
           modal.setAttribute("endpoint", endpoint + '?ids=' + ids);
         }
         modal.open = true;
+
+        evt.preventDefault();
+        evt.stopPropagation();
       }
     {% endif %}

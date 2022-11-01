@@ -13,7 +13,7 @@
 -block summary
   -if object.next_fire
     .flex
-      .schedule-summary
+      .schedule-summary.self-center
         -if object.get_broadcast
           -blocktrans trimmed with when=object.next_fire|naturaltime
             The next message will be sent <b>{{ when }}</b>.
@@ -29,27 +29,16 @@
           -trans "It will repeat <d>daily</b> at around the same time."
         -elif object.repeat_period == 'O'
           -trans "It will <b>not repeat</b>."
-
-      .unschedule.ml-8
-        .button-light(onclick="unschedule(event)" href="{% url 'schedules.schedule_update' object.id %}?start_datetime=&repeat_period=O")
-          -trans "Unschedule"
-
   -else
     -trans "Not scheduled"
 
 -block form-buttons
   #form-buttons.mt-4
-    %input.button-primary{type:'submit', value:'Schedule'}
+    %input.button-primary(type="submit" value="Schedule")
 
 -block extra-script
   {{ block.super }}
   :javascript
-    function unschedule(event) {
-      event.stopPropagation();
-      event.preventDefault();
-      handlePosterize(event.currentTarget);
-    }
-
     function wireRepeatListener() {
       var repeatPeriod = document.querySelector("#id_repeat_period");
       var repeatDays = document.querySelector(".repeat-days-container");
@@ -70,4 +59,3 @@
     }
 
     wireRepeatListener();
-

@@ -23,7 +23,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = Form
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
         title = form.cleaned_data.get("title")
         key = form.cleaned_data.get("key")
         config = {"FCM_TITLE": title, "FCM_KEY": key}
@@ -32,7 +31,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             config["FCM_NOTIFICATION"] = True
 
         self.object = Channel.create(
-            org, self.request.user, None, self.channel_type, name=title, address=key, config=config
+            self.request.org, self.request.user, None, self.channel_type, name=title, address=key, config=config
         )
 
         return super().form_valid(form)

@@ -185,9 +185,9 @@
     %script(type="text/javascript" src="{{script}}")
 
   :javascript
-    const base = '/flow/assets/{{object.org.id}}/' + new Date().getTime() + '/';
-    const api = '/api/v2/';
-    const flowType = '{{ object.engine_type }}';
+    var base = '/flow/assets/{{object.org.id}}/' + new Date().getTime() + '/';
+    var api = '/api/v2/';
+    var flowType = '{{ object.engine_type }}';
 
     window.addEventListener("DOMContentLoaded", function() {
       var confirmation = document.getElementById("confirm-language");
@@ -223,7 +223,7 @@
       confirmation.open = true;      
     }
 
-    const config = {
+    var config = {
       flow: '{{object.uuid}}',
       flowType: flowType,
       localStorage: true,
@@ -273,7 +273,14 @@
       }
     };
 
-    showFlowEditor(document.getElementById('rp-flow-editor'), config);
+    // wait for our component to load, then show the editor
+    if (window.showFlowEditor) {
+      window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
+    } else {
+      document.addEventListener("temba-floweditor-loaded", function(){
+        window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
+      });
+    }
 
 -block page-container
 

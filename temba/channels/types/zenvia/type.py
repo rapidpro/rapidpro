@@ -27,8 +27,6 @@ class ZenviaType(ChannelType):
 
     available_timezones = ["America/Sao_Paulo"]
 
-    attachment_support = False
-
     configuration_blurb = _(
         "To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia "
         "account."
@@ -50,5 +48,5 @@ class ZenviaType(ChannelType):
         ),
     )
 
-    def is_available_to(self, user):
+    def is_available_to(self, org, user):
         return False, False

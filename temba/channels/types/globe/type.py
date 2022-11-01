@@ -26,7 +26,6 @@ class GlobeType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 160
-    attachment_support = False
 
     configuration_blurb = _(
         "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your "
@@ -42,5 +41,5 @@ class GlobeType(ChannelType):
 
     available_timezones = ["Asia/Manila"]
 
-    def is_recommended_to(self, user):
-        return self.is_available_to(user)[0]
+    def is_recommended_to(self, org, user):
+        return self.is_available_to(org, user)[0]

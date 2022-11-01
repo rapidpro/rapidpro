@@ -18,7 +18,6 @@ class ArabiaCellType(ChannelType):
     category = ChannelType.Category.PHONE
     schemes = [URN.TEL_SCHEME]
     max_length = 1530
-    attachment_support = False
 
     claim_view = ClaimView
     claim_blurb = _("If you have an %(link)s number, you can quickly connect it using their APIs.") % {

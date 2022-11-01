@@ -1178,14 +1178,14 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         menu_url = reverse("campaigns.campaign_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
-        self.assertEqual(4, len(menu))
+        self.assertEqual(2, len(menu))
 
         # cerate a campaign, it should show in our list, with a divider
         group = self.create_group("My Group", contacts=[])
         self.create_campaign(self.org, "My Campaign", group)
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
-        self.assertEqual(4, len(menu))
+        self.assertEqual(2, len(menu))
 
     def test_create(self):
         group = self.create_group("Reporters", contacts=[])
@@ -1226,6 +1226,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Welcomes", count=3)
         self.assertContains(response, "Archived", count=0)
         self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"])
+        self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"], True)
 
         # archive the campaign
         campaign.is_archived = True
@@ -1339,11 +1340,12 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         other_org_group = self.create_group("Reporters", contacts=[], org=self.org2)
         self.create_campaign(self.org2, "Welcomes", other_org_group)
 
-        update_url = reverse("campaigns.campaign_list")
+        list_url = reverse("campaigns.campaign_list")
 
-        self.assertListFetch(
-            update_url, allow_viewers=True, allow_editors=True, context_objects=[campaign2, campaign1]
-        )
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[campaign2, campaign1])
+
+        self.assertContentMenu(list_url, self.admin, [])
+        self.assertContentMenu(list_url, self.admin, ["New Campaign"], True)
 
 
 class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):

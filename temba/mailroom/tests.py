@@ -10,7 +10,7 @@ from django.utils import timezone
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun, FlowStart
-from temba.ivr.models import IVRCall
+from temba.ivr.models import Call
 from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
@@ -657,6 +657,20 @@ class MailroomQueueTest(TembaTest):
             },
         )
 
+    def test_queue_interrupt_channel(self):
+        self.channel.release(self.admin)
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "interrupt_channel",
+                "org_id": self.org.id,
+                "task": {"channel_id": self.channel.id},
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
     def test_queue_interrupt_by_contacts(self):
         jim = self.create_contact("Jim", phone="+12065551212")
         bob = self.create_contact("Bob", phone="+12065551313")
@@ -670,20 +684,6 @@ class MailroomQueueTest(TembaTest):
                 "type": "interrupt_sessions",
                 "org_id": self.org.id,
                 "task": {"contact_ids": [jim.id, bob.id]},
-                "queued_on": matchers.ISODate(),
-            },
-        )
-
-    def test_queue_interrupt_by_channel(self):
-        self.channel.release(self.admin)
-
-        self.assert_org_queued(self.org, "batch")
-        self.assert_queued_batch_task(
-            self.org,
-            {
-                "type": "interrupt_sessions",
-                "org_id": self.org.id,
-                "task": {"channel_ids": [self.channel.id]},
                 "queued_on": matchers.ISODate(),
             },
         )
@@ -863,7 +863,9 @@ class EventTest(TembaTest):
         msg_out = self.create_outgoing_msg(
             contact1, "Hello", channel=self.channel, status="E", quick_replies=("yes", "no")
         )
-        ChannelLog.objects.create(channel=self.channel, is_error=True, description="Boom", msg=msg_out)
+        ChannelLog.objects.create(
+            channel=self.channel, is_error=True, log_type=ChannelLog.LOG_TYPE_MSG_SEND, msg=msg_out
+        )
         msg_out.refresh_from_db()
 
         self.assertEqual(
@@ -1085,24 +1087,26 @@ class EventTest(TembaTest):
     def test_from_ivr_call(self):
         contact = self.create_contact("Jim", phone="0979111111")
 
-        call1 = IVRCall.objects.create(
+        call1 = Call.objects.create(
             org=self.org,
             contact=contact,
-            status=IVRCall.STATUS_IN_PROGRESS,
+            status=Call.STATUS_IN_PROGRESS,
             channel=self.channel,
             contact_urn=contact.urns.all().first(),
             error_count=0,
         )
-        call2 = IVRCall.objects.create(
+        call2 = Call.objects.create(
             org=self.org,
             contact=contact,
-            status=IVRCall.STATUS_ERRORED,
-            error_reason=IVRCall.ERROR_BUSY,
+            status=Call.STATUS_ERRORED,
+            error_reason=Call.ERROR_BUSY,
             channel=self.channel,
-            contact_urn=contact.urns.all().first(),
+            contact_urn=contact.urns.first(),
             error_count=0,
         )
-        ChannelLog.objects.create(channel=self.channel, is_error=True, description="Boom", connection=call2)
+        ChannelLog.objects.create(
+            channel=self.channel, is_error=True, log_type=ChannelLog.LOG_TYPE_IVR_START, call=call2
+        )
 
         self.assertEqual(
             {

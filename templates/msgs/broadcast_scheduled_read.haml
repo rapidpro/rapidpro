@@ -1,0 +1,31 @@
+-extends "smartmin/read.html"
+-load smartmin sms temba i18n humanize
+
+-block title
+  {{ title }}
+
+-block content
+  -include "formax.haml"
+  -if object_list
+    .mt-8.mb-4
+      .title
+        -trans "Send History"
+    %table.list(style='{% if not org_perms.msgs.broadcast_send %}margin-top:10px{% endif %}')
+      %tbody
+        -for object in send_history
+          %tr
+            %td
+              -with recipient_count=object.get_message_count
+                -blocktrans trimmed count counter=recipient_count with count_comma=recipient_count|intcomma
+                  {{ count_comma }} recipient
+                -plural
+                  {{ count_comma }} recipients
+            %td
+              {{ object.get_text }}
+            %td
+              %nobr
+                {% short_datetime object.created_on %}
+
+    .mx-8
+      -block paginator
+        {{ block.super }}

@@ -26,7 +26,6 @@ class FirebaseCloudMessagingType(ChannelType):
 
     schemes = [URN.FCM_SCHEME]
     max_length = 10000
-    attachment_support = False
     free_sending = True
     quick_reply_text_size = 36
 

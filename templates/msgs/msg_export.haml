@@ -1,17 +1,8 @@
--extends 'includes/modax.html'
--load i18n
--load smartmin
+-extends 'utils/exports/modax.html'
+-load i18n smartmin
 
 -block fields
-
   .mb-0
     -render_field 'export_all'
   
-  .flex
-    .start.flex-grow
-      -render_field 'start_date'
-    .px-1
-    .end.flex-grow
-      -render_field 'end_date'
-  
-  -render_field 'groups'
+  {{block.super}}

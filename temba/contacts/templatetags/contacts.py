@@ -5,7 +5,7 @@ from temba.campaigns.models import EventFire
 from temba.channels.models import ChannelEvent
 from temba.contacts.models import URN, ContactURN
 from temba.flows.models import FlowRun
-from temba.ivr.models import IVRCall
+from temba.ivr.models import Call
 from temba.mailroom.events import Event
 from temba.msgs.models import Msg
 
@@ -124,11 +124,6 @@ def urn(contact, org):
 
 
 @register.filter
-def format_contact(contact, org):  # pragma: needs cover
-    return contact.get_display(org=org)
-
-
-@register.filter
 def urn_icon(urn):
     return URN_SCHEME_ICONS.get(urn.scheme, "")
 
@@ -217,7 +212,7 @@ def history_class(event: dict) -> str:
             classes.append("warning")
         elif event_type == Event.TYPE_WEBHOOK_CALLED and event["status"] != "success":
             classes.append("warning")
-        elif event_type == Event.TYPE_CALL_STARTED and event["status"] == IVRCall.STATUS_FAILED:
+        elif event_type == Event.TYPE_CALL_STARTED and event["status"] == Call.STATUS_FAILED:
             classes.append("warning")
         elif event_type == Event.TYPE_CAMPAIGN_FIRED and event["fired_result"] == EventFire.RESULT_SKIPPED:
             classes.append("skipped")

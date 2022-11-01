@@ -261,14 +261,7 @@ class ClientTest(TembaTest):
         self.client.update_number(country="US", number="+12345", mo_url="http://test", app_id="ID123")
 
         mock_update_number.assert_called_once_with(
-            params={
-                "moHttpUrl": "http://test",
-                "msisdn": "12345",
-                "country": "US",
-                "app_id": "ID123",
-                "voiceCallbackType": "tel",
-                "voiceCallbackValue": "12345",
-            }
+            params={"moHttpUrl": "http://test", "msisdn": "12345", "country": "US", "app_id": "ID123"}
         )
 
     @patch("vonage.ApplicationV2.create_application")

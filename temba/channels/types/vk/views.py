@@ -21,7 +21,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         from .type import CONFIG_CALLBACK_VERIFICATION_STRING, CONFIG_COMMUNITY_NAME
 
-        org = self.request.user.get_org()
+        org = self.request.org
         community_access_token = form.cleaned_data["community_access_token"]
         community_name = form.cleaned_data["community_name"]
         community_id = form.cleaned_data["community_id"]

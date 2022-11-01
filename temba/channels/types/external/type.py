@@ -25,7 +25,6 @@ class ExternalType(ChannelType):
 
     schemes = None  # can be any scheme
     max_length = 160
-    attachment_support = False
 
     CONFIG_SEND_AUTHORIZATION = "send_authorization"
     CONFIG_MAX_LENGTH = "max_length"

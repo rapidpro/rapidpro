@@ -27,7 +27,6 @@ class LineType(ChannelType):
 
     schemes = [URN.LINE_SCHEME]
     max_length = 1600
-    attachment_support = False
     free_sending = True
 
     show_public_addresses = True

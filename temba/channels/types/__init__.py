@@ -10,11 +10,13 @@ def register_channel_type(type_class):
     """
     Registers a channel type
     """
-    if not type_class.slug:
+    global TYPES
+
+    if not type_class.slug:  # pragma: no cover
         type_class.slug = type_class.__module__.split(".")[-2]
 
-    if type_class.code in TYPES:  # pragma: no cover
-        raise ValueError("More than channel type with code: %s" % type_class.code)
+    assert type_class.slug not in TYPES, f"channel type slug {type_class.slug} already taken"
+
     TYPES[type_class.code] = type_class()
 
 

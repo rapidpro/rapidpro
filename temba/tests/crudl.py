@@ -7,7 +7,7 @@ class CRUDLTestMixin:
     def get_test_users(self):
         return self.user, self.editor, self.agent, self.admin, self.admin2
 
-    def requestView(self, url, user, *, post_data=None, checks=(), **kwargs):
+    def requestView(self, url, user, *, post_data=None, checks=(), choose_org=None, **kwargs):
         """
         Requests the given URL as a specific user and runs a set of checks
         """
@@ -19,7 +19,7 @@ class CRUDLTestMixin:
 
         self.client.logout()
         if user:
-            self.login(user)
+            self.login(user, True, choose_org)
 
         for check in checks:
             check.pre_check(self, pre_msg_prefix)
@@ -172,7 +172,17 @@ class CRUDLTestMixin:
         as_user(None, allowed=False)
         return as_user(admin, allowed=True)
 
-    def assertDeleteFetch(self, url, *, allow_viewers=False, allow_editors=False, allow_agents=False, status=200):
+    def assertDeleteFetch(
+        self,
+        url,
+        *,
+        allow_viewers=False,
+        allow_editors=False,
+        allow_agents=False,
+        status=200,
+        choose_org=None,
+        as_modal=False,
+    ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
         def as_user(user, allowed):
@@ -181,7 +191,10 @@ class CRUDLTestMixin:
             else:
                 checks = [LoginRedirect()]
 
-            return self.requestView(url, user, checks=checks)
+            if as_modal:
+                return self.requestView(url, user, checks=checks, choose_org=choose_org, HTTP_X_PJAX=True)
+            else:
+                return self.requestView(url, user, checks=checks, choose_org=choose_org)
 
         as_user(None, allowed=False)
         as_user(viewer, allowed=allow_viewers)
@@ -225,19 +238,27 @@ class CRUDLTestMixin:
         self.requestView(url, editor, checks=[LoginRedirect()])
         self.requestView(url, admin, checks=[LoginRedirect()])
 
-        self.requestView(url, self.superuser, checks=[StatusCode(200)])
         return self.requestView(url, self.customer_support, checks=[StatusCode(200)])
 
-    def assertContentMenu(self, url: str, user, labels: list):
-        response = self.requestView(
-            url, user, checks=[StatusCode(200), ContentType("application/json")], HTTP_TEMBA_CONTENT_MENU=1
-        )
+    def assertContentMenu(self, url: str, user, labels: list, spa: bool = False):
+
+        headers = {"HTTP_TEMBA_CONTENT_MENU": 1}
+
+        if spa:
+            headers["HTTP_TEMBA_SPA"] = 1
+
+        response = self.requestView(url, user, checks=[StatusCode(200), ContentType("application/json")], **headers)
 
         self.assertEqual(labels, [item.get("label", "-") for item in response.json()["items"]])
 
         # for now menu is also stuffed into context in old gear links format
-        response = self.requestView(url, user, checks=[StatusCode(200)])
-        self.assertEqual(labels, [i.get("title", "-") for i in response.context["gear_links"]])
+        headers = {}
+        if spa:
+            headers["HTTP_TEMBA_SPA"] = 1
+
+        response = self.requestView(url, user, checks=[StatusCode(200)], **headers)
+        links = response.context.get("content_menu_buttons", []) + response.context.get("content_menu_links", [])
+        self.assertEqual(labels, [i.get("title", "-") for i in links])
 
 
 class BaseCheck:

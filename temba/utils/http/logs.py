@@ -55,14 +55,3 @@ class HttpLog:
             response_str = ""
 
         return cls(url, status_code, request_str, response_str, elapsed_ms, 0, created_on)
-
-    def as_json(self):
-        return {
-            "url": self.url,
-            "status_code": self.status_code,
-            "request": self.request,
-            "response": self.response,
-            "elapsed_ms": self.elapsed_ms,
-            "retries": self.retries,
-            "created_on": self.created_on.isoformat(),
-        }

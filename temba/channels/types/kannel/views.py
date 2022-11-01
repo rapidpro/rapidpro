@@ -67,7 +67,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = KannelClaimForm
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
+        org = self.request.org
         data = form.cleaned_data
 
         country = data["country"]

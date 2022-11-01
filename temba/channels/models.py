@@ -16,7 +16,6 @@ from twilio.base.exceptions import TwilioRestException
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
-from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import Max, Q, Sum
 from django.db.models.signals import pre_save
@@ -30,7 +29,6 @@ from temba import mailroom
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, countries, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
-from temba.utils.http import HttpLog
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
 
@@ -79,13 +77,10 @@ class ChannelType(metaclass=ABCMeta):
 
     max_length = -1
     max_tps = None
-    attachment_support = False
     free_sending = False
     quick_reply_text_size = 20
 
     extra_links = None
-
-    ivr_protocol = None
 
     # Whether this channel should be activated in the a celery task, useful to turn off if there's a chance for errors
     # during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
@@ -95,7 +90,7 @@ class ChannelType(metaclass=ABCMeta):
     redact_response_keys = ()
     redact_values = ()
 
-    def is_available_to(self, user):
+    def is_available_to(self, org, user):
         """
         Determines whether this channel type is available to the given user considering the region and when not considering region, e.g. check timezone
         """
@@ -103,18 +98,16 @@ class ChannelType(metaclass=ABCMeta):
         region_aware_visible = True
 
         if self.available_timezones is not None:
-            timezone = user.get_org().timezone
-            region_aware_visible = timezone and str(timezone) in self.available_timezones
+            region_aware_visible = org.timezone and str(org.timezone) in self.available_timezones
 
         return region_aware_visible, region_ignore_visible
 
-    def is_recommended_to(self, user):
+    def is_recommended_to(self, org, user):
         """
         Determines whether this channel type is recommended to the given user.
         """
         if self.recommended_timezones is not None:
-            timezone = user.get_org().timezone
-            return timezone and str(timezone) in self.recommended_timezones
+            return org.timezone and str(org.timezone) in self.recommended_timezones
         else:
             return False
 
@@ -169,12 +162,6 @@ class ChannelType(metaclass=ABCMeta):
         """
         Called when a trigger that is bound to a channel of this type is being released.
         """
-
-    def has_attachment_support(self, channel):
-        """
-        Whether the given channel instance supports message attachments
-        """
-        return self.attachment_support
 
     def get_configuration_context_dict(self, channel):
         return dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
@@ -819,7 +806,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         # if we have a successfully sent message, we're only interested a new failures since then. Note that we use id
         # here instead of created_on because we won't hit the outbox index if we use a range condition on created_on.
-        if latest_sent_message:
+        if latest_sent_message:  # pragma: needs cover
             messages = messages.filter(id__gt=latest_sent_message.id)
 
         return messages
@@ -882,6 +869,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         """
         Releases this channel making it inactive
         """
+        from temba.channels.tasks import interrupt_channel_task
 
         super().release(user)
 
@@ -908,8 +896,8 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for sync_event in self.sync_events.all():
             sync_event.release()
 
-        # interrupt any sessions using this channel as a connection
-        mailroom.queue_interrupt(self.org, channel=self)
+        # delay mailroom task for 5 seconds, so mailroom assets cache expires
+        interrupt_channel_task.apply_async((self.id,), countdown=5)
 
         # save the FCM id before clearing
         registration_id = self.config.get(Channel.CONFIG_FCM_ID)
@@ -919,13 +907,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.modified_by = user
         self.is_active = False
         self.save(update_fields=("is_active", "config", "modified_by", "modified_on"))
-
-        # mark any messages in sending mode as failed for this channel
-        from temba.msgs.models import Msg
-
-        self.msgs.filter(
-            direction=Msg.DIRECTION_OUT, status__in=[Msg.STATUS_QUEUED, Msg.STATUS_PENDING, Msg.STATUS_ERRORED]
-        ).update(status=Msg.STATUS_FAILED)
 
         # trigger the orphaned channel
         if trigger_sync and self.is_android() and registration_id:
@@ -1019,13 +1000,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
 
     def get_ivr_log_count(self):
-        return (
-            ChannelLog.objects.filter(channel=self)
-            .exclude(connection=None)
-            .order_by("connection")
-            .distinct("connection")
-            .count()
-        )
+        return ChannelLog.objects.filter(channel=self).exclude(call=None).order_by("call").distinct("call").count()
 
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
@@ -1155,6 +1130,8 @@ class ChannelEvent(models.Model):
     occurred_on = models.DateTimeField()
     created_on = models.DateTimeField(default=timezone.now)
 
+    log_uuids = ArrayField(models.UUIDField(), null=True)
+
     @classmethod
     def create_relayer_event(cls, channel, urn, event_type, occurred_on, extra=None):
         from temba.contacts.models import Contact
@@ -1196,6 +1173,7 @@ class ChannelLog(models.Model):
     LOG_TYPE_IVR_CALLBACK = "ivr_callback"
     LOG_TYPE_IVR_STATUS = "ivr_status"
     LOG_TYPE_IVR_HANGUP = "ivr_hangup"
+    LOG_TYPE_ATTACHMENT_FETCH = "attachment_fetch"
     LOG_TYPE_TOKEN_REFRESH = "token_refresh"
     LOG_TYPE_PAGE_SUBSCRIBE = "page_subscribe"
     LOG_TYPE_CHOICES = (
@@ -1209,47 +1187,23 @@ class ChannelLog(models.Model):
         (LOG_TYPE_IVR_CALLBACK, _("IVR Callback")),
         (LOG_TYPE_IVR_STATUS, _("IVR Status")),
         (LOG_TYPE_IVR_HANGUP, _("IVR Hangup")),
+        (LOG_TYPE_ATTACHMENT_FETCH, _("Attachment Fetch")),
         (LOG_TYPE_TOKEN_REFRESH, _("Token Refresh")),
         (LOG_TYPE_PAGE_SUBSCRIBE, _("Page Subscribe")),
     )
 
     id = models.BigAutoField(primary_key=True)
-    uuid = models.UUIDField(null=True)
+    uuid = models.UUIDField(default=uuid4)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
-    connection = models.ForeignKey(
-        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="channel_logs", null=True
-    )
+    call = models.ForeignKey("ivr.Call", on_delete=models.PROTECT, related_name="channel_logs", null=True)
 
-    log_type = models.CharField(max_length=16, choices=LOG_TYPE_CHOICES, null=True)
+    log_type = models.CharField(max_length=16, choices=LOG_TYPE_CHOICES)
     http_logs = models.JSONField(null=True)
     errors = models.JSONField(null=True)
     is_error = models.BooleanField(default=False)
-    elapsed_ms = models.IntegerField(null=True)
+    elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
-
-    # TODO deprecated
-    description = models.CharField(max_length=255, null=True)
-    url = models.TextField(null=True)
-    method = models.CharField(max_length=16, null=True)
-    request = models.TextField(null=True)
-    response = models.TextField(null=True)
-    response_status = models.IntegerField(null=True)
-    request_time = models.IntegerField(null=True)
-
-    @classmethod
-    def from_response(cls, log_type, channel, response, created_on, ended_on, is_error=None):
-        http_log = HttpLog.from_response(response, created_on, ended_on)
-        is_error = is_error if is_error is not None else http_log.status_code >= 400
-
-        return cls.objects.create(
-            uuid=uuid4(),
-            log_type=log_type,
-            channel=channel,
-            http_logs=[http_log.as_json()],
-            is_error=is_error,
-            elapsed_ms=http_log.elapsed_ms,
-        )
 
     def _get_display_value(self, user, original, redact_keys=(), redact_values=()):
         """
@@ -1286,8 +1240,6 @@ class ChannelLog(models.Model):
         redact_request_keys = self.channel.type.redact_request_keys
         redact_response_keys = self.channel.type.redact_response_keys
 
-        http_logs, errors = self._get_logs_and_errors()
-
         def redact_http(log: dict) -> dict:
             return {
                 "url": self._get_display_value(user, log["url"], redact_values=redact_values),
@@ -1310,40 +1262,11 @@ class ChannelLog(models.Model):
             }
 
         return {
-            "description": self.get_description(),
-            "http_logs": [redact_http(h) for h in http_logs],
-            "errors": [redact_error(e) for e in errors],
+            "description": self.get_log_type_display(),
+            "http_logs": [redact_http(h) for h in (self.http_logs or [])],
+            "errors": [redact_error(e) for e in (self.errors or [])],
             "created_on": self.created_on,
         }
-
-    def get_description(self) -> str:
-        return self.description or self.get_log_type_display()
-
-    def _get_logs_and_errors(self) -> tuple:
-        # if this is a legacy style log, create from deprecated fields
-        if not self.http_logs and not self.errors:
-            # legacy logs append error messages to response traces
-            resp_parts = self.response.split("\n\nError: ", maxsplit=2)
-            response, error = resp_parts if len(resp_parts) == 2 else (resp_parts[0], None)
-            logs = []
-            if self.request:
-                logs.append(
-                    {
-                        "url": self.url,
-                        "status_code": self.response_status or 0,
-                        "request": self.request,
-                        "response": response,
-                        "elapsed_ms": self.request_time,
-                        "retries": 0,
-                        "created_on": self.created_on.isoformat(),
-                    }
-                )
-            return (
-                logs,
-                [{"message": error, "code": ""}] if error else [],
-            )
-
-        return self.http_logs or [], self.errors or []
 
     class Meta:
         indexes = [
@@ -1678,127 +1601,3 @@ def get_alert_user():
         user = User.objects.create_user("alert")
         user.groups.add(Group.objects.get(name="Service Users"))
         return user
-
-
-class ChannelConnection(models.Model):
-    """
-    Base for IVR sessions which require a connection to specific channel
-    """
-
-    TYPE_VOICE = "V"
-    TYPE_CHOICES = ((TYPE_VOICE, "Voice"),)
-
-    DIRECTION_IN = "I"
-    DIRECTION_OUT = "O"
-    DIRECTION_CHOICES = ((DIRECTION_IN, _("Incoming")), (DIRECTION_OUT, _("Outgoing")))
-
-    STATUS_PENDING = "P"  # used for initial creation in database
-    STATUS_QUEUED = "Q"  # used when we need to throttle requests for new calls
-    STATUS_WIRED = "W"  # the call has been requested on the IVR provider
-    STATUS_IN_PROGRESS = "I"  # the call has been answered
-    STATUS_COMPLETED = "D"  # the call was completed successfully
-    STATUS_ERRORED = "E"  # temporary failure (will be retried)
-    STATUS_FAILED = "F"  # permanent failure
-    STATUS_CHOICES = (
-        (STATUS_PENDING, _("Pending")),
-        (STATUS_QUEUED, _("Queued")),
-        (STATUS_WIRED, _("Wired")),
-        (STATUS_IN_PROGRESS, _("In Progress")),
-        (STATUS_COMPLETED, _("Complete")),
-        (STATUS_ERRORED, _("Errored")),
-        (STATUS_FAILED, _("Failed")),
-    )
-
-    ERROR_PROVIDER = "P"
-    ERROR_BUSY = "B"
-    ERROR_NOANSWER = "N"
-    ERROR_MACHINE = "M"
-    ERROR_CHOICES = (
-        (ERROR_PROVIDER, _("Provider")),  # an API call to the IVR provider returned an error
-        (ERROR_BUSY, _("Busy")),  # the contact couldn't be called because they're busy
-        (ERROR_NOANSWER, _("No Answer")),  # the contact didn't answer the call
-        (ERROR_MACHINE, _("Answering Machine")),  # the call went to an answering machine
-    )
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
-    connection_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
-    direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
-
-    channel = models.ForeignKey("Channel", on_delete=models.PROTECT, related_name="connections")
-    contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="connections")
-    contact_urn = models.ForeignKey("contacts.ContactURN", on_delete=models.PROTECT, related_name="connections")
-    external_id = models.CharField(max_length=255)  # e.g. Twilio call ID
-
-    created_on = models.DateTimeField(default=timezone.now)
-    modified_on = models.DateTimeField(default=timezone.now)
-    started_on = models.DateTimeField(null=True)
-    ended_on = models.DateTimeField(null=True)
-    duration = models.IntegerField(null=True)  # in seconds
-
-    error_reason = models.CharField(max_length=1, null=True, choices=ERROR_CHOICES)
-    error_count = models.IntegerField(default=0)
-    next_attempt = models.DateTimeField(null=True)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        """ Since the FK is bound to ChannelConnection, when it initializes an instance from
-        DB we need to specify the class based on `connection_type` so we can access
-        all the methods the proxy model implements. """
-
-        if type(self) is ChannelConnection:
-            if self.connection_type == self.TYPE_VOICE:
-                from temba.ivr.models import IVRCall
-
-                self.__class__ = IVRCall
-
-    def get_duration(self):
-        """
-        Either gets the set duration as reported by provider, or tries to calculate it
-        """
-        duration = self.duration or 0
-
-        if not duration and self.status == self.STATUS_IN_PROGRESS and self.started_on:
-            duration = (timezone.now() - self.started_on).seconds
-
-        return timedelta(seconds=duration)
-
-    @property
-    def status_display(self):
-        """
-        Gets the status/error_reason as display text, e.g. Wired, Errored (No Answer)
-        """
-        status = self.get_status_display()
-        if self.status in (self.STATUS_ERRORED, self.STATUS_FAILED) and self.error_reason:
-            status += f" ({self.get_error_reason_display()})"
-        return status
-
-    def get_session(self):
-        """
-        There is a one-to-one relationship between flow sessions and connections, but as connection can be null
-        it can throw an exception
-        """
-        try:
-            return self.session
-        except ObjectDoesNotExist:  # pragma: no cover
-            return None
-
-    def release(self):
-        self.channel_logs.all().delete()
-
-        session = self.get_session()
-        if session:
-            session.delete()
-
-        self.delete()
-
-    class Meta:
-        indexes = [
-            # used by mailroom to fetch calls that need to be retried
-            models.Index(
-                name="channelconnection_ivr_to_retry",
-                fields=["next_attempt"],
-                condition=Q(connection_type="V", status__in=("Q", "E"), next_attempt__isnull=False),
-            )
-        ]

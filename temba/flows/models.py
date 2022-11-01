@@ -1,5 +1,4 @@
 import logging
-import time
 from array import array
 from collections import defaultdict
 from datetime import datetime
@@ -16,14 +15,14 @@ from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Max, Q, Sum
+from django.db.models import Max, Prefetch, Q, Sum
 from django.db.models.functions import Lower, TruncDate
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel, ChannelConnection
+from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts import search
 from temba.contacts.models import Contact, ContactField, ContactGroup
@@ -33,7 +32,7 @@ from temba.orgs.models import DependencyMixin, Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
-from temba.utils.export import BaseExportAssetStore, BaseExportTask
+from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
 from temba.utils.models import JSONAsTextField, JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
@@ -1088,10 +1087,8 @@ class FlowSession(models.Model):
     # the modality of this session
     session_type = models.CharField(max_length=1, choices=Flow.TYPE_CHOICES, default=Flow.TYPE_MESSAGE)
 
-    # the channel connection used for flow sessions over IVR
-    connection = models.OneToOneField(
-        "channels.ChannelConnection", on_delete=models.PROTECT, null=True, related_name="session"
-    )
+    # the call used for flow sessions over IVR
+    call = models.OneToOneField("ivr.Call", on_delete=models.PROTECT, null=True, related_name="session")
 
     # whether the contact has responded in this session
     responded = models.BooleanField(default=False)
@@ -1665,7 +1662,7 @@ class FlowRunCount(SquashableModel):
         index_together = ("flow", "exit_type")
 
 
-class ExportFlowResultsTask(BaseExportTask):
+class ExportFlowResultsTask(BaseItemWithContactExport):
     """
     Container for managing our export requests
     """
@@ -1673,57 +1670,39 @@ class ExportFlowResultsTask(BaseExportTask):
     analytics_key = "flowresult_export"
     notification_export_type = "results"
 
-    CONTACT_FIELDS = "contact_fields"
-    GROUP_MEMBERSHIPS = "group_memberships"
     RESPONDED_ONLY = "responded_only"
     EXTRA_URNS = "extra_urns"
-    FLOWS = "flows"
-
-    MAX_GROUP_MEMBERSHIPS_COLS = 25
-    MAX_CONTACT_FIELDS_COLS = 10
 
     flows = models.ManyToManyField(Flow, related_name="exports", help_text=_("The flows to export"))
+
+    # TODO backfill, for now overridden from base class to make nullable
+    start_date = models.DateField(null=True)
+    end_date = models.DateField(null=True)
 
     config = JSONAsTextField(null=True, default=dict, help_text=_("Any configuration options for this flow export"))
 
     @classmethod
-    def create(cls, org, user, flows, contact_fields, responded_only, extra_urns, group_memberships):
-        config = {
-            ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
-            ExportFlowResultsTask.RESPONDED_ONLY: responded_only,
-            ExportFlowResultsTask.EXTRA_URNS: extra_urns,
-            ExportFlowResultsTask.GROUP_MEMBERSHIPS: [g.id for g in group_memberships],
-        }
+    def create(cls, org, user, start_date, end_date, flows, with_fields, with_groups, responded_only, extra_urns):
+        config = {ExportFlowResultsTask.RESPONDED_ONLY: responded_only, ExportFlowResultsTask.EXTRA_URNS: extra_urns}
 
-        export = cls.objects.create(org=org, created_by=user, modified_by=user, config=config)
-        for flow in flows:
-            export.flows.add(flow)
-
+        export = cls.objects.create(
+            org=org, created_by=user, start_date=start_date, end_date=end_date, modified_by=user, config=config
+        )
+        export.flows.add(*flows)
+        export.with_fields.add(*with_fields)
+        export.with_groups.add(*with_groups)
         return export
 
-    def _get_runs_columns(self, extra_urn_columns, groups, contact_fields, result_fields, show_submitted_by=False):
+    def _get_runs_columns(self, extra_urn_columns, result_fields, show_submitted_by=False):
         columns = []
 
         if show_submitted_by:
             columns.append("Submitted By")
 
-        columns.append("Contact UUID")
-        if self.org.is_anon:
-            columns.append("ID")
-            columns.append("Scheme")
-        else:
-            columns.append("URN")
+        columns += self._get_contact_headers()
 
         for extra_urn in extra_urn_columns:
             columns.append(extra_urn["label"])
-
-        columns.append("Name")
-
-        for gr in groups:
-            columns.append("Group:%s" % gr.name)
-
-        for cf in contact_fields:
-            columns.append("Field:%s" % cf.name)
 
         columns.append("Started")
         columns.append("Modified")
@@ -1749,14 +1728,7 @@ class ExportFlowResultsTask(BaseExportTask):
     def write_export(self):
         config = self.config
         responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
-        contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
-        group_memberships = config.get(ExportFlowResultsTask.GROUP_MEMBERSHIPS, [])
-
-        contact_fields = (
-            ContactField.user_fields.active_for_org(org=self.org).filter(id__in=contact_field_ids).using("readonly")
-        )
-        groups = ContactGroup.get_groups(self.org, ready_only=True).filter(id__in=group_memberships).using("readonly")
 
         # get all result saving nodes across all flows being exported
         show_submitted_by = False
@@ -1779,9 +1751,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 label = f"URN:{extra_urn.capitalize()}"
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
 
-        runs_columns = self._get_runs_columns(
-            extra_urn_columns, groups, contact_fields, result_fields, show_submitted_by=show_submitted_by
-        )
+        runs_columns = self._get_runs_columns(extra_urn_columns, result_fields, show_submitted_by=show_submitted_by)
 
         book = XLSXBook()
         book.num_runs_sheets = 0
@@ -1791,42 +1761,27 @@ class ExportFlowResultsTask(BaseExportTask):
         book.current_runs_sheet = self._add_runs_sheet(book, runs_columns)
         book.current_msgs_sheet = None
 
-        # for tracking performance
-        total_runs_exported = 0
-        temp_runs_exported = 0
-        start = time.time()
+        start_date, end_date = self._get_date_range()
 
-        for batch in self._get_run_batches(flows, responded_only):
+        for batch in self._get_run_batches(start_date, end_date, flows, responded_only):
             self._write_runs(
                 book,
                 batch,
                 extra_urn_columns,
-                groups,
-                contact_fields,
                 show_submitted_by,
                 runs_columns,
                 result_fields,
             )
 
-            total_runs_exported += len(batch)
-
-            if (total_runs_exported - temp_runs_exported) > ExportFlowResultsTask.LOG_PROGRESS_PER_ROWS:
-                mins = (time.time() - start) / 60
-                logger.info(
-                    f"Results export #{self.id} for org #{self.org.id}: exported {total_runs_exported} in {mins:.1f} mins"
-                )
-
-                temp_runs_exported = total_runs_exported
-
-                self.modified_on = timezone.now()
-                self.save(update_fields=["modified_on"])
+            self.modified_on = timezone.now()
+            self.save(update_fields=("modified_on",))
 
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)
         temp.flush()
         return temp, "xlsx"
 
-    def _get_run_batches(self, flows, responded_only):
+    def _get_run_batches(self, start_date, end_date, flows, responded_only: bool):
         logger.info(f"Results export #{self.id} for org #{self.org.id}: fetching runs from archives to export...")
 
         # firstly get runs from archives
@@ -1842,7 +1797,9 @@ class ExportFlowResultsTask(BaseExportTask):
         where = {"flow__uuid__in": flow_uuids}
         if responded_only:
             where["responded"] = True
-        records = Archive.iter_all_records(self.org, Archive.TYPE_FLOWRUN, after=earliest_created_on, where=where)
+        records = Archive.iter_all_records(
+            self.org, Archive.TYPE_FLOWRUN, after=max(earliest_created_on, start_date), before=end_date, where=where
+        )
         seen = set()
 
         for record_batch in chunk_list(records, 1000):
@@ -1853,7 +1810,11 @@ class ExportFlowResultsTask(BaseExportTask):
             yield matching
 
         # secondly get runs from database
-        runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on").using("readonly")
+        runs = (
+            FlowRun.objects.filter(created_on__gte=start_date, created_on__lte=end_date, flow__in=flows)
+            .order_by("modified_on")
+            .using("readonly")
+        )
         if responded_only:
             runs = runs.filter(responded=True)
         run_ids = array(str("l"), runs.values_list("id", flat=True))
@@ -1865,8 +1826,11 @@ class ExportFlowResultsTask(BaseExportTask):
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (
                 FlowRun.objects.filter(id__in=id_batch)
-                .select_related("contact", "flow")
                 .order_by("modified_on", "id")
+                .prefetch_related(
+                    Prefetch("contact", Contact.objects.only("uuid", "name")),
+                    Prefetch("flow", Flow.objects.only("uuid", "name")),
+                )
                 .using("readonly")
             )
 
@@ -1878,8 +1842,6 @@ class ExportFlowResultsTask(BaseExportTask):
         book,
         runs,
         extra_urn_columns,
-        groups,
-        contact_fields,
         show_submitted_by,
         runs_columns,
         result_fields,
@@ -1890,9 +1852,14 @@ class ExportFlowResultsTask(BaseExportTask):
         # get all the contacts referenced in this batch
         contact_uuids = {r["contact"]["uuid"] for r in runs}
         contacts = (
-            Contact.objects.filter(org=self.org, uuid__in=contact_uuids).prefetch_related("groups").using("readonly")
+            Contact.objects.filter(org=self.org, uuid__in=contact_uuids)
+            .select_related("org")
+            .prefetch_related("groups")
+            .using("readonly")
         )
         contacts_by_uuid = {str(c.uuid): c for c in contacts}
+
+        Contact.bulk_urn_cache_initialize(contacts, using="readonly")
 
         for run in runs:
             contact = contacts_by_uuid.get(run["contact"]["uuid"])
@@ -1905,31 +1872,15 @@ class ExportFlowResultsTask(BaseExportTask):
                 results_by_key = {key: result for key, result in run_values.items()}
 
             # generate contact info columns
-            contact_values = [contact.uuid]
-
-            if self.org.is_anon:
-                contact_urns = contact.get_urns()
-                contact_values.append(f"{contact.id:010d}")
-                contact_values.append(contact_urns[0].scheme if contact_urns else "")
-            else:
-                contact_values.append(contact.get_urn_display(org=self.org, formatted=False))
+            contact_values = self._get_contact_columns(contact)
 
             for extra_urn_column in extra_urn_columns:
                 urn_display = contact.get_urn_display(org=self.org, formatted=False, scheme=extra_urn_column["scheme"])
                 contact_values.append(urn_display)
 
-            contact_values.append(self.prepare_value(contact.name))
-            contact_groups_ids = [g.id for g in contact.groups.all()]
-            for gr in groups:
-                contact_values.append(gr.id in contact_groups_ids)
-
-            for cf in contact_fields:
-                field_value = contact.get_field_display(cf)
-                contact_values.append(self.prepare_value(field_value))
-
             # generate result columns for each ruleset
             result_values = []
-            for n, result_field in enumerate(result_fields):
+            for result_field in result_fields:
                 node_result = {}
                 # check the result by ruleset label if the flow is the same
                 if result_field["flow_uuid"] == run["flow"]["uuid"]:
@@ -1970,11 +1921,14 @@ class ResultsExportAssetStore(BaseExportAssetStore):
 
 
 class FlowStart(models.Model):
+    """
+    A queuable request to start contacts and groups in a flow
+    """
+
     STATUS_PENDING = "P"
     STATUS_STARTING = "S"
     STATUS_COMPLETE = "C"
     STATUS_FAILED = "F"
-
     STATUS_CHOICES = (
         (STATUS_PENDING, _("Pending")),
         (STATUS_STARTING, _("Starting")),
@@ -1987,7 +1941,6 @@ class FlowStart(models.Model):
     TYPE_API_ZAPIER = "Z"
     TYPE_FLOW_ACTION = "F"
     TYPE_TRIGGER = "T"
-
     TYPE_CHOICES = (
         (TYPE_MANUAL, "Manual"),
         (TYPE_API, "API"),
@@ -1996,28 +1949,15 @@ class FlowStart(models.Model):
         (TYPE_TRIGGER, "Trigger"),
     )
 
-    # the uuid of this start
     uuid = models.UUIDField(unique=True, default=uuid4)
-
-    # the org the flow belongs to
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_starts")
-
-    # the flow that should be started
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="starts")
-
-    # the type of start
     start_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
 
-    # the groups that should be considered for start in this flow
+    # who to start
     groups = models.ManyToManyField(ContactGroup)
-
-    # the individual contacts that should be considered for start in this flow
     contacts = models.ManyToManyField(Contact)
-
-    # the individual URNs that should be considered for start in this flow
     urns = ArrayField(models.TextField(), null=True)
-
-    # the query (if any) that should be used to select contacts to start
     query = models.TextField(null=True)
 
     # whether to restart contacts that have already participated in this flow
@@ -2031,8 +1971,8 @@ class FlowStart(models.Model):
         "campaigns.CampaignEvent", null=True, on_delete=models.PROTECT, related_name="flow_starts"
     )
 
-    # any channel connections associated with this flow start
-    connections = models.ManyToManyField(ChannelConnection, related_name="starts")
+    # any IVR calls associated with this flow start
+    calls = models.ManyToManyField("ivr.Call", related_name="starts")
 
     # the current status of this flow start
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
@@ -2103,7 +2043,7 @@ class FlowStart(models.Model):
         with transaction.atomic():
             self.groups.clear()
             self.contacts.clear()
-            self.connections.clear()
+            self.calls.clear()
             FlowRun.objects.filter(start=self).update(start=None)
             FlowStartCount.objects.filter(start=self).delete()
             self.delete()

@@ -11,8 +11,6 @@ from urllib.parse import quote, urlencode, urlparse
 import pycountry
 import pyotp
 import pytz
-import stripe
-import stripe.error
 from django_redis import get_redis_connection
 from packaging.version import Version
 from smartmin.models import SmartModel
@@ -22,7 +20,6 @@ from twilio.rest import Client as TwilioClient
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User as AuthUser
 from django.contrib.postgres.fields import ArrayField
-from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Count, F, Prefetch, Q, Sum
 from django.utils import timezone
@@ -32,7 +29,6 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.archives.models import Archive
-from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary
 from temba.utils import chunk_list, json, languages
 from temba.utils.cache import get_cacheable_result
@@ -53,7 +49,6 @@ ORG_CREDITS_USED_CACHE_KEY = "org:%d:cache:credits_used"
 ORG_ACTIVE_TOPUP_KEY = "org:%d:cache:active_topup"
 ORG_ACTIVE_TOPUP_REMAINING = "org:%d:cache:credits_remaining:%d"
 ORG_CREDIT_EXPIRING_CACHE_KEY = "org:%d:cache:credits_expiring_soon"
-ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = "org:%d:cache:low_credits_threshold"
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
@@ -166,9 +161,6 @@ class User(AuthUser):
         """
         Gets the orgs in the given brands that this user has access to (i.e. a role in).
         """
-        if self.is_superuser:
-            return Org.objects.all()
-
         orgs = self.orgs.filter(is_active=True).order_by("name")
         if brands is not None:
             orgs = orgs.filter(brand__in=brands)
@@ -308,7 +300,7 @@ class User(AuthUser):
             org.release(user, release_users=False)
 
         # remove user from all roles on any org for our brand
-        for org in user.get_orgs(brands=[brand]):
+        for org in self.get_orgs(brands=[brand]):
             org.remove_user(self)
 
     def __str__(self):
@@ -385,15 +377,6 @@ class OrgLock(Enum):
     """
 
     credits = 1
-
-
-class OrgCache(Enum):
-    """
-    Org-level cache types
-    """
-
-    display = 1
-    credits = 2
 
 
 class Org(SmartModel):
@@ -580,49 +563,49 @@ class Org(SmartModel):
 
             return unique_slug
 
-    def create_sub_org(self, name, timezone=None, created_by=None):
-        if self.is_multi_org:
-            if not timezone:
-                timezone = self.timezone
+    def create_child(self, user, name: str, timezone, date_format: str):
+        """
+        Creates a new child workspace with this as its parent
+        """
+        assert self.is_multi_org, "only multi-org enabled orgs can create children"
+        assert not self.parent_id, "child orgs can't create children"
 
-            if not created_by:
-                created_by = self.created_by
+        # generate a unique slug
+        slug = Org.get_unique_slug(name)
 
-            # generate a unique slug
-            slug = Org.get_unique_slug(name)
+        brand = settings.BRANDING[self.brand]
+        plan = brand.get("default_plan", settings.DEFAULT_PLAN)
 
-            brand = settings.BRANDING[self.brand]
-            plan = brand.get("default_plan", settings.DEFAULT_PLAN)
+        # if parent is on topups keep using those
+        if self.plan == settings.TOPUP_PLAN:
+            plan = settings.TOPUP_PLAN
 
-            # if parent is on topups keep using those
-            if self.plan == settings.TOPUP_PLAN:
-                plan = settings.TOPUP_PLAN
+        # shared usage always uses the workspace plan
+        if self.has_shared_usage():
+            plan = settings.WORKSPACE_PLAN
 
-            # shared usage always uses the workspace plan
-            if self.has_shared_usage():
-                plan = settings.WORKSPACE_PLAN
+        org = Org.objects.create(
+            name=name,
+            timezone=timezone,
+            date_format=date_format,
+            language=self.language,
+            flow_languages=self.flow_languages,
+            brand=self.brand,
+            parent=self,
+            slug=slug,
+            created_by=user,
+            modified_by=user,
+            plan=plan,
+            is_multi_user=self.is_multi_user,
+            is_multi_org=False,
+        )
 
-            org = Org.objects.create(
-                name=name,
-                timezone=timezone,
-                language=self.language,
-                flow_languages=self.flow_languages,
-                brand=self.brand,
-                parent=self,
-                slug=slug,
-                created_by=created_by,
-                modified_by=created_by,
-                plan=plan,
-                is_multi_user=self.is_multi_user,
-                is_multi_org=False,
-            )
+        org.add_user(user, OrgRole.ADMINISTRATOR)
 
-            org.add_user(created_by, OrgRole.ADMINISTRATOR)
+        # initialize our org, but without any credits
+        org.initialize(branding=org.get_branding(), topup_size=0)
 
-            # initialize our org, but without any credits
-            org.initialize(branding=org.get_branding(), topup_size=0)
-
-            return org
+        return org
 
     def get_branding(self):
         from temba.middleware import BrandingMiddleware
@@ -661,7 +644,6 @@ class Org(SmartModel):
             ORG_CREDIT_EXPIRING_CACHE_KEY % self.pk,
             ORG_CREDITS_USED_CACHE_KEY % self.pk,
             ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk,
-            ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk,
             ORG_ACTIVE_TOPUP_KEY % self.pk,
             *active_topup_keys,
         )
@@ -1163,12 +1145,6 @@ class Org(SmartModel):
             self._user_role_cache[user] = get_role()
         return self._user_role_cache[user]
 
-    def has_twilio_number(self):  # pragma: needs cover
-        return self.channels.filter(channel_type="T")
-
-    def has_vonage_number(self):  # pragma: needs cover
-        return self.channels.filter(channel_type="NX")
-
     def init_topups(self, topup_size=None):
         if topup_size:
             return TopUp.create(self, self.created_by, price=0, credits=topup_size)
@@ -1200,26 +1176,6 @@ class Org(SmartModel):
                     exc_info=True,
                     extra=dict(definition=json.loads(samples)),
                 )
-
-    def has_low_credits(self):
-        return self.get_credits_remaining() <= self.get_low_credits_threshold()
-
-    def get_low_credits_threshold(self):
-        """
-        Get the credits number to consider as low threshold to this org
-        """
-        return get_cacheable_result(
-            ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk, self._calculate_low_credits_threshold
-        )
-
-    def _calculate_low_credits_threshold(self):
-        now = timezone.now()
-        unexpired_topups = self.topups.filter(is_active=True, expires_on__gte=now)
-
-        active_topup_credits = [topup.credits for topup in unexpired_topups if topup.get_remaining() > 0]
-        last_topup_credits = sum(active_topup_credits)
-
-        return int(last_topup_credits * 0.15), self.get_credit_ttl()
 
     def get_credits_total(self, force_dirty=False):
         """
@@ -1466,14 +1422,11 @@ class Org(SmartModel):
                 msg_ids = [item.id for item in items if isinstance(item, Msg)]
                 Msg.objects.filter(id__in=msg_ids).update(topup=topup)
 
-        # deactive all our credit alerts
-        CreditAlert.reset_for_org(self)
-
         # any time we've reapplied topups, lets invalidate our credit cache too
         self.clear_credit_cache()
 
         # if we our suspended and have credits now, unsuspend ourselves
-        if self.is_suspended and self.get_credits_remaining() > 0:
+        if self.is_suspended and self.get_credits_remaining() > 0:  # pragma: no cover
             self.is_suspended = False
             self.save(update_fields=["is_suspended"])
 
@@ -1500,142 +1453,6 @@ class Org(SmartModel):
             self.is_multi_user = True
 
         self.save(update_fields=("is_multi_user", "is_multi_org"))
-
-    def get_stripe_customer(self):  # pragma: no cover
-        # We can't test stripe in unit tests since it requires javascript tokens to be generated
-        if not self.stripe_customer:
-            return None
-
-        try:
-            stripe.api_key = get_stripe_credentials()[1]
-            customer = stripe.Customer.retrieve(self.stripe_customer)
-            return customer
-        except Exception as e:
-            logger.error(f"Could not get Stripe customer: {str(e)}", exc_info=True)
-            return None
-
-    def get_bundles(self):
-        return get_brand_bundles(self.get_branding())
-
-    def add_credits(self, bundle, token, user):
-        # look up our bundle
-        bundle_map = get_bundle_map(self.get_bundles())
-        if bundle not in bundle_map:
-            raise ValidationError(_("Invalid bundle: %s, cannot upgrade.") % bundle)
-        bundle = bundle_map[bundle]
-
-        # adds credits to this org
-        stripe.api_key = get_stripe_credentials()[1]
-
-        # our actual customer object
-        customer = self.get_stripe_customer()
-
-        # 3 possible cases
-        # 1. we already have a stripe customer and the token matches it
-        # 2. we already have a stripe customer, but they have just added a new card, we need to use that one
-        # 3. we don't have a customer, so we need to create a new customer and use that card
-
-        validation_error = None
-
-        # for our purposes, #1 and #2 are treated the same, we just always update the default card
-        try:
-
-            if not customer or customer.email != user.email:
-                # then go create a customer object for this user
-                customer = stripe.Customer.create(card=token, email=user.email, description="{ org: %d }" % self.pk)
-
-                stripe_customer = customer.id
-                self.stripe_customer = stripe_customer
-                self.save()
-
-            # update the stripe card to the one they just entered
-            else:
-                # remove existing cards
-                # TODO: this is all a bit wonky because we are using the Stripe JS widget..
-                # if we instead used on our mechanism to display / edit cards we could be a bit smarter
-                existing_cards = [c for c in customer.cards.list().data]
-                for card in existing_cards:
-                    card.delete()
-
-                card = customer.cards.create(card=token)
-
-                customer.default_card = card.id
-                customer.save()
-
-                stripe_customer = customer.id
-
-            charge = stripe.Charge.create(
-                amount=bundle["cents"], currency="usd", customer=stripe_customer, description=bundle["description"]
-            )
-
-            remaining = self.get_credits_remaining()
-
-            # create our top up
-            topup = TopUp.create(self, user, price=bundle["cents"], credits=bundle["credits"], stripe_charge=charge.id)
-
-            context = dict(
-                description=bundle["description"],
-                charge_id=charge.id,
-                charge_date=timezone.now().strftime("%b %e, %Y"),
-                amount=bundle["dollars"],
-                credits=bundle["credits"],
-                remaining=remaining,
-                org=self.name,
-            )
-
-            # card
-            if getattr(charge, "card", None):
-                context["cc_last4"] = charge.card.last4
-                context["cc_type"] = charge.card.type
-                context["cc_name"] = charge.card.name
-
-            # bitcoin
-            else:
-                context["cc_type"] = "bitcoin"
-                context["cc_name"] = charge.source.bitcoin.address
-
-            branding = self.get_branding()
-
-            subject = _("%(name)s Receipt") % branding
-            template = "orgs/email/receipt_email"
-            to_email = user.email
-
-            context["customer"] = user
-            context["branding"] = branding
-            context["subject"] = subject
-
-            if settings.SEND_RECEIPTS:
-                send_template_email(to_email, subject, template, context, branding)
-
-            # apply our new topups
-            from .tasks import apply_topups_task
-
-            apply_topups_task.delay(self.id)
-
-            return topup
-
-        except stripe.error.CardError as e:
-            logger.warning(f"Error adding credits to org: {str(e)}", exc_info=True)
-            validation_error = _("Sorry, your card was declined, please contact your provider or try another card.")
-
-        except Exception as e:
-            logger.error(f"Error adding credits to org: {str(e)}", exc_info=True)
-
-            validation_error = _(
-                "Sorry, we were unable to process your payment, please try again later or contact us."
-            )
-
-        if validation_error is not None:
-            raise ValidationError(validation_error)
-
-    def account_value(self):
-        """
-        How much has this org paid to date in dollars?
-        """
-        paid = TopUp.objects.filter(org=self).aggregate(paid=Sum("price"))["paid"]
-        if not paid:
-            paid = 0
-        return paid / 100
 
     def generate_dependency_graph(self, include_campaigns=True, include_triggers=False, include_archived=False):
         """
@@ -1755,7 +1572,7 @@ class Org(SmartModel):
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
         if sample_flows:
-            self.create_sample_flows(branding.get("api_link", ""))
+            self.create_sample_flows(branding.get("link", ""))
 
     def get_delete_date(self, *, archive_type=Archive.TYPE_MSG):
         """
@@ -1813,6 +1630,7 @@ class Org(SmartModel):
         self.exportcontactstasks.all().delete()
         self.exportmessagestasks.all().delete()
         self.exportflowresultstasks.all().delete()
+        self.exportticketstasks.all().delete()
 
         for label in self.msgs_labels.all():
             label.release(user)
@@ -1909,7 +1727,7 @@ class Org(SmartModel):
 
         # release our broadcasts
         for bcast in self.broadcast_set.filter(parent=None):
-            bcast.release()
+            bcast.delete(user, soft=False)
 
         # delete other related objects
         self.api_tokens.all().delete()
@@ -1946,16 +1764,6 @@ class Org(SmartModel):
 
     def __str__(self):
         return self.name
-
-
-def get_stripe_credentials():
-    public_key = os.environ.get(
-        "STRIPE_PUBLIC_KEY", getattr(settings, "STRIPE_PUBLIC_KEY", "MISSING_STRIPE_PUBLIC_KEY")
-    )
-    private_key = os.environ.get(
-        "STRIPE_PRIVATE_KEY", getattr(settings, "STRIPE_PRIVATE_KEY", "MISSING_STRIPE_PRIVATE_KEY")
-    )
-    return (public_key, private_key)
 
 
 class OrgMembership(models.Model):
@@ -2071,7 +1879,7 @@ class TopUp(SmartModel):
     )
 
     @classmethod
-    def create(cls, org, user, price, credits, stripe_charge=None, expires_on=None):
+    def create(cls, org, user, price, credits, expires_on=None):
         """
         Creates a new topup
         """
@@ -2084,7 +1892,6 @@ class TopUp(SmartModel):
             price=price,
             credits=credits,
             expires_on=expires_on,
-            stripe_charge=stripe_charge,
             created_by=user,
             modified_by=user,
         )
@@ -2186,14 +1993,6 @@ class TopUp(SmartModel):
         self.is_active = False
         self.save()
 
-    def get_stripe_charge(self):  # pragma: needs cover
-        try:
-            stripe.api_key = get_stripe_credentials()[1]
-            return stripe.Charge.retrieve(self.stripe_charge)
-        except Exception as e:
-            logger.error(f"Could not get Stripe charge: {str(e)}", exc_info=True)
-            return None
-
     def get_used(self):
         """
         Calculates how many topups have actually been used
@@ -2285,7 +2084,7 @@ class TopUpCredits(SquashableModel):
 
 class CreditAlert(SmartModel):
     """
-    Tracks when we have sent alerts to organization admins about low credits.
+    TODO remove
     """
 
     TYPE_OVER = "O"
@@ -2296,94 +2095,6 @@ class CreditAlert(SmartModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="credit_alerts")
 
     alert_type = models.CharField(max_length=1, choices=TYPES)
-
-    @classmethod
-    def trigger_credit_alert(cls, org, alert_type):
-        # don't create a new alert if there is already an alert of this type for the org
-        if org.credit_alerts.filter(is_active=True, alert_type=alert_type).exists():
-            return
-
-        logging.info(f"triggering {alert_type} credits alert type for {org.name}")
-
-        admin = org.get_admins().first()
-
-        if admin:
-            # Otherwise, create our alert objects and trigger our event
-            alert = CreditAlert.objects.create(org=org, alert_type=alert_type, created_by=admin, modified_by=admin)
-
-            alert.send_alert()
-
-    def send_alert(self):
-        from .tasks import send_alert_email_task
-
-        send_alert_email_task(self.id)
-
-    def send_email(self):
-        admin_emails = [admin.email for admin in self.org.get_admins().order_by("email")]
-
-        if len(admin_emails) == 0:
-            return
-
-        branding = self.org.get_branding()
-        subject = _("%(name)s Credits Alert") % branding
-        template = "orgs/email/alert_email"
-        to_email = admin_emails
-
-        context = dict(org=self.org, now=timezone.now(), branding=branding, alert=self, customer=self.created_by)
-        context["subject"] = subject
-
-        send_template_email(to_email, subject, template, context, branding)
-
-    @classmethod
-    def reset_for_org(cls, org):
-        org.credit_alerts.filter(is_active=True).update(is_active=False)
-
-    @classmethod
-    def check_org_credits(cls):
-        from temba.msgs.models import Msg
-
-        # all active orgs in the last hour
-        active_orgs = Msg.objects.filter(created_on__gte=timezone.now() - timedelta(hours=1), org__uses_topups=True)
-        active_orgs = active_orgs.order_by("org").distinct("org")
-
-        for msg in active_orgs:
-            org = msg.org
-
-            # does this org have less than 0 messages?
-            org_remaining_credits = org.get_credits_remaining()
-            org_low_credits = org.has_low_credits()
-
-            if org_remaining_credits <= 0:
-                CreditAlert.trigger_credit_alert(org, CreditAlert.TYPE_OVER)
-            elif org_low_credits:  # pragma: needs cover
-                CreditAlert.trigger_credit_alert(org, CreditAlert.TYPE_LOW)
-
-    @classmethod
-    def check_topup_expiration(cls):
-        """
-        Triggers an expiring credit alert for any org that has its last
-        active topup expiring in the next 30 days and still has available credits
-        """
-
-        # get the ids of the last to expire topup, with credits, for each org
-        final_topups = (
-            TopUp.objects.filter(is_active=True, org__is_active=True, org__uses_topups=True, credits__gt=0)
-            .order_by("org_id", "-expires_on")
-            .distinct("org_id")
-            .values_list("id", flat=True)
-        )
-
-        # figure out which of those have credits remaining, and will expire in next 30 days
-        expiring_final_topups = (
-            TopUp.objects.filter(id__in=final_topups)
-            .annotate(used_credits=Sum("topupcredits__used"))
-            .filter(expires_on__gt=timezone.now(), expires_on__lte=(timezone.now() + timedelta(days=30)))
-            .filter(Q(used_credits__lt=F("credits")) | Q(used_credits=None))
-            .select_related("org")
-        )
-
-        for topup in expiring_final_topups:
-            CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)
 
 
 class BackupToken(models.Model):

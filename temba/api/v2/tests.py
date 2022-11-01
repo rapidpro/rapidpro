@@ -33,6 +33,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole, User
+from temba.schedules.models import Schedule
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
@@ -853,6 +854,13 @@ class EndpointsTest(TembaTest):
             groups=[reporters],
             status="F",
             ticket=ticket,
+        )
+        Broadcast.create(
+            self.org,
+            self.admin,
+            "Scheduled",
+            contacts=[self.joe],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
         )
         Broadcast.create(self.org2, self.admin2, "Different org...", contacts=[self.hans])
 
@@ -3534,7 +3542,7 @@ class EndpointsTest(TembaTest):
                 "primary_language": None,
                 "timezone": "Africa/Kigali",
                 "date_style": "day_first",
-                "credits": {"used": 0, "remaining": 1000},
+                "credits": {"used": -1, "remaining": -1},
                 "anon": False,
             },
         )
@@ -3552,7 +3560,7 @@ class EndpointsTest(TembaTest):
                 "primary_language": "eng",
                 "timezone": "Africa/Kigali",
                 "date_style": "day_first",
-                "credits": {"used": 0, "remaining": 1000},
+                "credits": {"used": -1, "remaining": -1},
                 "anon": False,
             },
         )

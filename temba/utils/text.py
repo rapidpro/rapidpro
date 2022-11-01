@@ -1,16 +1,12 @@
 import base64
 import io
 import random
-import re
-import string
 import sys
-from collections import Counter
 from os import urandom
 
 import chardet
 import regex
 
-from django.utils.encoding import force_str
 from django.utils.text import slugify
 
 CONTROL_CHARACTERES_REGEX = r"[\000-\010]|[\013-\014]|[\016-\037]"
@@ -85,42 +81,6 @@ def clean_string(string_text):
         (string_text, matches) = rexp.subn("", string_text)
 
     return string_text
-
-
-def decode_base64(original):
-    """
-    Try to detect base64 messages by doing:
-    * Check divisible by 4
-    * check there's no whitespace
-    * check it's at least 60 characters
-    * check the decoded string contains at least 50% ascii
-
-    Returns decoded base64 or the original string
-    """
-    stripped = original.replace("\r", "").replace("\n", "").strip()
-
-    if len(stripped) < 60:
-        return original
-
-    if len(stripped) % 4 != 0:
-        return original
-
-    p = re.compile(r"^([a-zA-Z0-9+/=]{4})+$")
-    if not p.match(stripped[:-4]):
-        return original
-
-    decoded = original
-    try:
-        decoded = force_str(base64.standard_b64decode(stripped), errors="ignore")
-        count = Counter(decoded)
-        letters = sum(count[letter] for letter in string.ascii_letters)
-        if float(letters) / len(decoded) < 0.5:
-            return original
-
-    except Exception:
-        return original
-
-    return decoded
 
 
 def truncate(text, max_len):

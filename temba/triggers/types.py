@@ -26,8 +26,8 @@ class KeywordTriggerType(TriggerType):
     )
 
     class Form(BaseTriggerForm):
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_KEYWORD, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_KEYWORD, *args, **kwargs)
 
         def get_conflicts_kwargs(self, cleaned_data):
             kwargs = super().get_conflicts_kwargs(cleaned_data)
@@ -67,8 +67,8 @@ class CatchallTriggerType(TriggerType):
     """
 
     class Form(BaseTriggerForm):
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
 
     code = Trigger.TYPE_CATCH_ALL
     slug = "catch_all"
@@ -91,10 +91,10 @@ class ScheduledTriggerType(TriggerType):
             widget=OmniboxChoice(attrs={"placeholder": _("Optional: Search for contacts"), "contacts": True}),
         )
 
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_SCHEDULE, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_SCHEDULE, *args, **kwargs)
 
-            self.set_user(user)
+            self.set_org(org)
 
         def clean_contacts(self):
             return omnibox_deserialize(self.org, self.cleaned_data["contacts"])["contacts"]
@@ -132,31 +132,79 @@ class InboundCallTriggerType(TriggerType):
     """
 
     class Form(BaseTriggerForm):
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_INBOUND_CALL, *args, **kwargs)
+        """
+        Overrides the base trigger form to allow us to put voice and non-voice flow options in separate fields
+        """
+
+        ACTION_ANSWER = "answer"
+        ACTION_HANGUP = "hangup"
+
+        action = forms.ChoiceField(
+            choices=(
+                (ACTION_ANSWER, _("Answer call and start voice flow")),
+                (ACTION_HANGUP, _("Hangup call and start messaging flow")),
+            ),
+            widget=SelectWidget(attrs={"widget_only": True}),
+            required=True,
+        )
+        voice_flow = TembaChoiceField(
+            Flow.objects.none(),
+            required=False,
+            widget=SelectWidget(attrs={"placeholder": _("Select a flow"), "searchable": True, "widget_only": True}),
+        )
+        msg_flow = TembaChoiceField(
+            Flow.objects.none(),
+            required=False,
+            widget=SelectWidget(attrs={"placeholder": _("Select a flow"), "searchable": True, "widget_only": True}),
+        )
+
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_INBOUND_CALL, *args, **kwargs)
+
+            flows = self.org.flows.filter(is_active=True, is_archived=False, is_system=False).order_by("name")
+
+            del self.fields["flow"]
+            self.fields["voice_flow"].queryset = flows.filter(flow_type=Flow.TYPE_VOICE)
+            self.fields["msg_flow"].queryset = flows.filter(flow_type__in=(Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND))
+
+        def clean(self):
+            cleaned_data = super().clean()
+
+            action = cleaned_data["action"]
+            voice_flow = cleaned_data.get("voice_flow")
+            msg_flow = cleaned_data.get("msg_flow")
+            if action == self.ACTION_ANSWER and not voice_flow:
+                self.add_error("voice_flow", _("This field is required."))
+            elif action == self.ACTION_HANGUP and not msg_flow:
+                self.add_error("msg_flow", _("This field is required."))
+
+            return cleaned_data
+
+        class Meta(BaseTriggerForm.Meta):
+            fields = ("action", "voice_flow", "msg_flow", "groups", "exclude_groups")
 
     code = Trigger.TYPE_INBOUND_CALL
     slug = "inbound_call"
     name = _("Inbound Call")
     title = _("Inbound Call Triggers")
-    allowed_flow_types = (Flow.TYPE_VOICE,)
+    allowed_flow_types = (Flow.TYPE_VOICE, Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
     form = Form
 
 
 class MissedCallTriggerType(TriggerType):
     """
-    A trigger for missed inbound IVR calls
+    A trigger for missed calls on Android devices
     """
 
     class Form(BaseTriggerForm):
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_MISSED_CALL, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_MISSED_CALL, *args, **kwargs)
 
     code = Trigger.TYPE_MISSED_CALL
     slug = "missed_call"
     name = _("Missed Call")
     title = _("Missed Call Triggers")
-    allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
+    allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
     form = Form
 
 
@@ -168,8 +216,8 @@ class NewConversationTriggerType(TriggerType):
     class Form(BaseTriggerForm):
         channel = TembaChoiceField(Channel.objects.none(), label=_("Channel"), required=True)
 
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_NEW_CONVERSATION, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_NEW_CONVERSATION, *args, **kwargs)
 
             self.fields["channel"].queryset = self.get_channel_choices(ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION)
 
@@ -207,8 +255,8 @@ class ReferralTriggerType(TriggerType):
             max_length=255, required=False, label=_("Referrer Id"), help_text=_("The referrer id that will trigger us")
         )
 
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_REFERRAL, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_REFERRAL, *args, **kwargs)
 
             self.fields["channel"].queryset = self.get_channel_choices(ContactURN.SCHEMES_SUPPORTING_REFERRALS)
 
@@ -236,8 +284,8 @@ class ClosedTicketTriggerType(TriggerType):
     """
 
     class Form(BaseTriggerForm):
-        def __init__(self, user, *args, **kwargs):
-            super().__init__(user, Trigger.TYPE_CLOSED_TICKET, *args, **kwargs)
+        def __init__(self, org, user, *args, **kwargs):
+            super().__init__(org, user, Trigger.TYPE_CLOSED_TICKET, *args, **kwargs)
 
     code = Trigger.TYPE_CLOSED_TICKET
     slug = "closed_ticket"

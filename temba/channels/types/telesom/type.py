@@ -25,7 +25,6 @@ class TelesomType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 160
-    attachment_support = False
 
     configuration_blurb = _(
         "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL "
@@ -38,5 +37,5 @@ class TelesomType(ChannelType):
 
     available_timezones = ["Africa/Mogadishu"]
 
-    def is_recommended_to(self, user):
-        return self.is_available_to(user)[0]
+    def is_recommended_to(self, org, user):
+        return self.is_available_to(org, user)[0]

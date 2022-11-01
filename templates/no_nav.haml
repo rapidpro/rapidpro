@@ -1,0 +1,36 @@
+-extends "frame.haml"
+
+-load smartmin i18n
+-block header
+
+-block extra-style
+  {{block.super}}
+
+  :css
+    .content-card {
+      margin: 4em;
+    }
+  
+-block page-container
+  .flex.flex-col.h-full  
+    .top.flex-shrink.flex-grow
+    .middle.flex.flex-row.mb-10
+      .flex-grow
+      .content-card
+        .mb-4
+          %a(href="/")
+            <img style="max-height:4em;margin: 1em 0;margin-bottom:2em" src="{{STATIC_URL}}{{ brand.logo }}">
+        .page-title
+          -block title
+        -block content
+      .flex-grow
+          
+    .bottom(style="flex-grow: 3")
+      .flex.flex-col.h-full
+        .flex-grow
+
+        .bottom
+          -block footer
+            {{block.super}}
+
+-block interface-option

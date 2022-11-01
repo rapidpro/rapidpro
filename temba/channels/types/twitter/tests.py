@@ -130,7 +130,6 @@ class TwitterTypeTest(TembaTest):
                 "callback_domain": channel.callback_domain,
             },
         )
-        self.assertTrue(channel.type.has_attachment_support(channel))
 
         mock_register_webhook.assert_called_with(
             "beta", "https://%s/c/twt/%s/receive" % (channel.callback_domain, channel.uuid)

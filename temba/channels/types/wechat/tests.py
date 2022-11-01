@@ -1,13 +1,9 @@
-from unittest.mock import patch
-
 from django.test import override_settings
 from django.urls import reverse
 
-from temba.channels.types.wechat.tasks import refresh_wechat_access_tokens
-from temba.tests import MockResponse, TembaTest
+from temba.tests import TembaTest
 
-from ...models import Channel, ChannelLog
-from .client import WeChatClient
+from ...models import Channel
 
 
 class WeChatTypeTest(TembaTest):
@@ -19,7 +15,7 @@ class WeChatTypeTest(TembaTest):
 
         # check that claim page URL appears on claim list page
         response = self.client.get(reverse("channels.channel_claim"))
-        self.assertNotContains(response, url)
+        self.assertContains(response, url)
 
         # try to claim a channel
         response = self.client.get(url)
@@ -53,71 +49,7 @@ class WeChatTypeTest(TembaTest):
         self.assertContains(response, "10.10.10.10")
         self.assertContains(response, "172.16.20.30")
 
-        contact = self.create_contact("WeChat User", urns=["wechat:1234"])
-
-        # make sure we our jiochat channel satisfies as a send channel
-        response = self.client.get(reverse("contacts.contact_read", args=[contact.uuid]))
-        send_channel = response.context["send_channel"]
+        # make sure we our WeChat channel satisfies as a send channel
+        send_channel = self.org.get_send_channel()
         self.assertIsNotNone(send_channel)
         self.assertEqual(send_channel.channel_type, "WC")
-
-    @patch("requests.get")
-    def test_refresh_wechat_tokens(self, mock_get):
-        self.clear_cache()
-        channel = Channel.create(
-            self.org,
-            self.user,
-            None,
-            "WC",
-            None,
-            "1212",
-            config={
-                "wechat_app_id": "app-id",
-                "wechat_app_secret": "app-secret",
-                "secret": Channel.generate_secret(32),
-            },
-            uuid="00000000-0000-0000-0000-000000001234",
-        )
-
-        mock_get.return_value = MockResponse(400, '{ "errcode": 40013, "error":"Failed" }')
-
-        channel_client = WeChatClient.from_channel(channel)
-
-        ChannelLog.objects.all().delete()
-        self.assertFalse(ChannelLog.objects.all())
-        refresh_wechat_access_tokens()
-
-        self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk).count(), 1)
-        self.assertEqual(ChannelLog.objects.filter(is_error=True).count(), 1)
-
-        self.assertEqual(mock_get.call_count, 1)
-        mock_get.reset_mock()
-        mock_get.return_value = MockResponse(200, '{ "errcode": 10, "access_token":"ABC1234" }')
-
-        refresh_wechat_access_tokens()
-
-        self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk).count(), 2)
-        self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk, is_error=True).count(), 2)
-        self.assertEqual(mock_get.call_count, 1)
-
-        mock_get.reset_mock()
-        mock_get.return_value = MockResponse(200, '{ "errcode": 0, "access_token":"ABC1234" }')
-
-        refresh_wechat_access_tokens()
-
-        self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk).count(), 3)
-        self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk, is_error=True).count(), 2)
-        self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk, is_error=False).count(), 1)
-        self.assertEqual(mock_get.call_count, 1)
-
-        self.assertEqual(channel_client.get_access_token(), b"ABC1234")
-        self.assertEqual(
-            mock_get.call_args_list[0][1]["params"],
-            {"secret": "app-secret", "grant_type": "client_credential", "appid": "app-id"},
-        )
-        self.login(self.admin)
-        response = self.client.get(reverse("channels.channellog_list", args=[channel.uuid]) + "?others=1", follow=True)
-        self.assertEqual(len(response.context["object_list"]), 3)
-
-        mock_get.reset_mock()
-        mock_get.return_value = MockResponse(200, '{ "access_token":"ABC1235" }')

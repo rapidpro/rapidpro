@@ -29,7 +29,6 @@ class ThinQType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 160
-    attachment_support = False
 
     configuration_blurb = _(
         "To finish configuring your ThinQ connection you'll need to set the following callback URLs on the ThinQ "
@@ -57,12 +56,11 @@ class ThinQType(ChannelType):
         ),
     )
 
-    def is_available_to(self, user):
-        region_aware_visible, region_ignore_visible = super().is_available_to(user)
-        org = user.get_org()
+    def is_available_to(self, org, user):
+        region_aware_visible, region_ignore_visible = super().is_available_to(org, user)
         countrycode = timezone_to_country_code(org.timezone)
         region_aware_visible = countrycode in ["US"]
         return region_aware_visible, region_ignore_visible
 
-    def is_recommended_to(self, user):
+    def is_recommended_to(self, org, user):
         return False

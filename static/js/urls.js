@@ -21,15 +21,24 @@ window.urls = [
   { old: /\/channels\/logs\/(.*)\//,                     new: /\/settings\/channels\/(.*)\/history\// },
   { old: /\/channels\/channel\/configuration\/(.*)\//,   new: /\/settings\/channels\/(.*)\/config\// },
   { old: /\/channels\/channel\/read\/(.*)/,              new: /\/settings\/channels\/(.*)/ },
-  { old: /\/channels\/types\/(.*)\/claim/,               new: /\/settings\/channel\/(.*)/ },
+  { old: /\/channels\/channel\/claim\//,                 new: /\/settings\/workspace\/new-channel\// },
+  { old: /\/channels\/types\/(.*)\/claim/,               new: /\/settings\/workspace\/new-(.*)\// },
+  { old: /\/classifier\/connect.*/,                      new: /\/settings\/workspace\/new-classifier\// },
+  { old: /\/classifiers\/types\/(.*)/,                   new: /\/settings\/classifiers\/types\/(.*)/ },
   { old: /\/httplog\/classifier\/(.*)\//,                new: /\/settings\/classifiers\/(.*)\/history\// },
+  { old: /\/httplog\/read\/(.*)\//,                      new: /\/settings\/httplog\/(.*)\// },
   { old: /\/classifier\/read\/(.*)\//,                   new: /\/settings\/classifiers\/(.*)\// },
-  { old: /\/org\/manage_accounts\/(.*)/,                 new: /\/settings\/logins/ },
+  { old: /\/org\/manage_accounts\/(.*)/,                 new: /\/settings\/users/ },
   { old: /\/user\/account\//,                            new: /\/settings\/account/ },
   { old: /\/user\/two_factor_disable\//,                 new: /\/settings\/authentication\/2fa-disable/ },
-  { old: /\/user\/update\/(.*)/,                         new: /\/staff\/users\/(.*)/ },
-  { old: /\/org\/read\/(.*)/,                            new: /\/staff\/workspaces\/(.*)/ },
+  { old: /\/org\/export\//,                              new: /\/settings\/workspace\/export\// },
+  { old: /\/org\/import\//,                              new: /\/settings\/workspace\/import\// },
+  { old: /\/org\/read\/(.*)/,                            new: /\/staff\/workspace\/(.*)/ },
+  { old: /\/user\/update\/(.*)/,                         new: /\/staff\/user\/(.*)/ },
   { old: /\/org\/update\/(.*)/,                          new: /\/staff\/workspaces\/(.*)\/update/ },
+  { old: /\/org\/home\//,                                new: /\/settings\/workspace\// },
+  { old: /\/org\/manage_accounts_sub_org\/\?org=(.*)/,   new: /\/settings\/(.*)\// },
+
 ];
 
 window.mapUrl = function (path, reverse) {

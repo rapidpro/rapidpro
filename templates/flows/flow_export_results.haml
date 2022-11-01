@@ -1,8 +1,17 @@
--extends 'includes/modax.html'
--load i18n
+-extends 'utils/exports/modax.html'
+-load i18n smartmin
 
 -block pre-form
   .mb-4
     -blocktrans trimmed
       Flow exports will include the results for each contact that has passed through the flow. You may optionally
-      include up to 10 contact fields and URN types whose values will also be exported with each run.
+      include additional columns for fields, groups and URNs for each contact.
+
+-block fields
+  -render_field 'flows'
+
+  {{block.super}}
+
+  -if form.fields.extra_urns
+    -render_field 'extra_urns'
+  -render_field 'responded_only'

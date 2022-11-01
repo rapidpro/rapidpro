@@ -25,7 +25,6 @@ class BlackmynaType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
-    attachment_support = False
 
     configuration_blurb = _(
         "To finish configuring your Blackmyna connection you'll need to notify Blackmyna of the following URLs."
@@ -50,5 +49,5 @@ class BlackmynaType(ChannelType):
 
     available_timezones = ["Asia/Kathmandu"]
 
-    def is_recommended_to(self, user):
-        return self.is_available_to(user)[0]
+    def is_recommended_to(self, org, user):
+        return self.is_available_to(org, user)[0]

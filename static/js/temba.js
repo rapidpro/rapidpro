@@ -494,3 +494,24 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
 });
+
+var setInnerHTML = function(ele, html) {
+
+    var scripts = ele.parentNode.querySelectorAll("script");
+    scripts.forEach(function(script){
+        script.parentNode.removeChild(script);
+    })
+
+    ele.innerHTML = html;
+
+    Array.from(ele.querySelectorAll("script")).forEach(function(oldScript) {
+
+        oldScript.parentNode.removeChild(oldScript);
+
+        var newScript = document.createElement("script");
+        Array.from(oldScript.attributes)
+            .forEach(function(attr){ newScript.setAttribute(attr.name, attr.value) });
+        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+        ele.parentNode.appendChild(newScript);
+    });
+  }

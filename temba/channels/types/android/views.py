@@ -6,7 +6,6 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.apks.models import Apk
-from temba.orgs.models import Org
 from temba.utils import countries
 
 from ...models import Channel
@@ -18,9 +17,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         claim_code = forms.CharField(max_length=12, help_text=_("The claim code from your Android phone"))
         phone_number = forms.CharField(max_length=15, help_text=_("The phone number of the phone"))
 
-        def __init__(self, *args, **kwargs):
-            self.org = kwargs.pop("org")
+        def __init__(self, org, *args, **kwargs):
             super().__init__(*args, **kwargs)
+
+            self.org = org
 
         def clean_claim_code(self):
             claim_code = self.cleaned_data["claim_code"]
@@ -53,7 +53,14 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 number = phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
 
                 # ensure no other active channel has this number
-                if self.org.channels.filter(address=number, is_active=True).exclude(pk=channel.pk).exists():
+                conflicts = self.org.channels.filter(
+                    address=number,
+                    is_active=True,
+                    schemes__overlap=list(self.channel_type.schemes),
+                    role=channel.role,
+                ).exclude(pk=channel.pk)
+
+                if conflicts.exists():
                     raise forms.ValidationError(
                         _("Another channel has this number. Please remove that channel first.")
                     )
@@ -67,7 +74,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs["org"] = self.request.user.get_org()
+        kwargs["org"] = self.request.org
         return kwargs
 
     def get_context_data(self, **kwargs):
@@ -79,7 +86,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return "%s?success" % reverse("public.public_welcome")
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
+        org = self.request.org
 
         self.object = Channel.objects.filter(claim_code=self.form.cleaned_data["claim_code"]).first()
 
@@ -97,19 +104,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         self.object.trigger_sync()
 
         return super().form_valid(form)
-
-    def derive_org(self):
-        user = self.request.user
-        org = None
-
-        if not user.is_anonymous:
-            org = user.get_org()
-
-        org_id = self.request.session.get("org_id", None)
-        if org_id:  # pragma: needs cover
-            org = Org.objects.get(pk=org_id)
-
-        return org
 
 
 class UpdateForm(UpdateTelChannelForm):

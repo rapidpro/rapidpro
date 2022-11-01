@@ -597,6 +597,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     def filter_queryset(self, queryset):
         org = self.request.user.get_org()
+        queryset = queryset.filter(schedule=None)
 
         # filter by id (optional)
         broadcast_id = self.get_int_param("id")
@@ -3748,7 +3749,6 @@ class WorkspaceEndpoint(BaseAPIView):
             "primary_language": "eng",
             "timezone": "Africa/Kigali",
             "date_style": "day_first",
-            "credits": {"used": 121433, "remaining": 3452},
             "anon": false
         }
     """

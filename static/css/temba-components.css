@@ -221,3 +221,11 @@ temba-dropdown {
 temba-dropdown:defined {
   opacity: 1;
 }
+
+temba-menu {
+  display: none;
+}
+
+temba-menu:defined{
+  display: block;
+}

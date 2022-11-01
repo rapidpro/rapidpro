@@ -15,7 +15,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         proxy_url = forms.CharField(label=_("Proxy URL"), help_text=_("The URL on which the discord proxy is running"))
 
         def clean_auth_token(self):
-            org = self.request.user.get_org()
+            org = self.request.org
             value = self.cleaned_data["auth_token"]
 
             # does a bot already exist on this account with that auth token
@@ -37,7 +37,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = Form
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
+        org = self.request.org
         auth_token = self.form.cleaned_data["auth_token"]
         proxy_url = self.form.cleaned_data["proxy_url"]
 

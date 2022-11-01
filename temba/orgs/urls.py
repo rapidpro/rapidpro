@@ -7,8 +7,6 @@ from .views import (
     LoginView,
     OrgCRUDL,
     SpaView,
-    StripeHandler,
-    TopUpCRUDL,
     TwoFactorBackupView,
     TwoFactorVerifyView,
     UserCRUDL,
@@ -16,7 +14,6 @@ from .views import (
 )
 
 urlpatterns = OrgCRUDL().as_urlpatterns()
-urlpatterns += TopUpCRUDL().as_urlpatterns()
 urlpatterns += UserCRUDL().as_urlpatterns()
 
 # we iterate all our integration types, finding all the URLs they want to wire in
@@ -45,10 +42,7 @@ urlpatterns += [
     re_path(r"^users/two-factor/verify/$", TwoFactorVerifyView.as_view(), name="users.two_factor_verify"),
     re_path(r"^users/two-factor/backup/$", TwoFactorBackupView.as_view(), name="users.two_factor_backup"),
     re_path(r"^users/confirm-access/$", ConfirmAccessView.as_view(), name="users.confirm_access"),
-    re_path(r"^handlers/stripe/$", StripeHandler.as_view(), name="handlers.stripe_handler"),
     re_path(r"^integrations/", include(integration_type_urls)),
-    # for backwards compatibility
-    re_path(r"^api/v1/stripe/$", StripeHandler.as_view()),
     # for spa
     re_path(rf"{level_0}$", spa, name="spa"),
     re_path(rf"{level_1}$", spa, name="spa.level_1"),

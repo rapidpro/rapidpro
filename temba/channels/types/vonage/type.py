@@ -66,8 +66,6 @@ class VonageType(ChannelType):
     max_length = 1600
     max_tps = 1
 
-    ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO
-
     configuration_blurb = _(
         "Your Vonage configuration URLs are as follows. These should have been set up automatically when claiming your "
         "number, but if not you can set them from your Vonage dashboard."
@@ -93,10 +91,8 @@ class VonageType(ChannelType):
         ),
     )
 
-    def is_recommended_to(self, user):
-        org = user.get_org()
-        country_code = timezone_to_country_code(org.timezone)
-        return country_code in RECOMMENDED_COUNTRIES
+    def is_recommended_to(self, org, user):
+        return timezone_to_country_code(org.timezone) in RECOMMENDED_COUNTRIES
 
     def deactivate(self, channel):
         app_id = channel.config.get(Channel.CONFIG_VONAGE_APP_ID)

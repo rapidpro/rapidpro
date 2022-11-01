@@ -21,10 +21,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = PMClaimForm
 
     def form_valid(self, form):
-        user = self.request.user
         data = form.cleaned_data
-        org = user.get_org()
-
         config = {
             Channel.CONFIG_BASE_URL: data["base_url"],
             Channel.CONFIG_USERNAME: data["username"],
@@ -32,7 +29,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
 
         self.object = Channel.create(
-            org, user, "UZ", self.channel_type, name=data["shortcode"], address=data["shortcode"], config=config
+            self.request.org,
+            self.request.user,
+            "UZ",
+            self.channel_type,
+            name=data["shortcode"],
+            address=data["shortcode"],
+            config=config,
         )
 
         return super(ClaimView, self).form_valid(form)

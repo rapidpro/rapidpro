@@ -21,7 +21,6 @@ class YoType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
-    attachment_support = False
 
     available_timezones = ["Africa/Kampala"]
 
@@ -45,5 +44,5 @@ class YoType(ChannelType):
         ),
     )
 
-    def is_recommended_to(self, user):
-        return self.is_available_to(user)[0]
+    def is_recommended_to(self, org, user):
+        return self.is_available_to(org, user)[0]

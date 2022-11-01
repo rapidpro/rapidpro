@@ -10,8 +10,9 @@ from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
+from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, TembaTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 
 from .models import Trigger
 from .types import KeywordTriggerType
@@ -481,11 +482,13 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # but a new conversation trigger can't be created with a suitable channel
         self.assertNotContains(response, create_new_convo_url)
 
-        # create a facebook channel
+        # create a facebook channel and delete our Android channel
         self.create_channel("FB", "Facebook Channel", "1234567")
+        self.channel.release(self.admin)
 
         response = self.client.get(create_url)
         self.assertContains(response, create_new_convo_url)
+        self.assertNotContains(response, create_missed_call_url)
 
     def test_create_keyword(self):
         create_url = reverse("triggers.trigger_create_keyword")
@@ -780,27 +783,37 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_VOICE)
         flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
+        flow3 = self.create_flow("Flow 3", flow_type=Flow.TYPE_MESSAGE)
+        flow4 = self.create_flow("Flow 4", flow_type=Flow.TYPE_BACKGROUND)
         group1 = self.create_group("Group 1", contacts=[])
         group2 = self.create_group("Group 2", contacts=[])
 
         # flows that shouldn't appear as options
-        self.create_flow("Flow 3", flow_type=Flow.TYPE_MESSAGE)
-        self.create_flow("Flow 4", flow_type=Flow.TYPE_BACKGROUND)
         self.create_flow("Flow 5", is_system=True)
         self.create_flow("Flow 6", org=self.org2)
 
         create_url = reverse("triggers.trigger_create_inbound_call")
 
         response = self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=["flow", "groups", "exclude_groups"]
+            create_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["action", "voice_flow", "msg_flow", "groups", "exclude_groups"],
         )
 
-        # flow options should only be voice flows
-        self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
+        # check which flows appear in which fields
+        self.assertEqual([flow1, flow2], list(response.context["form"].fields["voice_flow"].queryset))
+        self.assertEqual([flow3, flow4], list(response.context["form"].fields["msg_flow"].queryset))
+
+        # which flow field is required depends on the action selected
+        self.assertCreateSubmit(
+            create_url, {"action": "answer"}, form_errors={"voice_flow": "This field is required."}
+        )
+        self.assertCreateSubmit(create_url, {"action": "hangup"}, form_errors={"msg_flow": "This field is required."})
 
         self.assertCreateSubmit(
             create_url,
-            {"flow": flow1.id, "groups": group1.id},
+            {"action": "answer", "voice_flow": flow1.id, "groups": group1.id},
             new_obj_query=Trigger.objects.filter(flow=flow1, trigger_type=Trigger.TYPE_INBOUND_CALL),
             success_status=200,
         )
@@ -808,14 +821,21 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # can't create another inbound call trigger for same group
         self.assertCreateSubmit(
             create_url,
-            {"flow": flow2.id, "groups": group1.id},
+            {"action": "answer", "voice_flow": flow2.id, "groups": group1.id},
+            form_errors={"__all__": "There already exists a trigger of this type with these options."},
+        )
+
+        # even if it's for a different type of flow
+        self.assertCreateSubmit(
+            create_url,
+            {"action": "hangup", "msg_flow": flow3.id, "groups": group1.id},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
         # but can for different group
         self.assertCreateSubmit(
             create_url,
-            {"flow": flow2.id, "groups": group2.id},
+            {"action": "answer", "voice_flow": flow2.id, "groups": group2.id},
             new_obj_query=Trigger.objects.filter(flow=flow2, trigger_type=Trigger.TYPE_INBOUND_CALL),
             success_status=200,
         )
@@ -825,14 +845,13 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.channel.role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
         self.channel.save()
 
-        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_VOICE)
-        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
-        flow3 = self.create_flow("Flow 3", flow_type=Flow.TYPE_MESSAGE)
+        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
+        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_BACKGROUND)
 
         # flows that shouldn't appear as options
-        self.create_flow("Flow 4", flow_type=Flow.TYPE_BACKGROUND)
-        self.create_flow("Flow 5", is_system=True)
-        self.create_flow("Flow 6", org=self.org2)
+        self.create_flow("Flow 3", flow_type=Flow.TYPE_VOICE)
+        self.create_flow("Flow 4", is_system=True)
+        self.create_flow("Flow 5", org=self.org2)
 
         create_url = reverse("triggers.trigger_create_missed_call")
 
@@ -841,7 +860,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # flow options should be messaging and voice flows
-        self.assertEqual([flow1, flow2, flow3], list(response.context["form"].fields["flow"].queryset))
+        self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
 
         self.assertCreateSubmit(
             create_url,
@@ -1122,6 +1141,53 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             object_unchanged=trigger,
         )
 
+    def test_update_inbound_call(self):
+        flow1 = self.create_flow("Test 1", flow_type=Flow.TYPE_VOICE)
+        flow2 = self.create_flow("Test 2", flow_type=Flow.TYPE_VOICE)
+        flow3 = self.create_flow("Test 3", flow_type=Flow.TYPE_MESSAGE)
+        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow2)
+
+        update_url = reverse("triggers.trigger_update", args=[trigger.id])
+
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "action": "answer",
+                "voice_flow": flow2,
+                "msg_flow": None,
+                "groups": [],
+                "exclude_groups": [],
+            },
+        )
+
+        # switch to different voice flow
+        self.assertUpdateSubmit(update_url, {"action": "answer", "voice_flow": flow1.id})
+
+        trigger.refresh_from_db()
+        self.assertEqual(flow1, trigger.flow)
+
+        # switch to a message flow
+        self.assertUpdateSubmit(update_url, {"action": "hangup", "msg_flow": flow3.id})
+
+        trigger.refresh_from_db()
+        self.assertEqual(flow3, trigger.flow)
+
+        # check form shows correct initial values now
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "action": "hangup",
+                "voice_flow": None,
+                "msg_flow": flow3,
+                "groups": [],
+                "exclude_groups": [],
+            },
+        )
+
     def test_update_schedule(self):
         flow1 = self.create_flow("Test")
         group1 = self.create_group("Chat", contacts=[])
@@ -1202,7 +1268,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(
             update_url,
             {
-                "start_datetime": "2021-06-24 12:00",
+                "start_datetime": "2021-06-24T10:00Z",
                 "repeat_period": "D",
                 "flow": flow1.id,
                 "groups": [group2.id],
@@ -1394,3 +1460,61 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger3, trigger4]
         )
         self.assertListFetch(catchall_url, allow_viewers=True, allow_editors=True, context_objects=[trigger5])
+
+
+class ConvertMissedCallTriggersTest(MigrationTest):
+    app = "triggers"
+    migrate_from = "0025_delete_bad_missed_calls"
+    migrate_to = "0026_convert_missed_call_triggers"
+
+    def setUpBeforeMigration(self, apps):
+        msg_flow = self.create_flow("Test M", flow_type=Flow.TYPE_MESSAGE)
+        ivr_flow = self.create_flow("Test V", flow_type=Flow.TYPE_VOICE)
+
+        def create_org():
+            return Org.objects.create(
+                name="My Org",
+                timezone=pytz.timezone("US/Pacific"),
+                brand="rapidpro.io",
+                created_by=self.customer_support,
+                modified_by=self.customer_support,
+            )
+
+        # self.org has an Android channel so its missed call trigger will be left as is
+        self.trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, ivr_flow)
+        self.trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, msg_flow)
+
+        # new orgs doesn't have an Android channel, its missed call trigger is shadowed by its incoming call trigger
+        org2 = create_org()
+        self.trigger3 = Trigger.create(org2, self.admin2, Trigger.TYPE_INBOUND_CALL, ivr_flow)
+        self.trigger4 = Trigger.create(org2, self.admin2, Trigger.TYPE_MISSED_CALL, msg_flow)
+
+        # but trigger is only considered shadowed if groups match - if not shadowed then it's converted
+        org3 = create_org()
+        org3_group1 = self.create_group("3-1", org=org3)
+        org3_group2 = self.create_group("3-2", org=org3)
+        self.trigger5 = Trigger.create(org3, self.admin2, Trigger.TYPE_INBOUND_CALL, ivr_flow, groups=(org3_group1,))
+        self.trigger6 = Trigger.create(org3, self.admin2, Trigger.TYPE_MISSED_CALL, msg_flow, groups=(org3_group2,))
+
+        # and if there are no incoming call triggers at all, then it's converted
+        org4 = create_org()
+        self.trigger7 = Trigger.create(org4, self.admin2, Trigger.TYPE_MISSED_CALL, msg_flow)
+
+        # ignore archived triggers
+        org5 = create_org()
+        self.trigger8 = Trigger.create(org5, self.admin2, Trigger.TYPE_MISSED_CALL, msg_flow, is_archived=True)
+
+    def test_migration(self):
+        def assertTrigger(t, trigger_type: str, is_active: bool):
+            t.refresh_from_db()
+            self.assertEqual(trigger_type, t.trigger_type, "")
+            self.assertEqual(is_active, t.is_active)
+
+        assertTrigger(self.trigger1, Trigger.TYPE_INBOUND_CALL, is_active=True)
+        assertTrigger(self.trigger2, Trigger.TYPE_MISSED_CALL, is_active=True)  # ignored
+        assertTrigger(self.trigger3, Trigger.TYPE_INBOUND_CALL, is_active=True)
+        assertTrigger(self.trigger4, Trigger.TYPE_MISSED_CALL, is_active=False)  # deleted
+        assertTrigger(self.trigger5, Trigger.TYPE_INBOUND_CALL, is_active=True)
+        assertTrigger(self.trigger6, Trigger.TYPE_INBOUND_CALL, is_active=True)  # converted
+        assertTrigger(self.trigger7, Trigger.TYPE_INBOUND_CALL, is_active=True)  # converted
+        assertTrigger(self.trigger8, Trigger.TYPE_MISSED_CALL, is_active=True)  # ignored, archived

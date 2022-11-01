@@ -40,8 +40,6 @@ class ClaimView(NonAtomicMixin, ClaimViewMixin, SmartFormView):
     form_class = Form
 
     def form_valid(self, form):
-        org = self.request.user.get_org()
-
         cleaned_data = form.cleaned_data
         api_key = cleaned_data["api_key"]
         api_secret = cleaned_data["api_secret"]
@@ -66,7 +64,7 @@ class ClaimView(NonAtomicMixin, ClaimViewMixin, SmartFormView):
 
         try:
             self.object = Channel.create(
-                org,
+                self.request.org,
                 self.request.user,
                 None,
                 self.channel_type,

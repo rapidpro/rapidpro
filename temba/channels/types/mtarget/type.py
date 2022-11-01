@@ -24,7 +24,6 @@ class MtargetType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 765
-    attachment_support = False
 
     claim_view = ClaimView
     claim_blurb = _("If you have an %(link)s account, you can quickly connect it using their APIs.") % {

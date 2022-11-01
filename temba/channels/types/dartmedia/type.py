@@ -25,7 +25,6 @@ class DartMediaType(ChannelType):
 
     schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
     max_length = 160
-    attachment_support = False
 
     show_public_addresses = True
 
@@ -55,5 +54,5 @@ class DartMediaType(ChannelType):
 
     available_timezones = ["Asia/Jakarta"]
 
-    def is_recommended_to(self, user):
-        return self.is_available_to(user)[0]
+    def is_recommended_to(self, org, user):
+        return self.is_available_to(org, user)[0]

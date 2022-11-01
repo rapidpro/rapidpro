@@ -4,7 +4,7 @@ from django.db import migrations
 from django.utils import timezone
 
 
-def ensure_session_ended_on(apps, schema_editor):
+def ensure_session_ended_on(apps, schema_editor):  # pragma: no cover
     FlowSession = apps.get_model("flows", "FlowSession")
 
     num_updated = 0
@@ -19,7 +19,7 @@ def ensure_session_ended_on(apps, schema_editor):
         print(f"Updated {num_updated} non-waiting sessions without an ended_on")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

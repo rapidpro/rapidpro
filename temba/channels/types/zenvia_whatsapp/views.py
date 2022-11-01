@@ -64,10 +64,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = Form
 
     def form_valid(self, form):
-        user = self.request.user
         data = form.cleaned_data
-        org = user.get_org()
-
         config = {Channel.CONFIG_API_KEY: data["token"]}
 
         channel_type_name = ""
@@ -77,8 +74,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             channel_type_name = "SMS"
 
         self.object = Channel.create(
-            org,
-            user,
+            self.request.org,
+            self.request.user,
             data["country"],
             self.channel_type,
             name=f"Zenvia {channel_type_name}: {data['number']}",
