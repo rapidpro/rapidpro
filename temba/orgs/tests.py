@@ -5129,38 +5129,20 @@ class ConvertOrgBrandsToSlugsTest(MigrationTest):
     migrate_to = "0103_org_brands_to_slugs"
 
     def setUpBeforeMigration(self, apps):
-        # org aleady using the default brand slug
-        self.org1 = Org.objects.create(
-            name="Org 1",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand="rapidpro",
-            created_by=self.user,
-            modified_by=self.user,
-        )
-        # org aleady using the slug of another brand
-        self.org2 = Org.objects.create(
-            name="Org 2",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand="custom",
-            created_by=self.user,
-            modified_by=self.user,
-        )
-        # org using the host of the default brand
-        self.org3 = Org.objects.create(
-            name="Org 3",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand="rapidpro.io",
-            created_by=self.user,
-            modified_by=self.user,
-        )
-        # org using a host of another brand
-        self.org4 = Org.objects.create(
-            name="Org 4",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand="custom-brand.org",
-            created_by=self.user,
-            modified_by=self.user,
-        )
+        def create_org(name, brand):
+            return Org.objects.create(
+                name=name,
+                timezone=pytz.timezone("Africa/Kigali"),
+                brand=brand,
+                created_by=self.user,
+                modified_by=self.user,
+            )
+
+        self.org1 = create_org("Org 1", "rapidpro")  # org aleady using the default brand slug
+        self.org2 = create_org("Org 2", "custom")  # org aleady using the slug of another brand
+        self.org3 = create_org("Org 3", "rapidpro.io")  # org using the host of the default brand
+        self.org4 = create_org("Org 4", "custom-brand.org")  # org using a host of another brand
+        self.org5 = create_org("Org 5", "example.com")  # org using an unknown host
 
     def test_migration(self):
         def assert_brand(o, brand):
@@ -5171,3 +5153,4 @@ class ConvertOrgBrandsToSlugsTest(MigrationTest):
         assert_brand(self.org2, "custom")
         assert_brand(self.org3, "rapidpro")
         assert_brand(self.org4, "custom")
+        assert_brand(self.org5, "rapidpro")
