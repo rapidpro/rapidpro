@@ -2112,8 +2112,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs).filter(is_active=True)
 
-            # TODO update orgs to use brand slugs rather than hosts
-            qs = qs.filter(brand__in=[self.request.branding["slug"]] + self.request.branding["hosts"])
+            qs = qs.filter(brand=self.request.branding["slug"])
 
             obj_filter = self.request.GET.get("filter")
             if obj_filter == "anon":
