@@ -11,8 +11,8 @@
   {{ block.super }}
 
   :javascript
-    var modax = document.querySelector("#event-add, #event-update, temba-modax#gear-modax");
-    var body = modax.shadowRoot.querySelector(".modax-body");
+    var modax = getModax("#event-add, #event-update");
+    var body = modax.getBody();
     var languageLinks = body.querySelectorAll(".show_language");
     var deliveryHourOptions = body.querySelector("#send-at");
     var flowSelect = body.querySelector("temba-select[name='flow_to_start']");
