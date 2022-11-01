@@ -248,7 +248,7 @@ class Command(BaseCommand):
                 Org(
                     name=org_names[o % len(org_names)],
                     timezone=self.random.choice(pytz.all_timezones),
-                    brand="rapidpro.io",
+                    brand="rapidpro",
                     country=country,
                     created_on=self.db_begins_on,
                     created_by=superuser,
