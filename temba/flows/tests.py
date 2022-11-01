@@ -2506,10 +2506,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         mock_flow_is_starting.return_value = False
 
         # now set our brand to redirect
-        branding = copy.deepcopy(settings.BRANDING)
-        branding["rapidpro.io"]["inactive_threshold"] = 1000
+        brands = copy.deepcopy(settings.BRANDS)
+        brands[0]["inactive_threshold"] = 1000
 
-        with self.settings(BRANDING=branding):
+        with self.settings(BRANDS=brands):
             flow = self.create_flow("Test")
             self.create_field("age", "Age")
             contact1 = self.create_contact("Ann", phone="+16302222222", fields={"age": 40})

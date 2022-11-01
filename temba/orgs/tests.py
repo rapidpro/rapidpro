@@ -657,7 +657,7 @@ class UserTest(TembaTest):
         self.assertEqual("admin@nyaruka.com", self.admin.email)
 
         # but she should be removed from org
-        self.assertFalse(self.admin.get_orgs(brands=[settings.DEFAULT_BRAND]).exists())
+        self.assertFalse(self.admin.get_orgs(brand="rapidpro.io").exists())
 
         # now lets release her from the branded org
         self.admin.release(self.customer_support, brand="some-other-brand.com")
@@ -676,7 +676,7 @@ class UserTest(TembaTest):
         branded_org = Org.objects.create(
             name="Other Brand Org",
             timezone=pytz.timezone("Africa/Kigali"),
-            brand="custom-brand.org",
+            brand="custom-brand.io",
             created_by=self.admin,
             modified_by=self.admin,
         )
@@ -688,6 +688,7 @@ class UserTest(TembaTest):
 
         # check our choose page
         response = self.client.get(reverse("orgs.org_choose"), SERVER_NAME="custom-brand.org")
+        self.assertEqual("custom", response.context["request"].branding["slug"])
 
         # should contain both orgs
         self.assertContains(response, "Other Brand Org")
@@ -4986,7 +4987,7 @@ class OrgActivityTest(TembaTest):
         now = timezone.now()
 
         # give us a shared plan
-        settings.BRANDING[settings.DEFAULT_BRAND]["shared_plans"] = ["my_shared_plan"]
+        settings.BRANDS[0]["shared_plans"] = ["my_shared_plan"]
         self.org.plan = "my_shared_plan"
         self.org.is_multi_org = True
         self.org.save(update_fields=("plan", "is_multi_org"))

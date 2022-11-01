@@ -1590,7 +1590,7 @@ class Alert(SmartModel):
         context["unsent_count"] = Msg.objects.filter(channel=self.channel, status__in=["Q", "P"]).count()
         context["subject"] = subject
 
-        send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())
+        send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.branding)
 
 
 def get_alert_user():
