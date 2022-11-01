@@ -6,11 +6,11 @@ import pytz
 from django.conf import settings
 from django.db.models import Count, Sum
 from django.utils import timezone
+from django.utils.timesince import timesince
 
 from celery import shared_task
 
 from temba.orgs.models import Org
-from temba.utils import chunk_list
 from temba.utils.analytics import track
 from temba.utils.celery import nonoverlapping_task
 
@@ -82,11 +82,25 @@ def trim_channel_log_task():
     Trims old channel logs
     """
 
-    trim_before = timezone.now() - settings.RETENTION_PERIODS["channellog"]
+    start = timezone.now()
+    trim_before = start - settings.RETENTION_PERIODS["channellog"]
+    num_deleted = 0
 
-    ids = ChannelLog.objects.filter(created_on__lte=trim_before).values_list("id", flat=True)
-    for chunk in chunk_list(ids, 1000):
-        ChannelLog.objects.filter(id__in=chunk).delete()
+    logger.info(f"Deleting channel logs which ended before {trim_before.isoformat()}...")
+
+    while True:
+        channel_logs_ids = ChannelLog.objects.filter(created_on__lte=trim_before).values_list("id", flat=True)[:1000]
+
+        if not channel_logs_ids:
+            break
+
+        ChannelLog.objects.filter(id__in=channel_logs_ids).delete()
+        num_deleted += len(channel_logs_ids)
+
+        if num_deleted % 10000 == 0:  # pragma: no cover
+            logger.debug(f" > Deleted {num_deleted} channel logs")
+
+    logger.info(f"Deleted {num_deleted} channel logs in {timesince(start)}")
 
 
 @nonoverlapping_task(
