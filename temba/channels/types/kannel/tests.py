@@ -10,9 +10,9 @@ class KannelTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        # override the ORG brand
-        self.org.brand = "custom-brand.io"
-        self.org.save()
+        # update the org brand to check the courier URL is set accordingly
+        self.org.brand = "custom"
+        self.org.save(update_fields=("brand",))
 
         self.login(self.admin)
 

@@ -62,7 +62,7 @@ from temba.utils import json, languages
 
 from .context_processors import RolePermsWrapper
 from .models import BackupToken, Debit, Invitation, Org, OrgActivity, OrgMembership, OrgRole, TopUp, TopUpCredits, User
-from .tasks import delete_orgs_task, resume_failed_tasks, squash_topupcredits
+from .tasks import delete_orgs_task, resume_failed_tasks, squash_topupcredits, update_org_activity
 
 
 class OrgRoleTest(TembaTest):
@@ -2126,7 +2126,6 @@ class OrgTest(TembaTest):
         self.assertEqual(15, self.org.get_credits_used())
 
     def test_topups(self):
-        settings.BRANDS[0]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
         self.org.is_multi_org = False
         self.org.is_multi_user = False
         self.org.save(update_fields=["is_multi_user", "is_multi_org"])
@@ -2279,20 +2278,6 @@ class OrgTest(TembaTest):
 
         TopUp.objects.all().update(is_active=False)
         self.org.clear_credit_cache()
-
-        # now buy some credits to make us multi user
-        TopUp.create(self.org, self.admin, price=100, credits=100_000)
-        self.org.clear_credit_cache()
-        self.org.reset_capabilities()
-        self.assertTrue(self.org.is_multi_user)
-        self.assertFalse(self.org.is_multi_org)
-
-        # good deal!
-        TopUp.create(self.org, self.admin, price=100, credits=1_000_000)
-        self.org.clear_credit_cache()
-        self.org.reset_capabilities()
-        self.assertTrue(self.org.is_multi_user)
-        self.assertTrue(self.org.is_multi_org)
 
     @patch("temba.orgs.views.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
@@ -2896,57 +2881,6 @@ class OrgTest(TembaTest):
 
             self.assertRedirect(response, reverse("channels.types.plivo.claim"))
 
-    def test_tiers(self):
-        # default is no tiers, everything is allowed, go crazy!
-        self.assertTrue(self.org.is_multi_user)
-        self.assertTrue(self.org.is_multi_org)
-
-        del settings.BRANDS[0]["tiers"]
-        self.org.reset_capabilities()
-        self.assertTrue(self.org.is_multi_user)
-        self.assertTrue(self.org.is_multi_org)
-
-        # not enough credits with tiers enabled
-        settings.BRANDS[0]["tiers"] = dict(import_flows=1, multi_user=100_000, multi_org=1_000_000)
-        self.org.reset_capabilities()
-        self.assertFalse(self.org.is_multi_user)
-        self.assertFalse(self.org.is_multi_org)
-
-        # not enough credits, but tiers disabled
-        settings.BRANDS[0]["tiers"] = dict(import_flows=0, multi_user=0, multi_org=0)
-        self.org.reset_capabilities()
-        self.assertIsNotNone(
-            self.org.create_child(self.admin, "Sub Org A", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
-        )
-        self.assertTrue(self.org.is_multi_user)
-        self.assertTrue(self.org.is_multi_org)
-
-        # tiers enabled, but enough credits
-        settings.BRANDS[0]["tiers"] = dict(import_flows=1, multi_user=100_000, multi_org=1_000_000)
-        TopUp.create(self.org, self.admin, price=100, credits=1_000_000)
-        self.org.clear_credit_cache()
-        self.assertIsNotNone(
-            self.org.create_child(self.admin, "Sub Org B", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
-        )
-        self.assertTrue(self.org.is_multi_user)
-        self.assertTrue(self.org.is_multi_org)
-
-        # if we are a shared plan, our sub orgs should be created with the workspace plan
-        settings.BRANDS[0]["shared_plans"] = ["my_shared_plan"]
-        self.org.plan = "my_shared_plan"
-        self.org.save()
-        sub_org_c = self.org.create_child(self.admin, "Sub Org C", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
-        self.assertEqual(sub_org_c.plan, settings.WORKSPACE_PLAN)
-
-        with override_settings(DEFAULT_PLAN="other"):
-            settings.BRANDS[0]["default_plan"] = "other"
-            self.org.plan = settings.TOPUP_PLAN
-            self.org.save()
-            self.org.reset_capabilities()
-            sub_org_d = self.org.create_child(self.admin, "Sub Org D", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
-            self.assertIsNotNone(sub_org_d)
-            self.assertEqual(sub_org_d.plan, settings.TOPUP_PLAN)
-
     def test_org_get_limit(self):
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 250)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
@@ -2968,16 +2902,17 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.api_rates, {"v2.contacts": "10000/hour"})
 
     def test_child_management(self):
-        settings.BRANDS[0]["tiers"] = dict(multi_org=1_000_000)
-        self.org.reset_capabilities()
+        self.org.is_multi_org = False
+        self.org.save(update_fields=("is_multi_org",))
 
         # error if a non-multi-org enabled org tries to create a child
         with self.assertRaises(AssertionError):
             self.org.create_child(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
 
-        # lower the tier and try again
-        settings.BRANDS[0]["tiers"] = dict(multi_org=0)
-        self.org.reset_capabilities()
+        # enable multi-org and try again
+        self.org.is_multi_org = True
+        self.org.save(update_fields=("is_multi_org",))
+
         sub_org = self.org.create_child(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
 
         # suborg has been created
@@ -3014,8 +2949,9 @@ class OrgTest(TembaTest):
         expires = timezone.now() + timedelta(days=400)
         newer_topup = TopUp.create(self.org, self.admin, price=0, credits=1000, expires_on=expires)
 
-        # lower the tier and try again
-        settings.BRANDS[0]["tiers"] = dict(multi_org=0)
+        # enable multi-org and create child org
+        self.org.is_multi_org = True
+        self.org.save(update_fields=("is_multi_org",))
         sub_org = self.org.create_child(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
 
         # send a message as sub_org
@@ -3216,14 +3152,32 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(count, len(menu))
 
     def test_home(self):
-        self.login(self.user)
-
         home_url = reverse("orgs.org_home")
+
+        self.login(self.user)
 
         with self.assertNumQueries(13):
             response = self.client.get(home_url)
 
+        # not so many options for viewers
         self.assertEqual(200, response.status_code)
+        self.assertEqual(2, len(response.context["formax"].sections))
+
+        self.login(self.admin)
+
+        with self.assertNumQueries(45):
+            response = self.client.get(home_url)
+
+        # more options for admins
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(14, len(response.context["formax"].sections))
+
+        self.org.is_multi_user = True
+        self.org.save(update_fields=("is_multi_user",))
+
+        response = self.client.get(home_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(15, len(response.context["formax"].sections))
 
     def test_menu(self):
         self.login(self.admin)
@@ -3281,12 +3235,23 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContentMenu(read_url, self.customer_support, [])
 
     def test_workspace(self):
-        response = self.assertListFetch(
-            reverse("orgs.org_workspace"), allow_viewers=True, allow_editors=True, allow_agents=False
-        )
+        workspace_url = reverse("orgs.org_workspace")
+
+        response = self.assertListFetch(workspace_url, allow_viewers=True, allow_editors=True, allow_agents=False)
 
         # make sure we have the appropriate number of sections
+        self.assertEqual(7, len(response.context["formax"].sections))
+        self.assertNotContains(response, "New Workspace")
+
+        self.org.is_multi_org = True
+        self.org.is_multi_user = True
+        self.org.save(update_fields=("is_multi_org", "is_multi_user"))
+
+        response = self.assertListFetch(workspace_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+
+        # we now have workspace management
         self.assertEqual(8, len(response.context["formax"].sections))
+        self.assertContains(response, "New Workspace")
 
         # create a child org
         self.child_org = Org.objects.create(
@@ -3975,6 +3940,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, created_on.strftime("%H:%M").lower())
 
     def test_delete(self):
+        self.org.is_multi_org = True
+        self.org.save(update_fields=("is_multi_org",))
         workspace = self.org.create_child(self.admin, "Child Workspace", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
         delete_workspace = reverse("orgs.org_delete", args=[workspace.id])
 
@@ -5045,14 +5012,14 @@ class BulkExportTest(TembaTest):
 
 class OrgActivityTest(TembaTest):
     def test_get_dependencies(self):
-        from temba.orgs.tasks import update_org_activity
-
         now = timezone.now()
 
         # give us a shared plan
         settings.BRANDS[0]["shared_plans"] = ["my_shared_plan"]
         self.org.plan = "my_shared_plan"
-        self.org.save()
+        self.org.is_multi_org = True
+        self.org.save(update_fields=("plan", "is_multi_org"))
+
         workspace = self.org.create_child(self.admin, "Workspace", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
         self.assertEqual(workspace.plan, settings.WORKSPACE_PLAN)
 

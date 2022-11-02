@@ -333,7 +333,6 @@ BRANDS = [
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "images/logo-dark.svg",
         "allow_signups": True,
-        "tiers": dict(multi_user=0, multi_org=0),
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         "title": _("Visually build nationally scalable mobile applications"),
     }
