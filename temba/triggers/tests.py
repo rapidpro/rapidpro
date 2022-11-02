@@ -1475,7 +1475,7 @@ class ConvertMissedCallTriggersTest(MigrationTest):
             return Org.objects.create(
                 name="My Org",
                 timezone=pytz.timezone("US/Pacific"),
-                brand="rapidpro.io",
+                brand="rapidpro",
                 created_by=self.customer_support,
                 modified_by=self.customer_support,
             )

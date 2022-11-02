@@ -164,9 +164,7 @@ class User(AuthUser):
         """
         orgs = self.orgs.filter(is_active=True).order_by("name")
         if brand:
-            # TODO update orgs to use brand slug rather than a host then we can just filter on `brand=brand`
-            branding = get_branding_by_slug(brand)
-            orgs = orgs.filter(brand__in=[brand] + branding["hosts"])
+            orgs = orgs.filter(brand=brand)
         if roles is not None:
             orgs = orgs.filter(orgmembership__user=self, orgmembership__role_code__in=[r.code for r in roles])
 

@@ -642,7 +642,7 @@ class UserTest(TembaTest):
         branded_org = Org.objects.create(
             name="Other Brand Org",
             timezone=pytz.timezone("Africa/Kigali"),
-            brand="some-other-brand.com",
+            brand="some-other-brand",
             created_by=self.admin,
             modified_by=self.admin,
         )
@@ -658,10 +658,10 @@ class UserTest(TembaTest):
         self.assertEqual("admin@nyaruka.com", self.admin.email)
 
         # but she should be removed from org
-        self.assertFalse(self.admin.get_orgs(brand="rapidpro.io").exists())
+        self.assertFalse(self.admin.get_orgs(brand="rapidpro").exists())
 
         # now lets release her from the branded org
-        self.admin.release(self.customer_support, brand="some-other-brand.com")
+        self.admin.release(self.customer_support, brand="some-other-brand")
 
         # now she gets deactivated and ambiguated and belongs to no orgs
         self.assertFalse(self.admin.is_active)
@@ -670,14 +670,14 @@ class UserTest(TembaTest):
 
     def test_brand_aliases(self):
         # set our brand to our custom org
-        self.org.brand = "custom-brand.io"
-        self.org.save(update_fields=["brand"])
+        self.org.brand = "custom"
+        self.org.save(update_fields=("brand",))
 
         # create a second org on the .org version
         branded_org = Org.objects.create(
             name="Other Brand Org",
             timezone=pytz.timezone("Africa/Kigali"),
-            brand="custom-brand.io",
+            brand="custom",
             created_by=self.admin,
             modified_by=self.admin,
         )
@@ -1426,7 +1426,7 @@ class OrgTest(TembaTest):
         Org.objects.create(
             name="Another Org",
             timezone="Africa/Kigali",
-            brand="rapidpro.io",
+            brand="rapidpro",
             created_by=self.user,
             modified_by=self.user,
             surveyor_password="nyaruka",
@@ -3489,7 +3489,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # not the logged in user at the signup time
         self.assertFalse(org.get_admins().filter(pk=self.user.pk))
 
-    @override_settings(DEFAULT_BRAND="no-topups.org")
+    @override_settings(DEFAULT_BRAND="notopups")
     def test_no_topup_signup(self):
         signup_url = reverse("orgs.org_signup")
         response = self.client.post(

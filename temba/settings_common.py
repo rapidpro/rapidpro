@@ -335,8 +335,6 @@ BRANDS = [
         "allow_signups": True,
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         "title": _("Visually build nationally scalable mobile applications"),
-        "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
-        "credits": "Copyright &copy; 2012-2022 UNICEF, Nyaruka. All Rights Reserved.",
     }
 ]
 DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro")
