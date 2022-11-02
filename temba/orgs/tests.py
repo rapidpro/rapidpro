@@ -1,6 +1,6 @@
 import io
 import smtplib
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import urlencode
@@ -45,6 +45,7 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     MockResponse,
     TembaNonAtomicTest,
     TembaTest,
@@ -4001,6 +4002,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "name",
                 "brand",
                 "parent",
+                "plan",
+                "plan_end",
                 "is_anon",
                 "is_multi_user",
                 "is_multi_org",
@@ -4034,6 +4037,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "name": "Temba",
                 "brand": "rapidpro.io",
                 "parent": parent.id,
+                "plan": "unicef",
+                "plan_end": "2027-12-31T00:00Z",
                 "is_anon": False,
                 "is_multi_user": False,
                 "is_multi_org": False,
@@ -4051,6 +4056,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
 
         self.org.refresh_from_db()
+        self.assertEqual(parent, self.org.parent)
+        self.assertEqual("unicef", self.org.plan)
+        self.assertEqual(datetime(2027, 12, 31, 0, 0, 0, 0, timezone.utc), self.org.plan_end)
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)  # uses default
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
@@ -4060,7 +4068,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.client.post(update_url, {"action": "unflag"})
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_flagged)
-        self.assertEqual(parent, self.org.parent)
 
         # verify
         self.client.post(update_url, {"action": "verify"})
@@ -5066,3 +5073,36 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class ConvertOrgBrandsToSlugsTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0102_alter_org_brand_alter_org_plan"
+    migrate_to = "0103_org_brands_to_slugs"
+
+    def setUpBeforeMigration(self, apps):
+        def create_org(name, brand):
+            return Org.objects.create(
+                name=name,
+                timezone=pytz.timezone("Africa/Kigali"),
+                brand=brand,
+                created_by=self.user,
+                modified_by=self.user,
+            )
+
+        self.org1 = create_org("Org 1", "rapidpro")  # org aleady using the default brand slug
+        self.org2 = create_org("Org 2", "custom")  # org aleady using the slug of another brand
+        self.org3 = create_org("Org 3", "rapidpro.io")  # org using the host of the default brand
+        self.org4 = create_org("Org 4", "custom-brand.org")  # org using a host of another brand
+        self.org5 = create_org("Org 5", "example.com")  # org using an unknown host
+
+    def test_migration(self):
+        def assert_brand(o, brand):
+            o.refresh_from_db()
+            self.assertEqual(o.brand, brand)
+
+        assert_brand(self.org1, "rapidpro")
+        assert_brand(self.org2, "custom")
+        assert_brand(self.org3, "rapidpro")
+        assert_brand(self.org4, "custom")
+        assert_brand(self.org5, "rapidpro")

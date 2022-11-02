@@ -64,10 +64,12 @@ from temba.utils.email import is_valid_address, send_template_email
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
     CheckboxWidget,
+    DateWidget,
     InputWidget,
     SelectMultipleWidget,
     SelectWidget,
     TembaChoiceField,
+    TembaDateTimeField,
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
@@ -2148,9 +2150,12 @@ class OrgCRUDL(SmartCRUDL):
     class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             parent = forms.IntegerField(required=False)
+            plan_end = TembaDateTimeField(label=_("Plan End Date"))
 
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+
+                self.fields["plan_end"].widget = DateWidget(attrs={"timezone": org.timezone, "time": True})
 
                 self.limits_rows = []
                 self.add_limits_fields(org)
@@ -2193,6 +2198,8 @@ class OrgCRUDL(SmartCRUDL):
                     "name",
                     "brand",
                     "parent",
+                    "plan",
+                    "plan_end",
                     "is_anon",
                     "is_multi_user",
                     "is_multi_org",
