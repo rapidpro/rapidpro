@@ -4,14 +4,12 @@ import os
 from abc import ABCMeta
 from collections import defaultdict
 from datetime import timedelta
-from decimal import Decimal
 from enum import Enum
 from urllib.parse import quote, urlencode, urlparse
 
 import pycountry
 import pyotp
 import pytz
-from django_redis import get_redis_connection
 from packaging.version import Version
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
@@ -21,7 +19,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User as AuthUser
 from django.contrib.postgres.fields import ArrayField
 from django.db import models, transaction
-from django.db.models import Count, F, Prefetch, Q, Sum
+from django.db.models import Count, Prefetch
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
@@ -32,7 +30,6 @@ from temba.archives.models import Archive
 from temba.locations.models import AdminBoundary
 from temba.utils import chunk_list, json, languages
 from temba.utils.brands import get_branding_by_slug
-from temba.utils.cache import get_cacheable_result
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, JSONField, SquashableModel
@@ -41,18 +38,6 @@ from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
-
-# cache keys and TTLs
-ORG_LOCK_KEY = "org:%d:lock:%s"
-ORG_CREDITS_TOTAL_CACHE_KEY = "org:%d:cache:credits_total"
-ORG_CREDITS_PURCHASED_CACHE_KEY = "org:%d:cache:credits_purchased"
-ORG_CREDITS_USED_CACHE_KEY = "org:%d:cache:credits_used"
-ORG_ACTIVE_TOPUP_KEY = "org:%d:cache:active_topup"
-ORG_ACTIVE_TOPUP_REMAINING = "org:%d:cache:credits_remaining:%d"
-ORG_CREDIT_EXPIRING_CACHE_KEY = "org:%d:cache:credits_expiring_soon"
-
-ORG_LOCK_TTL = 60  # 1 minute
-ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
 
 
 class DependencyMixin:
@@ -372,14 +357,6 @@ class OrgRole(Enum):
         return permission in self.permissions
 
 
-class OrgLock(Enum):
-    """
-    Org-level lock types
-    """
-
-    credits = 1
-
-
 class Org(SmartModel):
     """
     An Org can have several users and is the main component that holds all Flows, Messages, Contacts, etc. Orgs
@@ -601,10 +578,7 @@ class Org(SmartModel):
         )
 
         org.add_user(user, OrgRole.ADMINISTRATOR)
-
-        # initialize our org, but without any credits
-        org.initialize(branding=org.branding, topup_size=0)
-
+        org.initialize(branding=org.branding)
         return org
 
     @cached_property
@@ -617,35 +591,12 @@ class Org(SmartModel):
     def has_shared_usage(self):
         return self.plan in self.branding.get("shared_plans", [])
 
-    def lock_on(self, lock):
-        """
-        Creates the requested type of org-level lock
-        """
-        r = get_redis_connection()
-
-        return r.lock(ORG_LOCK_KEY % (self.id, lock.name), ORG_LOCK_TTL)
-
     def get_integrations(self, category: IntegrationType.Category) -> list:
         """
         Returns the connected integrations on this org of the given category
         """
 
         return [t for t in IntegrationType.get_all(category) if t.is_connected(self)]
-
-    def clear_credit_cache(self):
-        """
-        Clears the given cache types (currently just credits) for this org. Returns number of keys actually deleted
-        """
-        r = get_redis_connection()
-        active_topup_keys = [ORG_ACTIVE_TOPUP_REMAINING % (self.pk, topup.pk) for topup in self.topups.all()]
-        return r.delete(
-            ORG_CREDITS_TOTAL_CACHE_KEY % self.pk,
-            ORG_CREDIT_EXPIRING_CACHE_KEY % self.pk,
-            ORG_CREDITS_USED_CACHE_KEY % self.pk,
-            ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk,
-            ORG_ACTIVE_TOPUP_KEY % self.pk,
-            *active_topup_keys,
-        )
 
     def get_limit(self, limit_type):
         return int(self.limits.get(limit_type, settings.ORG_LIMIT_DEFAULTS.get(limit_type)))
@@ -1144,16 +1095,6 @@ class Org(SmartModel):
             self._user_role_cache[user] = get_role()
         return self._user_role_cache[user]
 
-    def init_topups(self, topup_size=None):
-        if topup_size:
-            return TopUp.create(self, self.created_by, price=0, credits=topup_size)
-
-        # set whether we use topups based on our plan
-        self.uses_topups = self.plan == settings.TOPUP_PLAN
-        self.save(update_fields=["uses_topups"])
-
-        return None
-
     def create_sample_flows(self, api_url):
         # get our sample dir
         filename = os.path.join(settings.STATICFILES_DIRS[0], "examples", "sample_flows.json")
@@ -1175,259 +1116,6 @@ class Org(SmartModel):
                     exc_info=True,
                     extra=dict(definition=json.loads(samples)),
                 )
-
-    def get_credits_total(self, force_dirty=False):
-        """
-        Gets the total number of credits purchased or assigned to this org
-        """
-        return get_cacheable_result(
-            ORG_CREDITS_TOTAL_CACHE_KEY % self.pk, self._calculate_credits_total, force_dirty=force_dirty
-        )
-
-    def get_purchased_credits(self):
-        """
-        Returns the total number of credits purchased
-        :return:
-        """
-        return get_cacheable_result(ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk, self._calculate_purchased_credits)
-
-    def _calculate_purchased_credits(self):
-        purchased_credits = (
-            self.topups.filter(is_active=True, price__gt=0).aggregate(Sum("credits")).get("credits__sum")
-        )
-        return purchased_credits if purchased_credits else 0, self.get_credit_ttl()
-
-    def _calculate_credits_total(self):
-        active_credits = (
-            self.topups.filter(is_active=True, expires_on__gte=timezone.now())
-            .aggregate(Sum("credits"))
-            .get("credits__sum")
-        )
-        active_credits = active_credits if active_credits else 0
-
-        # these are the credits that have been used in expired topups
-        expired_credits = (
-            TopUpCredits.objects.filter(topup__org=self, topup__is_active=True, topup__expires_on__lte=timezone.now())
-            .aggregate(Sum("used"))
-            .get("used__sum")
-        )
-
-        expired_credits = expired_credits if expired_credits else 0
-
-        return active_credits + expired_credits, self.get_credit_ttl()
-
-    def get_credits_used(self):
-        """
-        Gets the number of credits used by this org
-        """
-        return get_cacheable_result(ORG_CREDITS_USED_CACHE_KEY % self.pk, self._calculate_credits_used)
-
-    def _calculate_credits_used(self):
-        used_credits_sum = TopUpCredits.objects.filter(topup__org=self, topup__is_active=True)
-        used_credits_sum = used_credits_sum.aggregate(Sum("used")).get("used__sum")
-        used_credits_sum = used_credits_sum if used_credits_sum else 0
-
-        # if we don't have an active topup, add up pending messages too
-        if not self.get_active_topup_id():
-            used_credits_sum += self.msgs.filter(topup=None).count()
-
-            # we don't cache in this case
-            return used_credits_sum, 0
-
-        return used_credits_sum, self.get_credit_ttl()
-
-    def get_credits_remaining(self):
-        """
-        Gets the number of credits remaining for this org
-        """
-        return self.get_credits_total() - self.get_credits_used()
-
-    def select_most_recent_topup(self, amount):
-        """
-        Determines the active topup with latest expiry date and returns that
-        along with how many credits we will be able to decrement from it. Amount
-        decremented is not guaranteed to be the full amount requested.
-        """
-        # if we have an active topup cache, we need to decrement the amount remaining
-        non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by(
-            "-expires_on", "id"
-        )
-        active_topups = (
-            non_expired_topups.annotate(used_credits=Sum("topupcredits__used"))
-            .filter(credits__gt=0)
-            .filter(Q(used_credits__lt=F("credits")) | Q(used_credits=None))
-        )
-        active_topup = active_topups.first()
-
-        if active_topup:
-            available_credits = active_topup.get_remaining()
-
-            if amount > available_credits:
-                # use only what is available
-                return active_topup.id, available_credits
-            else:
-                # use the full amount
-                return active_topup.id, amount
-        else:  # pragma: no cover
-            return None, 0
-
-    def allocate_credits(self, user, org, amount):
-        """
-        Allocates credits to a sub org of the current org, but only if it
-        belongs to us and we have enough credits to do so.
-        """
-        if org.parent == self or self.parent == org.parent or self.parent == org:
-            if self.get_credits_remaining() >= amount:
-
-                with self.lock_on(OrgLock.credits):
-
-                    # now debit our account
-                    debited = None
-                    while amount or debited == 0:
-
-                        # remove the credits from ourselves
-                        (topup_id, debited) = self.select_most_recent_topup(amount)
-
-                        if topup_id:
-                            topup = TopUp.objects.get(id=topup_id)
-
-                            # create the topup for our child, expiring on the same date
-                            new_topup = TopUp.create(
-                                org, user, credits=debited, expires_on=topup.expires_on, price=None
-                            )
-
-                            # create a debit for transaction history
-                            Debit.objects.create(
-                                topup_id=topup_id,
-                                amount=debited,
-                                beneficiary=new_topup,
-                                debit_type=Debit.TYPE_ALLOCATION,
-                                created_by=user,
-                            )
-
-                            # decrease the amount of credits we need
-                            amount -= debited
-
-                        else:  # pragma: needs cover
-                            break
-
-                    # apply topups to messages missing them
-                    from .tasks import apply_topups_task
-
-                    apply_topups_task.delay(org.id)
-
-                    # the credit cache for our org should be invalidated too
-                    self.clear_credit_cache()
-
-                return True
-
-        # couldn't allocate credits
-        return False
-
-    def get_active_topup(self, force_dirty=False):
-        topup_id = self.get_active_topup_id(force_dirty=force_dirty)
-        if topup_id:
-            return TopUp.objects.get(id=topup_id)
-        return None
-
-    def get_active_topup_id(self, force_dirty=False):
-        return get_cacheable_result(
-            ORG_ACTIVE_TOPUP_KEY % self.pk, self._calculate_active_topup, force_dirty=force_dirty
-        )
-
-    def get_credit_ttl(self):
-        """
-        Credit TTL should be smallest of active topup expiration and ORG_CREDITS_CACHE_TTL
-        :return:
-        """
-        return self.get_topup_ttl(self.get_active_topup())
-
-    def get_topup_ttl(self, topup):
-        """
-        Gets how long metrics based on the given topup should live. Returns the shorter ttl of
-        either ORG_CREDITS_CACHE_TTL or time remaining on the expiration
-        """
-        if not topup:
-            return 10
-
-        return max(10, min((ORG_CREDITS_CACHE_TTL, int((topup.expires_on - timezone.now()).total_seconds()))))
-
-    def _calculate_active_topup(self):
-        """
-        Calculates the oldest non-expired topup that still has credits
-        """
-        non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by(
-            "expires_on", "id"
-        )
-        active_topups = (
-            non_expired_topups.annotate(used_credits=Sum("topupcredits__used"))
-            .filter(credits__gt=0)
-            .filter(Q(used_credits__lt=F("credits")) | Q(used_credits=None))
-        )
-
-        topup = active_topups.first()
-        if topup:
-            # initialize our active topup metrics
-            r = get_redis_connection()
-            ttl = self.get_topup_ttl(topup)
-            r.set(ORG_ACTIVE_TOPUP_REMAINING % (self.id, topup.id), topup.get_remaining(), ttl)
-            return topup.id, ttl
-
-        return 0, 0
-
-    def apply_topups(self):
-        """
-        We allow users to receive messages even if they're out of credit. Once they re-add credit, this function
-        retro-actively applies topups to any messages or IVR actions that don't have a topup
-        """
-        from temba.msgs.models import Msg
-
-        with self.lock_on(OrgLock.credits):
-            # get all items that haven't been credited
-            msg_uncredited = self.msgs.filter(topup=None).order_by("created_on")
-            all_uncredited = list(msg_uncredited)
-
-            # get all topups that haven't expired
-            unexpired_topups = list(
-                self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by("-expires_on")
-            )
-
-            # dict of topups to lists of their newly assigned items
-            new_topup_items = {topup: [] for topup in unexpired_topups}
-
-            # assign topup with credits to items...
-            current_topup = None
-            current_topup_remaining = 0
-
-            for item in all_uncredited:
-                # find a topup with remaining credit
-                while current_topup_remaining <= 0:
-                    if not unexpired_topups:
-                        break
-
-                    current_topup = unexpired_topups.pop()
-                    current_topup_remaining = current_topup.credits - current_topup.get_used()
-
-                if current_topup_remaining:
-                    # if we found some credit, assign the item to the current topup
-                    new_topup_items[current_topup].append(item)
-                    current_topup_remaining -= 1
-                else:
-                    # if not, then stop processing items
-                    break
-
-            # update items in the database with their new topups
-            for topup, items in new_topup_items.items():
-                msg_ids = [item.id for item in items if isinstance(item, Msg)]
-                Msg.objects.filter(id__in=msg_ids).update(topup=topup)
-
-        # any time we've reapplied topups, lets invalidate our credit cache too
-        self.clear_credit_cache()
-
-        # if we our suspended and have credits now, unsuspend ourselves
-        if self.is_suspended and self.get_credits_remaining() > 0:  # pragma: no cover
-            self.is_suspended = False
-            self.save(update_fields=["is_suspended"])
 
     def generate_dependency_graph(self, include_campaigns=True, include_triggers=False, include_archived=False):
         """
@@ -1525,7 +1213,7 @@ class Org(SmartModel):
 
         return all_components
 
-    def initialize(self, branding=None, topup_size=None, sample_flows=True):
+    def initialize(self, branding=None, sample_flows=True):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
@@ -1540,8 +1228,6 @@ class Org(SmartModel):
             ContactField.create_system_fields(self)
             Ticketer.create_internal_ticketer(self, branding)
             Topic.create_default_topic(self)
-
-            self.init_topups(topup_size)
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
         if sample_flows:
@@ -1682,10 +1368,6 @@ class Org(SmartModel):
 
         # release all archives objects and files for this org
         Archive.release_org_archives(self)
-
-        # return any unused credits to our parent
-        if self.parent:
-            self.allocate_credits(user, self.parent, self.get_credits_remaining())
 
         for topup in self.topups.all():
             topup.release()
@@ -1850,27 +1532,6 @@ class TopUp(SmartModel):
         help_text="Any comment associated with this topup, used when we credit accounts",
     )
 
-    @classmethod
-    def create(cls, org, user, price, credits, expires_on=None):
-        """
-        Creates a new topup
-        """
-
-        if not expires_on:
-            expires_on = timezone.now() + timedelta(days=365)  # credits last 1 year
-
-        topup = cls.objects.create(
-            org=org,
-            price=price,
-            credits=credits,
-            expires_on=expires_on,
-            created_by=user,
-            modified_by=user,
-        )
-
-        org.clear_credit_cache()
-        return topup
-
     def release(self):
 
         # clear us off any debits we are connected to
@@ -1886,100 +1547,6 @@ class TopUp(SmartModel):
             used.release()
 
         self.delete()
-
-    def get_ledger(self):  # pragma: needs cover
-        debits = self.debits.filter(debit_type=Debit.TYPE_ALLOCATION).order_by("-created_by")
-        balance = self.credits
-        ledger = []
-
-        active = self.get_remaining() < balance
-
-        if active:
-            transfer = self.allocations.all().first()
-
-            if transfer:
-                comment = _("Transfer from %s" % transfer.topup.org.name)
-            else:
-                price = -1 if self.price is None else self.price
-
-                if price > 0:
-                    comment = _("Purchased Credits")
-                elif price == 0:
-                    comment = _("Complimentary Credits")
-                else:
-                    comment = _("Credits")
-
-            ledger.append(dict(date=self.created_on, comment=comment, amount=self.credits, balance=self.credits))
-
-        for debit in debits:  # pragma: needs cover
-            balance -= debit.amount
-            ledger.append(
-                dict(
-                    date=debit.created_on,
-                    comment=_("Transfer to %(org)s") % dict(org=debit.beneficiary.org.name),
-                    amount=-debit.amount,
-                    balance=balance,
-                )
-            )
-
-        now = timezone.now()
-        expired = self.expires_on < now
-
-        # add a line for used message credits
-        if active:
-            ledger.append(
-                dict(
-                    date=self.expires_on if expired else now,
-                    comment=_("Messaging credits used"),
-                    amount=self.get_remaining() - balance,
-                    balance=self.get_remaining(),
-                )
-            )
-
-        # add a line for expired credits
-        if expired and self.get_remaining() > 0:
-            ledger.append(
-                dict(date=self.expires_on, comment=_("Expired credits"), amount=-self.get_remaining(), balance=0)
-            )
-        return ledger
-
-    def get_price_display(self):
-        if self.price is None:
-            return ""
-        elif self.price == 0:
-            return _("Free")
-
-        return "$%.2f" % self.dollars()
-
-    def dollars(self):
-        if self.price == 0:  # pragma: needs cover
-            return 0
-        else:
-            return Decimal(self.price) / Decimal(100)
-
-    def revert_topup(self):  # pragma: needs cover
-        # unwind any items that were assigned to this topup
-        self.msgs.update(topup=None)
-
-        # mark this topup as inactive
-        self.is_active = False
-        self.save()
-
-    def get_used(self):
-        """
-        Calculates how many topups have actually been used
-        """
-        used = TopUpCredits.objects.filter(topup=self).aggregate(used=Sum("used"))
-        return 0 if not used["used"] else used["used"]
-
-    def get_remaining(self):
-        """
-        Returns how many credits remain on this topup
-        """
-        return self.credits - self.get_used()
-
-    def __str__(self):  # pragma: needs cover
-        return f"{self.credits} Credits"
 
 
 class Debit(models.Model):
@@ -2035,23 +1602,6 @@ class TopUpCredits(SquashableModel):
 
     def release(self):
         self.delete()
-
-    def __str__(self):  # pragma: no cover
-        return f"{self.topup} (Used: {self.used})"
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = """
-        WITH deleted as (
-            DELETE FROM %(table)s WHERE "topup_id" = %%s RETURNING "used"
-        )
-        INSERT INTO %(table)s("topup_id", "used", "is_squashed")
-        VALUES (%%s, GREATEST(0, (SELECT SUM("used") FROM deleted)), TRUE);
-        """ % {
-            "table": cls._meta.db_table
-        }
-
-        return sql, (distinct_set.topup_id,) * 2
 
 
 class CreditAlert(SmartModel):

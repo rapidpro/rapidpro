@@ -792,35 +792,6 @@ class ChannelTest(TembaTest):
         android.refresh_from_db()
         self.assertFalse(android.is_active)
 
-    def test_no_topup_quota_exceeded(self):
-        # reduce out credits to 10
-        self.org.topups.all().update(credits=10)
-        self.org.clear_credit_cache()
-
-        self.assertEqual(10, self.org.get_credits_remaining())
-        self.assertEqual(0, self.org.get_credits_used())
-
-        # if we sync should get one message back
-        self.send_message(["250788382382"], "How is it going?")
-
-        response = self.sync(self.tel_channel, cmds=[])
-        self.assertEqual(200, response.status_code)
-        response = response.json()
-        self.assertEqual(1, len(response["cmds"]))
-
-        self.assertEqual(9, self.org.get_credits_remaining())
-        self.assertEqual(1, self.org.get_credits_used())
-
-        # let's create 10 other messages
-        for i in range(10):
-            self.send_message(["250788382%03d" % i], "This is message # %d" % i)
-
-        # should send all the 11 messages that exist
-        response = self.sync(self.tel_channel, cmds=[])
-        self.assertEqual(200, response.status_code)
-        response = response.json()
-        self.assertEqual(11, len(response["cmds"]))
-
     def test_sync_broadcast_multiple_channels(self):
         channel2 = Channel.create(
             self.org,

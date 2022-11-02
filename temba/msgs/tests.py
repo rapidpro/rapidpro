@@ -1843,21 +1843,12 @@ class BroadcastTest(TembaTest):
         self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today), 0)
         self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 1)
 
-        self.org.clear_credit_cache()
-        self.assertEqual(10, self.org.get_credits_used())
-        self.assertEqual(990, self.org.get_credits_remaining())
-
         # delete all our messages save for our flow incoming message
         for m in Msg.objects.exclude(id=msg_in3.id):
             m.delete()
 
         # broadcasts should be unaffected
         self.assertEqual(2, Broadcast.objects.count())
-
-        # credit usage remains the same
-        self.org.clear_credit_cache()
-        self.assertEqual(10, self.org.get_credits_used())
-        self.assertEqual(990, self.org.get_credits_remaining())
 
         # check system label counts have been updated
         self.assertEqual(0, SystemLabel.get_counts(self.org)[SystemLabel.TYPE_INBOX])

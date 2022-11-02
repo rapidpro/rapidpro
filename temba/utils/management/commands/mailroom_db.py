@@ -156,7 +156,7 @@ class Command(BaseCommand):
             created_by=superuser,
             modified_by=superuser,
         )
-        org.initialize(topup_size=100_000, sample_flows=False)
+        org.initialize(sample_flows=False)
 
         # set our sequences to make ids stable across orgs
         self.reset_id_sequences(spec["sequence_start"])
