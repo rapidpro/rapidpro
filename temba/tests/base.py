@@ -83,7 +83,7 @@ class TembaTestMixin:
         self.org2 = Org.objects.create(
             name="Trileet Inc.",
             timezone=pytz.timezone("US/Pacific"),
-            brand="rapidpro.io",
+            brand="rapidpro",
             created_by=self.admin2,
             modified_by=self.admin2,
         )
