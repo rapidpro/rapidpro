@@ -1,3 +1,9 @@
+v7.5.94
+----------
+ * Add missing migration
+ * Remove support for orgs with brand as the host
+ * Remove brand tiers
+
 v7.5.93
 ----------
  * Fix new event modal listeners
