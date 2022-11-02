@@ -1,7 +1,7 @@
 from django.conf import settings
 
 
-def get_branding_by_host(host: str) -> dict:
+def get_by_host(host: str) -> dict:
     """
     Returns the branding for the given host
     """
@@ -9,10 +9,10 @@ def get_branding_by_host(host: str) -> dict:
         if host in brand["hosts"]:
             return brand
 
-    return get_branding_by_slug(settings.DEFAULT_BRAND)
+    return get_by_slug(settings.DEFAULT_BRAND)
 
 
-def get_branding_by_slug(slug: str) -> dict:
+def get_by_slug(slug: str) -> dict:
     """
     Returns the branding for the given slug
     """
@@ -20,4 +20,8 @@ def get_branding_by_slug(slug: str) -> dict:
         if slug == brand["slug"]:
             return brand
 
-    return get_branding_by_slug(settings.DEFAULT_BRAND)
+    return get_by_slug(settings.DEFAULT_BRAND)
+
+
+def get_choices():
+    return [(b["slug"], b["name"]) for b in settings.BRANDS]

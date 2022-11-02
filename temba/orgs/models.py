@@ -30,8 +30,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.locations.models import AdminBoundary
-from temba.utils import chunk_list, json, languages
-from temba.utils.brands import get_branding_by_slug
+from temba.utils import brands, chunk_list, json, languages
 from temba.utils.cache import get_cacheable_result
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
@@ -609,7 +608,7 @@ class Org(SmartModel):
 
     @cached_property
     def branding(self):
-        return get_branding_by_slug(self.brand)
+        return brands.get_by_slug(self.brand)
 
     def get_brand_domain(self):
         return self.branding["domain"]
@@ -1534,7 +1533,7 @@ class Org(SmartModel):
 
         with transaction.atomic():
             if not branding:
-                branding = get_branding_by_slug(settings.DEFAULT_BRAND)
+                branding = brands.get_by_slug(settings.DEFAULT_BRAND)
 
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
