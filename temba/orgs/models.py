@@ -1431,30 +1431,6 @@ class Org(SmartModel):
             self.is_suspended = False
             self.save(update_fields=["is_suspended"])
 
-        # update our capabilities based on topups
-        self.update_capabilities()
-
-    def reset_capabilities(self):
-        """
-        Resets our capabilities based on the current tiers, mostly used in unit tests
-        """
-        self.is_multi_user = False
-        self.is_multi_org = False
-        self.update_capabilities()
-
-    def update_capabilities(self):
-        """
-        Using our topups and brand settings, figures out whether this org should be multi-user and multi-org. We never
-        disable one of these capabilities, but will turn it on for those that qualify via credits
-        """
-        if self.get_purchased_credits() >= self.branding.get("tiers", {}).get("multi_org", 0):
-            self.is_multi_org = True
-
-        if self.get_purchased_credits() >= self.branding.get("tiers", {}).get("multi_user", 0):
-            self.is_multi_user = True
-
-        self.save(update_fields=("is_multi_user", "is_multi_org"))
-
     def generate_dependency_graph(self, include_campaigns=True, include_triggers=False, include_archived=False):
         """
         Generates a dict of all exportable flows and campaigns for this org with each object's immediate dependencies
@@ -1568,7 +1544,6 @@ class Org(SmartModel):
             Topic.create_default_topic(self)
 
             self.init_topups(topup_size)
-            self.update_capabilities()
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
         if sample_flows:
