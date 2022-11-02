@@ -3152,14 +3152,32 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(count, len(menu))
 
     def test_home(self):
-        self.login(self.user)
-
         home_url = reverse("orgs.org_home")
+
+        self.login(self.user)
 
         with self.assertNumQueries(13):
             response = self.client.get(home_url)
 
+        # not so many options for viewers
         self.assertEqual(200, response.status_code)
+        self.assertEqual(2, len(response.context["formax"].sections))
+
+        self.login(self.admin)
+
+        with self.assertNumQueries(45):
+            response = self.client.get(home_url)
+
+        # more options for admins
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(14, len(response.context["formax"].sections))
+
+        self.org.is_multi_user = True
+        self.org.save(update_fields=("is_multi_user",))
+
+        response = self.client.get(home_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(15, len(response.context["formax"].sections))
 
     def test_menu(self):
         self.login(self.admin)
@@ -3223,14 +3241,17 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # make sure we have the appropriate number of sections
         self.assertEqual(7, len(response.context["formax"].sections))
+        self.assertNotContains(response, "New Workspace")
 
+        self.org.is_multi_org = True
         self.org.is_multi_user = True
-        self.org.save(update_fields=("is_multi_user",))
+        self.org.save(update_fields=("is_multi_org", "is_multi_user"))
 
         response = self.assertListFetch(workspace_url, allow_viewers=True, allow_editors=True, allow_agents=False)
 
         # we now have workspace management
         self.assertEqual(8, len(response.context["formax"].sections))
+        self.assertContains(response, "New Workspace")
 
         # create a child org
         self.child_org = Org.objects.create(
@@ -3244,7 +3265,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(21):
+        with self.assertNumQueries(22):
             response = self.client.get(reverse("orgs.org_workspace"))
 
         # should have an extra menu option for our child (and section header)
