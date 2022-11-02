@@ -1,3 +1,11 @@
+v7.5.93
+----------
+ * Fix new event modal listeners
+ * Re-add org plan and plan end to update form
+ * Add png of rapidpro logo
+ * Update mailroom_db and test_db commands to set org brand as slug
+ * Add data migration to convert org.brand to be the brand slug
+
 v7.5.92
 ----------
  * Create cla.yml
