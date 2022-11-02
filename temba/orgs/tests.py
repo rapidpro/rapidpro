@@ -1,6 +1,6 @@
 import io
 import smtplib
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import urlencode
@@ -4056,6 +4056,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "name",
                 "brand",
                 "parent",
+                "plan",
+                "plan_end",
                 "is_anon",
                 "is_multi_user",
                 "is_multi_org",
@@ -4089,6 +4091,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "name": "Temba",
                 "brand": "rapidpro.io",
                 "parent": parent.id,
+                "plan": "unicef",
+                "plan_end": "2027-12-31T00:00Z",
                 "is_anon": False,
                 "is_multi_user": False,
                 "is_multi_org": False,
@@ -4106,6 +4110,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
 
         self.org.refresh_from_db()
+        self.assertEqual(parent, self.org.parent)
+        self.assertEqual("unicef", self.org.plan)
+        self.assertEqual(datetime(2027, 12, 31, 0, 0, 0, 0, timezone.utc), self.org.plan_end)
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)  # uses default
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
@@ -4115,7 +4122,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.client.post(update_url, {"action": "unflag"})
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_flagged)
-        self.assertEqual(parent, self.org.parent)
 
         # verify
         self.client.post(update_url, {"action": "verify"})
@@ -5129,38 +5135,20 @@ class ConvertOrgBrandsToSlugsTest(MigrationTest):
     migrate_to = "0103_org_brands_to_slugs"
 
     def setUpBeforeMigration(self, apps):
-        # org aleady using the default brand slug
-        self.org1 = Org.objects.create(
-            name="Org 1",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand="rapidpro",
-            created_by=self.user,
-            modified_by=self.user,
-        )
-        # org aleady using the slug of another brand
-        self.org2 = Org.objects.create(
-            name="Org 2",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand="custom",
-            created_by=self.user,
-            modified_by=self.user,
-        )
-        # org using the host of the default brand
-        self.org3 = Org.objects.create(
-            name="Org 3",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand="rapidpro.io",
-            created_by=self.user,
-            modified_by=self.user,
-        )
-        # org using a host of another brand
-        self.org4 = Org.objects.create(
-            name="Org 4",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand="custom-brand.org",
-            created_by=self.user,
-            modified_by=self.user,
-        )
+        def create_org(name, brand):
+            return Org.objects.create(
+                name=name,
+                timezone=pytz.timezone("Africa/Kigali"),
+                brand=brand,
+                created_by=self.user,
+                modified_by=self.user,
+            )
+
+        self.org1 = create_org("Org 1", "rapidpro")  # org aleady using the default brand slug
+        self.org2 = create_org("Org 2", "custom")  # org aleady using the slug of another brand
+        self.org3 = create_org("Org 3", "rapidpro.io")  # org using the host of the default brand
+        self.org4 = create_org("Org 4", "custom-brand.org")  # org using a host of another brand
+        self.org5 = create_org("Org 5", "example.com")  # org using an unknown host
 
     def test_migration(self):
         def assert_brand(o, brand):
@@ -5171,3 +5159,4 @@ class ConvertOrgBrandsToSlugsTest(MigrationTest):
         assert_brand(self.org2, "custom")
         assert_brand(self.org3, "rapidpro")
         assert_brand(self.org4, "custom")
+        assert_brand(self.org5, "rapidpro")
