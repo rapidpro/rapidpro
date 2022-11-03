@@ -393,12 +393,6 @@ class OrgSignupForm(forms.ModelForm):
         widget=InputWidget(attrs={"widget_only": False, "placeholder": _("My Company, Inc.")}),
     )
 
-    def __init__(self, *args, **kwargs):
-        if "branding" in kwargs:
-            del kwargs["branding"]
-
-        super().__init__(*args, **kwargs)
-
     def clean_email(self):
         email = self.cleaned_data["email"]
         if email:

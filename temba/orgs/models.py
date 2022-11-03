@@ -1369,7 +1369,7 @@ class Org(SmartModel):
         # release all archives objects and files for this org
         Archive.release_org_archives(self)
 
-        for topup in self.topups.all():
+        for topup in self.topups.all():  # pragma: no cover
             topup.release()
 
         self.webhookevent_set.all().delete()
@@ -1532,7 +1532,7 @@ class TopUp(SmartModel):
         help_text="Any comment associated with this topup, used when we credit accounts",
     )
 
-    def release(self):
+    def release(self):  # pragma: no cover
 
         # clear us off any debits we are connected to
         Debit.objects.filter(topup=self).update(topup=None)
@@ -1541,10 +1541,7 @@ class TopUp(SmartModel):
         Debit.objects.filter(beneficiary=self).delete()
 
         # remove any credits associated with us
-        TopUpCredits.objects.filter(topup=self)
-
-        for used in TopUpCredits.objects.filter(topup=self):
-            used.release()
+        TopUpCredits.objects.filter(topup=self).delete()
 
         self.delete()
 
@@ -1599,9 +1596,6 @@ class TopUpCredits(SquashableModel):
 
     topup = models.ForeignKey(TopUp, on_delete=models.PROTECT)
     used = models.IntegerField()  # how many credits were used, can be negative
-
-    def release(self):
-        self.delete()
 
 
 class CreditAlert(SmartModel):

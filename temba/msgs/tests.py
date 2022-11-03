@@ -311,15 +311,12 @@ class MsgTest(TembaTest):
         ChannelLog.objects.create(channel=self.channel, msg=msg1, is_error=False)
         ChannelLog.objects.create(channel=self.channel, msg=msg2, is_error=False)
 
-        # we've used 2 credits
         self.assertEqual(3, Msg.objects.all().count())
-        self.assertEqual(self.org._calculate_credits_used()[0], 3)
 
-        # a soft delete should keep credits the same and clear text
+        # soft delete should clear text
         msg1.delete(soft=True)
         msg1.refresh_from_db()
         self.assertEqual(3, Msg.objects.all().count())
-        self.assertEqual(self.org._calculate_credits_used()[0], 3)
         self.assertEqual(Msg.VISIBILITY_DELETED_BY_USER, msg1.visibility)
         self.assertEqual("", msg1.text)
         self.assertEqual([], msg1.attachments)
@@ -331,7 +328,6 @@ class MsgTest(TembaTest):
         # test a hard delete as part of a contact removal
         msg2.delete()
         self.assertEqual(2, Msg.objects.all().count())
-        self.assertEqual(self.org._calculate_credits_used()[0], 3)  # used credits unchanged
         self.assertEqual(0, msg2.channel_logs.count())  # logs should be gone
 
     def test_get_sync_commands(self):
