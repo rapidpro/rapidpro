@@ -915,7 +915,6 @@ CELERY_BEAT_SCHEDULE = {
     "squash-flowcounts": {"task": "squash_flowcounts", "schedule": timedelta(seconds=60)},
     "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
     "squash-notificationcounts": {"task": "squash_notificationcounts", "schedule": timedelta(seconds=60)},
-    "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
     "squash-ticketcounts": {"task": "squash_ticketcounts", "schedule": timedelta(seconds=60)},
     "sync-classifier-intents": {"task": "sync_classifier_intents", "schedule": timedelta(seconds=300)},
     "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
