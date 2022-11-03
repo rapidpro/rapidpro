@@ -14,7 +14,24 @@ from .models import APIToken
 logger = logging.getLogger(__name__)
 
 
-class APITokenAuthentication(TokenAuthentication):
+class RequestAttributesMixin:
+    """
+    DRF authentication happens in the view level so request.org won't have been set by OrgMiddleware and needs to be
+    passed back here.
+    """
+
+    def authenticate(self, request):
+        result = super().authenticate(request)
+
+        # result is either tuple of (user,token) or None
+        org = result[1].org if result else None
+
+        # set org on the original wrapped request object
+        request._request.org = org
+        return result
+
+
+class APITokenAuthentication(RequestAttributesMixin, TokenAuthentication):
     """
     Simple token based authentication.
 
@@ -42,7 +59,7 @@ class APITokenAuthentication(TokenAuthentication):
         raise exceptions.AuthenticationFailed("Invalid token")
 
 
-class APIBasicAuthentication(BasicAuthentication):
+class APIBasicAuthentication(RequestAttributesMixin, BasicAuthentication):
     """
     Basic authentication.
 
