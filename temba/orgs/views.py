@@ -59,7 +59,7 @@ from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.settings_common import WORKSPACE_PLAN
-from temba.utils import analytics, get_anonymous_user, json, languages
+from temba.utils import analytics, brands, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address, send_template_email
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
@@ -2127,6 +2127,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, SmartUpdateView):
         class Form(forms.ModelForm):
+            brand = forms.ChoiceField(choices=brands.get_choices(), label=_("Brand"), required=True)
             parent = forms.IntegerField(required=False)
             plan_end = TembaDateTimeField(label=_("Plan End Date"))
 
