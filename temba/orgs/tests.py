@@ -4056,7 +4056,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             {
                 "name": "Temba",
-                "brand": "rapidpro.io",
+                "brand": "custom",
                 "parent": parent.id,
                 "plan": "unicef",
                 "plan_end": "2027-12-31T00:00Z",
@@ -4077,6 +4077,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
 
         self.org.refresh_from_db()
+        self.assertEqual("custom", self.org.brand)
         self.assertEqual(parent, self.org.parent)
         self.assertEqual("unicef", self.org.plan)
         self.assertEqual(datetime(2027, 12, 31, 0, 0, 0, 0, timezone.utc), self.org.plan_end)

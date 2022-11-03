@@ -8,7 +8,7 @@ from django.conf import settings
 from django.utils import timezone, translation
 
 from temba.orgs.models import Org
-from temba.utils.brands import get_branding_by_host
+from temba.utils import brands
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class BrandingMiddleware:
         if ":" in host:
             host = host[0 : host.rindex(":")]
 
-        return get_branding_by_host(host)
+        return brands.get_by_host(host)
 
 
 class OrgMiddleware:
