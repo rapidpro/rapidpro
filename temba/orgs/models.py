@@ -31,7 +31,7 @@ from temba.locations.models import AdminBoundary
 from temba.utils import brands, chunk_list, json, languages
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
-from temba.utils.models import JSONAsTextField, JSONField, SquashableModel
+from temba.utils.models import JSONAsTextField, JSONField
 from temba.utils.text import generate_token, random_string
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
@@ -489,15 +489,11 @@ class Org(SmartModel):
     )
 
     is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
-
     is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
-
-    uses_topups = models.BooleanField(default=True, help_text=_("Whether this organization uses topups."))
 
     is_multi_org = models.BooleanField(
         default=False, help_text=_("Whether this organization can have child workspaces")
     )
-
     is_multi_user = models.BooleanField(
         default=False, help_text=_("Whether this organization can have multiple logins")
     )
@@ -519,6 +515,9 @@ class Org(SmartModel):
     # when this org was released and when it was actually deleted
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
+
+    # TODO drop
+    uses_topups = models.BooleanField(null=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1386,7 +1385,6 @@ class Org(SmartModel):
         # delete other related objects
         self.api_tokens.all().delete()
         self.invitations.all().delete()
-        self.credit_alerts.all().delete()
         self.schedules.all().delete()
         self.boundaryalias_set.all().delete()
         self.templates.all().delete()
@@ -1498,8 +1496,7 @@ class Invitation(SmartModel):
 
 class TopUp(SmartModel):
     """
-    TopUps are used to track usage across the platform. Each TopUp represents a certain number of
-    credits that can be consumed by messages.
+    TODO drop
     """
 
     org = models.ForeignKey(
@@ -1539,15 +1536,12 @@ class TopUp(SmartModel):
         # any debits benefitting us are deleted
         Debit.objects.filter(beneficiary=self).delete()
 
-        # remove any credits associated with us
-        TopUpCredits.objects.filter(topup=self).delete()
-
         self.delete()
 
 
 class Debit(models.Model):
     """
-    Transactional history of credits allocated to other topups or chunks of archived messages
+    TODO drop
     """
 
     TYPE_ALLOCATION = "A"
@@ -1584,32 +1578,6 @@ class Debit(models.Model):
         help_text="The user which originally created this item",
     )
     created_on = models.DateTimeField(default=timezone.now, help_text="When this item was originally created")
-
-
-class TopUpCredits(SquashableModel):
-    """
-    Used to track number of credits used on a topup, mostly maintained by triggers on Msg insertion.
-    """
-
-    squash_over = ("topup_id",)
-
-    topup = models.ForeignKey(TopUp, on_delete=models.PROTECT)
-    used = models.IntegerField()  # how many credits were used, can be negative
-
-
-class CreditAlert(SmartModel):
-    """
-    TODO remove
-    """
-
-    TYPE_OVER = "O"
-    TYPE_LOW = "L"
-    TYPE_EXPIRING = "E"
-    TYPES = ((TYPE_OVER, _("Credits Over")), (TYPE_LOW, _("Low Credits")), (TYPE_EXPIRING, _("Credits expiring soon")))
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="credit_alerts")
-
-    alert_type = models.CharField(max_length=1, choices=TYPES)
 
 
 class BackupToken(models.Model):

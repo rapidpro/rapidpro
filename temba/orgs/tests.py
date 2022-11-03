@@ -44,7 +44,6 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     CRUDLTestMixin,
     ESMockWithScroll,
-    MigrationTest,
     MockResponse,
     TembaNonAtomicTest,
     TembaTest,
@@ -4755,36 +4754,3 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
-
-
-class ConvertOrgBrandsToSlugsTest(MigrationTest):
-    app = "orgs"
-    migrate_from = "0102_alter_org_brand_alter_org_plan"
-    migrate_to = "0103_org_brands_to_slugs"
-
-    def setUpBeforeMigration(self, apps):
-        def create_org(name, brand):
-            return Org.objects.create(
-                name=name,
-                timezone=pytz.timezone("Africa/Kigali"),
-                brand=brand,
-                created_by=self.user,
-                modified_by=self.user,
-            )
-
-        self.org1 = create_org("Org 1", "rapidpro")  # org aleady using the default brand slug
-        self.org2 = create_org("Org 2", "custom")  # org aleady using the slug of another brand
-        self.org3 = create_org("Org 3", "rapidpro.io")  # org using the host of the default brand
-        self.org4 = create_org("Org 4", "custom-brand.org")  # org using a host of another brand
-        self.org5 = create_org("Org 5", "example.com")  # org using an unknown host
-
-    def test_migration(self):
-        def assert_brand(o, brand):
-            o.refresh_from_db()
-            self.assertEqual(o.brand, brand)
-
-        assert_brand(self.org1, "rapidpro")
-        assert_brand(self.org2, "custom")
-        assert_brand(self.org3, "rapidpro")
-        assert_brand(self.org4, "custom")
-        assert_brand(self.org5, "rapidpro")

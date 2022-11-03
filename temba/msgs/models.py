@@ -26,7 +26,7 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactURN
-from temba.orgs.models import DependencyMixin, Org, TopUp
+from temba.orgs.models import DependencyMixin, Org
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
@@ -563,8 +563,6 @@ class Msg(models.Model):
 
     # the id of this message on the other side of its channel
     external_id = models.CharField(max_length=255, null=True)
-
-    topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
 
     metadata = JSONAsTextField(null=True, default=dict)
     log_uuids = ArrayField(models.UUIDField(), null=True)
