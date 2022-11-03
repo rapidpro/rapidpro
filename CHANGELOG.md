@@ -1,3 +1,7 @@
+v7.5.96
+----------
+ * Remove topup credits squash task from celery beat
+
 v7.5.95
 ----------
  * Update API auth classes to set request.org and use that to set X-Temba-Org header
