@@ -323,7 +323,6 @@ BRANDS = [
         "colors": dict(primary="#0c6596"),
         "styles": ["brands/rapidpro/font/style.css"],
         "default_plan": TOPUP_PLAN,
-        "welcome_topup": 1000,
         "email": "join@rapidpro.io",
         "support_email": "support@rapidpro.io",
         "link": "https://app.rapidpro.io",
@@ -333,7 +332,6 @@ BRANDS = [
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "images/logo-dark.svg",
         "allow_signups": True,
-        "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         "title": _("Visually build nationally scalable mobile applications"),
     }
 ]

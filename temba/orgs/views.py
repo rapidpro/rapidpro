@@ -39,7 +39,7 @@ from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
-from django.db.models import Q, Sum
+from django.db.models import Q
 from django.forms import Form
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import resolve_url
@@ -393,12 +393,6 @@ class OrgSignupForm(forms.ModelForm):
         widget=InputWidget(attrs={"widget_only": False, "placeholder": _("My Company, Inc.")}),
     )
 
-    def __init__(self, *args, **kwargs):
-        if "branding" in kwargs:
-            del kwargs["branding"]
-
-        super().__init__(*args, **kwargs)
-
     def clean_email(self):
         email = self.cleaned_data["email"]
         if email:
@@ -431,21 +425,6 @@ class OrgGrantForm(forms.ModelForm):
         help_text=_("Their password, at least eight letters please. (leave blank for existing login)"),
     )
     name = forms.CharField(label=_("Workspace"), help_text=_("The name of the new workspace"))
-    credits = forms.ChoiceField(choices=(), help_text=_("The initial number of credits granted to this workspace"))
-
-    def __init__(self, *args, **kwargs):
-        branding = kwargs["branding"]
-        del kwargs["branding"]
-
-        super().__init__(*args, **kwargs)
-
-        welcome_packs = branding["welcome_packs"]
-
-        choices = []
-        for pack in welcome_packs:
-            choices.append((str(pack["size"]), "%d - %s" % (pack["size"], pack["name"])))
-
-        self.fields["credits"].choices = choices
 
     def clean(self):
         data = self.cleaned_data
@@ -2078,7 +2057,7 @@ class OrgCRUDL(SmartCRUDL):
     class Manage(StaffOnlyMixin, SpaMixin, SmartListView):
         fields = ("name", "owner", "created_on", "service")
         field_config = {"service": {"label": ""}}
-        default_order = ("-credits", "-created_on")
+        default_order = ("-created_on",)
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
         link_fields = ("name", "owner")
         filters = (
@@ -2129,7 +2108,7 @@ class OrgCRUDL(SmartCRUDL):
             elif obj_filter and obj_filter != "all":
                 qs = qs.filter(Q(plan=obj_filter) | Q(name__icontains=obj_filter))
 
-            return qs.annotate(credits=Sum("topups__credits")).annotate(paid=Sum("topups__price"))
+            return qs
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -2628,11 +2607,7 @@ class OrgCRUDL(SmartCRUDL):
             ids = [child.id for child in Org.objects.filter(parent=org)]
             ids.append(org.id)
 
-            queryset = queryset.filter(is_active=True)
-            queryset = queryset.filter(id__in=ids)
-            queryset = queryset.annotate(credits=Sum("topups__credits"))
-            queryset = queryset.annotate(paid=Sum("topups__price"))
-            return queryset.order_by("-parent", "name")
+            return queryset.filter(id__in=ids, is_active=True).order_by("-parent", "name")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -3100,7 +3075,7 @@ class OrgCRUDL(SmartCRUDL):
     class Grant(NonAtomicMixin, SmartCreateView):
         title = _("Create Workspace Account")
         form_class = OrgGrantForm
-        fields = ("first_name", "last_name", "email", "password", "name", "timezone", "credits")
+        fields = ("first_name", "last_name", "email", "password", "name", "timezone")
         success_message = "Workspace successfully created."
         submit_button_name = _("Create")
         success_url = "@orgs.org_grant"
@@ -3114,11 +3089,6 @@ class OrgCRUDL(SmartCRUDL):
                 return user
 
             return User.create(email, first_name, last_name, password=password, language=language)
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["branding"] = self.request.branding
-            return kwargs
 
         def pre_save(self, obj):
             obj = super().pre_save(obj)
@@ -3148,9 +3118,6 @@ class OrgCRUDL(SmartCRUDL):
 
             return obj
 
-        def get_welcome_size(self):  # pragma: needs cover
-            return self.form.cleaned_data["credits"]
-
         def post_save(self, obj):
             obj = super().post_save(obj)
             obj.add_user(self.user, OrgRole.ADMINISTRATOR)
@@ -3160,7 +3127,7 @@ class OrgCRUDL(SmartCRUDL):
             ):  # pragma: needs cover
                 obj.add_user(self.request.user, OrgRole.ADMINISTRATOR)
 
-            obj.initialize(branding=obj.branding, topup_size=self.get_welcome_size())
+            obj.initialize(branding=obj.branding)
 
             return obj
 
@@ -3186,10 +3153,6 @@ class OrgCRUDL(SmartCRUDL):
             initial = super().get_initial()
             initial["email"] = self.request.POST.get("email", self.request.GET.get("email", None))
             return initial
-
-        def get_welcome_size(self):
-            welcome_topup_size = self.request.branding.get("welcome_topup", 0)
-            return welcome_topup_size
 
         def post_save(self, obj):
             user = authenticate(username=self.user.username, password=self.form.cleaned_data["password"])

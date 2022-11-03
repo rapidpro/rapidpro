@@ -5276,7 +5276,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
             modified_by=self.admin,
         )
 
-        self.org.initialize(topup_size=1000)
+        self.org.initialize()
         self.org.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
         self.client.login(username=self.admin.username, password=self.admin.username)

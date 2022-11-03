@@ -7,7 +7,6 @@ from urllib.parse import urlencode
 
 import pytz
 from bs4 import BeautifulSoup
-from dateutil.relativedelta import relativedelta
 from smartmin.users.models import FailedLogin, RecoveryToken
 
 from django.conf import settings
@@ -61,8 +60,8 @@ from temba.triggers.models import Trigger
 from temba.utils import json, languages
 
 from .context_processors import RolePermsWrapper
-from .models import BackupToken, Debit, Invitation, Org, OrgActivity, OrgMembership, OrgRole, TopUp, TopUpCredits, User
-from .tasks import delete_orgs_task, resume_failed_tasks, squash_topupcredits, update_org_activity
+from .models import BackupToken, Invitation, Org, OrgActivity, OrgMembership, OrgRole, User
+from .tasks import delete_orgs_task, resume_failed_tasks, update_org_activity
 
 
 class OrgRoleTest(TembaTest):
@@ -782,12 +781,9 @@ class OrgDeleteTest(TembaNonAtomicTest):
         # our user is a member of two orgs
         self.parent_org = self.org
         self.child_org.add_user(self.user, OrgRole.ADMINISTRATOR)
-        self.child_org.initialize(topup_size=0)
+        self.child_org.initialize()
         self.child_org.parent = self.parent_org
         self.child_org.save()
-
-        # now allocate some credits to our child org
-        self.org.allocate_credits(self.admin, self.child_org, 300)
 
         parent_contact = self.create_contact("Parent Contact", phone="+2345123", org=self.parent_org)
         child_contact = self.create_contact("Child Contact", phone="+3456123", org=self.child_org)
@@ -971,9 +967,6 @@ class OrgDeleteTest(TembaNonAtomicTest):
         ticket = self.create_ticket(ticketer, self.org.contacts.first(), "Help")
         ticket.events.create(org=self.org, contact=ticket.contact, event_type="N", note="spam", created_by=self.admin)
 
-        # make sure we don't have any uncredited topups
-        self.parent_org.apply_topups()
-
     def release_org(self, org, child_org=None, delete=False, expected_files=3):
 
         with patch("temba.utils.s3.client", return_value=self.mock_s3):
@@ -1066,17 +1059,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             self.release_org(self.parent_org, self.child_org, delete=True)
 
     def test_release_child_and_delete(self):
-        # 300 credits were given to our child org and each used one
-        self.assertEqual(695, self.parent_org.get_credits_remaining())
-        self.assertEqual(299, self.child_org.get_credits_remaining())
-
-        # release our child org
         self.release_org(self.child_org, delete=True, expected_files=2)
-
-        # TopUps are on their way out, removing this intermittantly failing test now
-        # our unused credits are returned to the parent
-        # self.parent_org.clear_credit_cache()
-        # self.assertEqual(994, self.parent_org.get_credits_remaining())
 
     def test_delete_task(self):
         # can't delete an unreleased org
@@ -2077,208 +2060,6 @@ class OrgTest(TembaTest):
         # and that we have the surveyor role
         self.assertEqual(OrgRole.SURVEYOR, self.org.get_user_role(User.objects.get(username="beastmode@seahawks.com")))
 
-    def test_topup_model(self):
-        topup = TopUp.create(self.org, self.admin, price=None, credits=1000)
-
-        self.assertEqual(topup.get_price_display(), "")
-
-        topup.price = 0
-        topup.save()
-
-        self.assertEqual(topup.get_price_display(), "Free")
-
-        topup.price = 100
-        topup.save()
-
-        self.assertEqual(topup.get_price_display(), "$1.00")
-
-        # ttl should never be negative even if expired
-        topup.expires_on = timezone.now() - timedelta(days=1)
-        topup.save(update_fields=["expires_on"])
-        self.assertEqual(10, self.org.get_topup_ttl(topup))
-
-    def test_topup_expiration(self):
-
-        contact = self.create_contact("Usain Bolt", phone="+250788123123")
-        welcome_topup = self.org.topups.get()
-
-        # send some messages with a valid topup
-        self.create_incoming_msgs(contact, 10)
-        self.assertEqual(10, Msg.objects.filter(org=self.org, topup=welcome_topup).count())
-        self.assertEqual(990, self.org.get_credits_remaining())
-
-        # now expire our topup and try sending more messages
-        welcome_topup.expires_on = timezone.now() - timedelta(hours=1)
-        welcome_topup.save(update_fields=("expires_on",))
-        self.org.clear_credit_cache()
-
-        # we should have no credits remaining since we expired
-        self.assertEqual(0, self.org.get_credits_remaining())
-        self.create_incoming_msgs(contact, 5)
-
-        # those messages are waiting to send
-        self.assertEqual(5, Msg.objects.filter(org=self.org, topup=None).count())
-
-        # so we should report -5 credits
-        self.assertEqual(-5, self.org.get_credits_remaining())
-
-        # our first 10 messages plus our 5 pending a topup
-        self.assertEqual(15, self.org.get_credits_used())
-
-    def test_topups(self):
-        self.org.is_multi_org = False
-        self.org.is_multi_user = False
-        self.org.save(update_fields=["is_multi_user", "is_multi_org"])
-
-        contact = self.create_contact("Michael Shumaucker", phone="+250788123123")
-        welcome_topup = self.org.topups.get()
-
-        self.create_incoming_msgs(contact, 10)
-
-        # we should have 1000 minus 10 credits for this org
-        with self.assertNumQueries(5):
-            self.assertEqual(990, self.org.get_credits_remaining())  # from db
-
-        with self.assertNumQueries(0):
-            self.assertEqual(1000, self.org.get_credits_total())  # from cache
-            self.assertEqual(10, self.org.get_credits_used())
-            self.assertEqual(990, self.org.get_credits_remaining())
-
-        welcome_topup.refresh_from_db()
-        self.assertEqual(10, welcome_topup.msgs.count())
-        self.assertEqual(10, welcome_topup.get_used())
-
-        # at this point we shouldn't have squashed any topup credits, so should have the same number as our used
-        self.assertEqual(10, TopUpCredits.objects.all().count())
-
-        # now squash
-        squash_topupcredits()
-
-        # should only have one remaining
-        self.assertEqual(1, TopUpCredits.objects.all().count())
-
-        # reduce our credits on our topup to 15
-        TopUp.objects.filter(pk=welcome_topup.pk).update(credits=15)
-        self.org.clear_credit_cache()
-
-        self.assertEqual(15, self.org.get_credits_total())
-        self.assertEqual(5, self.org.get_credits_remaining())
-
-        # create 10 more messages, only 5 of which will get a topup
-        self.create_incoming_msgs(contact, 10)
-
-        welcome_topup.refresh_from_db()
-        self.assertEqual(15, welcome_topup.msgs.count())
-        self.assertEqual(15, welcome_topup.get_used())
-
-        (topup, _) = self.org._calculate_active_topup()
-        self.assertFalse(topup)
-
-        # we generate queries for total and used when we are near a boundary
-        with self.assertNumQueries(4):
-            self.assertEqual(15, self.org.get_credits_total())
-            self.assertEqual(20, self.org.get_credits_used())
-            self.assertEqual(-5, self.org.get_credits_remaining())
-
-        # again create 10 more messages, none of which will get a topup
-        self.create_incoming_msgs(contact, 10)
-
-        with self.assertNumQueries(0):
-            self.assertEqual(15, self.org.get_credits_total())
-            self.assertEqual(30, self.org.get_credits_used())
-            self.assertEqual(-15, self.org.get_credits_remaining())
-
-        self.assertEqual(15, TopUp.objects.get(pk=welcome_topup.pk).get_used())
-
-        # raise our topup to take 20 and create another for 5
-        TopUp.objects.filter(pk=welcome_topup.pk).update(credits=20)
-        new_topup = TopUp.create(self.org, self.admin, price=0, credits=5)
-
-        # apply topups which will max out both and reduce debt to 5
-        self.org.apply_topups()
-
-        self.assertEqual(20, welcome_topup.msgs.count())
-        self.assertEqual(20, TopUp.objects.get(pk=welcome_topup.pk).get_used())
-        self.assertEqual(5, new_topup.msgs.count())
-        self.assertEqual(5, TopUp.objects.get(pk=new_topup.pk).get_used())
-        self.assertEqual(25, self.org.get_credits_total())
-        self.assertEqual(30, self.org.get_credits_used())
-        self.assertEqual(-5, self.org.get_credits_remaining())
-
-        # test special status
-        self.assertFalse(self.org.is_multi_user)
-        self.assertFalse(self.org.is_multi_org)
-
-        # add new topup with lots of credits
-        mega_topup = TopUp.create(self.org, self.admin, price=0, credits=100_000)
-
-        # after applying this, no messages should be without a topup
-        self.org.apply_topups()
-        self.assertFalse(Msg.objects.filter(org=self.org, topup=None))
-        self.assertEqual(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
-
-        # we aren't yet multi user since this topup was free
-        self.assertEqual(0, self.org.get_purchased_credits())
-        self.assertFalse(self.org.is_multi_user)
-
-        self.assertEqual(100_025, self.org.get_credits_total())
-        self.assertEqual(99995, self.org.get_credits_remaining())
-        self.assertEqual(30, self.org.get_credits_used())
-
-        # and new messages use the mega topup
-        msg = self.create_incoming_msg(contact, "Test")
-        self.assertEqual(msg.topup, mega_topup)
-        self.assertEqual(6, TopUp.objects.get(pk=mega_topup.pk).get_used())
-
-        # but now it expires
-        yesterday = timezone.now() - relativedelta(days=1)
-        mega_topup.expires_on = yesterday
-        mega_topup.save(update_fields=["expires_on"])
-        self.org.clear_credit_cache()
-
-        # new incoming messages should not be assigned a topup
-        msg = self.create_incoming_msg(contact, "Test")
-        self.assertIsNone(msg.topup)
-
-        # check our totals
-        self.org.clear_credit_cache()
-
-        with self.assertNumQueries(6):
-            self.assertEqual(0, self.org.get_purchased_credits())
-            self.assertEqual(31, self.org.get_credits_total())
-            self.assertEqual(32, self.org.get_credits_used())
-            self.assertEqual(-1, self.org.get_credits_remaining())
-
-        # all top up expired
-        TopUp.objects.all().update(expires_on=yesterday)
-
-        # we have expiring credits, and no more active
-        gift_topup = TopUp.create(self.org, self.admin, price=0, credits=100)
-        next_week = timezone.now() + relativedelta(days=7)
-        gift_topup.expires_on = next_week
-        gift_topup.save(update_fields=["expires_on"])
-        self.org.apply_topups()
-
-        # some credits expires but more credits will remain active
-        later_active_topup = TopUp.create(self.org, self.admin, price=0, credits=200)
-        five_week_ahead = timezone.now() + relativedelta(days=35)
-        later_active_topup.expires_on = five_week_ahead
-        later_active_topup.save(update_fields=["expires_on"])
-        self.org.apply_topups()
-
-        # no expiring credits
-        gift_topup.expires_on = five_week_ahead
-        gift_topup.save(update_fields=["expires_on"])
-        self.org.clear_credit_cache()
-
-        # do not consider expired topup
-        gift_topup.expires_on = yesterday
-        gift_topup.save(update_fields=["expires_on"])
-        self.org.clear_credit_cache()
-
-        TopUp.objects.all().update(is_active=False)
-        self.org.clear_credit_cache()
-
     @patch("temba.orgs.views.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_twilio_connect(self):
@@ -2926,9 +2707,6 @@ class OrgTest(TembaTest):
         # default values should be the same as parent
         self.assertEqual(self.org.timezone, sub_org.timezone)
 
-        # our sub account should have zero credits
-        self.assertEqual(0, sub_org.get_credits_remaining())
-
         self.login(self.admin, choose_org=self.org)
 
         response = self.client.get(reverse("orgs.org_edit"))
@@ -2941,92 +2719,6 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse("orgs.org_edit"))
         self.assertEqual(200, response.status_code)
         self.assertEqual(len(response.context["sub_orgs"]), 0)
-
-    def test_sub_orgs(self):
-        # lets start with two topups
-        oldest_topup = TopUp.objects.filter(org=self.org).first()
-
-        expires = timezone.now() + timedelta(days=400)
-        newer_topup = TopUp.create(self.org, self.admin, price=0, credits=1000, expires_on=expires)
-
-        # enable multi-org and create child org
-        self.org.is_multi_org = True
-        self.org.save(update_fields=("is_multi_org",))
-        sub_org = self.org.create_child(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
-
-        # send a message as sub_org
-        self.create_channel(
-            "A",
-            "Test Channel",
-            "+250785551212",
-            secret="12355",
-            config={Channel.CONFIG_FCM_ID: "145"},
-            country="RW",
-            org=sub_org,
-        )
-        contact = self.create_contact("Joe", phone="+250788383444", org=sub_org)
-        msg = self.create_outgoing_msg(contact, "How is it going?")
-
-        # there is no topup on suborg, and this msg won't be credited
-        self.assertFalse(msg.topup)
-
-        # now allocate some credits to our sub org
-        self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 700))
-
-        msg.refresh_from_db()
-        # allocating credits will execute apply_topups_task and assign a topup
-        self.assertTrue(msg.topup)
-
-        self.assertEqual(699, sub_org.get_credits_remaining())
-        self.assertEqual(1300, self.org.get_credits_remaining())
-
-        # we should have a debit to track this transaction
-        debits = Debit.objects.filter(topup__org=self.org)
-        self.assertEqual(1, len(debits))
-
-        debit = debits.first()
-        self.assertEqual(700, debit.amount)
-        self.assertEqual(Debit.TYPE_ALLOCATION, debit.debit_type)
-        # newest topup has been used first
-        self.assertEqual(newer_topup.expires_on, debit.beneficiary.expires_on)
-        self.assertEqual(debit.amount, 700)
-
-        # try allocating more than we have
-        self.assertFalse(self.org.allocate_credits(self.admin, sub_org, 1301))
-
-        self.assertEqual(699, sub_org.get_credits_remaining())
-        self.assertEqual(1300, self.org.get_credits_remaining())
-        self.assertEqual(700, self.org._calculate_credits_used()[0])
-
-        # now allocate across our remaining topups
-        self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 1200))
-        self.assertEqual(1899, sub_org.get_credits_remaining())
-        self.assertEqual(1900, self.org.get_credits_used())
-        self.assertEqual(100, self.org.get_credits_remaining())
-
-        # now clear our cache, we ought to have proper amount still
-        self.org.clear_credit_cache()
-        sub_org.clear_credit_cache()
-
-        self.assertEqual(1899, sub_org.get_credits_remaining())
-        self.assertEqual(100, self.org.get_credits_remaining())
-
-        # this creates two more debits, for a total of three
-        debits = Debit.objects.filter(topup__org=self.org).order_by("id")
-        self.assertEqual(3, len(debits))
-
-        # verify that we used most recent topup first
-        self.assertEqual(newer_topup.expires_on, debits[1].topup.expires_on)
-        self.assertEqual(debits[1].amount, 300)
-        # and debited missing amount from the next topup
-        self.assertEqual(oldest_topup.expires_on, debits[2].topup.expires_on)
-        self.assertEqual(debits[2].amount, 900)
-
-        # allocate the exact number of credits remaining
-        self.org.allocate_credits(self.admin, sub_org, 100)
-
-        self.assertEqual(1999, sub_org.get_credits_remaining())
-        self.assertEqual(0, self.org.get_credits_remaining())
 
     @patch("temba.msgs.tasks.export_messages_task.delay")
     @patch("temba.flows.tasks.export_flow_results_task.delay")
@@ -3303,7 +2995,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "created")
 
         org = Org.objects.get(name="Oculus")
-        self.assertEqual(100_000, org.get_credits_remaining())
         self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
 
         # check user exists and is admin
@@ -3319,7 +3010,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "created")
 
         org = Org.objects.get(name="id Software")
-        self.assertEqual(100_000, org.get_credits_remaining())
         self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
 
         self.assertEqual(OrgRole.ADMINISTRATOR, org.get_user_role(User.objects.get(username="john@carmack.com")))
@@ -3333,7 +3023,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "created")
 
         org = Org.objects.get(name="Bulls")
-        self.assertEqual(100_000, org.get_credits_remaining())
         self.assertEqual(Org.DATE_FORMAT_MONTH_FIRST, org.date_format)
         self.assertEqual("en-us", org.language)
         self.assertEqual(["eng"], org.flow_languages)
@@ -3489,26 +3178,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # not the logged in user at the signup time
         self.assertFalse(org.get_admins().filter(pk=self.user.pk))
 
-    @override_settings(DEFAULT_BRAND="notopups")
-    def test_no_topup_signup(self):
-        signup_url = reverse("orgs.org_signup")
-        response = self.client.post(
-            signup_url,
-            {
-                "first_name": "Eugene",
-                "last_name": "Rwagasore",
-                "email": "test@foo.org",
-                "password": "HeyThere123",
-                "name": "No Topups",
-                "timezone": "Africa/Kigali",
-            },
-        )
-        self.assertEqual(response.status_code, 302)
-
-        org = Org.objects.get(name="No Topups")
-        self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
-        self.assertFalse(org.uses_topups)
-
     @override_settings(
         AUTH_PASSWORD_VALIDATORS=[
             {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
@@ -3587,18 +3256,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         org = Org.objects.get(name="Relieves World")
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(str(org), "Relieves World")
-        self.assertTrue(org.uses_topups)
 
         # of which our user is an administrator
         self.assertTrue(org.get_admins().filter(pk=user.pk))
-
-        # org should have 1000 credits
-        self.assertEqual(org.get_credits_remaining(), 1000)
-
-        # from a single welcome topup
-        topup = TopUp.objects.get(org=org)
-        self.assertEqual(topup.credits, 1000)
-        self.assertEqual(topup.price, 0)
 
         # check default org content was created correctly
         system_fields = set(org.fields.filter(is_system=True).values_list("key", flat=True))

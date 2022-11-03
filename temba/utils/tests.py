@@ -7,7 +7,6 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import pytz
-from django_redis import get_redis_connection
 
 from django.conf import settings
 from django.forms import ValidationError
@@ -18,7 +17,6 @@ from django.utils import timezone, translation
 from celery.app.task import Task
 
 from temba.campaigns.models import Campaign
-from temba.contacts.models import Contact
 from temba.flows.models import Flow
 from temba.tests import TembaTest, matchers
 from temba.triggers.models import Trigger
@@ -26,7 +24,6 @@ from temba.utils import json, uuid
 from temba.utils.templatetags.temba import format_datetime, icon
 
 from . import chunk_list, countries, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
-from .cache import get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
@@ -407,56 +404,6 @@ class TemplateTagTestSimple(TestCase):
             to_json(json.dumps({"special": '<script>alert("XSS");</script>'})),
             'JSON.parse("{\\u0022special\\u0022: \\u0022\\u003Cscript\\u003Ealert(\\u005C\\u0022XSS\\u005C\\u0022)\\u003B\\u003C/script\\u003E\\u0022}")',
         )
-
-
-class CacheTest(TembaTest):
-    def test_get_cacheable_result(self):
-        self.create_contact("Bob", phone="1234")
-
-        def calculate():
-            return Contact.objects.all().count(), 60
-
-        with self.assertNumQueries(1):
-            self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # from db
-        with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # from cache
-
-        self.create_contact("Jim", phone="2345")
-
-        with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # not updated
-
-        get_redis_connection().delete("test_contact_count")  # delete from cache for force re-fetch from db
-
-        with self.assertNumQueries(1):
-            self.assertEqual(get_cacheable_result("test_contact_count", calculate), 2)  # from db
-        with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result("test_contact_count", calculate), 2)  # from cache
-
-    def test_incrby_existing(self):
-        r = get_redis_connection()
-        r.setex("foo", 100, 10)
-        r.set("bar", 20)
-
-        incrby_existing("foo", 3, r)  # positive delta
-        self.assertEqual(r.get("foo"), b"13")
-        self.assertTrue(r.ttl("foo") > 0)
-
-        incrby_existing("foo", -1, r)  # negative delta
-        self.assertEqual(r.get("foo"), b"12")
-        self.assertTrue(r.ttl("foo") > 0)
-
-        r.setex("foo", 100, 0)
-        incrby_existing("foo", 5, r)  # zero val key
-        self.assertEqual(r.get("foo"), b"5")
-        self.assertTrue(r.ttl("foo") > 0)
-
-        incrby_existing("bar", 5, r)  # persistent key
-        self.assertEqual(r.get("bar"), b"25")
-        self.assertTrue(r.ttl("bar") < 0)
-
-        incrby_existing("xxx", -2, r)  # non-existent key
-        self.assertIsNone(r.get("xxx"))
 
 
 class EmailTest(TembaTest):
