@@ -1,3 +1,9 @@
+v7.5.95
+----------
+ * Update API auth classes to set request.org and use that to set X-Temba-Org header
+ * Use dropdown for brand field on org update form
+ * Remove topups
+
 v7.5.94
 ----------
  * Add missing migration
