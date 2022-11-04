@@ -247,6 +247,11 @@ class ExplorerView(SmartTemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
+        org = self.request.org
+        user = self.request.user
+
+        context["api_token"] = user.get_api_token(org) if (org and user) else None
         context["endpoints"] = [
             ArchivesEndpoint.get_read_explorer(),
             BoundariesEndpoint.get_read_explorer(),

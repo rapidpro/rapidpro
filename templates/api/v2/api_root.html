@@ -139,7 +139,7 @@
         {% endfor %}
 
         <li class="mr-4" style="flex-grow:1"></li>
-        {% if request.user.api_token %}<li class="token" style="color: #666">API Token: {{ request.user.api_token }}</li>{% else %}<li class="pull-right">Log in to get your API Token</li>{% endif %}
+        {% if api_token %}<li class="token" style="color: #666">API Token: {{ api_token }}</li>{% else %}<li class="pull-right">Log in to get your API Token</li>{% endif %}
     </ul>
     {% endblock %}
 

@@ -3243,6 +3243,11 @@ class OrgCRUDL(SmartCRUDL):
         success_url = "@orgs.org_home"
         success_message = ""
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["api_token"] = self.request.user.get_api_token(self.request.org)
+            return context
+
     class Prometheus(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ToggleForm(forms.ModelForm):
             class Meta:

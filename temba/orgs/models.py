@@ -255,11 +255,10 @@ class User(AuthUser):
 
         return UserSettings.objects.get_or_create(user=self)[0]
 
-    @cached_property
-    def api_token(self) -> str:
+    def get_api_token(self, org) -> str:
         from temba.api.models import get_or_create_api_token
 
-        return get_or_create_api_token(self)
+        return get_or_create_api_token(org, self)
 
     def as_engine_ref(self) -> dict:
         return {"email": self.email, "name": self.name}
